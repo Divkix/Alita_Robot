@@ -14,10 +14,8 @@ import (
 )
 
 func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	if err := locks.UpdateLock(chat.Id, "url", true); err != nil {
 		t.Fatalf("UpdateLock setup error = %v", err)
 	}
@@ -49,10 +47,8 @@ func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
 }
 
 func TestLockAndUnlockCommandsPersistSettings(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
 
 	lockCtx := newModuleMessageContext(bot, chat, admin, "/lock url media")
 	if err := locksModule.lockPerm(bot, lockCtx); err != ext.EndGroups {
@@ -74,11 +70,30 @@ func TestLockAndUnlockCommandsPersistSettings(t *testing.T) {
 	}
 }
 
+func TestLockCommandsRefuseMembers(t *testing.T) {
+	f := newAdminChatFixture(t)
+	bot, chat, member := f.bot, f.chat, f.member
+	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
+		t.Fatalf("UpdateLock setup error = %v", err)
+	}
+
+	if err := locksModule.lockPerm(bot, newModuleMessageContext(bot, chat, member, "/lock url")); err != ext.EndGroups {
+		t.Fatalf("lockPerm(member) error = %v, want EndGroups", err)
+	}
+	if locks.IsPermLocked(chat.Id, "url") {
+		t.Fatal("a member locked url")
+	}
+	if err := locksModule.unlockPerm(bot, newModuleMessageContext(bot, chat, member, "/unlock media")); err != ext.EndGroups {
+		t.Fatalf("unlockPerm(member) error = %v, want EndGroups", err)
+	}
+	if !locks.IsPermLocked(chat.Id, "media") {
+		t.Fatal("a member unlocked media")
+	}
+}
+
 func TestLockCommandsRejectMissingAndInvalidTypes(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	missingCtx := newModuleMessageContext(bot, chat, admin, "/lock")
 	if err := locksModule.lockPerm(bot, missingCtx); err != ext.EndGroups {

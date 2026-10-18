@@ -48,7 +48,7 @@ func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
 
 func TestFilterOverwriteCacheRoundTripsCurrentData(t *testing.T) {
 	if cache.GetMarshal() == nil {
-		t.Skip("requires cache marshal")
+		t.Fatal("cache marshaler is not initialised; TestMain must set it")
 	}
 
 	current := overwriteFilter{overwriteBase: overwriteBase{

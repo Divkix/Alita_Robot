@@ -312,7 +312,7 @@ func TestVerifyAnonymousAdminEditsExpiredButton(t *testing.T) {
 func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 	m := cache.GetMarshal()
 	if m == nil {
-		t.Skip("requires initialized cache marshaler")
+		t.Fatal("cache marshaler is not initialised; TestMain must set it")
 	}
 
 	requestErr := errors.New("telegram request failed")
@@ -368,7 +368,7 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T) {
 	m := cache.GetMarshal()
 	if m == nil {
-		t.Skip("requires initialized cache marshaler")
+		t.Fatal("cache marshaler is not initialised; TestMain must set it")
 	}
 
 	client := newModuleBotClient()
@@ -446,7 +446,7 @@ func newAnonAdminBanChat() gotgbot.Chat {
 func runAnonymousAdminBan(t *testing.T, chat gotgbot.Chat, promptChat *gotgbot.Chat) anonAdminBanFlow {
 	t.Helper()
 	if cache.GetMarshal() == nil {
-		t.Skip("requires initialized cache marshaler")
+		t.Fatal("cache marshaler is not initialised; TestMain must set it")
 	}
 
 	client := newModuleBotClient()

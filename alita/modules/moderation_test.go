@@ -219,15 +219,21 @@ func TestModerationCommandRunExecutesPipelineInOrder(t *testing.T) {
 }
 
 func TestDeleteModGatesRequireRestrictAndDeletePermissions(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	ctx := newModuleMessageContext(bot, chat, admin, "/purge")
+	f := newAdminChatFixture(t)
+	client, bot, chat := f.client, f.bot, f.chat
+	ctx := newModuleMessageContext(bot, chat, f.admin, "/purge")
 	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
 
 	if !deleteModGates(mc) {
-		t.Fatal("deleteModGates() = false, want true for creator with bot admin permissions")
+		t.Fatal("deleteModGates() = false, want true for an admin with delete and restrict rights")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want no refusal for an authorised admin", len(calls))
+	}
+
+	memberCtx := newModuleMessageContext(bot, chat, f.member, "/purge")
+	if deleteModGates(newModerationCtxForTest(bot, memberCtx, &moduleStruct{moduleName: "Bans"})) {
+		t.Fatal("deleteModGates(member) = true, want false")
 	}
 }
 

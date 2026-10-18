@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -13,10 +14,8 @@ import (
 )
 
 func TestUnpinWithoutReplyUnpinsLatestMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/unpin")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -26,19 +25,15 @@ func TestUnpinWithoutReplyUnpinsLatestMessage(t *testing.T) {
 	if err := pinsModule.unpin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("unpin() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unpinChatMessage"); len(calls) != 1 {
-		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unpinChatMessage"), map[string]any{"chat_id": chat.Id})
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 
 func TestUnpinReplyUsesReplyMessageID(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/unpin")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
@@ -58,6 +53,7 @@ func TestUnpinReplyUsesReplyMessageID(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
 	}
+	assertParams(t, calls[0], map[string]any{"chat_id": chat.Id})
 	if got, ok := calls[0].Params["message_id"].(*int64); !ok || got == nil || *got != int64(77) {
 		t.Fatalf("unpinChatMessage message_id = %#v, want pointer to 77", calls[0].Params["message_id"])
 	}
@@ -67,10 +63,8 @@ func TestUnpinReplyUsesReplyMessageID(t *testing.T) {
 }
 
 func TestUnpinReplyWithPinnedMessageUnpinsReply(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/unpin")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
@@ -92,16 +86,15 @@ func TestUnpinReplyWithPinnedMessageUnpinsReply(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
 	}
+	assertParams(t, calls[0], map[string]any{"chat_id": chat.Id})
 	if got, ok := calls[0].Params["message_id"].(*int64); !ok || got == nil || *got != int64(77) {
 		t.Fatalf("unpinChatMessage message_id = %#v, want pointer to 77", calls[0].Params["message_id"])
 	}
 }
 
 func TestUnpinAllSendsConfirmationButtons(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/unpinall")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -121,19 +114,15 @@ func TestUnpinAllSendsConfirmationButtons(t *testing.T) {
 }
 
 func TestUnpinAllCallbackExecutesAndCancels(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"})
 	yesCtx := newModuleCallbackContext(bot, chat, user, yesData)
 	if err := pinsModule.unpinallCallback(bot, yesCtx); err != ext.EndGroups {
 		t.Fatalf("unpinallCallback yes error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unpinAllChatMessages"); len(calls) != 1 {
-		t.Fatalf("unpinAllChatMessages calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unpinAllChatMessages"), map[string]any{"chat_id": chat.Id})
 
 	noCtx := newModuleCallbackContext(bot, chat, user, encodeCallbackData("unpinallbtn", map[string]string{"a": "no"}))
 	if err := pinsModule.unpinallCallback(bot, noCtx); err != ext.EndGroups {
@@ -145,10 +134,8 @@ func TestUnpinAllCallbackExecutesAndCancels(t *testing.T) {
 }
 
 func TestUnpinAllCallbackRejectsInvalidAction(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleCallbackContext(bot, chat, user, "unpinallbtn(maybe)")
 	if err := pinsModule.unpinallCallback(bot, ctx); err != ext.EndGroups {
@@ -160,10 +147,8 @@ func TestUnpinAllCallbackRejectsInvalidAction(t *testing.T) {
 }
 
 func TestPinReplyPinsMessageWithNotificationOption(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pin loud")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
@@ -179,20 +164,12 @@ func TestPinReplyPinsMessageWithNotificationOption(t *testing.T) {
 	if err := pinsModule.pin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("pin() error = %v, want EndGroups", err)
 	}
-	calls := client.callsFor("pinChatMessage")
-	if len(calls) != 1 {
-		t.Fatalf("pinChatMessage calls = %d, want 1", len(calls))
-	}
-	if calls[0].Params["message_id"] != int64(88) {
-		t.Fatalf("pinned message_id = %v, want 88", calls[0].Params["message_id"])
-	}
+	assertParams(t, client.onlyCall(t, "pinChatMessage"), map[string]any{"chat_id": chat.Id, "message_id": 88})
 }
 
 func TestPinWithoutReplyAsksForReply(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pin")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -211,10 +188,8 @@ func TestPinWithoutReplyAsksForReply(t *testing.T) {
 }
 
 func TestPermaPinValidationBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	missingCtx := newModuleMessageContext(bot, chat, user, "/permapin")
 	cmdCtx, err := helpers.BuildCommandContext(bot, missingCtx)
@@ -248,10 +223,8 @@ func TestPermaPinValidationBranches(t *testing.T) {
 }
 
 func TestPermaPinSendsNewMessageThenPinsIt(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/permapin keep this pinned")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -265,23 +238,16 @@ func TestPermaPinSendsNewMessageThenPinsIt(t *testing.T) {
 	if len(sendCalls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want pin message and confirmation", len(sendCalls))
 	}
-	pinCalls := client.callsFor("pinChatMessage")
-	if len(pinCalls) != 1 {
-		t.Fatalf("pinChatMessage calls = %d, want 1", len(pinCalls))
-	}
-	if got := pinCalls[0].Params["message_id"]; got != int64(9001) {
-		t.Fatalf("pinned message_id = %v, want sent message 9001", got)
-	}
+	assertParams(t, client.onlyCall(t, "pinChatMessage"), map[string]any{"chat_id": chat.Id, "message_id": 9001})
 }
 
 func TestPinnedCommandLinksLatestPinnedMessage(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChat"] = []byte(
-		`{"id":-1001,"type":"supergroup","title":"Pin Chat","pinned_message":{"message_id":77,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Pin Chat"},"text":"pinned"}}`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
+	client.chatsByID[fmt.Sprint(chat.Id)] = []byte(fmt.Sprintf(
+		`{"id":%d,"type":"supergroup","title":"Pin Chat","pinned_message":{"message_id":77,"date":1,"chat":{"id":%d,"type":"supergroup","title":"Pin Chat"},"text":"pinned"}}`,
+		chat.Id, chat.Id,
+	))
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -301,10 +267,8 @@ func TestPinnedCommandLinksLatestPinnedMessage(t *testing.T) {
 }
 
 func TestPinnedCommandReportsMissingPinnedMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -320,11 +284,9 @@ func TestPinnedCommandReportsMissingPinnedMessage(t *testing.T) {
 }
 
 func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
-	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot, chat, user := f.bot, f.chat, f.admin
+	chatID := chat.Id
 
 	antiOnCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin on")
 	if err := pinsModule.antichannelpin(bot, antiOnCtx); err != ext.EndGroups {
@@ -405,9 +367,7 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	if err := pinsModule.checkPinned(bot, cleanCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkPinned clean error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": cleanChat.Id, "message_id": cleanCtx.EffectiveMessage.MessageId})
 
 	unpinChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
 	if err := pins.SetAntiChannelPin(unpinChat.Id, true); err != nil {
@@ -417,8 +377,10 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	if err := pinsModule.checkPinned(bot, unpinCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkPinned unpin error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("unpinChatMessage"); len(calls) != 1 {
-		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
+	unpin := client.onlyCall(t, "unpinChatMessage")
+	assertParams(t, unpin, map[string]any{"chat_id": unpinChat.Id})
+	if got, ok := unpin.Params["message_id"].(*int64); !ok || got == nil || *got != unpinCtx.EffectiveMessage.MessageId {
+		t.Fatalf("unpinChatMessage message_id = %#v, want the linked message %d", unpin.Params["message_id"], unpinCtx.EffectiveMessage.MessageId)
 	}
 
 	noopChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}

@@ -11,10 +11,8 @@ import (
 )
 
 func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	approveCtx := newModuleMessageContext(bot, chat, admin, "/approve 42 trusted")
 	if err := approvalsModule.approveUser(bot, approveCtx); err != ext.EndGroups {
@@ -24,8 +22,8 @@ func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
 		t.Fatal("user was not approved")
 	}
 	approved := approvals.GetApprovedUsers(chat.Id)
-	if len(approved) != 1 || approved[0].Reason != "trusted" {
-		t.Fatalf("approved users = %+v, want reason trusted", approved)
+	if len(approved) != 1 || approved[0].Reason != "trusted" || approved[0].ApprovedBy != admin.Id {
+		t.Fatalf("approved users = %+v, want reason trusted approved by %d", approved, admin.Id)
 	}
 
 	statusCtx := newModuleMessageContext(bot, chat, admin, "/approval 42")
@@ -55,11 +53,44 @@ func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
 	}
 }
 
+func TestApprovalCommandsRefuseNonAdmins(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client, bot, chat, member := f.client, f.bot, f.chat, f.member
+	if err := approvals.AddApprovedUser(chat.Id, 43, f.admin.Id, "keep"); err != nil {
+		t.Fatalf("AddApprovedUser setup error = %v", err)
+	}
+
+	approveCtx := newModuleMessageContext(bot, chat, member, "/approve 44 trusted")
+	if err := approvalsModule.approveUser(bot, approveCtx); err != ext.EndGroups {
+		t.Fatalf("approveUser(member) error = %v, want EndGroups", err)
+	}
+	if approvals.IsUserApproved(chat.Id, 44) {
+		t.Fatal("a member approved a user")
+	}
+	unapproveCtx := newModuleMessageContext(bot, chat, member, "/unapprove 43")
+	if err := approvalsModule.unapproveUser(bot, unapproveCtx); err != ext.EndGroups {
+		t.Fatalf("unapproveUser(member) error = %v, want EndGroups", err)
+	}
+	if !approvals.IsUserApproved(chat.Id, 43) {
+		t.Fatal("a member unapproved a user")
+	}
+
+	// /unapproveall needs the owner; the fixture admin is not one.
+	callbackCtx := newModuleCallbackContext(bot, chat, f.admin, encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}))
+	if err := approvalsModule.unapproveAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("unapproveAllCallback(admin) error = %v, want EndGroups", err)
+	}
+	if !approvals.IsUserApproved(chat.Id, 43) {
+		t.Fatal("a non-owner admin cleared the approval list")
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 0 {
+		t.Fatalf("editMessageText calls = %d, want none for a refused callback", len(calls))
+	}
+}
+
 func TestApprovalCommandsHandleMissingAndDuplicateUsers(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
 	if err := approvals.AddApprovedUser(chat.Id, 42, admin.Id, "already"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
@@ -89,10 +120,8 @@ func TestApprovalCommandsHandleMissingAndDuplicateUsers(t *testing.T) {
 }
 
 func TestApprovedListHandlesEmptyAndLargeLists(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	emptyCtx := newModuleMessageContext(bot, chat, admin, "/approved")
 	if err := approvalsModule.listApprovedUsers(bot, emptyCtx); err != ext.EndGroups {
@@ -113,16 +142,13 @@ func TestApprovedListHandlesEmptyAndLargeLists(t *testing.T) {
 	if err := approvalsModule.listApprovedUsers(bot, largeCtx); err != ext.EndGroups {
 		t.Fatalf("listApprovedUsers large error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("sendDocument"); len(calls) != 1 {
-		t.Fatalf("sendDocument calls = %d, want large-list document", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "sendDocument"), map[string]any{"chat_id": chat.Id})
 }
 
 func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, owner := f.client, f.bot, f.chat, f.admin
 	if err := approvals.AddApprovedUser(chat.Id, 42, owner.Id, "one"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
@@ -156,10 +182,9 @@ func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
 }
 
 func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, owner := f.client, f.bot, f.chat, f.admin
 	if err := approvals.AddApprovedUser(chat.Id, 42, owner.Id, "keep"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}

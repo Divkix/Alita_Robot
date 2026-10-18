@@ -27,19 +27,15 @@ func newMuteReplyContext(
 }
 
 func TestMuteReplyRestrictsUserAndSendsUnmuteButton(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newMuteReplyContext(bot, chat, admin, target, "/mute noisy")
 	if err := mutesModule.mute(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("mute error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
-	}
+	assertMuted(t, client.onlyCall(t, "restrictChatMember"), chat.Id, target.Id)
 	calls := client.callsFor("sendMessage")
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want mute confirmation", len(calls))
@@ -49,11 +45,18 @@ func TestMuteReplyRestrictsUserAndSendsUnmuteButton(t *testing.T) {
 	}
 }
 
+// assertMuted fails unless call restricts userID in chatID from sending.
+func assertMuted(t *testing.T, call moduleBotCall, chatID, userID int64) {
+	t.Helper()
+	assertParams(t, call, targetParams(chatID, userID))
+	if perms, ok := call.Params["permissions"].(gotgbot.ChatPermissions); !ok || perms.CanSendMessages {
+		t.Fatalf("mute permissions = %#v, want CanSendMessages false", call.Params["permissions"])
+	}
+}
+
 func TestMuteCommandRejectsMissingChannelAndProtectedTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	tests := []struct {
 		name string
@@ -82,30 +85,24 @@ func TestMuteCommandRejectsMissingChannelAndProtectedTargets(t *testing.T) {
 }
 
 func TestTemporaryMuteSetsUntilDate(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newMuteReplyContext(bot, chat, admin, target, "/tmute 1h temporary")
 	if err := mutesModule.tMute(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("tMute error = %v, want EndGroups", err)
 	}
-	calls := client.callsFor("restrictChatMember")
-	if len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
-	}
-	if calls[0].Params["until_date"] == nil {
-		t.Fatalf("restrictChatMember params = %#v, want until_date", calls[0].Params)
+	call := client.onlyCall(t, "restrictChatMember")
+	assertMuted(t, call, chat.Id, target.Id)
+	if call.Params["until_date"] == nil {
+		t.Fatalf("restrictChatMember params = %#v, want until_date", call.Params)
 	}
 }
 
 func TestTemporaryMuteRejectsInvalidDurationAndProtectedTarget(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	badDurationCtx := newMuteReplyContext(bot, chat, admin, target, "/tmute nope invalid")
@@ -124,10 +121,8 @@ func TestTemporaryMuteRejectsInvalidDurationAndProtectedTarget(t *testing.T) {
 }
 
 func TestTemporaryMuteRejectsMissingChannelSelfAndAbsentTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -155,29 +150,21 @@ func TestTemporaryMuteRejectsMissingChannelSelfAndAbsentTargets(t *testing.T) {
 }
 
 func TestSilentMuteDeletesCommandMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newMuteReplyContext(bot, chat, admin, target, "/smute")
 	if err := mutesModule.sMute(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("sMute error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want command deletion", len(calls))
-	}
+	assertMuted(t, client.onlyCall(t, "restrictChatMember"), chat.Id, target.Id)
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.MessageId})
 }
 
 func TestSilentAndDeleteMuteRejectInvalidTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, call := range []struct {
 		name string
@@ -206,10 +193,8 @@ func TestSilentAndDeleteMuteRejectInvalidTargets(t *testing.T) {
 }
 
 func TestSilentMuteRejectsProtectedAbsentAndSelfTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -239,10 +224,8 @@ func TestSilentMuteRejectsProtectedAbsentAndSelfTargets(t *testing.T) {
 }
 
 func TestDeleteMuteDeletesReplyThenRestricts(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	noReplyCtx := newModuleMessageContext(bot, chat, admin, "/dmute 42")
@@ -254,19 +237,13 @@ func TestDeleteMuteDeletesReplyThenRestricts(t *testing.T) {
 	if err := mutesModule.dMute(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("dMute reply error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
-	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want mute restriction", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.ReplyToMessage.MessageId})
+	assertMuted(t, client.onlyCall(t, "restrictChatMember"), chat.Id, target.Id)
 }
 
 func TestDeleteMuteRejectsValidTargetWithoutReply(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/dmute 42")
 	if err := mutesModule.dMute(bot, ctx); err != ext.EndGroups {
@@ -284,10 +261,8 @@ func TestDeleteMuteRejectsValidTargetWithoutReply(t *testing.T) {
 }
 
 func TestDeleteMuteRejectsProtectedAbsentAndSelfTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -317,17 +292,17 @@ func TestDeleteMuteRejectsProtectedAbsentAndSelfTargets(t *testing.T) {
 }
 
 func TestUnmuteCommandRestoresPermissions(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/unmute 42")
 	if err := mutesModule.unmute(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("unmute error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want unmute restriction", len(calls))
+	unmute := client.onlyCall(t, "restrictChatMember")
+	assertParams(t, unmute, targetParams(chat.Id, 42))
+	if perms, ok := unmute.Params["permissions"].(gotgbot.ChatPermissions); !ok || !perms.CanSendMessages {
+		t.Fatalf("unmute permissions = %#v, want CanSendMessages true", unmute.Params["permissions"])
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want unmute confirmation", len(calls))
@@ -335,10 +310,8 @@ func TestUnmuteCommandRestoresPermissions(t *testing.T) {
 }
 
 func TestUnmuteRejectsMissingChannelAndSelfTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -365,10 +338,8 @@ func TestUnmuteRejectsMissingChannelAndSelfTargets(t *testing.T) {
 }
 
 func TestUnmuteRejectsAbsentTarget(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/unmute 13")
 	if err := mutesModule.unmute(bot, ctx); err != ext.EndGroups {
