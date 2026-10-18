@@ -1231,7 +1231,7 @@ locks_what_to_unlock: What do you want to unlock? Check /locktypes for available
 locks_current_locks_header: "These are the locks in this chat:"
 locks_bot_lock_no_permission: I see a bot, and I've been told to stop them joining... but I'm not admin!
 locks_bot_lock_no_ban_permission: I see a bot, and I've been told to stop them joining... but I don't have permission to ban them!
-locks_bot_only_admins: Only admins are allowed to add bots to this chat!
+locks_bot_only_admins: Only admins and approved users are allowed to add bots to this chat!
 
 # Pins module strings
 pins_unpin_not_pinned: Replied message is not a pinned message.

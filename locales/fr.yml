@@ -1047,7 +1047,7 @@ locks_what_to_unlock: Que voulez-vous déverrouiller ? Vérifiez /locktypes pour
 locks_current_locks_header: "Voici les verrous dans ce chat :"
 locks_bot_lock_no_permission: Je vois un bot, et on m'a dit de l'empêcher de rejoindre... mais je ne suis pas admin !
 locks_bot_lock_no_ban_permission: Je vois un bot, et on m'a dit de l'empêcher de rejoindre... mais je n'ai pas la permission de le bannir !
-locks_bot_only_admins: Seuls les admins sont autorisés à ajouter des bots à ce chat !
+locks_bot_only_admins: Seuls les admins et les utilisateurs approuvés sont autorisés à ajouter des bots à ce chat !
 
 # Utils chat status strings
 

@@ -1154,7 +1154,7 @@ locks_what_to_unlock: O que você quer desbloquear? Verifique /locktypes para op
 locks_current_locks_header: "Estes são os bloqueios neste chat:"
 locks_bot_lock_no_permission: Eu vejo um bot, e fui instruída para impedi-los de entrar... mas não sou admin!
 locks_bot_lock_no_ban_permission: Eu vejo um bot, e fui instruída para impedi-los de entrar... mas não tenho permissão para banir!
-locks_bot_only_admins: Apenas admins podem adicionar bots a este chat!
+locks_bot_only_admins: Apenas admins e usuários aprovados podem adicionar bots a este chat!
 
 # Pins module strings
 pins_unpin_not_pinned: Mensagem respondida não é uma mensagem fixada.

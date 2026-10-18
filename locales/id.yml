@@ -1184,7 +1184,7 @@ locks_what_to_unlock: Apa yang ingin Anda buka kuncinya? Periksa /locktypes untu
 locks_current_locks_header: "Ini adalah kunci di obrolan ini:"
 locks_bot_lock_no_permission: Saya melihat bot, dan saya diminta untuk menghentikan mereka bergabung... tetapi saya bukan admin!
 locks_bot_lock_no_ban_permission: Saya melihat bot, dan saya diminta untuk menghentikan mereka bergabung... tetapi saya tidak punya izin untuk melarang mereka!
-locks_bot_only_admins: Hanya admin yang diizinkan untuk menambahkan bot ke obrolan ini!
+locks_bot_only_admins: Hanya admin dan pengguna yang disetujui yang diizinkan untuk menambahkan bot ke obrolan ini!
 
 # Pins module strings
 pins_unpin_not_pinned: Pesan yang dibalas bukan pesan yang disematkan.
