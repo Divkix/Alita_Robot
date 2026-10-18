@@ -852,8 +852,8 @@ Users approved for a chat (immune to anti-spam).
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
-| `chat_id` | `BIGINT` | NO | — | — |
-| `user_id` | `BIGINT` | NO | — | — |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
+| `user_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
 | `reason` | `TEXT` | YES | `''` | — |
 | `approved_by` | `BIGINT` | NO | `0` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
@@ -862,12 +862,10 @@ Users approved for a chat (immune to anti-spam).
 #### Indexes
 
 - `idx_approved_users_chat_id`
-- `idx_approved_users_user_id`
 
 #### Foreign Keys
 
-- `chat_id` → `chats(chat_id)` ON DELETE CASCADE
-- `user_id` → `users(user_id)` ON DELETE CASCADE
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
 
 ---
 
