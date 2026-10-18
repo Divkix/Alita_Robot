@@ -465,9 +465,9 @@ DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, n
 **Symptoms:**
 - Bot sends empty messages
 - Commands execute but no text is displayed
-- Works in some languages but not others
+- Works in some languages but not others (the key exists in a translation but not in `locales/en.yml`)
 
-**Cause:** Translation key mismatch between code and locale files.
+**Cause:** The key the code asks for is missing from `locales/en.yml` or misspelled in the Go code. A key missing only from a translation (e.g. `hi.yml`) falls back to English, so it never shows up as an empty message.
 
 **Solutions:**
 
@@ -482,7 +482,7 @@ DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, n
    - Locale file must have: `misc_translate_need_text: "..."`
    - Common issue: Similar but different key names (e.g., `misc_need_text_and_lang` vs `misc_translate_need_text`)
 
-3. **Add missing keys:** If a key exists in one locale but not another, add it to all supported locales.
+3. **Add missing keys:** Add the key to `locales/en.yml` first (it is the fallback for every language), then to the other 6 locale files. Run `make check-translations` to list keys missing from the translations.
 
 4. **Check YAML syntax:**
    ```yaml
@@ -493,14 +493,9 @@ DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, n
    misc_result: 'Line 1\nLine 2'
    ```
 
-### Translation Errors Logged
+### Missing Keys Are Not Logged
 
-**Error:**
-```
-[i18n] Translation key not found: misc_example_key
-```
-
-**Solution:** Add the missing key to all locale files in `locales/`.
+A missing translation key is not logged: the lookup returns an empty string and callers ignore the error. Run `make check-translations` to find keys missing from a locale, and grep the Go source and `locales/en.yml` for the key name to catch typos.
 
 ## Getting Help
 
