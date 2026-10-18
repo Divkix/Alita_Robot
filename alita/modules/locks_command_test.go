@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/locks"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
@@ -448,5 +451,41 @@ func TestLockWatchersDoNotDeleteForAnonymousAdmins(t *testing.T) {
 
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want none for an anonymous admin", len(calls))
+	}
+}
+
+// When the bot is an admin without ban rights, the bot lock tells the chat
+// so instead of failing silently.
+func TestBotLockHandlerReportsMissingBanPermission(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
+	client.responses["getChatAdministrators"] = json.RawMessage(
+		`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true,"can_restrict_members":false}]`,
+	)
+	if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
+		t.Fatalf("UpdateLock bots setup error = %v", err)
+	}
+
+	if err := locksModule.botLockHandler(bot, newBotLockContext(bot, chat, member, addedBot)); err != ext.ContinueGroups {
+		t.Fatalf("botLockHandler error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none without ban rights", len(calls))
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the missing-permission notice", len(sent))
+	}
+	if got := fmt.Sprint(sent[0].Params["chat_id"]); got != fmt.Sprint(chat.Id) {
+		t.Errorf("notice chat_id = %s, want %d", got, chat.Id)
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("locks_bot_lock_no_ban_permission")
+	if got, _ := sent[0].Params["text"].(string); got != want {
+		t.Errorf("notice text = %q, want %q", got, want)
 	}
 }

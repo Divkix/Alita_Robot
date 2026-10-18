@@ -507,7 +507,13 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+		// A ChatMember update has no message to reply to, so send to the chat.
+		tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
+		text, _ := tr.GetString("locks_bot_lock_no_ban_permission")
+		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+			return err
+		}
 		return ext.ContinueGroups
 	}
 
