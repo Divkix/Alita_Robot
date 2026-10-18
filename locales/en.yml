@@ -2430,7 +2430,7 @@ backup_import_no_reply: "❌ Please reply to a backup file with <code>/import</c
 backup_import_invalid_file: "❌ Invalid backup file format. Please send a valid JSON backup file."
 backup_import_file_too_large: "❌ Backup file is too large. Maximum size is 10MB."
 backup_import_download_failed: "❌ Failed to download backup file. Please try again."
-backup_import_version_mismatch: "⚠️ This backup was created with a different version. Some settings may not import correctly."
+backup_import_version_mismatch: "❌ This backup uses an unsupported format version and cannot be imported. Export a new backup with this bot and try again."
 backup_import_creator_only: "❌ Only the group creator can import settings."
 backup_import_confirm: |
   <b>⚠️ Confirm Import</b>

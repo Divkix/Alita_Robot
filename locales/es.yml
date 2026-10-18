@@ -2389,7 +2389,7 @@ backup_import_no_reply: "❌ Por favor responde a un archivo de copia de segurid
 backup_import_invalid_file: "❌ Formato de archivo de copia de seguridad inválido. Por favor envía un archivo JSON de copia de seguridad válido."
 backup_import_file_too_large: "❌ El archivo de copia de seguridad es demasiado grande. El tamaño máximo es 10MB."
 backup_import_download_failed: "❌ Error al descargar el archivo de copia de seguridad. Por favor inténtalo de nuevo."
-backup_import_version_mismatch: "⚠️ Esta copia de seguridad fue creada con una versión diferente. Algunas configuraciones pueden no importarse correctamente."
+backup_import_version_mismatch: "❌ Esta copia de seguridad usa una versión de formato no compatible y no se puede importar. Exporta una nueva copia de seguridad con este bot e inténtalo de nuevo."
 backup_import_creator_only: "❌ Solo el creador del grupo puede importar configuración."
 backup_import_confirm: |
   <b>⚠️ Confirmar Importación</b>

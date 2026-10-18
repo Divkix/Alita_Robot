@@ -2380,7 +2380,7 @@ backup_import_no_reply: "❌ Silakan balas ke file cadangan dengan <code>/import
 backup_import_invalid_file: "❌ Format file cadangan tidak valid. Silakan kirim file cadangan JSON yang valid."
 backup_import_file_too_large: "❌ File cadangan terlalu besar. Ukuran maksimum adalah 10MB."
 backup_import_download_failed: "❌ Gagal mengunduh file cadangan. Silakan coba lagi."
-backup_import_version_mismatch: "⚠️ Cadangan ini dibuat dengan versi yang berbeda. Beberapa pengaturan mungkin tidak diimpor dengan benar."
+backup_import_version_mismatch: "❌ Cadangan ini menggunakan versi format yang tidak didukung dan tidak dapat diimpor. Ekspor cadangan baru dengan bot ini lalu coba lagi."
 backup_import_creator_only: "❌ Hanya pembuat grup yang dapat mengimpor pengaturan."
 backup_import_confirm: |
   <b>⚠️ Konfirmasi Impor</b>

@@ -2296,7 +2296,7 @@ backup_import_no_reply: "❌ Veuillez répondre à un fichier de sauvegarde avec
 backup_import_invalid_file: "❌ Format de fichier de sauvegarde invalide. Veuillez envoyer un fichier JSON de sauvegarde valide."
 backup_import_file_too_large: "❌ Le fichier de sauvegarde est trop grand. Taille maximale : 10 Mo."
 backup_import_download_failed: "❌ Échec du téléchargement du fichier de sauvegarde. Veuillez réessayer."
-backup_import_version_mismatch: "⚠️ Cette sauvegarde a été créée avec une version différente. Certains paramètres peuvent ne pas s'importer correctement."
+backup_import_version_mismatch: "❌ Cette sauvegarde utilise une version de format non prise en charge et ne peut pas être importée. Exportez une nouvelle sauvegarde avec ce bot et réessayez."
 backup_import_creator_only: "❌ Seul le créateur du groupe peut importer des paramètres."
 backup_import_confirm: |
   <b>⚠️ Confirmer l'Import</b>
