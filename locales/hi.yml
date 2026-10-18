@@ -2162,7 +2162,7 @@ approvals_help_msg: |
   × /approved: सभी स्वीकृत उपयोगकर्ताओं की सूची
   × /unapproveall: सभी स्वीकृतियाँ हटाएँ (केवल निर्माता)
 
-  स्वीकृत उपयोगकर्ताओं को छूट है: antiflood, blacklists, locks, और CAPTCHA से।
+  स्वीकृत उपयोगकर्ताओं को छूट है: antiflood, blacklists, locks, CAPTCHA और AI स्पैम फ़िल्टर से।
 approvals_user_approved: "%s को %s द्वारा स्वीकृत किया गया।%s"
 approvals_already_approved: "%s पहले से ही इस चैट में स्वीकृत है।"
 approvals_not_approved: "%s स्वीकृत सूची में नहीं है।"
@@ -2420,7 +2420,7 @@ antiraid_extend_msg: |
   /raidactiontime — रेड के दौरान अस्थायी बैन की अवधि
   /autoantiraid — प्रति मिनट N जॉइन पर रेड मोड अपने-आप चालू करें
 approvals_extend_msg: |
-  /approve — यूज़र को एंटीफ़्लड, ब्लैकलिस्ट, लॉक और कैप्चा से छूट दें
+  /approve — यूज़र को एंटीफ़्लड, ब्लैकलिस्ट, लॉक, कैप्चा और AI स्पैम फ़िल्टर से छूट दें
   /unapprove — यूज़र की अनुमति हटाएँ
   /approval — जाँचें कि यूज़र अनुमोदित है या नहीं
   /approved — अनुमोदित यूज़र की सूची

@@ -2466,7 +2466,7 @@ approvals_help_msg: |
   × /approved: Daftar semua pengguna yang disetujui
   × /unapproveall: Hapus semua persetujuan (hanya pembuat)
 
-  Pengguna yang disetujui dibebaskan dari: antiflood, blacklists, locks, dan CAPTCHA.
+  Pengguna yang disetujui dibebaskan dari: antiflood, blacklists, locks, CAPTCHA, dan filter spam AI.
 approvals_user_approved: "%s disetujui oleh %s.%s"
 approvals_already_approved: "%s sudah disetujui di chat ini."
 approvals_not_approved: "%s tidak ada dalam daftar yang disetujui."
@@ -2724,7 +2724,7 @@ antiraid_extend_msg: |
   /raidactiontime — atur lama ban sementara saat raid
   /autoantiraid — aktifkan mode raid otomatis setelah N anggota masuk per menit
 approvals_extend_msg: |
-  /approve — bebaskan pengguna dari antiflood, daftar hitam, kunci, dan captcha
+  /approve — bebaskan pengguna dari antiflood, daftar hitam, kunci, captcha, dan filter spam AI
   /unapprove — cabut persetujuan pengguna
   /approval — cek apakah pengguna disetujui
   /approved — daftar pengguna yang disetujui

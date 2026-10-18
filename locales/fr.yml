@@ -2382,7 +2382,7 @@ approvals_help_msg: |
   × /approved: Lister tous les utilisateurs approuvés
   × /unapproveall: Supprimer toutes les approbations (créateur uniquement)
 
-  Les utilisateurs approuvés sont exempts de : antiflood, listes noires, verrous et CAPTCHA.
+  Les utilisateurs approuvés sont exempts de : antiflood, listes noires, verrous, CAPTCHA et le filtre anti-spam par IA.
 approvals_user_approved: "Approuvé %s par %s.%s"
 approvals_already_approved: "%s est déjà approuvé dans ce chat."
 approvals_not_approved: "%s n'est pas dans la liste des approuvés."
@@ -2640,7 +2640,7 @@ antiraid_extend_msg: |
   /raidactiontime — durée du bannissement temporaire pendant un raid
   /autoantiraid — activer le mode raid après N arrivées par minute
 approvals_extend_msg: |
-  /approve — exempter un utilisateur d'antiflood, de liste noire, de verrous et de captcha
+  /approve — exempter un utilisateur d'antiflood, de liste noire, de verrous, de captcha et du filtre anti-spam par IA
   /unapprove — retirer l'approbation d'un utilisateur
   /approval — vérifier si un utilisateur est approuvé
   /approved — liste des utilisateurs approuvés

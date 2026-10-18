@@ -93,7 +93,7 @@ approvals_help_msg: |
   × /approved: List all approved users
   × /unapproveall: Remove all approvals (creator only)
 
-  Approved users are exempt from: antiflood, blacklists, locks, and CAPTCHA.
+  Approved users are exempt from: antiflood, blacklists, locks, CAPTCHA, and the AI spam filter.
 approvals_user_approved: "Approved %s by %s.%s"
 approvals_already_approved: "%s is already approved in this chat."
 approvals_not_approved: "%s is not in the approved list."
@@ -2735,7 +2735,7 @@ antiraid_extend_msg: |
   /raidactiontime — set the temp-ban length during a raid
   /autoantiraid — auto-enable raid mode after N joins per minute
 approvals_extend_msg: |
-  /approve — exempt a user from antiflood, blacklists, locks and captcha
+  /approve — exempt a user from antiflood, blacklists, locks, captcha and the AI spam filter
   /unapprove — remove a user's approval
   /approval — check whether a user is approved
   /approved — list approved users
