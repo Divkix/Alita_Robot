@@ -565,7 +565,7 @@ func (moduleStruct) fedDemoteMe(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if federations.IsFedOwner(fedID, from.Id) {
-		text, _ := tr.GetString("feds_cannot_promote_owner")
+		text, _ := tr.GetString("feds_demoteme_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}

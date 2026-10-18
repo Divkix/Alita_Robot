@@ -315,6 +315,30 @@ func TestFedAdminPromoteDemoteAndToggles(t *testing.T) {
 	}
 }
 
+// The owner cannot step down; /feddemoteme tells them so and keeps the fed.
+func TestFedDemoteMeFromOwnerRepliesOwnerCannotStepDown(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Demoteme Owner Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	if err := federationsModule.fedDemoteMe(bot, newModuleMessageContext(bot, pm, owner, "/feddemoteme "+fed.FedID)); err != ext.EndGroups {
+		t.Fatalf("fedDemoteMe: %v, want EndGroups", err)
+	}
+	want, err := i18n.MustNewTranslator("en").GetString("feds_demoteme_owner")
+	require.NoError(t, err)
+	require.NotEmpty(t, want)
+	calls := client.callsFor("sendMessage")
+	require.Len(t, calls, 1)
+	require.Equal(t, want, calls[0].Params["text"])
+	require.True(t, federations.IsFedOwner(fed.FedID, ownerID), "owner must keep the federation")
+}
+
 func TestUnfbanAndFedStat(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
