@@ -80,7 +80,7 @@ settings := chats.GetChatSettings(chatId) // package alita/db/chats
 
 New commands register through `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)` in `alita/utils/helpers/command_pipeline.go`. The wrapper handles cross-cutting concerns uniformly:
 
-- Permission and precondition checks via `CommandDescriptor.RequiredChecks` (`helpers.RequireGroup()`, `helpers.RequireUserAdmin()`, `helpers.CanBotRestrict()`, ...). The first failing check sends its own reply and the command returns `ext.EndGroups`.
+- Permission and precondition checks via `CommandDescriptor.RequiredChecks` (`helpers.RequireGroup()`, `helpers.RequireUserAdmin()`, `helpers.CanBotRestrict()`, ...). The first failing check handles its own feedback (a reply, or silence for a disabled command) and the command returns `ext.EndGroups`.
 - Panic recovery via `error_handling.RecoverFromPanic`
 - Ending handler-group iteration after a connected-chat swap (`endGroupsAfterChatSwap`)
 - Alias and disableable-command registration from the descriptor

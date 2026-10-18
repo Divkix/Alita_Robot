@@ -29,7 +29,7 @@ import (
 var exampleModule = moduleStruct{moduleName: "Example"}
 
 // Declarative command config. WrapCommand runs RequiredChecks in order; a
-// failing check sends its own reply, so the handler adds none.
+// failing check handles its own user feedback, so the handler adds none.
 var exampleDesc = helpers.CommandDescriptor{
     Name:        "example",
     Disableable: true, // lists the command for /disable
@@ -120,7 +120,7 @@ func init() {
 ```
 
 :::note[Command pipeline]
-Register new commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. The `helpers.*` CheckFuncs in `RequiredChecks` send their own failure replies, so do not add replies for failed checks. `Disableable: true` only lists the command for `/disable`; `helpers.CheckDisabled("<cmd>")` enforces it. Anonymous admins bypass `WrapCommand`, so admin commands also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`, which re-runs the same checks.
+Register new commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. The `helpers.*` CheckFuncs in `RequiredChecks` send their own failure replies (except `helpers.CheckDisabled`, which stays silent and only deletes the command when /disabledel is on), so do not add replies for failed checks. `Disableable: true` only lists the command for `/disable`; `helpers.CheckDisabled("<cmd>")` enforces it. Anonymous admins bypass `WrapCommand`, so admin commands also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`, which re-runs the same checks.
 :::
 
 ## Step-by-Step Guide
