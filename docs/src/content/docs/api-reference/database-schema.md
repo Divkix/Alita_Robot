@@ -544,7 +544,6 @@ Stores per-chat keyword-to-emoji reaction mappings.
 #### Indexes
 
 - Unique composite index on (`chat_id`, `keyword`)
-- `idx_reactions_chat_id`
 
 #### Foreign Keys
 
@@ -765,7 +764,7 @@ User warnings per chat.
 
 #### Indexes
 
-- `idx_warns_users_user_id`
+- Unique composite index on (`user_id`, `chat_id`) (`uk_warns_users_user_chat`)
 - `idx_warns_users_chat_id`
 
 #### Foreign Keys
