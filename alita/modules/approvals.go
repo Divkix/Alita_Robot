@@ -67,7 +67,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
-		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -149,7 +149,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
-		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err

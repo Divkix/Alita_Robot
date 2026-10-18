@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -107,15 +108,32 @@ func TestApprovalCommandsHandleMissingAndDuplicateUsers(t *testing.T) {
 	if got := len(approvals.GetApprovedUsers(chat.Id)); got != 1 {
 		t.Fatalf("approved users after duplicate = %d, want 1", got)
 	}
+	assertLastReplyNamesUser(t, f.client, 42)
 
 	notApprovedCtx := newModuleMessageContext(bot, chat, admin, "/unapprove 43")
 	if err := approvalsModule.unapproveUser(bot, notApprovedCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveUser missing approval error = %v, want EndGroups", err)
 	}
+	assertLastReplyNamesUser(t, f.client, 43)
 
 	statusMissingCtx := newModuleMessageContext(bot, chat, admin, "/approval 43")
 	if err := approvalsModule.checkApprovalStatus(bot, statusMissingCtx); err != ext.EndGroups {
 		t.Fatalf("checkApprovalStatus missing approval error = %v, want EndGroups", err)
+	}
+}
+
+// assertLastReplyNamesUser fails unless the last reply links to userID with
+// visible link text, so the user it is about is actually named.
+func assertLastReplyNamesUser(t *testing.T, client *moduleBotClient, userID int64) {
+	t.Helper()
+	calls := client.callsFor("sendMessage")
+	if len(calls) == 0 {
+		t.Fatal("no reply sent")
+	}
+	text := fmt.Sprint(calls[len(calls)-1].Params["text"])
+	link := fmt.Sprintf(`<a href="tg://user?id=%d">`, userID)
+	if !strings.Contains(text, link) || strings.Contains(text, link+"</a>") {
+		t.Fatalf("reply %q does not name user %d", text, userID)
 	}
 }
 
