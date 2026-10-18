@@ -650,6 +650,8 @@ greetings_help_msg:
   × /cleanwelcome `<yes/no/on/off>` : Supprime l'ancien message de bienvenue à chaque fois qu'un nouveau
   membre rejoint.
 
+  × /cleangoodbye `<yes/no/on/off>` : Supprime l'ancien message d'au revoir à chaque fois qu'un membre part.
+
   × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres."
 greetings_welcome_status: |
   J'accueille actuellement les utilisateurs : <code>%s</code>
@@ -2705,6 +2707,7 @@ greetings_extend_msg: |
   /setgoodbye — définir le message d'au revoir
   /resetgoodbye — réinitialiser le message d'au revoir
   /cleanwelcome — supprimer le précédent message de bienvenue
+  /cleangoodbye — supprimer le précédent message d'au revoir
   /cleanservice — supprimer les messages de service d'arrivée et de départ
   /autoapprove — approuver automatiquement les demandes d'adhésion
 languages_extend_msg: |

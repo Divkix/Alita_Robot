@@ -604,6 +604,8 @@ greetings_help_msg:
   × /cleanwelcome `<yes/no/on/off>`: Eliminar el mensaje de bienvenida antiguo, cuando un nuevo
   miembro se une.
 
+  × /cleangoodbye `<yes/no/on/off>`: Eliminar el mensaje de despedida antiguo, cuando un miembro se va.
+
   × /autoapprove `<yes/no/on/off>`: Aprobar automáticamente a todos los nuevos miembros."
 help_about:
   "@%s es uno de los administradores de grupos más rápidos y con más funciones.
@@ -2798,6 +2800,7 @@ greetings_extend_msg: |
   /setgoodbye — establecer el mensaje de despedida
   /resetgoodbye — restablecer el mensaje de despedida
   /cleanwelcome — borrar el mensaje de bienvenida anterior
+  /cleangoodbye — borrar el mensaje de despedida anterior
   /cleanservice — borrar los mensajes de servicio de entradas y salidas
   /autoapprove — aprobar automáticamente las solicitudes de ingreso
 languages_extend_msg: |

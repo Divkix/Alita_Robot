@@ -600,6 +600,8 @@ greetings_help_msg:
   × /cleanwelcome `<yes/no/on/off>`: Hapus pesan selamat datang lama, setiap kali anggota baru
   bergabung.
 
+  × /cleangoodbye `<yes/no/on/off>`: Hapus pesan selamat tinggal lama, setiap kali anggota keluar.
+
   × /autoapprove `<yes/no/on/off>`: Secara otomatis menyetujui semua anggota baru."
 help_about: "@%s  adalah salah satu manajer grup tercepat dan paling penuh fitur.
 
@@ -2789,6 +2791,7 @@ greetings_extend_msg: |
   /setgoodbye — atur pesan perpisahan
   /resetgoodbye — reset pesan perpisahan
   /cleanwelcome — hapus pesan sambutan sebelumnya
+  /cleangoodbye — hapus pesan perpisahan sebelumnya
   /cleanservice — hapus pesan layanan masuk dan keluar
   /autoapprove — setujui permintaan bergabung otomatis
 languages_extend_msg: |

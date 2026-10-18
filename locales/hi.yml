@@ -419,6 +419,8 @@ greetings_help_msg: "अपने ग्रुप में नए सदस्�
 
   × /cleanwelcome `<yes/no/on/off>`: जब भी कोई नया सदस्य शामिल होता है, पुराने स्वागत संदेश को हटाएं।
 
+  × /cleangoodbye `<yes/no/on/off>`: जब भी कोई सदस्य ग्रुप छोड़ता है, पुराने अलविदा संदेश को हटाएं।
+
   × /autoapprove `<yes/no/on/off>`: सभी नए सदस्यों को स्वचालित रूप से स्वीकृत करें।"
 
 lang_sample: नमस्ते, मैं एक ग्रुप प्रबंधन बॉट हूँ
@@ -2490,6 +2492,7 @@ greetings_extend_msg: |
   /setgoodbye — विदाई संदेश सेट करें
   /resetgoodbye — विदाई संदेश रीसेट करें
   /cleanwelcome — पिछला स्वागत संदेश हटाएँ
+  /cleangoodbye — पिछला विदाई संदेश हटाएँ
   /cleanservice — जॉइन और लीव के सर्विस संदेश हटाएँ
   /autoapprove — जॉइन अनुरोध अपने-आप स्वीकार करें
 languages_extend_msg: |

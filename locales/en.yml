@@ -642,6 +642,8 @@ greetings_help_msg:
   × /cleanwelcome `<yes/no/on/off>`: Delete the old welcome message, whenever a new
   member joins.
 
+  × /cleangoodbye `<yes/no/on/off>`: Delete the old goodbye message, whenever a member leaves.
+
   × /autoapprove `<yes/no/on/off>`: Automatically approve all new members."
 help_about: "@%s  is one of the fastest and most feature-filled group managers.
 
@@ -2799,6 +2801,7 @@ greetings_extend_msg: |
   /setgoodbye — set the goodbye message
   /resetgoodbye — reset the goodbye message
   /cleanwelcome — delete the previous welcome message
+  /cleangoodbye — delete the previous goodbye message
   /cleanservice — delete join and leave service messages
   /autoapprove — auto-approve join requests
 languages_extend_msg: |
