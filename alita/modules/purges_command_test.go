@@ -204,6 +204,28 @@ func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
 	assertDeleted(t, client, chat.Id, 215, 216, 217, 218, 220, 230)
 }
 
+// An anonymous admin's confirmed /purgefrom and /purgeto reach their handlers.
+func TestAnonymousAdminPurgeFromToAreRouted(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	delMsgs.Delete(chat.Id)
+	t.Cleanup(func() { delMsgs.Delete(chat.Id) })
+
+	fromCtx := newPurgeReplyContext(bot, chat, admin, "/purgefrom", 420, 415)
+	if err := HandleAnonymousAdmin(bot, fromCtx, "purgefrom"); err != ext.EndGroups {
+		t.Fatalf("HandleAnonymousAdmin(purgefrom) error = %v, want EndGroups", err)
+	}
+	if stored, ok := delMsgs.Load(chat.Id); !ok || stored.(delMsgEntry).msgID != 415 {
+		t.Fatalf("purge marker = %v, %v, want message 415", stored, ok)
+	}
+
+	toCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto", 430, 417)
+	if err := HandleAnonymousAdmin(bot, toCtx, "purgeto"); err != ext.EndGroups {
+		t.Fatalf("HandleAnonymousAdmin(purgeto) error = %v, want EndGroups", err)
+	}
+	assertDeleted(t, client, chat.Id, 415, 416, 417)
+}
+
 func TestPurgeFromToValidationBranches(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin

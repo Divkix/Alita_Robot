@@ -515,4 +515,6 @@ func init() {
 	initPurgeDescs()
 	RegisterAnonymousAdminHandler("purge", anonPipelineHandler(purgeDesc, purgesModule.purge))
 	RegisterAnonymousAdminHandler("del", anonPipelineHandler(delDesc, purgesModule.delCmd))
+	RegisterAnonymousAdminHandler("purgefrom", anonPipelineHandler(purgeFromDesc, purgesModule.purgeFrom))
+	RegisterAnonymousAdminHandler("purgeto", anonPipelineHandler(purgeToDesc, purgesModule.purgeTo))
 }
