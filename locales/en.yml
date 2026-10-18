@@ -729,7 +729,9 @@ help_help_msg:
 
   × /about: Show bot information, version, and useful links.
 
-  × /donate: Show donation information for supporting the project."
+  × /donate: Show donation information for supporting the project.
+
+  × /extend: Send every command of every module in one list; in groups, sends a button to get it in PM."
 languages_help_msg: "Not able to change language of the bot?
 
   Easily change by using this module!
@@ -2269,6 +2271,8 @@ help_extended_docs: |
   The <code>/help</code> command shows a module list. Clicking a module button displays that module's commands and usage information. When <code>/help</code> is used in a group chat, the bot redirects the user to a private message for detailed help to avoid cluttering the group.
 
   <code>/about</code> shows bot information, version, and links, while <code>/donate</code> shows donation information for supporting the project.
+
+  <code>/extend</code> sends every command of every module in one list; in a group it replies with a button that opens the list in PM.
 
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |

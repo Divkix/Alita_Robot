@@ -655,7 +655,9 @@ help_help_msg:
 
   × /about: Mostrar informações do bot, versão e links úteis.
 
-  × /donate: Mostrar informações de doação para apoiar o projeto."
+  × /donate: Mostrar informações de doação para apoiar o projeto.
+
+  × /extend: Envia todos os comandos de todos os módulos em uma só lista; em grupos, envia um botão para recebê-la no privado."
 languages_help_msg: "Não consegue mudar o idioma do bot?
 
   Mude facilmente usando este módulo!
@@ -2190,6 +2192,8 @@ help_extended_docs: |
   O comando <code>/help</code> mostra uma lista de módulos. Clicar em um botão de módulo exibe os comandos e informações de uso desse módulo. Quando <code>/help</code> é usado em um chat em grupo, o bot redireciona o usuário para uma mensagem privada para obter ajuda detalhada, evitando poluir o grupo.
 
   <code>/about</code> mostra informações do bot, versão e links, enquanto <code>/donate</code> mostra informações de doação para apoiar o projeto.
+
+  <code>/extend</code> envia todos os comandos de todos os módulos em uma só lista; em um grupo, responde com um botão que abre a lista no privado.
 
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |

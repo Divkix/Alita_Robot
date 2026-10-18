@@ -684,7 +684,9 @@ help_help_msg:
 
   × /about: Tampilkan informasi bot, versi, dan tautan berguna.
 
-  × /donate: Tampilkan informasi donasi untuk mendukung proyek."
+  × /donate: Tampilkan informasi donasi untuk mendukung proyek.
+
+  × /extend: Kirim semua perintah dari semua modul dalam satu daftar; di grup, mengirim tombol untuk mendapatkannya di PM."
 languages_help_msg: "Tidak dapat mengubah bahasa bot?
 
   Ubah dengan mudah menggunakan modul ini!
@@ -2219,6 +2221,8 @@ help_extended_docs: |
   Perintah <code>/help</code> menampilkan daftar modul. Mengklik tombol modul menampilkan perintah dan informasi penggunaan modul tersebut. Ketika <code>/help</code> digunakan di chat grup, bot mengarahkan pengguna ke pesan pribadi untuk bantuan terperinci guna menghindari kekacauan grup.
 
   <code>/about</code> menampilkan informasi bot, versi, dan tautan, sementara <code>/donate</code> menampilkan informasi donasi untuk mendukung proyek.
+
+  <code>/extend</code> mengirim semua perintah dari semua modul dalam satu daftar; di grup, bot membalas dengan tombol yang membuka daftar itu di PM.
 
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |
