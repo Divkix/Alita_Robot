@@ -71,6 +71,7 @@ func banTargetValidation(c *moderationCtx, t *target) error {
 
 func moderationDkick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "dkick",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractFromReply,
@@ -90,6 +91,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 
 func moderationTban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "tban",
 		module:   m,
 		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
@@ -168,18 +170,17 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 
 func moderationBan(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
-		module: m,
-		gates:  []gateFn{standardModGates},
+		command: "ban",
+		module:  m,
+		gates:   []gateFn{standardModGates},
 		extract: func(c *moderationCtx) (target, error) {
 			uid, reason := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 			if uid == -1 {
 				return target{}, fmt.Errorf("extraction failed")
 			}
 			if uid == 0 {
-				noUserKey := "common_no_user_specified"
-				text, _ := c.Tr.GetString(noUserKey)
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				text, _ := c.Tr.GetString("common_no_user_specified")
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return target{}, err
 				}
@@ -233,6 +234,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 
 func moderationKick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "kick",
 		module:   m,
 		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
@@ -292,6 +294,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 
 func moderationSban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "sban",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
@@ -311,6 +314,7 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 
 func moderationDban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command: "dban",
 		module:  m,
 		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
@@ -320,8 +324,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 				if text == "" {
 					text, _ = c.Tr.GetString("common_no_reply_to_message")
 				}
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -345,18 +348,17 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 
 func moderationUnban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
-		module: m,
-		gates:  []gateFn{standardModGates},
+		command: "unban",
+		module:  m,
+		gates:   []gateFn{standardModGates},
 		extract: func(c *moderationCtx) (target, error) {
 			uid := extraction.ExtractUser(c.Bot, c.Ctx)
 			if uid == -1 {
 				return target{}, fmt.Errorf("extraction failed")
 			}
 			if uid == 0 {
-				noUserKey := "common_no_user_specified"
-				text, _ := c.Tr.GetString(noUserKey)
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				text, _ := c.Tr.GetString("common_no_user_specified")
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return target{}, err
 				}
@@ -476,8 +478,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
+		if err := replyCommandHelp(b, msg, tr, "restrict", text); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -689,8 +690,7 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
+		if err := replyCommandHelp(b, msg, tr, "unrestrict", text); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -879,6 +879,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 
 func moderationSkick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "skick",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,

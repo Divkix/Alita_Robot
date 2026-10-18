@@ -75,6 +75,7 @@ error_generic: "Une erreur s'est produite. Veuillez réessayer plus tard."
 common_anonymous_user_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme.
 common_anonymous_ban_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme, ces utilisateurs peuvent uniquement être bannis/débannis.
 common_cannot_identify_user: Impossible d'identifier l'utilisateur. Cette commande ne peut pas être utilisée par les chaînes.
+command_help_example: "Exemple : {example}"
 common_no_user_specified: Je ne sais pas de qui vous parlez, vous allez devoir spécifier un utilisateur... !
 common_user_not_in_chat: Cet utilisateur n'est pas dans ce chat, comment puis-je le restreindre ?
 common_cannot_target_admin: "Je ne peux pas effectuer cette action sur les administrateurs du groupe."
@@ -166,6 +167,8 @@ bans_help_msg:
 
   × /kickme : expulse l'utilisateur qui a émis la commande.
 
+  × /banme : bannit l'utilisateur qui a émis la commande.
+
 
   *Commandes de Bannissement* (Admin uniquement) :
 
@@ -174,6 +177,12 @@ bans_help_msg:
   × /sban <pseudo> : bannit un utilisateur silencieusement, n'envoie pas de message au groupe et
   supprime également votre commande. (via le pseudo, ou en réponse)
 
+  × /kick <pseudo> : expulse un utilisateur. (via le pseudo, ou en réponse)
+
+  × /skick <pseudo> : expulse un utilisateur silencieusement et supprime votre commande.
+
+  × /dkick : expulse un utilisateur et supprime le message auquel vous avez répondu. (en réponse uniquement)
+
   × /dban <pseudo> : bannit un utilisateur et supprime le message auquel vous avez répondu. (via le pseudo, ou
   en réponse)
 
@@ -181,6 +190,8 @@ bans_help_msg:
   m = minutes, h = heures, d = jours.
 
   × /unban <pseudo> : débannit un utilisateur. (via le pseudo, ou en réponse)
+
+  × /unbanall : confirmation réservée au propriétaire pour débannir les utilisateurs connus.
 
 
   *Commandes de Restriction :* (Admin uniquement)
