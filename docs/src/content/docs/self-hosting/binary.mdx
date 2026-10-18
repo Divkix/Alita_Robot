@@ -43,7 +43,13 @@ tar -xzf alita_robot_${FILEVER}_linux_amd64.tar.gz
 
 # Make executable
 chmod +x alita_robot
+
+# The release archive does not include database migrations; fetch the ones matching this release
+curl -L "https://github.com/divkix/Alita_Robot/archive/refs/tags/${VERSION}.tar.gz" \
+  | tar -xz --strip-components=1 "Alita_Robot-${FILEVER}/migrations"
 ```
+
+The archive contains only `alita_robot`, `LICENSE` and `README.md`; the command above creates a `migrations/` directory next to the binary.
 
 Or visit the [GitHub Releases](https://github.com/divkix/Alita_Robot/releases) page to download manually.
 
@@ -78,8 +84,11 @@ Always verify checksums after downloading to ensure the binary has not been tamp
     MESSAGE_DUMP=-100xxxxxxxxxx
     DATABASE_URL=postgresql://alita:change-me@localhost:5432/alita
     REDIS_ADDRESS=localhost:6379
+    AUTO_MIGRATE=true
     EOF
     ```
+
+    Run the bot from the directory that contains `migrations/`, or set `MIGRATIONS_PATH` to its location. Without the schema the bot cannot start.
   </Step>
 
   <Step title="Run the bot">
@@ -162,15 +171,13 @@ WantedBy=multi-user.target
     ```
   </Step>
 
-  <Step title="Copy migrations if using auto-migrate">
+  <Step title="Copy migrations">
     ```bash
-    # Release archives contain only the binary; fetch the SQL migrations for the same tag
-    git clone --depth 1 --branch "${VERSION}" https://github.com/divkix/Alita_Robot.git /tmp/alita-src
-    sudo cp -r /tmp/alita-src/migrations /opt/alita-robot/
+    sudo cp -r migrations /opt/alita-robot/
     sudo chown -R alita:alita /opt/alita-robot/migrations
     ```
 
-    The bot reads migrations from `MIGRATIONS_PATH` (default `migrations`, relative to the service's `WorkingDirectory`). Without that directory, `AUTO_MIGRATE=true` aborts startup unless `AUTO_MIGRATE_SILENT_FAIL=true`.
+    Use the `migrations/` directory fetched in the Download step. The bot applies it at startup when `AUTO_MIGRATE=true`. It reads migrations from `MIGRATIONS_PATH` (default `migrations`, relative to the service's `WorkingDirectory`). Without that directory, `AUTO_MIGRATE=true` aborts startup unless `AUTO_MIGRATE_SILENT_FAIL=true`.
   </Step>
 
   <Step title="Reload systemd and enable service">
