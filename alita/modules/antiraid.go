@@ -427,8 +427,39 @@ func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) erro
 	return fmt.Errorf("anti-raid state changed concurrently")
 }
 
+// raidBanUntil returns when a raid ban made now with actionTime ends; ok is
+// false for an action time a temporary ban cannot use.
+func raidBanUntil(actionTime int) (untilDate int64, ok bool) {
+	return extraction.TemporaryUntilDate(time.Now().Unix(), int64(actionTime))
+}
+
+// raidCanBan reports whether onJoin can ban in chat: a group where the bot is
+// an admin allowed to restrict members.
+func raidCanBan(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if chat.Type != "group" && chat.Type != "supergroup" {
+		return false
+	}
+	if !chat_status.IsBotAdmin(bot, ctx, chat) {
+		return false
+	}
+	if !chat_status.CanBotRestrict(bot, ctx, chat) {
+		log.WithFields(log.Fields{
+			"chatId": chat.Id,
+		}).Debug("Antiraid action skipped: bot lacks restrict permissions")
+		return false
+	}
+	return true
+}
+
+// raidExempt reports whether onJoin leaves userID alone during a raid.
+func raidExempt(bot *gotgbot.Bot, chatID, userID int64) bool {
+	return userID == bot.Id ||
+		chat_status.IsApproved(bot, chatID, userID) ||
+		chat_status.IsUserAdmin(bot, chatID, userID)
+}
+
 func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTime int) {
-	untilDate, ok := extraction.TemporaryUntilDate(time.Now().Unix(), int64(actionTime))
+	untilDate, ok := raidBanUntil(actionTime)
 	if !ok {
 		log.Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
 		return
@@ -438,32 +469,22 @@ func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTim
 	}
 }
 
-// bansOnJoin reports whether onJoin bans userID on joining chatID: a raid is
-// active and the user is neither approved nor an admin.
-func (a *antiRaidStruct) bansOnJoin(bot *gotgbot.Bot, chatID, userID int64) bool {
-	return a.isRaidActive(chatID) &&
-		!chat_status.IsApproved(bot, chatID, userID) &&
-		!chat_status.IsUserAdmin(bot, chatID, userID)
+// bansOnJoin reports whether onJoin bans userID on joining chat: a raid is
+// active, the bot can ban there with the chat's raid action time, and the user
+// is not exempt. It runs the same checks as onJoin.
+func (a *antiRaidStruct) bansOnJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64) bool {
+	if !a.isRaidActive(chat.Id) || !raidCanBan(bot, nil, chat) || raidExempt(bot, chat.Id, userID) {
+		return false
+	}
+	_, ok := raidBanUntil(antiraid.GetAntiRaidSettings(chat.Id).RaidActionTime)
+	return ok
 }
 
 func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
-	if chat == nil {
-		return ext.ContinueGroups
-	}
-	if chat.Type != "group" && chat.Type != "supergroup" {
-		return ext.ContinueGroups
-	}
-
-	if !chat_status.IsBotAdmin(bot, ctx, chat) {
-		return ext.ContinueGroups
-	}
-	if !chat_status.CanBotRestrict(bot, ctx, chat) {
-		log.WithFields(log.Fields{
-			"chatId": chat.Id,
-		}).Debug("Antiraid action skipped: bot lacks restrict permissions")
+	if chat == nil || !raidCanBan(bot, ctx, chat) {
 		return ext.ContinueGroups
 	}
 
@@ -471,13 +492,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 	isActive := a.isRaidActive(chat.Id)
 
 	for _, member := range msg.NewChatMembers {
-		if member.Id == bot.Id {
-			continue
-		}
-		if chat_status.IsApproved(bot, chat.Id, member.Id) {
-			continue
-		}
-		if chat_status.IsUserAdmin(bot, chat.Id, member.Id) {
+		if raidExempt(bot, chat.Id, member.Id) {
 			continue
 		}
 

@@ -1324,16 +1324,18 @@ func enforceableFedBan(b *gotgbot.Bot, fedID string, userID int64, isAdmin func(
 	return ban, sourceFed
 }
 
-// fedBansOnJoin reports whether enforceFedBan bans userID on joining chatID.
-func fedBansOnJoin(b *gotgbot.Bot, chatID, userID int64) bool {
-	membership := federations.GetChatFed(chatID)
+// fedBansOnJoin reports whether enforceFedBan bans userID on joining chat.
+// enforceFedBan itself just calls banChatMember, which Telegram refuses when
+// the bot may not restrict members, so a bot without that right bans no one.
+func fedBansOnJoin(b *gotgbot.Bot, chat *gotgbot.Chat, userID int64) bool {
+	membership := federations.GetChatFed(chat.Id)
 	if membership == nil {
 		return false
 	}
 	ban, _ := enforceableFedBan(b, membership.FedID, userID, func() bool {
-		return chat_status.IsUserAdmin(b, chatID, userID)
+		return chat_status.IsUserAdmin(b, chat.Id, userID)
 	})
-	return ban != nil
+	return ban != nil && chat_status.CanBotRestrict(b, nil, chat)
 }
 
 func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {

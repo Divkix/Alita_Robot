@@ -744,8 +744,8 @@ func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64)
 		Claim: claimRecentJoinProcessing,
 		// Fed-ban and antiraid ban from the join's service message, which may
 		// arrive after the ChatMemberUpdated that greets, so ask them directly.
-		Banned: func(chatID, userID int64) bool {
-			return fedBansOnJoin(bot, chatID, userID) || antiRaidModule.bansOnJoin(bot, chatID, userID)
+		Banned: func(_, userID int64) bool {
+			return fedBansOnJoin(bot, chat, userID) || antiRaidModule.bansOnJoin(bot, chat, userID)
 		},
 		IsApproved: func(chatID, userID int64) bool {
 			return chat_status.IsApproved(bot, chatID, userID)
