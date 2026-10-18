@@ -1081,6 +1081,7 @@ error_generic: "An error occurred. Please try again later."
 common_anonymous_user_error: This command cannot be used on anonymous user.
 common_anonymous_ban_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
 common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
+command_help_example: "Example: {example}"
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
 common_user_not_in_chat: This user is not in this chat, how can I restrict them?
 common_cannot_target_admin: "I cannot perform this action on group administrators."

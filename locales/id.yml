@@ -1015,6 +1015,7 @@ error_generic: "Terjadi kesalahan. Silakan coba lagi nanti."
 common_anonymous_user_error: Perintah ini tidak dapat digunakan pada pengguna anonim.
 common_anonymous_ban_error: Perintah ini tidak dapat digunakan pada pengguna anonim, pengguna ini hanya dapat diblokir/dibuka blokirnya.
 common_cannot_identify_user: Tidak dapat mengidentifikasi pengguna. Perintah ini tidak dapat digunakan oleh kanal.
+command_help_example: "Contoh: {example}"
 common_no_user_specified: Saya tidak tahu siapa yang Anda maksud, Anda perlu menentukan pengguna...!
 common_user_not_in_chat: Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa membatasi mereka?
 common_cannot_target_admin: "Saya tidak dapat melakukan tindakan ini pada admin grup."

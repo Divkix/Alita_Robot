@@ -74,6 +74,7 @@ utils_string_handling_extract_time_invalid_time_type: "अमान्य सम
 common_anonymous_user_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता।
 common_anonymous_ban_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता, इन उपयोगकर्ताओं को केवल बैन/अनबैन किया जा सकता है।
 common_cannot_identify_user: उपयोगकर्ता की पहचान नहीं हो सकी। इस कमांड का उपयोग चैनलों द्वारा नहीं किया जा सकता।
+command_help_example: "उदाहरण: {example}"
 common_no_user_specified: मुझे नहीं पता आप किसके बारे में बात कर रहे हैं, आपको एक उपयोगकर्ता निर्दिष्ट करना होगा...!
 common_user_not_in_chat: यह उपयोगकर्ता इस चैट में नहीं है, मैं उन्हें कैसे प्रतिबंधित करूं?
 common_cannot_target_admin: "मैं ग्रुप एडमिनिस्ट्रेटर्स पर यह कार्रवाई नहीं कर सकता।"

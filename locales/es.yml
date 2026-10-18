@@ -1023,6 +1023,7 @@ error_generic: "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde.
 common_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
 common_anonymous_ban_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.
 common_cannot_identify_user: No se puede identificar al usuario. Este comando no puede ser usado por canales.
+command_help_example: "Ejemplo: {example}"
 common_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
 common_user_not_in_chat: Este usuario no está en este chat, ¿cómo puedo restringirlo?
 common_cannot_target_admin: "No puedo realizar esta acción en los administradores del grupo."
