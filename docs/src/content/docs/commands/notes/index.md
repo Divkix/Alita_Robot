@@ -25,7 +25,7 @@ Admin commands:
 - **Formatting Options**: Control note visibility and behavior
 - **Admin-Only Notes**: Restrict certain notes to administrators only
 - **Private Notes**: Send notes privately to users via DM
-- **Web Preview Control**: Enable or disable link previews
+- **Web Preview Control**: Link previews are off by default; add `{preview}` to turn them on
 - **Protected Content**: Prevent note content from being forwarded
 
 **Note Formatting Options:**
@@ -35,7 +35,7 @@ When saving a note, you can use special tags to control its behavior:
 - `{admin}` - Note can only be accessed by admins
 - `{protect}` - Content cannot be forwarded
 - `{nonotif}` - Send without notification sound
-- `{nopreview}` - Disable link preview
+- `{preview}` - Show link previews (they are off by default)
 
 **Private Notes Mode:**
 When private notes are enabled (`/privatenotes on`), all notes are sent to users via DM instead of in the group. This keeps the group chat clean.
