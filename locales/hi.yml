@@ -734,6 +734,8 @@ bans_anonymous_ban_only_error: इस कमांड का उपयोग ग
 blacklists_bl_watcher_banned_user: "%s के कारण %s को बैन किया गया"
 blacklists_bl_watcher_kicked_user: "%s के कारण %s को किक किया गया"
 blacklists_bl_watcher_muted_user: "%s के कारण %s को म्यूट किया गया"
+blacklists_bl_watcher_tbanned_user: "%s को %s के लिए बैन किया गया, कारण: %s"
+blacklists_bl_watcher_tmuted_user: "%s को %s के लिए म्यूट किया गया, कारण: %s"
 blacklists_blacklist_added_bl: "इन शब्दों को ब्लैकलिस्ट के रूप में जोड़ा गया:"
 blacklists_blacklist_already_blacklisted: "ये शब्द पहले से ही ब्लैकलिस्ट किए गए हैं:"
 blacklists_blacklist_give_bl_word: कृपया मुझे ब्लैकलिस्ट में जोड़ने के लिए एक शब्द दें!

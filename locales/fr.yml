@@ -405,6 +405,8 @@ warns_notes_docs: |
 blacklists_bl_watcher_banned_user: "%s banni à cause de %s"
 blacklists_bl_watcher_kicked_user: "%s expulsé à cause de %s"
 blacklists_bl_watcher_muted_user: "%s rendu muet à cause de %s"
+blacklists_bl_watcher_tbanned_user: "%s banni pour %s à cause de %s"
+blacklists_bl_watcher_tmuted_user: "%s rendu muet pour %s à cause de %s"
 blacklists_blacklist_added_bl: "Ces mots ont été ajoutés à la liste noire :"
 blacklists_blacklist_already_blacklisted: "Ces mots sont déjà sur la liste noire :"
 blacklists_blacklist_give_bl_word: Veuillez me donner un mot à ajouter à la liste noire !
