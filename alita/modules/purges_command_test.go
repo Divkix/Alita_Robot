@@ -107,10 +107,8 @@ func TestPurgeMsgsConcurrentHandlesDeleteBoundariesAndErrors(t *testing.T) {
 }
 
 func TestPurgeRequiresReplyAndDeletesRange(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	noReplyCtx := newModuleMessageContext(bot, chat, admin, "/purge")
 	if err := purgesModule.purge(bot, noReplyCtx); err != ext.EndGroups {
@@ -124,19 +122,15 @@ func TestPurgeRequiresReplyAndDeletesRange(t *testing.T) {
 	if err := purgesModule.purge(bot, replyCtx); err != ext.EndGroups {
 		t.Fatalf("purge reply error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) < 5 {
-		t.Fatalf("deleteMessage calls = %d, want range and command deletions", len(calls))
-	}
+	assertDeleted(t, client, chat.Id, 101, 102, 103, 104, 105)
 	if calls := client.callsFor("sendMessage"); len(calls) < 2 {
 		t.Fatalf("sendMessage calls = %d, want purge notification", len(calls))
 	}
 }
 
 func TestPurgeRejectsOverLimitRange(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newPurgeReplyContext(bot, chat, admin, "/purge", 2005, 1)
 	if err := purgesModule.purge(bot, ctx); err != ext.EndGroups {
@@ -151,10 +145,8 @@ func TestPurgeRejectsOverLimitRange(t *testing.T) {
 }
 
 func TestDelCommandDeletesReplyAndCommandMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	noReplyCtx := newModuleMessageContext(bot, chat, admin, "/del")
 	if err := purgesModule.delCmd(bot, noReplyCtx); err != ext.EndGroups {
@@ -168,13 +160,12 @@ func TestDelCommandDeletesReplyAndCommandMessage(t *testing.T) {
 	if calls := client.callsFor("deleteMessage"); len(calls) != 2 {
 		t.Fatalf("deleteMessage calls = %d, want reply and command deletions", len(calls))
 	}
+	assertDeleted(t, client, chat.Id, 119, 120)
 }
 
 func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	delMsgs.Delete(chat.Id)
 
 	missingFromCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto", 210, 208)
@@ -210,16 +201,12 @@ func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
 	if _, ok := delMsgs.Load(chat.Id); ok {
 		t.Fatal("purge marker was not cleared after purgeTo")
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) < 6 {
-		t.Fatalf("deleteMessage calls = %d, want marker, range, and command deletions", len(calls))
-	}
+	assertDeleted(t, client, chat.Id, 215, 216, 217, 218, 220, 230)
 }
 
 func TestPurgeFromToValidationBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	delMsgs.Delete(chat.Id)
 
 	noFromReplyCtx := newModuleMessageContext(bot, chat, admin, "/purgefrom")
@@ -257,29 +244,23 @@ func TestPurgeFromToValidationBranches(t *testing.T) {
 }
 
 func TestDeleteButtonHandlerDeletesTargetMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	validData := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
 	ctx := newModuleCallbackContext(bot, chat, admin, validData)
 	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("deleteButtonHandler error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want callback target deletion", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": 345})
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want callback answer", len(calls))
 	}
 }
 
 func TestDeleteButtonHandlerRejectsInvalidData(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleCallbackContext(bot, chat, admin, "deleteMsg.bad")
 	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
@@ -294,12 +275,10 @@ func TestDeleteButtonHandlerRejectsInvalidData(t *testing.T) {
 }
 
 func TestDeleteButtonHandlerReturnsDeleteFailure(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	requestErr := errors.New("delete failed")
 	client.errors["deleteMessage"] = requestErr
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	data := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
 
 	err := purgesModule.deleteButtonHandler(bot, newModuleCallbackContext(bot, chat, admin, data))

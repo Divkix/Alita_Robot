@@ -210,6 +210,22 @@ func assertParams(t *testing.T, call moduleBotCall, want map[string]any) {
 	}
 }
 
+// assertDeleted fails unless deleteMessage was sent for each id in chatID.
+func assertDeleted(t *testing.T, client *moduleBotClient, chatID int64, ids ...int64) {
+	t.Helper()
+	deleted := map[string]bool{}
+	for _, call := range client.callsFor("deleteMessage") {
+		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(chatID) {
+			deleted[fmt.Sprint(call.Params["message_id"])] = true
+		}
+	}
+	for _, id := range ids {
+		if !deleted[fmt.Sprint(id)] {
+			t.Errorf("message %d in chat %d was not deleted; deleted %v", id, chatID, deleted)
+		}
+	}
+}
+
 // targetParams is the chat_id/user_id pair a member-targeting call must carry.
 func targetParams(chatID, userID int64) map[string]any {
 	return map[string]any{"chat_id": chatID, "user_id": userID}
