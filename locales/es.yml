@@ -2527,26 +2527,36 @@ federations_help_msg: |
   × /newfed <name>: Crea una federación (una por usuario).
   × /renamefed <name>: Renombra tu federación.
   × /delfed: Elimina tu federación (con confirmación).
-  × /fedpromote /feddemote: Gestiona los administradores de la federación.
+  × /fedpromote /feddemote <user>: Asciende o degrada a un administrador de la federación (respuesta, ID o @usuario).
   × /fedreason on/off: Exige un motivo para los fban.
   × /fednotif on/off: Avisa al propietario de los fban por privado.
-  × /subfed /unsubfed /fedsubs: Suscríbete a otra federación (máx. 5).
+  × /subfed /unsubfed <fed_id>: Suscríbete a los bans de otra federación o cancela la suscripción (máx. 5).
+  × /fedsubs: Lista las federaciones a las que está suscrita la tuya.
   × /fbanlist [csv|json|minicsv]: Exporta los fban.
   × /importfbans: Importa desde un archivo CSV/JSON respondido.
-  × /setfedlog /unsetfedlog: Chat de registro de la federación.
+  × /unsetfedlog: Quita el chat de registro de la federación.
+
+  *Propietario (en un grupo):*
+  × /setfedlog: Convierte este grupo en el chat de registro de tu federación.
 
   *Propietario del grupo:*
   × /joinfed <fed_id>: Une este chat a una federación.
   × /leavefed: Sal de la federación.
+
+  *Administradores del grupo:*
   × /quietfed on/off: Oculta los avisos pasivos de fban.
 
   *Administradores de la federación:*
-  × /fban /unfban /funban: Ban/desban en la federación.
-  × /fedstat /fbanstat: Consulta el fban de un usuario.
+  × /fban <user> [reason]: Banea a un usuario en toda la federación (en un grupo de la federación; el propietario también puede usarlo por privado).
+  × /unfban /funban <user>: Quita un ban de federación.
   × /feddemoteme <fed_id>: Deja de ser administrador de una federación.
 
   *Cualquiera:*
-  × /fedinfo /fedadmins /chatfed /myfeds
+  × /fedstat /fbanstat [user] [fed_id]: Consulta los fban de un usuario (los tuyos por defecto); con un fed_id, muestra el motivo de ese ban.
+  × /fedinfo [fed_id]: Muestra la información de la federación.
+  × /fedadmins [fed_id]: Lista los administradores de una federación.
+  × /chatfed: Muestra la federación de este grupo (solo grupos).
+  × /myfeds: Lista las federaciones que posees o administras.
 logchannels_help_msg: |
   Envía las acciones de los administradores a un canal de registro dedicado.
 

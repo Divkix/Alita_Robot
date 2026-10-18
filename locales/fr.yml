@@ -2434,26 +2434,36 @@ federations_help_msg: |
   × /newfed <name>: Créer une fédération (une par utilisateur).
   × /renamefed <name>: Renommer votre fédération.
   × /delfed: Supprimer votre fédération (avec confirmation).
-  × /fedpromote /feddemote: Gérer les administrateurs de la fédération.
+  × /fedpromote /feddemote <user>: Promouvoir ou rétrograder un administrateur de la fédération (réponse, ID ou @nom d'utilisateur).
   × /fedreason on/off: Exiger un motif pour les fban.
   × /fednotif on/off: Prévenir le propriétaire des fban en privé.
-  × /subfed /unsubfed /fedsubs: S'abonner à une autre fédération (5 max).
+  × /subfed /unsubfed <fed_id>: S'abonner aux bannissements d'une autre fédération ou s'en désabonner (5 max).
+  × /fedsubs: Lister les fédérations auxquelles la vôtre est abonnée.
   × /fbanlist [csv|json|minicsv]: Exporter les fban.
   × /importfbans: Importer depuis un fichier CSV/JSON cité.
-  × /setfedlog /unsetfedlog: Chat de journal de la fédération.
+  × /unsetfedlog: Retirer le chat de journal de la fédération.
+
+  *Propriétaire (dans un groupe) :*
+  × /setfedlog: Faire de ce groupe le chat de journal de votre fédération.
 
   *Propriétaire du groupe :*
   × /joinfed <fed_id>: Rattacher ce chat à une fédération.
   × /leavefed: Quitter la fédération.
+
+  *Administrateurs du groupe :*
   × /quietfed on/off: Masquer les avis passifs de fban.
 
   *Administrateurs de la fédération :*
-  × /fban /unfban /funban: Bannir/débannir dans la fédération.
-  × /fedstat /fbanstat: Vérifier le fban d'un utilisateur.
+  × /fban <user> [reason]: Bannir un utilisateur de toute la fédération (dans un groupe de la fédération ; le propriétaire peut aussi l'utiliser en privé).
+  × /unfban /funban <user>: Lever un bannissement de fédération.
   × /feddemoteme <fed_id>: Quitter votre rôle d'administrateur de la fédération.
 
   *Tout le monde :*
-  × /fedinfo /fedadmins /chatfed /myfeds
+  × /fedstat /fbanstat [user] [fed_id]: Vérifier les fban d'un utilisateur (les vôtres par défaut) ; avec un fed_id, afficher le motif de ce bannissement.
+  × /fedinfo [fed_id]: Afficher les infos de la fédération.
+  × /fedadmins [fed_id]: Lister les administrateurs d'une fédération.
+  × /chatfed: Afficher la fédération de ce groupe (groupes uniquement).
+  × /myfeds: Lister les fédérations que vous possédez ou administrez.
 logchannels_help_msg: |
   Envoyez les actions des administrateurs vers un canal de journal dédié.
 

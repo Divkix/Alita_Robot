@@ -2219,26 +2219,36 @@ federations_help_msg: |
   × /newfed <name>: फ़ेडरेशन बनाएँ (हर यूज़र के लिए एक)।
   × /renamefed <name>: अपने फ़ेडरेशन का नाम बदलें।
   × /delfed: अपना फ़ेडरेशन हटाएँ (पुष्टि के साथ)।
-  × /fedpromote /feddemote: फ़ेडरेशन एडमिन प्रबंधित करें।
+  × /fedpromote /feddemote <user>: किसी फ़ेडरेशन एडमिन को प्रमोट या डिमोट करें (रिप्लाई, ID या @username से)।
   × /fedreason on/off: fban के लिए कारण ज़रूरी करें।
   × /fednotif on/off: fban की सूचना मालिक को PM में दें।
-  × /subfed /unsubfed /fedsubs: दूसरे फ़ेडरेशन को सब्सक्राइब करें (अधिकतम 5)।
+  × /subfed /unsubfed <fed_id>: दूसरे फ़ेडरेशन के बैन को सब्सक्राइब या अनसब्सक्राइब करें (अधिकतम 5)।
+  × /fedsubs: वे फ़ेडरेशन दिखाएँ जिन्हें आपका फ़ेडरेशन सब्सक्राइब करता है।
   × /fbanlist [csv|json|minicsv]: fban एक्सपोर्ट करें।
   × /importfbans: रिप्लाई की गई CSV/JSON फ़ाइल से इम्पोर्ट करें।
-  × /setfedlog /unsetfedlog: फ़ेडरेशन लॉग चैट।
+  × /unsetfedlog: फ़ेडरेशन लॉग चैट हटाएँ।
+
+  *मालिक (ग्रुप में):*
+  × /setfedlog: इस ग्रुप को अपने फ़ेडरेशन का लॉग चैट बनाएँ।
 
   *ग्रुप मालिक:*
   × /joinfed <fed_id>: इस चैट को फ़ेडरेशन से जोड़ें।
   × /leavefed: फ़ेडरेशन छोड़ें।
+
+  *ग्रुप एडमिन:*
   × /quietfed on/off: निष्क्रिय fban सूचनाएँ छिपाएँ।
 
   *फ़ेडरेशन एडमिन:*
-  × /fban /unfban /funban: फ़ेडरेशन बैन/अनबैन।
-  × /fedstat /fbanstat: किसी यूज़र का fban जाँचें।
+  × /fban <user> [reason]: पूरे फ़ेडरेशन में किसी यूज़र को बैन करें (फ़ेडरेशन के ग्रुप में; मालिक इसे PM में भी इस्तेमाल कर सकता है)।
+  × /unfban /funban <user>: फ़ेडरेशन बैन हटाएँ।
   × /feddemoteme <fed_id>: फ़ेडरेशन एडमिन पद छोड़ें।
 
   *कोई भी:*
-  × /fedinfo /fedadmins /chatfed /myfeds
+  × /fedstat /fbanstat [user] [fed_id]: किसी यूज़र के fban जाँचें (डिफ़ॉल्ट रूप से आपके); fed_id देने पर उस बैन का कारण दिखाएँ।
+  × /fedinfo [fed_id]: फ़ेडरेशन की जानकारी दिखाएँ।
+  × /fedadmins [fed_id]: किसी फ़ेडरेशन के एडमिन की सूची दिखाएँ।
+  × /chatfed: इस ग्रुप का फ़ेडरेशन दिखाएँ (केवल ग्रुप में)।
+  × /myfeds: वे फ़ेडरेशन दिखाएँ जिनके आप मालिक या एडमिन हैं।
 logchannels_help_msg: |
   एडमिन कार्रवाइयाँ एक अलग लॉग चैनल में भेजें।
 

@@ -2518,26 +2518,36 @@ federations_help_msg: |
   × /newfed <name>: Buat federasi (satu per pengguna).
   × /renamefed <name>: Ganti nama federasi Anda.
   × /delfed: Hapus federasi Anda (dengan konfirmasi).
-  × /fedpromote /feddemote: Kelola admin federasi.
+  × /fedpromote /feddemote <user>: Promosikan atau turunkan admin federasi (balasan, ID, atau @username).
   × /fedreason on/off: Wajibkan alasan untuk fban.
   × /fednotif on/off: Beri tahu pemilik soal fban lewat PM.
-  × /subfed /unsubfed /fedsubs: Berlangganan federasi lain (maks. 5).
+  × /subfed /unsubfed <fed_id>: Berlangganan atau berhenti berlangganan ban federasi lain (maks. 5).
+  × /fedsubs: Tampilkan federasi yang dilanggan federasi Anda.
   × /fbanlist [csv|json|minicsv]: Ekspor fban.
   × /importfbans: Impor dari file CSV/JSON yang dibalas.
-  × /setfedlog /unsetfedlog: Obrolan log federasi.
+  × /unsetfedlog: Hapus obrolan log federasi.
+
+  *Pemilik (di grup):*
+  × /setfedlog: Jadikan grup ini obrolan log federasi Anda.
 
   *Pemilik grup:*
   × /joinfed <fed_id>: Gabungkan obrolan ini ke federasi.
   × /leavefed: Keluar dari federasi.
+
+  *Admin grup:*
   × /quietfed on/off: Sembunyikan notifikasi fban pasif.
 
   *Admin federasi:*
-  × /fban /unfban /funban: Ban/buka ban federasi.
-  × /fedstat /fbanstat: Cek fban seorang pengguna.
+  × /fban <user> [reason]: Ban pengguna di seluruh federasi (di grup federasi; pemilik juga bisa memakainya di PM).
+  × /unfban /funban <user>: Cabut ban federasi.
   × /feddemoteme <fed_id>: Mundur sebagai admin federasi.
 
   *Siapa saja:*
-  × /fedinfo /fedadmins /chatfed /myfeds
+  × /fedstat /fbanstat [user] [fed_id]: Cek fban seorang pengguna (milik Anda secara bawaan); dengan fed_id, tampilkan alasan ban tersebut.
+  × /fedinfo [fed_id]: Tampilkan info federasi.
+  × /fedadmins [fed_id]: Tampilkan daftar admin sebuah federasi.
+  × /chatfed: Tampilkan federasi grup ini (hanya di grup).
+  × /myfeds: Tampilkan federasi yang Anda miliki atau kelola sebagai admin.
 logchannels_help_msg: |
   Kirim tindakan admin ke kanal log khusus.
 

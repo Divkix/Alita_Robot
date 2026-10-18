@@ -2490,26 +2490,36 @@ federations_help_msg: |
   × /newfed <name>: Cria uma federação (uma por usuário).
   × /renamefed <name>: Renomeia sua federação.
   × /delfed: Exclui sua federação (com confirmação).
-  × /fedpromote /feddemote: Gerencia os administradores da federação.
+  × /fedpromote /feddemote <user>: Promove ou rebaixa um administrador da federação (resposta, ID ou @usuário).
   × /fedreason on/off: Exige um motivo nos fban.
   × /fednotif on/off: Avisa o dono dos fban no privado.
-  × /subfed /unsubfed /fedsubs: Assina outra federação (máx. 5).
+  × /subfed /unsubfed <fed_id>: Assina ou cancela a assinatura dos bans de outra federação (máx. 5).
+  × /fedsubs: Lista as federações que a sua assina.
   × /fbanlist [csv|json|minicsv]: Exporta os fban.
   × /importfbans: Importa de um arquivo CSV/JSON respondido.
-  × /setfedlog /unsetfedlog: Chat de log da federação.
+  × /unsetfedlog: Remove o chat de log da federação.
+
+  *Dono (em um grupo):*
+  × /setfedlog: Torna este grupo o chat de log da sua federação.
 
   *Dono do grupo:*
   × /joinfed <fed_id>: Adiciona este chat a uma federação.
   × /leavefed: Sai da federação.
+
+  *Administradores do grupo:*
   × /quietfed on/off: Oculta os avisos passivos de fban.
 
   *Administradores da federação:*
-  × /fban /unfban /funban: Ban/desban na federação.
-  × /fedstat /fbanstat: Consulta o fban de um usuário.
+  × /fban <user> [reason]: Bane um usuário em toda a federação (em um grupo da federação; o dono também pode usá-lo no privado).
+  × /unfban /funban <user>: Remove um ban da federação.
   × /feddemoteme <fed_id>: Deixa de ser administrador de uma federação.
 
   *Qualquer pessoa:*
-  × /fedinfo /fedadmins /chatfed /myfeds
+  × /fedstat /fbanstat [user] [fed_id]: Consulta os fban de um usuário (os seus por padrão); com um fed_id, mostra o motivo desse ban.
+  × /fedinfo [fed_id]: Mostra as informações da federação.
+  × /fedadmins [fed_id]: Lista os administradores de uma federação.
+  × /chatfed: Mostra a federação deste grupo (somente grupos).
+  × /myfeds: Lista as federações que você possui ou administra.
 logchannels_help_msg: |
   Envie as ações dos administradores para um canal de log dedicado.
 
