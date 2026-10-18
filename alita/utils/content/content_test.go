@@ -4,6 +4,7 @@ package content
 
 import (
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,7 +12,25 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
+
+// useEnglishLocale loads the real en.yml into the i18n manager, which this
+// package's tests otherwise run without. It swaps a global, so callers must not
+// call t.Parallel.
+func useEnglishLocale(t *testing.T) {
+	t.Helper()
+
+	raw, err := os.ReadFile("../../../locales/en.yml")
+	if err != nil {
+		t.Fatalf("read en.yml: %v", err)
+	}
+	restore, err := i18n.OverrideManagerForTest(string(raw))
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest: %v", err)
+	}
+	t.Cleanup(restore)
+}
 
 func TestExtractNoteAndFilterNilMessage(t *testing.T) {
 	t.Parallel()
@@ -154,6 +173,27 @@ func TestExtractWelcomeNoContent(t *testing.T) {
 	}
 	if result.ErrorMsg == "" {
 		t.Fatal("expected errorMsg for no content")
+	}
+}
+
+// The empty /setwelcome and /setgoodbye replies are whole translated
+// sentences, so the English command word never lands in another locale.
+func TestExtractWelcomeNoContentNamesTheGreeting(t *testing.T) {
+	useEnglishLocale(t)
+
+	tr := i18n.MustNewTranslator("en")
+	for greetingType, key := range map[string]string{
+		"welcome": "content_need_welcome_content",
+		"goodbye": "content_need_goodbye_content",
+	} {
+		want, _ := tr.GetString(key)
+		if want == "" {
+			t.Fatalf("en locale has no %s", key)
+		}
+		result := ExtractWelcome(&gotgbot.Message{Text: "/set" + greetingType}, greetingType, "en")
+		if result.ErrorMsg != want {
+			t.Errorf("ExtractWelcome(%s) error = %q, want %q", greetingType, result.ErrorMsg, want)
+		}
 	}
 }
 

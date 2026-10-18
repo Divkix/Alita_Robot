@@ -143,11 +143,14 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	var result WelcomeResult
 	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
-	template, _ := tr.GetString("content_need_content")
-	if template == "" {
-		template = "You need to give me some content to %s users!"
+	needKey, needFallback := "content_need_welcome_content", "You need to give me some content to welcome users!"
+	if greetingType == "goodbye" {
+		needKey, needFallback = "content_need_goodbye_content", "You need to give me some content to say goodbye to users!"
 	}
-	result.ErrorMsg = fmt.Sprintf(template, greetingType)
+	result.ErrorMsg, _ = tr.GetString(needKey)
+	if result.ErrorMsg == "" {
+		result.ErrorMsg = needFallback
+	}
 	var (
 		rawText string
 		args    = strings.Fields(msg.Text)[1:]
