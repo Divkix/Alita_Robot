@@ -2520,7 +2520,7 @@ feds_not_fed_admin: "Cet utilisateur n'est pas administrateur de la fédération
 feds_demoted: "{user} n'est plus administrateur de la fédération."
 feds_demoteme_not_admin: "Vous n'êtes pas administrateur de cette fédération."
 feds_demoteme_ok: "Vous n'êtes plus administrateur de cette fédération."
-feds_demoteme_owner: "Vous êtes le propriétaire de cette fédération, vous ne pouvez donc pas renoncer à votre rôle d'administrateur."
+feds_demoteme_owner: "Vous êtes le propriétaire de cette fédération, vous ne pouvez donc pas renoncer à votre rôle d'administrateur. Utilisez /delfed pour la supprimer."
 feds_fedreason_on: "Les fban exigent désormais un motif."
 feds_fedreason_off: "Les fban n'exigent plus de motif."
 feds_fednotif_on: "Vous serez prévenu des fban."
