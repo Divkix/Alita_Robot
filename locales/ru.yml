@@ -8,9 +8,9 @@ admin_anon_admin_disabled: "Режим AnonAdmin в данный момент <b
 admin_anon_admin_disabled_now: "Режим AnonAdmin теперь <b>отключён</b> для %s.\n\n С этого момента анонимные администраторы должны нажать кнопку, чтобы подтвердить свои права."
 admin_anon_admin_enabled: "Режим AnonAdmin в данный момент <b>включён</b> для %s.\n\n Это позволяет всем анонимным администраторам выполнять админские действия без ограничений."
 admin_anon_admin_enabled_now: "Режим AnonAdmin теперь <b>включён</b> для %s.\n\n С этого момента анонимные администраторы могут выполнять команды администратора без подтверждения кнопкой."
-admin_anon_admin_invalid_arg: |
-  Неверный аргумент, я понимаю только <code>on</code>,
-  <code>off</code>, <code>yes</code>, <code>no</code>
+admin_anon_admin_invalid_arg:
+  "Неверный аргумент, я понимаю только <code>on</code>,
+  <code>off</code>, <code>yes</code>, <code>no</code>"
 admin_demote_not_admin: |
   Этот человек не администратор, и как я должен его понизить?
 admin_demote_is_bot_itself: Я не собираюсь понижать сам себя.
@@ -45,21 +45,21 @@ antiflood_errors_expected_args:
   "Я ожидал некоторых аргументов! Либо off, либо целое число.
   Например: `/setflood 5`, или `/setflood off`"
 
-antiflood_errors_invalid_int: |
-  Это не правильное целое число. Пожалуйста, дайте мне правильное целое число,
-  или `off`.
+antiflood_errors_invalid_int:
+  "Это не правильное целое число. Пожалуйста, дайте мне правильное целое число,
+  или `off`."
 
 antiflood_errors_set_in_limit: Лимит антифлуда должен быть установлен между 3 и 100.
 antiflood_flood_deleter_already_disabled: |
   Удаление сообщений при флуде в данный момент *отключено* в этом чате, сообщения, вызывающие флуд, будут игнорироваться!
 antiflood_flood_deleter_already_enabled: |
   Удаление сообщений при флуде в данный момент *включено* в этом чате, сообщения, вызывающие флуд, будут удалены!
-antiflood_flood_deleter_disabled: |
-  Отключено удаление сообщений при флуде. Сообщения,
-  вызывающие флуд, будут игнорироваться!
-antiflood_flood_deleter_enabled: |
-  Включено удаление сообщений при флуде. Сообщения, вызывающие
-  флуд, будут удалены!
+antiflood_flood_deleter_disabled:
+  "Отключено удаление сообщений при флуде. Сообщения,
+  вызывающие флуд, будут игнорироваться!"
+antiflood_flood_deleter_enabled:
+  "Включено удаление сообщений при флуде. Сообщения, вызывающие
+  флуд, будут удалены!"
 antiflood_flood_deleter_invalid_option: "Я понимаю только вариант из: `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: В этом чате в данный момент не применяется контроль флуда.
 antiflood_flood_show_settings: |
@@ -169,9 +169,7 @@ blacklists_set_bl_action_current_mode:
   "Текущий режим чёрного списка для этого чата:
     %s"
 blacklists_unblacklist_give_bl_word: Пожалуйста, дайте мне слово для удаления из чёрного списка!
-blacklists_unblacklist_no_removed_bl: |
-  Ни одно из данных слов не было в чёрном списке,
-    которые можно удалить!
+blacklists_unblacklist_no_removed_bl: Ни одно из данных слов не было в чёрном списке, которые можно удалить!
 blacklists_unblacklist_removed_bl: |
   Успешно удалено '%s' из слов в чёрном списке!
 captcha_help_msg:
@@ -209,9 +207,9 @@ captcha_help_msg:
   
     Если они не пройдут или истечёт время, будет применено настроенное действие."
 commonstrings_admin_cache_cache_reloaded: Кэш администраторов успешно перезагружен.
-commonstrings_admin_cache_not_found: |
-  Кэш администраторов не найден. Попросите администратора использовать /admincache,
-  чтобы перезагрузить кэш администраторов.
+commonstrings_admin_cache_not_found:
+  "Кэш администраторов не найден. Попросите администратора использовать /admincache,
+  чтобы перезагрузить кэш администраторов."
 connections_allow_connect_currently_off:
   "Подключения пользователей в данный момент <b>отключены</b>.
   
