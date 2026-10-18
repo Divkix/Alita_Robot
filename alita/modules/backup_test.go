@@ -672,7 +672,8 @@ func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
 	assert.Empty(t, client.callsFor("sendMessage"))
 }
 
-func TestExportHandlerFallsBackToTextWhenDocumentSendFails(t *testing.T) {
+func TestExportHandlerReportsFailureWhenDocumentSendFails(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	client.errors["sendDocument"] = fmt.Errorf("document upload failed")
 	bot := newModuleTestBot(client)
@@ -685,7 +686,9 @@ func TestExportHandlerFallsBackToTextWhenDocumentSendFails(t *testing.T) {
 	err := backupModule.exportHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
 	assert.Len(t, client.callsFor("sendDocument"), 1)
-	assert.Len(t, client.callsFor("sendMessage"), 1)
+	want, trErr := i18n.MustNewTranslator("en").GetString("backup_export_failed")
+	require.NoError(t, trErr)
+	assert.Equal(t, want, client.onlyCall(t, "sendMessage").Params["text"])
 }
 
 func TestValidateImportRequestRejectsNonOwner(t *testing.T) {

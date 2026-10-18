@@ -269,9 +269,7 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	if err != nil {
 		log.Errorf("[Backup] Failed to send document: %v", err)
-		text, _ := tr.GetString("backup_export_success_text", i18n.TranslationParams{
-			"modules": fmt.Sprintf("%d", len(bkp.Data)),
-		})
+		text, _ := tr.GetString("backup_export_failed")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
