@@ -851,9 +851,11 @@ func (m moduleStruct) promoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		return ext.EndGroups
 	}
 	if !chat_status.CanBotPromote(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
 		return ext.EndGroups
 	}
 	return m.promote(c)
@@ -865,9 +867,11 @@ func (m moduleStruct) demoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		return ext.EndGroups
 	}
 	if !chat_status.CanBotPromote(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
 		return ext.EndGroups
 	}
 	return m.demote(c)

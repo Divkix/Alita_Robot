@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -409,6 +410,51 @@ func TestSetTitleReplyEscapesNameAndTitle(t *testing.T) {
 	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
 	if strings.Contains(text, "<x & y>") || !strings.Contains(text, "&lt;x &amp; y&gt;") {
 		t.Fatalf("title reply does not escape the name and title:\n%s", text)
+	}
+}
+
+// Anonymous admins skip WrapCommand, so the anon handlers send the refusal the
+// pipeline would have sent instead of ending silently.
+func TestAnonAdminPromoteAndDemoteExplainMissingRights(t *testing.T) {
+	useRealLocales(t)
+	const noRights = `"can_manage_chat":true`
+	for _, tt := range []struct {
+		name      string
+		adminRule string
+		botRule   string
+		wantKey   string
+	}{
+		{name: "admin cannot promote", adminRule: noRights, botRule: fixtureAdminRights, wantKey: "chat_status_promote_cmd_error"},
+		{name: "bot cannot promote", adminRule: fixtureAdminRights, botRule: noRights, wantKey: "chat_status_bot_promote_error"},
+	} {
+		for _, cmd := range []struct {
+			text string
+			run  func(*gotgbot.Bot, *ext.Context) error
+		}{
+			{text: "/promote 42", run: adminModule.promoteAnonAdmin},
+			{text: "/demote 42", run: adminModule.demoteAnonAdmin},
+		} {
+			t.Run(tt.name+" "+cmd.text, func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, f.admin.Id, tt.adminRule)
+				botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + tt.botRule + `}`
+				f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + botJSON + "," + adminJSON + "]")
+				f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+				// The fake answers getChatMember for the bot with every right, so
+				// the bot's rights come from the loaded admin cache.
+				cache.LoadAdminCache(f.bot, f.chat.Id)
+
+				if err := cmd.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, cmd.text)); err != ext.EndGroups {
+					t.Fatalf("%s error = %v, want EndGroups", cmd.text, err)
+				}
+				if calls := f.client.callsFor("promoteChatMember"); len(calls) != 0 {
+					t.Fatalf("promoteChatMember calls = %d, want none", len(calls))
+				}
+				if got, want := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]), translated(t, tt.wantKey); got != want {
+					t.Fatalf("%s reply = %q, want %q", cmd.text, got, want)
+				}
+			})
+		}
 	}
 }
 
