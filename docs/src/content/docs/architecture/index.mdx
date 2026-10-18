@@ -29,7 +29,7 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
     |-----------|------------|---------|
     | **Caching** | <Badge variant="warning">Redis</Badge> | Distributed caching layer |
     | **Client** | <Badge variant="warning">gocache</Badge> | Go cache library with marshaling |
-    | **Stampede Protection** | <Badge>singleflight</Badge> | Prevents thundering herd on cache misses |
+    | **Stampede Protection** | <Badge>Shared loads</Badge> | One database load per key among concurrent callers |
 
     All cache keys are prefixed with `alita:` for namespace isolation. TTLs range from 20 seconds (anonymous admin verification) to 1 hour (language preferences).
   </Tab>
@@ -52,7 +52,7 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
     Feature modules in `alita/modules/` follow a consistent pattern: `moduleStruct`, handler methods, `LoadModule` registration. Help module loads last to collect all commands.
   </Card>
   <Card title="Cache Layer" icon="star">
-    Redis caching with singleflight stampede protection. Per-type TTLs, automatic invalidation on writes, and distributed cache with namespace isolation.
+    Redis caching with shared-load stampede protection. Per-type TTLs, automatic invalidation on writes, and distributed cache with namespace isolation.
   </Card>
   <Card title="Permission System" icon="check">
     Centralized permission validation in `alita/utils/chat_status/`. Checks are cached to reduce Telegram API calls. Supports anonymous admin detection.
@@ -69,21 +69,23 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
 
 ### 1. Domain Functions Pattern
 
-All database operations are organized by domain in `alita/db/{domain}/repository.go` files (e.g., `alita/db/bans/repository.go`, `alita/db/filters/repository.go`). Each package provides Get/Add/Update/Delete functions for its domain, with surrogate key pattern (auto-increment `id` as PK, external IDs as unique constraints):
+All database operations are organized by domain in `alita/db/{domain}/repository.go` files (e.g., `alita/db/warns/repository.go`, `alita/db/filters/repository.go`). Each package provides Get/Add/Update/Delete functions for its domain, with surrogate key pattern (auto-increment `id` as PK, external IDs as unique constraints):
 
 ```go
 // Example: Direct domain function calls
-settings := db.GetChatSettings(chatId)
-db.UpdateChatSettings(chatId, newSettings)
+settings := chats.GetChatSettings(chatId) // package alita/db/chats
 ```
 
-### 2. Decorator Pattern
+### 2. Command Pipeline
 
-Middleware functionality is implemented through decorators in `alita/utils/helpers/decorators.go`. Common cross-cutting concerns are handled uniformly:
+New commands register through `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)` in `alita/utils/helpers/command_pipeline.go`. The wrapper handles cross-cutting concerns uniformly:
 
-- Permission checking (admin, restrict, delete rights)
-- Error handling with panic recovery
-- Logging and metrics collection
+- Permission and precondition checks via `CommandDescriptor.RequiredChecks` (`helpers.RequireGroup()`, `helpers.RequireUserAdmin()`, `helpers.CanBotRestrict()`, ...). The first failing check sends its own reply and the command returns `ext.EndGroups`.
+- Panic recovery via `error_handling.RecoverFromPanic`
+- Ending handler-group iteration after a connected-chat swap (`endGroupsAfterChatSwap`)
+- Alias and disableable-command registration from the descriptor
+
+`alita/utils/helpers/decorators.go` only holds the legacy `MultiCommand` alias loop, which adds no wrapping, and the disableable-command registry (`AddCmdToDisableable`, `IsDisableable`, `DisableableCommands`).
 
 ### 3. Worker Pools
 
@@ -98,7 +100,7 @@ Concurrent processing uses bounded worker pools with panic recovery:
 Redis-based caching with stampede protection:
 
 - Distributed cache using Redis for persistence across restarts
-- Singleflight pattern prevents thundering herd on cache misses
+- Concurrent callers for the same key share one database load (`cache.GetFromCacheOrLoad`)
 - Configurable TTLs per data type (30min - 1hr typically)
 
 ## Request Flow Diagram
@@ -181,16 +183,15 @@ Each feature module follows a consistent pattern:
 Redis caching with stampede protection:
 
 - **Cache Keys**: Prefixed with `alita:` for namespace isolation
-- **Stampede Protection**: Singleflight prevents concurrent cache rebuilds
+- **Stampede Protection**: `GetFromCacheOrLoad` shares one database load per key among concurrent callers
 - **TTL Management**: Per-type expiration (settings: 30min, language: 1hr)
 
 ### Monitoring
 
 Comprehensive monitoring subsystems:
 
-- **Resource Monitor**: Tracks memory and goroutine usage every 5 minutes
 - **Activity Monitor**: Automatic group activity tracking with configurable thresholds
-- **Background Stats**: Performance metrics collection
+- **Background Stats**: Samples memory and goroutine counts every 30 seconds and database stats every minute, and reports every 5 minutes
 - **Auto-Remediation**: GC triggers when memory exceeds thresholds
 
 ## Concurrency Model
@@ -205,26 +206,9 @@ MaxRoutines: 200  // Configurable via DISPATCHER_MAX_ROUTINES
 // and multi-member greetings. They are intentionally not configuration knobs.
 ```
 
-### Singleflight for Cache
+### Shared Cache Loads
 
-```go
-// Prevents multiple goroutines from rebuilding same cache entry
-var cacheGroup singleflight.Group
-
-// 30-second timeout with automatic cleanup
-resultCh := cacheGroup.DoChan(cacheKey, func() (any, error) {
-    return loadFromDatabase()
-})
-
-select {
-case res := <-resultCh:
-    result = res.Val
-    err = res.Err
-case <-time.After(30 * time.Second):
-    cacheGroup.Forget(cacheKey) // Prevent goroutine accumulation
-    err = errors.New("cache load timeout")
-}
-```
+`alita/db/cache.GetFromCacheOrLoad` runs one load per key and shares it among concurrent callers. Each caller keeps its own cancellation and deadline. The shared query has a 30-second deadline (`loadWaitTimeout`) and is cancelled when its last waiting caller leaves. Failed or cancelled loads are not cached. See [Caching](/architecture/caching#stampede-protection).
 
 ### Graceful Shutdown
 
@@ -272,22 +256,29 @@ go func() {
 
 ### Layer 3: Handler Level
 
-Individual handlers use decorators for error handling:
+Handlers outside the pipeline call the `chat_status` predicates directly and return early:
 
 ```go
 // Permission checks return early on failure
-if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
     return ext.EndGroups
 }
 ```
 
-### Layer 4: Decorator Level
+### Layer 4: Command Pipeline
 
-Command decorators provide permission validation and error context:
+`helpers.WrapCommand` adds panic recovery, `RequiredChecks` permission validation and chat-swap group termination around every command it registers:
 
 ```go
-// Decorators wrap handlers with cross-cutting concerns
-helpers.MultiCommand(dispatcher, []string{"cmd", "alias"}, handler)
+// The pipeline wraps the handler with checks, panic recovery and group termination
+helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+    Name:    "cmd",
+    Aliases: []string{"alias"},
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+    },
+}, handler) // handler: func(c *helpers.CommandContext) error
 ```
 
 ## Database Schema Design
