@@ -550,6 +550,20 @@ func TestUpdateFloodWithSettingsReplacesIdleCounter(t *testing.T) {
 	}
 }
 
+// The unknown-type reply is HTML, so the echoed argument must be escaped or
+// Telegram rejects the reply and the admin gets no answer.
+func TestSetFloodModeEscapesUnknownType(t *testing.T) {
+	resetAntifloodState(t)
+	f := newAdminChatFixture(t)
+	if err := antifloodModule.setFloodMode(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/setfloodmode <x>")); err != ext.EndGroups {
+		t.Fatalf("setFloodMode() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+	if strings.Contains(text, "<x>") || !strings.Contains(text, "&lt;x&gt;") {
+		t.Fatalf("unknown-type reply does not escape the argument:\n%s", text)
+	}
+}
+
 // /setfloodmode cannot store tban/tmute, but the action CHECK allows them, so
 // rows restored from a backup or older versions carry them.
 func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {

@@ -586,7 +586,7 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_unknown_type")
-			_, err := msg.Reply(b, fmt.Sprintf(temp, args[0]), formatting.Shtml())
+			_, err := msg.Reply(b, fmt.Sprintf(temp, formatting.HtmlEscape(args[0])), formatting.Shtml())
 			if err != nil {
 				return err
 			}
