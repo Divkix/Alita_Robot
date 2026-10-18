@@ -124,16 +124,20 @@ func sweepUpdateCache(cache *sync.Map, now time.Time, interval time.Duration) {
 	})
 }
 
+func sweepUsersThrottleCaches(now time.Time) {
+	sweepUpdateCache(userUpdateCache, now, userUpdateInterval)
+	sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
+	sweepUpdateCache(chatMemberUpdateCache, now, chatUpdateInterval)
+	sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
+}
+
 func usersThrottleSweepLoop() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for now := range ticker.C {
 		func() {
 			defer error_handling.RecoverFromPanic("usersThrottleSweep", "users")
-			sweepUpdateCache(userUpdateCache, now, userUpdateInterval)
-			sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
-			sweepUpdateCache(chatMemberUpdateCache, now, chatUpdateInterval)
-			sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
+			sweepUsersThrottleCaches(now)
 		}()
 	}
 }

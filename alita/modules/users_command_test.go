@@ -142,23 +142,44 @@ func TestShouldUpdateExpiresInactiveKeys(t *testing.T) {
 }
 
 // isolateUsersThrottleCaches gives the test empty throttle caches so entries
-// left by other tests cannot suppress the writes it asserts on.
+// left by other tests cannot suppress the writes it asserts on. It empties the
+// maps in place: the sweep goroutine reads the package variables, so
+// reassigning them would race with it.
 func isolateUsersThrottleCaches(t *testing.T) {
 	t.Helper()
-	oldUserUpdateCache := userUpdateCache
-	oldChatUpdateCache := chatUpdateCache
-	oldChatMemberUpdateCache := chatMemberUpdateCache
-	oldChannelUpdateCache := channelUpdateCache
-	userUpdateCache = &sync.Map{}
-	chatUpdateCache = &sync.Map{}
-	chatMemberUpdateCache = &sync.Map{}
-	channelUpdateCache = &sync.Map{}
+	empty := func() {
+		for _, cache := range []*sync.Map{userUpdateCache, chatUpdateCache, chatMemberUpdateCache, channelUpdateCache} {
+			cache.Clear()
+		}
+	}
+	empty()
+	t.Cleanup(empty)
+}
+
+// The background sweep reads the throttle caches while tests isolate them; the
+// helper must not swap the package variables underneath it.
+func TestIsolateUsersThrottleCachesDoesNotRaceSweep(t *testing.T) {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				sweepUsersThrottleCaches(time.Now())
+			}
+		}
+	}()
 	t.Cleanup(func() {
-		userUpdateCache = oldUserUpdateCache
-		chatUpdateCache = oldChatUpdateCache
-		chatMemberUpdateCache = oldChatMemberUpdateCache
-		channelUpdateCache = oldChannelUpdateCache
+		close(stop)
+		<-done
 	})
+
+	for range 50 {
+		t.Run("isolate", isolateUsersThrottleCaches)
+	}
 }
 
 func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
