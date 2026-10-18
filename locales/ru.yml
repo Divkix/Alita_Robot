@@ -893,12 +893,16 @@ common_action_restrict: "ограничить"
 # Time units for duration formatting
 common_time_minute: "минуту"
 common_time_minutes: "минут"
+common_time_minutes_few: "минуты"
 common_time_hour: "час"
 common_time_hours: "часов"
+common_time_hours_few: "часа"
 common_time_day: "день"
 common_time_days: "дней"
+common_time_days_few: "дня"
 common_time_week: "неделю"
 common_time_weeks: "недель"
+common_time_weeks_few: "недели"
 
 # Status indicators (for replacing %t boolean formatters)
 common_status_enabled: "Включено"

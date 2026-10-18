@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -940,7 +942,7 @@ func TestParseTemporaryDuration(t *testing.T) {
 		input       string
 		wantBanTime int64
 		wantAmount  int64
-		wantUnitKey string
+		wantUnit    string
 		wantReason  string
 		wantErr     error
 	}{
@@ -949,7 +951,7 @@ func TestParseTemporaryDuration(t *testing.T) {
 			input:       "15m repeated spam",
 			wantBanTime: now + 15*60,
 			wantAmount:  15,
-			wantUnitKey: "common_time_minutes",
+			wantUnit:    "minute",
 			wantReason:  "repeated spam",
 		},
 		{
@@ -957,14 +959,14 @@ func TestParseTemporaryDuration(t *testing.T) {
 			input:       "2h",
 			wantBanTime: now + 2*60*60,
 			wantAmount:  2,
-			wantUnitKey: "common_time_hours",
+			wantUnit:    "hour",
 		},
 		{
 			name:        "days joins multi word reason",
 			input:       "3d raid cleanup needed",
 			wantBanTime: now + 3*24*60*60,
 			wantAmount:  3,
-			wantUnitKey: "common_time_days",
+			wantUnit:    "day",
 			wantReason:  "raid cleanup needed",
 		},
 		{
@@ -972,15 +974,15 @@ func TestParseTemporaryDuration(t *testing.T) {
 			input:       "4w long cooldown",
 			wantBanTime: now + 4*7*24*60*60,
 			wantAmount:  4,
-			wantUnitKey: "common_time_weeks",
+			wantUnit:    "week",
 			wantReason:  "long cooldown",
 		},
 		{
-			name:        "single hour uses the singular unit",
+			name:        "single hour",
 			input:       "1h",
 			wantBanTime: now + 60*60,
 			wantAmount:  1,
-			wantUnitKey: "common_time_hour",
+			wantUnit:    "hour",
 		},
 		{
 			name:    "empty input",
@@ -1002,7 +1004,7 @@ func TestParseTemporaryDuration(t *testing.T) {
 			input:       "366d longest temporary ban",
 			wantBanTime: now + 366*24*60*60,
 			wantAmount:  366,
-			wantUnitKey: "common_time_days",
+			wantUnit:    "day",
 			wantReason:  "longest temporary ban",
 		},
 		{
@@ -1032,7 +1034,7 @@ func TestParseTemporaryDuration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotBanTime, gotAmount, gotUnitKey, gotReason, gotErr := parseTemporaryDuration(tc.input, now)
+			gotBanTime, gotAmount, gotUnit, gotReason, gotErr := parseTemporaryDuration(tc.input, now)
 			if !errors.Is(gotErr, tc.wantErr) {
 				t.Fatalf("parseTemporaryDuration() err = %v, want %v", gotErr, tc.wantErr)
 			}
@@ -1042,12 +1044,82 @@ func TestParseTemporaryDuration(t *testing.T) {
 			if gotBanTime != tc.wantBanTime {
 				t.Fatalf("banTime = %d, want %d", gotBanTime, tc.wantBanTime)
 			}
-			if gotAmount != tc.wantAmount || gotUnitKey != tc.wantUnitKey {
-				t.Fatalf("amount, unitKey = %d, %q, want %d, %q", gotAmount, gotUnitKey, tc.wantAmount, tc.wantUnitKey)
+			if gotAmount != tc.wantAmount || gotUnit != tc.wantUnit {
+				t.Fatalf("amount, unit = %d, %q, want %d, %q", gotAmount, gotUnit, tc.wantAmount, tc.wantUnit)
 			}
 			if gotReason != tc.wantReason {
 				t.Fatalf("reason = %q, want %q", gotReason, tc.wantReason)
 			}
 		})
+	}
+}
+
+func TestDurationUnitKeyFollowsLocalePluralRules(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		langCode string
+		amount   int64
+		want     string
+	}{
+		{"en", 1, "common_time_minute"},
+		{"en", 2, "common_time_minutes"},
+		{"en", 21, "common_time_minutes"},
+		{"ru", 1, "common_time_minute"},
+		{"ru", 2, "common_time_minutes_few"},
+		{"ru", 4, "common_time_minutes_few"},
+		{"ru", 5, "common_time_minutes"},
+		{"ru", 11, "common_time_minutes"},
+		{"ru", 12, "common_time_minutes"},
+		{"ru", 14, "common_time_minutes"},
+		{"ru", 21, "common_time_minute"},
+		{"ru", 22, "common_time_minutes_few"},
+		{"ru", 111, "common_time_minutes"},
+		{"ru", 112, "common_time_minutes"},
+		{"ru", 122, "common_time_minutes_few"},
+	}
+	for _, tc := range tests {
+		if got := durationUnitKey(tc.langCode, "minute", tc.amount); got != tc.want {
+			t.Errorf("durationUnitKey(%q, minute, %d) = %q, want %q", tc.langCode, tc.amount, got, tc.want)
+		}
+	}
+}
+
+// Every key durationUnitKey can pick must exist in that locale itself: a missing
+// one falls back to English and ships an English unit in a translated reply.
+func TestDurationUnitKeysResolveInEveryLocale(t *testing.T) {
+	paths, err := filepath.Glob("../../../locales/*.yml")
+	if err != nil {
+		t.Fatalf("glob locales: %v", err)
+	}
+	for _, path := range paths {
+		langCode := strings.TrimSuffix(filepath.Base(path), ".yml")
+		if langCode == "config" {
+			continue
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		locales := map[string]string{"en": "{}", langCode: string(content)}
+		restore, err := i18n.OverrideLocalesForTest(locales)
+		if err != nil {
+			t.Fatalf("OverrideLocalesForTest(%s): %v", langCode, err)
+		}
+		tr := i18n.MustNewTranslator(langCode)
+		checked := make(map[string]bool)
+		for _, unit := range []string{"minute", "hour", "day", "week"} {
+			for amount := int64(1); amount <= 125; amount++ {
+				key := durationUnitKey(langCode, unit, amount)
+				if checked[key] {
+					continue
+				}
+				checked[key] = true
+				if text, _ := tr.GetString(key); text == "" {
+					t.Errorf("%s: %s (first needed for %d) is missing", langCode, key, amount)
+				}
+			}
+		}
+		restore()
 	}
 }

@@ -304,11 +304,12 @@ func ExtractDuration(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (seconds
 func extractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow int64) (banTime int64, timeStr, reason string) {
 	msg := ctx.EffectiveMessage
 
-	banTime, amount, unitKey, reason, err := parseTemporaryDuration(inputVal, timeNow)
+	banTime, amount, unit, reason, err := parseTemporaryDuration(inputVal, timeNow)
 	if err == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		unit, _ := tr.GetString(unitKey)
-		return banTime, fmt.Sprintf("%d %s", amount, unit), reason
+		langCode := lang.GetLanguage(ctx)
+		tr := i18n.MustNewTranslator(langCode)
+		unitText, _ := tr.GetString(durationUnitKey(langCode, unit, amount))
+		return banTime, fmt.Sprintf("%d %s", amount, unitText), reason
 	}
 
 	switch {
@@ -351,9 +352,9 @@ func extractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow in
 	}
 }
 
-// parseTemporaryDuration returns the end of the period and its amount with the
-// locale key of its unit (singular for an amount of 1).
-func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, unitKey, reason string, err error) {
+// parseTemporaryDuration returns the end of the period, its amount and its unit
+// ("minute", "hour", "day" or "week"); durationUnitKey names the unit's locale key.
+func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, unit, reason string, err error) {
 	args := strings.Fields(inputVal)
 	if len(args) == 0 {
 		return -1, 0, "", "", errNoTimeSpecified
@@ -375,23 +376,15 @@ func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, 
 	}
 
 	var multiplier int64
-	var singularKey string
 	switch lastChar {
 	case 'm':
-		multiplier = 60
-		singularKey, unitKey = "common_time_minute", "common_time_minutes"
+		multiplier, unit = 60, "minute"
 	case 'h':
-		multiplier = 60 * 60
-		singularKey, unitKey = "common_time_hour", "common_time_hours"
+		multiplier, unit = 60*60, "hour"
 	case 'd':
-		multiplier = 24 * 60 * 60
-		singularKey, unitKey = "common_time_day", "common_time_days"
+		multiplier, unit = 24*60*60, "day"
 	case 'w':
-		multiplier = 7 * 24 * 60 * 60
-		singularKey, unitKey = "common_time_week", "common_time_weeks"
-	}
-	if timeNum == 1 {
-		unitKey = singularKey
+		multiplier, unit = 7*24*60*60, "week"
 	}
 
 	if timeNum > math.MaxInt64/multiplier {
@@ -403,5 +396,29 @@ func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, 
 		return -1, 0, "", "", errTimeLimitExceeded
 	}
 
-	return banTime, timeNum, unitKey, reason, nil
+	return banTime, timeNum, unit, reason, nil
+}
+
+// durationUnitKey returns the common_time_* key naming amount units in langCode.
+// Russian follows the CLDR one/few/many rule ("1 минуту", "2 минуты", "5 минут",
+// "21 минуту"); other locales use the singular for 1 and the plural otherwise.
+// Only ru.yml carries the _few keys: elsewhere they would fall back to English.
+func durationUnitKey(langCode, unit string, amount int64) string {
+	singular := "common_time_" + unit
+	plural := singular + "s"
+	if langCode == "ru" {
+		mod10, mod100 := amount%10, amount%100
+		switch {
+		case mod10 == 1 && mod100 != 11:
+			return singular
+		case mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14):
+			return plural + "_few"
+		default:
+			return plural
+		}
+	}
+	if amount == 1 {
+		return singular
+	}
+	return plural
 }
