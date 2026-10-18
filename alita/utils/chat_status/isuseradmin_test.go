@@ -623,3 +623,46 @@ func TestRequireHelpersFollowConnectedChatSwap(t *testing.T) {
 		t.Error("RequirePrivate(unswapped PM) = false, want true")
 	}
 }
+
+// A stored list with no admins in it (the bot is not an admin there, or it
+// could not check its own status) cannot answer, but reloading it would only
+// store the same list again: IsUserAdmin asks Telegram for the user's own
+// membership and nothing else until the entry expires or is invalidated.
+func TestIsUserAdminCachedListWithoutAdminsAsksOnlyForTheMember(t *testing.T) {
+	const (
+		adminID  = int64(601)
+		memberID = int64(602)
+	)
+	for name, entry := range map[string]cache.AdminCache{
+		"bot is not an admin":     {UserInfo: []gotgbot.MergedChatMember{}, Cached: true, Negative: true},
+		"bot status not verified": {UserInfo: []gotgbot.MergedChatMember{}, Cached: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cache.SetupTestMemoryMarshaler(t)
+			chatID := int64(-6001)
+			entry.ChatId = chatID
+			if err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", chatID), entry); err != nil {
+				t.Fatalf("seeding admin cache: %v", err)
+			}
+			rec := &recordingStatusClient{inner: &statusOnlyBotClient{
+				botID:     9908,
+				statusMap: map[int64]string{adminID: "administrator", memberID: "member"},
+			}}
+			bot := &gotgbot.Bot{
+				Token:     "9908:noadmins",
+				BotClient: rec,
+				User:      gotgbot.User{Id: 9908, IsBot: true, FirstName: "NoAdminsBot"},
+			}
+
+			if !IsUserAdmin(bot, chatID, adminID) {
+				t.Error("IsUserAdmin(admin) = false, want true from the member lookup")
+			}
+			if IsUserAdmin(bot, chatID, memberID) {
+				t.Error("IsUserAdmin(member) = true, want false")
+			}
+			if want := []string{"getChatMember", "getChatMember"}; fmt.Sprint(rec.calls) != fmt.Sprint(want) {
+				t.Errorf("API calls = %v, want only the users' own lookups %v", rec.calls, want)
+			}
+		})
+	}
+}

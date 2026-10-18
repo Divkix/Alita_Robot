@@ -230,6 +230,12 @@ func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId 
 	if isAdmin, known := IsUserAdminCached(chatID, userId); known {
 		return isAdmin, nil
 	}
+	// A stored list without admins (the bot is not an admin there, or could
+	// not check its own status) cannot answer, and reloading it before it
+	// expires would only store it again: ask for the user's membership instead.
+	if ok, admins := cache.GetAdminCacheList(chatID); ok && admins.Cached && len(admins.UserInfo) == 0 {
+		return isUserAdminByMember(ctx, b, chatID, userId)
+	}
 
 	ctxGetChat, cancelGetChat := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelGetChat()

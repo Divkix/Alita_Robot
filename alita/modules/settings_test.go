@@ -179,6 +179,32 @@ func TestSettingsPickerWarmCacheNeedsNoTelegram(t *testing.T) {
 	}
 }
 
+// In a group where the bot is not an admin the stored list holds no admins.
+// A second /settings asks only for the user's own membership there: it neither
+// reloads the bot's status nor the group.
+func TestSettingsPickerReusesAGroupListWithoutAdmins(t *testing.T) {
+	client, bot, _, groupB := settingsFixture(t)
+	bot.Id = 998 // the harness answers getChatMember for 999 as an administrator
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	setPickerCandidates(t, groupB)
+	client.membersByUser = map[string]json.RawMessage{
+		"998":                           json.RawMessage(`{"status":"member","user":{"id":998,"is_bot":true,"first_name":"Alita"}}`),
+		fmt.Sprint(settingsTestAdminID): json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, settingsTestAdminID)),
+	}
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(groupB) {
+		t.Fatalf("first picker chats = %v, want only %d", got, groupB)
+	}
+	resetCalls(client)
+
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(groupB) {
+		t.Fatalf("second picker chats = %v, want only %d", got, groupB)
+	}
+	members := client.callsFor("getChatMember")
+	if n := adminLookups(client); n != 1 || len(members) != 1 || fmt.Sprint(members[0].Params["user_id"]) != fmt.Sprint(settingsTestAdminID) {
+		t.Fatalf("second picker lookups = %d (getChatMember %v), want only the user's own getChatMember", n, members)
+	}
+}
+
 func TestSettingsPickerStopsLiveChecksAtDeadline(t *testing.T) {
 	client, bot, groupA, _ := settingsFixture(t)
 	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
