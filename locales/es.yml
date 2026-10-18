@@ -1234,8 +1234,6 @@ purges_need_purgefrom: ¡Solo puedes usar este comando después de haber usado e
 purges_use_del_single: ¡Usa el comando /del para eliminar un mensaje!
 purges_reply_to_purgeto: Responde a un mensaje para mostrarme hasta dónde purgar.
 purges_limit_exceeded: "¡No se pueden purgar más de %d mensajes a la vez! Por favor selecciona un rango más pequeño."
-purges_invalid_button_data: "Datos del botón inválidos."
-purges_invalid_message_id: "ID de mensaje inválido."
 
 # Rules module strings
 rules_cleared_successfully: ¡Reglas eliminadas exitosamente!

@@ -1271,8 +1271,6 @@ purges_need_purgefrom: You can only use this command after having used the /purg
 purges_use_del_single: Use /del command to delete one message!
 purges_reply_to_purgeto: Reply to a message to show me till where to purge.
 purges_limit_exceeded: "Cannot purge more than %d messages at once! Please select a smaller range."
-purges_invalid_button_data: "Invalid button data."
-purges_invalid_message_id: "Invalid message ID."
 
 # Rules module strings
 rules_cleared_successfully: Successfully cleared rules!

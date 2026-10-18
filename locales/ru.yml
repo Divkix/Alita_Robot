@@ -1050,8 +1050,6 @@ purges_need_purgefrom: Вы можете использовать эту ком�
 purges_use_del_single: Используйте команду /del для удаления одного сообщения!
 purges_reply_to_purgeto: Ответьте на сообщение, чтобы показать, до куда удалять.
 purges_limit_exceeded: "Невозможно удалить более %d сообщений за раз! Пожалуйста, выберите меньший диапазон."
-purges_invalid_button_data: "Неверные данные кнопки."
-purges_invalid_message_id: "Неверный ID сообщения."
 
 # Rules module strings
 rules_cleared_successfully: Правила успешно очищены!

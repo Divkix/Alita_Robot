@@ -1224,8 +1224,6 @@ purges_need_purgefrom: Anda hanya dapat menggunakan perintah ini setelah menggun
 purges_use_del_single: Gunakan perintah /del untuk menghapus satu pesan!
 purges_reply_to_purgeto: Balas ke pesan untuk menunjukkan sampai di mana membersihkan.
 purges_limit_exceeded: "Tidak dapat membersihkan lebih dari %d pesan sekaligus! Silakan pilih rentang yang lebih kecil."
-purges_invalid_button_data: "Data tombol tidak valid."
-purges_invalid_message_id: "ID pesan tidak valid."
 
 # Rules module strings
 rules_cleared_successfully: Berhasil menghapus aturan!

@@ -1355,8 +1355,6 @@ purges_need_purgefrom: Vous ne pouvez utiliser cette commande qu'après avoir ut
 purges_use_del_single: Utilisez la commande /del pour supprimer un seul message !
 purges_reply_to_purgeto: Répondez à un message pour me montrer jusqu'où supprimer.
 purges_limit_exceeded: "Impossible de supprimer plus de %d messages à la fois ! Veuillez sélectionner une plage plus petite."
-purges_invalid_button_data: "Données de bouton invalides."
-purges_invalid_message_id: "ID de message invalide."
 
 # Reports module strings
 reports_help_msg:

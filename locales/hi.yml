@@ -1475,8 +1475,6 @@ purges_need_purgefrom: आप इस कमांड का उपयोग क�
 purges_use_del_single: एक संदेश हटाने के लिए /del कमांड का उपयोग करें!
 purges_reply_to_purgeto: मुझे दिखाने के लिए किसी संदेश का जवाब दें कि कहाँ तक पर्ज करना है।
 purges_limit_exceeded: "एक बार में %d से अधिक संदेश पर्ज नहीं कर सकते! कृपया एक छोटी रेंज चुनें।"
-purges_invalid_button_data: "अमान्य बटन डेटा।"
-purges_invalid_message_id: "अमान्य संदेश ID।"
 purges_extended_docs: |
   <b>purgefrom/purgeto के साथ रेंज विलोपन:</b>
   जब आपको विलोपन रेंज पर अधिक नियंत्रण चाहिए:
