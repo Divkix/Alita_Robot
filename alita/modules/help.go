@@ -584,8 +584,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			lowerModName = strings.ToLower(helpModName)
 			originalModuleName := getModuleNameFromAltName(lowerModName, DefaultHelpRegistry())
 			if originalModuleName != "" && slices.Contains(getAltNamesOfModule(originalModuleName), lowerModName) {
-				contactPmText, _ := tr.GetString("help_contact_pm")
-				moduleHelpString = strings.Replace(contactPmText, "for help!", fmt.Sprintf("for help regarding <code>%s</code>!", originalModuleName), 1)
+				moduleHelpString, _ = tr.GetString("help_contact_pm_module", i18n.TranslationParams{"module": html.EscapeString(originalModuleName)})
 				pmMeKbUri = fmt.Sprintf("https://t.me/%s?start=help_%s", b.Username, lowerModName)
 			}
 		}

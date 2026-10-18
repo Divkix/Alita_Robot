@@ -473,3 +473,37 @@ func TestPrivateHelpWithExtraWordsAnswers(t *testing.T) {
 		t.Errorf("/help admin extra text = %q, want the /help admin reply %q", sent[1].Params["text"], sent[0].Params["text"])
 	}
 }
+
+// Group /help <module> names the module in every language.
+func TestGroupModuleHelpNamesTheModuleInChatLanguage(t *testing.T) {
+	useRealLocales(t)
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		cachedBotUsername = ""
+	})
+	registry := DefaultHelpRegistry()
+	registry.AbleMap["Admin"] = true
+	registry.AltHelpOptions["Admin"] = []string{"admin"}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Helper"}
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Grupo"}
+	if err := lang.ChangeGroupLanguage(group.Id, "es"); err != nil {
+		t.Fatalf("ChangeGroupLanguage: %v", err)
+	}
+
+	if err := DefaultHelpRegistry().help(bot, newModuleMessageContext(bot, group, user, "/help admin")); err != ext.EndGroups {
+		t.Fatalf("help() error = %v, want EndGroups", err)
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(sent))
+	}
+	want, _ := i18n.MustNewTranslator("es").GetString("help_contact_pm_module", i18n.TranslationParams{"module": "Admin"})
+	if got, _ := sent[0].Params["text"].(string); got != want || !strings.Contains(got, "Admin") {
+		t.Errorf("group /help admin text = %q, want %q", got, want)
+	}
+}
