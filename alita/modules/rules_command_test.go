@@ -252,3 +252,22 @@ func TestDefaultRulesButtonFollowsGroupLanguage(t *testing.T) {
 		t.Fatalf("rulesbtn reply = %q, want the Spanish default label", text)
 	}
 }
+
+func TestRulesButtonEscapesStoredCustomText(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := rules.SetChatRulesButton(f.chat.Id, "<Read me>"); err != nil {
+		t.Fatalf("SetChatRulesButton() error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/rulesbtn")
+	if err := rulesModule.rulesBtn(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("rulesBtn() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	if text, _ := calls[0].Params["text"].(string); !strings.Contains(text, "&lt;Read me&gt;") {
+		t.Fatalf("rulesbtn reply = %q, want the stored text HTML-escaped", text)
+	}
+}

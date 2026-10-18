@@ -271,7 +271,7 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 			text = fmt.Sprintf(temp4, html.EscapeString(m.defaultRulesButtonText(groupTr)))
 		} else {
 			temp5, _ := tr.GetString("rules_button_current")
-			text = fmt.Sprintf(temp5, customRulesBtn)
+			text = fmt.Sprintf(temp5, html.EscapeString(customRulesBtn))
 		}
 	}
 
