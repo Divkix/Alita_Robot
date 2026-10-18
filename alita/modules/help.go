@@ -547,8 +547,9 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err := b.SendMessage(chat.Id,
 				mainHelpText,
 				&gotgbot.SendMessageOpts{
-					ParseMode:   formatting.HTML,
-					ReplyMarkup: &kb,
+					ParseMode:          formatting.HTML,
+					LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
+					ReplyMarkup:        &kb,
 				},
 			)
 			if err != nil {
@@ -562,8 +563,9 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 				chat.Id,
 				helpText,
 				&gotgbot.SendMessageOpts{
-					ParseMode:   _parsemode,
-					ReplyMarkup: &replyMarkup,
+					ParseMode:          _parsemode,
+					LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
+					ReplyMarkup:        &replyMarkup,
 				},
 			)
 			if err != nil {

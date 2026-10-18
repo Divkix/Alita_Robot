@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -542,5 +543,53 @@ func TestGroupHelpWithExtraWordsLinksTheModule(t *testing.T) {
 	}
 	if url := markup.InlineKeyboard[0][0].Url; !strings.HasSuffix(url, "?start=help_admin") {
 		t.Errorf("PM link = %q, want the admin module deep link", url)
+	}
+}
+
+// The main help text links the docs site; no reply showing it may expand
+// that link into a preview card.
+func TestHelpRepliesDisableLinkPreviews(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		cachedBotUsername = ""
+	})
+	registry := DefaultHelpRegistry()
+	registry.AbleMap["Admin"] = true
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Helper"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+
+	for _, text := range []string{"/help", "/help admin", "/help nosuchmodule"} {
+		if err := DefaultHelpRegistry().help(bot, newModuleMessageContext(bot, privateChat, user, text)); err != ext.EndGroups {
+			t.Fatalf("help(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+	for _, module := range []string{"help", "admin"} {
+		if _, err := sendHelpkb(bot, newModuleMessageContext(bot, privateChat, user, "/start help_"+module), module, registry); err != nil {
+			t.Fatalf("sendHelpkb(%q) error = %v", module, err)
+		}
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 5 {
+		t.Fatalf("sendMessage calls = %d, want 5", len(sent))
+	}
+	for i, call := range sent {
+		var raw []byte
+		if encoded, ok := call.Params["link_preview_options"].(string); ok {
+			raw = []byte(encoded)
+		} else {
+			var err error
+			if raw, err = json.Marshal(call.Params["link_preview_options"]); err != nil {
+				t.Fatalf("marshal link_preview_options: %v", err)
+			}
+		}
+		var opts gotgbot.LinkPreviewOptions
+		if err := json.Unmarshal(raw, &opts); err != nil || !opts.IsDisabled {
+			t.Errorf("reply %d link_preview_options = %s, want previews disabled", i, raw)
+		}
 	}
 }

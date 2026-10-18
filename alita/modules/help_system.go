@@ -97,8 +97,9 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *modul
 			ctx.EffectiveMessage.Chat.Id,
 			helpText,
 			&gotgbot.SendMessageOpts{
-				ParseMode:   formatting.HTML,
-				ReplyMarkup: &kb,
+				ParseMode:          formatting.HTML,
+				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
+				ReplyMarkup:        &kb,
 			},
 		)
 		return
@@ -109,8 +110,9 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *modul
 		ctx.EffectiveChat.Id,
 		helpText,
 		&gotgbot.SendMessageOpts{
-			ParseMode:   _parsemode,
-			ReplyMarkup: replyMarkup,
+			ParseMode:          _parsemode,
+			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
+			ReplyMarkup:        replyMarkup,
 		},
 	)
 	return
