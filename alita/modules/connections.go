@@ -317,32 +317,30 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if chatId != 0 {
 			gchat, err := b.GetChat(chatId, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-
-			_chat := gchat.ToChat()
-
-			isMember, err := chat_status.IsUserInChatWithError(b, &_chat, user.Id)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if !isMember {
-				if err := connections.DisconnectId(user.Id); err != nil {
+			if err != nil || gchat == nil {
+				log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Last chat lookup failed")
+				text, _ = tr.GetString("error_generic")
+			} else {
+				_chat := gchat.ToChat()
+				isMember, err := chat_status.IsUserInChatWithError(b, &_chat, user.Id)
+				if err != nil {
+					log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Membership check failed")
+					text, _ = tr.GetString("error_generic")
+				} else if !isMember {
+					if err := connections.DisconnectId(user.Id); err != nil {
+						text, _ = tr.GetString("common_settings_save_failed")
+					} else {
+						text, _ = tr.GetString("connections_stale_connection")
+					}
+				} else if allowed, denyKey := canUserConnectToChat(b, chatId, user.Id); !allowed {
+					text, _ = tr.GetString(denyKey)
+				} else if err := connections.ConnectId(user.Id, chatId); err != nil {
 					text, _ = tr.GetString("common_settings_save_failed")
 				} else {
-					text, _ = tr.GetString("connections_stale_connection")
+					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
+					text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
+					connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
 				}
-			} else if allowed, denyKey := canUserConnectToChat(b, chatId, user.Id); !allowed {
-				text, _ = tr.GetString(denyKey)
-			} else if err := connections.ConnectId(user.Id, chatId); err != nil {
-				text, _ = tr.GetString("common_settings_save_failed")
-			} else {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
-				text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
-				connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
 			}
 		} else {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_no_last_chat")

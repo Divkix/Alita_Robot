@@ -413,15 +413,19 @@ func TestReconnectPrivateHandlesNoLastChatAndLookupFailure(t *testing.T) {
 	connections.ConnectId(user.Id, uniqueModuleChatID())
 	connections.DisconnectId(user.Id)
 	lookupCtx := newModuleMessageContext(lookupBot, privateChat, user, "/reconnect")
-	if err := ConnectionsModule.reconnect(lookupBot, lookupCtx); err == nil {
-		t.Fatal("reconnect(lookup error) error = nil, want request error")
+	if err := ConnectionsModule.reconnect(lookupBot, lookupCtx); err != ext.EndGroups {
+		t.Fatalf("reconnect(lookup error) error = %v, want EndGroups", err)
 	}
 	if connections.Connection(user.Id).Connected {
 		t.Fatal("failed reconnect lookup changed Connected to true")
 	}
+	if calls := lookupClient.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want generic-error reply", len(calls))
+	}
 }
 
 func TestReconnectLookupFailurePreservesActiveConnection(t *testing.T) {
+	useEnglishLocale(t)
 	client := newModuleBotClient()
 	client.errors["getChat"] = fmt.Errorf("telegram unavailable")
 	bot := newModuleTestBot(client)
@@ -434,11 +438,41 @@ func TestReconnectLookupFailurePreservesActiveConnection(t *testing.T) {
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleMessageContext(bot, privateChat, user, "/reconnect")
-	if err := ConnectionsModule.reconnect(bot, ctx); err == nil {
-		t.Fatal("reconnect(lookup error) error = nil, want request error")
+	if err := ConnectionsModule.reconnect(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("reconnect(lookup error) error = %v, want EndGroups", err)
 	}
 	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId != chatID {
 		t.Fatalf("connection after transient lookup = %+v, want active chat %d preserved", conn, chatID)
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("error_generic")
+	if text := client.onlyCall(t, "sendMessage").Params["text"]; text != want {
+		t.Fatalf("reconnect(lookup error) reply = %q, want %q", text, want)
+	}
+}
+
+func TestReconnectMembershipLookupFailurePreservesActiveConnection(t *testing.T) {
+	useEnglishLocale(t)
+	client := newModuleBotClient()
+	client.errors["getChatMember"] = fmt.Errorf("telegram unavailable")
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 42454, FirstName: "Member"}
+	chatID := uniqueModuleChatID()
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	t.Cleanup(func() { _ = connections.DisconnectId(user.Id) })
+
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, privateChat, user, "/reconnect")
+	if err := ConnectionsModule.reconnect(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("reconnect(membership error) error = %v, want EndGroups", err)
+	}
+	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId != chatID {
+		t.Fatalf("connection after membership lookup failure = %+v, want active chat %d preserved", conn, chatID)
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("error_generic")
+	if text := client.onlyCall(t, "sendMessage").Params["text"]; text != want {
+		t.Fatalf("reconnect(membership error) reply = %q, want %q", text, want)
 	}
 }
 
