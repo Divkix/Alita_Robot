@@ -2,8 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -651,27 +649,7 @@ func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
 // The flood notice and /flood interpolate the action into a translated
 // template, so the action word must come from the same locale.
 func TestFloodActionLabelFollowsTheChatLanguage(t *testing.T) {
-	files, err := filepath.Glob("../../locales/*.yml")
-	if err != nil {
-		t.Fatalf("glob locales: %v", err)
-	}
-	locales := make(map[string]string, len(files))
-	for _, file := range files {
-		code := strings.TrimSuffix(filepath.Base(file), ".yml")
-		if code == "config" {
-			continue
-		}
-		raw, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatalf("read %s: %v", file, err)
-		}
-		locales[code] = string(raw)
-	}
-	restoreI18n, err := i18n.OverrideLocalesForTest(locales)
-	if err != nil {
-		t.Fatalf("OverrideLocalesForTest: %v", err)
-	}
-	t.Cleanup(restoreI18n)
+	useRealLocales(t)
 
 	en := i18n.MustNewTranslator("en")
 	for _, langCode := range []string{"es", "fr", "hi", "id", "pt", "ru"} {
