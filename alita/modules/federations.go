@@ -1400,6 +1400,7 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("fedadmins", federationsModule.fedAdmins))
 	helpers.AddCmdToDisableable("fedadmins")
 	dispatcher.AddHandler(handlers.NewCommand("chatfed", federationsModule.chatFed))
+	helpers.AddCmdToDisableable("chatfed")
 	dispatcher.AddHandler(handlers.NewCommand("myfeds", federationsModule.myFeds))
 	dispatcher.AddHandler(handlers.NewCommand("fedpromote", federationsModule.fedPromote))
 	dispatcher.AddHandler(handlers.NewCommand("feddemote", federationsModule.fedDemote))

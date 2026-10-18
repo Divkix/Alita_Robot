@@ -48,7 +48,7 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/chatfed` | No description available | ❌ |
+| `/chatfed` | No description available | ✅ |
 | `/delfed` | Delete your federation (confirm). | ❌ |
 | `/fban` | Federation ban/unban. | ❌ |
 | `/fbanlist` | Export fbans. | ❌ |
