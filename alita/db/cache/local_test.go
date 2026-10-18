@@ -186,23 +186,55 @@ func TestDeleteDuringLoadDoesNotPopulateLocal(t *testing.T) {
 
 func TestLocalEntryExpiresAfterTTL(t *testing.T) {
 	setupLocalRedis(t, 1)
+	// The LRU times entries with the wall clock and CACHE_LOCAL_TTL has whole
+	// seconds; a sub-second layer keeps the wait short.
+	useShortLocalTTLForTest(utilsCache.GetMarshal())
 	ctx := context.Background()
-	key := CacheKey("local_test_ttl", int64(1))
-	var calls atomic.Int32
+	var (
+		key   string
+		calls atomic.Int32
+		start time.Time
+		got   string
+	)
 
-	if _, err := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, "v1")); err != nil {
-		t.Fatal(err)
+	// A within-TTL read proves nothing if staging outlived the TTL, so a slow
+	// attempt retries on a fresh key; skipping would fail the make test gate.
+	for attempt := int64(1); ; attempt++ {
+		key = CacheKey("local_test_ttl", attempt)
+		calls.Store(0)
+		start = time.Now()
+		if _, err := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, "v1")); err != nil {
+			t.Fatal(err)
+		}
+		// Another replica updates Redis without touching this replica's memory.
+		if err := utilsCache.GetMarshal().Set(ctx, key, "v2", store.WithExpiration(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+		got, _ = GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, "db"))
+		if time.Since(start) < shortLocalTTL {
+			break
+		}
+		if attempt == 5 {
+			t.Fatalf("staging outlived the %v local TTL on %d attempts", shortLocalTTL, attempt)
+		}
 	}
-	// Another replica updates Redis without touching this replica's memory.
-	if err := utilsCache.GetMarshal().Set(ctx, key, "v2", store.WithExpiration(time.Minute)); err != nil {
-		t.Fatal(err)
-	}
-	if got, _ := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, "db")); got != "v1" {
+	if got != "v1" {
 		t.Fatalf("read within TTL = %q, want v1 from the local layer", got)
 	}
-	time.Sleep(1100 * time.Millisecond)
-	if got, _ := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, "db")); got != "v2" {
-		t.Fatalf("read after TTL = %q, want v2 from Redis", got)
+	// The entry was stored after start, so it cannot lapse before start+TTL.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		got, _ = GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, "db"))
+		if got == "v2" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("read after TTL = %q, want v2 from Redis", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if elapsed := time.Since(start); elapsed < shortLocalTTL {
+		t.Fatalf("local entry expired after %v, before its %v TTL", elapsed, shortLocalTTL)
 	}
 	if n := calls.Load(); n != 1 {
 		t.Fatalf("loader calls = %d, want 1", n)
