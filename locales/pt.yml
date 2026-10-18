@@ -590,7 +590,7 @@ greetings_help_msg:
   membro entrar.
 
   × /autoapprove `<yes/no/on/off>`: Aprova automaticamente todos os novos membros."
-help_about: "@%s  é um dos gerenciadores de grupo mais rápidos e cheios de recursos.   Alita ✨ é desenvolvido e ativamente mantido por @DivideProjects!   Alita está online desde 2020 e serviu milhares de grupos com centenas de milhares de usuários!   <b>Por que Alita:</b>  - Simples: Uso fácil e compatível com muitos comandos de bot.  - Completo: Muitos recursos que outros bots de gerenciamento de grupo não têm.  - Rápido: Adivinhe? Não é feito usando Python, usamos <a href='https://go.dev/'>Go</a> como nossa linguagem de programação principal.   <b>Versão Atual:</b> %s"
+help_about: "@%s  é um dos gerenciadores de grupo mais rápidos e cheios de recursos.\n\nAlita ✨ é desenvolvido e ativamente mantido por @DivideProjects!\n\nAlita está online desde 2020 e serviu milhares de grupos com centenas de milhares de usuários!\n\n<b>Por que Alita:</b>\n- Simples: Uso fácil e compatível com muitos comandos de bot.\n- Completo: Muitos recursos que outros bots de gerenciamento de grupo não têm.\n- Rápido: Adivinhe? Não é feito usando Python, usamos <a href='https://go.dev/'>Go</a> como nossa linguagem de programação principal.\n\n<b>Versão Atual:</b> %s"
 help_configuration_step-1: "Bem-vindo à Configuração do Alita
 
 
