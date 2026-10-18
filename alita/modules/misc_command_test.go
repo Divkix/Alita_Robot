@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -289,6 +290,34 @@ func TestGetIdHandlesPrivateAnonymousAndMediaReply(t *testing.T) {
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
 		t.Fatalf("sendMessage calls = %d, want 3", len(calls))
+	}
+}
+
+func TestGetIdEscapesStoredUserName(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	sender := gotgbot.User{Id: 42, FirstName: "Member"}
+	targetID := uniquePositiveUserID()
+	if err := user.EnsureUserInDb(targetID, "", "<3 & Bob"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, sender, "/id")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 55,
+		Date:      1,
+		Chat:      chat,
+		From:      &gotgbot.User{Id: targetID, FirstName: "<3 & Bob"},
+		Text:      "hi",
+	}
+	if err := miscModule.getId(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("getId() error = %v, want EndGroups", err)
+	}
+
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(text, "&lt;3 &amp; Bob") || strings.Contains(text, "<3") {
+		t.Fatalf("getId text = %q, want the user name HTML-escaped", text)
 	}
 }
 
