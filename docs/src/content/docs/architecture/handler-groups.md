@@ -15,6 +15,7 @@ This page documents every registered message watcher with its exact handler grou
 |-------|--------|---------|--------|-----------------|-------|
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
 | -5 | AntiRaid | `antiRaidJoinHandler` | ChatMember (user joined) | `EndGroups` | Intercepts new member joins during raid mode; auto-restricts or bans joiners |
+| -4 | SpamDB | `checkSpamDB` | new chat members | `ContinueGroups` (always) | Opt-in CAS lookup of each joiner; bans, mutes or only logs a listed one |
 | -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |

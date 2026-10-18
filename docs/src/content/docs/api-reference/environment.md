@@ -67,6 +67,31 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 | **Type** | `string` |
 | **Required** | No |
 
+## 📂 Spam database configuration
+
+### `ENABLE_SPAMDB`
+
+Operator kill switch for the CAS join check (`/spamdb`). When `false`, no chat
+sends new members' user IDs to CAS regardless of its per-chat setting, and
+`/spamdb on` refuses. The check is off in every chat until an admin turns it on.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `true` |
+
+### `CAS_API_KEY`
+
+Optional [CAS](https://cas.chat/api) API key, sent as `Authorization: Bearer`.
+CAS still accepts requests without a key but has announced that keys will
+become required. The key is redacted from logs.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
 ## 📂 Bot settings
 
 ### `MESSAGE_DUMP` (Required)
@@ -537,6 +562,7 @@ ACTIVITY_CHECK_INTERVAL=# hours between activity checks (default: 1)
 API_SERVER=# custom API server URL (default: https://api.telegram.org)
 AUTO_MIGRATE=# enable automatic database migrations (default: false)
 AUTO_MIGRATE_SILENT_FAIL=# continue even if migrations fail (default: false)
+CAS_API_KEY=# optional CAS API key for the /spamdb join check
 CLEAR_CACHE_ON_STARTUP=false # clear disposable cached data on startup
 DB_CONN_MAX_IDLE_TIME_MIN=# max idle time in min (default: 60)
 DB_CONN_MAX_LIFETIME_MIN=# max lifetime in min (default: 240)
@@ -551,6 +577,7 @@ ENABLE_BACKGROUND_STATS=# (default: true in prod, false in debug)
 ENABLE_DB_MONITORING=# (default: false)
 ENABLE_PERFORMANCE_MONITORING=# (default: true in prod, false in debug)
 ENABLE_PPROF=# enable pprof endpoints (default: false)
+ENABLE_SPAMDB=# operator kill switch for the /spamdb CAS join check (default: true)
 ENABLED_LOCALES=# comma-separated language codes (default: en)
 HTTP_MAX_IDLE_CONNS=# (default: 100)
 HTTP_MAX_IDLE_CONNS_PER_HOST=# (default: 50)
