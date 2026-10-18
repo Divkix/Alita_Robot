@@ -48,33 +48,27 @@ const (
 )
 
 type greetingConfig struct {
-	gType            greetingType
-	logContext       string
-	notConfiguredKey string
-	statusKey        string
-	enabledKey       string
-	disabledKey      string
-	invalidKey       string
+	gType       greetingType
+	statusKey   string
+	enabledKey  string
+	disabledKey string
+	invalidKey  string
 }
 
 var welcomeConfig = greetingConfig{
-	gType:            greetingWelcome,
-	logContext:       "welcome",
-	notConfiguredKey: "greetings_welcome_not_configured",
-	statusKey:        "greetings_welcome_status",
-	enabledKey:       "greetings_welcome_enabled",
-	disabledKey:      "greetings_welcome_disabled",
-	invalidKey:       "greetings_welcome_invalid_option",
+	gType:       greetingWelcome,
+	statusKey:   "greetings_welcome_status",
+	enabledKey:  "greetings_welcome_enabled",
+	disabledKey: "greetings_welcome_disabled",
+	invalidKey:  "greetings_welcome_invalid_option",
 }
 
 var goodbyeConfig = greetingConfig{
-	gType:            greetingGoodbye,
-	logContext:       "goodbye",
-	notConfiguredKey: "greetings_goodbye_not_configured",
-	statusKey:        "greetings_goodbye_status",
-	enabledKey:       "greetings_goodbye_enable",
-	disabledKey:      "greetings_goodbye_disable",
-	invalidKey:       "greetings_goodbye_invalid",
+	gType:       greetingGoodbye,
+	statusKey:   "greetings_goodbye_status",
+	enabledKey:  "greetings_goodbye_enable",
+	disabledKey: "greetings_goodbye_disable",
+	invalidKey:  "greetings_goodbye_invalid",
 }
 
 func recentJoinProcessingKey(chatID, userID int64) string {
@@ -165,18 +159,8 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		var shouldGreet bool
 		var cleanGreet bool
 
+		// GetGreetingSettings always fills WelcomeSettings and GoodbyeSettings.
 		if config.gType == greetingWelcome {
-			if greetPrefs.WelcomeSettings == nil {
-				log.Warnf("[Greetings][%s] WelcomeSettings is nil for chat %d, using defaults", config.logContext, chat.Id)
-				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				text, _ := tr.GetString(config.notConfiguredKey)
-				_, err := msg.Reply(bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return ext.EndGroups
-			}
 			greetingText = greetPrefs.WelcomeSettings.WelcomeText
 			buttons = greetings.GetWelcomeButtons(chat.Id)
 			fileID = greetPrefs.WelcomeSettings.FileID
@@ -184,17 +168,6 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 			shouldGreet = greetPrefs.WelcomeSettings.ShouldWelcome
 			cleanGreet = greetPrefs.WelcomeSettings.CleanWelcome
 		} else {
-			if greetPrefs.GoodbyeSettings == nil {
-				log.Warnf("[Greetings][%s] GoodbyeSettings is nil for chat %d, using defaults", config.logContext, chat.Id)
-				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				text, _ := tr.GetString(config.notConfiguredKey)
-				_, err := msg.Reply(bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return ext.EndGroups
-			}
 			greetingText = greetPrefs.GoodbyeSettings.GoodbyeText
 			buttons = greetings.GetGoodbyeButtons(chat.Id)
 			fileID = greetPrefs.GoodbyeSettings.FileID
