@@ -85,15 +85,11 @@ antiflood_errors_invalid_int:
   Isso não é um número inteiro válido. Por favor, me dê um número inteiro válido,
   ou `off`.
 antiflood_errors_set_in_limit: O limite de antiflood deve ser definido entre 3 e 100.
-antiflood_flood_deleter_already_disabled:
-  Exclusão de mensagens de flood está atualmente
-  *desativada* neste chat, mensagens causando flood serão ignoradas!
+antiflood_flood_deleter_already_disabled: "Exclusão de mensagens de flood está atualmente *desativada* neste chat. Apenas a mensagem que acionar o antiflood será excluída; as mensagens anteriores do flood permanecem."
 antiflood_flood_deleter_already_enabled:
   Exclusão de mensagens de flood está atualmente *ativada*
   neste chat, mensagens causando flood serão deletadas!
-antiflood_flood_deleter_disabled:
-  Desativei a Exclusão de Mensagens de Flood. Mensagens
-  causando flood serão ignoradas!
+antiflood_flood_deleter_disabled: "Desativei a Exclusão de Mensagens de Flood. Apenas a mensagem que acionar o antiflood será excluída; as mensagens anteriores do flood permanecem."
 antiflood_flood_deleter_enabled:
   Ativei a Exclusão de Mensagens de Flood. Mensagens causando
   flood serão deletadas!

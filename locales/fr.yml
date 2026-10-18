@@ -2111,15 +2111,11 @@ antiflood_errors_invalid_int:
   "Ce n'est pas un entier valide. Veuillez me donner un entier valide,
   ou `off`."
 antiflood_errors_set_in_limit: La limite antiflood doit être définie entre 3 et 100.
-antiflood_flood_deleter_already_disabled:
-  "La suppression des messages antiflood est actuellement
-  *désactivée* dans ce chat, les messages causant l'antiflood seront ignorés !"
+antiflood_flood_deleter_already_disabled: "La suppression des messages antiflood est actuellement *désactivée* dans ce chat. Seul le message qui déclenche l'antiflood sera supprimé ; les messages précédents du flood restent."
 antiflood_flood_deleter_already_enabled:
   "La suppression des messages antiflood est actuellement *activée*
   dans ce chat, les messages causant l'antiflood seront supprimés !"
-antiflood_flood_deleter_disabled:
-  "Désactivation de la suppression des messages antiflood. Les messages
-  causant l'antiflood seront ignorés !"
+antiflood_flood_deleter_disabled: "Désactivation de la suppression des messages antiflood. Seul le message qui déclenche l'antiflood sera supprimé ; les messages précédents du flood restent."
 antiflood_flood_deleter_enabled:
   "Activation de la suppression des messages antiflood. Les messages causant
   l'antiflood seront supprimés !"

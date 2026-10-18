@@ -129,15 +129,11 @@ antiflood_errors_invalid_int:
   That's not a valid integer. Please give me a valid integer,
   or `off`.
 antiflood_errors_set_in_limit: The antiflood limit has to be set between 3 and 100.
-antiflood_flood_deleter_already_disabled:
-  Antiflood Message deleting is currently
-  *disabled* in this chat, Messages causing antiflood will be ignored!
+antiflood_flood_deleter_already_disabled: "Antiflood Message deleting is currently *disabled* in this chat. Only the message that triggers antiflood will be deleted; earlier messages of the flood stay."
 antiflood_flood_deleter_already_enabled:
   Antiflood Message deleting is currently *enabled*
   in this chat, Messages causing antiflood will be deleted!
-antiflood_flood_deleter_disabled:
-  Turned off Antiflood Message Deleting. Messages
-  causing antiflood will be ignored!
+antiflood_flood_deleter_disabled: "Turned off Antiflood Message Deleting. Only the message that triggers antiflood will be deleted; earlier messages of the flood stay."
 antiflood_flood_deleter_enabled:
   Turned on Antiflood Message Deleting. Messages causing
   antiflood will be deleted!

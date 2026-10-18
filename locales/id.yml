@@ -90,15 +90,11 @@ antiflood_errors_invalid_int:
   "Itu bukan bilangan bulat yang valid. Berikan bilangan bulat yang valid,
   atau `off`."
 antiflood_errors_set_in_limit: Batas antiflood harus diatur antara 3 dan 100.
-antiflood_flood_deleter_already_disabled:
-  "Penghapusan pesan Antiflood saat ini
-  *dinonaktifkan* di obrolan ini, pesan yang menyebabkan antiflood akan diabaikan!"
+antiflood_flood_deleter_already_disabled: "Penghapusan pesan Antiflood saat ini *dinonaktifkan* di obrolan ini. Hanya pesan yang memicu antiflood yang akan dihapus; pesan flood sebelumnya tetap ada."
 antiflood_flood_deleter_already_enabled:
   "Penghapusan pesan Antiflood saat ini *diaktifkan*
   di obrolan ini, pesan yang menyebabkan antiflood akan dihapus!"
-antiflood_flood_deleter_disabled:
-  "Menonaktifkan Penghapusan Pesan Antiflood. Pesan
-  yang menyebabkan antiflood akan diabaikan!"
+antiflood_flood_deleter_disabled: "Menonaktifkan Penghapusan Pesan Antiflood. Hanya pesan yang memicu antiflood yang akan dihapus; pesan flood sebelumnya tetap ada."
 antiflood_flood_deleter_enabled:
   "Mengaktifkan Penghapusan Pesan Antiflood. Pesan yang menyebabkan
   antiflood akan dihapus!"

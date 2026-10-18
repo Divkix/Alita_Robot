@@ -723,9 +723,9 @@ antiflood_checkflood_perform_action: "हाँ, मुझे आपकी flood
 antiflood_errors_expected_args: "मुझे कुछ तर्क चाहिए! या तो off, या एक पूर्णांक। उदा: `/setflood 5`, या `/setflood off`"
 antiflood_errors_invalid_int: "यह एक वैध पूर्णांक नहीं है। कृपया मुझे एक वैध पूर्णांक दें, या `off`।"
 antiflood_errors_set_in_limit: antiflood सीमा 3 और 100 के बीच सेट होनी चाहिए।
-antiflood_flood_deleter_already_disabled: "Antiflood संदेश हटाना वर्तमान में इस चैट में *अक्षम* है, antiflood उत्पन्न करने वाले संदेशों को अनदेखा किया जाएगा!"
+antiflood_flood_deleter_already_disabled: "Antiflood संदेश हटाना वर्तमान में इस चैट में *अक्षम* है। केवल antiflood ट्रिगर करने वाला संदेश हटाया जाएगा; flood के पहले के संदेश बने रहेंगे।"
 antiflood_flood_deleter_already_enabled: "Antiflood संदेश हटाना वर्तमान में इस चैट में *सक्षम* है, antiflood उत्पन्न करने वाले संदेश हटा दिए जाएंगे!"
-antiflood_flood_deleter_disabled: "Antiflood संदेश हटाना बंद कर दिया। antiflood उत्पन्न करने वाले संदेशों को अनदेखा किया जाएगा!"
+antiflood_flood_deleter_disabled: "Antiflood संदेश हटाना बंद कर दिया। केवल antiflood ट्रिगर करने वाला संदेश हटाया जाएगा; flood के पहले के संदेश बने रहेंगे।"
 antiflood_flood_deleter_enabled: "Antiflood संदेश हटाना चालू कर दिया। antiflood उत्पन्न करने वाले संदेश हटा दिए जाएंगे!"
 antiflood_flood_deleter_invalid_option: "मैं केवल इन विकल्पों को समझता हूं: `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: यह चैट वर्तमान में flood नियंत्रण लागू नहीं कर रहा है।

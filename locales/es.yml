@@ -93,15 +93,11 @@ antiflood_errors_invalid_int:
   Ese no es un entero válido. Por favor dame un entero válido,
   o `off`.
 antiflood_errors_set_in_limit: El límite antiflood debe establecerse entre 3 y 100.
-antiflood_flood_deleter_already_disabled:
-  La eliminación de mensajes antiflood está actualmente
-  *deshabilitada* en este chat, ¡Los mensajes que causen antiflood serán ignorados!
+antiflood_flood_deleter_already_disabled: "La eliminación de mensajes antiflood está actualmente *deshabilitada* en este chat. Solo se eliminará el mensaje que active el antiflood; los mensajes anteriores del flood se mantienen."
 antiflood_flood_deleter_already_enabled:
   La eliminación de mensajes antiflood está actualmente *habilitada*
   en este chat, ¡Los mensajes que causen antiflood serán eliminados!
-antiflood_flood_deleter_disabled:
-  Eliminación de mensajes antiflood desactivada. Los mensajes
-  que causen antiflood serán ignorados!
+antiflood_flood_deleter_disabled: "Eliminación de mensajes antiflood desactivada. Solo se eliminará el mensaje que active el antiflood; los mensajes anteriores del flood se mantienen."
 antiflood_flood_deleter_enabled:
   Eliminación de mensajes antiflood activada. Los mensajes que causen
   antiflood serán eliminados!
