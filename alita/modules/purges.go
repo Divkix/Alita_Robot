@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,8 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -245,66 +242,6 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "", "common_cannot_identify_user")
-		return ext.EndGroups
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	msgIDRaw := ""
-	decoded, ok := decodeCallbackData(query.Data, "deleteMsg")
-	if !ok {
-		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
-		errText, _ := tr.GetString("purges_invalid_button_data")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
-		return ext.EndGroups
-	}
-	msgIDRaw, _ = decoded.Field("m")
-	if msgIDRaw == "" {
-		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
-		errText, _ := tr.GetString("purges_invalid_button_data")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
-		return ext.EndGroups
-	}
-
-	msgId, err := strconv.ParseInt(msgIDRaw, 10, 64)
-	if err != nil {
-		log.Warnf("[Purges] Invalid message ID in callback: %s", msgIDRaw)
-		errText, _ := tr.GetString("purges_invalid_message_id")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
-		return ext.EndGroups
-	}
-
-	if !chat_status.CanUserDelete(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId); err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
-}
-
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user, ok := checkPurgePermissions(bot, ctx)
 	if !ok {
@@ -514,7 +451,6 @@ func LoadPurges(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, purgeDesc, pipelineHandler(purgesModule.purge))
 	helpers.WrapCommand(dispatcher, purgeFromDesc, pipelineHandler(purgesModule.purgeFrom))
 	helpers.WrapCommand(dispatcher, purgeToDesc, pipelineHandler(purgesModule.purgeTo))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("deleteMsg"), purgesModule.deleteButtonHandler))
 }
 
 func init() {

@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -314,52 +313,5 @@ func TestPurgeFromToValidationBranches(t *testing.T) {
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want no deletion for validation branches", len(calls))
-	}
-}
-
-func TestDeleteButtonHandlerDeletesTargetMessage(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-
-	validData := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
-	ctx := newModuleCallbackContext(bot, chat, admin, validData)
-	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("deleteButtonHandler error = %v, want EndGroups", err)
-	}
-	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": 345})
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want callback answer", len(calls))
-	}
-}
-
-func TestDeleteButtonHandlerRejectsInvalidData(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-
-	ctx := newModuleCallbackContext(bot, chat, admin, "deleteMsg.bad")
-	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("deleteButtonHandler invalid data error = %v, want EndGroups", err)
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
-		t.Fatalf("deleteMessage calls = %d, want no deletion", len(calls))
-	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want error answer", len(calls))
-	}
-}
-
-func TestDeleteButtonHandlerReturnsDeleteFailure(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-	requestErr := errors.New("delete failed")
-	client.errors["deleteMessage"] = requestErr
-	data := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
-
-	err := purgesModule.deleteButtonHandler(bot, newModuleCallbackContext(bot, chat, admin, data))
-	if !errors.Is(err, requestErr) {
-		t.Fatalf("deleteButtonHandler error = %v, want delete failure", err)
-	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
-		t.Fatalf("answerCallbackQuery calls = %d, want no success answer", len(calls))
 	}
 }
