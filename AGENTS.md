@@ -96,7 +96,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Subsystem traps
 
-- Approved users skip antiflood, locks, blacklists, and captcha.
+- Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, locks, blacklists, and captcha.
 - Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
