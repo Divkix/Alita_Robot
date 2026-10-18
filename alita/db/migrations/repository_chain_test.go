@@ -83,6 +83,8 @@ func TestRepositoryMigrationChain(t *testing.T) {
 		t.Fatalf("timezone-aware captcha attempt timestamp columns = %d, want 3", timezoneAwareCaptchaColumns)
 	}
 
+	assertBlacklistActionsAccepted(t, database)
+
 	var records []SchemaMigration
 	if err := database.Order("version").Find(&records).Error; err != nil {
 		t.Fatalf("load applied migration records: %v", err)
@@ -102,6 +104,51 @@ func TestRepositoryMigrationChain(t *testing.T) {
 		version := filepath.Base(file)
 		if !recorded[version] {
 			t.Errorf("migration %s was not recorded", version)
+		}
+	}
+}
+
+// assertBlacklistActionsAccepted writes every blacklist action the bot stores
+// (the column default, the "warn" set by AddBlacklist and each /blaction
+// option) into the migrated schema. All writes are rolled back.
+func assertBlacklistActionsAccepted(t *testing.T, database *gorm.DB) {
+	t.Helper()
+
+	const chatID = int64(-1001234567890)
+	tx := database.Begin()
+	if tx.Error != nil {
+		t.Fatalf("begin blacklist action check: %v", tx.Error)
+	}
+	defer tx.Rollback()
+
+	if err := tx.Exec(`INSERT INTO chats (chat_id, chat_name) VALUES (?, 'blacklist action check')`, chatID).Error; err != nil {
+		t.Fatalf("insert chat for blacklist action check: %v", err)
+	}
+	if err := tx.Exec(`INSERT INTO blacklists (chat_id, word) VALUES (?, 'default-action')`, chatID).Error; err != nil {
+		t.Errorf("blacklist row with the column default action rejected: %v", err)
+		return
+	}
+
+	for _, action := range []string{"warn", "mute", "kick", "ban", "none"} {
+		savepoint := "blacklist_action_" + action
+		if err := tx.SavePoint(savepoint).Error; err != nil {
+			t.Fatalf("savepoint %s: %v", savepoint, err)
+		}
+		if err := tx.Exec(`INSERT INTO blacklists (chat_id, word, action) VALUES (?, ?, ?)`, chatID, "insert-"+action, action).Error; err != nil {
+			t.Errorf("insert blacklist row with action %q rejected: %v", action, err)
+		}
+		if err := tx.RollbackTo(savepoint).Error; err != nil {
+			t.Fatalf("rollback to %s: %v", savepoint, err)
+		}
+
+		if err := tx.SavePoint(savepoint).Error; err != nil {
+			t.Fatalf("savepoint %s: %v", savepoint, err)
+		}
+		if err := tx.Exec(`UPDATE blacklists SET action = ? WHERE chat_id = ?`, action, chatID).Error; err != nil {
+			t.Errorf("set blacklist action %q rejected: %v", action, err)
+		}
+		if err := tx.RollbackTo(savepoint).Error; err != nil {
+			t.Fatalf("rollback to %s: %v", savepoint, err)
 		}
 	}
 }
