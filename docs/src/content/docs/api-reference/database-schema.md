@@ -62,7 +62,7 @@ Stores admin settings per chat.
 
 ### `ai_spam_settings`
 
-Stores the per-chat opt-in switch for the AI spam filter. A missing row means the filter is off, so only enabling writes a row.
+Stores the per-chat opt-in switch for the AI spam filter. A missing row means the filter is off; `/aispam on` and `/aispam off` both upsert the row.
 
 #### Columns
 
