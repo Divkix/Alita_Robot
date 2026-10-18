@@ -345,7 +345,7 @@ func generatePermissionsSection(module Module) string {
 	}
 
 	if module.Name == "federations" {
-		content.WriteString("Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.\n\n")
+		content.WriteString("Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/newfed` (in PM), `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.\n\n")
 		content.WriteString("**Bot Permissions Required:**\n\n")
 		content.WriteString("- Ban users (to enforce and lift federation bans)\n")
 		return content.String()

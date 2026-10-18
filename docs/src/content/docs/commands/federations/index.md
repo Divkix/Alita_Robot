@@ -90,7 +90,7 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.
+Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/newfed` (in PM), `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.
 
 **Bot Permissions Required:**
 
