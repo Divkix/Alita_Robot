@@ -2205,7 +2205,7 @@ backup_reset_failed: "❌ Сброс не удался: %s"
 
 button_confirm_import: "✅ Подтвердить импорт"
 button_cancel_import: "❌ Отмена"
-button_confirm_reset: "⚠️ Да, сбросить всё"
+button_confirm_reset: "⚠️ Да, сбросить"
 button_cancel_reset: "❌ Отмена"
 
 backup_module_admin: "Настройки администратора"

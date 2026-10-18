@@ -2468,7 +2468,7 @@ backup_reset_failed: "❌ Reset failed: %s"
 
 button_confirm_import: "✅ Confirm Import"
 button_cancel_import: "❌ Cancel"
-button_confirm_reset: "⚠️ Yes, Reset All"
+button_confirm_reset: "⚠️ Yes, Reset"
 button_cancel_reset: "❌ Cancel"
 
 # Module names for backup

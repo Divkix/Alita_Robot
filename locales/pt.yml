@@ -2390,7 +2390,7 @@ backup_reset_failed: "❌ Falha na redefinição: %s"
 
 button_confirm_import: "✅ Confirmar Importação"
 button_cancel_import: "❌ Cancelar"
-button_confirm_reset: "⚠️ Sim, Redefinir Tudo"
+button_confirm_reset: "⚠️ Sim, Redefinir"
 button_cancel_reset: "❌ Cancelar"
 
 backup_module_admin: "Configurações de Admin"

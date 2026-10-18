@@ -2418,7 +2418,7 @@ backup_reset_failed: "❌ Atur ulang gagal: %s"
 
 button_confirm_import: "✅ Konfirmasi Impor"
 button_cancel_import: "❌ Batal"
-button_confirm_reset: "⚠️ Ya, Atur Ulang Semua"
+button_confirm_reset: "⚠️ Ya, Atur Ulang"
 button_cancel_reset: "❌ Batal"
 
 backup_module_admin: "Pengaturan Admin"

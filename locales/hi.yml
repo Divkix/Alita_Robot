@@ -2119,7 +2119,7 @@ backup_reset_failed: "❌ रीसेट विफल: %s"
 
 button_confirm_import: "✅ इम्पोर्ट की पुष्टि करें"
 button_cancel_import: "❌ रद्द करें"
-button_confirm_reset: "⚠️ हां, सब रीसेट करें"
+button_confirm_reset: "⚠️ हां, रीसेट करें"
 button_cancel_reset: "❌ रद्द करें"
 
 backup_module_admin: "एडमिन सेटिंग्स"

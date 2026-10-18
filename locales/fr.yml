@@ -2334,7 +2334,7 @@ backup_reset_failed: "❌ Échec de la réinitialisation : %s"
 
 button_confirm_import: "✅ Confirmer l'Import"
 button_cancel_import: "❌ Annuler"
-button_confirm_reset: "⚠️ Oui, Tout Réinitialiser"
+button_confirm_reset: "⚠️ Oui, Réinitialiser"
 button_cancel_reset: "❌ Annuler"
 
 backup_module_admin: "Paramètres Admin"

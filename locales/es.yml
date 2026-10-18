@@ -2427,7 +2427,7 @@ backup_reset_failed: "❌ Error al restablecer: %s"
 
 button_confirm_import: "✅ Confirmar Importación"
 button_cancel_import: "❌ Cancelar"
-button_confirm_reset: "⚠️ Sí, Restablecer Todo"
+button_confirm_reset: "⚠️ Sí, Restablecer"
 button_cancel_reset: "❌ Cancelar"
 
 backup_module_admin: "Configuración de Administración"
