@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 
@@ -46,17 +47,15 @@ func kickReply(c *moderationCtx, t *target) error {
 	}
 
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_user")
+	text := fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_reason")
 		if temp != "" {
-			baseStr += fmt.Sprintf(temp, t.reason)
+			text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 		}
 	}
 
-	_, err = c.Msg.Reply(c.Bot,
-		fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName)),
-		formatting.Shtml(),
-	)
+	_, err = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -116,7 +115,7 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 			if t.reason != "" {
 				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
 				if temp != "" {
-					baseStr += fmt.Sprintf(temp, t.reason)
+					baseStr += fmt.Sprintf(temp, html.EscapeString(t.reason))
 				}
 			}
 
@@ -139,12 +138,11 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 	}
 
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_normal_ban")
+	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
-		baseStr += fmt.Sprintf(temp, t.reason)
+		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
-
-	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
 
 	_, err = c.Msg.Reply(c.Bot, text,
 		&gotgbot.SendMessageOpts{
