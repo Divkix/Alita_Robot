@@ -155,9 +155,12 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - `release.yml` runs no checks of its own: it waits for `ci.yml` to pass on the tagged commit (dispatching CI on the
   tag if main's run was cancelled). Put any new release gate in `ci.yml`.
 - `.env` in cwd auto-loads without overriding real env. Run `--version` smoke checks from `/tmp`.
-- Defaults that surprise: `REDIS_DB=1`; `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and
-  background stats are on only when `DEBUG=false`; `HTTP_PORT` falls back to `PORT` then 8080. Integer env parsing is
-  lenient, so a typo silently becomes the default.
+- Defaults that surprise: `REDIS_DB=1` (with `REDIS_URL` set and `REDIS_DB` unset, the URL path decides; no path
+  means DB 0); `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and background stats default
+  on only when `DEBUG=false` (an explicit `true` still enables them in debug); `HTTP_PORT` falls back to `PORT` then
+  8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB`, where a
+  non-integer or a value outside 0-15 fails startup. Integers that parse but are out of range (`DB_*`,
+  `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
 
 ## Testing
 
