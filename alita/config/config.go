@@ -193,6 +193,12 @@ type Config struct {
 	// feature is inert without TypeSafeAPIKey.
 	EnableAISpam   bool
 	TypeSafeAPIKey string
+
+	// Join-time CAS (cas.chat) spam database check. EnableSpamDB is the
+	// operator's kill switch; each chat still opts in with /spamdb on. The
+	// API key is optional until CAS starts requiring it.
+	EnableSpamDB bool
+	CASAPIKey    string
 }
 
 var AppConfig *Config
@@ -328,6 +334,9 @@ func LoadConfig() (*Config, error) {
 
 		EnableAISpam:   typeConvertor{str: os.Getenv("ENABLE_AISPAM")}.Bool(),
 		TypeSafeAPIKey: os.Getenv("TYPESAFE_API_KEY"),
+
+		EnableSpamDB: typeConvertor{str: os.Getenv("ENABLE_SPAMDB")}.Bool(),
+		CASAPIKey:    os.Getenv("CAS_API_KEY"),
 	}
 
 	cfg.setDefaults()
@@ -446,6 +455,25 @@ func (cfg *Config) setDefaults() {
 	if os.Getenv("ENABLE_AISPAM") == "" {
 		cfg.EnableAISpam = true
 	}
+
+	// On unless explicitly disabled: every chat starts opted out, so an unset
+	// flag sends nothing to CAS.
+	if os.Getenv("ENABLE_SPAMDB") == "" {
+		cfg.EnableSpamDB = true
+	}
+}
+
+// registerConfigSecrets keeps every credential in cfg out of the logs.
+func registerConfigSecrets(cfg *Config) {
+	logredact.RegisterSecret(
+		cfg.BotToken,
+		cfg.DatabaseURL,
+		cfg.RedisPassword,
+		cfg.WebhookSecret,
+		cfg.MetricsAuthToken,
+		cfg.TypeSafeAPIKey,
+		cfg.CASAPIKey,
+	)
 }
 
 func init() {
@@ -483,14 +511,7 @@ func init() {
 
 	AppConfig = cfg
 
-	logredact.RegisterSecret(
-		cfg.BotToken,
-		cfg.DatabaseURL,
-		cfg.RedisPassword,
-		cfg.WebhookSecret,
-		cfg.MetricsAuthToken,
-		cfg.TypeSafeAPIKey,
-	)
+	registerConfigSecrets(cfg)
 
 	if cfg.Debug {
 		log.SetLevel(log.DebugLevel)
