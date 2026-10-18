@@ -431,20 +431,20 @@ func getLockDescription(lockName, category string) string {
 		"photo":       "Blocks photo messages",
 		"gif":         "Blocks GIF/animation messages",
 		"url":         "Blocks messages containing URLs",
-		"bots":        "Prevents non-admins from adding bots to the group",
+		"bots":        "Prevents users who are neither admins nor approved from adding bots to the group",
 		"forward":     "Blocks forwarded messages",
 		"game":        "Blocks game messages",
 		"location":    "Blocks location/venue messages",
-		"rtl":         "Blocks message text containing Arabic-script characters (U+0600-U+06FF); captions and other RTL scripts such as Hebrew are not checked",
+		"rtl":         "Blocks message text and media captions containing Arabic-script characters (U+0600-U+06FF); other RTL scripts such as Hebrew are not checked",
 		"anonchannel": "Blocks messages from anonymous channels and linked channel posts",
 
 		// Restriction locks (from restrMap)
 		"messages": "Blocks all text, media, contacts, locations, games, stickers, and GIFs",
 		"comments": "Blocks messages from non-members (discussion comments)",
-		"media":    "Blocks all media files (audio, document, video, photo, video note, voice)",
+		"media":    "Blocks all media files (audio, document, GIF, video, photo, video note, voice)",
 		"other":    "Blocks games, stickers, and GIFs",
 		"previews": "Blocks messages containing URLs, whether or not a preview is shown (same match as url)",
-		"all":      "Blocks all messages from non-admins",
+		"all":      "Blocks all messages from users who are neither admins nor approved",
 	}
 
 	if desc, exists := descriptions[lockName]; exists {
