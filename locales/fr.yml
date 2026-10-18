@@ -1243,8 +1243,6 @@ misc_user_link: "Lien utilisateur : %s"
 misc_owner_tag: "C'est mon propriétaire !"
 misc_dev_user_tag: "C'est l'un de mes développeurs !"
 misc_pinging: "<code>Ping en cours</code>"
-misc_pinged_in: Ping effectué en %d ms
-misc_ping_response: "🏓 Pong ! <b>%dms</b>"
 misc_ping_result: "🏓 <b>Pong !</b>\n\n<b>RTT de l’API</b> (getMe) : <code>%dms</code>\n<b>Envoi du message</b> : <code>%dms</code>\n<b>Surcoût</b> : <code>%dms</code>"
 misc_thread_id: "ID du fil : <code>%d</code>"
 misc_chat_id: "<b>ID du chat :</b> <code>%d</code>"
