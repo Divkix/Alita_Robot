@@ -2311,8 +2311,8 @@ blacklists_set_bl_action_update_failed: "No se pudo actualizar la acción de lis
 blacklists_set_bl_action_no_words: "Todavía no hay palabras en la lista negra de este chat. Añade una con /addblacklist y luego elige la acción."
 filters_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."
 notes_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."
-common_settings_save_failed: "Error al guardar la configuracion. Intentalo de nuevo mas tarde."
-devs_chatlist_error: "Error al generar la lista de chats. Intentalo de nuevo."
+common_settings_save_failed: "Error al guardar la configuración. Inténtalo de nuevo más tarde."
+devs_chatlist_error: "Error al generar la lista de chats. Inténtalo de nuevo."
 
 # Reactions module strings
 reactions_help_msg: |
