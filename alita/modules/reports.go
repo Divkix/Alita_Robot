@@ -198,11 +198,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	// The log channel card has no moderation actions, so the group gets the
-	// report with its admin mentions and buttons whether or not the card was
-	// posted.
-	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
-
 	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
 		reportTemplate,
@@ -298,6 +293,13 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	if err != nil {
 		log.Error(err)
+	}
+	// The log channel card has no moderation actions, so the group gets the
+	// report with its admin mentions and buttons whether or not the card is
+	// posted. The card goes second so that a slow log channel does not hold
+	// up the group reply, and still goes when that reply failed.
+	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
+	if err != nil {
 		return err
 	}
 	return ext.EndGroups

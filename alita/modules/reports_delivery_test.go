@@ -164,16 +164,16 @@ func TestReportCardSentToLogChannel(t *testing.T) {
 	assertFullGroupReply(t, f)
 }
 
-// assertFullGroupReply checks that the last in-group reply is the report with
-// the hidden admin mentions and all its action buttons, as without a log
+// assertFullGroupReply checks that the group got exactly one reply, the report
+// with the hidden admin mentions and all its action buttons, as without a log
 // channel.
 func assertFullGroupReply(t *testing.T, f reportCardFixture) {
 	t.Helper()
 	group := callsToChat(f.client, "sendMessage", f.chat.Id)
-	if len(group) == 0 {
-		t.Fatal("group sendMessage calls = 0, want the full in-group report")
+	if len(group) != 1 {
+		t.Fatalf("group sendMessage calls = %d, want exactly the full in-group report", len(group))
 	}
-	last := group[len(group)-1]
+	last := group[0]
 	actions := legacyReportActions(t, last.Params["reply_markup"])
 	for _, action := range []string{"kick", "ban", "delete", "resolved"} {
 		if actions[action] == "" {
@@ -197,6 +197,51 @@ func TestReportFallsBackWhenCardNotSent(t *testing.T) {
 	assertFullGroupReply(t, f)
 	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].AdminMessageId != nil {
 		t.Fatalf("stored report = %+v, want a row without a card", rows)
+	}
+}
+
+// The reporter hears back before the bot talks to the log channel, so a slow
+// or broken channel does not hold up the group reply.
+func TestGroupReplySentBeforeCard(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.report(t, f.reporter, "/report spam")
+
+	groupReply, firstChannelCall := -1, -1
+	for i, call := range f.client.calls {
+		switch fmt.Sprint(call.Params["chat_id"]) {
+		case fmt.Sprint(f.chat.Id):
+			if call.Method == "sendMessage" && groupReply < 0 {
+				groupReply = i
+			}
+		case fmt.Sprint(reportCardChannelID):
+			if firstChannelCall < 0 {
+				firstChannelCall = i
+			}
+		}
+	}
+	if groupReply < 0 || firstChannelCall < 0 {
+		t.Fatalf("group reply at %d, first log channel call at %d, want both", groupReply, firstChannelCall)
+	}
+	if groupReply > firstChannelCall {
+		t.Fatalf("group reply is call %d after log channel call %d, want the group answered first", groupReply, firstChannelCall)
+	}
+}
+
+func TestCardSentWhenGroupReplyFails(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.client.errorsByChat = map[string]error{
+		"sendMessage|" + fmt.Sprint(f.chat.Id): errors.New("context deadline exceeded"),
+	}
+	ctx := newReportReplyContext(f.bot, f.chat, f.reporter, f.target, "/report spam")
+	if err := reportsModule.report(f.bot, ctx); err == nil {
+		t.Fatal("report error = nil, want the failed group reply returned")
+	}
+
+	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 1 {
+		t.Fatalf("log channel sendMessage calls = %d, want the card despite the failed group reply", got)
+	}
+	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].AdminMessageId == nil {
+		t.Fatalf("stored report = %+v, want the card recorded", rows)
 	}
 }
 
@@ -275,13 +320,14 @@ func TestSecondReporterEditsCard(t *testing.T) {
 func TestRepeatReportDoesNotTouchCard(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	f.report(t, f.reporter, "/report spam")
+	f.client.calls = nil
 	f.report(t, f.reporter, "/report spam again")
 
-	if got := len(f.client.callsFor("copyMessage")); got != 1 {
-		t.Fatalf("copyMessage calls = %d, want 1", got)
+	if got := len(f.client.callsFor("copyMessage")); got != 0 {
+		t.Fatalf("copyMessage calls = %d, want 0 for a repeated report", got)
 	}
-	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 1 {
-		t.Fatalf("log channel sendMessage calls = %d, want 1", got)
+	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
+		t.Fatalf("log channel sendMessage calls = %d, want 0 for a repeated report", got)
 	}
 	if got := len(callsToChat(f.client, "editMessageText", reportCardChannelID)); got != 0 {
 		t.Fatalf("card edits = %d, want 0 for a repeated report", got)
