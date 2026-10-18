@@ -7,7 +7,7 @@ description: Complete guide to Purges module commands and features
 # 🧹 Purges Commands
 
 *Admin only:*
-- /purge: deletes all messages between this and the replied-to message.
+- /purge <reason>: deletes all messages between this and the replied-to message. The reason is optional and is shown in the confirmation.
 - /del: deletes the message you replied to.
 
 *Examples*:
@@ -23,7 +23,7 @@ The bot will confirm the message is marked (expires after 30 seconds).
 Only one mark can be active per chat. It is shared by all admins, so another /purgefrom is refused until /purgeto is used or the 30-second mark expires, and any admin's /purgeto uses it.
 
 2. Reply to the **last** message in the range:
-`/purgeto`
+`/purgeto` (optionally followed by a reason, shown in the confirmation)
 All messages between the two markers (inclusive) will be deleted.
 
 This is useful when you can't easily scroll to the starting point or need to verify the range before deletion.
@@ -48,9 +48,9 @@ This module can be accessed using the following aliases:
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/del` | Delete the replied message | ❌ |
-| `/purge` | Purge messages from replied message to current | ❌ |
+| `/purge` | Purge messages from replied message to current, with an optional reason | ❌ |
 | `/purgefrom` | Mark start point for a purge range | ❌ |
-| `/purgeto` | Purge messages from marked start to this message | ❌ |
+| `/purgeto` | Purge messages from marked start to this message, with an optional reason | ❌ |
 
 ## Usage Examples
 
@@ -59,6 +59,7 @@ This module can be accessed using the following aliases:
 ```
 /del
 /purge
+/purge spam cleanup
 /purgefrom
 ```
 
