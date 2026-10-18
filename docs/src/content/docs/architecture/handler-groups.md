@@ -14,19 +14,20 @@ This page documents every registered message watcher with its exact handler grou
 | Group | Module | Handler | Filter | Return on Match | Notes |
 |-------|--------|---------|--------|-----------------|-------|
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
-| -5 | AntiRaid | `antiRaidJoinHandler` | ChatMember (user joined) | `EndGroups` | Intercepts new member joins during raid mode; auto-restricts or bans joiners |
-| -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` | Early interceptor for bot group joins; leaves non-supergroups |
+| -5 | AntiRaid | `onJoin` | Message with `new_chat_members` | `ContinueGroups` (always) | While raid mode is on (or once the auto-antiraid join threshold is reached, which turns it on), temp-bans each new joiner for the raid action time; skips the bot, admins and approved users; does nothing if the bot cannot restrict |
+| -2 | BotUpdates | `adminCacheAutoUpdate` | MyChatMember (bot's own admin status change) | `ContinueGroups` | Invalidates and reloads the admin cache when the bot is promoted or demoted |
+| -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` for private chats and basic groups, `ContinueGroups` for supergroups | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |
 | 3 | AISpam | `checkAISpam` | `message.All` | `ContinueGroups` (always) | Opt-in AI spam filter; enqueues a check and never blocks propagation |
-| 4 | Antiflood | `checkFlood` | `message.All` | `EndGroups` on flood, `ContinueGroups` otherwise | Flood control; skips anon admins and media groups |
-| 5 | Locks | `permHandler` | `message.All` | `EndGroups` on violation | Permission-based locks (can_send_messages, etc.) |
-| 6 | Locks | `restHandler` | `message.All` | `EndGroups` on violation | Restriction-based locks (stickers, animations, etc.) |
-| 7 | Blacklists | `blacklistWatcher` | non-command, non-media-group | `ContinueGroups` (always) | Checks words against blacklist; action taken but processing continues |
-| 8 | Reports | (handler) | `message.All` | varies | Report tracking |
-| 8 | Reactions | `checkReactions` | `message.All` | `EndGroups` | Checks message reactions against configured patterns; takes action (mute/ban) on violation |
-| 9 | Filters | `filtersWatcher` | non-command, non-media-group | `ContinueGroups` (always) | Matches filter patterns; sends configured response but does not block |
-| 10 | Pins | (handler) | `message.All` | `EndGroups` | Anti-channel-pin watcher |
+| 4 | Antiflood | `checkFlood` | `message.All` | `ContinueGroups` (always) | Flood control; on flood deletes the message(s), punishes the sender and posts a notice without stopping later groups; skips anon admins, linked channels, approved users and media groups |
+| 5 | Locks | `permHandler` | `message.All` | `ContinueGroups` (always) | Content-type locks (sticker, gif, url, forward, rtl, anonchannel, ...); deletes the offending message but does not block later groups |
+| 6 | Locks | `restHandler` | `message.All` | `ContinueGroups` (always) | Restriction locks (messages, comments, media, other, previews, all); deletes the offending message but does not block later groups |
+| 7 | Blacklists | `blacklistWatcher` | non-command, non-media-group | `EndGroups` after a warn (the default action) or a failed Telegram call; `ContinueGroups` otherwise | Checks words against blacklist; after a warn, later groups (reports, filters, pins, log channel) do not run |
+| 8 | Reports | `report` | text mentioning `@admin`/`@admins` (case-insensitive, whole word) | `EndGroups` (or error) | Treats a message that mentions @admin/@admins as a /report to the chat's admins |
+| 8 | Reactions | `checkReactions` | `message.All` (acts only on text messages) | `ContinueGroups` (always) | Sets the chat's configured emoji reaction on messages whose text contains a keyword (case-insensitive substring; first matching keyword in sorted order wins); never mutes, bans, or blocks propagation |
+| 9 | Filters | `filtersWatcher` | text or caption present | `ContinueGroups`; `EndGroups` when a non-admin sends `<keyword> noformat` | Matches filter patterns; sends configured response but does not block |
+| 10 | Pins | `checkPinned` | linked-channel automatic forwards (`GetSender().IsLinkedChannel()`) | `ContinueGroups` | Deletes the post if /cleanlinked is on, otherwise unpins it if /antichannelpin is on |
 
 ## Propagation Behavior
 
@@ -34,8 +35,9 @@ This page documents every registered message watcher with its exact handler grou
 Understanding these rules is essential for debugging why a message did or did not trigger a particular watcher.
 
 - **Captcha is first (group -10).** Any message from a user with a pending captcha is stored for moderator review and deleted. The message never reaches antiraid, antiflood, blacklists, or filters.
-- **AntiRaid intercepts joins (group -5).** During raid mode, new member joins are intercepted and auto-restricted before reaching downstream handlers.
-- **Blacklists and Filters use ContinueGroups.** Both take their configured action (warn, mute, ban for blacklists; send reply for filters) but do not block downstream watchers. A message matching a blacklist word still gets checked by filters.
+- **AntiRaid bans raid joiners (group -5).** During raid mode, users who join (seen through the join service message) are temp-banned for the raid action time. The handler always returns `ContinueGroups`, so later groups still see the join message.
+- **Filters use ContinueGroups; Blacklists depend on the action.** Filters send their reply and never block later watchers. A blacklist `mute`/`ban`/`kick`/`tban`/`tmute`/`delete`/`none` action returns `ContinueGroups`, so the message is still checked by filters. The `warn` action (the default) returns `EndGroups`, so reports, filters, pins and the log channel skip that message. One exception: when a non-admin sends `<keyword> noformat`, Filters replies with the admin-only error and returns `EndGroups`, so pins and the log channel skip that update.
+- **Locks use ContinueGroups (groups 5-6).** A locked message is deleted, but blacklists, reports/reactions, filters and pins still see the update.
 :::
 
 ## Interaction Examples
@@ -52,8 +54,8 @@ Understanding these rules is essential for debugging why a message did or did no
 2. AntiRaid (group -5) passes through (raid mode not active).
 3. Users (group -1) logs activity, continues.
 4. Commands (group 0) fire normally for earlier messages.
-5. **Antiflood (group 4)** triggers after the flood threshold is reached, returns `EndGroups`.
-6. Locks, blacklists, filters, and pins are all skipped for that message.
+5. **Antiflood (group 4)** triggers once the flood threshold is reached: it deletes the flooding message(s), applies the configured action (mute/kick/ban, or tmute/tban from older data), posts a notice, and returns `ContinueGroups`.
+6. Locks, blacklists, reports/reactions, filters, pins and the log channel still receive the update, although the message is already deleted from the chat.
 
 ### Scenario 3: Message matches both a blacklist word and a filter
 
@@ -62,13 +64,15 @@ Understanding these rules is essential for debugging why a message did or did no
 3. Users (group -1) logs activity, continues.
 4. Commands (group 0) — not a command, passes.
 5. Antiflood (group 4) — not flooding, continues.
-6. **Locks (groups 5-6)** check permissions. Message passes (no lock violation).
-7. **Blacklists (group 7)** matches the word, takes configured action (e.g., warn user), returns `ContinueGroups`.
-8. Reports (group 8) tracks the message.
+6. **Locks (groups 5-6)** check the chat's content-type and restriction locks. Message passes (no lock violation).
+7. **Blacklists (group 7)** matches the word, takes the configured action (e.g., mute user), returns `ContinueGroups`.
+8. Group 8: Reports does nothing (the message does not mention @admin/@admins); Reactions adds an emoji reaction if a configured keyword matches, and returns `ContinueGroups`.
 9. **Filters (group 9)** matches the filter pattern, sends the configured response, returns `ContinueGroups`.
 10. Pins (group 10) checks for anti-channel-pin conditions.
 
 Both the blacklist action and the filter response are triggered for the same message.
+
+If the blacklist action is `warn` (the default), the watcher returns `EndGroups` at step 7: steps 8-10 do not run and the filter does not reply.
 
 ## Related Pages
 
