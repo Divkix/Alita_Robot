@@ -476,3 +476,37 @@ func TestReportActionCallbackAllowsGranularAdmin(t *testing.T) {
 		t.Fatalf("answerCallbackQuery calls = %d, want success acknowledgement", len(calls))
 	}
 }
+
+func TestReportMentionWatcherContinuesGroups(t *testing.T) {
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+	target := gotgbot.User{Id: 43, FirstName: "Target"}
+
+	t.Run("mention without reply", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newModuleMessageContext(bot, chat, reporter, "ask @admin later")
+		if err := reportsModule.reportWatcher(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("reportWatcher(no reply) error = %v, want ContinueGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want the reply-to-report hint", len(calls))
+		}
+	})
+
+	t.Run("mention as reply sends the report", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newReportReplyContext(bot, chat, reporter, target, "@admin spam")
+		if err := reportsModule.reportWatcher(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("reportWatcher(reply) error = %v, want ContinueGroups", err)
+		}
+		calls := client.callsFor("sendMessage")
+		if len(calls) == 0 {
+			t.Fatal("reportWatcher sent no report")
+		}
+		if calls[len(calls)-1].Params["reply_markup"] == nil {
+			t.Fatal("report message did not include action buttons")
+		}
+	})
+}
