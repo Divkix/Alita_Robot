@@ -1086,15 +1086,8 @@ disabling_invalid_option: "Я понимаю только вариант из: `
 # Misc module strings
 misc_reply_to_someone: Ответьте кому-то.
 misc_provide_content: Предоставьте содержимое для ответа!
-misc_could_not_find_user: Не удалось найти информацию об этом пользователе.
 misc_user_not_found: Не удалось найти информацию об этом пользователе.
-misc_channel_info: "<b>Информация о канале:</b>\nID: <code>%d</code>\nНазвание канала: %s"
-misc_channel_username: "Имя пользователя: @%s"
-misc_user_info: "<b>Информация о пользователе:</b>\nID: <code>%d</code>\nИмя: %s"
-misc_user_username: "Имя пользователя: @%s"
 misc_user_link: "Ссылка на пользователя: %s"
-misc_owner_tag: "Он мой владелец!"
-misc_dev_user_tag: "Он один из моих разработчиков!"
 misc_pinging: "<code>Пингование</code>"
 misc_ping_result: "🏓 <b>Понг!</b>\n\n<b>RTT API</b> (getMe): <code>%dмс</code>\n<b>Отправка сообщения</b>: <code>%dмс</code>\n<b>Накладные расходы</b>: <code>%dмс</code>"
 misc_thread_id: "ID темы: <code>%d</code>"
@@ -1110,7 +1103,6 @@ misc_your_id_group: "Ваш ID это <code>%d</code>\nID этой группы 
 misc_need_text_and_lang: Мне нужен текст и код языка для перевода.
 misc_no_text_to_translate: Ответное сообщение не содержит текста для перевода.
 misc_provide_text_translate: Пожалуйста, предоставьте текст для перевода.
-misc_detected_translation: "<b>Обнаруженный язык:</b> <code>%s</code>\n<b>Перевод:</b> <code>%s</code>"
 misc_removing_keyboard: Удаление зависшей клавиатуры бота...
 misc_total_messages: "Всего сообщений в %s: %d"
 misc_channel_info_header: "<b>Информация о канале:</b>\n\nID: <code>%d</code>\n\nНазвание канала: %s"

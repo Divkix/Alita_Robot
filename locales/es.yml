@@ -1272,14 +1272,7 @@ disabling_invalid_option: "Solo entiendo una opción de: `yes`/`no`/`on`/`off`"
 # Misc module strings
 misc_reply_to_someone: Responde a alguien.
 misc_provide_content: ¡Proporciona contenido para responder!
-misc_could_not_find_user: No pude encontrar información sobre este usuario.
-misc_channel_info: "<b>Información del Canal:</b>\nID: <code>%d</code>\nNombre del Canal: %s"
-misc_channel_username: "Nombre de usuario: @%s"
-misc_user_info: "<b>Información del Usuario:</b>\nID: <code>%d</code>\nNombre: %s"
-misc_user_username: "Nombre de usuario: @%s"
 misc_user_link: "Enlace del usuario: %s"
-misc_owner_tag: "¡Él es mi dueño!"
-misc_dev_user_tag: "¡Él es uno de mis usuarios desarrolladores!"
 misc_pinging: "<code>Haciendo ping</code>"
 misc_ping_result: "🏓 <b>¡Pong!</b>\n\n<b>RTT de la API</b> (getMe): <code>%dms</code>\n<b>Envío de mensaje</b>: <code>%dms</code>\n<b>Sobrecarga</b>: <code>%dms</code>"
 misc_thread_id: "Id del Hilo: <code>%d</code>"
@@ -1292,7 +1285,6 @@ misc_sticker_id: "<b>ID del Sticker:</b> <code>%s</code>"
 misc_user_id_is: "El ID de %s es <code>%d</code>"
 misc_your_id_private: "Tu ID es <code>%d</code>"
 misc_your_id_group: "Tu ID es <code>%d</code>\nEl ID de este grupo es <code>%d</code>"
-misc_detected_translation: "<b>Idioma Detectado:</b> <code>%s</code>\n<b>Traducción:</b> <code>%s</code>"
 misc_removing_keyboard: Eliminando el teclado del bot atascado...
 misc_total_messages: "Total de Mensajes en %s son: %d"
 misc_user_not_found: No pude encontrar información sobre este usuario.

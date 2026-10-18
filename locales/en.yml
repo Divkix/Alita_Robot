@@ -1309,15 +1309,8 @@ disabling_invalid_option: "I only understand an option from: `yes`/`no`/`on`/`of
 # Misc module strings
 misc_reply_to_someone: Reply to someone.
 misc_provide_content: Provide some content to reply!
-misc_could_not_find_user: Could not find the any information about this user.
 misc_user_not_found: Could not find any information about this user.
-misc_channel_info: "<b>Channel Info:</b>\nID: <code>%d</code>\nChannel Name: %s"
-misc_channel_username: "Username: @%s"
-misc_user_info: "<b>User Info:</b>\nID: <code>%d</code>\nName: %s"
-misc_user_username: "Username: @%s"
 misc_user_link: "User link: %s"
-misc_owner_tag: "He is my owner!"
-misc_dev_user_tag: "He is one of my dev users!"
 misc_pinging: "<code>Pinging</code>"
 misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>Send msg</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "Thread Id: <code>%d</code>"
@@ -1333,7 +1326,6 @@ misc_your_id_group: "Your ID is <code>%d</code>\nThis group's ID is <code>%d</co
 misc_need_text_and_lang: I need some text and a language code to translate.
 misc_no_text_to_translate: The replied message does not contain any text to translate.
 misc_provide_text_translate: Please provide some text to translate.
-misc_detected_translation: "<b>Detected Language:</b> <code>%s</code>\n<b>Translation:</b> <code>%s</code>"
 misc_removing_keyboard: Removing the stuck bot keyboard...
 misc_total_messages: "Total Messages in %s are: %d"
 misc_channel_info_header: "<b>Channel Info:</b>\n\nID: <code>%d</code>\n\nChannel Name: %s"
