@@ -135,8 +135,8 @@ cd FlameGraph
 # First, get the profile as raw protobuf
 curl -s http://localhost:8080/debug/pprof/heap > heap.pb
 
-# Convert to SVG using go tool pprof to export folded stacks
-go tool pprof -proto -output=heap.folded ./your-binary heap.pb
+# Export raw stacks and collapse them into folded format
+go tool pprof -raw -sample_index=inuse_space heap.pb | ./stackcollapse-go.pl > heap.folded
 
 # Generate flame graph
 ./flamegraph.pl heap.folded > heap-flamegraph.svg
