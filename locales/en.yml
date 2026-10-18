@@ -2189,32 +2189,6 @@ filters_extended_docs: |
   [Button 1](buttonurl:https://example.com)
   [Button 2](buttonurl:https://example2.com)</code>
 
-filters_technical_docs: |
-  <b>How Filters Work:</b>
-  1. When a message is received, the bot fetches all filters for the chat using an optimized cached query
-  2. The Aho-Corasick algorithm efficiently matches all filter keywords against the message text
-  3. The first matching filter triggers a response
-  4. Filters support text, media, and button responses
-
-  <b>Overwrite Confirmation:</b>
-  When you try to add a filter that already exists, the bot will ask for confirmation before overwriting. The confirmation expires after 5 minutes.
-
-  <b>Cache Behavior:</b>
-  • Filter lists are cached for 15 minutes per chat
-  • Cache is automatically invalidated when filters are added or removed
-
-filters_limits_docs: |
-  <b>Limits:</b>
-  • Maximum 150 filters per chat
-  • Maximum 100 characters per filter keyword
-  • Filter keywords are stored in lowercase
-
-  <b>Required Permissions:</b>
-  • <code>/filter</code>, <code>/addfilter</code>: Admin with Change Info permission
-  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code>: Admin with Change Info permission
-  • <code>/stopall</code>: Chat Owner only
-  • <code>/filters</code>: Available to all users
-
 # Extended documentation locale keys - Captcha module
 captcha_extended_docs: |
   <b>How It Works:</b>

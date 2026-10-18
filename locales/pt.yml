@@ -2110,32 +2110,6 @@ filters_extended_docs: |
   [Botão 1](buttonurl:https://exemplo.com)
   [Botão 2](buttonurl:https://exemplo2.com)</code>
 
-filters_technical_docs: |
-  <b>Como Filtros Funcionam:</b>
-  1. Quando uma mensagem é recebida, o busca todos os filtros para o chat usando uma consulta cacheada otimizada
-  2. O algoritmo Aho-Corasick eficientemente combina todas as palavras-chave de filtro contra o texto da mensagem
-  3. O primeiro filtro correspondente dispara uma resposta
-  4. Filtros suportam respostas de texto, mídia, e botões
-
-  <b>Confirmação de Sobrescrita:</b>
-  Quando você tenta adicionar um filtro que já existe, o bot pedirá confirmação antes de sobrescrever. A confirmação expira após 5 minutos.
-
-  <b>Comportamento de Cache:</b>
-  • Listas de filtros são cacheadas por 15 minutos por chat
-  • Cache é automaticamente invalidado quando filtros são adicionados ou removidos
-
-filters_limits_docs: |
-  <b>Limites:</b>
-  • Máximo 150 filtros por chat
-  • Máximo 100 caracteres por palavra-chave de filtro
-  • Palavras-chave de filtro são armazenadas em minúsculas
-
-  <b>Permissões Necessárias:</b>
-  • <code>/filter</code>, <code>/addfilter</code>: Admin com permissão Alterar Info
-  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code>: Admin com permissão Alterar Info
-  • <code>/stopall</code>: Dono do Chat apenas
-  • <code>/filters</code>: Disponível para todos os usuários
-
 # Extended documentation locale keys - Captcha module
 captcha_extended_docs: |
   <b>Como Funciona:</b>

@@ -1868,32 +1868,6 @@ filters_extended_docs: |
   [Bouton 1](buttonurl:https://example.com)
   [Bouton 2](buttonurl://example.com:same)</code>
 
-filters_technical_docs: |
-  <b>Comment fonctionnent les Filtres :</b>
-  1. Quand un message est reçu, le bot récupère tous les filtres pour le chat en utilisant une requête optimisée en cache
-  2. L'algorithme Aho-Corasick fait correspondre efficacement tous les mots-clés de filtre avec le texte du message
-  3. Le premier filtre correspondant déclenche une réponse
-  4. Les filtres supportent les réponses texte, média et boutons
-
-  <b>Confirmation d'Écrasement :</b>
-  Quand vous essayez d'ajouter un filtre qui existe déjà, le bot demandera confirmation avant d'écraser. La confirmation expire après 5 minutes.
-
-  <b>Comportement du Cache :</b>
-  • Les listes de filtres sont mises en cache pendant 15 minutes par chat
-  • Le cache est automatiquement invalidé quand des filtres sont ajoutés ou supprimés
-
-filters_limits_docs: |
-  <b>Limites :</b>
-  • Maximum 150 filtres par chat
-  • Maximum 100 caractères par mot-clé de filtre
-  • Les mots-clés de filtre sont stockés en minuscules
-
-  <b>Permissions Requises :</b>
-  • <code>/filter</code>, <code>/addfilter</code> : Admin avec permission Changer les Infos
-  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code> : Admin avec permission Changer les Infos
-  • <code>/stopall</code> : Propriétaire du Chat uniquement
-  • <code>/filters</code> : Disponible pour tous les utilisateurs
-
 # Captcha module extended documentation
 captcha_extended_docs: |
   <b>Comment ça fonctionne :</b>

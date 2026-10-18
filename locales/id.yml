@@ -2139,32 +2139,6 @@ filters_extended_docs: |
   [Tombol 1](buttonurl:https://example.com)
   [Tombol 2](buttonurl:https://example2.com)</code>
 
-filters_technical_docs: |
-  <b>Cara Kerja Filter:</b>
-  1. Ketika pesan diterima, bot mengambil semua filter untuk obrolan menggunakan query cache teroptimasi
-  2. Algoritma Aho-Corasick secara efisien mencocokkan semua kata kunci filter dengan teks pesan
-  3. Filter yang cocok pertama memicu balasan
-  4. Filter mendukung balasan teks, media, dan tombol
-
-  <b>Konfirmasi Timpa:</b>
-  Ketika Anda mencoba menambahkan filter yang sudah ada, bot akan meminta konfirmasi sebelum menimpa. Konfirmasi kedaluwarsa setelah 5 menit.
-
-  <b>Perilaku Cache:</b>
-  • Daftar filter di-cache selama 15 menit per obrolan
-  • Cache secara otomatis dihapus ketika filter ditambahkan atau dihapus
-
-filters_limits_docs: |
-  <b>Batasan:</b>
-  • Maksimum 150 filter per obrolan
-  • Maksimum 100 karakter per kata kunci filter
-  • Kata kunci filter disimpan dalam huruf kecil
-
-  <b>Izin yang Diperlukan:</b>
-  • <code>/filter</code>, <code>/addfilter</code>: Admin dengan izin Ubah Info
-  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code>: Admin dengan izin Ubah Info
-  • <code>/stopall</code>: Pemilik Obrolan saja
-  • <code>/filters</code>: Tersedia untuk semua pengguna
-
 # Extended documentation locale keys - Captcha module
 captcha_extended_docs: |
   <b>Cara Kerja:</b>
