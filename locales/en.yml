@@ -417,17 +417,20 @@ disabling_help_msg:
   from blue texting.
 
 
+  *User commands*:
+
+  × /disableable: List all disableable commands.
+
+  × /disabled: List the disabled commands in this chat.
+
+
   *Admin commands*:
 
   × /disable `<commandname>`: Stop users from using commandname in this group.
 
   × /enable `<commandname>`: Allow users to use commandname in this group again.
 
-  × /disableable: List all disableable commands.
-
   × /disabledel `<yes/no/on/off>`: Delete disabled commands when used by non-admins.
-
-  × /disabled: List the disabled commands in this chat.
 
 
   Note:

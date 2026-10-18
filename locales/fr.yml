@@ -962,17 +962,20 @@ disabling_help_msg:
   de faire du texte bleu.
 
 
+  *Commandes Utilisateur* :
+
+  × /disableable : Lister toutes les commandes désactivables.
+
+  × /disabled : Lister les commandes désactivées dans ce chat.
+
+
   *Commandes Admin* :
 
   × /disable `<nom_commande>` : Empêcher les utilisateurs d'utiliser nom_commande dans ce groupe.
 
   × /enable `<nom_commande>` : Autoriser de nouveau les utilisateurs à utiliser nom_commande dans ce groupe.
 
-  × /disableable : Lister toutes les commandes désactivables.
-
   × /disabledel `<yes/no/on/off>` : Supprimer les commandes désactivées lorsqu'utilisées par des non-admins.
-
-  × /disabled : Lister les commandes désactivées dans ce chat.
 
 
   Note :

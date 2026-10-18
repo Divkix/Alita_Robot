@@ -379,17 +379,20 @@ disabling_help_msg:
   de enviar texto azul.
 
 
+  *Comandos de usuario*:
+
+  × /disableable: Listar todos los comandos deshabilitables.
+
+  × /disabled: Listar los comandos deshabilitados en este chat.
+
+
   *Comandos de administrador*:
 
   × /disable `<nombre del comando>`: Evitar que los usuarios usen el nombre del comando en este grupo.
 
   × /enable `<nombre del comando>`: Permitir de nuevo a los usuarios usar el nombre del comando en este grupo.
 
-  × /disableable: Listar todos los comandos deshabilitables.
-
   × /disabledel `<yes/no/on/off>`: Eliminar comandos deshabilitados cuando sean usados por no administradores.
-
-  × /disabled: Listar los comandos deshabilitados en este chat.
 
 
   Nota:

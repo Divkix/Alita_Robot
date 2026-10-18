@@ -375,17 +375,20 @@ disabling_help_msg:
   dari blue texting.
 
 
+  *Perintah Pengguna*:
+
+  × /disableable: Daftar semua perintah yang dapat dinonaktifkan.
+
+  × /disabled: Daftar perintah yang dinonaktifkan di obrolan ini.
+
+
   *Perintah Admin*:
 
   × /disable `<commandname>`: Hentikan pengguna dari menggunakan commandname di grup ini.
 
   × /enable `<commandname>`: Izinkan pengguna menggunakan commandname lagi di grup ini.
 
-  × /disableable: Daftar semua perintah yang dapat dinonaktifkan.
-
   × /disabledel `<yes/no/on/off>`: Hapus perintah yang dinonaktifkan ketika digunakan oleh non-admin.
-
-  × /disabled: Daftar perintah yang dinonaktifkan di obrolan ini.
 
 
   Catatan:
