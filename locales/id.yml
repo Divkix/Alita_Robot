@@ -492,7 +492,13 @@ formatting_fillings: "<b>Isian</b>
   - <code>{preview}</code>: Mengaktifkan pratinjau tautan (hanya catatan).
 
   - <code>{nonotif}</code>: Menonaktifkan notifikasi untuk pesan itu (hanya catatan)."
-formatting_help_msg: "Alita mendukung banyak opsi pemformatan untuk membuat pesan Anda lebih ekspresif. Lihat dengan mengklik tombol di bawah!"
+formatting_help_msg: "Alita mendukung banyak opsi pemformatan untuk membuat pesan Anda lebih ekspresif. Lihat dengan mengklik tombol di bawah!
+
+  *Perintah pengguna*:
+
+  × /markdownhelp: Tampilkan panduan pemformatan. Di grup, bot membalas dengan tombol yang membuka panduan di PM.
+
+  × /formatting: Sama seperti /markdownhelp."
 formatting_markdown: |
   <b>Pemformatan Markdown</b>
 
@@ -2772,6 +2778,9 @@ filters_extend_msg: |
   /filters — daftar filter
   /stop — hapus filter
   /stopall — hapus semua filter
+formatting_extend_msg: |
+  /markdownhelp — tampilkan panduan pemformatan
+  /formatting — sama seperti /markdownhelp
 greetings_extend_msg: |
   /welcome — aktifkan atau nonaktifkan pesan sambutan
   /setwelcome — atur pesan sambutan

@@ -1994,7 +1994,13 @@ users_extended_docs: |
   • D'autres modules, comme <code>/info</code>, dépendent des données collectées par ce module
 
 # Formatting module help message
-formatting_help_msg: "Alita supporte un grand nombre d'options de formatage pour rendre vos messages plus expressifs. Jetez un œil en cliquant sur les boutons ci-dessous !"
+formatting_help_msg: "Alita supporte un grand nombre d'options de formatage pour rendre vos messages plus expressifs. Jetez un œil en cliquant sur les boutons ci-dessous !
+
+  *Commandes utilisateur* :
+
+  × /markdownhelp: Affiche le guide de formatage. Dans un groupe, répond avec un bouton qui ouvre le guide en privé.
+
+  × /formatting: Identique à /markdownhelp."
 
 # Formatting module - Markdown documentation
 formatting_markdown: |
@@ -2688,6 +2694,9 @@ filters_extend_msg: |
   /filters — liste des filtres
   /stop — supprimer un filtre
   /stopall — supprimer tous les filtres
+formatting_extend_msg: |
+  /markdownhelp — afficher le guide de formatage
+  /formatting — identique à /markdownhelp
 greetings_extend_msg: |
   /welcome — activer ou désactiver le message de bienvenue
   /setwelcome — définir le message de bienvenue

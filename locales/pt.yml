@@ -483,7 +483,13 @@ formatting_fillings: "<b>Preenchedores</b>
   - <code>{preview}</code>: Ativa prévias de links (somente notas).
 
   - <code>{nonotif}</code>: Desativa a notificação para aquela mensagem (somente notas)."
-formatting_help_msg: "Alita suporta um grande número de opções de formatação para tornar suas mensagens mais expressivas. Dê uma olhada clicando nos botões abaixo!"
+formatting_help_msg: "Alita suporta um grande número de opções de formatação para tornar suas mensagens mais expressivas. Dê uma olhada clicando nos botões abaixo!
+
+  *Comandos de usuário*:
+
+  × /markdownhelp: Mostra o guia de formatação. Em um grupo, responde com um botão que abre o guia no privado.
+
+  × /formatting: O mesmo que /markdownhelp."
 formatting_markdown: |
   <b>Formatação Markdown</b>
 
@@ -2744,6 +2750,9 @@ filters_extend_msg: |
   /filters — lista de filtros
   /stop — remover um filtro
   /stopall — remover todos os filtros
+formatting_extend_msg: |
+  /markdownhelp — mostra o guia de formatação
+  /formatting — o mesmo que /markdownhelp
 greetings_extend_msg: |
   /welcome — ativar ou desativar a mensagem de boas-vindas
   /setwelcome — definir a mensagem de boas-vindas
