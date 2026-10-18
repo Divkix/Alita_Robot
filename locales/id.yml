@@ -1585,7 +1585,7 @@ content_text_too_long: "Teks pesan Anda %d karakter. Panjang maksimum untuk teks
 content_caption_too_long: "Keterangan pesan Anda %d karakter. Panjang maksimum keterangan adalah 1024; silakan pangkas ke ukuran yang lebih kecil. Perhatikan bahwa karakter markdown mungkin membutuhkan lebih banyak ruang dari yang diharapkan."
 helpers_module_help_header: "Berikut adalah bantuan untuk modul *%s*:\n\n"
 helpers_invalid_deep_link: "Deep link tidak valid atau salah format. Silakan periksa URL dan coba lagi."
-helpers_chat_not_found: "Tidak dapat menemukan obrolan yang terkait dengan tautan ini. Obrolan mungkin sudah tidak ada atau saya mungkin tidak memiliki akses ke sana."
+helpers_chat_not_found: "Tidak dapat menemukan obrolan tersebut. Obrolan mungkin sudah tidak ada atau saya mungkin tidak memiliki akses ke sana."
 
 
 # Formatting strings

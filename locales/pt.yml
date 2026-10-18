@@ -1553,7 +1553,7 @@ content_text_too_long: "Seu texto de mensagem tem %d caracteres de comprimento. 
 content_caption_too_long: "Sua legenda de mensagem tem %d caracteres de comprimento. O comprimento máximo para legenda é 1024; por favor reduza para um tamanho menor. Note que caracteres markdown podem ocupar mais espaço que o esperado."
 helpers_module_help_header: "Aqui está a ajuda para o módulo *%s*:\n\n"
 helpers_invalid_deep_link: "Deep link inválido ou malformado. Por favor verifique a URL e tente novamente."
-helpers_chat_not_found: "Não consegui encontrar o chat associado a este link. O chat pode não existir mais ou eu posso não ter acesso a ele."
+helpers_chat_not_found: "Não consegui encontrar esse chat. Ele pode não existir mais ou eu posso não ter acesso a ele."
 
 
 # Formatting strings

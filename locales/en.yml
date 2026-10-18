@@ -1632,7 +1632,7 @@ content_text_too_long: "Your message text is %d characters long. The maximum len
 content_caption_too_long: "Your message caption is %d characters long. The maximum caption length is 1024; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 helpers_module_help_header: "Here is the help for the *%s* module:\n\n"
 helpers_invalid_deep_link: "Invalid or malformed deep link. Please check the URL and try again."
-helpers_chat_not_found: "Could not find the chat associated with this link. The chat may no longer exist or I may not have access to it."
+helpers_chat_not_found: "Could not find that chat. It may no longer exist or I may not have access to it."
 
 
 # Formatting strings

@@ -1494,7 +1494,7 @@ content_text_too_long: "Votre texte de message fait %d caractères. La longueur 
 content_caption_too_long: "Votre légende de message fait %d caractères. La longueur maximale de la légende est de 1024 ; veuillez la réduire. Notez que les caractères markdown peuvent prendre plus d'espace que prévu."
 helpers_module_help_header: "Voici l'aide pour le module *%s* :\n\n"
 helpers_invalid_deep_link: "Lien profond invalide ou mal formé. Veuillez vérifier l'URL et réessayer."
-helpers_chat_not_found: "Impossible de trouver le chat associé à ce lien. Le chat n'existe peut-être plus ou je n'y ai pas accès."
+helpers_chat_not_found: "Impossible de trouver ce chat. Il n'existe peut-être plus ou je n'y ai pas accès."
 helpers_back_button: "« Retour"
 helpers_connection_success: "Vous avez été connecté à %s !"
 helpers_note_not_exist: "Cette note n'existe pas !"

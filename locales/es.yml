@@ -1591,7 +1591,7 @@ content_text_too_long: "Tu texto de mensaje tiene %d caracteres de largo. La lon
 content_caption_too_long: "Tu pie de foto del mensaje tiene %d caracteres de largo. La longitud máxima del pie de foto es 1024; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
 helpers_module_help_header: "Aquí está la ayuda para el módulo *%s*:\n\n"
 helpers_invalid_deep_link: "Enlace profundo inválido o mal formado. Verifica la URL e inténtalo de nuevo."
-helpers_chat_not_found: "No se pudo encontrar el chat asociado a este enlace. Es posible que el chat ya no exista o que no tenga acceso a él."
+helpers_chat_not_found: "No se pudo encontrar ese chat. Es posible que ya no exista o que no tenga acceso a él."
 
 
 # Formatting strings
