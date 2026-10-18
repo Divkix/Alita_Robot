@@ -813,3 +813,40 @@ func TestDisabledBlocklistsStopsBothListCommands(t *testing.T) {
 		})
 	}
 }
+
+// /addblacklist replies in HTML, so the already-blacklisted and too-long
+// words it echoes are escaped like the newly added ones.
+func TestAddBlacklistEscapesEchoedWords(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	lastReply := func(t *testing.T) string {
+		t.Helper()
+		calls := client.callsFor("sendMessage")
+		if len(calls) == 0 {
+			t.Fatal("no reply sent")
+		}
+		return fmt.Sprint(calls[len(calls)-1].Params["text"])
+	}
+
+	for i := 0; i < 2; i++ {
+		ctx := newModuleMessageContext(bot, chat, admin, "/addblacklist <x")
+		if err := blacklistsModule.addBlacklist(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("addBlacklist error = %v, want EndGroups", err)
+		}
+		waitForModuleCondition(t, func() bool {
+			return len(blacklists.GetBlacklistSettings(chat.Id).Triggers()) == 1
+		})
+	}
+	if text := lastReply(t); !strings.Contains(text, "&lt;x") || strings.Contains(text, "<x") {
+		t.Fatalf("already-blacklisted reply = %q, want the word escaped", text)
+	}
+
+	tooLongCtx := newModuleMessageContext(bot, chat, admin, "/addblacklist <"+strings.Repeat("y", 100))
+	if err := blacklistsModule.addBlacklist(bot, tooLongCtx); err != ext.EndGroups {
+		t.Fatalf("addBlacklist too-long error = %v, want EndGroups", err)
+	}
+	if text := lastReply(t); !strings.Contains(text, "&lt;yyy") || strings.Contains(text, "<yyy") {
+		t.Fatalf("too-long reply = %q, want the word escaped", text)
+	}
+}

@@ -94,7 +94,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 				if len(runes) > 20 {
 					preview = string(runes[:20]) + "..."
 				}
-				tooLong = append(tooLong, preview)
+				tooLong = append(tooLong, html.EscapeString(preview))
 			} else {
 				validArgs = append(validArgs, word)
 			}
@@ -115,7 +115,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		for _, blWord := range args {
 			blWord = strings.ToLower(blWord)
 			if _, exists := blWordSet[blWord]; exists {
-				alreadyBlacklisted = append(alreadyBlacklisted, blWord)
+				alreadyBlacklisted = append(alreadyBlacklisted, fmt.Sprintf("<code>%s</code>", html.EscapeString(blWord)))
 				continue
 			}
 			if err := blacklists.AddBlacklist(chat.Id, blWord); err != nil {
