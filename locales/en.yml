@@ -972,7 +972,7 @@ warns_help_msg:
 
   - /resetwarn: Reset all of a user's warnings to 0.
 
-  - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns.
+  - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 
   - /warnings: Get the chat's warning settings.
 

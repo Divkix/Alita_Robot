@@ -305,7 +305,7 @@ warns_help_msg:
 
   - /resetwarn : Remettre à zéro tous les avertissements d'un utilisateur.
 
-  - /resetallwarns : Supprimer tous les avertissements du chat. Tous les utilisateurs reviennent à 0 avertissement.
+  - /resetallwarns : Supprimer tous les avertissements du chat. Tous les utilisateurs reviennent à 0 avertissement. (créateur uniquement)
 
   - /warnings : Obtenir les paramètres d'avertissement du chat.
 

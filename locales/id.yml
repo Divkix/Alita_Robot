@@ -925,7 +925,7 @@ warns_help_msg:
 
   - /resetwarn: Atur ulang semua peringatan pengguna ke 0.
 
-  - /resetallwarns: Hapus semua peringatan di obrolan. Semua pengguna kembali ke 0 peringatan.
+  - /resetallwarns: Hapus semua peringatan di obrolan. Semua pengguna kembali ke 0 peringatan. (hanya pembuat)
 
   - /warnings: Dapatkan pengaturan peringatan obrolan.
 

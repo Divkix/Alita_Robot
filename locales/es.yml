@@ -932,7 +932,7 @@ warns_help_msg:
 
   - /resetwarn: Restablecer todas las advertencias de un usuario a 0.
 
-  - /resetallwarns: Eliminar todas las advertencias en un chat. Todos los usuarios vuelven a 0 advertencias.
+  - /resetallwarns: Eliminar todas las advertencias en un chat. Todos los usuarios vuelven a 0 advertencias. (solo creador)
 
   - /warnings: Obtener la configuración de advertencias del chat.
 

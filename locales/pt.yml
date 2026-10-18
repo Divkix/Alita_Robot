@@ -895,7 +895,7 @@ warns_help_msg:
 
   - /resetwarn: Reseta todos os avisos de um usuário para 0.
 
-  - /resetallwarns: Deleta todos os avisos em um chat. Todos os usuários retornam a 0 avisos.
+  - /resetallwarns: Deleta todos os avisos em um chat. Todos os usuários retornam a 0 avisos. (apenas criador)
 
   - /warnings: Obtém as configurações de aviso do chat.
 
