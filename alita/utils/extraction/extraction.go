@@ -304,9 +304,11 @@ func ExtractDuration(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (seconds
 func extractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow int64) (banTime int64, timeStr, reason string) {
 	msg := ctx.EffectiveMessage
 
-	banTime, timeStr, reason, err := parseTemporaryDuration(inputVal, timeNow)
+	banTime, amount, unitKey, reason, err := parseTemporaryDuration(inputVal, timeNow)
 	if err == nil {
-		return banTime, timeStr, reason
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		unit, _ := tr.GetString(unitKey)
+		return banTime, fmt.Sprintf("%d %s", amount, unit), reason
 	}
 
 	switch {
@@ -349,10 +351,12 @@ func extractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow in
 	}
 }
 
-func parseTemporaryDuration(inputVal string, now int64) (banTime int64, timeStr, reason string, err error) {
+// parseTemporaryDuration returns the end of the period and its amount with the
+// locale key of its unit (singular for an amount of 1).
+func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, unitKey, reason string, err error) {
 	args := strings.Fields(inputVal)
 	if len(args) == 0 {
-		return -1, "", "", errNoTimeSpecified
+		return -1, 0, "", "", errNoTimeSpecified
 	}
 
 	timeVal := args[0]
@@ -362,40 +366,42 @@ func parseTemporaryDuration(inputVal string, now int64) (banTime int64, timeStr,
 
 	lastChar := timeVal[len(timeVal)-1]
 	if lastChar != 'm' && lastChar != 'h' && lastChar != 'd' && lastChar != 'w' {
-		return -1, "", "", errInvalidTimeType
+		return -1, 0, "", "", errInvalidTimeType
 	}
 
 	timeNum, err := strconv.ParseInt(timeVal[:len(timeVal)-1], 10, 64)
 	if err != nil || timeNum <= 0 {
-		return -1, "", "", errInvalidTimeAmount
+		return -1, 0, "", "", errInvalidTimeAmount
 	}
 
 	var multiplier int64
-	var unitName string
+	var singularKey string
 	switch lastChar {
 	case 'm':
 		multiplier = 60
-		unitName = "minutes"
+		singularKey, unitKey = "common_time_minute", "common_time_minutes"
 	case 'h':
 		multiplier = 60 * 60
-		unitName = "hours"
+		singularKey, unitKey = "common_time_hour", "common_time_hours"
 	case 'd':
 		multiplier = 24 * 60 * 60
-		unitName = "days"
+		singularKey, unitKey = "common_time_day", "common_time_days"
 	case 'w':
 		multiplier = 7 * 24 * 60 * 60
-		unitName = "weeks"
+		singularKey, unitKey = "common_time_week", "common_time_weeks"
+	}
+	if timeNum == 1 {
+		unitKey = singularKey
 	}
 
 	if timeNum > math.MaxInt64/multiplier {
-		return -1, "", "", errTimeLimitExceeded
+		return -1, 0, "", "", errTimeLimitExceeded
 	}
 
 	banTime, ok := TemporaryUntilDate(now, timeNum*multiplier)
 	if !ok {
-		return -1, "", "", errTimeLimitExceeded
+		return -1, 0, "", "", errTimeLimitExceeded
 	}
 
-	timeStr = fmt.Sprintf("%d %s", timeNum, unitName)
-	return banTime, timeStr, reason, nil
+	return banTime, timeNum, unitKey, reason, nil
 }

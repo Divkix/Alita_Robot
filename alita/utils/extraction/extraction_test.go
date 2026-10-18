@@ -17,6 +17,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -744,6 +745,16 @@ func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {
 }
 
 func TestExtractTimeParsesValidInputAndRepliesForErrors(t *testing.T) {
+	enYAML, err := os.ReadFile("../../../locales/en.yml")
+	if err != nil {
+		t.Fatalf("read en.yml: %v", err)
+	}
+	restore, err := i18n.OverrideLocalesForTest(map[string]string{"en": string(enYAML)})
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restore)
+
 	client := &extractionBotClient{}
 	bot := newExtractionBot(client)
 	ctx := newExtractionContext(bot, "/tban 2h reason")
@@ -928,7 +939,8 @@ func TestParseTemporaryDuration(t *testing.T) {
 		name        string
 		input       string
 		wantBanTime int64
-		wantTimeStr string
+		wantAmount  int64
+		wantUnitKey string
 		wantReason  string
 		wantErr     error
 	}{
@@ -936,28 +948,39 @@ func TestParseTemporaryDuration(t *testing.T) {
 			name:        "minutes with reason",
 			input:       "15m repeated spam",
 			wantBanTime: now + 15*60,
-			wantTimeStr: "15 minutes",
+			wantAmount:  15,
+			wantUnitKey: "common_time_minutes",
 			wantReason:  "repeated spam",
 		},
 		{
 			name:        "hours without reason",
 			input:       "2h",
 			wantBanTime: now + 2*60*60,
-			wantTimeStr: "2 hours",
+			wantAmount:  2,
+			wantUnitKey: "common_time_hours",
 		},
 		{
 			name:        "days joins multi word reason",
 			input:       "3d raid cleanup needed",
 			wantBanTime: now + 3*24*60*60,
-			wantTimeStr: "3 days",
+			wantAmount:  3,
+			wantUnitKey: "common_time_days",
 			wantReason:  "raid cleanup needed",
 		},
 		{
 			name:        "weeks",
 			input:       "4w long cooldown",
 			wantBanTime: now + 4*7*24*60*60,
-			wantTimeStr: "4 weeks",
+			wantAmount:  4,
+			wantUnitKey: "common_time_weeks",
 			wantReason:  "long cooldown",
+		},
+		{
+			name:        "single hour uses the singular unit",
+			input:       "1h",
+			wantBanTime: now + 60*60,
+			wantAmount:  1,
+			wantUnitKey: "common_time_hour",
 		},
 		{
 			name:    "empty input",
@@ -978,7 +1001,8 @@ func TestParseTemporaryDuration(t *testing.T) {
 			name:        "maximum duration",
 			input:       "366d longest temporary ban",
 			wantBanTime: now + 366*24*60*60,
-			wantTimeStr: "366 days",
+			wantAmount:  366,
+			wantUnitKey: "common_time_days",
 			wantReason:  "longest temporary ban",
 		},
 		{
@@ -1008,7 +1032,7 @@ func TestParseTemporaryDuration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotBanTime, gotTimeStr, gotReason, gotErr := parseTemporaryDuration(tc.input, now)
+			gotBanTime, gotAmount, gotUnitKey, gotReason, gotErr := parseTemporaryDuration(tc.input, now)
 			if !errors.Is(gotErr, tc.wantErr) {
 				t.Fatalf("parseTemporaryDuration() err = %v, want %v", gotErr, tc.wantErr)
 			}
@@ -1018,8 +1042,8 @@ func TestParseTemporaryDuration(t *testing.T) {
 			if gotBanTime != tc.wantBanTime {
 				t.Fatalf("banTime = %d, want %d", gotBanTime, tc.wantBanTime)
 			}
-			if gotTimeStr != tc.wantTimeStr {
-				t.Fatalf("timeStr = %q, want %q", gotTimeStr, tc.wantTimeStr)
+			if gotAmount != tc.wantAmount || gotUnitKey != tc.wantUnitKey {
+				t.Fatalf("amount, unitKey = %d, %q, want %d, %q", gotAmount, gotUnitKey, tc.wantAmount, tc.wantUnitKey)
 			}
 			if gotReason != tc.wantReason {
 				t.Fatalf("reason = %q, want %q", gotReason, tc.wantReason)
