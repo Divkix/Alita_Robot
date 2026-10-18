@@ -2002,11 +2002,11 @@ reports_extended_docs: |
   3. Notifikasi menyertakan tombol tindakan untuk moderasi cepat
 
   <b>Tombol Tindakan Admin:</b>
-  • <b>📩 Pesan</b> - Tautan ke pesan yang dilaporkan
-  • <b>👢 Tendang</b> - Tendang pengguna yang dilaporkan (mereka dapat bergabung kembali)
-  • <b>🚫 Blokir</b> - Blokir pengguna yang dilaporkan secara permanen
-  • <b>🗑 Hapus</b> - Hapus pesan yang dilaporkan
-  • <b>✅ Selesai</b> - Tandai laporan sebagai selesai tanpa tindakan
+  • <b>➡ Pesan</b> - Tautan ke pesan yang dilaporkan
+  • <b>⚠ Keluarkan</b> - Keluarkan pengguna yang dilaporkan (mereka dapat bergabung kembali)
+  • <b>⛔️ Blokir</b> - Blokir pengguna yang dilaporkan secara permanen
+  • <b>❎ Hapus Pesan</b> - Hapus pesan yang dilaporkan
+  • <b>✔️ Tandai Selesai</b> - Tandai laporan sebagai selesai tanpa tindakan
 
   <b>Pengaturan Pribadi vs Grup:</b>
   • <b>Di PM:</b> <code>/reports on/off</code> mengalihkan apakah ANDA menerima notifikasi laporan (memerlukan /connect aktif ke grup tempat Anda dan bot sama-sama menjadi admin)

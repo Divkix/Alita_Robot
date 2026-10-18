@@ -2051,11 +2051,11 @@ reports_extended_docs: |
   3. The notification includes action buttons for quick moderation
 
   <b>Admin Action Buttons:</b>
-  • <b>📩 Message</b> - Link to the reported message
-  • <b>👢 Kick</b> - Kick the reported user (they can rejoin)
-  • <b>🚫 Ban</b> - Permanently ban the reported user
-  • <b>🗑 Delete</b> - Delete the reported message
-  • <b>✅ Resolved</b> - Mark the report as resolved without action
+  • <b>➡ Message</b> - Link to the reported message
+  • <b>⚠ Kick</b> - Kick the reported user (they can rejoin)
+  • <b>⛔️ Ban</b> - Permanently ban the reported user
+  • <b>❎ Delete Message</b> - Delete the reported message
+  • <b>✔️ Mark Resolved</b> - Mark the report as resolved without action
 
   <b>Personal vs Group Settings:</b>
   • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)

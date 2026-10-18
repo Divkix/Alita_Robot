@@ -1781,11 +1781,11 @@ reports_extended_docs: |
   3. La notification inclut des boutons d'action pour une modération rapide
 
   <b>Boutons d'Action Admin :</b>
-  • <b>📩 Message</b> - Lien vers le message signalé
-  • <b>👢 Expulser</b> - Expulser l'utilisateur signalé (il peut rejoindre)
-  • <b>🚫 Bannir</b> - Bannir permanemment l'utilisateur signalé
-  • <b>🗑 Supprimer</b> - Supprimer le message signalé
-  • <b>✅ Résolu</b> - Marquer le rapport comme résolu sans action
+  • <b>➡ Message</b> - Lien vers le message signalé
+  • <b>⚠ Expulser</b> - Expulser l'utilisateur signalé (il peut rejoindre)
+  • <b>⛔️ Bannir</b> - Bannir permanemment l'utilisateur signalé
+  • <b>❎ Supprimer le message</b> - Supprimer le message signalé
+  • <b>✔️ Marquer comme résolu</b> - Marquer le rapport comme résolu sans action
 
   <b>Paramètres Personnels vs Groupe :</b>
   • <b>En MP :</b> <code>/reports on/off</code> bascule si VOUS recevez les notifications de rapport (nécessite une connexion active via /connect à un groupe où vous et le bot êtes administrateurs)

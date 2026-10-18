@@ -1972,11 +1972,11 @@ reports_extended_docs: |
   3. A notificação inclui botões de ação para moderação rápida
 
   <b>Botões de Ação de Admin:</b>
-  • <b>📩 Mensagem</b> - Link para a mensagem reportada
-  • <b>👢 Expulsar</b> - Expulsar o usuário reportado (eles podem reentrar)
-  • <b>🚫 Banir</b> - Banir permanentemente o usuário reportado
-  • <b>🗑 Deletar</b> - Deletar a mensagem reportada
-  • <b>✅ Resolvido</b> - Marcar o report como resolvido sem ação
+  • <b>➡ Mensagem</b> - Link para a mensagem reportada
+  • <b>⚠ Expulsar</b> - Expulsar o usuário reportado (eles podem reentrar)
+  • <b>⛔️ Banir</b> - Banir permanentemente o usuário reportado
+  • <b>❎ Deletar Mensagem</b> - Deletar a mensagem reportada
+  • <b>✔️ Marcar Resolvido</b> - Marcar o report como resolvido sem ação
 
   <b>Configurações Pessoais vs Grupo:</b>
   • <b>Em PM:</b> <code>/reports on/off</code> alterna se VOCÊ recebe notificações de report (requer uma conexão ativa via /connect a um grupo onde você e o bot sejam admins)
