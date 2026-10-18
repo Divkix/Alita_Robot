@@ -871,7 +871,7 @@ captcha_wrong_answer_final: "❌ गलत उत्तर! आपको %s क�
 captcha_wrong_answer_remaining: "❌ गलत उत्तर! %d प्रयास शेष।"
 captcha_action_kicked: "किक"
 captcha_action_banned: "बैन"
-captcha_action_muted: "स्थायी रूप से म्यूट"
+captcha_action_muted: "24 घंटे के लिए म्यूट"
 captcha_refresh_success: "🔄 नया कैप्चा भेजा गया!"
 captcha_timeout_failure_kicked: "❌ %s कैप्चा सत्यापन पूरा करने में विफल रहा और उसे किक कर दिया गया।"
 captcha_timeout_failure_banned: "❌ %s कैप्चा सत्यापन पूरा करने में विफल रहा और उसे बैन कर दिया गया।"
