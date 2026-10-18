@@ -7,18 +7,20 @@ description: Which message watchers fire first and how propagation works in Alit
 
 gotgbot dispatches incoming updates to handlers in ascending group number order. Lower group numbers fire first. Within the same group, handlers fire in registration order. A handler returning `ext.EndGroups` stops all further group processing for that update. `ext.ContinueGroups` allows downstream groups to continue firing.
 
-This page documents every registered message watcher with its exact handler group number, verified from source code.
+This page documents every handler group the bot registers outside the default group 0, with its exact group number, verified from source code.
 
 ## Precedence Table
 
 | Group | Module | Handler | Filter | Return on Match | Notes |
 |-------|--------|---------|--------|-----------------|-------|
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
+| -6 | Federations | `enforceFedBan` | `message.All` | `ContinueGroups` (always) | Bans senders and new members who are banned in the chat's federation; later groups still run |
 | -5 | AntiRaid | `onJoin` | Message with `new_chat_members` | `ContinueGroups` (always) | While raid mode is on (or once the auto-antiraid join threshold is reached, which turns it on), temp-bans each new joiner for the raid action time; skips the bot, admins and approved users; does nothing if the bot cannot restrict |
 | -2 | BotUpdates | `adminCacheAutoUpdate` | MyChatMember (bot's own admin status change) | `ContinueGroups` | Invalidates and reloads the admin cache when the bot is promoted or demoted |
 | -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` for private chats, basic groups and channels (it leaves the last two), `ContinueGroups` for supergroups | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |
+| 1 | Connections | `connectedChatGuard` | update whose `EffectiveChat` a group-0 PM command swapped to the connected group | `EndGroups` | Keeps later groups from running on the swapped context; group 1 is reserved for this guard |
 | 3 | AISpam | `checkAISpam` | `message.All` | `ContinueGroups` (always) | Opt-in AI spam filter; enqueues a check and never blocks propagation |
 | 4 | Antiflood | `checkFlood` | `message.All` | `ContinueGroups` (always) | Flood control; on flood deletes the message(s), punishes the sender and posts a notice without stopping later groups; skips anon admins, linked channels, approved users and media groups |
 | 5 | Locks | `permHandler` | `message.All` | `ContinueGroups` (always) | Content-type locks (sticker, gif, url, forward, rtl, anonchannel, ...); deletes the offending message but does not block later groups |
@@ -27,7 +29,8 @@ This page documents every registered message watcher with its exact handler grou
 | 8 | Reports | `report` | text mentioning `@admin`/`@admins` (case-insensitive, whole word) | `EndGroups` (or error) | Treats a message that mentions @admin/@admins as a /report to the chat's admins |
 | 8 | Reactions | `checkReactions` | `message.All` (acts only on text messages) | `ContinueGroups` (always) | Sets the chat's configured emoji reaction on messages whose text contains a keyword (case-insensitive substring; first matching keyword in sorted order wins); never mutes, bans, or blocks propagation |
 | 9 | Filters | `filtersWatcher` | text or caption present | `ContinueGroups`; `EndGroups` when a non-admin sends `<keyword> noformat` | Matches filter patterns; sends configured response but does not block |
-| 10 | Pins | `checkPinned` | linked-channel automatic forwards (`GetSender().IsLinkedChannel()`) | `ContinueGroups` | Deletes the post if /cleanlinked is on, otherwise unpins it if /antichannelpin is on |
+| 10 | Pins | `checkPinned` | linked-channel automatic forwards (`GetSender().IsLinkedChannel()`) | `ContinueGroups` | Deletes the post if /cleanlinked is on, otherwise unpins it if /antichannelpin is on. Group 10 also holds the /pin, /unpin, /unpinall, /permapin and /pinned commands (WrapCommand, `Group: 10`) |
+| 11 | LogChannels | `captureSetLogForward` | `message.All` | `ContinueGroups` (always) | Captures the channel post forwarded to finish /setlog |
 
 ## Propagation Behavior
 
@@ -51,7 +54,7 @@ Understanding these rules is essential for debugging why a message did or did no
 ### Scenario 2: User sends a flood of messages
 
 1. Captcha (group -10) passes through (no pending captcha).
-2. AntiRaid (group -5) passes through (raid mode not active).
+2. AntiRaid (group -5) does not match (it only handles join service messages).
 3. Users (group -1) logs activity, continues.
 4. Commands (group 0) fire normally for earlier messages.
 5. **Antiflood (group 4)** triggers once the flood threshold is reached: it deletes the flooding message(s), applies the configured action (mute/kick/ban, or tmute/tban from older data), posts a notice, and returns `ContinueGroups`.
@@ -60,7 +63,7 @@ Understanding these rules is essential for debugging why a message did or did no
 ### Scenario 3: Message matches both a blacklist word and a filter
 
 1. Captcha (group -10) passes through.
-2. AntiRaid (group -5) passes through (raid mode not active).
+2. AntiRaid (group -5) does not match (it only handles join service messages).
 3. Users (group -1) logs activity, continues.
 4. Commands (group 0) — not a command, passes.
 5. Antiflood (group 4) — not flooding, continues.
