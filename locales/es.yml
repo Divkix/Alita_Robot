@@ -858,7 +858,7 @@ reports_help_msg:
 
   × /report `<razón>`: responder a un mensaje para reportarlo a los administradores.
 
-  - @admin: igual que /report pero no es un comando.
+  - @admin / @admins: igual que /report pero no es un comando.
 
 
   *Solo Administradores:*

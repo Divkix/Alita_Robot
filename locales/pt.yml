@@ -821,7 +821,7 @@ reports_help_msg:
 
   × /report `<motivo>`: responda a uma mensagem para reportá-la aos admins.
 
-  - @admin: mesmo que /report mas não é um comando.
+  - @admin / @admins: mesmo que /report mas não é um comando.
 
 
   *Apenas Admins:*

@@ -896,7 +896,7 @@ reports_help_msg:
 
   × /report `<reason>`: reply to a message to report it to admins.
 
-  - @admin: same as /report but not a command.
+  - @admin / @admins: same as /report but not a command.
 
 
   *Admins Only:*

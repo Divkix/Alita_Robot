@@ -849,7 +849,7 @@ reports_help_msg:
 
   × /report `<reason>`: balas ke pesan untuk melaporkannya ke admin.
 
-  - @admin: sama seperti /report tetapi bukan perintah.
+  - @admin / @admins: sama seperti /report tetapi bukan perintah.
 
 
   *Admin Saja:*

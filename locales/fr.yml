@@ -1364,7 +1364,7 @@ reports_help_msg:
 
   × /report `<raison>` : Répondez à un message pour le signaler aux admins.
 
-  - @admin : Pareil que /report mais sans commande.
+  - @admin / @admins : Pareil que /report mais sans commande.
 
 
   *Admins uniquement :*
