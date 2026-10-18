@@ -165,8 +165,8 @@ bans_help_msg:
   × /dban <userhandle>: bane um usuário e deleta a mensagem respondida. (via handle, ou
   reply)
 
-  × /tban <userhandle> x(m/h/d): bane um usuário por `x` tempo. (via handle, ou reply).
-  m = minutos, h = horas, d = dias.
+  × /tban <userhandle> x(m/h/d/w): bane um usuário por `x` tempo. (via handle, ou reply).
+  m = minutos, h = horas, d = dias, w = semanas.
 
   × /unban <userhandle>: desbane um usuário. (via handle, ou reply)
 
@@ -728,8 +728,8 @@ mutes_help_msg:
   × /dmute <userhandle>: silencia um usuário e deleta a mensagem respondida. (via handle,
   ou reply)
 
-  × /tmute <userhandle> x(m/h/d): silencia um usuário por `x` tempo. (via handle, ou reply).
-  m = minutos, h = horas, d = dias.
+  × /tmute <userhandle> x(m/h/d/w): silencia um usuário por `x` tempo. (via handle, ou reply).
+  m = minutos, h = horas, d = dias, w = semanas.
 
   × /unmute <userhandle>: desmuta um usuário. (via handle, ou reply)"
 notes_help_msg: 'Guarde dados para usuários futuros com notas!
@@ -2688,7 +2688,7 @@ bans_extend_msg: |
   /ban — banir um usuário
   /sban — banir em silêncio e apagar seu comando
   /dban — banir e apagar a mensagem respondida
-  /tban — banir por um tempo (m/h/d)
+  /tban — banir por um tempo (m/h/d/w)
   /unban — desbanir um usuário
   /kick — expulsar um usuário
   /skick — expulsar em silêncio e apagar seu comando
@@ -2800,7 +2800,7 @@ mutes_extend_msg: |
   /mute — silenciar um usuário
   /smute — silenciar em silêncio e apagar seu comando
   /dmute — silenciar e apagar a mensagem respondida
-  /tmute — silenciar por um tempo (m/h/d)
+  /tmute — silenciar por um tempo (m/h/d/w)
   /unmute — tirar o silêncio de um usuário
 notes_extend_msg: |
   /save — salvar uma nota

@@ -186,8 +186,8 @@ bans_help_msg:
   × /dban <pseudo> : bannit un utilisateur et supprime le message auquel vous avez répondu. (via le pseudo, ou
   en réponse)
 
-  × /tban <pseudo> x(m/h/d) : bannit un utilisateur pour une durée `x`. (via le pseudo, ou en réponse).
-  m = minutes, h = heures, d = jours.
+  × /tban <pseudo> x(m/h/d/w) : bannit un utilisateur pour une durée `x`. (via le pseudo, ou en réponse).
+  m = minutes, h = heures, d = jours, w = semaines.
 
   × /unban <pseudo> : débannit un utilisateur. (via le pseudo, ou en réponse)
 
@@ -254,8 +254,8 @@ mutes_help_msg:
   × /dmute <pseudo> : rend muet un utilisateur et supprime le message auquel vous avez répondu. (via le pseudo,
   ou en réponse)
 
-  × /tmute <pseudo> x(m/h/d) : rend muet un utilisateur pour une durée `x`. (via le pseudo, ou en réponse).
-  m = minutes, h = heures, d = jours.
+  × /tmute <pseudo> x(m/h/d/w) : rend muet un utilisateur pour une durée `x`. (via le pseudo, ou en réponse).
+  m = minutes, h = heures, d = jours, w = semaines.
 
   × /unmute <pseudo> : réactive la voix d'un utilisateur. (via le pseudo, ou en réponse)"
 mutes_tmute_message: "Chut...\n%s rendu muet pour %s"
@@ -2632,7 +2632,7 @@ bans_extend_msg: |
   /ban — bannir un utilisateur
   /sban — bannir en silence et supprimer votre commande
   /dban — bannir et supprimer le message cité
-  /tban — bannir pour une durée (m/h/d)
+  /tban — bannir pour une durée (m/h/d/w)
   /unban — débannir un utilisateur
   /kick — expulser un utilisateur
   /skick — expulser en silence et supprimer votre commande
@@ -2744,7 +2744,7 @@ mutes_extend_msg: |
   /mute — rendre muet un utilisateur
   /smute — rendre muet en silence et supprimer votre commande
   /dmute — rendre muet et supprimer le message cité
-  /tmute — rendre muet pour une durée (m/h/d)
+  /tmute — rendre muet pour une durée (m/h/d/w)
   /unmute — rendre la parole à un utilisateur
 notes_extend_msg: |
   /save — enregistrer une note

@@ -175,8 +175,8 @@ bans_help_msg:
   × /dban <nombre de usuario>: banea a un usuario y elimina el mensaje respondido. (vía nombre de usuario, o
   respuesta)
 
-  × /tban <nombre de usuario> x(m/h/d): banea a un usuario por `x` tiempo. (vía nombre de usuario, o respuesta).
-  m = minutos, h = horas, d = días.
+  × /tban <nombre de usuario> x(m/h/d/w): banea a un usuario por `x` tiempo. (vía nombre de usuario, o respuesta).
+  m = minutos, h = horas, d = días, w = semanas.
 
   × /unban <nombre de usuario>: desbanea a un usuario. (vía nombre de usuario, o respuesta)
 
@@ -763,8 +763,8 @@ mutes_help_msg:
   × /dmute <nombre de usuario>: silencia a un usuario y elimina el mensaje respondido. (vía nombre de usuario,
   o respuesta)
 
-  × /tmute <nombre de usuario> x(m/h/d): silencia a un usuario por `x` tiempo. (vía nombre de usuario, o respuesta).
-  m = minutos, h = horas, d = días.
+  × /tmute <nombre de usuario> x(m/h/d/w): silencia a un usuario por `x` tiempo. (vía nombre de usuario, o respuesta).
+  m = minutos, h = horas, d = días, w = semanas.
 
   × /unmute <nombre de usuario>: desilencia a un usuario. (vía nombre de usuario, o respuesta)"
 notes_help_msg: '¡Guarda datos para futuros usuarios con notas!
@@ -2725,7 +2725,7 @@ bans_extend_msg: |
   /ban — banear a un usuario
   /sban — banear en silencio y borrar tu comando
   /dban — banear y borrar el mensaje respondido
-  /tban — banear por un tiempo (m/h/d)
+  /tban — banear por un tiempo (m/h/d/w)
   /unban — desbanear a un usuario
   /kick — expulsar a un usuario
   /skick — expulsar en silencio y borrar tu comando
@@ -2837,7 +2837,7 @@ mutes_extend_msg: |
   /mute — silenciar a un usuario
   /smute — silenciar en silencio y borrar tu comando
   /dmute — silenciar y borrar el mensaje respondido
-  /tmute — silenciar por un tiempo (m/h/d)
+  /tmute — silenciar por un tiempo (m/h/d/w)
   /unmute — quitar el silencio a un usuario
 notes_extend_msg: |
   /save — guardar una nota

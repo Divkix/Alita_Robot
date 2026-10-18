@@ -211,8 +211,8 @@ bans_help_msg:
   × /dban <userhandle>: bans a user and delete the replied message. (via handle, or
   reply)
 
-  × /tban <userhandle> x(m/h/d): bans a user for `x` time. (via handle, or reply).
-  m = minutes, h = hours, d = days.
+  × /tban <userhandle> x(m/h/d/w): bans a user for `x` time. (via handle, or reply).
+  m = minutes, h = hours, d = days, w = weeks.
 
   × /unban <userhandle>: unbans a user. (via handle, or reply)
 
@@ -802,8 +802,8 @@ mutes_help_msg:
   × /dmute <userhandle>: mutes a user and deletes the replied message. (via a handle,
   or reply)
 
-  × /tmute <userhandle> x(m/h/d): mutes a user for `x` time. (via a handle, or reply).
-  m = minutes, h = hours, d = days.
+  × /tmute <userhandle> x(m/h/d/w): mutes a user for `x` time. (via a handle, or reply).
+  m = minutes, h = hours, d = days, w = weeks.
 
   × /unmute <userhandle>: unmutes a user. (via a handle, or reply)"
 notes_help_msg: 'Save data for future users with notes!
@@ -2726,7 +2726,7 @@ bans_extend_msg: |
   /ban — ban a user
   /sban — ban silently and delete your command
   /dban — ban and delete the replied message
-  /tban — ban for a time (m/h/d)
+  /tban — ban for a time (m/h/d/w)
   /unban — unban a user
   /kick — kick a user
   /skick — kick silently and delete your command
@@ -2838,7 +2838,7 @@ mutes_extend_msg: |
   /mute — mute a user
   /smute — mute silently and delete your command
   /dmute — mute and delete the replied message
-  /tmute — mute for a time (m/h/d)
+  /tmute — mute for a time (m/h/d/w)
   /unmute — unmute a user
 notes_extend_msg: |
   /save — save a note

@@ -172,8 +172,8 @@ bans_help_msg:
   × /dban <userhandle>: melarang pengguna dan menghapus pesan yang dibalas. (melalui handle, atau
   balasan)
 
-  × /tban <userhandle> x(m/h/d): melarang pengguna untuk waktu `x`. (melalui handle, atau balasan).
-  m = menit, h = jam, d = hari.
+  × /tban <userhandle> x(m/h/d/w): melarang pengguna untuk waktu `x`. (melalui handle, atau balasan).
+  m = menit, h = jam, d = hari, w = minggu.
 
   × /unban <userhandle>: membuka blokir pengguna. (melalui handle, atau balasan)
 
@@ -755,8 +755,8 @@ mutes_help_msg:
   × /dmute <userhandle>: membisukan pengguna dan menghapus pesan yang dibalas. (melalui handle,
   atau balasan)
 
-  × /tmute <userhandle> x(m/h/d): membisukan pengguna untuk waktu `x`. (melalui handle, atau balasan).
-  m = menit, h = jam, d = hari.
+  × /tmute <userhandle> x(m/h/d/w): membisukan pengguna untuk waktu `x`. (melalui handle, atau balasan).
+  m = menit, h = jam, d = hari, w = minggu.
 
   × /unmute <userhandle>: membuka bisu pengguna. (melalui handle, atau balasan)"
 notes_help_msg: 'Simpan data untuk pengguna masa depan dengan catatan!
@@ -2716,7 +2716,7 @@ bans_extend_msg: |
   /ban — ban pengguna
   /sban — ban diam-diam dan hapus perintahmu
   /dban — ban dan hapus pesan yang dibalas
-  /tban — ban untuk waktu tertentu (m/h/d)
+  /tban — ban untuk waktu tertentu (m/h/d/w)
   /unban — buka ban pengguna
   /kick — tendang pengguna
   /skick — tendang diam-diam dan hapus perintahmu
@@ -2828,7 +2828,7 @@ mutes_extend_msg: |
   /mute — bisukan pengguna
   /smute — bisukan diam-diam dan hapus perintahmu
   /dmute — bisukan dan hapus pesan yang dibalas
-  /tmute — bisukan untuk waktu tertentu (m/h/d)
+  /tmute — bisukan untuk waktu tertentu (m/h/d/w)
   /unmute — hapus bisu pengguna
 notes_extend_msg: |
   /save — simpan catatan
