@@ -209,10 +209,10 @@ go func() {
 ## Translation Guidelines
 
 :::caution
-Translation keys must exist in ALL locale files (`locales/en.yml`, `locales/es.yml`, `locales/fr.yml`, `locales/hi.yml`). Missing keys cause empty bot responses for users of that language.
+Translation keys must exist in ALL 7 locale files (`locales/en.yml`, `es.yml`, `fr.yml`, `hi.yml`, `id.yml`, `pt.yml`, `ru.yml`); `make check-translations` checks this. A key missing from a non-English file falls back to the English text. A key missing from `locales/en.yml` (or misspelled in Go) sends an empty message.
 :::
 
-Add help messages to `locales/en.yml`:
+Add help messages to every locale file (`locales/en.yml` shown):
 
 ```yaml
 mymodule_help_msg: |
@@ -220,6 +220,13 @@ mymodule_help_msg: |
 
   *Commands:*
   × /mycommand: Description of command.
+```
+
+Every module whose help lists commands also needs a one-line-per-command summary, `<module>_extend_msg` (used by `/extend`), with each line in the form `/command — description` and covering every command its help names. `TestExtendLocalesCoverEveryDocumentedCommand` enforces it in en and ru:
+
+```yaml
+mymodule_extend_msg: |
+  /mycommand — Description of command.
 ```
 
 :::tip
@@ -230,7 +237,7 @@ Use double quotes for strings containing escape sequences like `\n`. Single quot
 
 Automated regression tests are required for all contributions:
 
-1. Run `make test` (or `go test ./...`) and make sure all tests pass
+1. Run `make test` and make sure all tests pass (to run a subset, use `go test -tags testtools -race ./alita/...`; without `-tags testtools` test files are silently skipped)
 2. Run `make lint` and fix any lint findings
 3. Manually verify behavior with a test bot/group for user-facing changes
 
