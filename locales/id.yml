@@ -1236,7 +1236,7 @@ rules_for_chat_header: "Aturan untuk <b>%s</b> adalah:"
 rules_no_rules_set: Obrolan ini sepertinya belum memiliki aturan yang diatur... Saya tidak akan menganggap itu sebagai undangan.
 rules_click_for_rules: Klik tombol untuk melihat aturan obrolan!
 rules_set_successfully: Berhasil mengatur aturan untuk grup ini!
-rules_button_too_long: Nama tombol khusus yang Anda masukkan terlalu panjang. Silakan masukkan teks dengan kurang dari 30 karakter.
+rules_button_too_long: Nama tombol khusus yang Anda masukkan terlalu panjang. Silakan masukkan teks dengan maksimal 30 karakter.
 rules_button_set_successfully: "Berhasil mengatur tombol aturan menjadi: <b>%s</b>"
 rules_button_not_set: 'Anda belum mengatur tombol aturan khusus. Teks default "%s" akan digunakan.'
 rules_button_current: "Tombol aturan saat ini diatur ke teks berikut:\n%s"

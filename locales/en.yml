@@ -1283,7 +1283,7 @@ rules_for_chat_header: "The rules for <b>%s</b> are:"
 rules_no_rules_set: This chat doesn't seem to have had any rules set yet... I wouldn't take that as an invitation though.
 rules_click_for_rules: Click on the button to see the chat rules!
 rules_set_successfully: Successfully set rules for this group!
-rules_button_too_long: The custom button name you entered is too long. Please enter a text with less than 30 characters.
+rules_button_too_long: The custom button name you entered is too long. Please enter a text of 30 characters or fewer.
 rules_button_set_successfully: "Successfully set the rules button to: <b>%s</b>"
 rules_button_not_set: 'You haven''t set a custom rules button yet. The default text "%s" will be used.'
 rules_button_current: "The rules button is currently set to the following text:\n%s"

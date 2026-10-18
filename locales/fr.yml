@@ -851,7 +851,7 @@ rules_for_chat_header: "Les règles pour <b>%s</b> sont :"
 rules_no_rules_set: Ce chat ne semble pas avoir de règles définies... Je ne prendrais pas cela comme une invitation cependant.
 rules_click_for_rules: Cliquez sur le bouton pour voir les règles du chat !
 rules_set_successfully: Règles définies avec succès pour ce groupe !
-rules_button_too_long: Le nom du bouton personnalisé que vous avez entré est trop long. Veuillez entrer un texte de moins de 30 caractères.
+rules_button_too_long: Le nom du bouton personnalisé que vous avez entré est trop long. Veuillez entrer un texte de 30 caractères maximum.
 rules_button_set_successfully: "Bouton des règles défini avec succès à : <b>%s</b>"
 rules_button_not_set: "Vous n'avez pas encore défini de bouton de règles personnalisé. Le texte par défaut \"%s\" sera utilisé."
 rules_button_current: "Le bouton des règles est actuellement défini au texte suivant :\n%s"
