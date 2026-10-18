@@ -755,6 +755,9 @@ locks_help_msg: "*Admin only*:
 
   × /locks: View Chat permission.
 
+
+  *User Commands:*
+
   × /locktypes: Check available lock types!
 
 
