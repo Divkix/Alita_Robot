@@ -24,7 +24,7 @@ When AnonAdmin mode is off (the default), the bot uses keyboard verification:
 1. The bot stores the original message in Redis with a 20-second TTL.
 2. An inline keyboard with a "Prove Admin" button is sent to the chat.
 3. Any chat admin can click the button to verify and execute the command.
-4. If no admin clicks within 20 seconds, the button expires and the cached message is evicted.
+4. After 20 seconds the cached message is evicted. Nothing runs on a timer: an admin who clicks after that sees the keyboard message edited to "Button expired".
 
 ## Verification Flow
 
@@ -44,19 +44,17 @@ sequenceDiagram
     else AnonAdmin mode OFF (default)
         B->>C: Store original message (TTL: 20s)
         B->>A: Send "Prove Admin" inline keyboard
-        alt Admin clicks within 20s
-            D->>B: Clicks "Prove Admin" button
-            B->>B: IsUserAdmin(clicker) check
-            alt Clicker is admin
-                B->>C: Retrieve original message
-                B->>B: Delete keyboard message
-                B->>B: Execute original /ban command as clicker
-            else Clicker is NOT admin
-                B->>D: Toast: "Need to be admin"
-            end
-        else 20s timeout
-            B->>B: Cache expired
-            B->>A: Edit message: "Button expired"
+        D->>B: Clicks "Prove Admin" button
+        B->>B: IsUserAdmin(clicker) check
+        alt Clicker is NOT admin
+            B->>D: Toast: "Need to be admin"
+        else Clicker is admin, clicked within 20s
+            B->>C: Retrieve original message
+            B->>B: Delete keyboard message
+            B->>B: Execute original /ban command as clicker
+        else Clicker is admin, clicked after 20s
+            B->>C: Retrieve original message (cache miss)
+            B->>A: Edit keyboard message: "Button expired"
         end
     end
 ```
@@ -65,12 +63,12 @@ sequenceDiagram
 
 - **Cache key format:** `alita:anonAdmin:{chatId}:{msgId}` with 20-second TTL
 - **Callback data encoding:** Versioned codec format `anon_admin|v1|c={chatId}&m={msgId}` only; unversioned or malformed payloads are rejected with "Invalid request." (`alita:anonAdmin:{chatId}:{msgId}` is the Redis cache key above, not a callback format)
-- **Command re-dispatch:** After verification, the bot sets `ctx.EffectiveMessage` to the original cached message, clears `SenderChat` (prevents re-triggering anonymous admin detection), clears `CallbackQuery`, extracts the command from message text, and dispatches to the handler registered for that command with `RegisterAnonymousAdminHandler`
+- **Command re-dispatch:** After verification, the bot sets `ctx.EffectiveMessage` to the original cached message, clears `SenderChat` (prevents re-triggering anonymous admin detection), replaces `ctx.Update` with a message-only update for the original message (dropping the `CallbackQuery`), sets the effective user to the clicker, extracts the command from the message text or caption, and dispatches through `HandleAnonymousAdmin`, which looks it up in the registry filled by `RegisterAnonymousAdminHandler` (`alita/modules/anonymous_admin_router.go`)
 - **Non-admin click handling:** Shows a toast notification ("Need to be admin") without error; does not consume the keyboard
 
 ## Supported Commands
 
-The following commands support anonymous admin verification. Only these commands are registered with RegisterAnonymousAdminHandler:
+The following commands support anonymous admin verification. Only these commands are registered with `RegisterAnonymousAdminHandler`:
 
 | Module | Commands |
 |--------|----------|
@@ -84,9 +82,9 @@ The following commands support anonymous admin verification. Only these commands
 ## Troubleshooting
 
 :::tip[Common issues]
-- **"Button expired"** -- The admin did not click within 20 seconds. The cache entry has been evicted. The admin must re-send the command.
+- **"Button expired"** -- An admin clicked the button after the 20-second cache entry expired. The admin must re-send the command.
 - **"Need to be admin"** -- A non-admin user clicked the "Prove Admin" button. Only actual chat admins can verify.
-- **Commands not executing in anonymous mode** -- The command may not be in the supported commands list above. Only commands registered with RegisterAnonymousAdminHandler are supported.
+- **Commands not executing in anonymous mode** -- The command may not be in the supported commands list above. Only commands registered with `RegisterAnonymousAdminHandler` are supported.
 :::
 
 ## Related Pages
