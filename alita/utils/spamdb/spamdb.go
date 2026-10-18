@@ -49,6 +49,8 @@ const (
 // index.
 var ErrInvalidUserID = errors.New("spamdb: not a user id")
 
+var errLookupPanicked = errors.New("spamdb: lookup panicked")
+
 // Options configures a Checker. Zero values select the production defaults.
 type Options struct {
 	// CASAPIKey is optional for now; CAS has announced it will become required.
@@ -115,13 +117,21 @@ func (c *Checker) Check(ctx context.Context, userID int64) (bool, error) {
 	}
 
 	ch := c.flight.DoChan(strconv.FormatInt(userID, 10), func() (any, error) {
-		lookupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.timeout)
-		defer cancel()
-		listed, err := c.lookupCAS(lookupCtx, userID)
+		// singleflight re-raises a panic here in a goroutine no caller can
+		// recover, which would exit the bot; a panic is a failed lookup instead.
+		listed, err := false, errLookupPanicked
+		func() {
+			defer error_handling.RecoverFromPanic("lookup", "spamdb")
+			lookupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.timeout)
+			defer cancel()
+			listed, err = c.lookupCAS(lookupCtx, userID)
+			if err == nil {
+				c.store(ctx, userID, listed)
+			}
+		}()
 		if err != nil {
 			return false, err
 		}
-		c.store(ctx, userID, listed)
 		return listed, nil
 	})
 

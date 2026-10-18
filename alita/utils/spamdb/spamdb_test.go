@@ -169,6 +169,41 @@ func TestCheckFailureIsAnError(t *testing.T) {
 	}
 }
 
+// panickingTransport stands in for any bug below the lookup that panics.
+type panickingTransport struct {
+	calls atomic.Int32
+}
+
+func (p *panickingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	p.calls.Add(1)
+	panic("transport bug")
+}
+
+// The shared lookup runs in a goroutine of its own, where singleflight
+// re-raises a panic out of reach of any caller and the bot would exit. A
+// panic there is a failed lookup instead: an error, nothing cached.
+func TestCheckTurnsLookupPanicIntoError(t *testing.T) {
+	transport := &panickingTransport{}
+	c := New(Options{
+		CASURL:     "http://cas.invalid/check",
+		Timeout:    testTimeout,
+		HTTPClient: &http.Client{Transport: transport},
+	})
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		listed, err := c.Check(context.Background(), testUserID)
+		if err == nil {
+			t.Fatalf("attempt %d: Check() = %v, nil error; want an error", attempt, listed)
+		}
+		if listed {
+			t.Fatalf("attempt %d: Check() = %v, want not listed on error", attempt, listed)
+		}
+	}
+	if got := transport.calls.Load(); got != 2 {
+		t.Fatalf("transport calls = %d, want 2: a panicked lookup must not be cached", got)
+	}
+}
+
 func TestCheckGivesUpAtSharedDeadline(t *testing.T) {
 	cas := newFakeService(t, http.StatusOK, casNotFound)
 	cas.setDelay(slowerThanAny)
