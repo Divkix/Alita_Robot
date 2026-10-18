@@ -1866,7 +1866,7 @@ filters_extended_docs: |
   Vous pouvez ajouter des boutons en ligne à vos filtres :
   <code>/filter bonjour Bonjour ! Consultez ces liens :
   [Bouton 1](buttonurl:https://example.com)
-  [Bouton 2](buttonurl://example.com:same)</code>
+  [Bouton 2](buttonurl:https://example2.com)</code>
 
 # Captcha module extended documentation
 captcha_extended_docs: |
@@ -2021,17 +2021,17 @@ formatting_markdown: |
 
   - <code>[hyperlien](example.com)</code> : C'est le formatage utilisé pour les hyperliens. S'affiche comme : <a href='https://example.com/'>hyperlien</a>.
 
-  - <code>[Mon Bouton](buttonurl://example.com)</code> : C'est le formatage utilisé pour créer des boutons. Cet exemple créera un bouton nommé "Mon bouton" qui ouvre <code>example.com</code> quand on clique.
+  - <code>[Mon Bouton](buttonurl://https://example.com)</code> : C'est le formatage utilisé pour créer des boutons. Cet exemple créera un bouton nommé "Mon bouton" qui ouvre <code>https://example.com</code> quand on clique. Le lien doit commencer par <code>http://</code> ou <code>https://</code>, sinon aucun bouton n'est créé.
 
   Si vous souhaitez envoyer des boutons sur la même ligne, utilisez le formatage <code>:same</code>.
 
   <b>Exemple :</b>
 
-  <code>[bouton 1](buttonurl:example.com)</code>
+  <code>[bouton 1](buttonurl:https://example.com)</code>
 
-  <code>[bouton 2](buttonurl://example.com:same)</code>
+  <code>[bouton 2](buttonurl://https://example.com:same)</code>
 
-  <code>[bouton 3](buttonurl://example.com)</code>
+  <code>[bouton 3](buttonurl://https://example.com)</code>
 
   Cela affichera les boutons 1 et 2 sur la même ligne, avec le 3 en dessous.
 

@@ -517,17 +517,17 @@ formatting_markdown: |
 
   - <code>[hyperlink](example.com)</code>: Ini adalah pemformatan yang digunakan untuk hyperlink. Menampilkan sebagai: <a href='https://example.com/'>hyperlink</a>.
 
-  - <code>[Tombol Saya](buttonurl://example.com)</code>: Ini adalah pemformatan yang digunakan untuk membuat tombol. Contoh ini akan membuat tombol bernama "Tombol saya" yang membuka <code>example.com</code> ketika diklik.
+  - <code>[Tombol Saya](buttonurl://https://example.com)</code>: Ini adalah pemformatan yang digunakan untuk membuat tombol. Contoh ini akan membuat tombol bernama "Tombol saya" yang membuka <code>https://example.com</code> ketika diklik. Tautan harus diawali <code>http://</code> atau <code>https://</code>; jika tidak, tombol tidak akan dibuat.
 
   Jika Anda ingin mengirim tombol di baris yang sama, gunakan pemformatan <code>:same</code>.
 
   <b>Contoh:</b>
 
-  <code>[tombol 1](buttonurl:example.com)</code>
+  <code>[tombol 1](buttonurl:https://example.com)</code>
 
-  <code>[tombol 2](buttonurl://example.com:same)</code>
+  <code>[tombol 2](buttonurl://https://example.com:same)</code>
 
-  <code>[tombol 3](buttonurl://example.com)</code>
+  <code>[tombol 3](buttonurl://https://example.com)</code>
 
   Ini akan menampilkan tombol 1 dan 2 di baris yang sama, dengan 3 di bawahnya.
 formatting_random: |

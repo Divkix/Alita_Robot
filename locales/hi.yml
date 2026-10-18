@@ -1145,17 +1145,17 @@ formatting_markdown: |
 
   - <code>[hyperlink](example.com)</code>: यह हाइपरलिंक के लिए फॉर्मेटिंग है। दिखाता है: <a href='https://example.com/'>hyperlink</a>।
 
-  - <code>[My Button](buttonurl://example.com)</code>: यह बटन बनाने के लिए फॉर्मेटिंग है। यह उदाहरण "My button" नाम का एक बटन बनाएगा जो क्लिक करने पर <code>example.com</code> खोलता है।
+  - <code>[My Button](buttonurl://https://example.com)</code>: यह बटन बनाने के लिए फॉर्मेटिंग है। यह उदाहरण "My button" नाम का एक बटन बनाएगा जो क्लिक करने पर <code>https://example.com</code> खोलता है। लिंक <code>http://</code> या <code>https://</code> से शुरू होना चाहिए, नहीं तो कोई बटन नहीं बनेगा।
 
   यदि आप बटन एक ही पंक्ति में भेजना चाहते हैं, तो <code>:same</code> फॉर्मेटिंग का उपयोग करें।
 
   <b>उदाहरण:</b>
 
-  <code>[button 1](buttonurl:example.com)</code>
+  <code>[button 1](buttonurl:https://example.com)</code>
 
-  <code>[button 2](buttonurl://example.com:same)</code>
+  <code>[button 2](buttonurl://https://example.com:same)</code>
 
-  <code>[button 3](buttonurl://example.com)</code>
+  <code>[button 3](buttonurl://https://example.com)</code>
 
   यह button 1 और 2 को एक ही पंक्ति में दिखाएगा, और 3 उनके नीचे।
 formatting_random: |

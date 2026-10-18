@@ -380,17 +380,17 @@ formatting_markdown: |
 
   - <code>[hyperlink](example.com)</code>: Это форматирование, используемое для гиперссылок. Показывается как: <a href='https://example.com/'>hyperlink</a>.
 
-  - <code>[My Button](buttonurl://example.com)</code>: Это форматирование, используемое для создания кнопок. Этот пример создаст кнопку с названием "My button", которая открывает <code>example.com</code> при нажатии.
+  - <code>[My Button](buttonurl://https://example.com)</code>: Это форматирование, используемое для создания кнопок. Этот пример создаст кнопку с названием "My button", которая открывает <code>https://example.com</code> при нажатии. Ссылка должна начинаться с <code>http://</code> или <code>https://</code>, иначе кнопка не будет создана.
 
   Если вы хотите отправить кнопки в одном ряду, используйте форматирование <code>:same</code>.
 
   <b>Пример:</b>
 
-  <code>[button 1](buttonurl:example.com)</code>
+  <code>[button 1](buttonurl:https://example.com)</code>
 
-  <code>[button 2](buttonurl://example.com:same)</code>
+  <code>[button 2](buttonurl://https://example.com:same)</code>
 
-  <code>[button 3](buttonurl://example.com)</code>
+  <code>[button 3](buttonurl://https://example.com)</code>
 
   Это покажет кнопки 1 и 2 в одной строке, а 3 под ними.
 formatting_random: |

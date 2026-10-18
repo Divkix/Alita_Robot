@@ -521,17 +521,17 @@ formatting_markdown: |
 
   - <code>[hipervínculo](example.com)</code>: Este es el formato usado para hipervínculos. Se muestra como: <a href='https://example.com/'>hipervínculo</a>.
 
-  - <code>[Mi Botón](buttonurl://example.com)</code>: Este es el formato usado para crear botones. Este ejemplo creará un botón llamado "Mi botón" que abre <code>example.com</code> cuando se hace clic.
+  - <code>[Mi Botón](buttonurl://https://example.com)</code>: Este es el formato usado para crear botones. Este ejemplo creará un botón llamado "Mi botón" que abre <code>https://example.com</code> cuando se hace clic. El enlace debe empezar por <code>http://</code> o <code>https://</code>; si no, no se crea ningún botón.
 
   Si deseas enviar botones en la misma fila, usa el formato <code>:same</code>.
 
   <b>Ejemplo:</b>
 
-  <code>[botón 1](buttonurl:example.com)</code>
+  <code>[botón 1](buttonurl:https://example.com)</code>
 
-  <code>[botón 2](buttonurl://example.com:same)</code>
+  <code>[botón 2](buttonurl://https://example.com:same)</code>
 
-  <code>[botón 3](buttonurl://example.com)</code>
+  <code>[botón 3](buttonurl://https://example.com)</code>
 
   Esto mostrará el botón 1 y 2 en la misma línea, con el 3 debajo.
 formatting_random: |

@@ -559,17 +559,17 @@ formatting_markdown: |
 
   - <code>[hyperlink](example.com)</code>: This is the formatting used for hyperlinks. Shows as: <a href='https://example.com/'>hyperlink</a>.
 
-  - <code>[My Button](buttonurl://example.com)</code>: This is the formatting used for creating buttons. This example will create a button named "My button" which opens <code>example.com</code> when clicked.
+  - <code>[My Button](buttonurl://https://example.com)</code>: This is the formatting used for creating buttons. This example will create a button named "My button" which opens <code>https://example.com</code> when clicked. The link must start with <code>http://</code> or <code>https://</code>, or no button is created.
 
   If you would like to send buttons on the same row, use the <code>:same</code> formatting.
 
   <b>Example:</b>
 
-  <code>[button 1](buttonurl:example.com)</code>
+  <code>[button 1](buttonurl:https://example.com)</code>
 
-  <code>[button 2](buttonurl://example.com:same)</code>
+  <code>[button 2](buttonurl://https://example.com:same)</code>
 
-  <code>[button 3](buttonurl://example.com)</code>
+  <code>[button 3](buttonurl://https://example.com)</code>
 
   This will show button 1 and 2 on the same line, with 3 underneath.
 formatting_random: |
