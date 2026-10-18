@@ -280,8 +280,9 @@ mutes_extended_docs: |
   <b>Commandes réservées aux admins.</b> Les utilisateurs exécutant ces commandes doivent avoir :
   • Le statut d'admin dans le chat
   • La permission de restreindre les membres
+  • La permission de supprimer des messages (pour <code>/smute</code> et <code>/dmute</code>)
 
-  Le bot doit également avoir les privilèges d'admin avec la permission de restreindre les membres.
+  Le bot doit également avoir les privilèges d'admin avec la permission de restreindre les membres, ainsi que la permission de supprimer des messages pour <code>/smute</code> et <code>/dmute</code>.
 
 # Warns module strings
 warns_help_msg:

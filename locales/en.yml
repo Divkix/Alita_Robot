@@ -2162,8 +2162,9 @@ mutes_extended_docs: |
   <b>Admin only commands.</b> Users executing these commands must have:
   • Admin status in the chat
   • Permission to restrict members
+  • Permission to delete messages (for <code>/smute</code> and <code>/dmute</code>)
 
-  The bot must also have admin privileges with permission to restrict members.
+  The bot must also have admin privileges with permission to restrict members, plus permission to delete messages for <code>/smute</code> and <code>/dmute</code>.
 
 # Extended documentation locale keys - Filters module
 filters_extended_docs: |

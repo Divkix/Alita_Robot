@@ -2113,8 +2113,9 @@ mutes_extended_docs: |
   <b>Perintah admin saja.</b> Pengguna yang mengeksekusi perintah ini harus memiliki:
   • Status admin di obrolan
   • Izin untuk membatasi anggota
+  • Izin untuk menghapus pesan (untuk <code>/smute</code> dan <code>/dmute</code>)
 
-  Bot juga harus memiliki hak istimewa admin dengan izin untuk membatasi anggota.
+  Bot juga harus memiliki hak istimewa admin dengan izin untuk membatasi anggota, serta izin untuk menghapus pesan untuk <code>/smute</code> dan <code>/dmute</code>.
 
 # Extended documentation locale keys - Filters module
 filters_extended_docs: |

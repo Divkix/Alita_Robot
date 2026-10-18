@@ -2122,8 +2122,9 @@ mutes_extended_docs: |
   <b>Comandos solo para admins.</b> Los usuarios que ejecutan estos comandos deben tener:
   • Estado de admin en el chat
   • Permiso para restringir miembros
+  • Permiso para eliminar mensajes (para <code>/smute</code> y <code>/dmute</code>)
 
-  El bot también debe tener privilegios de admin con permiso para restringir miembros.
+  El bot también debe tener privilegios de admin con permiso para restringir miembros, además de permiso para eliminar mensajes para <code>/smute</code> y <code>/dmute</code>.
 
 # Extended documentation locale keys - Filters module
 filters_extended_docs: |
