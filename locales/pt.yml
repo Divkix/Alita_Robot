@@ -444,7 +444,7 @@ filters_help_msg:
 
   - Definir um filtro de múltiplas palavras:
 
-  -> /filter olá amigo Olá de volta! Quanto tempo!
+  -> /filter \"olá amigo\" Olá de volta! Quanto tempo!
 
   - Definir um filtro que só pode ser usado por admins:
 

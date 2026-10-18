@@ -436,7 +436,7 @@ filters_help_msg:
   Perintah:
 
   - /filter <trigger> <reply>: Setiap kali seseorang mengatakan trigger, bot akan membalas
-  dengan kalimat. Untuk filter multi-kata, tandai trigger.
+  dengan kalimat. Untuk filter multi-kata, apit trigger dengan tanda kutip.
 
   - /filters: Daftar semua filter obrolan.
 

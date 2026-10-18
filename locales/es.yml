@@ -457,7 +457,7 @@ filters_help_msg:
 
   - Establecer un filtro de múltiples palabras:
 
-  -> /filter hola amigo ¡Hola de vuelta! ¡Hace mucho que no te veo!
+  -> /filter \"hola amigo\" ¡Hola de vuelta! ¡Hace mucho que no te veo!
 
   - Establecer un filtro que solo puede ser usado por administradores:
 

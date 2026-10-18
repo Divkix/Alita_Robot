@@ -743,7 +743,7 @@ filters_help_msg: |
 
   - Définir un filtre à plusieurs mots :
 
-  -> /filter bonjour ami Salut ! Ça faisait longtemps !
+  -> /filter "bonjour ami" Salut ! Ça faisait longtemps !
 
   - Définir un filtre qui ne peut être utilisé que par les admins :
 

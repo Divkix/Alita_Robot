@@ -349,7 +349,7 @@ filters_help_msg:
   
     - Установить многословный фильтр:
   
-    -> /filter hello friend Hello back! Long time no see!
+    -> /filter \"hello friend\" Hello back! Long time no see!
   
     - Установить фильтр, который могут использовать только администраторы:
   
