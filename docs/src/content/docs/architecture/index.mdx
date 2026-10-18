@@ -173,7 +173,7 @@ Each feature module follows a consistent pattern:
 1. Define a `moduleStruct` with module name
 2. Implement handler functions as methods
 3. Register handlers in a `LoadModule` function
-4. Self-register in `init()` via `RegisterLegacyModule(name, priority, loadFunc)` or `RegisterModule(m Module)`
+4. Self-register in `init()` via `RegisterLegacyModule(name, priority, loadFunc)`
 5. Loaded collectively via `modules.LoadAllModules(dispatcher)` in priority order
 
 ### Cache Layer
