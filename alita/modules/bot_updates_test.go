@@ -79,6 +79,7 @@ func TestBotJoinedGroupIgnoresPrivateChats(t *testing.T) {
 }
 
 func TestBotJoinedGroupLeavesBasicGroupAfterMigrationNotice(t *testing.T) {
+	useEnglishLocale(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "group", Title: "Basic Group"}
