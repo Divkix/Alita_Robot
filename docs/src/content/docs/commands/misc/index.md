@@ -89,7 +89,7 @@ For detailed command usage, refer to the commands table above.
 
 ## `/stat` Details
 
-- `/stat` is **group-only** (`RequireGroup`); it does nothing in private chats.
+- `/stat` is **group-only** (`RequireGroup`); in a private chat the bot replies that the command must be used in a group.
 - The message count is **approximate**: it uses `MessageId + 1` of the received
   command message, which may differ from actual message count if messages were
   deleted by users or admins.
