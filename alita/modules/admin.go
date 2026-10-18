@@ -665,6 +665,11 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	var err error
 
+	if !chat_status.RequireGroup(b, c.Ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+		return ext.EndGroups
+	}
+
 	userMember, err := chat.GetMember(b, user.Id, nil)
 	if err != nil {
 		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
@@ -673,7 +678,10 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 	mem := userMember.MergeChatMember()
-	if mem.Status == "member" {
+	// Check the live status, not the admin cache this command refreshes.
+	// 1087968824 (GroupAnonymousBot) and 777000 (Telegram) count as admins, as
+	// in chat_status's tgAdminList.
+	if mem.Status != "administrator" && mem.Status != "creator" && user.Id != 1087968824 && user.Id != 777000 {
 		errorText, _ := c.Tr.GetString("admin_need_admin")
 		_, err = msg.Reply(b, errorText, nil)
 		if err != nil {
@@ -683,10 +691,6 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	}
 	if !chat_status.RequireBotAdmin(b, c.Ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireGroup(b, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 

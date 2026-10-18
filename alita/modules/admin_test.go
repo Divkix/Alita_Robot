@@ -751,6 +751,25 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 		t.Fatalf("sendMessage calls = %d, want non-admin denial", len(calls))
 	}
 
+	// A restricted user is not an admin either, though their status is not "member".
+	restrictedClient := newModuleBotClient()
+	restrictedBot := newModuleTestBot(restrictedClient)
+	restrictedClient.responses["getChatMember"] = []byte(`{"status":"restricted","user":{"id":42,"is_bot":false,"first_name":"Member"},"is_member":true}`)
+	restrictedCtx := newModuleMessageContext(restrictedBot, chat, member, "/admincache")
+	cmdCtx, err = helpers.BuildCommandContext(restrictedBot, restrictedCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("adminCache(restricted) error = %v, want EndGroups", err)
+	}
+	if calls := restrictedClient.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want non-admin denial for a restricted user", len(calls))
+	}
+	if calls := restrictedClient.callsFor("getChatAdministrators"); len(calls) != 0 {
+		t.Fatalf("getChatAdministrators calls = %d, want no reload for a restricted user", len(calls))
+	}
+
 	f := newAdminChatFixture(t)
 	errorClient, errorBot, admin := f.client, f.bot, f.admin
 	errorClient.errors["getChatMember"] = errors.New("telegram unavailable")
