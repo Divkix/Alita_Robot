@@ -10,8 +10,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 30 (28 user-facing + 2 internal)
-- **Total Commands**: 182
+- **Total Modules**: 32 (30 user-facing + 2 internal)
+- **Total Commands**: 215
 
 ## Commands by Module
 
@@ -119,6 +119,38 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/captchamode` | Set captcha challenge mode | Admin | ❌ | — |
 | `/captchapending` | View a pending user's stored messages | Admin | ❌ | — |
 | `/captchatime` | Set captcha timeout duration | Admin | ❌ | — |
+
+#### 🛡️ Federations
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/newfed` | Create a federation (one per user; PM only) | Everyone | ❌ | — |
+| `/renamefed` | Rename your federation | Fed owner | ❌ | — |
+| `/delfed` | Delete your federation (PM only; asks to confirm) | Fed owner | ❌ | — |
+| `/fedpromote` | Promote a user to federation admin | Fed owner | ❌ | — |
+| `/feddemote` | Demote a federation admin | Fed owner | ❌ | — |
+| `/fedreason` | Require a reason for fbans (on/off) | Fed owner | ❌ | — |
+| `/fednotif` | PM the owner on fbans (on/off) | Fed owner | ❌ | — |
+| `/subfed` | Subscribe to another federation's bans (max 5) | Fed owner | ❌ | — |
+| `/unsubfed` | Unsubscribe from another federation | Fed owner | ❌ | — |
+| `/fedsubs` | List the federations yours subscribes to | Fed owner | ✅ | — |
+| `/fbanlist` | Export fbans as CSV or JSON (once every 30 minutes) | Fed owner | ❌ | — |
+| `/importfbans` | Import fbans from a replied CSV/JSON file | Fed owner | ❌ | — |
+| `/setfedlog` | Make this group the federation log chat (groups only) | Fed owner | ❌ | — |
+| `/unsetfedlog` | Clear the federation log chat | Fed owner | ❌ | — |
+| `/joinfed` | Join this group to a federation | Group creator | ❌ | — |
+| `/leavefed` | Leave the federation | Group creator | ❌ | — |
+| `/quietfed` | Suppress passive fban notices in this group (on/off) | Admin | ❌ | — |
+| `/fban` | Ban a user across the federation | Fed admin | ❌ | — |
+| `/unfban` | Lift a federation ban | Fed admin | ❌ | `/funban` |
+| `/funban` | Alias of `/unfban` | Fed admin | ❌ | `/unfban` |
+| `/feddemoteme` | Step down as a federation admin | Fed admin | ❌ | — |
+| `/fedstat` | Check a user's federation bans | Everyone | ✅ | `/fbanstat` |
+| `/fbanstat` | Alias of `/fedstat` | Everyone | ❌ | `/fedstat` |
+| `/fedinfo` | Show federation info | Everyone | ✅ | — |
+| `/fedadmins` | List a federation's admins | Everyone | ✅ | — |
+| `/chatfed` | Show this group's federation | Everyone | ❌ | — |
+| `/myfeds` | List the federations you own or admin | Everyone | ❌ | — |
 
 #### 🔒 Locks
 
@@ -328,6 +360,17 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/unpin` | Unpin the current pinned message | Admin | ❌ | — |
 | `/unpinall` | Unpin all pinned messages | Admin | ❌ | — |
 
+#### 📜 LogChannels
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/setlog` | Set the log channel (send it in the channel, then forward that message to the group) | Channel admin + Admin | ❌ | — |
+| `/unsetlog` | Remove the log channel | Admin | ❌ | — |
+| `/logchannel` | Show the current log channel (groups only) | Everyone | ❌ | — |
+| `/logcategories` | List log categories | Everyone | ❌ | — |
+| `/log` | Enable one or more log categories | Admin | ❌ | — |
+| `/nolog` | Disable one or more log categories | Admin | ❌ | — |
+
 ### Developer
 
 #### 🔧 Devs
@@ -389,6 +432,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/captchamode` | Captcha | Set captcha challenge mode | Admin |
 | `/captchapending` | Captcha | View a pending user's stored messages | Admin |
 | `/captchatime` | Captcha | Set captcha timeout duration | Admin |
+| `/chatfed` | Federations | Show this group's federation | Everyone |
 | `/chatinfo` | Devs | Display detailed information about a chat | Dev/Owner |
 | `/chatlist` | Devs | Generate and send a list of all active chats | Dev/Owner |
 | `/cleangoodbye` | Greetings | Toggle goodbye message cleanup | Admin |
@@ -406,6 +450,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/connection` | Connections | Show current connection status | Everyone |
 | `/dban` | Bans | Ban a user and delete their message | Admin |
 | `/del` | Purges | Delete a replied-to message | Admin |
+| `/delfed` | Federations | Delete your federation (PM only; asks to confirm) | Fed owner |
 | `/delflood` | Antiflood | Toggle flood message deletion | Admin |
 | `/demote` | Admin | Demote an admin | Admin |
 | `/disable` | Disabling | Disable a command in this chat | Admin |
@@ -420,27 +465,49 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/enable` | Disabling | Re-enable a disabled command | Admin |
 | `/export` | Backup | Export all group settings to a JSON file | Admin |
 | `/extend` | Help | Show every command in one list | Everyone |
+| `/fban` | Federations | Ban a user across the federation | Fed admin |
+| `/fbanlist` | Federations | Export fbans as CSV or JSON (once every 30 minutes) | Fed owner |
+| `/fbanstat` | Federations | Alias of `/fedstat` | Everyone |
+| `/fedadmins` | Federations | List a federation's admins | Everyone |
+| `/feddemote` | Federations | Demote a federation admin | Fed owner |
+| `/feddemoteme` | Federations | Step down as a federation admin | Fed admin |
+| `/fedinfo` | Federations | Show federation info | Everyone |
+| `/fednotif` | Federations | PM the owner on fbans (on/off) | Fed owner |
+| `/fedpromote` | Federations | Promote a user to federation admin | Fed owner |
+| `/fedreason` | Federations | Require a reason for fbans (on/off) | Fed owner |
+| `/fedstat` | Federations | Check a user's federation bans | Everyone |
+| `/fedsubs` | Federations | List the federations yours subscribes to | Fed owner |
 | `/filter` | Filters | Add a keyword filter | Admin |
 | `/filters` | Filters | List all active filters | Everyone |
 | `/flood` | Antiflood | Show current flood settings | Everyone |
 | `/formatting` | Formatting | Alias of `/markdownhelp` | Everyone |
+| `/funban` | Federations | Alias of `/unfban` | Fed admin |
 | `/get` | Notes | Retrieve a saved note | Everyone |
 | `/github` | Misc | Look up a GitHub user or repository | Everyone |
 | `/goodbye` | Greetings | Show current goodbye settings | Admin |
 | `/help` | Help | Show help menu with module list | Everyone |
 | `/id` | Misc | Get user or chat ID | Everyone |
 | `/import` | Backup | Restore settings from a backup file | Owner |
+| `/importfbans` | Federations | Import fbans from a replied CSV/JSON file | Fed owner |
 | `/info` | Misc | Get user information | Everyone |
 | `/invitelink` | Admin | Get the chat invite link | Everyone (public groups) / users with invite rights (private groups) |
+| `/joinfed` | Federations | Join this group to a federation | Group creator |
 | `/kick` | Bans | Kick a user from the group | Admin |
 | `/kickme` | Bans | Kick yourself from the group | Everyone |
 | `/lang` | Languages | Change the bot language | User/Admin |
 | `/leavechat` | Devs | Force the bot to leave a specified chat | Dev/Owner |
+| `/leavefed` | Federations | Leave the federation | Group creator |
 | `/lock` | Locks | Lock a permission type | Admin |
 | `/locks` | Locks | Show current lock settings | Admin |
 | `/locktypes` | Locks | List available lock types | Everyone |
+| `/log` | LogChannels | Enable one or more log categories | Admin |
+| `/logcategories` | LogChannels | List log categories | Everyone |
+| `/logchannel` | LogChannels | Show the current log channel | Everyone |
 | `/markdownhelp` | Formatting | Show markdown formatting guide | Everyone |
 | `/mute` | Mutes | Mute a user | Admin |
+| `/myfeds` | Federations | List the federations you own or admin | Everyone |
+| `/newfed` | Federations | Create a federation (one per user; PM only) | Everyone |
+| `/nolog` | LogChannels | Disable one or more log categories | Admin |
 | `/notes` | Notes | List all saved notes | Everyone |
 | `/permapin` | Pins | Pin a custom message sent by the bot | Admin |
 | `/pin` | Pins | Pin a replied-to message | Admin |
@@ -453,6 +520,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/purge` | Purges | Purge messages from replied-to onwards (optional reason) | Admin |
 | `/purgefrom` | Purges | Set purge start point | Admin |
 | `/purgeto` | Purges | Purge to a specific message (optional reason) | Admin |
+| `/quietfed` | Federations | Suppress passive fban notices in this group (on/off) | Admin |
 | `/raidactiontime` | AntiRaid | Set the ban duration for raiders | Admin |
 | `/raidtime` | AntiRaid | Set the raid duration | Admin |
 | `/reactions` | Reactions | List configured reactions | Everyone |
@@ -463,6 +531,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/removebotkeyboard` | Misc | Remove a stuck bot keyboard | Everyone |
 | `/removefilter` | Filters | Remove a keyword filter | Admin |
 | `/remsudo` | Devs | Revoke sudo permissions from a user | Owner |
+| `/renamefed` | Federations | Rename your federation | Fed owner |
 | `/report` | Reports | Report a user to admins | Everyone |
 | `/reports` | Reports | Toggle reporting for the group | Admin |
 | `/resetallwarns` | Warns | Reset all warnings for all users | Owner |
@@ -491,12 +560,14 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/save` | Notes | Save a note | Admin |
 | `/saved` | Notes | List all saved notes | Everyone |
 | `/sban` | Bans | Silently ban a user | Admin |
+| `/setfedlog` | Federations | Make this group the federation log chat (groups only) | Fed owner |
 | `/setflood` | Antiflood | Set the flood trigger limit | Admin |
 | `/setfloodmode` | Antiflood | Set the flood action mode | Admin |
 | `/setgoodbye` | Greetings | Set the goodbye message | Admin |
 | `/setgdesc` | Admin | Change or clear the group description | Admin |
 | `/setgpic` | Admin | Set the group photo (reply to a photo) | Admin |
 | `/setgtitle` | Admin | Change the group title | Admin |
+| `/setlog` | LogChannels | Set the log channel | Channel admin + Admin |
 | `/setrules` | Rules | Set the group rules | Admin |
 | `/setwarnlimit` | Warns | Set the warn limit before action | Admin |
 | `/setwarntime` | Warns | Set how long a warn counts | Admin |
@@ -511,6 +582,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/stickerid` | Misc | Get a replied sticker's file ID | Everyone |
 | `/stop` | Filters | Remove a keyword filter | Admin |
 | `/stopall` | Filters | Remove all filters | Owner |
+| `/subfed` | Federations | Subscribe to another federation's bans (max 5) | Fed owner |
 | `/swarn` | Warns | Warn a user and delete your command | Admin |
 | `/tban` | Bans | Temporarily ban a user | Admin |
 | `/teamusers` | Devs | List all team members | Team |
@@ -524,11 +596,15 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/unban` | Bans | Unban a user | Admin |
 | `/unbanall` | Bans | Unban all known users in the chat | Owner |
 | `/unblacklist` | Blacklists | Alias of `/rmblacklist` | Admin |
+| `/unfban` | Federations | Lift a federation ban | Fed admin |
 | `/unlock` | Locks | Unlock a permission type | Admin |
 | `/unmute` | Mutes | Unmute a user | Admin |
 | `/unpin` | Pins | Unpin the current pinned message | Admin |
 | `/unpinall` | Pins | Unpin all pinned messages | Admin |
 | `/unrestrict` | Bans | Remove restrictions from a user | Admin |
+| `/unsetfedlog` | Federations | Clear the federation log chat | Fed owner |
+| `/unsetlog` | LogChannels | Remove the log channel | Admin |
+| `/unsubfed` | Federations | Unsubscribe from another federation | Fed owner |
 | `/unwarn` | Warns | Remove a warning from a user | Admin |
 | `/warn` | Warns | Warn a user | Admin |
 | `/warnings` | Warns | Get the chat's warning settings | Admin |
