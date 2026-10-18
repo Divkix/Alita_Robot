@@ -32,6 +32,7 @@ func TestConnectedCommandsFromPMBuildRepliesInUserLanguage(t *testing.T) {
 		{"/disabled", "disabling_no_disabled_commands"},
 		{"/filters", "filters_none_in_chat"},
 		{"/locktypes", "locks_locktypes_header"},
+		{"/locks", "locks_current_locks_header"},
 		{"/notes", "notes_none_in_chat"},
 		{"/antichannelpin maybe", "pins_input_not_recognized"},
 		{"/reports block", "reports_group_only"},
@@ -126,5 +127,43 @@ func TestLangGroupFromPMNamesTheGroupLanguage(t *testing.T) {
 	}
 	if got, want := fmt.Sprint(sent[len(sent)-1].Params["text"]), "ru:language_current_group EnName"; !strings.HasPrefix(got, want) {
 		t.Errorf("/lang group from PM replied %q, want %q...", got, want)
+	}
+}
+
+// /locks in the group itself answers in the group's language, whatever
+// language the admin who sent it has set for their PM.
+func TestLocksInGroupRepliesInGroupLanguage(t *testing.T) {
+	withMiniredis(t)
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	restoreI18n, err := i18n.OverrideLocalesForTest(map[string]string{
+		"en": "locks_current_locks_header: \"en:locks_current_locks_header\"\n",
+		"ru": "locks_current_locks_header: \"ru:locks_current_locks_header\"\n",
+	})
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+	if err := lang.ChangeGroupLanguage(groupA, "ru"); err != nil {
+		t.Fatalf("ChangeGroupLanguage() error = %v", err)
+	}
+	if err := lang.ChangeUserLanguage(admin.Id, "en"); err != nil {
+		t.Fatalf("ChangeUserLanguage() error = %v", err)
+	}
+
+	group := gotgbot.Chat{Id: groupA, Type: "supergroup", Title: "Group A"}
+	ctx := newModuleMessageContext(bot, group, admin, "/locks")
+	if err := locksModule.locks(bot, ctx); err != nil && err != ext.EndGroups {
+		t.Fatalf("/locks in group error = %v", err)
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) == 0 {
+		t.Fatal("/locks in group sent no reply")
+	}
+	last := sent[len(sent)-1]
+	if got := fmt.Sprint(last.Params["chat_id"]); got != fmt.Sprint(groupA) {
+		t.Errorf("/locks in group replied in chat %s, want the group", got)
+	}
+	if got, want := fmt.Sprint(last.Params["text"]), "ru:locks_current_locks_header"; !strings.HasPrefix(got, want) {
+		t.Errorf("/locks in group replied %q, want the group's language (%s...)", got, want)
 	}
 }
