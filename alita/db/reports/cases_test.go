@@ -88,31 +88,79 @@ func TestCreateStoresParentChat(t *testing.T) {
 	}
 }
 
-func TestCountOpenReportersCountsDistinctPeople(t *testing.T) {
+func TestCreateStoresSnippet(t *testing.T) {
 	chatID := newReportCaseChat(t)
 
-	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 9, ReportedMessageId: 1, ReporterId: 100})
-	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 9, ReportedMessageId: 2, ReporterId: 100})
-	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 9, ReportedMessageId: 2, ReporterId: 101})
-	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 10, ReportedMessageId: 3, ReporterId: 102})
-
-	count, err := CountOpenReporters(chatID, 9)
+	mustCreateReport(t, &models.Report{
+		ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42, Snippet: "buy cheap now",
+	})
+	rows, err := OpenForMessage(chatID, 505)
 	if err != nil {
-		t.Fatalf("CountOpenReporters() error = %v", err)
+		t.Fatalf("OpenForMessage() error = %v", err)
 	}
-	if count != 2 {
-		t.Fatalf("CountOpenReporters() = %d, want 2 distinct reporters", count)
+	if len(rows) != 1 || rows[0].Snippet != "buy cheap now" {
+		t.Fatalf("stored rows = %+v, want the snippet kept", rows)
+	}
+}
+
+func TestCreateRejectsUnknownStatus(t *testing.T) {
+	chatID := newReportCaseChat(t)
+
+	_, err := Create(&models.Report{
+		ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42, Status: "lost",
+	})
+	if err == nil {
+		t.Fatal("Create() with an unknown status error = nil, want the status CHECK to reject it")
+	}
+}
+
+// setResolvedAt backdates a closed report.
+func setResolvedAt(t *testing.T, chatID, messageID int64, at time.Time) {
+	t.Helper()
+	if err := db.DB.Model(&models.Report{}).
+		Where("chat_id = ? AND reported_message_id = ?", chatID, messageID).
+		Update("resolved_at", at).Error; err != nil {
+		t.Fatalf("backdate report of message %d: %v", messageID, err)
+	}
+}
+
+func TestDeleteResolvedBeforeKeepsOpenAndRecentReports(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	now := time.Now()
+	cutoff := now.Add(-90 * 24 * time.Hour)
+
+	// 1: closed long ago; 2: closed recently; 3: open and old.
+	for _, msgID := range []int64{1, 2, 3} {
+		mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 9, ReportedMessageId: msgID, ReporterId: 100})
+	}
+	for _, msgID := range []int64{1, 2} {
+		if _, err := Resolve(chatID, msgID, models.ReportStatusDismissed, 7); err != nil {
+			t.Fatalf("Resolve(%d) error = %v", msgID, err)
+		}
+	}
+	setResolvedAt(t, chatID, 1, cutoff.Add(-time.Hour))
+	setResolvedAt(t, chatID, 2, cutoff.Add(time.Hour))
+	if err := db.DB.Model(&models.Report{}).
+		Where("chat_id = ? AND reported_message_id = ?", chatID, 3).
+		Update("created_at", cutoff.Add(-time.Hour)).Error; err != nil {
+		t.Fatalf("backdate open report: %v", err)
 	}
 
-	if _, err := Resolve(chatID, 2, models.ReportStatusDismissed, 7); err != nil {
-		t.Fatalf("Resolve() error = %v", err)
-	}
-	count, err = CountOpenReporters(chatID, 9)
+	deleted, err := DeleteResolvedBefore(cutoff)
 	if err != nil {
-		t.Fatalf("CountOpenReporters() after resolve error = %v", err)
+		t.Fatalf("DeleteResolvedBefore() error = %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("CountOpenReporters() after resolving message 2 = %d, want 1", count)
+	if deleted < 1 {
+		t.Fatalf("DeleteResolvedBefore() deleted = %d, want the old closed report", deleted)
+	}
+
+	var left []int64
+	if err := db.DB.Model(&models.Report{}).Where("chat_id = ?", chatID).
+		Order("reported_message_id").Pluck("reported_message_id", &left).Error; err != nil {
+		t.Fatalf("list reports: %v", err)
+	}
+	if len(left) != 2 || left[0] != 2 || left[1] != 3 {
+		t.Fatalf("reports left = %v, want [2 3]: the recent closed and the open one", left)
 	}
 }
 

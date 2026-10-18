@@ -51,6 +51,19 @@ func reportReason(text string) string {
 	return text
 }
 
+// reportSnippet is the start of the reported message's text or caption. The
+// log channel keeps the copy; the stored row only needs to recognise it.
+func reportSnippet(m *gotgbot.Message) string {
+	text := m.Text
+	if text == "" {
+		text = m.Caption
+	}
+	if r := []rune(text); len(r) > models.MaxReportSnippetRunes {
+		text = string(r[:models.MaxReportSnippetRunes])
+	}
+	return text
+}
+
 func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	sender := ctx.EffectiveSender
@@ -178,12 +191,27 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		ReportedMessageId: reportedMsgId,
 		ReporterId:        user.Id,
 		Reason:            reason,
+		Snippet:           reportSnippet(msg.ReplyToMessage),
 	})
 	if storeErr != nil {
 		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, storeErr)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	// Once the card is in the log channel, the group only learns that the
+	// admins were told; otherwise it gets the report with its buttons.
+	if deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created) {
+		text, _ := tr.GetString("reports_sent_to_admins")
+		_, err = msg.Reply(b, text, &gotgbot.SendMessageOpts{
+			ReplyParameters: &gotgbot.ReplyParameters{MessageId: replyMsgId, AllowSendingWithoutReply: true},
+		})
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
 	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
 		reportTemplate,
@@ -280,11 +308,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		log.Error(err)
 		return err
-	}
-	// A report that could not be stored still reaches the log channel, as an
-	// untracked card; a repeat of a stored report changes nothing.
-	if stored := storeErr == nil; created || !stored {
-		deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, stored)
 	}
 	return ext.EndGroups
 }
@@ -460,6 +483,14 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// legacyReportStatus maps the in-group report buttons to report decisions.
+var legacyReportStatus = map[string]string{
+	"kick":     models.ReportStatusKicked,
+	"ban":      models.ReportStatusBanned,
+	"delete":   models.ReportStatusDeleted,
+	"resolved": models.ReportStatusDismissed,
+}
+
 func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -572,6 +603,10 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
+	// Record the decision on the stored reports, so they count as closed.
+	if _, err := reports.Resolve(chat.Id, msgId, legacyReportStatus[action], user.Id); err != nil {
+		log.Errorf("[Reports] failed to close reports of message %d in %d after %s: %v", msgId, chat.Id, action, err)
+	}
 	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ChatId: chat.Id,
 		ParseMode: formatting.HTML})
 	if err != nil {
@@ -608,6 +643,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
 	helpers.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))
+	startReportRetentionSweeper()
 }
 
 func init() {

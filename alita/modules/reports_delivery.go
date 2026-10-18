@@ -24,10 +24,13 @@ const reportExcerptRunes = 300
 // log channel, or updates the card already posted for it. One card per
 // message: it replies to a copy of the reported message (kept as evidence
 // even if the original is deleted) and shows how many members reported it.
-// Delivery failures are logged and never block the in-group reply.
+// It reports whether the stored report's card is in the log channel; when it
+// is not, the group gets the full report instead. Failures are logged.
 //
 // When the report could not be stored (stored is false), the card is posted
-// on its own: the open reports cannot be counted or linked to it.
+// on its own: the open reports cannot be counted or linked to it, so the
+// group still gets the full report. A repeat of a stored report (created is
+// false) leaves an existing card alone.
 func deliverReport(
 	b *gotgbot.Bot,
 	tr *i18n.Translator,
@@ -35,24 +38,28 @@ func deliverReport(
 	reporter *gotgbot.User,
 	reported *gotgbot.Message,
 	reason string,
-	stored bool,
-) {
+	stored, created bool,
+) bool {
 	settings := logchannels.Get(chat.Id)
 	if settings == nil || !logchannels.CategoryEnabled(settings, logchannels.CategoryReports) {
-		return
+		return false
 	}
 	channelID := settings.LogChannelID
 
 	if !stored {
 		sendReportCard(b, channelID, chat, reported,
 			reportCardText(chat, reporter, reported.From, 1, reason), reportCardMarkup(tr, chat, reported.MessageId))
-		return
+		return false
 	}
 
 	rows, err := reports.OpenForMessage(chat.Id, reported.MessageId)
 	if err != nil {
 		log.Errorf("[Reports] failed to load open reports for chat %d message %d: %v", chat.Id, reported.MessageId, err)
-		return
+		return false
+	}
+	if len(rows) == 0 {
+		// An admin closed the report before the card was posted.
+		return false
 	}
 	text := reportCardText(chat, reporter, reported.From, len(rows), reason)
 	markup := reportCardMarkup(tr, chat, reported.MessageId)
@@ -60,6 +67,9 @@ func deliverReport(
 	for _, row := range rows {
 		if row.AdminChatId == nil || row.AdminMessageId == nil || *row.AdminChatId != channelID {
 			continue
+		}
+		if !created {
+			return true
 		}
 		_, _, err := b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			Text:        text,
@@ -79,12 +89,15 @@ func deliverReport(
 			log.Warnf("[Reports] failed to update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
 		}
 		recordReportCard(chat.Id, reported.MessageId, channelID, *row.AdminMessageId)
-		return
+		return true
 	}
 
-	if cardID := sendReportCard(b, channelID, chat, reported, text, markup); cardID != 0 {
-		recordReportCard(chat.Id, reported.MessageId, channelID, cardID)
+	cardID := sendReportCard(b, channelID, chat, reported, text, markup)
+	if cardID == 0 {
+		return false
 	}
+	recordReportCard(chat.Id, reported.MessageId, channelID, cardID)
+	return true
 }
 
 // isReportCardGone reports whether editing the card failed because the card

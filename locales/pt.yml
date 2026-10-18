@@ -1644,6 +1644,7 @@ reports_action_by: "Ação tomada por %s"
 reports_resolved_by: "<b>Resolvido por:</b> %s"
 reports_message_template: "<b>⚠️ Report:</b>\n<b> • Reportado por:</b> %s\n<b> • Usuário reportado:</b> %s\n<b>Status:</b> <i>Pendente...</i>"
 reports_invalid_action: "Ação inválida."
+reports_sent_to_admins: "Reportado aos administradores."
 
 # Captcha module strings
 captcha_mode_math_desc: "problemas matemáticos"

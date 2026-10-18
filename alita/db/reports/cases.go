@@ -49,14 +49,16 @@ func OpenForMessage(chatID, messageID int64) ([]models.Report, error) {
 	return rows, err
 }
 
-// CountOpenReporters counts distinct members with an open report against userID.
-func CountOpenReporters(chatID, userID int64) (int64, error) {
-	var n int64
-	err := db.DB.Model(&models.Report{}).
-		Where("chat_id = ? AND reported_user_id = ? AND status = ?", chatID, userID, models.ReportStatusOpen).
-		Distinct("reporter_id").
-		Count(&n).Error
-	return n, err
+// DeleteResolvedBefore removes closed reports resolved before cutoff and
+// returns how many it removed. Open reports are kept however old they are.
+func DeleteResolvedBefore(cutoff time.Time) (int64, error) {
+	res := db.DB.
+		Where("status <> ? AND resolved_at < ?", models.ReportStatusOpen, cutoff).
+		Delete(&models.Report{})
+	if res.Error != nil {
+		return 0, fmt.Errorf("delete resolved reports: %w", res.Error)
+	}
+	return res.RowsAffected, nil
 }
 
 func isDecision(status string) bool {

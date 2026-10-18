@@ -13,9 +13,14 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
-const reportCardChannelID int64 = -1009876543210
+const (
+	reportCardChannelID int64 = -1009876543210
+	reportCardAdminID   int64 = 50
+)
 
 func callsToChat(client *moduleBotClient, method string, chatID int64) []moduleBotCall {
 	var out []moduleBotCall
@@ -40,6 +45,38 @@ func replyTargetID(t *testing.T, call moduleBotCall) string {
 		t.Fatalf("decode reply_parameters %s: %v", raw, err)
 	}
 	return params.MessageId.String()
+}
+
+// legacyReportActions lists the actions of the in-group report buttons.
+func legacyReportActions(t *testing.T, markup any) map[string]string {
+	t.Helper()
+	return markupActions(t, markup, "report")
+}
+
+// markupActions returns the callback data of a keyboard's buttons in
+// namespace, by their "a" field.
+func markupActions(t *testing.T, markup any, namespace string) map[string]string {
+	t.Helper()
+	raw, err := json.Marshal(markup)
+	if err != nil {
+		t.Fatalf("marshal reply_markup: %v", err)
+	}
+	var keyboard gotgbot.InlineKeyboardMarkup
+	if err := json.Unmarshal(raw, &keyboard); err != nil {
+		t.Fatalf("decode reply_markup %s: %v", raw, err)
+	}
+	actions := map[string]string{}
+	for _, row := range keyboard.InlineKeyboard {
+		for _, button := range row {
+			decoded, ok := decodeCallbackData(button.CallbackData, namespace)
+			if !ok {
+				continue
+			}
+			action, _ := decoded.Field("a")
+			actions[action] = button.CallbackData
+		}
+	}
+	return actions
 }
 
 type reportCardFixture struct {
@@ -118,9 +155,68 @@ func TestReportCardSentToLogChannel(t *testing.T) {
 		t.Fatalf("stored card = (%d, %d), want (%d, 9001)", *rows[0].AdminChatId, *rows[0].AdminMessageId, reportCardChannelID)
 	}
 
-	if group := callsToChat(f.client, "sendMessage", f.chat.Id); len(group) != 1 || group[0].Params["reply_markup"] == nil {
-		t.Fatalf("group sendMessage calls = %d, want the unchanged in-group report", len(group))
+	assertShortGroupReply(t, f)
+}
+
+// assertShortGroupReply checks that every in-group reply is the short notice
+// that the card reached the admins, with no admin mentions or buttons.
+func assertShortGroupReply(t *testing.T, f reportCardFixture) {
+	t.Helper()
+	want, _ := i18n.MustNewTranslator("en").GetString("reports_sent_to_admins")
+	group := callsToChat(f.client, "sendMessage", f.chat.Id)
+	if len(group) == 0 {
+		t.Fatal("group sendMessage calls = 0, want the short in-group reply")
 	}
+	for _, call := range group {
+		if call.Params["reply_markup"] != nil || fmt.Sprint(call.Params["text"]) != want {
+			t.Fatalf("group reply = %v, want only %q without buttons", call.Params, want)
+		}
+	}
+}
+
+// assertFullGroupReply checks that the in-group reply is the report with its
+// action buttons, as without a log channel.
+func assertFullGroupReply(t *testing.T, f reportCardFixture) {
+	t.Helper()
+	group := callsToChat(f.client, "sendMessage", f.chat.Id)
+	if len(group) != 1 {
+		t.Fatalf("group sendMessage calls = %d, want the full in-group report", len(group))
+	}
+	if actions := legacyReportActions(t, group[0].Params["reply_markup"]); len(actions) == 0 {
+		t.Fatalf("group reply = %v, want the in-group action buttons", group[0].Params)
+	}
+}
+
+func TestReportFallsBackWhenCardNotSent(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.client.errorsByChat = map[string]error{
+		"sendMessage|" + fmt.Sprint(reportCardChannelID): &gotgbot.TelegramError{
+			Method: "sendMessage", Code: 403, Description: "Forbidden: bot is not a member of the channel chat",
+		},
+	}
+	f.report(t, f.reporter, "/report spam")
+
+	assertFullGroupReply(t, f)
+	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].AdminMessageId != nil {
+		t.Fatalf("stored report = %+v, want a row without a card", rows)
+	}
+}
+
+func TestRepeatReportWithoutCardRetriesCard(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.client.errorsByChat = map[string]error{
+		"sendMessage|" + fmt.Sprint(reportCardChannelID): errors.New("context deadline exceeded"),
+	}
+	f.report(t, f.reporter, "/report spam")
+	f.client.errorsByChat = nil
+	f.client.calls = nil
+
+	f.report(t, f.reporter, "/report spam again")
+
+	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 1 {
+		t.Fatalf("log channel sendMessage calls = %d, want the card the first report could not post", got)
+	}
+	assertShortGroupReply(t, f)
 }
 
 func TestReportCardFallbackWhenCopyFails(t *testing.T) {
@@ -192,6 +288,7 @@ func TestRepeatReportDoesNotTouchCard(t *testing.T) {
 	if got := len(callsToChat(f.client, "editMessageText", reportCardChannelID)); got != 0 {
 		t.Fatalf("card edits = %d, want 0 for a repeated report", got)
 	}
+	assertShortGroupReply(t, f)
 }
 
 func editMessageTextError(description string) error {
@@ -265,6 +362,34 @@ func TestReportCardSentWhenStoreFails(t *testing.T) {
 	if len(cards) != 1 || !strings.Contains(fmt.Sprint(cards[0].Params["text"]), "#REPORT") {
 		t.Fatalf("log channel sendMessage calls = %v, want the report card despite the store failure", cards)
 	}
+	// The card is not linked to a stored report, so the group keeps the
+	// full report with its buttons.
+	assertFullGroupReply(t, f)
+}
+
+func TestReportClosedBeforeDeliverySendsNoCard(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	reported := &gotgbot.Message{MessageId: 505, Date: 1, Chat: f.chat, From: &f.target, Text: "spam"}
+	if _, err := reports.Create(&models.Report{
+		ChatId: f.chat.Id, ReportedUserId: f.target.Id, ReportedMessageId: 505, ReporterId: f.reporter.Id,
+	}); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	// An admin closes it with the in-group button before the card goes out.
+	if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+
+	if deliverReport(f.bot, i18n.MustNewTranslator("en"), &f.chat, &f.reporter, reported, "spam", true, true) {
+		t.Fatal("deliverReport() = true, want false without a card")
+	}
+
+	if got := len(f.client.callsFor("copyMessage")); got != 0 {
+		t.Fatalf("copyMessage calls = %d, want 0 for a closed report", got)
+	}
+	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
+		t.Fatalf("log channel sendMessage calls = %d, want no card for a closed report", got)
+	}
 }
 
 func TestNoLogChannelKeepsGroupBehaviour(t *testing.T) {
@@ -281,6 +406,7 @@ func TestNoLogChannelKeepsGroupBehaviour(t *testing.T) {
 	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].AdminMessageId != nil {
 		t.Fatalf("stored report = %+v, want a row without a card", rows)
 	}
+	assertFullGroupReply(t, f)
 }
 
 func TestReportsCategoryDisabledSkipsCard(t *testing.T) {
@@ -296,4 +422,5 @@ func TestReportsCategoryDisabledSkipsCard(t *testing.T) {
 	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
 		t.Fatalf("log channel sendMessage calls = %d, want 0", got)
 	}
+	assertFullGroupReply(t, f)
 }

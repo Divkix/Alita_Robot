@@ -1,7 +1,9 @@
 package modules
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -105,6 +107,39 @@ func TestReportReasonIsCapped(t *testing.T) {
 	}
 }
 
+func TestReportStoresShortSnippetOfMessage(t *testing.T) {
+	long := strings.Repeat("ж", models.MaxReportSnippetRunes+50)
+	for name, tc := range map[string]struct {
+		text, caption, want string
+	}{
+		"long text":    {text: long, want: strings.Repeat("ж", models.MaxReportSnippetRunes)},
+		"caption":      {caption: "photo caption", want: "photo caption"},
+		"no text":      {want: ""},
+		"text wins":    {text: "text", caption: "caption", want: "text"},
+		"short intact": {text: "buy cheap now", want: "buy cheap now"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+			reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+			target := gotgbot.User{Id: 43, FirstName: "Target"}
+
+			ctx := newReportReplyContext(bot, chat, reporter, target, "/report spam")
+			ctx.EffectiveMessage.ReplyToMessage.Text = tc.text
+			ctx.EffectiveMessage.ReplyToMessage.Caption = tc.caption
+			if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("report error = %v, want EndGroups", err)
+			}
+
+			rows := storedReports(t, chat.Id)
+			if len(rows) != 1 || rows[0].Snippet != tc.want {
+				t.Fatalf("stored rows = %+v, want snippet %q", rows, tc.want)
+			}
+		})
+	}
+}
+
 func TestReportNotPersistedWhenRejected(t *testing.T) {
 	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
 	target := gotgbot.User{Id: 43, FirstName: "Target"}
@@ -195,5 +230,69 @@ func TestReportStillReachesGroupWhenStoreFails(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 || calls[0].Params["reply_markup"] == nil {
 		t.Fatalf("group reply calls = %d, want the admin report with buttons despite the store failure", len(calls))
+	}
+}
+
+func TestSweepDeletesReportsClosedOver90DaysAgo(t *testing.T) {
+	chatID := uniqueModuleChatID()
+	now := time.Now()
+	for msgID, closedAt := range map[int64]time.Time{
+		1: now.Add(-91 * 24 * time.Hour),
+		2: now.Add(-89 * 24 * time.Hour),
+	} {
+		if _, err := reports.Create(&models.Report{
+			ChatId: chatID, ReportedUserId: 43, ReportedMessageId: msgID, ReporterId: 42,
+		}); err != nil {
+			t.Fatalf("Create(%d) error = %v", msgID, err)
+		}
+		if _, err := reports.Resolve(chatID, msgID, models.ReportStatusDismissed, 7); err != nil {
+			t.Fatalf("Resolve(%d) error = %v", msgID, err)
+		}
+		if err := db.DB.Model(&models.Report{}).
+			Where("chat_id = ? AND reported_message_id = ?", chatID, msgID).
+			Update("resolved_at", closedAt).Error; err != nil {
+			t.Fatalf("backdate report %d: %v", msgID, err)
+		}
+	}
+
+	sweepClosedReports(now)
+
+	rows := storedReports(t, chatID)
+	if len(rows) != 1 || rows[0].ReportedMessageId != 2 {
+		t.Fatalf("reports left = %+v, want only the one closed 89 days ago", rows)
+	}
+}
+
+func TestLegacyButtonResolvesRows(t *testing.T) {
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	for action, status := range map[string]string{
+		"kick":     models.ReportStatusKicked,
+		"ban":      models.ReportStatusBanned,
+		"delete":   models.ReportStatusDeleted,
+		"resolved": models.ReportStatusDismissed,
+	} {
+		t.Run(action, func(t *testing.T) {
+			f := newReportCardFixture(t, false)
+			seedCallbackAdmins(t, f.chat.Id,
+				gotgbot.MergedChatMember{
+					Status: "administrator", User: gotgbot.User{Id: 999, IsBot: true},
+					CanRestrictMembers: true, CanDeleteMessages: true,
+				},
+				gotgbot.MergedChatMember{Status: "creator", User: admin},
+			)
+			f.report(t, f.reporter, "/report spam")
+			data := encodeCallbackData("report", map[string]string{"a": action, "u": "43", "m": "505"})
+			if err := reportsModule.markResolvedButtonHandler(f.bot, newModuleCallbackContext(f.bot, f.chat, admin, data)); err != ext.EndGroups {
+				t.Fatalf("legacy %s error = %v, want EndGroups", action, err)
+			}
+
+			rows := storedReports(t, f.chat.Id)
+			if len(rows) != 1 || rows[0].Status != status {
+				t.Fatalf("stored reports = %+v, want one with status %q", rows, status)
+			}
+			if rows[0].ResolvedBy == nil || *rows[0].ResolvedBy != admin.Id || rows[0].ResolvedAt == nil {
+				t.Fatalf("resolved_by = %v, resolved_at = %v; want %d and a time", rows[0].ResolvedBy, rows[0].ResolvedAt, admin.Id)
+			}
+		})
 	}
 }
