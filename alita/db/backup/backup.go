@@ -572,7 +572,9 @@ func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	if err := replaceChatSetting(tx, chatID, data.ConnectionSettings); err != nil {
 		return nil, fmt.Errorf("restore connection settings: %w", err)
 	}
-	if data.BlacklistMode != "" {
+	// An unusable mode is ignored like a missing one; Postgres would reject it
+	// and abort the whole import.
+	if models.ValidBlacklistAction(data.BlacklistMode) {
 		if err := tx.Model(&models.BlacklistSettings{}).
 			Where("chat_id = ?", chatID).
 			Update("action", data.BlacklistMode).Error; err != nil {
@@ -645,16 +647,20 @@ func importBlacklists(tx *gorm.DB, chatID int64, payload interface{}) ([]string,
 	if len(data.Entries) == 0 && data.Settings != nil {
 		data.Entries = []models.BlacklistSettings{*data.Settings}
 	}
+	// Postgres rejects an action outside chk_blacklist_action and would abort
+	// the whole import, so a missing or unusable one falls back to the mode,
+	// then to the default.
+	mode := data.BlacklistMode
+	if !models.ValidBlacklistAction(mode) {
+		mode = "warn"
+	}
 	for i := range data.Entries {
 		if data.Entries[i].Word == "" {
 			return nil, fmt.Errorf("invalid empty blacklist word")
 		}
 		data.Entries[i].ChatId = chatID
-		if data.Entries[i].Action == "" {
-			data.Entries[i].Action = data.BlacklistMode
-		}
-		if data.Entries[i].Action == "" {
-			data.Entries[i].Action = "warn"
+		if !models.ValidBlacklistAction(data.Entries[i].Action) {
+			data.Entries[i].Action = mode
 		}
 	}
 	if err := replaceChatRows(tx, chatID, data.Entries); err != nil {
