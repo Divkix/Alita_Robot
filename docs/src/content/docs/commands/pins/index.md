@@ -36,7 +36,6 @@ Create custom pinned messages with:
 - Text with HTML/Markdown formatting
 - Inline buttons with URLs
 - Media attachments (photos, documents, stickers, audio, video, voice notes, video notes)
-- All standard message fillings ({first}, {chatname}, etc.)
 
 **Supported via Connection:**
 The following commands work when connected to a chat via `/connect`:
