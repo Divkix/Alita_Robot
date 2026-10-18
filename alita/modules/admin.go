@@ -569,7 +569,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	_, err = msg.Reply(c.Bot,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_success_set")
-			return fmt.Sprintf(temp, mem.User.FirstName, mem.CustomTitle)
+			return fmt.Sprintf(temp, formatting.HtmlEscape(mem.User.FirstName), formatting.HtmlEscape(mem.CustomTitle))
 		}()+extraText,
 		formatting.Shtml(),
 	)

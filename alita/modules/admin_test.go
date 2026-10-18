@@ -387,6 +387,31 @@ func TestSetTitleReplyUpdatesAdminTitle(t *testing.T) {
 	}
 }
 
+// The success reply is HTML, so a name or title with markup characters must be
+// escaped or Telegram rejects the reply after the title was already set.
+func TestSetTitleReplyEscapesNameAndTitle(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client := f.client
+	targetJSON := `{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"<x & y>"},"custom_title":"<x & y>","can_promote_members":true}`
+	client.responses["getChatMember"] = []byte(targetJSON)
+	f.addAdmins(targetJSON)
+	bot, chat, admin := f.bot, f.chat, f.admin
+	target := gotgbot.User{Id: 42, FirstName: "<x & y>"}
+	ctx := newBanReplyContext(bot, chat, admin, target, "/title Captain")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+
+	if err := adminModule.setTitle(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("setTitle() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if strings.Contains(text, "<x & y>") || !strings.Contains(text, "&lt;x &amp; y&gt;") {
+		t.Fatalf("title reply does not escape the name and title:\n%s", text)
+	}
+}
+
 func TestSetTitleValidationAndTruncation(t *testing.T) {
 	f := newAdminChatFixture(t)
 	f.makeOwner()
