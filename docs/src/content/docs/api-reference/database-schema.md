@@ -123,8 +123,8 @@ Stores blacklisted words and their actions per chat.
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
-| `chat_id` | `BIGINT` | NO | — | — |
-| `word` | `TEXT` | NO | — | — |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `word`) |
+| `word` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `word`) |
 | `action` | `TEXT` | YES | `'warn'` | CHECK (`action IN ('warn','mute','ban','kick','tban','tmute','delete','none')`) |
 | `reason` | `TEXT` | YES | — | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
@@ -149,8 +149,8 @@ Tracks active captcha verification attempts for users.
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
-| `user_id` | `BIGINT` | NO | — | — |
-| `chat_id` | `BIGINT` | NO | — | — |
+| `user_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
 | `answer` | `VARCHAR(255)` | NO | — | — |
 | `attempts` | `INTEGER` | YES | `0` | — |
 | `message_id` | `BIGINT` | YES | — | — |
@@ -180,8 +180,8 @@ Tracks users who failed captcha with mute action, for automatic un-mute scheduli
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
-| `user_id` | `BIGINT` | NO | — | — |
-| `chat_id` | `BIGINT` | NO | — | — |
+| `user_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
 | `unmute_at` | `TIMESTAMPTZ` | NO | — | — |
 | `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
@@ -234,13 +234,13 @@ Stores channel metadata and linked channel relationships.
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `channel_id` | `BIGINT` | YES | — | — |
 | `channel_name` | `TEXT` | YES | — | — |
-| `username` | `TEXT` | YES | — | — |
+| `username` | `TEXT` | YES | — | UNIQUE on `LOWER(username)` where `username <> ''` (case-insensitive) |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
-- `idx_channels_username`
+- `idx_channels_username` (unique, on `LOWER(username)` WHERE `username <> ''`; migration `20260730010000`)
 
 #### Foreign Keys
 
