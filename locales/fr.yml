@@ -667,23 +667,9 @@ greetings_goodbye_status: |
   Je supprime actuellement les anciens messages d'au revoir : <code>%s</code>
   Je supprime actuellement les messages de service : <code>%s</code>
   Le message d'au revoir actuel est :
-greetings_goodbye_enabled: "Je dirai au revoir aux utilisateurs à partir de maintenant."
-greetings_goodbye_disabled: "Je ne dirai plus au revoir aux utilisateurs."
-greetings_goodbye_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
 greetings_goodbye_set_success: "Message d'au revoir personnalisé défini avec succès !"
-greetings_goodbye_reset_success: "Message d'au revoir réinitialisé par défaut avec succès !"
-greetings_clean_welcome_status_should: "Je devrais supprimer les messages de bienvenue vieux de jusqu'à deux jours."
-greetings_clean_welcome_status_not: "Je ne supprime actuellement pas les anciens messages de bienvenue !"
-greetings_clean_welcome_disabled: "Je ne supprimerai pas les anciens messages de bienvenue !"
-greetings_clean_welcome_enabled: "J'essaierai de supprimer les anciens messages de bienvenue !"
 greetings_clean_welcome_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
-greetings_clean_goodbye_status_should: "Je devrais supprimer les messages d'au revoir vieux de jusqu'à deux jours."
-greetings_clean_goodbye_status_not: "Je ne supprime actuellement pas les anciens messages d'au revoir !"
-greetings_clean_goodbye_disabled: "Je ne supprimerai pas les anciens messages d'au revoir !"
-greetings_clean_goodbye_enabled: "J'essaierai de supprimer les anciens messages d'au revoir !"
 greetings_clean_goodbye_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
-greetings_clean_service_enabled: "Je devrais supprimer les messages 'utilisateur a rejoint le chat' maintenant."
-greetings_clean_service_disabled: "Je ne supprime actuellement pas les messages de rejointe."
 greetings_clean_service_disable: "Je ne supprimerai pas les messages de rejointe."
 greetings_clean_service_enable: "J'essaierai de supprimer les messages de rejointe !"
 greetings_clean_service_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"

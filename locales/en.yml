@@ -1391,23 +1391,9 @@ greetings_goodbye_status: |
   I am currently deleting old goodbyes: <code>%s</code>
   I am currently deleting service messages: <code>%s</code>
   The current goodbye message is:
-greetings_goodbye_enabled: "I'll goodbye users from now on."
-greetings_goodbye_disabled: "I'll not goodbye users from now on."
-greetings_goodbye_invalid_option: "I understand 'on/yes' or 'off/no' only!"
 greetings_goodbye_set_success: "Successfully set custom goodbye message!"
-greetings_goodbye_reset_success: "Successfully reset custom goodbye message to default!"
-greetings_clean_welcome_status_should: "I should be deleting welcome messages up to two days old."
-greetings_clean_welcome_status_not: "I'm currently not deleting old welcome messages!"
-greetings_clean_welcome_disabled: "I'll not delete old welcome messages!"
-greetings_clean_welcome_enabled: "I'll try to delete old welcome messages!"
 greetings_clean_welcome_invalid_option: "I understand 'on/yes' or 'off/no' only!"
-greetings_clean_goodbye_status_should: "I should be deleting goodbye messages up to two days old."
-greetings_clean_goodbye_status_not: "I'm currently not deleting old goodbye messages!"
-greetings_clean_goodbye_disabled: "I'll not delete old goodbye messages!"
-greetings_clean_goodbye_enabled: "I'll try to delete old goodbye messages!"
 greetings_clean_goodbye_invalid_option: "I understand 'on/yes' or 'off/no' only!"
-greetings_clean_service_enabled: "I should be deleting `user` joined the chat messages now."
-greetings_clean_service_disabled: "I'm currently not deleting joined messages."
 greetings_clean_service_disable: "I won't delete joined messages."
 greetings_clean_service_enable: "I'll try to delete joined messages!"
 greetings_clean_service_invalid_option: "I understand 'on/yes' or 'off/no' only!"

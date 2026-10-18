@@ -1167,23 +1167,9 @@ greetings_goodbye_status: |
   Я в данный момент удаляю старые прощания: <code>%s</code>
   Я в данный момент удаляю служебные сообщения: <code>%s</code>
   Текущее прощальное сообщение:
-greetings_goodbye_enabled: "Я буду прощаться с пользователями с этого момента."
-greetings_goodbye_disabled: "Я не буду прощаться с пользователями с этого момента."
-greetings_goodbye_invalid_option: "Я понимаю только 'on/yes' или 'off/no'!"
 greetings_goodbye_set_success: "Пользовательское прощальное сообщение успешно установлено!"
-greetings_goodbye_reset_success: "Прощальное сообщение успешно сброшено на стандартное!"
-greetings_clean_welcome_status_should: "Я должен удалять приветственные сообщения до двух дней."
-greetings_clean_welcome_status_not: "Я в данный момент не удаляю старые приветственные сообщения!"
-greetings_clean_welcome_disabled: "Я не буду удалять старые приветственные сообщения!"
-greetings_clean_welcome_enabled: "Я попробую удалять старые приветственные сообщения!"
 greetings_clean_welcome_invalid_option: "Я понимаю только 'on/yes' или 'off/no'!"
-greetings_clean_goodbye_status_should: "Я должен удалять прощальные сообщения до двух дней."
-greetings_clean_goodbye_status_not: "Я в данный момент не удаляю старые прощальные сообщения!"
-greetings_clean_goodbye_disabled: "Я не буду удалять старые прощальные сообщения!"
-greetings_clean_goodbye_enabled: "Я попробую удалять старые прощальные сообщения!"
 greetings_clean_goodbye_invalid_option: "Я понимаю только 'on/yes' или 'off/no'!"
-greetings_clean_service_enabled: "Я должен удалять сообщения 'пользователь' присоединился к чату сейчас."
-greetings_clean_service_disabled: "Я в данный момент не удаляю сообщения о присоединении."
 greetings_clean_service_disable: "Я не буду удалять сообщения о присоединении."
 greetings_clean_service_enable: "Я попробую удалять сообщения о присоединении!"
 greetings_clean_service_invalid_option: "Я понимаю только 'on/yes' или 'off/no'!"

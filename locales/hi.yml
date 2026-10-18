@@ -1221,23 +1221,9 @@ greetings_goodbye_status: |
   मैं वर्तमान में पुराने अलविदा हटा रहा हूं: <code>%s</code>
   मैं वर्तमान में सेवा संदेश हटा रहा हूं: <code>%s</code>
   वर्तमान अलविदा संदेश है:
-greetings_goodbye_enabled: "मैं अब से उपयोगकर्ताओं को अलविदा कहूंगा।"
-greetings_goodbye_disabled: "मैं अब से उपयोगकर्ताओं को अलविदा नहीं कहूंगा।"
-greetings_goodbye_invalid_option: "मैं केवल 'on/yes' या 'off/no' समझता हूं!"
 greetings_goodbye_set_success: "सफलतापूर्वक कस्टम अलविदा संदेश सेट किया गया!"
-greetings_goodbye_reset_success: "कस्टम अलविदा संदेश सफलतापूर्वक डिफ़ॉल्ट पर रीसेट किया गया!"
-greetings_clean_welcome_status_should: "मुझे दो दिन पुराने स्वागत संदेश हटाने चाहिए।"
-greetings_clean_welcome_status_not: "मैं वर्तमान में पुराने स्वागत संदेश नहीं हटा रहा हूं!"
-greetings_clean_welcome_disabled: "मैं पुराने स्वागत संदेश नहीं हटाऊंगा!"
-greetings_clean_welcome_enabled: "मैं पुराने स्वागत संदेश हटाने का प्रयास करूंगा!"
 greetings_clean_welcome_invalid_option: "मैं केवल 'on/yes' या 'off/no' समझता हूं!"
-greetings_clean_goodbye_status_should: "मुझे दो दिन पुराने अलविदा संदेश हटाने चाहिए।"
-greetings_clean_goodbye_status_not: "मैं वर्तमान में पुराने अलविदा संदेश नहीं हटा रहा हूं!"
-greetings_clean_goodbye_disabled: "मैं पुराने अलविदा संदेश नहीं हटाऊंगा!"
-greetings_clean_goodbye_enabled: "मैं पुराने अलविदा संदेश हटाने का प्रयास करूंगा!"
 greetings_clean_goodbye_invalid_option: "मैं केवल 'on/yes' या 'off/no' समझता हूं!"
-greetings_clean_service_enabled: "मुझे अब 'user ने ग्रुप में शामिल हुआ' संदेश हटाने चाहिए।"
-greetings_clean_service_disabled: "मैं वर्तमान में शामिल होने के संदेश नहीं हटा रहा हूं।"
 greetings_clean_service_disable: "मैं शामिल होने के संदेश नहीं हटाऊंगा।"
 greetings_clean_service_enable: "मैं शामिल होने के संदेश हटाने का प्रयास करूंगा!"
 greetings_clean_service_invalid_option: "मैं केवल 'on/yes' या 'off/no' समझता हूं!"

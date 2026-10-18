@@ -1349,23 +1349,9 @@ greetings_goodbye_status: |
   Actualmente estoy eliminando despedidas antiguas: <code>%s</code>
   Actualmente estoy eliminando mensajes de servicio: <code>%s</code>
   El mensaje de despedida actual es:
-greetings_goodbye_enabled: "Me despediré de los usuarios de ahora en adelante."
-greetings_goodbye_disabled: "No me despediré de los usuarios de ahora en adelante."
-greetings_goodbye_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
 greetings_goodbye_set_success: "¡Mensaje de despedida personalizado establecido exitosamente!"
-greetings_goodbye_reset_success: "¡Mensaje de despedida personalizado restablecido exitosamente al predeterminado!"
-greetings_clean_welcome_status_should: "Debería estar eliminando mensajes de bienvenida de hasta dos días de antigüedad."
-greetings_clean_welcome_status_not: "¡Actualmente no estoy eliminando mensajes de bienvenida antiguos!"
-greetings_clean_welcome_disabled: "¡No eliminaré mensajes de bienvenida antiguos!"
-greetings_clean_welcome_enabled: "¡Intentaré eliminar mensajes de bienvenida antiguos!"
 greetings_clean_welcome_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
-greetings_clean_goodbye_status_should: "Debería estar eliminando mensajes de despedida de hasta dos días de antigüedad."
-greetings_clean_goodbye_status_not: "¡Actualmente no estoy eliminando mensajes de despedida antiguos!"
-greetings_clean_goodbye_disabled: "¡No eliminaré mensajes de despedida antiguos!"
-greetings_clean_goodbye_enabled: "¡Intentaré eliminar mensajes de despedida antiguos!"
 greetings_clean_goodbye_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
-greetings_clean_service_enabled: "Debería estar eliminando mensajes de 'usuario se unió al chat' ahora."
-greetings_clean_service_disabled: "Actualmente no estoy eliminando mensajes de unirse."
 greetings_clean_service_disable: "No eliminaré mensajes de unirse."
 greetings_clean_service_enable: "¡Intentaré eliminar mensajes de unirse!"
 greetings_clean_service_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"

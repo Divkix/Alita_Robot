@@ -1343,23 +1343,9 @@ greetings_goodbye_status: |
   Saya saat ini menghapus selamat tinggal lama: <code>%s</code>
   Saya saat ini menghapus pesan layanan: <code>%s</code>
   Pesan selamat tinggal saat ini adalah:
-greetings_goodbye_enabled: "Saya akan mengucapkan selamat tinggal pengguna mulai sekarang."
-greetings_goodbye_disabled: "Saya tidak akan mengucapkan selamat tinggal pengguna mulai sekarang."
-greetings_goodbye_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/no'!"
 greetings_goodbye_set_success: "Berhasil mengatur pesan selamat tinggal khusus!"
-greetings_goodbye_reset_success: "Berhasil mengatur ulang pesan selamat tinggal ke default!"
-greetings_clean_welcome_status_should: "Saya seharusnya menghapus pesan selamat datang hingga dua hari."
-greetings_clean_welcome_status_not: "Saya saat ini tidak menghapus pesan selamat datang lama!"
-greetings_clean_welcome_disabled: "Saya tidak akan menghapus pesan selamat datang lama!"
-greetings_clean_welcome_enabled: "Saya akan mencoba menghapus pesan selamat datang lama!"
 greetings_clean_welcome_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/no'!"
-greetings_clean_goodbye_status_should: "Saya seharusnya menghapus pesan selamat tinggal hingga dua hari."
-greetings_clean_goodbye_status_not: "Saya saat ini tidak menghapus pesan selamat tinggal lama!"
-greetings_clean_goodbye_disabled: "Saya tidak akan menghapus pesan selamat tinggal lama!"
-greetings_clean_goodbye_enabled: "Saya akan mencoba menghapus pesan selamat tinggal lama!"
 greetings_clean_goodbye_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/no'!"
-greetings_clean_service_enabled: "Saya seharusnya menghapus pesan 'pengguna bergabung' sekarang."
-greetings_clean_service_disabled: "Saya saat ini tidak menghapus pesan bergabung."
 greetings_clean_service_disable: "Saya tidak akan menghapus pesan bergabung."
 greetings_clean_service_enable: "Saya akan mencoba menghapus pesan bergabung!"
 greetings_clean_service_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/no'!"

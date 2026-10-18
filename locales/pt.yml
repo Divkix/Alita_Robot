@@ -1314,23 +1314,9 @@ greetings_goodbye_status: |
   Estou deletando adeus antigos: <code>%s</code>
   Estou deletando mensagens de serviço: <code>%s</code>
   A mensagem de despedida atual é:
-greetings_goodbye_enabled: "Vou dar adeus aos usuários de agora em diante."
-greetings_goodbye_disabled: "Não vou dar adeus aos usuários de agora em diante."
-greetings_goodbye_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
 greetings_goodbye_set_success: "Mensagem de adeus personalizada definida com sucesso!"
-greetings_goodbye_reset_success: "Mensagem de adeus resetada para o padrão com sucesso!"
-greetings_clean_welcome_status_should: "Eu deveria estar deletando mensagens de boas-vindas com até dois dias de idade."
-greetings_clean_welcome_status_not: "Atualmente não estou deletando mensagens de boas-vindas antigas!"
-greetings_clean_welcome_disabled: "Não vou deletar mensagens de boas-vindas antigas!"
-greetings_clean_welcome_enabled: "Vou tentar deletar mensagens de boas-vindas antigas!"
 greetings_clean_welcome_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
-greetings_clean_goodbye_status_should: "Eu deveria estar deletando mensagens de adeus com até dois dias de idade."
-greetings_clean_goodbye_status_not: "Atualmente não estou deletando mensagens de adeus antigas!"
-greetings_clean_goodbye_disabled: "Não vou deletar mensagens de adeus antigas!"
-greetings_clean_goodbye_enabled: "Vou tentar deletar mensagens de adeus antigas!"
 greetings_clean_goodbye_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
-greetings_clean_service_enabled: "Eu deveria estar deletando mensagens de 'usuário' entrou no chat agora."
-greetings_clean_service_disabled: "Atualmente não estou deletando mensagens de entrada."
 greetings_clean_service_disable: "Não vou deletar mensagens de entrada."
 greetings_clean_service_enable: "Vou tentar deletar mensagens de entrada!"
 greetings_clean_service_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
