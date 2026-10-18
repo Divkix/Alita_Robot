@@ -1158,13 +1158,25 @@ formatting_markdown: |
 
   - <code>||spoiler||</code>: डबल वर्टिकल बार स्पॉइलर के लिए उपयोग किए जाते हैं। दिखाता है: <tg-spoiler>Spoiler</tg-spoiler>।
 
-  - <code>```pre```</code>: '```' के साथ फॉर्मेट किए गए टेक्स्ट के अंदर अन्य फॉर्मेटिंग अक्षरों को अनदेखा करने के लिए।
+  - <code>```pre```</code>: '```' के साथ फॉर्मेट किए गए टेक्स्ट के अंदर अन्य फॉर्मेटिंग अक्षरों को अनदेखा करने के लिए, ऐसा दिखेगा: <code>**bold** | *bold*</code>।
 
-  - <code>__underline__</code>: डबल अंडरस्कोर अंडरलाइन के लिए उपयोग किए जाते हैं।
+  - <code>__underline__</code>: डबल अंडरस्कोर अंडरलाइन के लिए उपयोग किए जाते हैं। दिखाता है: underline। नोट: कुछ क्लाइंट इसे इटैलिक समझ लेते हैं। ऐसे में अपने ऐप की बिल्ट-इन फॉर्मेटिंग का उपयोग करें।
 
-  - <code>[hyperlink](example.com)</code>: यह हाइपरलिंक के लिए फॉर्मेटिंग है।
+  - <code>[hyperlink](example.com)</code>: यह हाइपरलिंक के लिए फॉर्मेटिंग है। दिखाता है: <a href='https://example.com/'>hyperlink</a>।
 
-  - <code>[My Button](buttonurl://example.com)</code>: यह बटन बनाने के लिए फॉर्मेटिंग है।
+  - <code>[My Button](buttonurl://example.com)</code>: यह बटन बनाने के लिए फॉर्मेटिंग है। यह उदाहरण "My button" नाम का एक बटन बनाएगा जो क्लिक करने पर <code>example.com</code> खोलता है।
+
+  यदि आप बटन एक ही पंक्ति में भेजना चाहते हैं, तो <code>:same</code> फॉर्मेटिंग का उपयोग करें।
+
+  <b>उदाहरण:</b>
+
+  <code>[button 1](buttonurl:example.com)</code>
+
+  <code>[button 2](buttonurl://example.com:same)</code>
+
+  <code>[button 3](buttonurl://example.com)</code>
+
+  यह button 1 और 2 को एक ही पंक्ति में दिखाएगा, और 3 उनके नीचे।
 formatting_random: |
   <b>यादृच्छिक सामग्री</b>
 
