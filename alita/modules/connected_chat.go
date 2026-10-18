@@ -16,8 +16,7 @@ import (
 // group, or in PM the group the user is connected to. The user must be an
 // admin there (and the bot too when requireBotAdmin); on refusal it has
 // already replied and returns nil. It also points ctx.EffectiveChat at the
-// resolved chat. Pass the returned chat to later permission checks: the
-// chat_status Require* helpers read the update's chat, not EffectiveChat.
+// resolved chat, which chat_status helpers given a nil chat then check.
 // Build the reply translator before calling it: lang.GetLanguage reads
 // EffectiveChat, so afterwards it returns the group's language, while replies
 // go to the user's PM.

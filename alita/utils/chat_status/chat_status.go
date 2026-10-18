@@ -78,6 +78,10 @@ func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, se
 	return false, true
 }
 
+// extractChatFromContext returns chat if set, else the chat the update came
+// from. A PM command acting on a connected group points ctx.EffectiveChat at
+// that group; when EffectiveChat differs from the update's chat (gotgbot sets
+// them equal otherwise), the group is returned so checks run there.
 func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat {
 	if chat != nil {
 		return chat
@@ -85,7 +89,14 @@ func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat 
 	if ctx == nil {
 		return nil
 	}
-	update := ctx.Update
+	updateChat := chatFromUpdate(ctx.Update)
+	if updateChat != nil && ctx.EffectiveChat != nil && ctx.EffectiveChat.Id != updateChat.Id {
+		return ctx.EffectiveChat
+	}
+	return updateChat
+}
+
+func chatFromUpdate(update *gotgbot.Update) *gotgbot.Chat {
 	if update == nil {
 		return nil
 	}

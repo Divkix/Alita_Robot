@@ -70,6 +70,28 @@ func TestLockAndUnlockCommandsPersistSettings(t *testing.T) {
 	}
 }
 
+// From PM the commands act on the connected group, so the admin checks must
+// run there too, not on the PM.
+func TestLockCommandsFromPMActOnConnectedGroup(t *testing.T) {
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
+	pm := f.connectAdmin(t)
+
+	if err := locksModule.lockPerm(bot, newModuleMessageContext(bot, pm, admin, "/lock url")); err != ext.EndGroups {
+		t.Fatalf("lockPerm from PM error = %v, want EndGroups", err)
+	}
+	if !locks.IsPermLocked(chat.Id, "url") {
+		t.Fatal("a connected admin could not lock url from PM")
+	}
+
+	if err := locksModule.unlockPerm(bot, newModuleMessageContext(bot, pm, admin, "/unlock url")); err != ext.EndGroups {
+		t.Fatalf("unlockPerm from PM error = %v, want EndGroups", err)
+	}
+	if locks.IsPermLocked(chat.Id, "url") {
+		t.Fatal("a connected admin could not unlock url from PM")
+	}
+}
+
 func TestLockCommandsRefuseMembers(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot, chat, member := f.bot, f.chat, f.member

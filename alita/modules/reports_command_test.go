@@ -7,7 +7,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
@@ -256,16 +255,9 @@ func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 }
 
 func TestReportsSettingsPrivateAndValidationBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	privateChat := gotgbot.Chat{Id: admin.Id, Type: "private", FirstName: "Telegram"}
-	connectedChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connected Report Chat"}
-	client.responses["getChat"] = []byte(`{"id":-100777,"type":"supergroup","title":"Connected Report Chat"}`)
-	connections.ConnectId(admin.Id, connectedChat.Id)
-	t.Cleanup(func() {
-		connections.DisconnectId(admin.Id)
-	})
+	f := newAdminChatFixture(t)
+	client, bot, admin, groupChat := f.client, f.bot, f.admin, f.chat
+	privateChat := f.connectAdmin(t)
 
 	privateOnCtx := newModuleMessageContext(bot, privateChat, admin, "/reports on")
 	if err := reportsModule.reports(bot, privateOnCtx); err != ext.EndGroups {
@@ -296,7 +288,6 @@ func TestReportsSettingsPrivateAndValidationBranches(t *testing.T) {
 		}
 	}
 
-	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
 	for _, text := range []string{"/reports block", "/reports unblock", "/reports unknown"} {
 		ctx := newModuleMessageContext(bot, groupChat, admin, text)
 		if err := reportsModule.reports(bot, ctx); err != ext.EndGroups {

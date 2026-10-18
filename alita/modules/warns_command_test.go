@@ -34,6 +34,28 @@ func newWarnReplyContext(
 	return ctx
 }
 
+// From PM the commands act on the connected group, so the admin checks must
+// run there too, not on the PM.
+func TestWarnSettingsCommandsFromPMActOnConnectedGroup(t *testing.T) {
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
+	pm := f.connectAdmin(t)
+
+	if err := warnsModule.setWarnLimit(bot, newModuleMessageContext(bot, pm, admin, "/setwarnlimit 7")); err != ext.EndGroups {
+		t.Fatalf("setWarnLimit from PM error = %v, want EndGroups", err)
+	}
+	if got := warns.GetWarnSetting(chat.Id).WarnLimit; got != 7 {
+		t.Fatalf("connected group warn limit = %d, want 7", got)
+	}
+
+	if err := warnsModule.setWarnMode(bot, newModuleMessageContext(bot, pm, admin, "/setwarnmode kick")); err != ext.EndGroups {
+		t.Fatalf("setWarnMode from PM error = %v, want EndGroups", err)
+	}
+	if got := warns.GetWarnSetting(chat.Id).WarnMode; got != "kick" {
+		t.Fatalf("connected group warn mode = %q, want kick", got)
+	}
+}
+
 func TestWarnSettingsCommandsUpdateAndDisplay(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin

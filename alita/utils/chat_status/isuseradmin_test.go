@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
@@ -540,5 +541,85 @@ func TestIsUserAdminPassesOnAdminListPanic(t *testing.T) {
 	}()
 	if recovered == nil {
 		t.Fatal("IsUserAdmin returned after the admin-list load panicked, want the panic passed on")
+	}
+}
+
+// NOTE: must NOT use t.Parallel() because SetupTestMemoryMarshaler writes to
+// package-level globals.
+func TestRequireHelpersFollowConnectedChatSwap(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+
+	const (
+		groupID    = int64(-3101)
+		adminID    = int64(311)
+		nonAdminID = int64(312)
+	)
+	adminEntry := gotgbot.MergedChatMember{
+		Status: "administrator",
+		User:   gotgbot.User{Id: adminID, FirstName: "ConnectedAdmin"},
+	}
+	// The bot is absent from the group's admin list, so a bot-admin check
+	// that reaches the group fails, while one on the PM passes.
+	if err := cache.GetMarshal().Set(
+		cache.Context,
+		fmt.Sprintf("alita:cache:adminCache:%d", groupID),
+		cache.AdminCache{
+			ChatId:   groupID,
+			UserInfo: []gotgbot.MergedChatMember{adminEntry},
+			UserMap:  map[int64]gotgbot.MergedChatMember{adminID: adminEntry},
+			Cached:   true,
+		},
+	); err != nil {
+		t.Fatalf("seeding admin cache: %v", err)
+	}
+	t.Cleanup(func() { cache.InvalidateAdminCache(groupID) })
+
+	// getChat answers "private" for every id, so an admin check that runs on
+	// the PM instead of the group refuses everyone.
+	bot := &gotgbot.Bot{
+		Token:     "9911:swaptest",
+		BotClient: &errorBotClient{chatType: "private"},
+		User:      gotgbot.User{Id: 9911, IsBot: true, FirstName: "SwapBot"},
+	}
+	group := &gotgbot.Chat{Id: groupID, Type: "supergroup", Title: "Connected"}
+
+	pmCtx := func(userID int64) *ext.Context {
+		from := gotgbot.User{Id: userID, FirstName: "PM"}
+		msg := &gotgbot.Message{MessageId: 1, Date: 1, Chat: gotgbot.Chat{Id: userID, Type: "private"}, From: &from}
+		return ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+	}
+
+	swapped := pmCtx(adminID)
+	swapped.EffectiveChat = group
+	if got := extractChatFromContext(swapped, nil); got == nil || got.Id != groupID {
+		t.Errorf("extractChatFromContext(swapped) = %#v, want connected group %d", got, groupID)
+	}
+	if !RequireUserAdmin(bot, swapped, nil, adminID) {
+		t.Error("RequireUserAdmin(swapped, admin) = false, want true: the user is a cached admin of the connected group")
+	}
+	if RequireBotAdmin(bot, swapped, nil) {
+		t.Error("RequireBotAdmin(swapped) = true, want false: the bot is not an admin of the connected group")
+	}
+
+	swappedMember := pmCtx(nonAdminID)
+	swappedMember.EffectiveChat = group
+	if RequireUserAdmin(bot, swappedMember, nil, nonAdminID) {
+		t.Error("RequireUserAdmin(swapped, non-admin) = true, want false")
+	}
+
+	explicit := &gotgbot.Chat{Id: -3102, Type: "supergroup"}
+	if got := extractChatFromContext(swapped, explicit); got != explicit {
+		t.Fatalf("extractChatFromContext(swapped, explicit) = %#v, want the explicit chat", got)
+	}
+
+	unswapped := pmCtx(adminID)
+	if got := extractChatFromContext(unswapped, nil); got == nil || got.Id != adminID {
+		t.Fatalf("extractChatFromContext(unswapped) = %#v, want the PM chat %d", got, adminID)
+	}
+	if RequireUserAdmin(bot, unswapped, nil, adminID) {
+		t.Error("RequireUserAdmin(unswapped PM) = true, want false: the check must stay on the PM")
+	}
+	if !RequirePrivate(bot, unswapped, nil) {
+		t.Error("RequirePrivate(unswapped PM) = false, want true")
 	}
 }
