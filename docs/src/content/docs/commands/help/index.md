@@ -69,10 +69,15 @@ The wizard is PM-only and uses English regardless of user language setting.
 When `/start` is used with a parameter in private chat, the bot resolves it
 as a deep link:
 
-| Prefix | Example | Behavior |
+| Parameter | Example | Behavior |
 |--------|---------|----------|
 | `help_` | `start=help_admin` | Opens help for a specific module |
 | `connect_` | `start=connect_-1001234` | Connects user to that group in PM |
 | `rules_` | `start=rules_-1001234` | Shows the group's rules |
 | `notes_` | `start=notes_-1001234` | Lists all notes in the group (admin-only notes hidden from non-admins) |
 | `note_` | `start=note_-1001234_welcome` | Shows a specific note (respects admin-only flag) |
+| `about` (exact) | `start=about` | Shows the About message and its menu |
+| `extend` (exact) | `start=extend` | Sends the full list of every command |
+| `settings_` | `start=settings_-1001234` | Checks that you are an admin of that group, connects you to it, and shows its settings summary in PM |
+
+A parameter that starts with `note` but is not a valid `notes_`/`note_` link, or a `settings_` parameter whose chat ID is not a number, gets an invalid-link reply. Any other unrecognised parameter shows the normal `/start` welcome message.
