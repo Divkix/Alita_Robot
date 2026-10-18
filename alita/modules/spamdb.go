@@ -60,10 +60,12 @@ var spamDBDatabases = []spamDBEntry{
 	{spamdbsettings.DatabaseLols, spamdb.SourceLols, "lols.bot"},
 }
 
-// spamDBSources lists the databases the chat checks, CAS first.
+// spamDBSources lists the databases the chat checks, CAS first. The table
+// never holds a row with both off, so that reading comes from a cache entry
+// written before chats could choose; it means CAS, not nothing.
 func spamDBSources(settings *models.SpamDBSettings) []spamdb.Source {
 	var sources []spamdb.Source
-	if settings.CheckCAS {
+	if settings.CheckCAS || !settings.CheckLols {
 		sources = append(sources, spamdb.SourceCAS)
 	}
 	if settings.CheckLols {

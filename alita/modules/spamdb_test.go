@@ -17,6 +17,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
@@ -550,6 +551,34 @@ func TestSpamDBAsksOnlyTheChatsDatabases(t *testing.T) {
 				t.Fatalf("log notices = %v, want one naming %s", notices, tc.wantNoticeDatabase)
 			}
 		})
+	}
+}
+
+// A settings entry cached by a release that predates the database choice has
+// neither check field. It must not read as "no database", which would let
+// every joiner in until the entry expires.
+func TestSpamDBReadsCacheEntryWithoutDatabaseFieldsAsCAS(t *testing.T) {
+	dispatcher, cas, lols := withSpamDBServices(t, true, http.StatusOK, spamDBCASNotFound, true)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := spamDBChat(t, true, spamdbsettings.ActionBan)
+
+	type settingsBeforeDatabaseChoice struct {
+		ChatID  int64  `json:"chat_id,omitempty"`
+		Enabled bool   `json:"enabled,omitempty"`
+		Action  string `json:"action,omitempty"`
+	}
+	key := dbcache.CacheKey("spam_db_settings", chat.Id)
+	stale := settingsBeforeDatabaseChoice{ChatID: chat.Id, Enabled: true, Action: spamdbsettings.ActionBan}
+	if err := cache.GetMarshal().Set(cache.Context, key, stale); err != nil {
+		t.Fatalf("seed stale cache entry: %v", err)
+	}
+	dbcache.ResetLocalForTest()
+
+	spamDBJoin(t, dispatcher, bot, chat, gotgbot.User{Id: 5550030, FirstName: "Spammer"})
+
+	if cas.hits.Load() != 1 || lols.hits.Load() != 0 {
+		t.Fatalf("lookups CAS=%d lols=%d, want 1/0", cas.hits.Load(), lols.hits.Load())
 	}
 }
 
