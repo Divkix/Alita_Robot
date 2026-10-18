@@ -14,7 +14,15 @@ func canUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (bool, string) {
 		return true, ""
 	}
 
-	if settings.AllowConnect && chat_status.IsUserInChat(b, &gotgbot.Chat{Id: chatID}, userID) {
+	var denyReason, denyKey string
+	var lookupErr error
+	if !settings.AllowConnect {
+		denyReason, denyKey = "allow_connect_disabled_non_admin", "connections_connect_connection_disabled"
+	} else if isMember, err := chat_status.IsUserInChatWithError(b, &gotgbot.Chat{Id: chatID}, userID); err != nil {
+		denyReason, denyKey, lookupErr = "member_lookup_failed", "error_generic", err
+	} else if !isMember {
+		denyReason, denyKey = "not_chat_member", "connections_connect_not_member"
+	} else {
 		return true, ""
 	}
 
@@ -22,7 +30,8 @@ func canUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (bool, string) {
 		"chatId":       chatID,
 		"userId":       userID,
 		"allowConnect": settings.AllowConnect,
-		"denyReason":   "allow_connect_disabled_non_admin",
+		"denyReason":   denyReason,
+		"error":        lookupErr,
 	}).Warn("[Connections] Connection request denied")
-	return false, "connections_connect_connection_disabled"
+	return false, denyKey
 }

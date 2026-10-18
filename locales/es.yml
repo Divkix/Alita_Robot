@@ -321,6 +321,7 @@ connections_allow_connect_turned_on:
 
   ¡Los usuarios ahora pueden conectar el chat a sus PMs!"
 connections_connect_connected: ¡Ahora estás conectado a <b>%s</b>!
+connections_connect_not_member: "Debes ser miembro de este chat para conectarte a él."
 connections_connect_connection_disabled:
   "Las conexiones de usuario están actualmente <b>deshabilitadas</b>
   para este chat.

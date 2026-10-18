@@ -77,8 +77,8 @@ func TestCanUserConnectToChatDeniesWhenMemberLookupFails(t *testing.T) {
 	if allowed {
 		t.Fatal("canUserConnectToChat() allowed = true, want false on member lookup failure")
 	}
-	if denyKey != "connections_connect_connection_disabled" {
-		t.Fatalf("denyKey = %q, want connection disabled key", denyKey)
+	if denyKey != "error_generic" {
+		t.Fatalf("denyKey = %q, want generic error key", denyKey)
 	}
 }
 
@@ -96,8 +96,8 @@ func TestCanUserConnectToChatDeniesRestrictedFormerMember(t *testing.T) {
 	if allowed {
 		t.Fatal("canUserConnectToChat() allowed = true, want false for restricted non-member")
 	}
-	if denyKey != "connections_connect_connection_disabled" {
-		t.Fatalf("denyKey = %q, want connection disabled key", denyKey)
+	if denyKey != "connections_connect_not_member" {
+		t.Fatalf("denyKey = %q, want not-member key", denyKey)
 	}
 }
 
@@ -470,6 +470,7 @@ func TestReconnectPrivateAuthorizesBeforeConnecting(t *testing.T) {
 func TestReconnectPrivateDeniesWhenAllowConnectOff(t *testing.T) {
 	restoreI18n, err := i18n.OverrideManagerForTest(`
 connections_connect_connection_disabled: connect disabled
+connections_connect_not_member: not member
 connections_stale_connection: stale connection
 connections_reconnect_reconnected: reconnected to %s
 common_settings_save_failed: save failed

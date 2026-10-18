@@ -229,6 +229,7 @@ connections_allow_connect_turned_on:
   
     Пользователи теперь могут подключить чат к своим ЛС!"
 connections_connect_connected: Вы теперь подключены к <b>%s</b>!
+connections_connect_not_member: "Чтобы подключиться к этому чату, вы должны быть его участником."
 connections_connect_connection_disabled:
   "Подключения пользователей в данный момент <b>отключены</b> к этому чату.
   

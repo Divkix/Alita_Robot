@@ -318,6 +318,7 @@ connections_allow_connect_turned_on:
 
   Pengguna sekarang dapat menghubungkan obrolan ke PM mereka!"
 connections_connect_connected: Anda sekarang terhubung ke <b>%s</b>!
+connections_connect_not_member: "Anda harus menjadi anggota obrolan ini untuk terhubung ke sana."
 connections_connect_connection_disabled:
   "Koneksi pengguna saat ini <b>dinonaktifkan</b>
   ke obrolan ini.

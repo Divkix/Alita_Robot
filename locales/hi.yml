@@ -962,6 +962,7 @@ connections_allow_connect_currently_on: "उपयोगकर्ता कन�
 connections_allow_connect_turned_off: "उपयोगकर्ता कनेक्शन इस चैट के लिए <b>बंद</b> कर दिया गया!\n\nउपयोगकर्ता चैट को अपने PM से कनेक्ट नहीं कर सकते!"
 connections_allow_connect_turned_on: "उपयोगकर्ता कनेक्शन इस चैट के लिए <b>चालू</b> कर दिया गया!\n\nउपयोगकर्ता अब चैट को अपने PM से कनेक्ट कर सकते हैं!"
 connections_connect_connected: "आप अब <b>%s</b> से जुड़ गए हैं!"
+connections_connect_not_member: "इस चैट से कनेक्ट करने के लिए आपको इसका सदस्य होना चाहिए।"
 connections_connect_connection_disabled: "उपयोगकर्ता कनेक्शन वर्तमान में इस चैट के लिए <b>अक्षम</b> है।\n\nकृपया एडमिन से अनुमति दें यदि आप कनेक्ट करना चाहते हैं!"
 connections_connect_tap_btn_connect: "कृपया इस चैट को अपने PM से कनेक्ट करने के लिए नीचे बटन दबाएं।"
 connections_connected: "आप वर्तमान में <b>%s</b> से जुड़े हैं!"
