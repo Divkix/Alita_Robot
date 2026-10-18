@@ -75,7 +75,7 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 |----------|-------|
 | **Type** | `integer` |
 | **Required** | Yes |
-| **Validation** | required,min=1 |
+| **Validation** | required, non-zero (log channel ID, starts with -100) |
 
 ### `OWNER_ID` (Required)
 
@@ -83,7 +83,7 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 |----------|-------|
 | **Type** | `integer` |
 | **Required** | Yes |
-| **Validation** | required,min=1 |
+| **Validation** | required, non-zero |
 
 ### `DROP_PENDING_UPDATES`
 
