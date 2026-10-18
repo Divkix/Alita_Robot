@@ -354,7 +354,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approved_list_file_caption")
 	_, err = b.SendDocument(
-		chat.Id,
+		msg.Chat.Id,
 		gotgbot.InputFileByReader("approved_users.txt", openedFile),
 		&gotgbot.SendDocumentOpts{
 			Caption:   fmt.Sprintf(text, html.EscapeString(chat.Title)),
