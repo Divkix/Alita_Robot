@@ -139,6 +139,7 @@ func InitCache() error {
 // makes socket reads and writes stop at the caller's context deadline; without
 // it go-redis applies that deadline only to the pool wait and retry backoff,
 // and a hung Redis holds every caller for the full Read/WriteTimeout.
+// RedisTLSInsecureSkipVerify affects only a rediss:// REDIS_URL.
 func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
 	if cfg.RedisURL == "" {
 		return &redis.Options{
@@ -158,6 +159,12 @@ func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
 	}
 	if os.Getenv("REDIS_DB") != "" {
 		options.DB = cfg.RedisDB
+	}
+	if options.TLSConfig != nil && cfg.RedisTLSInsecureSkipVerify {
+		// Heroku Redis serves rediss:// with a self-signed certificate that
+		// cannot be verified; skipping is opt-in via REDIS_TLS_INSECURE_SKIP_VERIFY.
+		options.TLSConfig.InsecureSkipVerify = true
+		log.Warn("[Cache] REDIS_TLS_INSECURE_SKIP_VERIFY=true: Redis TLS certificate verification is disabled")
 	}
 	options.ContextTimeoutEnabled = true
 	return options, nil

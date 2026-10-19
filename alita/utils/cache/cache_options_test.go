@@ -43,3 +43,50 @@ func TestNewRedisOptionsUsesDirectConfiguration(t *testing.T) {
 		t.Fatalf("options = %#v", options)
 	}
 }
+
+func TestNewRedisOptionsTLSVerification(t *testing.T) {
+	t.Setenv("REDIS_PASSWORD", "")
+	t.Setenv("REDIS_DB", "")
+
+	cases := []struct {
+		name       string
+		url        string
+		skipVerify bool
+		wantTLS    bool
+		wantSkip   bool
+	}{
+		{name: "rediss with opt-in skips verification", url: "rediss://:secret@redis.example.com:6380", skipVerify: true, wantTLS: true, wantSkip: true},
+		{name: "rediss without opt-in verifies", url: "rediss://:secret@redis.example.com:6380", wantTLS: true},
+		{name: "plain redis with opt-in has no TLS", url: "redis://:secret@redis.example.com:6379", skipVerify: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			options, err := newRedisOptions(&config.Config{
+				RedisURL:                   tc.url,
+				RedisTLSInsecureSkipVerify: tc.skipVerify,
+			})
+			if err != nil {
+				t.Fatalf("newRedisOptions() error = %v", err)
+			}
+			if (options.TLSConfig != nil) != tc.wantTLS {
+				t.Fatalf("TLSConfig = %v, want TLS %v", options.TLSConfig, tc.wantTLS)
+			}
+			if options.TLSConfig != nil && options.TLSConfig.InsecureSkipVerify != tc.wantSkip {
+				t.Fatalf("InsecureSkipVerify = %v, want %v", options.TLSConfig.InsecureSkipVerify, tc.wantSkip)
+			}
+		})
+	}
+}
+
+func TestNewRedisOptionsDirectAddressIgnoresTLSSkip(t *testing.T) {
+	options, err := newRedisOptions(&config.Config{
+		RedisAddress:               "redis:6379",
+		RedisTLSInsecureSkipVerify: true,
+	})
+	if err != nil {
+		t.Fatalf("newRedisOptions() error = %v", err)
+	}
+	if options.TLSConfig != nil {
+		t.Fatalf("TLSConfig = %v, want nil for REDIS_ADDRESS", options.TLSConfig)
+	}
+}
