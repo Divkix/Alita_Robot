@@ -1,4 +1,3 @@
-lang_sample: "Русский"
 language_flag: "🇷🇺"
 language_name: "Русский"
 admin_adminlist: "Администраторы в <b>%s</b>:"
@@ -142,7 +141,6 @@ bans_kick_user_not_in_chat: |
   Этот пользователь не в этом чате, и как я должен его ограничить?
 bans_kickme_is_admin: Вы администратор, и вы застряли здесь со всеми остальными!
 bans_kickme_ok_out: Как вы пожелали, уходите!
-bans_unban_is_admin: Зачем мне разбанивать администратора?
 bans_unban_is_bot_itself: Зачем мне снимать ограничения с самого себя, когда я уже здесь?
 bans_unban_unbanned_user: "Дадим ему ещё один шанс.\nРазбанен %s!"
 blacklists_bl_watcher_banned_user: Забанен %s из-за %s
@@ -206,9 +204,6 @@ captcha_help_msg:
   
     Если они не пройдут или истечёт время, будет применено настроенное действие."
 commonstrings_admin_cache_cache_reloaded: Кэш администраторов успешно перезагружен.
-commonstrings_admin_cache_not_found:
-  "Кэш администраторов не найден. Попросите администратора использовать /admincache,
-  чтобы перезагрузить кэш администраторов."
 connections_allow_connect_currently_off:
   "Подключения пользователей в данный момент <b>отключены</b>.
   
@@ -725,10 +720,6 @@ rules_help_msg:
     × /resetrulesbtn: То же, что и выше."
 bot_updates_creators_plug: "\nПодписывайтесь на @DivideProjects для большего количества полезных ботов от моих создателей."
 bot_updates_make_me_admin: "\n\nСделайте меня админом, чтобы пользоваться всеми моими возможностями!"
-utils_string_handling_extract_time_invalid_time_amount: Указано неверное количество времени.
-utils_string_handling_extract_time_invalid_time_type:
-  "Указан неверный тип времени.
-    Ожидалось m, h, или d, получено: %s"
 warns_help_msg:
   "Держите ваших участников в порядке с помощью предупреждений; не давайте им выходить из под контроля!
   
@@ -834,9 +825,6 @@ captcha_max_attempts_current: "Текущее максимальное коли�
 captcha_max_attempts_invalid: "Неверное значение. Пожалуйста, укажите число от 1 до 10."
 captcha_max_attempts_set: "Максимальное количество попыток установлено на <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "Пользователь %s будет автоматически размучен через 24 часа."
-
 
 # Rules/helpers module strings
 rules_not_set: В этом чате нет правил!
@@ -878,7 +866,6 @@ devs_specify_chat: "Вы должны указать ID чата."
 # Common error messages used across modules
 error_generic: "Произошла ошибка. Пожалуйста, попробуйте позже."
 common_anonymous_user_error: Эта команда не может использоваться на анонимном пользователе.
-common_anonymous_ban_error: Эта команда не может использоваться на анонимном пользователе, этих пользователей можно только забанить/разбанить.
 common_cannot_identify_user: Невозможно идентифицировать пользователя. Эта команда не может использоваться каналами.
 command_help_example: "Пример: {example}"
 common_no_user_specified: Я не знаю, о ком вы говорите, вам нужно указать пользователя...!
@@ -886,15 +873,6 @@ common_user_not_in_chat: Этот пользователь не в этом ча
 common_cannot_target_admin: "Я не могу выполнить это действие по отношению к администраторам группы."
 common_cannot_target_self: "Я не могу выполнить это действие по отношению к себе."
 common_no_reply_to_message: "Вам нужно ответить на сообщение пользователя, чтобы выполнить это действие."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "забанить"
-common_action_kick: "выгнать"
-common_action_mute: "заглушить"
-common_action_warn: "предупредить"
-common_action_promote: "повысить"
-common_action_demote: "понизить"
-common_action_restrict: "ограничить"
 
 # Time units for duration formatting
 common_time_minute: "минуту"
@@ -909,12 +887,6 @@ common_time_days_few: "дня"
 common_time_week: "неделю"
 common_time_weeks: "недель"
 common_time_weeks_few: "недели"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Включено"
-common_status_disabled: "Отключено"
-common_status_on: "Вкл"
-common_status_off: "Выкл"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nПримечание: Эти значения кэшированы и могут быть не актуальны"
@@ -967,7 +939,6 @@ warns_limit_banned: "Это %d/%d предупреждений; Поэтому %
 warns_limit_tbanned: "Это %d/%d предупреждений; Поэтому %s забанен на %s!"
 warns_limit_tmuted: "Это %d/%d предупреждений; Поэтому %s заглушён на %s!"
 warns_remove_button: ❌ Удалить предупреждение
-warns_rules_button: Правила 📝
 warns_user_warning: "У пользователя %s %d/%d предупреждений; будьте осторожны!"
 warns_warning_reason: "\n<b>Причина</b>:\n%s"
 warns_settings_display: "Группа имеет следующие настройки:\n<b>Лимит предупреждений:</b> <code>%d</code>\n<b>Режим предупреждений:</b> <code>%s</code>\n<b>Срок предупреждений:</b> <code>%s</code>"
@@ -1012,7 +983,6 @@ locks_bot_lock_no_ban_permission: Я вижу бота, и мне сказали
 locks_bot_only_admins: Только администраторы и одобренные пользователи могут добавлять ботов в этот чат!
 
 # Pins module strings
-pins_unpin_not_pinned: Ответное сообщение не является закреплённым.
 pins_unpinned_message: Откреплено это сообщение.
 pins_unpinned_last: Откреплено последнее закреплённое сообщение.
 pins_unpin_all_confirm: Вы уверены, что хотите открепить все закреплённые сообщения?
@@ -1086,15 +1056,8 @@ disabling_invalid_option: "Я понимаю только вариант из: `
 # Misc module strings
 misc_reply_to_someone: Ответьте кому-то.
 misc_provide_content: Предоставьте содержимое для ответа!
-misc_could_not_find_user: Не удалось найти информацию об этом пользователе.
 misc_user_not_found: Не удалось найти информацию об этом пользователе.
-misc_channel_info: "<b>Информация о канале:</b>\nID: <code>%d</code>\nНазвание канала: %s"
-misc_channel_username: "Имя пользователя: @%s"
-misc_user_info: "<b>Информация о пользователе:</b>\nID: <code>%d</code>\nИмя: %s"
-misc_user_username: "Имя пользователя: @%s"
 misc_user_link: "Ссылка на пользователя: %s"
-misc_owner_tag: "Он мой владелец!"
-misc_dev_user_tag: "Он один из моих разработчиков!"
 misc_pinging: "<code>Пингование</code>"
 misc_ping_result: "🏓 <b>Понг!</b>\n\n<b>RTT API</b> (getMe): <code>%dмс</code>\n<b>Отправка сообщения</b>: <code>%dмс</code>\n<b>Накладные расходы</b>: <code>%dмс</code>"
 misc_thread_id: "ID темы: <code>%d</code>"
@@ -1110,7 +1073,6 @@ misc_your_id_group: "Ваш ID это <code>%d</code>\nID этой группы 
 misc_need_text_and_lang: Мне нужен текст и код языка для перевода.
 misc_no_text_to_translate: Ответное сообщение не содержит текста для перевода.
 misc_provide_text_translate: Пожалуйста, предоставьте текст для перевода.
-misc_detected_translation: "<b>Обнаруженный язык:</b> <code>%s</code>\n<b>Перевод:</b> <code>%s</code>"
 misc_removing_keyboard: Удаление зависшей клавиатуры бота...
 misc_total_messages: "Всего сообщений в %s: %d"
 misc_channel_info_header: "<b>Информация о канале:</b>\n\nID: <code>%d</code>\n\nНазвание канала: %s"
@@ -1188,7 +1150,6 @@ greetings_auto_approve_invalid_option: "Я понимаю только 'on/yes' 
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Проверка капчи была <b>включена</b>. Новые участники должны будут пройти капчу для присоединения."
 captcha_disabled_success: "❌ Проверка капчи была <b>отключена</b>."
-captcha_mode_set_success: "✅ Режим капчи установлен на <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Время ожидания капчи установлено на <b>%d минут</b>"
 captcha_action_set_success: "✅ Действие при неудаче капчи установлено на <b>%s</b>"
 captcha_refresh_button: "🔄 Новое изображение"
@@ -1209,18 +1170,6 @@ captcha_no_pending_messages: "Нет ожидающих сообщений дл�
 captcha_clear_usage: "Использование: <code>/captchaclear @user</code> или <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Не удалось очистить сохранённые сообщения. Пожалуйста, попробуйте снова."
 captcha_clear_success: "✅ Очищены все сохранённые сообщения для пользователя %d"
-captcha_refresh_time_remaining: |
-  👋 Добро пожаловать, %s!
-
-  Пожалуйста, выберите текст, показанный на изображении, чтобы подтвердить, что вы человек:
-
-  ⏱ У вас есть <b>%d минут</b>, чтобы ответить.
-captcha_math_time_remaining: |
-  👋 Добро пожаловать, %s!
-
-  Пожалуйста, решите задачу, показанную на изображении, и выберите правильный ответ:
-
-  ⏱ У вас есть <b>%d минут</b>, чтобы ответить.
 
 # Notes module strings
 notes_save_success: "Заметка <b>%s</b> сохранена!\nПолучите её с помощью <code>#%s</code> или <code>/get %s</code>."
@@ -1238,7 +1187,6 @@ notes_private_status_off: "Приватные заметки в данный м�
 notes_none_in_chat: "В этом чате нет заметок!"
 notes_list_for_chat: "Это текущие заметки в <b>%s</b>:"
 notes_check_button: "Нажмите на кнопку ниже, чтобы получить заметки!"
-notes_click_me_btn: "Нажми меня!"
 notes_current_in_chat: "Это текущие заметки в этом чате:\n"
 notes_get_instruction: "\nВы можете получить заметку с помощью <code>#notename</code> или <code>/get notename</code>"
 notes_clear_all_confirm: "Вы уверены, что хотите удалить все заметки из этого чата?"
@@ -1279,7 +1227,6 @@ filters_overwrite_expired: "⏰ Подтверждение истекло! По�
 
 # Helpers module strings
 helpers_back_button: "« Назад"
-helpers_connection_success: "Вы были подключены к %s!"
 helpers_note_not_exist: "Эта заметка не существует!"
 helpers_note_admin_only: "Эта заметка доступна только администраторам!"
 helpers_connected_to_chat: "Вы были подключены к %s!"
@@ -1294,7 +1241,6 @@ common_done: "Готово ✅"
 common_continue: "✅ Продолжить ✅"
 common_home: "Главная"
 common_formatting_button: "Форматирование"
-common_rules_button: "Правила"
 common_rules_button_emoji: "Правила 📝"
 
 # Main module strings
@@ -1332,7 +1278,6 @@ chat_status_anon_prove_admin: "Нажмите, чтобы подтвердить
 extraction_chat_not_found: "Не удалось подключиться к чату: не удалось получить чат: unable to getChat: Bad Request: chat not found"
 extraction_need_chat_id: "Мне нужен ID чата для подключения!"
 extraction_user_not_found: "Не удалось найти пользователя с этим именем; вы уверены, что я видел его раньше?"
-extraction_get_chat_member_failed: "Не удалось получить пользователя: unable to getChatMember: Bad Request: chat not found"
 extraction_invalid_time_amount: "Указано неверное количество времени."
 extraction_time_limit_exceeded: "Нельзя установить время более чем на 1 год!"
 extraction_no_time_specified: "Пожалуйста, укажите продолжительность времени (например, 1m, 1h, 1d, 1w)."
@@ -1340,16 +1285,12 @@ extraction_invalid_time_type: "Указан неверный тип времен
 extraction_invalid_time_format: "Указан неверный формат времени."
 
 # Database default strings
-db_default_welcome: "Привет {first}, как дела?"
-db_default_goodbye: "Грустно видеть тебя уходящим {first}"
 db_warn_no_reason: "Без причины"
-db_not_initialized: "база данных не инициализирована"
 
 # Captcha validation strings
 captcha_invalid_mode_error: "неверный режим капчи: должен быть 'math' или 'text'"
 captcha_timeout_range_error: "время ожидания должно быть между 1 и 10 минутами"
 captcha_invalid_action_error: "неверное действие при неудаче: должно быть 'kick', 'ban' или 'mute'"
-captcha_attempts_range_error: "максимальное количество попыток должно быть между 1 и 10"
 captcha_status_usage: "Используйте <code>/captcha on</code> или <code>/captcha off</code>, чтобы изменить статус."
 captcha_not_for_you: "Эта капча не для вас!"
 captcha_expired_or_not_found: "Капча истекла или не найдена"
@@ -1393,22 +1334,6 @@ helpers_chat_not_found: "Не удалось найти этот чат. Он м
 # Formatting strings
 format_user_info: "Пользователь: %s"
 format_user_id: "ID пользователя: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
-
-# System messages
-system_safety_shutdown: "менеджер безопасности выключается"
-system_timeout_worker: "таймаут получения слота для %s"
-system_shutdown_acquisition: "выключение менеджера безопасности во время получения слота"
-
-# Captcha additional validation
-captcha_no_active_attempt: "не найдена активная попытка капчи"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Вы не можете сообщить о сообщении канала."
@@ -1425,10 +1350,6 @@ reports_group_only: "Эта команда может использоватьс
 reports_user_blocked: "Заблокирован пользователь %s от использования отчётов."
 reports_user_unblocked: "Разблокирован пользователь %s от использования отчётов."
 reports_no_blocked_users: "В данный момент нет пользователей, заблокированных от использования команд отчётов!"
-reports_preference_enabled: "Ваш текущий выбор — true, Вы будете получать уведомления, когда кто-то сообщит о чём-то в группах, где вы администратор."
-reports_preference_disabled: "Вы не включили отчёты, Вы не будете получать уведомления."
-reports_status_enabled: "Отчёты в данный момент включены в этом чате.\nПользователи могут использовать команду /report или упомянуть @admin, чтобы отметить всех администраторов."
-reports_status_disabled: "Отчёты в данный момент отключены в этом чате."
 reports_user_kicked: "Пользователь выгнан!"
 reports_user_banned: "Пользователь забанен!"
 reports_message_deleted: "Сообщение удалено!"
@@ -1464,11 +1385,7 @@ captcha_status_disabled: "отключено"
 button_yes: "Да"
 button_no: "Нет"
 button_back: "Назад"
-button_unmute_admin: "Размутить (только для администраторов)"
-button_unban_admin: "Разбанить (только для администраторов)"
 button_unmute_admins: "Размутить (только для администраторов)"
-button_unban_admins: "Разбанить (только для администраторов)"
-button_connect_to_chat: "Подключиться к чату"
 button_formatting: "Форматирование"
 button_click_me: "Нажми меня!"
 button_ban: "Забанить"
@@ -1541,16 +1458,6 @@ antiflood_action_none: "ничего"
 
 # Helpers module strings
 helpers_notes_current_header: "Это текущие заметки в этом чате:\n"
-
-# Configuration errors
-config_workers_invalid: "%s должен быть между %d и %d"
-
-# System messages
-system_db_connected: "Успешно подключено к базе данных PostgreSQL!"
-system_config_loaded: "Конфигурация успешно загружена и проверена"
-
-# Database query errors
-db_type_assertion_failed: "утверждение типа на []byte не удалось"
 
 # Default button texts
 button_rules_default: "Правила"

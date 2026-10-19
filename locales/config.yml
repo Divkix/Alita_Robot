@@ -1,8 +1,5 @@
 ---
 #stringcode: string
-db_default_welcome: "Hey {first}, how are you?"
-db_default_goodbye: "Sad to see you leaving {first}"
-db_warn_no_reason: "No Reason"
 # Sample calls shown under a command's help when it is called wrongly
 # (commandHelpModules). Commands are the same in every language.
 ban_example: "/ban @username spam"

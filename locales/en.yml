@@ -234,7 +234,6 @@ bans_kick_user_not_in_chat:
   restrict them?
 bans_kickme_is_admin: You are an admin, and you are stuck here with everyone else!
 bans_kickme_ok_out: As per your wish, Get out!
-bans_unban_is_admin: Why would I unban an admin?
 bans_unban_is_bot_itself: Why would I un-restrict myself when I'm already here?
 bans_unban_unbanned_user: "Let's give him another chance.
 
@@ -332,9 +331,6 @@ captcha_help_msg:
 
   If they fail or timeout, the configured action is taken."
 commonstrings_admin_cache_cache_reloaded: Successfully reloaded admin cache.
-commonstrings_admin_cache_not_found:
-  Admincache not found. Ask an admin to use /admincache
-  to reload the admin cache.
 connections_allow_connect_currently_off:
   "User connections are currently turned <b>off</b>.
 
@@ -715,7 +711,6 @@ help_donatetext: "So you want to donate? Amazing!
   All the funds would be put into my services such as database, storage, and hosting!
 
   You can donate by contacting my owner here: @DivideProjectsBot"
-lang_sample: US English
 language_flag: 🇺🇸
 language_name: English
 help_help_msg:
@@ -947,10 +942,6 @@ rules_help_msg:
   × /resetrulesbtn: Same as above."
 bot_updates_creators_plug: "\nFollow @DivideProjects for more useful bots from my creators."
 bot_updates_make_me_admin: "\n\nMake me admin to use me with my full abilities!"
-utils_string_handling_extract_time_invalid_time_amount: Invalid time amount specified.
-utils_string_handling_extract_time_invalid_time_type:
-  "Invalid time type specified.
-  Expected m, h, or d got: %s"
 warns_help_msg:
   "Keep your members in check with warnings; stop them getting out of
   control!
@@ -1057,9 +1048,6 @@ captcha_max_attempts_current: "Current maximum verification attempts: <b>%d</b>"
 captcha_max_attempts_invalid: "Invalid value. Please specify a number between 1 and 10."
 captcha_max_attempts_set: "Maximum verification attempts set to <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "User %s will be automatically unmuted in 24 hours."
-
 # Help module strings
 help_pm_questions: "Hey :) PM me if you have any questions on how to use me!"
 help_config_private_only: Configuration only works in private
@@ -1104,7 +1092,6 @@ devs_specify_chat: "You must specify a chat ID."
 # Common error messages used across modules
 error_generic: "An error occurred. Please try again later."
 common_anonymous_user_error: This command cannot be used on anonymous user.
-common_anonymous_ban_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
 common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
 command_help_example: "Example: {example}"
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
@@ -1112,15 +1099,6 @@ common_user_not_in_chat: This user is not in this chat, how can I restrict them?
 common_cannot_target_admin: "I cannot perform this action on group administrators."
 common_cannot_target_self: "I cannot perform this action on myself."
 common_no_reply_to_message: "You need to reply to a user's message to perform this action."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "ban"
-common_action_kick: "kick"
-common_action_mute: "mute"
-common_action_warn: "warn"
-common_action_promote: "promote"
-common_action_demote: "demote"
-common_action_restrict: "restrict"
 
 # Time units for duration formatting
 common_time_minute: "minute"
@@ -1131,12 +1109,6 @@ common_time_day: "day"
 common_time_days: "days"
 common_time_week: "week"
 common_time_weeks: "weeks"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Enabled"
-common_status_disabled: "Disabled"
-common_status_on: "On"
-common_status_off: "Off"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nNote: These values are cached and may not be up-to-date"
@@ -1189,7 +1161,6 @@ warns_limit_banned: "That's %d/%d warnings; So %s has been banned!"
 warns_limit_tbanned: "That's %d/%d warnings; So %s has been banned for %s!"
 warns_limit_tmuted: "That's %d/%d warnings; So %s has been muted for %s!"
 warns_remove_button: ❌ Remove warn
-warns_rules_button: Rules 📝
 warns_user_warning: "User %s has %d/%d warnings; be careful!"
 warns_warning_reason: "\n<b>Reason</b>:\n%s"
 warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>\n<b>Warn Expiry:</b> <code>%s</code>"
@@ -1234,7 +1205,6 @@ locks_bot_lock_no_ban_permission: I see a bot, and I've been told to stop them j
 locks_bot_only_admins: Only admins and approved users are allowed to add bots to this chat!
 
 # Pins module strings
-pins_unpin_not_pinned: Replied message is not a pinned message.
 pins_unpinned_message: Unpinned this message.
 pins_unpinned_last: Unpinned the last pinned message.
 pins_unpin_all_confirm: Are you sure you want to unpin all pinned messages?
@@ -1309,15 +1279,8 @@ disabling_invalid_option: "I only understand an option from: `yes`/`no`/`on`/`of
 # Misc module strings
 misc_reply_to_someone: Reply to someone.
 misc_provide_content: Provide some content to reply!
-misc_could_not_find_user: Could not find the any information about this user.
 misc_user_not_found: Could not find any information about this user.
-misc_channel_info: "<b>Channel Info:</b>\nID: <code>%d</code>\nChannel Name: %s"
-misc_channel_username: "Username: @%s"
-misc_user_info: "<b>User Info:</b>\nID: <code>%d</code>\nName: %s"
-misc_user_username: "Username: @%s"
 misc_user_link: "User link: %s"
-misc_owner_tag: "He is my owner!"
-misc_dev_user_tag: "He is one of my dev users!"
 misc_pinging: "<code>Pinging</code>"
 misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>Send msg</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "Thread Id: <code>%d</code>"
@@ -1333,7 +1296,6 @@ misc_your_id_group: "Your ID is <code>%d</code>\nThis group's ID is <code>%d</co
 misc_need_text_and_lang: I need some text and a language code to translate.
 misc_no_text_to_translate: The replied message does not contain any text to translate.
 misc_provide_text_translate: Please provide some text to translate.
-misc_detected_translation: "<b>Detected Language:</b> <code>%s</code>\n<b>Translation:</b> <code>%s</code>"
 misc_removing_keyboard: Removing the stuck bot keyboard...
 misc_total_messages: "Total Messages in %s are: %d"
 misc_channel_info_header: "<b>Channel Info:</b>\n\nID: <code>%d</code>\n\nChannel Name: %s"
@@ -1412,7 +1374,6 @@ greetings_auto_approve_invalid_option: "I understand 'on/yes' or 'off/no' only!"
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Captcha verification has been <b>enabled</b>. New members will need to complete a captcha to join."
 captcha_disabled_success: "❌ Captcha verification has been <b>disabled</b>."
-captcha_mode_set_success: "✅ Captcha mode set to <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Captcha timeout set to <b>%d minutes</b>"
 captcha_action_set_success: "✅ Captcha failure action set to <b>%s</b>"
 captcha_refresh_button: "🔄 New Image"
@@ -1433,18 +1394,6 @@ captcha_no_pending_messages: "No pending messages found for this user."
 captcha_clear_usage: "Usage: <code>/captchaclear @user</code> or <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Failed to clear stored messages. Please try again."
 captcha_clear_success: "✅ Cleared all stored messages for user %d"
-captcha_refresh_time_remaining: |
-  👋 Welcome %s!
-
-  Please select the text shown in the image to verify you're human:
-
-  ⏱ You have <b>%d minutes</b> to answer.
-captcha_math_time_remaining: |
-  👋 Welcome %s!
-
-  Please solve the problem shown in the image and select the correct answer:
-
-  ⏱ You have <b>%d minutes</b> to answer.
 
 # Notes module strings
 notes_save_success: "Saved Note <b>%s</b>!\nGet it with <code>#%s</code> or <code>/get %s</code>."
@@ -1462,7 +1411,6 @@ notes_private_status_off: "Private Notes are currently turned off!"
 notes_none_in_chat: "There are no notes in this chat!"
 notes_list_for_chat: "These are the current notes in <b>%s</b>:"
 notes_check_button: "Check on the button below to get Notes!"
-notes_click_me_btn: "Click Me!"
 notes_current_in_chat: "These are the current notes in this Chat:\n"
 notes_get_instruction: "\nYou can get a note by <code>#notename</code> or <code>/get notename</code>"
 notes_clear_all_confirm: "Are you sure you want to remove all Notes from this chat?"
@@ -1503,7 +1451,6 @@ filters_overwrite_expired: "⏰ Confirmation expired! Please try again."
 
 # Helpers module strings
 helpers_back_button: "« Back"
-helpers_connection_success: "You have been connected to %s!"
 helpers_note_not_exist: "This note does not exist!"
 helpers_note_admin_only: "This note can only be accessed by a admin!"
 helpers_connected_to_chat: "You have been connected to %s!"
@@ -1518,7 +1465,6 @@ common_done: "Done ✅"
 common_continue: "✅ Continue ✅"
 common_home: "Home"
 common_formatting_button: "Formatting"
-common_rules_button: "Rules"
 common_rules_button_emoji: "Rules 📝"
 
 # Main module strings
@@ -1578,7 +1524,6 @@ chat_status_anon_prove_admin: "Click to prove admin"
 extraction_chat_not_found: "failed to connect to chat: failed to get chat: unable to getChat: Bad Request: chat not found"
 extraction_need_chat_id: "I need a chat id to connect to!"
 extraction_user_not_found: "Could not find a user by this name; are you sure I've seen them before?"
-extraction_get_chat_member_failed: "Failed to get user: unable to getChatMember: Bad Request: chat not found"
 extraction_invalid_time_amount: "Invalid time amount specified."
 extraction_time_limit_exceeded: "Cannot set time to more than 1 year!"
 extraction_no_time_specified: "Please specify a time duration (e.g., 1m, 1h, 1d, 1w)."
@@ -1586,16 +1531,12 @@ extraction_invalid_time_type: "Invalid time type specified. Expected m, h, d or 
 extraction_invalid_time_format: "Invalid time format specified."
 
 # Database default strings
-db_default_welcome: "Hey {first}, how are you?"
-db_default_goodbye: "Sad to see you leaving {first}"
 db_warn_no_reason: "No Reason"
-db_not_initialized: "database not initialized"
 
 # Captcha validation strings
 captcha_invalid_mode_error: "invalid captcha mode: must be 'math' or 'text'"
 captcha_timeout_range_error: "timeout must be between 1 and 10 minutes"
 captcha_invalid_action_error: "invalid failure action: must be 'kick', 'ban', or 'mute'"
-captcha_attempts_range_error: "max attempts must be between 1 and 10"
 captcha_status_usage: "Use <code>/captcha on</code> or <code>/captcha off</code> to change status."
 captcha_not_for_you: "This captcha is not for you!"
 captcha_expired_or_not_found: "Captcha expired or not found"
@@ -1639,22 +1580,6 @@ helpers_chat_not_found: "Could not find that chat. It may no longer exist or I m
 # Formatting strings
 format_user_info: "User: %s"
 format_user_id: "User ID: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
-
-# System messages
-system_safety_shutdown: "safety manager is shutting down"
-system_timeout_worker: "timeout acquiring worker slot for %s"
-system_shutdown_acquisition: "safety manager shutdown during slot acquisition"
-
-# Captcha additional validation
-captcha_no_active_attempt: "no active captcha attempt found"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "You can't report a channel post."
@@ -1671,10 +1596,6 @@ reports_group_only: "This command can only be used in a group!"
 reports_user_blocked: "Blocked user %s from reporting."
 reports_user_unblocked: "Unblocked user %s from reporting."
 reports_no_blocked_users: "No users are currently blocked from using report commands!"
-reports_preference_enabled: "Your current preference is true, You'll be notified whenever anyone reports something in groups you are admin."
-reports_preference_disabled: "You haven't enabled reports, You won't be notified."
-reports_status_enabled: "Reports are currently enabled in this chat.\nUsers can use the /report command, or mention @admin, to tag all admins."
-reports_status_disabled: "Reports are currently disabled in this chat."
 reports_user_kicked: "User kicked!"
 reports_user_banned: "User banned!"
 reports_message_deleted: "Message Deleted!"
@@ -1726,11 +1647,7 @@ captcha_status_disabled: "disabled"
 button_yes: "Yes"
 button_no: "No"
 button_back: "Back"
-button_unmute_admin: "Unmute (Admin Only)"
-button_unban_admin: "Unban (Admin Only)"
 button_unmute_admins: "Unmute (Admins Only)"
-button_unban_admins: "Unban (Admins Only)"
-button_connect_to_chat: "Connect to chat"
 button_formatting: "Formatting"
 button_click_me: "Click Me!"
 button_ban: "Ban"
@@ -1804,16 +1721,6 @@ antiflood_action_none: "none"
 # Helpers module strings
 helpers_notes_current_header: "These are the current notes in this Chat:\n"
 
-
-# Configuration errors
-config_workers_invalid: "%s must be between %d and %d"
-
-# System messages
-system_db_connected: "Connected to PostgreSQL database successfully!"
-system_config_loaded: "Configuration loaded and validated successfully"
-
-# Database query errors
-db_type_assertion_failed: "type assertion to []byte failed"
 
 # Default button texts
 button_rules_default: "Rules"

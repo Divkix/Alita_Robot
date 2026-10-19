@@ -1,4 +1,3 @@
-lang_sample: "Bahasa Indonesia"
 language_flag: "🇮🇩"
 language_name: "Bahasa Indonesia"
 admin_adminlist: "Admin di <b>%s</b>:"
@@ -195,7 +194,6 @@ bans_kick_user_not_in_chat:
   membatasi mereka?"
 bans_kickme_is_admin: Anda adalah admin, dan Anda terjebak di sini bersama orang lain!
 bans_kickme_ok_out: Sesuai keinginan Anda, Keluar!
-bans_unban_is_admin: Mengapa saya membuka blokir admin?
 bans_unban_is_bot_itself: Mengapa saya membuka pembatasan diri saya sendiri ketika saya sudah di sini?
 bans_unban_unbanned_user: "Mari berikan dia kesempatan lain.
 
@@ -292,9 +290,6 @@ captcha_help_msg:
 
   Jika mereka gagal atau batas waktu habis, tindakan yang dikonfigurasi akan diambil."
 commonstrings_admin_cache_cache_reloaded: Berhasil memuat ulang cache admin.
-commonstrings_admin_cache_not_found:
-  "Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
-  untuk memuat ulang cache admin."
 connections_allow_connect_currently_off:
   "Koneksi pengguna saat ini dimatikan <b>off</b>.
 
@@ -900,10 +895,6 @@ rules_help_msg:
   × /resetrulesbtn: Sama seperti di atas."
 bot_updates_creators_plug: "\nIkuti @DivideProjects untuk bot yang lebih berguna dari kreator saya."
 bot_updates_make_me_admin: "\n\nJadikan saya admin agar semua fitur saya bisa digunakan!"
-utils_string_handling_extract_time_invalid_time_amount: Jumlah waktu yang ditentukan tidak valid.
-utils_string_handling_extract_time_invalid_time_type:
-  "Tipe waktu yang ditentukan tidak valid.
-  Diharapkan m, h, atau d mendapatkan: %s"
 warns_help_msg:
   "Jaga anggota Anda dengan peringatan; hentikan mereka keluar dari
   kendali!
@@ -1010,9 +1001,6 @@ captcha_max_attempts_current: "Maksimum percobaan verifikasi saat ini: <b>%d</b>
 captcha_max_attempts_invalid: "Nilai tidak valid. Silakan tentukan angka antara 1 dan 10."
 captcha_max_attempts_set: "Maksimum percobaan verifikasi diatur ke <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "Pengguna %s akan dibuka bisunya secara otomatis dalam 24 jam."
-
 # Help module strings
 help_pm_questions: "Hai :) PM saya jika Anda punya pertanyaan tentang cara menggunakan saya!"
 help_config_private_only: Konfigurasi hanya berfungsi di private
@@ -1057,7 +1045,6 @@ devs_specify_chat: "Anda harus menentukan ID obrolan."
 # Common error messages used across modules
 error_generic: "Terjadi kesalahan. Silakan coba lagi nanti."
 common_anonymous_user_error: Perintah ini tidak dapat digunakan pada pengguna anonim.
-common_anonymous_ban_error: Perintah ini tidak dapat digunakan pada pengguna anonim, pengguna ini hanya dapat diblokir/dibuka blokirnya.
 common_cannot_identify_user: Tidak dapat mengidentifikasi pengguna. Perintah ini tidak dapat digunakan oleh kanal.
 command_help_example: "Contoh: {example}"
 common_no_user_specified: Saya tidak tahu siapa yang Anda maksud, Anda perlu menentukan pengguna...!
@@ -1065,15 +1052,6 @@ common_user_not_in_chat: Pengguna ini tidak ada di obrolan ini, bagaimana saya b
 common_cannot_target_admin: "Saya tidak dapat melakukan tindakan ini pada admin grup."
 common_cannot_target_self: "Saya tidak dapat melakukan tindakan ini pada diri saya sendiri."
 common_no_reply_to_message: "Anda perlu membalas pesan pengguna untuk melakukan tindakan ini."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "blokir"
-common_action_kick: "tendang"
-common_action_mute: "bisu"
-common_action_warn: "peringatkan"
-common_action_promote: "promosikan"
-common_action_demote: "turunkan"
-common_action_restrict: "batasi"
 
 # Time units for duration formatting
 common_time_minute: "menit"
@@ -1084,12 +1062,6 @@ common_time_day: "hari"
 common_time_days: "hari"
 common_time_week: "minggu"
 common_time_weeks: "minggu"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Diaktifkan"
-common_status_disabled: "Dinonaktifkan"
-common_status_on: "Nyala"
-common_status_off: "Mati"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nCatatan: Nilai-nilai ini di-cache dan mungkin tidak terbaru"
@@ -1142,7 +1114,6 @@ warns_limit_banned: "Itu %d/%d peringatan; Jadi %s telah diblokir!"
 warns_limit_tbanned: "Itu %d/%d peringatan; Jadi %s telah diblokir selama %s!"
 warns_limit_tmuted: "Itu %d/%d peringatan; Jadi %s telah dibisukan selama %s!"
 warns_remove_button: ❌ Hapus peringatan
-warns_rules_button: Aturan 📝
 warns_user_warning: "Pengguna %s punya %d/%d peringatan; hati-hati!"
 warns_warning_reason: "\n<b>Alasan</b>:\n%s"
 warns_settings_display: "Grup memiliki pengaturan berikut:\n<b>Batas Peringatan:</b> <code>%d</code>\n<b>Mode Peringatan:</b> <code>%s</code>\n<b>Masa Berlaku Peringatan:</b> <code>%s</code>"
@@ -1187,7 +1158,6 @@ locks_bot_lock_no_ban_permission: Saya melihat bot, dan saya diminta untuk mengh
 locks_bot_only_admins: Hanya admin dan pengguna yang disetujui yang diizinkan untuk menambahkan bot ke obrolan ini!
 
 # Pins module strings
-pins_unpin_not_pinned: Pesan yang dibalas bukan pesan yang disematkan.
 pins_unpinned_message: Melepas pin pesan ini.
 pins_unpinned_last: Melepas pin pesan terakhir yang disematkan.
 pins_unpin_all_confirm: Apakah Anda yakin ingin melepas pin semua pesan yang disematkan?
@@ -1262,15 +1232,8 @@ disabling_invalid_option: "Saya hanya mengerti opsi dari: `yes`/`no`/`on`/`off`"
 # Misc module strings
 misc_reply_to_someone: Balas ke seseorang.
 misc_provide_content: Berikan konten untuk dibalas!
-misc_could_not_find_user: Tidak dapat menemukan informasi tentang pengguna ini.
 misc_user_not_found: Tidak dapat menemukan informasi tentang pengguna ini.
-misc_channel_info: "<b>Info Kanal:</b>\nID: <code>%d</code>\nNama Kanal: %s"
-misc_channel_username: "Nama pengguna: @%s"
-misc_user_info: "<b>Info Pengguna:</b>\nID: <code>%d</code>\nNama: %s"
-misc_user_username: "Nama pengguna: @%s"
 misc_user_link: "Tautan pengguna: %s"
-misc_owner_tag: "Dia adalah pemilik saya!"
-misc_dev_user_tag: "Dia adalah salah satu pengguna dev saya!"
 misc_pinging: "<code>Menguji koneksi...</code>"
 misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>RTT API</b> (getMe): <code>%dms</code>\n<b>Kirim pesan</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "ID Thread: <code>%d</code>"
@@ -1286,7 +1249,6 @@ misc_your_id_group: "ID Anda adalah <code>%d</code>\nID grup ini adalah <code>%d
 misc_need_text_and_lang: Saya butuh teks dan kode bahasa untuk menerjemahkan.
 misc_no_text_to_translate: Pesan yang dibalas tidak mengandung teks untuk diterjemahkan.
 misc_provide_text_translate: Silakan berikan teks untuk diterjemahkan.
-misc_detected_translation: "<b>Bahasa Terdeteksi:</b> <code>%s</code>\n<b>Terjemahan:</b> <code>%s</code>"
 misc_removing_keyboard: Menghapus keyboard bot yang macet...
 misc_total_messages: "Total Pesan di %s adalah: %d"
 misc_channel_info_header: "<b>Info Kanal:</b>\n\nID: <code>%d</code>\n\nNama Kanal: %s"
@@ -1365,7 +1327,6 @@ greetings_auto_approve_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/n
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Verifikasi Captcha telah <b>diaktifkan</b>. Anggota baru perlu menyelesaikan captcha untuk bergabung."
 captcha_disabled_success: "❌ Verifikasi Captcha telah <b>dinonaktifkan</b>."
-captcha_mode_set_success: "✅ Mode captcha diatur ke <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Batas waktu captcha diatur ke <b>%d menit</b>"
 captcha_action_set_success: "✅ Tindakan kegagalan captcha diatur ke <b>%s</b>"
 captcha_refresh_button: "🔄 Gambar Baru"
@@ -1386,18 +1347,6 @@ captcha_no_pending_messages: "Tidak ada pesan tertunda untuk pengguna ini."
 captcha_clear_usage: "Penggunaan: <code>/captchaclear @user</code> atau <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Gagal menghapus pesan yang disimpan. Silakan coba lagi."
 captcha_clear_success: "✅ Berhasil menghapus semua pesan yang disimpan untuk pengguna %d"
-captcha_refresh_time_remaining: |
-  👋 Selamat datang %s!
-
-  Silakan pilih teks yang ditampilkan di gambar untuk memverifikasi Anda manusia:
-
-  ⏱ Anda punya <b>%d menit</b> untuk menjawab.
-captcha_math_time_remaining: |
-  👋 Selamat datang %s!
-
-  Silakan selesaikan masalah yang ditampilkan di gambar dan pilih jawaban yang benar:
-
-  ⏱ Anda punya <b>%d menit</b> untuk menjawab.
 
 # Notes module strings
 notes_save_success: "Catatan <b>%s</b> tersimpan!\nDapatkan dengan <code>#%s</code> atau <code>/get %s</code>."
@@ -1415,7 +1364,6 @@ notes_private_status_off: "Private Notes saat ini dimatikan!"
 notes_none_in_chat: "Tidak ada catatan di obrolan ini!"
 notes_list_for_chat: "Ini adalah catatan saat ini di <b>%s</b>:"
 notes_check_button: "Periksa tombol di bawah untuk mendapatkan Catatan!"
-notes_click_me_btn: "Klik Saya!"
 notes_current_in_chat: "Ini adalah catatan saat ini di Obrolan ini:\n"
 notes_get_instruction: "\nAnda dapat mendapatkan catatan dengan <code>#namacatatan</code> atau <code>/get namacatatan</code>"
 notes_clear_all_confirm: "Apakah Anda yakin ingin menghapus semua Catatan dari obrolan ini?"
@@ -1456,7 +1404,6 @@ filters_overwrite_expired: "⏰ Konfirmasi kedaluwarsa! Silakan coba lagi."
 
 # Helpers module strings
 helpers_back_button: "« Kembali"
-helpers_connection_success: "Anda telah terhubung ke %s!"
 helpers_note_not_exist: "Catatan ini tidak ada!"
 helpers_note_admin_only: "Catatan ini hanya dapat diakses oleh admin!"
 helpers_connected_to_chat: "Anda telah terhubung ke %s!"
@@ -1471,7 +1418,6 @@ common_done: "Selesai ✅"
 common_continue: "✅ Lanjutkan ✅"
 common_home: "Beranda"
 common_formatting_button: "Pemformatan"
-common_rules_button: "Aturan"
 common_rules_button_emoji: "Aturan 📝"
 
 # Main module strings
@@ -1531,7 +1477,6 @@ chat_status_anon_prove_admin: "Klik untuk membuktikan admin"
 extraction_chat_not_found: "gagal terhubung ke obrolan: gagal mendapatkan obrolan: tidak dapat getChat: Bad Request: obrolan tidak ditemukan"
 extraction_need_chat_id: "Saya butuh id obrolan untuk terhubung!"
 extraction_user_not_found: "Tidak dapat menemukan pengguna dengan nama ini; apakah Anda yakin saya pernah melihat mereka sebelumnya?"
-extraction_get_chat_member_failed: "Gagal mendapatkan pengguna: tidak dapat getChatMember: Bad Request: obrolan tidak ditemukan"
 extraction_invalid_time_amount: "Jumlah waktu yang ditentukan tidak valid."
 extraction_time_limit_exceeded: "Tidak dapat mengatur waktu lebih dari 1 tahun!"
 extraction_no_time_specified: "Silakan tentukan durasi waktu (mis., 1m, 1h, 1d, 1w)."
@@ -1539,16 +1484,12 @@ extraction_invalid_time_type: "Tipe waktu yang ditentukan tidak valid. Diharapka
 extraction_invalid_time_format: "Format waktu yang ditentukan tidak valid."
 
 # Database default strings
-db_default_welcome: "Hai {first}, apa kabar?"
-db_default_goodbye: "Sedih melihat Anda pergi {first}"
 db_warn_no_reason: "Tidak Ada Alasan"
-db_not_initialized: "database tidak diinisialisasi"
 
 # Captcha validation strings
 captcha_invalid_mode_error: "mode captcha tidak valid: harus 'math' atau 'text'"
 captcha_timeout_range_error: "batas waktu harus antara 1 dan 10 menit"
 captcha_invalid_action_error: "tindakan kegagalan tidak valid: harus 'kick', 'ban', atau 'mute'"
-captcha_attempts_range_error: "maksimal percobaan harus antara 1 dan 10"
 captcha_status_usage: "Gunakan <code>/captcha on</code> atau <code>/captcha off</code> untuk mengubah status."
 captcha_not_for_you: "Captcha ini bukan untuk Anda!"
 captcha_expired_or_not_found: "Captcha kedaluwarsa atau tidak ditemukan"
@@ -1592,22 +1533,6 @@ helpers_chat_not_found: "Tidak dapat menemukan obrolan tersebut. Obrolan mungkin
 # Formatting strings
 format_user_info: "Pengguna: %s"
 format_user_id: "ID Pengguna: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
-
-# System messages
-system_safety_shutdown: "manajer keselamatan sedang mematikan"
-system_timeout_worker: "batas waktu mendapatkan slot pekerja untuk %s"
-system_shutdown_acquisition: "manajer keselamatan mati saat akuisisi slot"
-
-# Captcha additional validation
-captcha_no_active_attempt: "tidak ada percobaan captcha aktif yang ditemukan"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Anda tidak dapat melaporkan posting kanal."
@@ -1624,10 +1549,6 @@ reports_group_only: "Perintah ini hanya dapat digunakan di grup!"
 reports_user_blocked: "Pengguna %s diblokir dari pelaporan."
 reports_user_unblocked: "Pengguna %s dibuka blokirnya dari pelaporan."
 reports_no_blocked_users: "Tidak ada pengguna yang saat ini diblokir dari menggunakan perintah pelaporan!"
-reports_preference_enabled: "Preferensi Anda saat ini adalah true, Anda akan diberitahu setiap kali seseorang melaporkan sesuatu di grup tempat Anda admin."
-reports_preference_disabled: "Anda belum mengaktifkan pelaporan, Anda tidak akan diberitahu."
-reports_status_enabled: "Pelaporan saat ini diaktifkan di obrolan ini.\nPengguna dapat menggunakan perintah /report, atau menyebut @admin, untuk menandai semua admin."
-reports_status_disabled: "Pelaporan saat ini dinonaktifkan di obrolan ini."
 reports_user_kicked: "Pengguna ditendang!"
 reports_user_banned: "Pengguna diblokir!"
 reports_message_deleted: "Pesan Dihapus!"
@@ -1699,11 +1620,7 @@ captcha_status_disabled: "dinonaktifkan"
 button_yes: "Ya"
 button_no: "Tidak"
 button_back: "Kembali"
-button_unmute_admin: "Buka Bisu (Khusus Admin)"
-button_unban_admin: "Buka Blokir (Khusus Admin)"
 button_unmute_admins: "Buka Bisu (Khusus Admin)"
-button_unban_admins: "Buka Blokir (Khusus Admin)"
-button_connect_to_chat: "Hubungkan ke obrolan"
 button_formatting: "Pemformatan"
 button_click_me: "Klik Saya!"
 button_ban: "Blokir"
@@ -1755,16 +1672,6 @@ antiflood_action_none: "tidak ada"
 # Helpers module strings
 helpers_notes_current_header: "Ini adalah catatan saat ini di Obrolan ini:\n"
 
-
-# Configuration errors
-config_workers_invalid: "%s harus antara %d dan %d"
-
-# System messages
-system_db_connected: "Terhubung ke database PostgreSQL dengan sukses!"
-system_config_loaded: "Konfigurasi dimuat dan divalidasi dengan sukses"
-
-# Database query errors
-db_type_assertion_failed: "aserti tipe ke []byte gagal"
 
 # Default button texts
 button_rules_default: "Aturan"

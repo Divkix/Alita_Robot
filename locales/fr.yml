@@ -1,6 +1,5 @@
 # French locale for Alita Robot
 # Language metadata
-lang_sample: Bonjour, je suis un bot de gestion de groupe
 language_flag: 🇫🇷
 language_name: Français
 
@@ -73,7 +72,6 @@ admin_notes_docs: |
 # Common error messages used across modules
 error_generic: "Une erreur s'est produite. Veuillez réessayer plus tard."
 common_anonymous_user_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme.
-common_anonymous_ban_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme, ces utilisateurs peuvent uniquement être bannis/débannis.
 common_cannot_identify_user: Impossible d'identifier l'utilisateur. Cette commande ne peut pas être utilisée par les chaînes.
 command_help_example: "Exemple : {example}"
 common_no_user_specified: Je ne sais pas de qui vous parlez, vous allez devoir spécifier un utilisateur... !
@@ -81,15 +79,6 @@ common_user_not_in_chat: Cet utilisateur n'est pas dans ce chat, comment puis-je
 common_cannot_target_admin: "Je ne peux pas effectuer cette action sur les administrateurs du groupe."
 common_cannot_target_self: "Je ne peux pas effectuer cette action sur moi-même."
 common_no_reply_to_message: "Vous devez répondre au message d'un utilisateur pour effectuer cette action."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "bannir"
-common_action_kick: "expulser"
-common_action_mute: "rendre muet"
-common_action_warn: "avertir"
-common_action_promote: "promouvoir"
-common_action_demote: "rétrograder"
-common_action_restrict: "restreindre"
 
 # Time units for duration formatting
 common_time_minute: "minute"
@@ -101,12 +90,6 @@ common_time_days: "jours"
 common_time_week: "semaine"
 common_time_weeks: "semaines"
 
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Activé"
-common_status_disabled: "Désactivé"
-common_status_on: "Activé"
-common_status_off: "Désactivé"
-
 # Common/Shared strings
 common_yes: "Oui"
 common_no: "Non"
@@ -117,7 +100,6 @@ common_done: "Terminé ✅"
 common_continue: "✅ Continuer ✅"
 common_home: "Accueil"
 common_formatting_button: "Formatage"
-common_rules_button: "Règles"
 common_rules_button_emoji: "Règles 📝"
 
 # Language module strings
@@ -132,11 +114,7 @@ language_invalid_selection: "Sélection de langue invalide."
 button_yes: "Oui"
 button_no: "Non"
 button_back: "Retour"
-button_unmute_admin: "Réactiver la voix (Admin uniquement)"
-button_unban_admin: "Débannir (Admin uniquement)"
 button_unmute_admins: "Réactiver la voix (Admins uniquement)"
-button_unban_admins: "Débannir (Admins uniquement)"
-button_connect_to_chat: "Se connecter au chat"
 button_formatting: "Formatage"
 button_click_me: "Cliquez-moi !"
 button_ban: "Bannir"
@@ -208,7 +186,6 @@ bans_kick_user_not_in_chat:
   le restreindre ?
 bans_kickme_is_admin: Vous êtes admin, et vous êtes coincé ici avec tout le monde !
 bans_kickme_ok_out: Comme vous le souhaitez, dehors !
-bans_unban_is_admin: Pourquoi débannirais-je un admin ?
 bans_unban_is_bot_itself: Pourquoi me dé-restreindre moi-même quand je suis déjà là ?
 bans_unban_unbanned_user: "Donnons-lui une autre chance.
 
@@ -355,7 +332,6 @@ warns_limit_banned: "Ça fait %d/%d avertissements ; Donc %s a été banni !"
 warns_limit_tbanned: "Ça fait %d/%d avertissements ; Donc %s a été banni pour %s !"
 warns_limit_tmuted: "Ça fait %d/%d avertissements ; Donc %s a été rendu muet pour %s !"
 warns_remove_button: ❌ Supprimer l'avertissement
-warns_rules_button: Règles 📝
 warns_user_warning: "L'utilisateur %s a %d/%d avertissements ; attention !"
 warns_warning_reason: "\n<b>Raison</b> :\n%s"
 warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>\n<b>Expiration des avertissements :</b> <code>%s</code>"
@@ -558,10 +534,8 @@ captcha_invalid_refresh: Données d'actualisation invalides
 captcha_max_attempts_current: "Nombre maximum de tentatives de vérification actuel : <b>%d</b>"
 captcha_max_attempts_invalid: "Valeur invalide. Veuillez spécifier un nombre entre 1 et 10."
 captcha_max_attempts_set: "Nombre maximum de tentatives de vérification défini à <b>%d</b>"
-captcha_user_auto_unmute: "L'utilisateur %s sera automatiquement réactivé dans 24 heures."
 captcha_enabled_success: "✅ La vérification captcha a été <b>activée</b>. Les nouveaux membres devront compléter un captcha pour rejoindre."
 captcha_disabled_success: "❌ La vérification captcha a été <b>désactivée</b>."
-captcha_mode_set_success: "✅ Mode captcha défini à <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Délai captcha défini à <b>%d minutes</b>"
 captcha_action_set_success: "✅ Action d'échec captcha définie à <b>%s</b>"
 captcha_refresh_button: "🔄 Nouvelle Image"
@@ -582,22 +556,9 @@ captcha_no_pending_messages: "Aucun message en attente trouvé pour cet utilisat
 captcha_clear_usage: "Utilisation : <code>/captchaclear @utilisateur</code> ou <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Échec de la suppression des messages stockés. Veuillez réessayer."
 captcha_clear_success: "✅ Tous les messages stockés pour l'utilisateur %d ont été supprimés"
-captcha_refresh_time_remaining: |
-  👋 Bienvenue %s !
-
-  Veuillez sélectionner le texte affiché dans l'image pour vérifier que vous êtes humain :
-
-  ⏱ Vous avez <b>%d minutes</b> pour répondre.
-captcha_math_time_remaining: |
-  👋 Bienvenue %s !
-
-  Veuillez résoudre le problème affiché dans l'image et sélectionner la bonne réponse :
-
-  ⏱ Vous avez <b>%d minutes</b> pour répondre.
 captcha_invalid_mode_error: "mode captcha invalide : doit être 'math' ou 'text'"
 captcha_timeout_range_error: "le délai doit être entre 1 et 10 minutes"
 captcha_invalid_action_error: "action d'échec invalide : doit être 'kick', 'ban' ou 'mute'"
-captcha_attempts_range_error: "le nombre max de tentatives doit être entre 1 et 10"
 captcha_status_usage: "Utilisez <code>/captcha on</code> ou <code>/captcha off</code> pour changer le statut."
 captcha_not_for_you: "Ce captcha n'est pas pour vous !"
 captcha_expired_or_not_found: "Captcha expiré ou introuvable"
@@ -605,7 +566,6 @@ captcha_attempt_not_valid: "Cette tentative de captcha n'est plus valide."
 captcha_refresh_limit_reached: "Limite d'actualisation atteinte pour ce captcha."
 captcha_internal_update_error: "Erreur interne lors de la mise à jour du captcha."
 captcha_internal_error: "Une erreur interne s'est produite lors de la mise à jour des paramètres du captcha. Veuillez réessayer."
-captcha_no_active_attempt: "aucune tentative de captcha active trouvée"
 captcha_settings_header: "<b>Paramètres Captcha :</b>"
 captcha_settings_status: "Statut : <code>%s</code>"
 captcha_settings_mode: "Mode : <code>%s</code>"
@@ -799,7 +759,6 @@ notes_private_status_off: "Les notes privées sont actuellement désactivées !"
 notes_none_in_chat: "Il n'y a pas de notes dans ce chat !"
 notes_list_for_chat: "Voici les notes actuelles dans <b>%s</b> :"
 notes_check_button: "Cliquez sur le bouton ci-dessous pour obtenir les notes !"
-notes_click_me_btn: "Cliquez-moi !"
 notes_current_in_chat: "Voici les notes actuelles dans ce chat :\n"
 notes_get_instruction: "\nVous pouvez obtenir une note avec <code>#nom_note</code> ou <code>/get nom_note</code>"
 notes_clear_all_confirm: "Êtes-vous sûr de vouloir supprimer toutes les notes de ce chat ?"
@@ -1051,12 +1010,6 @@ locks_bot_only_admins: Seuls les admins et les utilisateurs approuvés sont auto
 
 # Utils chat status strings
 
-# Utils extraction strings
-utils_string_handling_extract_time_invalid_time_amount: Quantité de temps invalide spécifiée.
-utils_string_handling_extract_time_invalid_time_type:
-  "Type de temps invalide spécifié.
-  Attendu m, h, ou d obtenu : %s"
-
 # Chat status permission strings
 chat_status_change_info_button_error: "Vous n'avez pas les permissions pour modifier les informations !!"
 chat_status_change_info_cmd_error: "Vous n'avez pas la permission de modifier les informations dans ce groupe !"
@@ -1088,7 +1041,6 @@ chat_status_anon_prove_admin: "Cliquez pour prouver que vous êtes admin"
 extraction_chat_not_found: "échec de la connexion au chat : échec de l'obtention du chat : impossible de getChat : Bad Request : chat introuvable"
 extraction_need_chat_id: "J'ai besoin d'un ID de chat pour me connecter !"
 extraction_user_not_found: "Impossible de trouver un utilisateur avec ce nom ; êtes-vous sûr que je l'ai déjà vu ?"
-extraction_get_chat_member_failed: "Échec de l'obtention de l'utilisateur : impossible de getChatMember : Bad Request : chat introuvable"
 extraction_invalid_time_amount: "Quantité de temps invalide spécifiée."
 extraction_time_limit_exceeded: "Impossible de définir un temps supérieur à 1 an !"
 extraction_no_time_specified: "Veuillez spécifier une durée (ex. 1m, 1h, 1d, 1w)."
@@ -1235,15 +1187,8 @@ misc_help_msg:
 misc_translation_error: Erreur lors de la demande de traduction !
 misc_reply_to_someone: Répondez à quelqu'un.
 misc_provide_content: Fournissez du contenu pour répondre !
-misc_could_not_find_user: Impossible de trouver des informations sur cet utilisateur.
 misc_user_not_found: Impossible de trouver des informations sur cet utilisateur.
-misc_channel_info: "<b>Info de la chaîne :</b>\nID : <code>%d</code>\nNom de la chaîne : %s"
-misc_channel_username: "Nom d'utilisateur : @%s"
-misc_user_info: "<b>Info utilisateur :</b>\nID : <code>%d</code>\nNom : %s"
-misc_user_username: "Nom d'utilisateur : @%s"
 misc_user_link: "Lien utilisateur : %s"
-misc_owner_tag: "C'est mon propriétaire !"
-misc_dev_user_tag: "C'est l'un de mes développeurs !"
 misc_pinging: "<code>Ping en cours</code>"
 misc_ping_result: "🏓 <b>Pong !</b>\n\n<b>RTT de l’API</b> (getMe) : <code>%dms</code>\n<b>Envoi du message</b> : <code>%dms</code>\n<b>Surcoût</b> : <code>%dms</code>"
 misc_thread_id: "ID du fil : <code>%d</code>"
@@ -1259,7 +1204,6 @@ misc_your_id_group: "Votre ID est <code>%d</code>\nL'ID de ce groupe est <code>%
 misc_need_text_and_lang: J'ai besoin de texte et d'un code de langue pour traduire.
 misc_no_text_to_translate: Le message en réponse ne contient pas de texte à traduire.
 misc_provide_text_translate: Veuillez fournir du texte à traduire.
-misc_detected_translation: "<b>Langue détectée :</b> <code>%s</code>\n<b>Traduction :</b> <code>%s</code>"
 misc_removing_keyboard: Suppression du clavier de bot bloqué...
 misc_total_messages: "Total des messages dans %s : %d"
 misc_channel_info_header: "<b>Info de la chaîne :</b>\n\nID : <code>%d</code>\n\nNom de la chaîne : %s"
@@ -1301,7 +1245,6 @@ pins_help_msg:
   Si aucun argument n'est donné, affiche le paramètre actuel.
 
   × /cleanlinked <yes/no/on/off> : Supprimez les messages envoyés par la chaîne liée."
-pins_unpin_not_pinned: Le message en réponse n'est pas un message épinglé.
 pins_unpinned_message: Message désépinglé.
 pins_unpinned_last: Dernier message épinglé désépinglé.
 pins_unpin_all_confirm: Êtes-vous sûr de vouloir désépingler tous les messages épinglés ?
@@ -1409,10 +1352,6 @@ reports_group_only: "Cette commande ne peut être utilisée que dans un groupe !
 reports_user_blocked: "Utilisateur %s bloqué du signalement."
 reports_user_unblocked: "Utilisateur %s débloqué du signalement."
 reports_no_blocked_users: "Aucun utilisateur n'est actuellement bloqué de l'utilisation des commandes de signalement !"
-reports_preference_enabled: "Votre préférence actuelle est activée. Vous serez notifié chaque fois que quelqu'un signale quelque chose dans les groupes où vous êtes admin."
-reports_preference_disabled: "Vous n'avez pas activé les signalements. Vous ne serez pas notifié."
-reports_status_enabled: "Les signalements sont actuellement activés dans ce chat.\nLes utilisateurs peuvent utiliser la commande /report, ou mentionner @admin, pour taguer tous les admins."
-reports_status_disabled: "Les signalements sont actuellement désactivés dans ce chat."
 reports_user_kicked: "Utilisateur expulsé !"
 reports_user_banned: "Utilisateur banni !"
 reports_message_deleted: "Message supprimé !"
@@ -1475,11 +1414,7 @@ devs_failed_to_remove_sudo: "Échec de la suppression de l'utilisateur de la lis
 devs_failed_to_remove_dev: "Échec de la suppression de l'utilisateur de la liste Dev. Veuillez réessayer."
 
 # Database default strings
-db_default_welcome: "Salut {first}, comment vas-tu ?"
-db_default_goodbye: "Triste de te voir partir {first}"
 db_warn_no_reason: "Aucune raison"
-db_not_initialized: "base de données non initialisée"
-db_type_assertion_failed: "échec de l'assertion de type vers []byte"
 
 # Helpers utility strings
 helpers_admin_commands: "Commandes Admin"
@@ -1496,7 +1431,6 @@ helpers_module_help_header: "Voici l'aide pour le module *%s* :\n\n"
 helpers_invalid_deep_link: "Lien profond invalide ou mal formé. Veuillez vérifier l'URL et réessayer."
 helpers_chat_not_found: "Impossible de trouver ce chat. Il n'existe peut-être plus ou je n'y ai pas accès."
 helpers_back_button: "« Retour"
-helpers_connection_success: "Vous avez été connecté à %s !"
 helpers_note_not_exist: "Cette note n'existe pas !"
 helpers_note_admin_only: "Cette note ne peut être consultée que par un administrateur !"
 helpers_connected_to_chat: "Vous avez été connecté à %s !"
@@ -1506,19 +1440,6 @@ helpers_notes_current_header: "Voici les notes actuelles dans ce chat :\n"
 # Formatting strings
 format_user_info: "Utilisateur : %s"
 format_user_id: "ID utilisateur : %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
-
-# System messages
-system_safety_shutdown: "le gestionnaire de sécurité est en cours d'arrêt"
-system_timeout_worker: "délai d'attente pour l'acquisition d'un emplacement de travailleur pour %s"
-system_shutdown_acquisition: "arrêt du gestionnaire de sécurité pendant l'acquisition de l'emplacement"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Formatting module additional strings
 formatting_press_button: "Appuyez sur le bouton ci-dessous pour obtenir l'aide Markdown !"
@@ -2082,9 +2003,6 @@ antiflood_action_none: "aucun"
 
 # Common strings admin cache
 commonstrings_admin_cache_cache_reloaded: Cache admin rechargé avec succès.
-commonstrings_admin_cache_not_found:
-  "Cache admin introuvable. Demandez à un admin d'utiliser /admincache
-  pour recharger le cache admin."
 
 # Formatting fillings
 formatting_fillings: "<b>Remplissages</b>
@@ -2137,13 +2055,6 @@ message_type_voice: "message vocal"
 message_type_video: "vidéo"
 message_type_video_note: "note vidéo"
 message_type_unknown: "inconnu"
-
-# Config validation strings
-config_workers_invalid: "%s doit être entre %d et %d"
-
-# System strings
-system_db_connected: "Connecté à la base de données PostgreSQL avec succès !"
-system_config_loaded: "Configuration chargée et validée avec succès"
 
 # Issue #628 remediation keys
 misc_translate_parse_error: "Impossible d'analyser la réponse de traduction. Veuillez réessayer."

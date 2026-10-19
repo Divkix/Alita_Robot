@@ -66,13 +66,8 @@ admin_notes_docs: |
 
 # Utils/Chat Status strings
 
-# Utils/Extraction strings
-utils_string_handling_extract_time_invalid_time_amount: अमान्य समय राशि निर्दिष्ट।
-utils_string_handling_extract_time_invalid_time_type: "अमान्य समय प्रकार निर्दिष्ट। अपेक्षित m, h, या d मिला: %s"
-
 # Common error strings
 common_anonymous_user_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता।
-common_anonymous_ban_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता, इन उपयोगकर्ताओं को केवल बैन/अनबैन किया जा सकता है।
 common_cannot_identify_user: उपयोगकर्ता की पहचान नहीं हो सकी। इस कमांड का उपयोग चैनलों द्वारा नहीं किया जा सकता।
 command_help_example: "उदाहरण: {example}"
 common_no_user_specified: मुझे नहीं पता आप किसके बारे में बात कर रहे हैं, आपको एक उपयोगकर्ता निर्दिष्ट करना होगा...!
@@ -80,15 +75,6 @@ common_user_not_in_chat: यह उपयोगकर्ता इस चैट 
 common_cannot_target_admin: "मैं ग्रुप एडमिनिस्ट्रेटर्स पर यह कार्रवाई नहीं कर सकता।"
 common_cannot_target_self: "मैं खुद पर यह कार्रवाई नहीं कर सकता।"
 common_no_reply_to_message: "इस कार्रवाई को करने के लिए आपको किसी उपयोगकर्ता के संदेश का जवाब देना होगा।"
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "बैन"
-common_action_kick: "किक"
-common_action_mute: "म्यूट"
-common_action_warn: "चेतावनी"
-common_action_promote: "प्रमोट"
-common_action_demote: "डिमोट"
-common_action_restrict: "प्रतिबंधित"
 
 # Time units for duration formatting
 common_time_minute: "मिनट"
@@ -100,12 +86,6 @@ common_time_days: "दिन"
 common_time_week: "सप्ताह"
 common_time_weeks: "सप्ताह"
 
-# Status indicators
-common_status_enabled: "सक्षम"
-common_status_disabled: "अक्षम"
-common_status_on: "चालू"
-common_status_off: "बंद"
-
 # Common/Shared strings
 common_yes: "हाँ"
 common_no: "नहीं"
@@ -116,12 +96,10 @@ common_done: "हो गया ✅"
 common_continue: "✅ जारी रखें ✅"
 common_home: "होम"
 common_formatting_button: "फॉर्मेटिंग"
-common_rules_button: "नियम"
 common_rules_button_emoji: "नियम 📝"
 
 # Helpers strings
 helpers_back_button: "« वापस"
-helpers_connection_success: "आप %s से जुड़ गए हैं!"
 helpers_note_not_exist: "यह नोट मौजूद नहीं है!"
 helpers_note_admin_only: "यह नोट केवल एडमिन द्वारा एक्सेस किया जा सकता है!"
 helpers_connected_to_chat: "आप %s से जुड़ गए हैं!"
@@ -143,19 +121,12 @@ helpers_notes_current_header: "इस चैट में वर्तमान 
 # Format strings
 format_user_info: "उपयोगकर्ता: %s"
 format_user_id: "उपयोगकर्ता ID: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # Button strings
 button_yes: "हाँ"
 button_no: "नहीं"
 button_back: "वापस"
-button_unmute_admin: "अनम्यूट (केवल एडमिन)"
-button_unban_admin: "अनबैन (केवल एडमिन)"
 button_unmute_admins: "अनम्यूट (केवल एडमिन)"
-button_unban_admins: "अनबैन (केवल एडमिन)"
-button_connect_to_chat: "चैट से जुड़ें"
 button_formatting: "फॉर्मेटिंग"
 button_click_me: "मुझे क्लिक करें!"
 button_ban: "बैन"
@@ -423,7 +394,6 @@ greetings_help_msg: "अपने ग्रुप में नए सदस्�
 
   × /autoapprove `<yes/no/on/off>`: जॉइन अनुरोध अपने-आप स्वीकार करें।"
 
-lang_sample: नमस्ते, मैं एक ग्रुप प्रबंधन बॉट हूँ
 language_flag: 🇮🇳
 language_name: हिन्दी
 
@@ -773,7 +743,6 @@ bans_kick_kicked_user: "%s को सफलतापूर्वक किक �
 bans_kick_user_not_in_chat: "यह उपयोगकर्ता इस चैट में नहीं है, और मैं उन्हें कैसे प्रतिबंधित करूं?"
 bans_kickme_is_admin: आप एक एडमिन हैं, और आप यहाँ सबके साथ फंसे हुए हैं!
 bans_kickme_ok_out: आपकी इच्छानुसार, बाहर निकलो!
-bans_unban_is_admin: मैं एक एडमिन को अनबैन क्यों करूंगा?
 bans_unban_is_bot_itself: जब मैं पहले से यहाँ हूं तो मैं खुद को अन-प्रतिबंधित क्यों करूंगा?
 bans_unban_unbanned_user: "चलो उसे एक और मौका देते हैं।\n\n%s को अनबैन किया गया!"
 bans_dkick_no_reply: इसे हटाने और किक करने के लिए उपयोगकर्ता के संदेश का जवाब दें!
@@ -882,10 +851,8 @@ captcha_invalid_refresh: अमान्य रिफ्रेश डेटा
 captcha_max_attempts_current: "वर्तमान अधिकतम सत्यापन प्रयास: <b>%d</b>"
 captcha_max_attempts_invalid: "अमान्य मान। कृपया 1 और 10 के बीच एक संख्या निर्दिष्ट करें।"
 captcha_max_attempts_set: "अधिकतम सत्यापन प्रयास <b>%d</b> पर सेट किए गए"
-captcha_user_auto_unmute: "उपयोगकर्ता %s 24 घंटे में स्वचालित रूप से अनम्यूट हो जाएगा।"
 captcha_enabled_success: "✅ कैप्चा सत्यापन <b>सक्षम</b> कर दिया गया है। नए सदस्यों को शामिल होने के लिए कैप्चा पूरा करना होगा।"
 captcha_disabled_success: "❌ कैप्चा सत्यापन <b>अक्षम</b> कर दिया गया है।"
-captcha_mode_set_success: "✅ कैप्चा मोड <b>%s</b> (%s) पर सेट किया गया"
 captcha_timeout_set_success: "✅ कैप्चा टाइमआउट <b>%d मिनट</b> पर सेट किया गया"
 captcha_action_set_success: "✅ कैप्चा विफलता कार्रवाई <b>%s</b> पर सेट की गई"
 captcha_refresh_button: "🔄 नई छवि"
@@ -906,18 +873,6 @@ captcha_no_pending_messages: "इस उपयोगकर्ता के ल�
 captcha_clear_usage: "उपयोग: <code>/captchaclear @user</code> या <code>/captchaclear user_id</code>"
 captcha_clear_failed: "संग्रहीत संदेश साफ़ करने में विफल। कृपया पुनः प्रयास करें।"
 captcha_clear_success: "✅ उपयोगकर्ता %d के सभी संग्रहीत संदेश साफ़ कर दिए गए"
-captcha_refresh_time_remaining: |
-  👋 स्वागत है %s!
-
-  कृपया छवि में दिखाए गए टेक्स्ट का चयन करें यह साबित करने के लिए कि आप मानव हैं:
-
-  ⏱ आपके पास जवाब देने के लिए <b>%d मिनट</b> हैं।
-captcha_math_time_remaining: |
-  👋 स्वागत है %s!
-
-  कृपया छवि में दिखाई गई समस्या को हल करें और सही उत्तर चुनें:
-
-  ⏱ आपके पास जवाब देने के लिए <b>%d मिनट</b> हैं।
 captcha_settings_header: "<b>कैप्चा सेटिंग्स:</b>"
 captcha_settings_status: "स्थिति: <code>%s</code>"
 captcha_settings_mode: "मोड: <code>%s</code>"
@@ -929,7 +884,6 @@ captcha_status_disabled: "अक्षम"
 captcha_invalid_mode_error: "अमान्य कैप्चा मोड: 'math' या 'text' होना चाहिए"
 captcha_timeout_range_error: "टाइमआउट 1 और 10 मिनट के बीच होना चाहिए"
 captcha_invalid_action_error: "अमान्य विफलता कार्रवाई: 'kick', 'ban', या 'mute' होनी चाहिए"
-captcha_attempts_range_error: "अधिकतम प्रयास 1 और 10 के बीच होने चाहिए"
 captcha_status_usage: "स्थिति बदलने के लिए <code>/captcha on</code> या <code>/captcha off</code> का उपयोग करें।"
 captcha_not_for_you: "यह कैप्चा आपके लिए नहीं है!"
 captcha_expired_or_not_found: "कैप्चा समाप्त या नहीं मिला"
@@ -937,7 +891,6 @@ captcha_attempt_not_valid: "यह कैप्चा प्रयास अब 
 captcha_refresh_limit_reached: "इस कैप्चा के लिए रिफ्रेश सीमा पहुंच गई।"
 captcha_internal_update_error: "कैप्चा अपडेट करने में आंतरिक त्रुटि।"
 captcha_internal_error: "कैप्चा सेटिंग्स अपडेट करते समय एक आंतरिक त्रुटि हुई। कृपया पुनः प्रयास करें।"
-captcha_no_active_attempt: "कोई सक्रिय कैप्चा प्रयास नहीं मिला"
 captcha_mode_math_desc: "गणितीय समस्याएं"
 captcha_mode_text_desc: "छवियों से टेक्स्ट पहचान"
 captcha_mode_set_formatted: "✅ कैप्चा मोड <b>%s</b> (%s) पर सेट किया गया"
@@ -979,7 +932,6 @@ captcha_permissions_docs: |
 
 # Connections module strings
 commonstrings_admin_cache_cache_reloaded: एडमिन कैश सफलतापूर्वक रीलोड किया गया।
-commonstrings_admin_cache_not_found: "एडमिन कैश नहीं मिला। किसी एडमिन से /admincache का उपयोग करके एडमिन कैश रीलोड करने के लिए कहें।"
 connections_allow_connect_currently_off: "उपयोगकर्ता कनेक्शन वर्तमान में <b>बंद</b> हैं।\n\nउपयोगकर्ता इस चैट को अपने PM से कनेक्ट नहीं कर सकते!"
 connections_allow_connect_currently_on: "उपयोगकर्ता कनेक्शन वर्तमान में <b>चालू</b> हैं।\n\nउपयोगकर्ता इस चैट को अपने PM से कनेक्ट कर सकते हैं!"
 connections_allow_connect_turned_off: "उपयोगकर्ता कनेक्शन इस चैट के लिए <b>बंद</b> कर दिया गया!\n\nउपयोगकर्ता चैट को अपने PM से कनेक्ट नहीं कर सकते!"
@@ -1334,7 +1286,6 @@ notes_private_status_off: "प्राइवेट नोट्स वर्त
 notes_none_in_chat: "इस चैट में कोई नोट्स नहीं हैं!"
 notes_list_for_chat: "ये <b>%s</b> में वर्तमान नोट्स हैं:"
 notes_check_button: "नोट्स प्राप्त करने के लिए नीचे बटन पर क्लिक करें!"
-notes_click_me_btn: "मुझे क्लिक करें!"
 notes_current_in_chat: "इस चैट में वर्तमान नोट्स हैं:\n"
 notes_get_instruction: "\nआप <code>#notename</code> या <code>/get notename</code> द्वारा नोट प्राप्त कर सकते हैं"
 notes_clear_all_confirm: "क्या आप वाकई इस चैट से सभी नोट्स हटाना चाहते हैं?"
@@ -1389,7 +1340,6 @@ notes_permissions_docs: |
   • बॉट: /save, /addnote, /clear, /rmnote, /notes और /saved के लिए एडमिन होना चाहिए (/get और #notename इसके बिना भी काम करते हैं)
 
 # Pins module strings
-pins_unpin_not_pinned: जवाब दिया गया संदेश एक पिन किया गया संदेश नहीं है।
 pins_unpinned_message: इस संदेश को अनपिन किया गया।
 pins_unpinned_last: आखिरी पिन किए गए संदेश को अनपिन किया गया।
 pins_unpin_all_confirm: क्या आप वाकई सभी पिन किए गए संदेशों को अनपिन करना चाहते हैं?
@@ -1494,10 +1444,6 @@ reports_group_only: "यह कमांड केवल ग्रुप मे�
 reports_user_blocked: "%s को रिपोर्टिंग से ब्लॉक किया गया।"
 reports_user_unblocked: "%s को रिपोर्टिंग से अनब्लॉक किया गया।"
 reports_no_blocked_users: "वर्तमान में कोई उपयोगकर्ता रिपोर्ट कमांड का उपयोग करने से ब्लॉक नहीं है!"
-reports_preference_enabled: "आपकी वर्तमान प्राथमिकता सत्य है, जब भी कोई उन ग्रुप में कुछ रिपोर्ट करेगा जहां आप एडमिन हैं, आपको सूचित किया जाएगा।"
-reports_preference_disabled: "आपने रिपोर्ट सक्षम नहीं की हैं, आपको सूचित नहीं किया जाएगा।"
-reports_status_enabled: "इस चैट में रिपोर्ट वर्तमान में सक्षम हैं।\nउपयोगकर्ता सभी एडमिन को टैग करने के लिए /report कमांड या @admin का उपयोग कर सकते हैं।"
-reports_status_disabled: "इस चैट में रिपोर्ट वर्तमान में अक्षम हैं।"
 reports_user_kicked: "उपयोगकर्ता को किक किया गया!"
 reports_user_banned: "उपयोगकर्ता को बैन किया गया!"
 reports_message_deleted: "संदेश हटा दिया गया!"
@@ -1609,7 +1555,6 @@ warns_limit_banned: "यह %d/%d चेतावनियां हैं; इ�
 warns_limit_tbanned: "यह %d/%d चेतावनियां हैं; इसलिए %s को %s के लिए बैन कर दिया गया है!"
 warns_limit_tmuted: "यह %d/%d चेतावनियां हैं; इसलिए %s को %s के लिए म्यूट कर दिया गया है!"
 warns_remove_button: ❌ चेतावनी हटाएं
-warns_rules_button: नियम 📝
 warns_user_warning: "उपयोगकर्ता %s को %d/%d चेतावनियां हैं; सावधान रहें!"
 warns_warning_reason: "\n<b>कारण</b>:\n%s"
 warns_settings_display: "ग्रुप में निम्नलिखित सेटिंग्स हैं:\n<b>चेतावनी सीमा:</b> <code>%d</code>\n<b>चेतावनी मोड:</b> <code>%s</code>\n<b>चेतावनी समाप्ति:</b> <code>%s</code>"
@@ -1643,15 +1588,8 @@ warns_reset_all_final: इस चैट के सभी उपयोगकर�
 misc_translation_error: अनुवाद अनुरोध करने में त्रुटि!
 misc_reply_to_someone: किसी को रिप्लाई करें।
 misc_provide_content: रिप्लाई करने के लिए कुछ सामग्री प्रदान करें!
-misc_could_not_find_user: इस उपयोगकर्ता के बारे में कोई जानकारी नहीं मिली।
 misc_user_not_found: इस उपयोगकर्ता के बारे में कोई जानकारी नहीं मिली।
-misc_channel_info: "<b>चैनल जानकारी:</b>\nID: <code>%d</code>\nचैनल का नाम: %s"
-misc_channel_username: "यूज़रनेम: @%s"
-misc_user_info: "<b>उपयोगकर्ता जानकारी:</b>\nID: <code>%d</code>\nनाम: %s"
-misc_user_username: "यूज़रनेम: @%s"
 misc_user_link: "उपयोगकर्ता लिंक: %s"
-misc_owner_tag: "वह मेरा मालिक है!"
-misc_dev_user_tag: "वह मेरे डेव उपयोगकर्ताओं में से एक है!"
 misc_pinging: "<code>पिंग कर रहा हूं</code>"
 misc_ping_result: "🏓 <b>पॉन्ग!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>संदेश भेजना</b>: <code>%dms</code>\n<b>अतिरिक्त समय</b>: <code>%dms</code>"
 misc_thread_id: "थ्रेड Id: <code>%d</code>"
@@ -1667,7 +1605,6 @@ misc_your_id_group: "आपकी ID <code>%d</code> है\nइस ग्रु
 misc_need_text_and_lang: मुझे अनुवाद करने के लिए कुछ टेक्स्ट और एक भाषा कोड चाहिए।
 misc_no_text_to_translate: रिप्लाई किए गए संदेश में अनुवाद करने के लिए कोई टेक्स्ट नहीं है।
 misc_provide_text_translate: कृपया अनुवाद करने के लिए कुछ टेक्स्ट प्रदान करें।
-misc_detected_translation: "<b>पहचानी गई भाषा:</b> <code>%s</code>\n<b>अनुवाद:</b> <code>%s</code>"
 misc_removing_keyboard: अटके हुए बॉट कीबोर्ड को हटा रहा हूं...
 misc_total_messages: "%s में कुल संदेश: %d हैं"
 misc_channel_info_header: "<b>चैनल जानकारी:</b>\n\nID: <code>%d</code>\n\nचैनल का नाम: %s"
@@ -1821,7 +1758,6 @@ chat_status_anon_prove_admin: "एडमिन साबित करने क�
 extraction_chat_not_found: "चैट से कनेक्ट करने में विफल: चैट प्राप्त करने में विफल: getChat करने में असमर्थ: Bad Request: chat not found"
 extraction_need_chat_id: "मुझे कनेक्ट करने के लिए एक चैट id चाहिए!"
 extraction_user_not_found: "इस नाम से कोई उपयोगकर्ता नहीं मिला; क्या आप सुनिश्चित हैं कि मैंने उन्हें पहले देखा है?"
-extraction_get_chat_member_failed: "उपयोगकर्ता प्राप्त करने में विफल: getChatMember करने में असमर्थ: Bad Request: chat not found"
 extraction_invalid_time_amount: "अमान्य समय राशि निर्दिष्ट की गई।"
 extraction_time_limit_exceeded: "1 वर्ष से अधिक का समय सेट नहीं किया जा सकता!"
 extraction_no_time_specified: "कृपया एक समय अवधि निर्दिष्ट करें (उदा., 1m, 1h, 1d, 1w)।"
@@ -1832,24 +1768,8 @@ extraction_invalid_time_format: "अमान्य समय प्रारू
 error_generic: "एक त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।"
 
 # Database default keys
-db_default_welcome: "हेलो {first}, आप कैसे हैं?"
-db_default_goodbye: "आपको जाते देखकर दुख हुआ {first}"
 db_warn_no_reason: "कोई कारण नहीं"
-db_not_initialized: "डेटाबेस आरंभ नहीं हुआ"
-db_type_assertion_failed: "[]byte में टाइप असर्शन विफल"
 
-
-# System messages
-system_safety_shutdown: "सेफ्टी मैनेजर बंद हो रहा है"
-system_timeout_worker: "%s के लिए वर्कर स्लॉट प्राप्त करने में टाइमआउट"
-system_shutdown_acquisition: "स्लॉट अधिग्रहण के दौरान सेफ्टी मैनेजर शटडाउन"
-system_db_connected: "PostgreSQL डेटाबेस से सफलतापूर्वक कनेक्ट हो गया!"
-system_config_loaded: "कॉन्फ़िगरेशन सफलतापूर्वक लोड और सत्यापित हो गया"
-
-# Math operators
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Message types
 message_type_text: "टेक्स्ट"
@@ -1863,7 +1783,6 @@ message_type_video_note: "वीडियो नोट"
 message_type_unknown: "अज्ञात"
 
 # Config error messages
-config_workers_invalid: "%s %d और %d के बीच होना चाहिए"
 help_pm_intro: |
   हेलो %s!
   मेरा नाम Alita ✨ है।
