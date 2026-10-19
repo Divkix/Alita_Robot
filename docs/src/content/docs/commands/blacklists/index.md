@@ -16,7 +16,7 @@ description: Complete guide to Blacklists module commands and features
 × /blacklistaction: Same as above
 
 *Owner Only:*
-× /remallbl /rmallbl: Removes all the blacklisted words from chat
+× /remallbl /rmallbl /rmblocklistall /rmallblocklist: Removes all the blacklisted words from chat
 
 *Note:*
 The Default mode for Blacklist is **warn**, which will delete the message and issue a warning to the user.
@@ -33,7 +33,7 @@ The following actions can be set using `/blaction`:
 - `/addblacklist &lt;trigger&gt;` - Blacklists the word in the current chat
 - `/rmblacklist &lt;trigger&gt;` - Removes the word from current Blacklisted Words in Chat
 - `/blaction &lt;mute/kick/ban/warn/none&gt;` - Sets the action to be performed by bot when a blacklist word is detected
-- `/remallbl` / `/rmallbl` - Removes all the blacklisted words from chat (Owner Only)
+- `/remallbl` / `/rmallbl` / `/rmblocklistall` / `/rmallblocklist` - Removes all the blacklisted words from chat (Owner Only)
 
 
 ## Module Aliases
