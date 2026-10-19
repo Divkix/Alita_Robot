@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -99,8 +100,10 @@ func TestLoadAdminCacheFetchesAndStoresAdminMap(t *testing.T) {
 	if !got.Cached || len(got.UserInfo) != 2 {
 		t.Fatalf("LoadAdminCache() = %+v, want cached admin list", got)
 	}
-	if admin, ok := got.UserMap[777000]; !ok || admin.User.FirstName != "Telegram" {
-		t.Fatalf("UserMap[777000] = (%+v, %v), want Telegram admin", admin, ok)
+	if !slices.ContainsFunc(got.UserInfo, func(m gotgbot.MergedChatMember) bool {
+		return m.User.Id == 777000 && m.User.FirstName == "Telegram"
+	}) {
+		t.Fatalf("LoadAdminCache() = %+v, want Telegram admin 777000", got)
 	}
 	if found, _ := GetAdminCacheList(-100123); !found {
 		t.Fatal("LoadAdminCache did not store the admin list before returning")
@@ -297,7 +300,7 @@ func TestLoadAdminCacheWithContextDeadlineLeavesSharedLoadIntact(t *testing.T) {
 	release()
 	select {
 	case ac := <-other:
-		if _, ok := ac.UserMap[42]; !ok {
+		if !slices.ContainsFunc(ac.UserInfo, func(m gotgbot.MergedChatMember) bool { return m.User.Id == 42 }) {
 			t.Fatalf("concurrent LoadAdminCache = %+v, want admin 42", ac)
 		}
 	case <-time.After(3 * time.Second):

@@ -140,10 +140,6 @@ func cachedAdminStatus(chatId, userId int64) (known bool, isAdmin bool) {
 	if !ok || !cached.Cached || cached.Negative || len(cached.UserInfo) == 0 {
 		return false, false
 	}
-	if cached.UserMap != nil {
-		_, isAdmin = cached.UserMap[userId]
-		return true, isAdmin
-	}
 	for i := range cached.UserInfo {
 		if cached.UserInfo[i].User.Id == userId {
 			return true, true

@@ -17,15 +17,10 @@ func seedCallbackAdmins(t *testing.T, chatID int64, members ...gotgbot.MergedCha
 	if m == nil {
 		t.Fatal("cache marshal is not initialized")
 	}
-	userMap := make(map[int64]gotgbot.MergedChatMember, len(members))
-	for _, member := range members {
-		userMap[member.User.Id] = member
-	}
 	key := fmt.Sprintf("alita:cache:adminCache:%d", chatID)
 	if err := m.Set(cache.Context, key, cache.AdminCache{
 		ChatId:   chatID,
 		UserInfo: members,
-		UserMap:  userMap,
 		Cached:   true,
 	}); err != nil {
 		t.Fatalf("seed admin cache: %v", err)

@@ -215,7 +215,6 @@ func TestIsUserAdminUsesCache(t *testing.T) {
 	seedCache := cache.AdminCache{
 		ChatId:   chatID,
 		UserInfo: []gotgbot.MergedChatMember{adminEntry},
-		UserMap:  map[int64]gotgbot.MergedChatMember{adminID: adminEntry},
 		Cached:   true,
 	}
 	if err := cache.GetMarshal().Set(
@@ -385,7 +384,6 @@ func TestIsUserAdminCacheHitLinearScan(t *testing.T) {
 	seedCache := cache.AdminCache{
 		ChatId:   chatID,
 		UserInfo: []gotgbot.MergedChatMember{adminEntry},
-		UserMap:  nil, // explicitly nil to force linear scan
 		Cached:   true,
 	}
 	if err := cache.GetMarshal().Set(
@@ -393,7 +391,7 @@ func TestIsUserAdminCacheHitLinearScan(t *testing.T) {
 		fmt.Sprintf("alita:cache:adminCache:%d", chatID),
 		seedCache,
 	); err != nil {
-		t.Fatalf("seeding admin cache without UserMap: %v", err)
+		t.Fatalf("seeding admin cache: %v", err)
 	}
 
 	inner := &statusOnlyBotClient{botID: 9907, statusMap: map[int64]string{}}
@@ -566,7 +564,6 @@ func TestRequireHelpersFollowConnectedChatSwap(t *testing.T) {
 		cache.AdminCache{
 			ChatId:   groupID,
 			UserInfo: []gotgbot.MergedChatMember{adminEntry},
-			UserMap:  map[int64]gotgbot.MergedChatMember{adminID: adminEntry},
 			Cached:   true,
 		},
 	); err != nil {

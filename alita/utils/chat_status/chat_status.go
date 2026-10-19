@@ -188,10 +188,6 @@ func IsUserAdminCached(chatID, userId int64) (isAdmin, known bool) {
 	if !adminsAvail || !admins.Cached || admins.Negative || len(admins.UserInfo) == 0 {
 		return false, false
 	}
-	if admins.UserMap != nil {
-		admin, found := admins.UserMap[userId]
-		return found && admin.User.Id != 0, true
-	}
 	for i := range admins.UserInfo {
 		if admins.UserInfo[i].User.Id == userId {
 			return true, true
@@ -265,15 +261,9 @@ func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId 
 		return false, err
 	}
 
-	if adminList.UserMap != nil {
-		if admin, found := adminList.UserMap[userId]; found && admin.User.Id != 0 {
+	for i := range adminList.UserInfo {
+		if adminList.UserInfo[i].User.Id == userId {
 			return true, nil
-		}
-	} else {
-		for i := range adminList.UserInfo {
-			if adminList.UserInfo[i].User.Id == userId {
-				return true, nil
-			}
 		}
 	}
 

@@ -279,21 +279,16 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 		})
 	}
 
+	// A chat has at most 50 admins, so readers scan the list; a lookup map
+	// would double what every read decodes.
 	userList := make([]gotgbot.MergedChatMember, 0, len(adminList))
-	userMap := make(map[int64]gotgbot.MergedChatMember, len(adminList))
 	for _, admin := range adminList {
-		merged := admin.MergeChatMember()
-		userList = append(userList, merged)
-		user := admin.GetUser()
-		if user.Id != 0 {
-			userMap[user.Id] = merged
-		}
+		userList = append(userList, admin.MergeChatMember())
 	}
 
 	adminCache := AdminCache{
 		ChatId:   chatId,
 		UserInfo: userList,
-		UserMap:  userMap,
 		Cached:   true,
 	}
 
@@ -339,10 +334,6 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 	adminCache, ok := adminList.(*AdminCache)
 	if !ok || adminCache == nil {
 		return false, gotgbot.MergedChatMember{}
-	}
-
-	if admin, found := adminCache.UserMap[userId]; found {
-		return true, admin
 	}
 
 	for i := range adminCache.UserInfo {
