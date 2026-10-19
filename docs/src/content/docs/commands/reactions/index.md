@@ -65,8 +65,8 @@ For detailed command usage, refer to the commands table above.
 The Reactions module includes a background message watcher at **handler group 8**.
 When a user sends a text message in the chat, the bot scans the message text for configured
 keywords (case-insensitive substring match) and sets the matching emoji reaction automatically.
-Media captions are not scanned. A message that mentions @admin or @admins is handled by the
-Reports module in the same handler group and gets no reaction. Only the first matching
+Media captions are not scanned. A message that mentions @admin or @admins is reported by the
+Reports module and can still get a reaction. Only the first matching
 keyword (in alphabetical order) is used to avoid rate limiting. The watcher runs silently and uses
 `ext.ContinueGroups`, so it never stops later handler groups.
 
