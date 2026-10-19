@@ -32,11 +32,11 @@ You MUST reply to a message to report a user; you can't just use @admin to tag a
 3. The notification includes action buttons for quick moderation
 
 **Admin Action Buttons:**
-- **📩 Message** - Link to the reported message
-- **👢 Kick** - Kick the reported user (they can rejoin)
-- **🚫 Ban** - Permanently ban the reported user
-- **🗑 Delete** - Delete the reported message
-- **✅ Resolved** - Mark the report as resolved without action
+- **➡ Message** - Link to the reported message
+- **⚠ Kick** - Kick the reported user (they can rejoin)
+- **⛔️ Ban** - Permanently ban the reported user
+- **❎ Delete Message** - Delete the reported message
+- **✔️ Mark Resolved** - Mark the report as resolved without action
 
 **Personal vs Group Settings:**
 - **In PM:** `/reports on/off` toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
