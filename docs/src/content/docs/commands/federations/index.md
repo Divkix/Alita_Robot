@@ -11,26 +11,36 @@ Federations share a ban list across groups you own.
 - `/newfed <name>`: Create a federation (one per user).
 - `/renamefed <name>`: Rename your federation.
 - `/delfed`: Delete your federation (confirm).
-- `/fedpromote /feddemote`: Manage fed admins.
+- `/fedpromote /feddemote <user>`: Promote or demote a federation admin (reply, ID or @username).
 - `/fedreason on/off`: Require a reason for fbans.
 - `/fednotif on/off`: PM the owner on fbans.
-- `/subfed /unsubfed /fedsubs`: Subscribe to another fed (max 5).
+- `/subfed /unsubfed <fed_id>`: Subscribe to or unsubscribe from another federation's bans (max 5).
+- `/fedsubs`: List the federations yours subscribes to.
 - `/fbanlist [csv|json|minicsv]`: Export fbans.
 - `/importfbans`: Import from a replied CSV/JSON file.
-- `/setfedlog /unsetfedlog`: Federation log chat.
+- `/unsetfedlog`: Clear the federation log chat.
+
+### Owner (in a group):
+- `/setfedlog`: Make this group your federation's log chat.
 
 ### Group owner:
 - `/joinfed <fed_id>`: Join this chat to a federation.
 - `/leavefed`: Leave the federation.
+
+### Group admins:
 - `/quietfed on/off`: Suppress passive fban notices.
 
 ### Fed admins:
-- `/fban /unfban /funban`: Federation ban/unban.
-- `/fedstat /fbanstat`: Check a user's fban.
+- `/fban <user> [reason]`: Ban a user across the federation (in a fed group; the owner can also use it in PM).
+- `/unfban /funban <user>`: Lift a federation ban.
 - `/feddemoteme <fed_id>`: Step down as a federation admin.
 
 ### Anyone:
-- `/fedinfo /fedadmins /chatfed /myfeds`
+- `/fedstat /fbanstat [user] [fed_id]`: Check a user's fbans (yours by default); with a fed_id, show that ban's reason.
+- `/fedinfo [fed_id]`: Show federation info.
+- `/fedadmins [fed_id]`: List a federation's admins.
+- `/chatfed`: Show this group's federation (groups only).
+- `/myfeds`: List the federations you own or admin.
 
 
 ## Module Aliases
@@ -48,33 +58,33 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/chatfed` | No description available | ✅ |
+| `/chatfed` | Show this group's federation (groups only). | ✅ |
 | `/delfed` | Delete your federation (confirm). | ❌ |
-| `/fban` | Federation ban/unban. | ❌ |
+| `/fban` | Ban a user across the federation (in a fed group; the owner can also use it in PM). | ❌ |
 | `/fbanlist` | Export fbans. | ❌ |
-| `/fbanstat` | Check a user's fban. | ❌ |
-| `/fedadmins` | No description available | ✅ |
-| `/feddemote` | Manage fed admins. | ❌ |
+| `/fbanstat` | Check a user's fbans (yours by default); with a fed_id, show that ban's reason. | ❌ |
+| `/fedadmins` | List a federation's admins. | ✅ |
+| `/feddemote` | Promote or demote a federation admin (reply, ID or @username). | ❌ |
 | `/feddemoteme` | Step down as a federation admin. | ❌ |
-| `/fedinfo` | No description available | ✅ |
+| `/fedinfo` | Show federation info. | ✅ |
 | `/fednotif` | PM the owner on fbans. | ❌ |
-| `/fedpromote` | Manage fed admins. | ❌ |
+| `/fedpromote` | Promote or demote a federation admin (reply, ID or @username). | ❌ |
 | `/fedreason` | Require a reason for fbans. | ❌ |
-| `/fedstat` | Check a user's fban. | ✅ |
-| `/fedsubs` | Subscribe to another fed (max 5). | ✅ |
-| `/funban` | Federation ban/unban. (Aliases: `unfban, funban`) | ❌ |
+| `/fedstat` | Check a user's fbans (yours by default); with a fed_id, show that ban's reason. | ✅ |
+| `/fedsubs` | List the federations yours subscribes to. | ✅ |
+| `/funban` | Lift a federation ban. (Aliases: `unfban, funban`) | ❌ |
 | `/importfbans` | Import from a replied CSV/JSON file. | ❌ |
 | `/joinfed` | Join this chat to a federation. | ❌ |
 | `/leavefed` | Leave the federation. | ❌ |
-| `/myfeds` | No description available | ❌ |
+| `/myfeds` | List the federations you own or admin. | ❌ |
 | `/newfed` | Create a federation (one per user). | ❌ |
 | `/quietfed` | Suppress passive fban notices. | ❌ |
 | `/renamefed` | Rename your federation. | ❌ |
-| `/setfedlog` | Federation log chat. | ❌ |
-| `/subfed` | Subscribe to another fed (max 5). | ❌ |
-| `/unfban` | Federation ban/unban. (Aliases: `unfban, funban`) | ❌ |
-| `/unsetfedlog` | Federation log chat. | ❌ |
-| `/unsubfed` | Subscribe to another fed (max 5). | ❌ |
+| `/setfedlog` | Make this group your federation's log chat. | ❌ |
+| `/subfed` | Subscribe to or unsubscribe from another federation's bans (max 5). | ❌ |
+| `/unfban` | Lift a federation ban. (Aliases: `unfban, funban`) | ❌ |
+| `/unsetfedlog` | Clear the federation log chat. | ❌ |
+| `/unsubfed` | Subscribe to or unsubscribe from another federation's bans (max 5). | ❌ |
 
 ## Usage Examples
 
