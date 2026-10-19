@@ -88,7 +88,8 @@ For detailed command usage, refer to the commands table above.
 ## Required Permissions
 
 **Permission Requirements:**
-- `/warn`, `/dwarn`, `/swarn`: Bot admin + User admin with restrict
+- `/warn`: Bot admin + User admin with restrict
+- `/dwarn`, `/swarn`: Bot admin + User admin, both with restrict and delete rights
 - `/rmwarn`, `/unwarn`: Bot admin + User admin
 - `/resetwarn`, `/resetwarns`: Bot admin + User admin
 - `/resetallwarns`: Chat owner only

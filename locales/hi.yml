@@ -1837,7 +1837,8 @@ warns_extended_docs: |
 
 warns_permissions_docs: |
   <b>अनुमति आवश्यकताएं:</b>
-  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: बॉट एडमिन + उपयोगकर्ता एडमिन प्रतिबंधित के साथ
+  • <code>/warn</code>: बॉट एडमिन + उपयोगकर्ता एडमिन प्रतिबंधित के साथ
+  • <code>/dwarn</code>, <code>/swarn</code>: बॉट एडमिन + उपयोगकर्ता एडमिन, दोनों के पास प्रतिबंधित करने और संदेश हटाने का अधिकार होना चाहिए
   • <code>/rmwarn</code>, <code>/unwarn</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
   • <code>/resetwarn</code>, <code>/resetwarns</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
   • <code>/resetallwarns</code>: केवल चैट मालिक

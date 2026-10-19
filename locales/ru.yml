@@ -1736,7 +1736,8 @@ warns_extended_docs: |
 
 warns_permissions_docs: |
   <b>Требования к разрешениям:</b>
-  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: Бот админ + Пользователь админ с правом ограничения
+  • <code>/warn</code>: Бот админ + Пользователь админ с правом ограничения
+  • <code>/dwarn</code>, <code>/swarn</code>: Бот админ + Пользователь админ, оба с правами ограничения и удаления сообщений
   • <code>/rmwarn</code>, <code>/unwarn</code>: Бот админ + Пользователь админ
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Бот админ + Пользователь админ
   • <code>/resetallwarns</code>: Только владелец чата

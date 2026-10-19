@@ -1045,8 +1045,8 @@ func adminBotUserChecks(cmd string) []helpers.CheckFunc {
 
 func initWarnDescs() {
 	warnDesc.RequiredChecks = restrictChecks("warn")
-	swarnDesc.RequiredChecks = restrictChecks("swarn")
-	dwarnDesc.RequiredChecks = restrictChecks("dwarn")
+	swarnDesc.RequiredChecks = deleteRestrictChecks("swarn")
+	dwarnDesc.RequiredChecks = deleteRestrictChecks("dwarn")
 	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns")
 	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn")
 	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns")}
