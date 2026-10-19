@@ -5,8 +5,11 @@ package spamdbsettings
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -329,5 +332,60 @@ func TestSpamDBSettingsRowNeedsADatabase(t *testing.T) {
 		Create(map[string]any{"chat_id": chatID, "check_cas": false, "check_lols": false}).Error
 	if err == nil {
 		t.Fatal("a row with no database was stored")
+	}
+}
+
+// Two admins switching off different databases at once: the second write was
+// decided on a read that is already stale, so the schema's check refuses it.
+// That refusal is the "last database" answer, not a failed save.
+func TestStaleSwitchOffReadsAsLastDatabase(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+	for _, step := range []struct {
+		database string
+		on       bool
+	}{{DatabaseLols, true}, {DatabaseCAS, false}} {
+		if err := SetSpamDBDatabase(chatID, step.database, step.on); err != nil {
+			t.Fatalf("SetSpamDBDatabase(%s, %v) error = %v", step.database, step.on, err)
+		}
+	}
+
+	// What SetSpamDBDatabase(lols, off) writes after reading "CAS is on".
+	stale := &models.SpamDBSettings{ChatID: chatID, CheckCAS: true, CheckLols: true}
+	if err := writeDatabase(chatID, DatabaseLols, false, stale); !errors.Is(err, ErrLastDatabase) {
+		t.Fatalf("writeDatabase() error = %v, want ErrLastDatabase", err)
+	}
+	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols {
+		t.Fatalf("stored cas %v lols %v, want only lols", got.CheckCAS, got.CheckLols)
+	}
+
+	// The raw upsert error is the schema's check, which is what that
+	// answer rests on.
+	err := upsert(chatID, "check_lols", map[string]any{"check_lols": false, "check_cas": true})
+	if err == nil || !isLastDatabaseViolation(err) {
+		t.Fatalf("upsert() error = %v, want the databases check violation", err)
+	}
+}
+
+func TestIsLastDatabaseViolation(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"postgres check on the databases", &pgconn.PgError{Code: "23514", ConstraintName: "chk_spam_db_databases"}, true},
+		{"postgres check wrapped", fmt.Errorf("save: %w", &pgconn.PgError{Code: "23514", ConstraintName: "chk_spam_db_databases"}), true},
+		{"postgres check on the action", &pgconn.PgError{Code: "23514", ConstraintName: "chk_spam_db_action"}, false},
+		{"postgres other violation of that name", &pgconn.PgError{Code: "23505", ConstraintName: "chk_spam_db_databases"}, false},
+		{"postgres connection failure", &pgconn.PgError{Code: "08006"}, false},
+		{"other error", errors.New("connection refused"), false},
+	}
+	for _, tc := range cases {
+		if got := isLastDatabaseViolation(tc.err); got != tc.want {
+			t.Errorf("%s: isLastDatabaseViolation() = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }

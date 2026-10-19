@@ -5,8 +5,10 @@ package spamdbsettings
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -96,17 +98,26 @@ func SetSpamDBAction(chatID int64, action string) error {
 // ErrLastDatabase; the table's check constraint backs this up against two
 // concurrent writes.
 func SetSpamDBDatabase(chatID int64, database string, on bool) error {
-	column, ok := databaseColumns[database]
-	if !ok {
+	if _, ok := databaseColumns[database]; !ok {
 		return ErrInvalidDatabase
 	}
-	row := map[string]any{column: on}
+	var current *models.SpamDBSettings
 	if !on {
-		current, err := loadSettings(context.Background(), chatID)
-		if err != nil {
-			log.Errorf("[Database] spam db settings %s: %v - %d", column, err, chatID)
+		var err error
+		if current, err = loadSettings(context.Background(), chatID); err != nil {
+			log.Errorf("[Database] spam db settings %s: %v - %d", databaseColumns[database], err, chatID)
 			return err
 		}
+	}
+	return writeDatabase(chatID, database, on, current)
+}
+
+// writeDatabase stores the switch. current is the chat's settings as read
+// before the write, needed to switch a database off; it may be stale by then.
+func writeDatabase(chatID int64, database string, on bool, current *models.SpamDBSettings) error {
+	column := databaseColumns[database]
+	row := map[string]any{column: on}
+	if !on {
 		other, otherOn := "check_lols", current.CheckLols
 		if database == DatabaseLols {
 			other, otherOn = "check_cas", current.CheckCAS
@@ -120,7 +131,29 @@ func SetSpamDBDatabase(chatID int64, database string, on bool) error {
 		row[other] = true
 	}
 
-	return upsert(chatID, column, row)
+	err := upsert(chatID, column, row)
+	if isLastDatabaseViolation(err) {
+		// Another admin switched the other database off after current was read.
+		return ErrLastDatabase
+	}
+	return err
+}
+
+// databasesCheck is the constraint that keeps at least one database on.
+const databasesCheck = "chk_spam_db_databases"
+
+// isLastDatabaseViolation reports whether err is the table refusing a row with
+// no database on: Postgres SQLSTATE 23514 naming databasesCheck, or SQLite's
+// "CHECK constraint failed" message naming it.
+func isLastDatabaseViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23514" && pgErr.ConstraintName == databasesCheck
+	}
+	return strings.Contains(err.Error(), "CHECK constraint failed: "+databasesCheck)
 }
 
 // upsert inserts row, or on an existing row updates only column, so the
@@ -138,7 +171,9 @@ func upsert(chatID int64, column string, row map[string]any) error {
 		DoUpdates: clause.AssignmentColumns([]string{column, "updated_at"}),
 	}).Create(row).Error
 	if err != nil {
-		log.Errorf("[Database] spam db settings %s: %v - %d", column, err, chatID)
+		if !isLastDatabaseViolation(err) {
+			log.Errorf("[Database] spam db settings %s: %v - %d", column, err, chatID)
+		}
 		return err
 	}
 
