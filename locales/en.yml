@@ -1677,6 +1677,7 @@ reports_action_by: "Action taken by %s"
 reports_resolved_by: "<b>Resolved by:</b> %s"
 reports_message_template: "<b>⚠️ Report:</b>\n<b> • Report by:</b> %s\n<b> • Reported user:</b> %s\n<b>Status:</b> <i>Pending...</i>"
 reports_invalid_action: "Invalid action."
+reports_sent_to_admins: "Reported to admins."
 
 # Captcha module strings
 captcha_mode_math_desc: "mathematical problems"
@@ -1763,6 +1764,36 @@ aispam_no_key: "❌ I can't turn the AI spam filter on: the bot operator has not
 aispam_globally_disabled: "❌ I can't turn the AI spam filter on: the bot operator has switched it off globally. Nothing has changed."
 aispam_invalid_option: "I only understand an option from: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ AI spam checks are paused in this chat for a few minutes after repeated failures from the AI provider. They resume on their own, and the filter stays on."
+
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 Spam Database</b>
+
+  An opt-in check that looks every new member up in the CAS (cas.chat) spam database when they join, and acts on the ones it lists.
+
+  Admins, approved users and bots are never checked. If CAS cannot be reached, the member is let in. Each action is reported to the log channel only, never in the group.
+
+
+  *Admin commands:*
+
+  × /spamdb: Show whether the check is on and what it does.
+
+  × /spamdb `<on/off>`: Turn the check on or off for this chat.
+
+  × /spamdb action `<ban/mute/log>`: Choose what happens to a listed member. The default is ban; log only reports them.
+
+
+  The check is off in every chat until an admin turns it on. Turning it on sends the Telegram user ID of every new member to cas.chat.
+spamdb_status_enabled: "The CAS join check is <b>on</b> in this chat. Listed members get: <code>{action}</code>."
+spamdb_status_disabled: "The CAS join check is <b>off</b> in this chat. Turn it on with <code>/spamdb on</code>."
+spamdb_status_globally_disabled: "⚠️ Unavailable: the bot operator has switched the spam database check off, so no member is being checked."
+spamdb_data_notice: "<b>What is sent:</b> the Telegram user ID of each new member, to cas.chat. Nothing else leaves the bot."
+spamdb_enabled_success: "✅ The CAS join check is now <b>on</b>. New members are looked up in CAS when they join."
+spamdb_disabled_success: "❌ The CAS join check is now <b>off</b>."
+spamdb_globally_disabled: "❌ I can't turn the CAS join check on: the bot operator has switched it off. Nothing has changed."
+spamdb_invalid_option: "I only understand an option from: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "Choose an action from: <code>ban</code>/<code>mute</code>/<code>log</code>. Example: <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ Members listed in CAS will now get: <code>{action}</code>."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -1936,6 +1967,16 @@ reports_extended_docs: |
   • <b>⛔️ Ban</b> - Permanently ban the reported user
   • <b>❎ Delete Message</b> - Delete the reported message
   • <b>✔️ Mark Resolved</b> - Mark the report as resolved without action
+
+  <b>Log Channel Card:</b>
+  If the group has a log channel (<code>/setlog</code>) with the <code>reports</code> category on, each reported message also gets one card there. The card has no action buttons, so the group still gets the full report with admin mentions and the buttons described above.
+
+  In the log channel:
+  • A copy of the reported message, so the evidence survives if the original is deleted. Messages that cannot be copied are quoted as text instead.
+  • A card replying to that copy with the reported user, the number of members who reported the message, the last reporter and their reason, and a link to the original message.
+  • Further reports of the same message update the same card; a member reporting the same message twice is counted once.
+
+  Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in <code>/export</code>.
 
   <b>Personal vs Group Settings:</b>
   • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
@@ -2783,6 +2824,8 @@ rules_extend_msg: |
   /rulesbtn — set the rules button text
   /resetrulesbutton — reset the rules button text
   /resetrulesbtn — same as /resetrulesbutton
+spamdb_extend_msg: |
+  /spamdb — show or toggle the CAS join check, or set its action
 warns_extend_msg: |
   /warn — warn a user
   /swarn — warn and delete your command

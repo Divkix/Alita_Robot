@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -14,9 +15,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -29,6 +30,39 @@ var reportsModule = moduleStruct{
 }
 
 var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
+
+// maxReportReasonRunes caps the stored reason so one report cannot store an
+// arbitrarily long message.
+const maxReportReasonRunes = 500
+
+// reportReason is the text after /report, or the whole @admin message.
+func reportReason(text string) string {
+	text = strings.TrimSpace(text)
+	if strings.HasPrefix(text, "/") {
+		if i := strings.IndexFunc(text, unicode.IsSpace); i >= 0 {
+			text = strings.TrimSpace(text[i:])
+		} else {
+			text = ""
+		}
+	}
+	if r := []rune(text); len(r) > maxReportReasonRunes {
+		text = string(r[:maxReportReasonRunes])
+	}
+	return text
+}
+
+// reportSnippet is the start of the reported message's text or caption. The
+// log channel keeps the copy; the stored row only needs to recognise it.
+func reportSnippet(m *gotgbot.Message) string {
+	text := m.Text
+	if text == "" {
+		text = m.Caption
+	}
+	if r := []rune(text); len(r) > models.MaxReportSnippetRunes {
+		text = string(r[:models.MaxReportSnippetRunes])
+	}
+	return text
+}
 
 func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
@@ -150,6 +184,19 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	reason := reportReason(msg.GetText())
+	created, storeErr := reports.Create(&models.Report{
+		ChatId:            chat.Id,
+		ReportedUserId:    reportedUser.Id,
+		ReportedMessageId: reportedMsgId,
+		ReporterId:        user.Id,
+		Reason:            reason,
+		Snippet:           reportSnippet(msg.ReplyToMessage),
+	})
+	if storeErr != nil {
+		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, storeErr)
+	}
+
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
@@ -246,9 +293,15 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	if err != nil {
 		log.Error(err)
+	}
+	// The log channel card has no moderation actions, so the group gets the
+	// report with its admin mentions and buttons whether or not the card is
+	// posted. The card goes second so that a slow log channel does not hold
+	// up the group reply, and still goes when that reply failed.
+	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
+	if err != nil {
 		return err
 	}
-	actionlog.Reports(b, chat, user, reportedUser.Id)
 	return ext.EndGroups
 }
 
@@ -431,6 +484,14 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// legacyReportStatus maps the in-group report buttons to report decisions.
+var legacyReportStatus = map[string]string{
+	"kick":     models.ReportStatusKicked,
+	"ban":      models.ReportStatusBanned,
+	"delete":   models.ReportStatusDeleted,
+	"resolved": models.ReportStatusDismissed,
+}
+
 func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -543,6 +604,10 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
+	// Record the decision on the stored reports, so they count as closed.
+	if _, err := reports.Resolve(chat.Id, msgId, legacyReportStatus[action], user.Id); err != nil {
+		log.Errorf("[Reports] failed to close reports of message %d in %d after %s: %v", msgId, chat.Id, action, err)
+	}
 	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ChatId: chat.Id,
 		ParseMode: formatting.HTML})
 	if err != nil {
@@ -579,6 +644,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
 	helpers.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))
+	startReportRetentionSweeper()
 }
 
 func init() {

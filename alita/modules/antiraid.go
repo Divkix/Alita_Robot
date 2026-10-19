@@ -435,7 +435,11 @@ func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTim
 	}
 	if _, err := chat.BanMember(bot, userID, &gotgbot.BanChatMemberOpts{UntilDate: untilDate}); err != nil {
 		log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
+		return
 	}
+	// Take the join so greetings sends the banned user no captcha or welcome.
+	// Only a ban that went through does this; a failed one leaves the captcha.
+	claimRecentJoinProcessing(chat.Id, userID)
 }
 
 func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {

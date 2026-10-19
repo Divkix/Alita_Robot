@@ -1638,6 +1638,7 @@ reports_action_by: "Acción realizada por %s"
 reports_resolved_by: "<b>Resuelto por:</b> %s"
 reports_message_template: "<b>⚠️ Reporte:</b>\n<b> • Reportado por:</b> %s\n<b> • Usuario reportado:</b> %s\n<b>Estado:</b> <i>Pendiente...</i>"
 reports_invalid_action: "Acción inválida."
+reports_sent_to_admins: "Reportado a los administradores."
 
 # Captcha module strings
 captcha_mode_math_desc: "problemas matemáticos"
@@ -1723,6 +1724,36 @@ aispam_no_key: "❌ No puedo activar el filtro de spam con IA: el operador del b
 aispam_globally_disabled: "❌ No puedo activar el filtro de spam con IA: el operador del bot lo ha desactivado globalmente. No ha cambiado nada."
 aispam_invalid_option: "Solo entiendo una opción de: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ Las revisiones de spam con IA están en pausa en este chat durante unos minutos tras fallos repetidos del proveedor de IA. Se reanudan solas y el filtro sigue activado."
+
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 Base de spam</b>
+
+  Una comprobación opcional que busca a cada nuevo miembro en la base de spam CAS (cas.chat) al unirse y actúa sobre los que aparecen en ella.
+
+  Nunca se comprueba a administradores, usuarios aprobados ni bots. Si no se puede contactar con CAS, el miembro entra. Cada acción se informa solo en el canal de registro, nunca en el grupo.
+
+
+  *Comandos de administrador:*
+
+  × /spamdb: Muestra si la comprobación está activada y qué hace.
+
+  × /spamdb `<on/off>`: Activa o desactiva la comprobación en este chat.
+
+  × /spamdb action `<ban/mute/log>`: Elige qué pasa con un miembro listado. Por defecto es ban; log solo lo informa.
+
+
+  La comprobación está desactivada en todos los chats hasta que un administrador la active. Al activarla, el ID de Telegram de cada nuevo miembro se envía a cas.chat.
+spamdb_status_enabled: "La comprobación CAS al unirse está <b>activada</b> en este chat. Los miembros listados reciben: <code>{action}</code>."
+spamdb_status_disabled: "La comprobación CAS al unirse está <b>desactivada</b> en este chat. Actívala con <code>/spamdb on</code>."
+spamdb_status_globally_disabled: "⚠️ No disponible: el operador del bot ha desactivado la comprobación de la base de spam, así que no se comprueba a ningún miembro."
+spamdb_data_notice: "<b>Qué se envía:</b> el ID de Telegram de cada nuevo miembro, a cas.chat. Nada más sale del bot."
+spamdb_enabled_success: "✅ La comprobación CAS al unirse ahora está <b>activada</b>. Los nuevos miembros se buscan en CAS al unirse."
+spamdb_disabled_success: "❌ La comprobación CAS al unirse ahora está <b>desactivada</b>."
+spamdb_globally_disabled: "❌ No puedo activar la comprobación CAS: el operador del bot la ha desactivado. No ha cambiado nada."
+spamdb_invalid_option: "Solo entiendo una opción de: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "Elige una acción de: <code>ban</code>/<code>mute</code>/<code>log</code>. Ejemplo: <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ Los miembros listados en CAS ahora recibirán: <code>{action}</code>."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2783,6 +2814,8 @@ rules_extend_msg: |
   /rulesbtn — establecer el texto del botón de reglas
   /resetrulesbutton — restablecer el texto del botón de reglas
   /resetrulesbtn — igual que /resetrulesbutton
+spamdb_extend_msg: |
+  /spamdb — muestra o alterna la comprobación CAS, o fija su acción
 warns_extend_msg: |
   /warn — advertir a un usuario
   /swarn — advertir y borrar tu comando
