@@ -27,8 +27,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 ## Handlers
 
 - Group numbers are execution order: `-10` captcha sweeper · `-6` fed-ban · `-5` antiraid · `-2` admin-cache ·
-  `-1` users tracker · `0` commands/help/greetings · `1` connected-chat guard · `3` aispam · `4` antiflood ·
-  `5`/`6` locks · `7` blacklists · `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
+  `-1` users tracker + bot-joined (MyChatMember) · `0` commands/help/greetings · `1` connected-chat guard ·
+  `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists · `8` reports+reactions · `9` filters · `10` pins ·
+  `11` log-channel.
 - A PM command that acts on the connected group sets `ctx.EffectiveChat` to it, and later groups must not run on
   that ctx. `WrapCommand` ends iteration after such a swap in any group, whatever the handler returns (error and
   panic included). Legacy `dispatcher.AddHandler` commands rely on the group-`1` guard, which only sees swaps made in
@@ -51,8 +52,13 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Permissions
 
-- `alita/utils/chat_status` predicates return bools and never reply; use `PermissionResponder` to message.
-  `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
+- `alita/utils/chat_status` predicates return bools and send no refusals; use `PermissionResponder` to message.
+  Exceptions: `CanUser*` and `CanInvite` reply with the anonymous-admin proof keyboard (`checkAnonAdmin`) to an
+  anonymous admin in a chat with AnonAdmin off, so keep them out of watchers; `IsUserConnected` (returns
+  `*gotgbot.Chat`) sends its own refusals.
+  `helpers.CheckFunc` replies and needs a `*helpers.CommandContext`: run it only through `WrapCommand`'s
+  `RequiredChecks`, or through `helpers.RunChecks` on a `helpers.BuildCommandContext` result in an anonymous-admin
+  post-proof handler (`anonPipelineHandler`, pins' `enforcePinChecks`). Never call it from a watcher.
 - Given a nil chat, `chat_status` helpers check `ctx.EffectiveChat` once a handler has swapped it to a connected
   group; `PermissionResponder` still answers in the chat the update came from.
 - After such a swap `lang.GetLanguage(ctx)` returns the language of the chat the message came from (the user's, in
@@ -96,12 +102,15 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Subsystem traps
 
-- Approved users skip antiflood, locks, blacklists, and captcha.
+- Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, locks, blacklists, and captcha.
 - Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
 - Entity offsets are UTF-16: slice with `extractEntityText`, and match against both `Entities` and `CaptionEntities`.
-- Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages for replay.
+- Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages (type, text,
+  file_id) and deletes the originals. Nothing is replayed: a correct answer deletes the stored rows with the attempt
+  and posts only a type/count summary (`captcha_stored_messages_summary`, removed after 30 s). Admins list or clear
+  them with `/captchapending` and `/captchaclear`.
 - `alita:cache:captcha_pending:<chat>` is a per-chat pending flag; any new code that inserts into `captcha_attempts`
   must `DeleteCache` it after commit.
 - `warn_entries` cascades from `chats` and `users` like `warns_users`, but has no FK to `warns_users`: any code that
@@ -117,8 +126,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   and `RemoveWarn` delete expired entries, under their row locks.
 - A command in `commandHelpModules` answers a call it cannot run with its own entry cut from `<module>_help_msg`, so
   that help keeps one entry per command (`× /cmd …`, continuation lines up to a blank line or the next entry) in all
-  7 locales; `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Sample calls are `<cmd>_example` in
-  `locales/config.yml`.
+  7 locales, with no `"` or unknown HTML tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`;
+  `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Each such command also needs a `<cmd>_example` in
+  `locales/config.yml` starting with `/<cmd> `, except reply-only commands (`replyOnlyCommands`: /dban, /dkick,
+  /dmute), which must have none; `TestEveryHelpCommandHasAnExample` enforces it.
 
 ## Go rules
 
@@ -128,7 +139,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Register every new secret with `logredact.RegisterSecret` (≥6 chars), or it is logged verbatim.
 - A missing i18n key returns `""` with an error callers ignore; a typo'd key in Go ships an empty message. Copy key
   names from `locales/en.yml`. `locales/config.yml` is the help alt-name pseudo-locale, not a language.
-- The docs generator reads only `locales/en.yml`. Pages marked `<!-- MANUALLY MAINTAINED: do not regenerate -->` in
+- The docs generator takes help and `*_docs` text only from `locales/en.yml` (other languages are ignored), Module
+  Aliases from `alt_names` in `locales/config.yml`, and command tables and lock types from `alita/modules`; run
+  `make generate-docs` after changing any of them. Pages marked `<!-- MANUALLY MAINTAINED: do not regenerate -->` in
   their first 512 bytes are frozen; `api-reference/lock-types.md` ignores the marker.
 - Imports: stdlib, third-party, internal, separated by blank lines. Use `helpers.Ptr[T]` for option pointers.
 
@@ -142,9 +155,12 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - `release.yml` runs no checks of its own: it waits for `ci.yml` to pass on the tagged commit (dispatching CI on the
   tag if main's run was cancelled). Put any new release gate in `ci.yml`.
 - `.env` in cwd auto-loads without overriding real env. Run `--version` smoke checks from `/tmp`.
-- Defaults that surprise: `REDIS_DB=1`; `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and
-  background stats are on only when `DEBUG=false`; `HTTP_PORT` falls back to `PORT` then 8080. Integer env parsing is
-  lenient, so a typo silently becomes the default.
+- Defaults that surprise: `REDIS_DB=1` (with `REDIS_URL` set and `REDIS_DB` unset, the URL path decides; no path
+  means DB 0); `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and background stats default
+  on only when `DEBUG=false` (an explicit `true` still enables them in debug); `HTTP_PORT` falls back to `PORT` then
+  8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB`, where a
+  non-integer or a value outside 0-15 fails startup. Integers that parse but are out of range (`DB_*`,
+  `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
 
 ## Testing
 
