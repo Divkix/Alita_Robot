@@ -16,7 +16,7 @@ description: Complete guide to Locks module commands and features
 
 Locks can be used to restrict a group's users.
 Locking URLs will auto-delete all messages with URLs, locking stickers will delete all stickers, etc.
-Locking bots will stop non-admins from adding bots to the chat.
+Locking bots will stop users who are neither admins nor approved from adding bots to the chat.
 
 **Example:**
 `/lock media`: this locks all the media messages in the chat.
@@ -66,6 +66,6 @@ Most commands in this module require **admin permissions** in the group.
 
 **Technical Notes**
 - Lock enforcement is real-time
-- Admins are exempt from all locks
+- Admins and approved users are exempt from all locks
 - Locks persist across bot restarts
 - Cache invalidated on updates
