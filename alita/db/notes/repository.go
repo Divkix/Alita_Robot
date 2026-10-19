@@ -47,15 +47,6 @@ func getNotesSettingsContext(ctx context.Context, chatID int64) *models.NotesSet
 	return &settingsVal
 }
 
-func getAllChatNotes(chatId int64) (notes []*models.Notes) {
-	err := db.GetRecords(&notes, models.Notes{ChatId: chatId})
-	if err != nil {
-		log.Errorf("[Database] getAllChatNotes: %v - %d", err, chatId)
-		return []*models.Notes{}
-	}
-	return
-}
-
 func GetNotes(chatID int64) *models.NotesSettings {
 	return getNotesSettings(chatID)
 }

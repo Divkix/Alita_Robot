@@ -17,10 +17,6 @@ type chatCacheEntry[T any] struct {
 	Value T
 }
 
-func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
-	return GetChatBasicInfoContext(context.Background(), chatID)
-}
-
 func GetChatBasicInfoContext(ctx context.Context, chatID int64) (*models.Chat, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -66,10 +62,6 @@ func loadChatCache[T any](ctx context.Context, key string, chatID int64, loader 
 		return zero, gorm.ErrRecordNotFound
 	}
 	return cached.Value, nil
-}
-
-func GetChatUsers(chatID int64) (models.Int64Array, error) {
-	return GetChatUsersContext(context.Background(), chatID)
 }
 
 func GetChatUsersContext(ctx context.Context, chatID int64) (models.Int64Array, error) {

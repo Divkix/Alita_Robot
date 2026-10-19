@@ -12,10 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func GetAntifloodSettings(chatID int64) (*models.AntifloodSettings, error) {
-	return GetAntifloodSettingsContext(context.Background(), chatID)
-}
-
 func GetAntifloodSettingsContext(ctx context.Context, chatID int64) (*models.AntifloodSettings, error) {
 	if db.DB == nil {
 		return &models.AntifloodSettings{
@@ -44,10 +40,6 @@ func GetAntifloodSettingsContext(ctx context.Context, chatID int64) (*models.Ant
 	}
 
 	return &settings, nil
-}
-
-func GetAntifloodSettingsCached(chatID int64) (*models.AntifloodSettings, error) {
-	return GetAntifloodSettingsCachedContext(context.Background(), chatID)
 }
 
 func GetAntifloodSettingsCachedContext(ctx context.Context, chatID int64) (*models.AntifloodSettings, error) {

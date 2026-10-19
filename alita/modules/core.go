@@ -49,13 +49,6 @@ func SetModuleEnabled(name string, enabled bool) {
 	defaultHelpRegistry.AbleMap[name] = enabled
 }
 
-// SetModuleHelp records help buttons under the registry lock.
-func SetModuleHelp(name string, kb [][]gotgbot.InlineKeyboardButton) {
-	ableMapMu.Lock()
-	defer ableMapMu.Unlock()
-	defaultHelpRegistry.helpableKb[name] = kb
-}
-
 // SetModuleHelpBuilder records help buttons whose labels follow the viewer's
 // language. The English build also goes into helpableKb, so presence checks
 // keep working.

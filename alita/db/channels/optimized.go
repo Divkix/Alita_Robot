@@ -12,10 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func getChannelSettingsRaw(chatID int64) (*models.ChannelSettings, error) {
-	return getChannelSettingsRawContext(context.Background(), chatID)
-}
-
 func getChannelSettingsRawContext(ctx context.Context, chatID int64) (*models.ChannelSettings, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
