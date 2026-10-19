@@ -348,8 +348,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
-| `/export` | Export all group settings to a JSON file | Admin | ✅ | — |
-| `/import` | Restore settings from a backup file | Owner | ✅ | — |
+| `/export` | Export all group settings to a JSON file | Admin | ❌ | — |
+| `/import` | Restore settings from a backup file | Owner | ❌ | — |
 | `/reset` | Reset all settings to default | Owner | ❌ | — |
 
 #### 📌 Pins

@@ -48,8 +48,8 @@ are transactional: if one selected module fails, no selected module is changed.
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/export` | Export all group settings to a JSON file | ✅ |
-| `/import` | Reply to a backup file to restore settings | ✅ |
+| `/export` | Export all group settings to a JSON file | ❌ |
+| `/import` | Reply to a backup file to restore settings | ❌ |
 | `/reset` | Reset all settings to default | ❌ |
 
 ## Usage Examples
@@ -66,7 +66,7 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-All three commands work only in groups (`RequireGroup`); in a private chat the bot replies with the group-only error.
+All three commands work only in groups (`RequireGroup`); in a private chat the bot replies with the group-only error. None of them can be turned off with `/disable`.
 
 - `/export` — Requires **Admin** (`RequireUserAdmin` + `RequireBotAdmin`).
   Rate limited: 1 per 5 minutes.

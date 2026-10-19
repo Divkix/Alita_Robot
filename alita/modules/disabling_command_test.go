@@ -91,6 +91,56 @@ func TestDisableableListsRegisteredCommands(t *testing.T) {
 	}
 }
 
+// /export and /import are admin commands: loading the Backup module must not
+// offer them in /disableable, and /disable must refuse them as unknown.
+func TestBackupCommandsAreNotDisableable(t *testing.T) {
+	withDisableCommands(t, "rules")
+	withExtendRegistry(t)
+	LoadBackup(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+	f := newAdminChatFixture(t)
+
+	listCtx := newModuleMessageContext(f.bot, f.chat, f.member, "/disableable")
+	if err := disablingModule.disableable(f.bot, listCtx); err != ext.EndGroups {
+		t.Fatalf("disableable() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls after /disableable = %d, want 1", len(calls))
+	}
+	listText := calls[0].Params["text"].(string)
+	if !strings.Contains(listText, "`rules`") {
+		t.Fatalf("disableable text = %q, want the registered command", listText)
+	}
+	for _, cmd := range []string{"export", "import"} {
+		if strings.Contains(listText, "`"+cmd+"`") {
+			t.Fatalf("disableable text = %q, want no %s", listText, cmd)
+		}
+	}
+
+	disableCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/disable rules export import")
+	if err := disablingModule.disable(f.bot, disableCtx); err != ext.EndGroups {
+		t.Fatalf("disable() error = %v, want EndGroups", err)
+	}
+	if disabled := disabling.GetChatDisabledCMDs(f.chat.Id); len(disabled) != 1 || disabled[0] != "rules" {
+		t.Fatalf("disabled commands = %v, want only rules", disabled)
+	}
+	replies := f.client.callsFor("sendMessage")[1:]
+	if len(replies) != 3 {
+		t.Fatalf("sendMessage calls after /disable = %d, want success and two refusals", len(replies))
+	}
+	for _, cmd := range []string{"export", "import"} {
+		named := 0
+		for _, reply := range replies {
+			if strings.Contains(reply.Params["text"].(string), cmd) {
+				named++
+			}
+		}
+		if named != 1 {
+			t.Fatalf("replies naming %s = %d, want its one refusal", cmd, named)
+		}
+	}
+}
+
 func TestDisabledListsCurrentCommandsOrEmptyState(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

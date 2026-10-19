@@ -989,9 +989,10 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	assert.Len(t, client.callsFor("answerCallbackQuery"), 2)
 }
 
-// /export and /import are listed in /disableable, so /disable must silence
-// them for non-admins, who otherwise get a permission refusal.
-func TestBackupCommandsHonourDisable(t *testing.T) {
+// /export and /import are admin commands and cannot be disabled. A chat that
+// disabled them on an older release still answers a non-admin with the
+// permission refusal instead of silently deleting the command.
+func TestBackupCommandsIgnoreStaleDisableRows(t *testing.T) {
 	for _, tt := range []struct {
 		cmd string
 		run func(*gotgbot.Bot, *ext.Context) error
@@ -1000,26 +1001,18 @@ func TestBackupCommandsHonourDisable(t *testing.T) {
 		{cmd: "import", run: backupModule.importHandler},
 	} {
 		t.Run(tt.cmd, func(t *testing.T) {
-			enabled := newAdminChatFixture(t)
-			if err := tt.run(enabled.bot, newModuleMessageContext(enabled.bot, enabled.chat, enabled.member, "/"+tt.cmd)); err != ext.EndGroups {
-				t.Fatalf("%s(member, enabled) error = %v, want EndGroups", tt.cmd, err)
-			}
-			if calls := enabled.client.callsFor("sendMessage"); len(calls) != 1 {
-				t.Fatalf("sendMessage calls = %d, want the refusal while the command is enabled", len(calls))
-			}
-
 			f := newAdminChatFixture(t)
 			require.NoError(t, disabling.DisableCMD(f.chat.Id, tt.cmd))
 			require.NoError(t, disabling.ToggleDel(f.chat.Id, true))
 
 			if err := tt.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/"+tt.cmd)); err != ext.EndGroups {
-				t.Fatalf("%s(member, disabled) error = %v, want EndGroups", tt.cmd, err)
+				t.Fatalf("%s(member) error = %v, want EndGroups", tt.cmd, err)
 			}
-			if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
-				t.Fatalf("sendMessage calls = %d, want none for a disabled command", len(calls))
+			if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want the permission refusal", len(calls))
 			}
-			if calls := f.client.callsFor("deleteMessage"); len(calls) != 1 {
-				t.Fatalf("deleteMessage calls = %d, want the disabled command deleted", len(calls))
+			if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+				t.Fatalf("deleteMessage calls = %d, want the command left in place", len(calls))
 			}
 		})
 	}
