@@ -62,6 +62,9 @@ func TestTracingProcessorProcessUpdatePreservesExistingContext(t *testing.T) {
 	if got := ctx.Data[ContextDataKey]; got != existingCtx {
 		t.Fatalf("ProcessUpdate() replaced existing context: got %v, want %v", got, existingCtx)
 	}
+	if updatememo.From(ctx) == nil {
+		t.Fatal("ProcessUpdate() did not inject a per-update memo alongside an existing context")
+	}
 }
 
 func TestTracingProcessorProcessUpdateRunsCallback(t *testing.T) {
@@ -94,7 +97,7 @@ func TestTracingProcessorProcessUpdateRunsCallback(t *testing.T) {
 
 type contextTestKey string
 
-func TestTracingProcessorProcessUpdateCountsTopLevelUpdatesOnly(t *testing.T) {
+func TestTracingProcessorProcessUpdateCountsEveryUpdate(t *testing.T) {
 	processor := TracingProcessor{}
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 
@@ -106,12 +109,13 @@ func TestTracingProcessorProcessUpdateCountsTopLevelUpdatesOnly(t *testing.T) {
 		t.Fatalf("updates processed delta = %v, want 1", got)
 	}
 
-	nested := &ext.Context{Data: map[string]any{ContextDataKey: context.Background()}}
+	// Webhook updates arrive with the server's context already set.
+	webhook := &ext.Context{Data: map[string]any{ContextDataKey: context.Background()}}
 	before = testutil.ToFloat64(metrics.UpdatesProcessed)
-	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, nested); err != nil {
-		t.Fatalf("nested ProcessUpdate() error = %v", err)
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, webhook); err != nil {
+		t.Fatalf("webhook ProcessUpdate() error = %v", err)
 	}
-	if got := testutil.ToFloat64(metrics.UpdatesProcessed) - before; got != 0 {
-		t.Fatalf("nested updates processed delta = %v, want 0", got)
+	if got := testutil.ToFloat64(metrics.UpdatesProcessed) - before; got != 1 {
+		t.Fatalf("webhook updates processed delta = %v, want 1", got)
 	}
 }
