@@ -86,7 +86,6 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "tmute",
 		module:   m,
-		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -128,7 +127,6 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "mute",
 		module:   m,
-		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -144,7 +142,6 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "smute",
 		module:   m,
-		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -163,7 +160,6 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command: "dmute",
 		module:  m,
-		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
 		validate: func(c *moderationCtx, t *target) error {
 			if c.Msg.ReplyToMessage == nil {
@@ -197,7 +193,6 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command: "unmute",
 		module:  m,
-		gates:   []gateFn{standardModGates},
 		extract: extractUserOnly,
 		validate: func(c *moderationCtx, t *target) error {
 			if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {

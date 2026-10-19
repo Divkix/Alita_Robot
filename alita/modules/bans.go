@@ -72,7 +72,6 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "dkick",
 		module:   m,
-		gates:    []gateFn{deleteModGates},
 		extract:  extractFromReply,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -92,7 +91,6 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "tban",
 		module:   m,
-		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -170,7 +168,6 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command: "ban",
 		module:  m,
-		gates:   []gateFn{standardModGates},
 		extract: func(c *moderationCtx) (target, error) {
 			uid, reason := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 			if uid == -1 {
@@ -234,7 +231,6 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "kick",
 		module:   m,
-		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -248,19 +244,6 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 func moderationKickme(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module: m,
-		gates: []gateFn{
-			func(c *moderationCtx) bool {
-				if !chat_status.RequireGroup(c.Bot, c.Ctx, nil) {
-					chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-					return false
-				}
-				if !chat_status.CanBotRestrict(c.Bot, c.Ctx, nil) {
-					chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-					return false
-				}
-				return true
-			},
-		},
 		extract: func(c *moderationCtx) (target, error) {
 			if chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id) {
 				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kickme_is_admin")
@@ -294,7 +277,6 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "sban",
 		module:   m,
-		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -314,7 +296,6 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command: "dban",
 		module:  m,
-		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
 		validate: func(c *moderationCtx, t *target) error {
 			if c.Msg.ReplyToMessage == nil {
@@ -348,7 +329,6 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command: "unban",
 		module:  m,
-		gates:   []gateFn{standardModGates},
 		extract: func(c *moderationCtx) (target, error) {
 			uid := extraction.ExtractUser(c.Bot, c.Ctx)
 			if uid == -1 {
@@ -450,25 +430,10 @@ func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
+	if chat_status.RequireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-
-	if !chat_status.RequireGroup(b, ctx, chat) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, chat) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	userId := extraction.ExtractUser(b, ctx)
 	switch userId {
@@ -661,26 +626,11 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 }
 
 func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
+	if chat_status.RequireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireGroup(b, ctx, chat) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, chat) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
 
 	userId := extraction.ExtractUser(b, ctx)
 	switch userId {
@@ -879,7 +829,6 @@ func moderationSkick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		command:  "skick",
 		module:   m,
-		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -901,19 +850,6 @@ func (m moduleStruct) sKick(b *gotgbot.Bot, ctx *ext.Context) error {
 func moderationBanme(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module: m,
-		gates: []gateFn{
-			func(c *moderationCtx) bool {
-				if !chat_status.RequireGroup(c.Bot, c.Ctx, nil) {
-					chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-					return false
-				}
-				if !chat_status.CanBotRestrict(c.Bot, c.Ctx, nil) {
-					chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-					return false
-				}
-				return true
-			},
-		},
 		extract: func(c *moderationCtx) (target, error) {
 			if chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id) {
 				text, _ := c.Tr.GetString("bans_banme_is_admin")
@@ -949,25 +885,11 @@ func (m moduleStruct) banme(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
+	if chat_status.RequireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
 	text, _ := tr.GetString("bans_unbanall_ask")
 	yesText, _ := tr.GetString("button_yes")
 	noText, _ := tr.GetString("button_no")

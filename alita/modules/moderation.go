@@ -38,53 +38,6 @@ func (c *moderationCtx) replyCommandHelp(errText string) error {
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, c.Command, errText)
 }
 
-// gateFn is a permission gate. Returns true if the gate passes.
-// On failure, it should already have sent any required error messages.
-type gateFn func(c *moderationCtx) bool
-
-// standardModGates are the most common permission checks for moderation commands.
-// RequireGroup -> RequireUserAdmin -> RequireBotAdmin -> CanUserRestrict -> CanBotRestrict
-func standardModGates(c *moderationCtx) bool {
-	if !chat_status.RequireGroup(c.Bot, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return false
-	}
-	if !chat_status.RequireUserAdmin(c.Bot, c.Ctx, nil, c.User.Id) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return false
-	}
-	if !chat_status.RequireBotAdmin(c.Bot, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return false
-	}
-	if !chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return false
-	}
-	if !chat_status.CanBotRestrict(c.Bot, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return false
-	}
-	return true
-}
-
-// deleteModGates extends standardModGates with delete permissions.
-// Used by purge-like commands.
-func deleteModGates(c *moderationCtx) bool {
-	if !standardModGates(c) {
-		return false
-	}
-	if !chat_status.CanBotDelete(c.Bot, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return false
-	}
-	if !chat_status.CanUserDelete(c.Bot, c.Ctx, c.Chat, c.User.Id) {
-		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
-		return false
-	}
-	return true
-}
-
 // target holds the resolved target user and optional reason text.
 type target struct {
 	userID    int64
@@ -190,13 +143,15 @@ type replyFn func(c *moderationCtx, t *target) error
 
 // moderationCommand wires the fixed-order pipeline for a moderation handler:
 //
-//	RequireUser -> gates -> extractTarget -> validate -> execute -> reply.
+//	RequireUser -> extractTarget -> validate -> execute -> reply.
+//
+// Permission checks are not part of it: the command's descriptor runs them
+// through WrapCommand, or anonPipelineHandler after an anonymous admin's proof.
 //
 // It eliminates the 30+ lines of boilerplate that every moderation command repeats.
 type moderationCommand struct {
 	// command names the help entry a wrong call answers with (commandHelpModules).
 	command   string
-	gates     []gateFn
 	extract   func(*moderationCtx) (target, error)
 	validate  validateTargetFn
 	execute   actionFn
@@ -231,13 +186,6 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	mc.Command = cmd.command
-
-	// Run all permission gates in order.
-	for _, g := range cmd.gates {
-		if !g(mc) {
-			return ext.EndGroups
-		}
-	}
 
 	// Extract the target user (+ optional reason).
 	tgt, err := cmd.extract(mc)
@@ -354,8 +302,8 @@ func extractTemporalTarget(c *moderationCtx, t *target) int64 {
 }
 
 // pipelineHandler adapts a legacy (bot,ctx) moderation handler to the command
-// pipeline. WrapCommand already ran desc.RequiredChecks; the domain handler
-// keeps its legacy gates as a redundant safety net during migration.
+// pipeline. WrapCommand has already run desc.RequiredChecks, so the domain
+// handler need not repeat them.
 func pipelineHandler(domain func(*gotgbot.Bot, *ext.Context) error) func(*helpers.CommandContext) error {
 	return func(c *helpers.CommandContext) error {
 		return domain(c.Bot, c.Ctx)
