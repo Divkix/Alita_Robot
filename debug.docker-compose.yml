@@ -12,6 +12,8 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-alita_robot}?sslmode=disable
       REDIS_ADDRESS: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redisPassword}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -19,19 +21,23 @@ services:
         condition: service_started
 
   postgres:
-    image: postgres:15-alpine
+    # Existing postgres_debug_data volumes from pg15 must be removed (docker compose -f debug.docker-compose.yml down -v) before pg17 starts
+    image: postgres:17-alpine
     container_name: alita-postgres-debug
     restart: always
     env_file:
       - .env
     environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-alita_robot}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_debug_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 5

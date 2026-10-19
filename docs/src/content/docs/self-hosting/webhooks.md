@@ -21,7 +21,7 @@ Webhooks provide real-time message delivery from Telegram to your bot, making th
 ## Required Environment Variables
 
 :::caution[Security]
-If `WEBHOOK_SECRET` is left empty, the webhook handler will reject ALL incoming requests. Always generate a strong random secret.
+With `USE_WEBHOOKS=true`, the bot refuses to start if `WEBHOOK_SECRET` (or `WEBHOOK_DOMAIN`) is empty: it exits with a configuration error such as `WEBHOOK_SECRET is required when USE_WEBHOOKS is enabled for security`. Always generate a strong random secret.
 :::
 
 ```bash
@@ -31,7 +31,7 @@ USE_WEBHOOKS=true
 # Your public HTTPS domain (required)
 WEBHOOK_DOMAIN=https://your-domain.com
 
-# Webhook secret for request validation (required — if empty, all webhook requests are rejected)
+# Webhook secret for request validation (required — the bot exits at startup if it is empty)
 WEBHOOK_SECRET=your-random-secret-string
 
 # HTTP server port (default: 8080)
@@ -46,6 +46,7 @@ Alita Robot uses a single HTTP server for all endpoints:
 |----------|--------|-------------|
 | `/health` | GET | Health check with database and Redis status |
 | `/metrics` | GET | Prometheus metrics for monitoring |
+| `/db_metrics` | GET | Database connection pool statistics (requires `Authorization: Bearer <METRICS_AUTH_TOKEN>` when that variable is set) |
 | `/webhook` | POST | Telegram webhook endpoint (webhook mode only) |
 | `/debug/pprof/*` | GET | Go profiling endpoints (only when `ENABLE_PPROF=true`) |
 
@@ -166,7 +167,7 @@ services:
 
 ### 1. Always Set WEBHOOK_SECRET
 
-The webhook secret is required for security. If left empty, the webhook handler will reject all incoming requests. Generate a secure value:
+The webhook secret is required for security. If it is empty while `USE_WEBHOOKS=true`, the bot exits at startup with a configuration error. Generate a secure value:
 
 ```bash
 # Generate a secure random secret
