@@ -47,10 +47,19 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	}
 	runOnProcessUpdateCallback()
 
-	if ctx.Data != nil {
-		if _, exists := ctx.Data[ContextDataKey]; exists {
-			return tp.BaseProcessor.ProcessUpdate(d, b, ctx)
-		}
+	start := time.Now()
+	defer func() {
+		metrics.UpdatesProcessed.Inc()
+		metrics.UpdateDuration.Observe(time.Since(start).Seconds())
+	}()
+	if ctx.Data == nil {
+		ctx.Data = make(map[string]any)
+	}
+	ctx.Data[updatememo.DataKey] = updatememo.New()
+
+	// Webhook updates arrive with the server's deadline and span already set.
+	if _, exists := ctx.Data[ContextDataKey]; exists {
+		return tp.BaseProcessor.ProcessUpdate(d, b, ctx)
 	}
 
 	// The 30-second deadline is load-bearing: tracing.UpdateContext hands this
@@ -58,24 +67,16 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	// docs/src/content/docs/architecture/caching.md documents that polling and
 	// webhook updates carry it. It is created unconditionally, not only when
 	// tracing is on.
-	start := time.Now()
 	baseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	traceCtx, span := StartSpan(baseCtx, "dispatcher.processUpdate")
 	defer func() {
-		metrics.UpdatesProcessed.Inc()
-		metrics.UpdateDuration.Observe(time.Since(start).Seconds())
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 		}
 		span.End()
 	}()
-
-	if ctx.Data == nil {
-		ctx.Data = make(map[string]any)
-	}
 	ctx.Data[ContextDataKey] = traceCtx
-	ctx.Data[updatememo.DataKey] = updatememo.New()
 
 	err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
 	return err

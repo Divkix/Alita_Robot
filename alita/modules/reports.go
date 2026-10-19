@@ -263,11 +263,10 @@ func (m moduleStruct) reportWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 //nolint:dupl // reports has symmetric block/unblock logic
 func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	sender := ctx.EffectiveSender
 	if sender == nil || sender.User == nil {

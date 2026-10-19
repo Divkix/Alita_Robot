@@ -19,16 +19,3 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 	}
 	return nil
 }
-
-func EnsureChatInDb(chatId int64, chatName string) error {
-	chatUpdate := &Chat{
-		ChatId:   chatId,
-		ChatName: chatName,
-	}
-	err := DB.Where("chat_id = ?", chatId).Assign(chatUpdate).FirstOrCreate(&Chat{}).Error
-	if err != nil {
-		log.Errorf("[Database] EnsureChatInDb: %v", err)
-		return fmt.Errorf("failed to ensure chat %d in database: %w", chatId, err)
-	}
-	return nil
-}

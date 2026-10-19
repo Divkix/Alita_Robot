@@ -12,10 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func GetChatFiltersOptimized(chatID int64) ([]*models.ChatFilters, error) {
-	return GetChatFiltersOptimizedContext(context.Background(), chatID)
-}
-
 func GetChatFiltersOptimizedContext(ctx context.Context, chatID int64) ([]*models.ChatFilters, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")

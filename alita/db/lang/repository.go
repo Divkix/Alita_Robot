@@ -16,18 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
-func checkUserInfo(userId int64) (userc *models.User) {
-	userc, err := user.GetUserBasicInfoCached(userId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		log.Errorf("[Database] checkUserInfo: %v - %d", err, userId)
-		return &models.User{UserId: userId}
-	}
-	return userc
-}
-
 func GetLanguage(ctx *ext.Context) string {
 	if ctx == nil {
 		return "en"
@@ -101,7 +89,7 @@ func getCachedLanguage(ctx context.Context, key string, model any, idColumn stri
 }
 
 func ChangeUserLanguage(UserID int64, lang string) error {
-	userc := checkUserInfo(UserID)
+	userc := user.CheckUserInfo(UserID)
 	if userc == nil {
 		newUser := &models.User{
 			UserId:   UserID,

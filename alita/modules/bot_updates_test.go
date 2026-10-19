@@ -32,7 +32,7 @@ func TestAdminPermissionUpdatesRefreshAuthorization(t *testing.T) {
 			key := fmt.Sprintf("alita:cache:adminCache:%d", chat.Id)
 			if err := cache.GetMarshal().Set(cache.Context, key, cache.AdminCache{
 				ChatId: chat.Id, Cached: true,
-				UserMap: map[int64]gotgbot.MergedChatMember{user.Id: oldMember.MergeChatMember()},
+				UserInfo: []gotgbot.MergedChatMember{oldMember.MergeChatMember()},
 			}); err != nil {
 				t.Fatal(err)
 			}

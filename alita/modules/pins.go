@@ -349,11 +349,10 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 //nolint:dupl // antichannelpin has symmetric logic with cleanlinked
 func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()
 
@@ -425,11 +424,10 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // cleanlinked has symmetric logic with antichannelpin
 func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()
 

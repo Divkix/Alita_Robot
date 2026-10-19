@@ -71,11 +71,10 @@ func deleteNoteOverwriteCache(token string) {
 
 //nolint:dupl // addNote shares validation logic with filters module by design
 func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	user := chat_status.RequireUser(b, ctx)
@@ -224,11 +223,10 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {

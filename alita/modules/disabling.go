@@ -33,11 +33,10 @@ type toggleCmdConfig struct {
 func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context) error {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg := ctx.EffectiveMessage
-		connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+		connectedChat := resolveAdminChat(b, ctx, true)
 		if connectedChat == nil {
 			return ext.EndGroups
 		}
-		ctx.EffectiveChat = connectedChat
 		chat := ctx.EffectiveChat
 		args := ctx.Args()[1:]
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -210,11 +209,10 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

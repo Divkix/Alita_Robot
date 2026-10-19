@@ -31,35 +31,6 @@ var (
 	delMsgs      = sync.Map{}
 )
 
-func checkPurgePermissions(bot *gotgbot.Bot, ctx *ext.Context) (*gotgbot.User, bool) {
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return nil, false
-	}
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return nil, false
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return nil, false
-	}
-	if !chat_status.CanBotDelete(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return nil, false
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return nil, false
-	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
-		return nil, false
-	}
-	return user, true
-}
-
 type PurgeWorker struct {
 	errors     []error
 	errorCount int
@@ -155,10 +126,6 @@ func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, 
 }
 
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
-	if _, ok := checkPurgePermissions(bot, ctx); !ok {
-		return ext.EndGroups
-	}
-
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
@@ -217,10 +184,6 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
-	if _, ok := checkPurgePermissions(bot, ctx); !ok {
-		return ext.EndGroups
-	}
-
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
@@ -243,8 +206,9 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user, ok := checkPurgePermissions(bot, ctx)
-	if !ok {
+	user := chat_status.RequireUser(bot, ctx)
+	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -315,10 +279,6 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
-	if _, ok := checkPurgePermissions(bot, ctx); !ok {
-		return ext.EndGroups
-	}
-
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]

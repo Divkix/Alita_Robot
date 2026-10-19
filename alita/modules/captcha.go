@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -36,6 +37,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
+	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
 
 var captchaMemberRetryDelay = 300 * time.Millisecond
@@ -1783,6 +1785,25 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	return err
 }
 
+type captchaAttemptMemoKey struct{ chatID, userID int64 }
+
+type captchaAttemptResult struct {
+	attempt *models.CaptchaAttempts
+	err     error
+}
+
+// captchaAttemptForUpdate is captcha.GetCaptchaAttempt memoised for the
+// current update, so the pending-message watcher and aispam share one query.
+// Attempts are created only from join events, which carry no text for aispam
+// to check, so the result cannot go stale between the two.
+func captchaAttemptForUpdate(ctx *ext.Context, userID, chatID int64) (*models.CaptchaAttempts, error) {
+	r := updatememo.Get(updatememo.From(ctx), captchaAttemptMemoKey{chatID, userID}, func() captchaAttemptResult {
+		attempt, err := captcha.GetCaptchaAttempt(userID, chatID)
+		return captchaAttemptResult{attempt, err}
+	})
+	return r.attempt, r.err
+}
+
 func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -1817,7 +1838,7 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 		return ext.ContinueGroups
 	}
 
-	attempt, err := captcha.GetCaptchaAttempt(user.Id, chat.Id)
+	attempt, err := captchaAttemptForUpdate(ctx, user.Id, chat.Id)
 	if err != nil {
 		log.Errorf("Failed to check captcha attempt for user %d: %v", user.Id, err)
 		return ext.ContinueGroups

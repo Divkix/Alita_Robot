@@ -34,8 +34,11 @@ func TestAdminChatFixtureMemberCannotModerate(t *testing.T) {
 	other := f.member
 	other.Id = uniquePositiveUserID()
 
+	// The permission checks live in banDesc, run before the handler as
+	// WrapCommand does.
+	ban := anonPipelineHandler(banDesc, bansModule.ban)
 	ctx := newBanReplyContext(f.bot, f.chat, f.member, other, "/ban")
-	if err := bansModule.ban(f.bot, ctx); err != ext.EndGroups {
+	if err := ban(f.bot, ctx); err != ext.EndGroups {
 		t.Fatalf("ban(by member) error = %v, want EndGroups", err)
 	}
 	if calls := f.client.callsFor("banChatMember"); len(calls) != 0 {
@@ -44,7 +47,7 @@ func TestAdminChatFixtureMemberCannotModerate(t *testing.T) {
 	f.client.onlyCall(t, "getChatAdministrators")
 
 	ctx = newBanReplyContext(f.bot, f.chat, f.admin, other, "/ban")
-	if err := bansModule.ban(f.bot, ctx); err != ext.EndGroups {
+	if err := ban(f.bot, ctx); err != ext.EndGroups {
 		t.Fatalf("ban(by admin) error = %v, want EndGroups", err)
 	}
 	assertParams(t, f.client.onlyCall(t, "banChatMember"), targetParams(f.chat.Id, other.Id))

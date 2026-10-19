@@ -322,15 +322,43 @@ func TestAntifloodWatcherFailsOpenWhenAdminSemaphoreFull(t *testing.T) {
 		}
 	})
 
-	ctx := newModuleMessageContext(bot, chat, member, "flood")
-	if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("checkFlood(semaphore full) error = %v, want ContinueGroups", err)
+	// Two messages cross the limit of one, so the admin check runs.
+	for i := 0; i < 2; i++ {
+		ctx := newModuleMessageContext(bot, chat, member, "flood")
+		ctx.EffectiveMessage.MessageId = int64(300 + i)
+		if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("checkFlood(semaphore full) message %d error = %v, want ContinueGroups", i, err)
+		}
 	}
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want fail-open without action", len(calls))
 	}
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
 		t.Fatalf("restrictChatMember calls = %d, want fail-open without action", len(calls))
+	}
+}
+
+func TestAntifloodWatcherSkipsAdminLookupBelowLimit(t *testing.T) {
+	resetAntifloodState(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
+	member := gotgbot.User{Id: 46, FirstName: "Talker"}
+	if err := antiflood.SetFlood(chat.Id, 3); err != nil {
+		t.Fatalf("SetFlood() error = %v", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		ctx := newModuleMessageContext(bot, chat, member, "hello")
+		ctx.EffectiveMessage.MessageId = int64(400 + i)
+		if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("checkFlood message %d error = %v, want ContinueGroups", i, err)
+		}
+	}
+	for _, method := range []string{"getChatAdministrators", "getChatMember"} {
+		if calls := client.callsFor(method); len(calls) != 0 {
+			t.Fatalf("%s calls = %d, want none while under the flood limit", method, len(calls))
+		}
 	}
 }
 

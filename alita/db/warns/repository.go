@@ -21,10 +21,6 @@ import (
 // timeNow is the clock for warn times and expiry; tests replace it.
 var timeNow = time.Now
 
-func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
-	return checkWarnSettingsContext(context.Background(), chatID)
-}
-
 func checkWarnSettingsContext(ctx context.Context, chatID int64) (warnrc *models.WarnSettings) {
 	defaultWarnSettings := &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
 	warnrc = &models.WarnSettings{}
@@ -53,10 +49,6 @@ func checkWarnSettingsContext(ctx context.Context, chatID int64) (warnrc *models
 		warnrc = defaultWarnSettings
 	}
 	return
-}
-
-func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
-	return checkWarnsContext(context.Background(), userId, chatId)
 }
 
 func checkWarnsContext(ctx context.Context, userId, chatId int64) (warnrc *models.Warns) {

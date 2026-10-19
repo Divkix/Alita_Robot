@@ -20,18 +20,17 @@ func TestAdminCacheRoundTripWithMemoryStore(t *testing.T) {
 	withMemoryMarshaler(t)
 
 	const chatID = int64(-100123)
-	adminViaMap := gotgbot.MergedChatMember{
+	firstAdmin := gotgbot.MergedChatMember{
 		Status: "administrator",
-		User:   gotgbot.User{Id: 10, FirstName: "Map Admin"},
+		User:   gotgbot.User{Id: 10, FirstName: "First Admin"},
 	}
-	adminViaList := gotgbot.MergedChatMember{
+	secondAdmin := gotgbot.MergedChatMember{
 		Status: "administrator",
-		User:   gotgbot.User{Id: 11, FirstName: "List Admin"},
+		User:   gotgbot.User{Id: 11, FirstName: "Second Admin"},
 	}
 	adminCache := AdminCache{
 		ChatId:   chatID,
-		UserInfo: []gotgbot.MergedChatMember{adminViaList},
-		UserMap:  map[int64]gotgbot.MergedChatMember{10: adminViaMap},
+		UserInfo: []gotgbot.MergedChatMember{firstAdmin, secondAdmin},
 		Cached:   true,
 	}
 
@@ -46,12 +45,12 @@ func TestAdminCacheRoundTripWithMemoryStore(t *testing.T) {
 
 	found, gotMember := GetAdminCacheUser(chatID, 10)
 	if !found || gotMember.User.Id != 10 {
-		t.Fatalf("GetAdminCacheUser(map user) = (%v, %+v), want user 10", found, gotMember)
+		t.Fatalf("GetAdminCacheUser(first admin) = (%v, %+v), want user 10", found, gotMember)
 	}
 
 	found, gotMember = GetAdminCacheUser(chatID, 11)
 	if !found || gotMember.User.Id != 11 {
-		t.Fatalf("GetAdminCacheUser(list fallback) = (%v, %+v), want user 11", found, gotMember)
+		t.Fatalf("GetAdminCacheUser(second admin) = (%v, %+v), want user 11", found, gotMember)
 	}
 
 	found, gotMember = GetAdminCacheUser(chatID, 42)

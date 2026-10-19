@@ -557,7 +557,9 @@ func TestUnbanAllConfirmFlow(t *testing.T) {
 
 func TestUnbanAllRefusesNonOwnerAdmin(t *testing.T) {
 	f := newAdminChatFixture(t)
-	if err := bansModule.unbanAllHandler(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unbanall")); err != ext.EndGroups {
+	// The owner check lives in unbanAllDesc, run before the handler as WrapCommand does.
+	unbanAll := anonPipelineHandler(unbanAllDesc, bansModule.unbanAllHandler)
+	if err := unbanAll(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unbanall")); err != ext.EndGroups {
 		t.Fatalf("unbanAllHandler: %v", err)
 	}
 	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})

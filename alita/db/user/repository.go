@@ -76,13 +76,15 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 	return nil
 }
 
-func checkUserInfo(userId int64) (userc *models.User) {
+// CheckUserInfo returns the cached user row, nil when it does not exist, or a
+// stub carrying only userId when the lookup fails.
+func CheckUserInfo(userId int64) (userc *models.User) {
 	userc, err := GetUserBasicInfoCached(userId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
-		log.Errorf("[Database] checkUserInfo: %v - %d", err, userId)
+		log.Errorf("[Database] CheckUserInfo: %v - %d", err, userId)
 		return &models.User{UserId: userId}
 	}
 	return userc
@@ -131,7 +133,7 @@ func GetUserIdByUserName(username string) int64 {
 }
 
 func GetUserInfoById(userId int64) (username, name string, found bool) {
-	user := checkUserInfo(userId)
+	user := CheckUserInfo(userId)
 	if user != nil {
 		username = user.UserName
 		name = user.Name

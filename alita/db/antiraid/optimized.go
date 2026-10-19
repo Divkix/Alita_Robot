@@ -12,10 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func getAntiRaidSettingsRaw(chatID int64) (*models.AntiRaidSettings, error) {
-	return getAntiRaidSettingsRawContext(context.Background(), chatID)
-}
-
 func getAntiRaidSettingsRawContext(ctx context.Context, chatID int64) (*models.AntiRaidSettings, error) {
 	if db.DB == nil {
 		return defaultAntiRaidSettings(chatID), errors.New("database not initialized")

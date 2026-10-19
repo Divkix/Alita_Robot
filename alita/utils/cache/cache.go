@@ -74,7 +74,6 @@ func GetCacheState() (*marshaler.Marshaler, *cache.Cache[any], *redis.Client) {
 type AdminCache struct {
 	ChatId   int64
 	UserInfo []gotgbot.MergedChatMember
-	UserMap  map[int64]gotgbot.MergedChatMember
 	Cached   bool
 	// Negative marks an authoritative empty result (bot not admin). Transient
 	// failures leave Cached=false so callers fall back to per-user GetChatMember.

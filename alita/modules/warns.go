@@ -66,11 +66,10 @@ func warnModeLabel(settings *models.WarnSettings) string {
 
 func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	user := chat_status.RequireUser(b, ctx)
@@ -146,11 +145,10 @@ func warnExpiryLabel(tr *i18n.Translator, settings *models.WarnSettings) string 
 // setWarnTime sets how long a warn counts: /setwarntime 30d, or off.
 func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	user := chat_status.RequireUser(b, ctx)
@@ -491,9 +489,6 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 	if err != nil {
 		return ext.EndGroups
 	}
-	if !standardModGates(mc) {
-		return ext.EndGroups
-	}
 
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -553,19 +548,6 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
@@ -718,11 +700,10 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -782,19 +763,6 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
@@ -971,19 +939,6 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {

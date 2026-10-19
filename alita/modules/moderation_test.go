@@ -129,39 +129,6 @@ func TestExtractFromReplyRejectsMissingReplyAndNilSender(t *testing.T) {
 	}
 }
 
-func TestModerationCommandRunShortCircuitsFailedGate(t *testing.T) {
-	t.Parallel()
-
-	ctx := moderationTestContext()
-	calledExtract := false
-	calledExecute := false
-
-	cmd := &moderationCommand{
-		module: &moduleStruct{moduleName: "Bans"},
-		gates: []gateFn{
-			func(*moderationCtx) bool { return false },
-		},
-		extract: func(*moderationCtx) (target, error) {
-			calledExtract = true
-			return target{userID: 1}, nil
-		},
-		execute: func(*moderationCtx, *target) error {
-			calledExecute = true
-			return nil
-		},
-	}
-
-	if err := cmd.run(nil, ctx); err != ext.EndGroups {
-		t.Fatalf("run() err = %v, want %v", err, ext.EndGroups)
-	}
-	if calledExtract {
-		t.Fatal("run() should not extract when a gate fails")
-	}
-	if calledExecute {
-		t.Fatal("run() should not execute when a gate fails")
-	}
-}
-
 func TestModerationCommandRunExecutesPipelineInOrder(t *testing.T) {
 	t.Parallel()
 
@@ -170,12 +137,6 @@ func TestModerationCommandRunExecutesPipelineInOrder(t *testing.T) {
 
 	cmd := &moderationCommand{
 		module: &moduleStruct{moduleName: "Bans"},
-		gates: []gateFn{
-			func(*moderationCtx) bool {
-				calls = append(calls, "gate")
-				return true
-			},
-		},
 		extract: func(*moderationCtx) (target, error) {
 			calls = append(calls, "extract")
 			return target{userID: 123}, nil
@@ -207,7 +168,7 @@ func TestModerationCommandRunExecutesPipelineInOrder(t *testing.T) {
 		t.Fatalf("run() err = %v, want %v", err, ext.EndGroups)
 	}
 
-	want := []string{"gate", "extract", "validate", "execute", "reply"}
+	want := []string{"extract", "validate", "execute", "reply"}
 	if len(calls) != len(want) {
 		t.Fatalf("calls = %v, want %v", calls, want)
 	}
@@ -215,52 +176,6 @@ func TestModerationCommandRunExecutesPipelineInOrder(t *testing.T) {
 		if calls[i] != want[i] {
 			t.Fatalf("calls = %v, want %v", calls, want)
 		}
-	}
-}
-
-func TestDeleteModGatesRequireRestrictAndDeletePermissions(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat := f.client, f.bot, f.chat
-	ctx := newModuleMessageContext(bot, chat, f.admin, "/purge")
-	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
-
-	if !deleteModGates(mc) {
-		t.Fatal("deleteModGates() = false, want true for an admin with delete and restrict rights")
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-		t.Fatalf("sendMessage calls = %d, want no refusal for an authorised admin", len(calls))
-	}
-
-	memberCtx := newModuleMessageContext(bot, chat, f.member, "/purge")
-	if deleteModGates(newModerationCtxForTest(bot, memberCtx, &moduleStruct{moduleName: "Bans"})) {
-		t.Fatal("deleteModGates(member) = true, want false")
-	}
-}
-
-func TestStandardModGatesRejectsPrivateChatsAndNonAdmins(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-	privateCtx := newModuleMessageContext(
-		bot,
-		gotgbot.Chat{Id: admin.Id, Type: "private", FirstName: "Telegram"},
-		admin,
-		"/ban 42",
-	)
-	if standardModGates(newModerationCtxForTest(bot, privateCtx, &moduleStruct{moduleName: "Bans"})) {
-		t.Fatal("standardModGates(private) = true, want false")
-	}
-
-	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
-	memberCtx := newModuleMessageContext(
-		bot,
-		group,
-		gotgbot.User{Id: 42, FirstName: "Member"},
-		"/ban 13",
-	)
-	if standardModGates(newModerationCtxForTest(bot, memberCtx, &moduleStruct{moduleName: "Bans"})) {
-		t.Fatal("standardModGates(non-admin user) = true, want false")
 	}
 }
 
