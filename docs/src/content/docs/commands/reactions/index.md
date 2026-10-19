@@ -12,10 +12,12 @@ Automatically react to messages with specific keywords!
 
 Setup automated emoji reactions that trigger when users send specific words.
 
+**User Commands:**
+- /reactions - List configured reactions
+
 **Admin Commands:**
 - /addreaction <keyword> <emoji> - Add an auto-reaction
 - /removereaction <keyword> - Remove a reaction
-- /reactions - List configured reactions
 - /resetreactions - Clear all reactions
 
 **Example:**
