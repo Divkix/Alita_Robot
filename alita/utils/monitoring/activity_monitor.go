@@ -188,8 +188,8 @@ func (am *ActivityMonitor) calculateMetrics() {
 	countAsync(&wg, func() error {
 		return db.DB.Model(&db.Chat{}).Where("is_inactive = ?", true).Count(&inactiveGroups).Error
 	}, "Error counting inactive groups")
-	// Windowless total: cheap reltuples estimate (pg_class) instead of an
-	// exact COUNT(*) scan.
+	// Windowless total: cheap live-tuple estimate (pg_stat_user_tables)
+	// instead of an exact COUNT(*) scan.
 	totalGroups = db.TableRowCount("chats")
 
 	countAsync(&wg, func() error {
@@ -207,7 +207,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 			Where("last_activity >= ?", monthAgo).
 			Count(&monthlyUsers).Error
 	}, "Error counting monthly active users")
-	// Windowless total: cheap reltuples estimate (pg_class).
+	// Windowless total: cheap live-tuple estimate (pg_stat_user_tables).
 	totalUsers = db.TableRowCount("users")
 
 	wg.Wait()
