@@ -1353,6 +1353,9 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Debugf("[Federations] passive fban: %v", err)
 			return
 		}
+		// Take the join so greetings sends the banned user no captcha or welcome.
+		// Only a ban that went through does this; a failed one leaves the captcha.
+		claimRecentJoinProcessing(chat.Id, userID)
 		if membership.Quiet {
 			return
 		}
