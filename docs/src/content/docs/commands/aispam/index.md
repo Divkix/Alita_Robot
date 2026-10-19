@@ -7,7 +7,7 @@ description: Complete guide to the Aispam module — the per-chat AI spam filter
 # 🤖 Aispam Commands
 
 The Aispam module is an opt-in, per-chat AI spam filter. When it is on, every
-message in the chat is judged by TypeSafe's Jev decision model against the
+new message in the chat is judged by TypeSafe's Jev decision model against the
 chat's own title, description and rules, and messages the model is confident
 are spam are deleted.
 
@@ -22,7 +22,8 @@ off in every chat until an admin turns it on.
 | `/aispam on` | Turn the filter on for this chat | ✅ |
 | `/aispam off` | Turn the filter off for this chat | ✅ |
 
-`on`/`off` also accept `yes`/`no`. A bare `/aispam` reports status and lists the
+`on` also accepts `yes`, `true` or `enable`, and `off` also accepts `no`, `false`
+or `disable` (case-insensitive). A bare `/aispam` reports status and lists the
 data sent to the model.
 
 ## What Happens To A Flagged Message
@@ -55,6 +56,8 @@ These messages are never sent to the model:
   message aimed at another bot is judged like any other text.
 - Messages with no text or caption, and messages from bots, channels, anonymous
   admins or linked channels.
+- Edits to a message already posted: only a message as first posted is judged,
+  so a message edited into spam afterwards is not checked again.
 
 ## What The Model Receives
 
@@ -68,8 +71,10 @@ For each checked message:
 - The sender's few most recent messages in this chat, and how many messages they
   posted in the last hour.
 
-The sender window is kept in Redis for one hour, keyed per chat and user, and
-expires on its own. Nothing else about a message is stored. A message joins the
+The sender window is kept in Redis, keyed per chat and user. The message count
+covers only the last hour; the sender's last five texts are kept until they have
+posted nothing in the chat for an hour, then expire on their own. Nothing else
+about a message is stored. A message joins the
 window even when the check that follows it fails, and losing Redis costs the
 window rather than the check: the message is still judged, with no history.
 
@@ -79,8 +84,10 @@ sent. `/aispam` prints this list in the chat.
 ## Failure Behaviour
 
 The filter fails open: a timeout, rate limit, server error or unparseable
-answer produces no verdict and no action. `429` and `5xx` get exactly one retry,
-honouring `Retry-After`. After five consecutive failures in a chat, checks for
+answer produces no verdict and no action. `429` and `5xx` get at most one retry,
+after the provider's `Retry-After` (0.5 s if it sends none). If it asks for more
+than 2 s, or the check's 8 s budget runs out first, there is no retry and the
+check fails open. After five consecutive failures in a chat, checks for
 that chat pause for five minutes and the chat gets one notice; the stored
 setting is untouched, so protection resumes on its own.
 
@@ -94,9 +101,12 @@ means "not checked", and antiflood still owns floods.
 |---------|-------------|
 | `/aispam`, `/aispam on`, `/aispam off` | Admin only — requires `IsUserAdmin` |
 
+**Bot Permissions Required:** the bot must be an admin with the Delete Messages permission. Enabling does not check this. Without it, messages are still sent to the model (and still use the operator's API quota) and deletions are still mirrored to `MESSAGE_DUMP`, but nothing is removed from the chat.
+
 Enabling is refused, with a message explaining why, when the bot operator has
-not configured an API key or has switched the filter off globally — an admin is
-never left believing their chat is protected when it is not.
+not configured an API key or has switched the filter off globally, so an admin is
+not told their chat is protected when the operator has not set the filter up. It
+does not check the bot's own rights; see above.
 
 ## Operator Setup
 

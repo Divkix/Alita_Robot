@@ -5,14 +5,14 @@ description: Overview of all command modules and categories
 
 Alita Robot provides a comprehensive set of commands organized into modules. Each module handles a specific aspect of group management.
 
-**Total Modules**: 30 | **Total Commands**: 160
+**Total Modules**: 31 | **Total Commands**: 215
 
 ## Administration
 
 <CardGroup cols={2}>
   <Card title="Admin" href="/commands/admin/" icon="star">
     Make it easy to promote and demote users with the admin module.
-    <Badge variant="accent">8 commands</Badge> <Badge variant="warning">Admin Only</Badge>
+    <Badge variant="accent">11 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 </CardGroup>
 
@@ -21,7 +21,7 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
 <CardGroup cols={2}>
   <Card title="Antiflood" href="/commands/antiflood/" icon="shield-alert">
     Automatic flood detection and action. Set message thresholds and choose ban, kick, or mute for offenders.
-    <Badge variant="accent">4 commands</Badge> <Badge variant="warning">Admin Only</Badge>
+    <Badge variant="accent">5 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
   <Card title="Aispam" href="/commands/aispam/" icon="brain">
@@ -36,22 +36,27 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
 
   <Card title="Bans" href="/commands/bans/" icon="ban">
     Ban, kick, and restrict users. Supports silent bans, delete-bans, and temporary bans with time limits.
-    <Badge variant="accent">10 commands</Badge> <Badge variant="warning">Admin Only</Badge>
+    <Badge variant="accent">13 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
   <Card title="Approvals" href="/commands/approvals/" icon="check">
-    Manage approved users who are immune to anti-spam measures. Auto-approve, list, and remove approvals.
+    Manage approved users who are immune to anti-spam measures. Approve, check, list, and remove approvals.
     <Badge variant="accent">5 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
   <Card title="Blacklists" href="/commands/blacklists/" icon="list">
     Automatically detect and act on blacklisted words. Configurable actions: warn, mute, kick, or ban.
-    <Badge variant="accent">8 commands</Badge> <Badge variant="warning">Admin Only</Badge>
+    <Badge variant="accent">15 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
   <Card title="Captcha" href="/commands/captcha/" icon="puzzle">
     Force new members to solve a challenge before they can send messages. Math and text captcha types.
     <Badge variant="accent">7 commands</Badge> <Badge variant="warning">Admin Only</Badge>
+  </Card>
+
+  <Card title="Federations" href="/commands/federations/" icon="shield">
+    Share one ban list across many groups. Create a federation, join groups to it, and fban a user everywhere at once.
+    <Badge variant="accent">27 commands</Badge> <Badge variant="warning">Fed Owner & Admins</Badge>
   </Card>
 
   <Card title="Locks" href="/commands/locks/" icon="lock">
@@ -70,8 +75,8 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
   </Card>
 
   <Card title="Warns" href="/commands/warns/" icon="alert-triangle">
-    Issue warnings to users. Configurable warn limit and action (ban, kick, or mute) when the limit is reached.
-    <Badge variant="accent">12 commands</Badge> <Badge variant="warning">Admin Only</Badge>
+    Issue warnings to users. Configurable warn limit and action (ban, kick, mute, tban, or tmute) when the limit is reached.
+    <Badge variant="accent">13 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 </CardGroup>
 
@@ -108,13 +113,13 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
 
 <CardGroup cols={2}>
   <Card title="Formatting" href="/commands/formatting/" icon="pencil">
-    Learn about message formatting options — Markdown, HTML, and special tags supported by Alita.
+    Learn about message formatting options — Markdown, buttons, fillings, and random content supported by Alita.
     <Badge variant="accent">2 commands</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
   <Card title="Misc" href="/commands/misc/" icon="settings">
     Utility commands: user info, group ID, bot ping, translation, message stats, and more.
-    <Badge variant="accent">7 commands</Badge> <Badge variant="success">Everyone</Badge>
+    <Badge variant="accent">13 commands</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
   <Card title="Reports" href="/commands/reports/" icon="flag">
@@ -128,7 +133,7 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
 <CardGroup cols={2}>
   <Card title="Connections" href="/commands/connections/" icon="link">
     Connect to a chat's database from PM to manage settings without the group seeing your commands.
-    <Badge variant="accent">5 commands</Badge>
+    <Badge variant="accent">6 commands</Badge>
   </Card>
 
   <Card title="Disabling" href="/commands/disabling/" icon="circle-slash">
@@ -137,13 +142,18 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
   </Card>
 
   <Card title="Help" href="/commands/help/" icon="info">
-    Bot entry points and navigation. Welcome message, help menu, about, and donate.
-    <Badge variant="accent">4 commands</Badge> <Badge variant="success">Everyone</Badge>
+    Bot entry points and navigation. Welcome message, help menu, about, donate, and the full command list.
+    <Badge variant="accent">5 commands</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
   <Card title="Languages" href="/commands/languages/" icon="languages">
     Change the bot's language for yourself or your group. Supports English, Spanish, French, Hindi, Russian, Portuguese, and Indonesian.
     <Badge variant="accent">1 command</Badge> <Badge variant="success">Everyone</Badge>
+  </Card>
+
+  <Card title="LogChannels" href="/commands/logchannels/" icon="file-text">
+    Send bans, kicks, mutes, reports and log-setting changes to a dedicated log channel.
+    <Badge variant="accent">6 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
   <Card title="Pins" href="/commands/pins/" icon="pin">
@@ -175,7 +185,7 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
   </Card>
 
   <Card title="Bot Updates" href="/commands/bot_updates/" icon="bot">
-    Handles bot join/leave events, admin cache auto-refresh, and anonymous admin verification.
+    Handles the bot being added to chats (asks basic groups to upgrade, then leaves them), admin cache auto-refresh, and anonymous admin verification.
     <Badge>No commands</Badge> <Badge variant="success">Automatic</Badge>
   </Card>
 </CardGroup>
@@ -191,7 +201,7 @@ All commands follow this format:
 
 Commands can be used with or without the bot username:
 - `/start` — Works in private chat or group
-- `/start@AlitaRobot` — Explicitly targets this bot in groups
+- `/start@Alita_Robot` — Explicitly targets this bot in groups
 :::
 
 :::note[Getting Help]

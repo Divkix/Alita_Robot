@@ -7,16 +7,16 @@ description: Complete guide to Locks module commands and features
 # 🔒 Locks Commands
 
 *Admin only:*
-× /lock `<permission>`: Lock Chat permission..
-× /unlock `<permission>`: Unlock Chat permission.
-
-*Available to all users:*
+× /lock `<type> [type ...]`: Lock one or more lock types (see /locktypes).
+× /unlock `<type> [type ...]`: Unlock one or more lock types.
 × /locks: View Chat permission.
+
+*User Commands:*
 × /locktypes: Check available lock types!
 
 Locks can be used to restrict a group's users.
 Locking URLs will auto-delete all messages with URLs, locking stickers will delete all stickers, etc.
-Locking bots will stop non-admins from adding bots to the chat.
+Locking bots will stop users who are neither admins nor approved from adding bots to the chat.
 
 **Example:**
 `/lock media`: this locks all the media messages in the chat.
@@ -34,10 +34,10 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/lock` | Lock a permission type in the group | ❌ |
+| `/lock` | Lock one or more lock types in the group | ❌ |
 | `/locks` | Show current lock settings | ✅ |
 | `/locktypes` | List all available lock types | ✅ |
-| `/unlock` | Unlock a permission type in the group | ❌ |
+| `/unlock` | Unlock one or more lock types in the group | ❌ |
 
 ## Usage Examples
 
@@ -66,6 +66,6 @@ Most commands in this module require **admin permissions** in the group.
 
 **Technical Notes**
 - Lock enforcement is real-time
-- Admins are exempt from all locks
+- Admins and approved users are exempt from all locks
 - Locks persist across bot restarts
 - Cache invalidated on updates

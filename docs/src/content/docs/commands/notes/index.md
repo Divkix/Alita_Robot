@@ -11,13 +11,13 @@ Notes are great to save random tidbits of information; a phone number, a nice gi
 *User commands:*
 - /get <notename>: Get a note.
 - #notename: Same as /get.
-Admin commands:
-- /save <notename> <note text>: Save a new note called "word". Replying to a message will save that message. Even works on media!
-- /clear <notename>: Delete the associated note.
 - /notes: List all notes in the current chat.
 - /saved: Same as /notes.
-- /clearall: Delete ALL notes in a chat. This cannot be undone.
-- /privatenotes: Whether or not to send notes in PM. Will send a message with a button which users can click to get the note in PM.
+Admin commands:
+- /save /addnote <notename> <note text>: Save a new note called "word". Replying to a message will save that message. Even works on media!
+- /clear /rmnote <notename>: Delete the associated note.
+- /clearall: Delete ALL notes in a chat (chat owner only). This cannot be undone.
+- /privatenotes /privnote <on/off>: Whether or not to send notes in PM. Will send a message with a button which users can click to get the note in PM. Without an argument, shows the current setting.
 
 **Features:**
 - **Text &amp; Media Support**: Save text messages, photos, videos, documents, and more
@@ -25,17 +25,17 @@ Admin commands:
 - **Formatting Options**: Control note visibility and behavior
 - **Admin-Only Notes**: Restrict certain notes to administrators only
 - **Private Notes**: Send notes privately to users via DM
-- **Web Preview Control**: Enable or disable link previews
+- **Web Preview Control**: Link previews are off by default; add `{preview}` to turn them on
 - **Protected Content**: Prevent note content from being forwarded
 
 **Note Formatting Options:**
 When saving a note, you can use special tags to control its behavior:
 - `{private}` - Note will only be sent via DM, never in group
-- `{noprivate}` - Note will only be sent in group, never via DM
+- `{noprivate}` - When fetched in a group, the note is sent in the group even if private notes are on (fetching it from PM still delivers it in PM)
 - `{admin}` - Note can only be accessed by admins
 - `{protect}` - Content cannot be forwarded
 - `{nonotif}` - Send without notification sound
-- `{nopreview}` - Disable link preview
+- `{preview}` - Show link previews (they are off by default)
 
 **Private Notes Mode:**
 When private notes are enabled (`/privatenotes on`), all notes are sent to users via DM instead of in the group. This keeps the group chat clean.
@@ -45,8 +45,8 @@ Individual notes can override this behavior:
 - `{noprivate}` - Always send in group
 
 **Raw Note (No Formatting):**
-To see a note's raw content without formatting (for editing):
-`/get notename noformat`
+Admins can see a note's raw content without formatting (for editing):
+`/get notename noformat` or `#notename noformat`
 
 
 ## Module Aliases
@@ -62,14 +62,14 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/addnote` | Save a note with a keyword | ❌ |
+| `/addnote` | Alias of `/save` | ❌ |
 | `/clear` | Remove a saved note | ❌ |
 | `/clearall` | Remove all notes from the chat | ❌ |
 | `/get` | Retrieve a saved note by keyword | ✅ |
 | `/notes` | List all saved notes | ✅ |
 | `/privnote` | Toggle sending notes in private messages | ❌ |
 | `/privatenotes` | Alias of `/privnote` | ❌ |
-| `/rmnote` | Remove a saved note | ❌ |
+| `/rmnote` | Alias of `/clear` | ❌ |
 | `/save` | Save a note with a keyword | ❌ |
 | `/saved` | Alias of `/notes` | ❌ |
 
@@ -92,3 +92,4 @@ For detailed command usage, refer to the commands table above.
 - View admin notes: Admin status
 - Clear all notes: Chat Owner
 - Get regular notes: Any user
+- Bot: must be an admin for /save, /addnote, /clear, /rmnote, /notes and /saved (/get and #notename work without it)

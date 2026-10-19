@@ -9,14 +9,16 @@ description: Complete guide to Warns module commands and features
 Keep your members in check with warnings; stop them getting out of control!
 If you're looking for automated warnings, read about the blacklist module!
 
+*User Commands:*
+- /warns [user]: See your own warnings, or another user's.
+
 *Admin Commands:*
 - /warn <reason>: Warn a user.
 - /dwarn <reason>: Warn a user by reply, and delete their message.
-- /swarn <reason>: Silently warn a user, and delete your message.
-- /warns: See a user's warnings.
+- /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
 - /rmwarn: Remove a user's latest warning.
 - /resetwarn: Reset all of a user's warnings to 0.
-- /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns.
+- /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 - /warnings: Get the chat's warning settings.
 - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
 - /setwarntime <time/off>: Set how long a warn counts, e.g. 30d; off keeps warns forever. Warns issued before the bot recorded warn times never expire; /resetwarn removes them.
@@ -38,8 +40,8 @@ If you're looking for automated warnings, read about the blacklist module!
 - `tban` - Ban the user for the time given with the mode, e.g. `/setwarnmode tban 1d`
 - `tmute` - Mute the user for the time given with the mode, e.g. `/setwarnmode tmute 2h`
 
-**Silent and Delete Warnings:**
-- `/swarn` - Delete your command and warn silently
+**Warnings That Delete Messages:**
+- `/swarn` - Delete your command; the warning is still posted
 - `/dwarn` - Delete the user's message and warn them
 
 
@@ -58,15 +60,15 @@ This module can be accessed using the following aliases:
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/dwarn` | Warn a user and delete the replied message | ❌ |
-| `/resetallwarns` | Reset all warnings for all users in the chat | ❌ |
+| `/resetallwarns` | Reset all warnings for all users in the chat (chat owner only) | ❌ |
 | `/resetwarn` | Alias of `/resetwarns` - reset all warnings for a user | ❌ |
 | `/resetwarns` | Reset all warnings for a user | ❌ |
-| `/rmwarn` | Alias of `/unwarn` - remove the last warning from a user | ❌ |
+| `/rmwarn` | Remove the last warning from a user | ❌ |
 | `/setwarnlimit` | Set maximum warnings before action (range: 1–100) | ❌ |
 | `/setwarnmode` | Set action taken when warn limit is reached | ❌ |
 | `/setwarntime` | Set how long a warn counts before it expires | ❌ |
-| `/swarn` | Warn a user silently and delete your command | ❌ |
-| `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |
+| `/swarn` | Warn a user and delete your command (the warning is still posted) | ❌ |
+| `/unwarn` | Alias of `/rmwarn` - remove the last warning from a user | ❌ |
 | `/warn` | Warn a user | ❌ |
 | `/warnings` | Get the chat's warning settings | ❌ |
 | `/warns` | Show warning count for a user | ✅ |
