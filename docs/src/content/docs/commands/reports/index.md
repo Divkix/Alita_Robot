@@ -13,7 +13,7 @@ We're all busy people who don't have time to monitor our groups 24/7. But how do
 
 *Admins Only:*
 × /reports `<on/off/yes/no/true/false>`: change report setting, or view current status.
-- If done in PM, toggles your status.
+- If done in PM, toggles your status. This needs an active /connect to a group where both you and the bot are admins.
 - If in a group, toggles that group's status.
 × /reports `block` (via reply only): Block a user from using /report or @admin.
 × /reports `unblock` (via reply only): Unblock a user from using /report or @admin.
@@ -39,7 +39,7 @@ You MUST reply to a message to report a user; you can't just use @admin to tag a
 - **✅ Resolved** - Mark the report as resolved without action
 
 **Personal vs Group Settings:**
-- **In PM:** `/reports on/off` toggles whether YOU receive report notifications
+- **In PM:** `/reports on/off` toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
 - **In Group:** `/reports on/off` toggles whether reporting is enabled for that group
 
 
