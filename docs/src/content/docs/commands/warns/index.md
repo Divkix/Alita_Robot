@@ -9,11 +9,13 @@ description: Complete guide to Warns module commands and features
 Keep your members in check with warnings; stop them getting out of control!
 If you're looking for automated warnings, read about the blacklist module!
 
+*User Commands:*
+- /warns [user]: See your own warnings, or another user's.
+
 *Admin Commands:*
 - /warn <reason>: Warn a user.
 - /dwarn <reason>: Warn a user by reply, and delete their message.
 - /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
-- /warns: See a user's warnings.
 - /rmwarn: Remove a user's latest warning.
 - /resetwarn: Reset all of a user's warnings to 0.
 - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
