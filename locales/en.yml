@@ -697,7 +697,7 @@ help_configuration_step-3: "Excellent!
 
   Now the Bot is ready to use!
 
-  All commands can be used with / or !
+  All commands start with /
 
 
   If you're facing any difficulties in setting up me in your group, so don't hesitate
@@ -749,11 +749,14 @@ languages_help_msg: "Not able to change language of the bot?
   You can help us bring bot to more languages by helping on [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Admin only*:
 
-  × /lock `<permission>`: Lock Chat permission..
+  × /lock `<type> [type ...]`: Lock one or more lock types (see /locktypes).
 
-  × /unlock `<permission>`: Unlock Chat permission.
+  × /unlock `<type> [type ...]`: Unlock one or more lock types.
 
   × /locks: View Chat permission.
+
+
+  *User Commands:*
 
   × /locktypes: Check available lock types!
 
@@ -763,7 +766,7 @@ locks_help_msg: "*Admin only*:
   Locking URLs will auto-delete all messages with URLs, locking stickers will delete
   all stickers, etc.
 
-  Locking bots will stop non-admins from adding bots to the chat.
+  Locking bots will stop users who are neither admins nor approved from adding bots to the chat.
 
 
   **Example:**
@@ -773,16 +776,17 @@ misc_help_msg:
   "× /info: Get your user info, which can be used as a reply or by passing
   a User Id or Username.
 
-  × /id: Get the current group id. If used by replying to a message, get that user's
-  id.
+  × /id [user]: Get your ID, and the group's ID when used in a group. Pass a username or user ID, or reply to a message, to get that user's ID (a reply also shows forwarded-from, GIF and sticker IDs).
 
   × /ping: Ping the Telegram Server!
 
-  × /tr <lang code> <msg/reply to message>: Translate the message.
+  × /tr <lang code> <text>: Translate the text. Reply to a message with /tr [lang code] to translate it (English if no code is given).
 
   × /removebotkeyboard: Removes the stuck bot keyboard from your chat.
 
   × /stat: Gets the count of the total number of messages in the chat.
+
+  × /tell <text>: (admin, groups only) Reply to a message to make the bot send <text> as a reply to it; your command message is deleted.
 
   × /stickerid: Reply to a sticker to get its file ID.
 
@@ -808,8 +812,7 @@ mutes_help_msg:
   × /smute <userhandle>: mutes a user silently, does not send a message to the group,
   and also deletes your command. (via a handle, or reply)
 
-  × /dmute <userhandle>: mutes a user and deletes the replied message. (via a handle,
-  or reply)
+  × /dmute [reason]: mutes the sender of the replied message and deletes that message. (reply only)
 
   × /tmute <userhandle> x(m/h/d/w): mutes a user for `x` time. (via a handle, or reply).
   m = minutes, h = hours, d = days, w = weeks.
@@ -826,21 +829,21 @@ notes_help_msg: 'Save data for future users with notes!
 
   - #notename: Same as /get.
 
-  Admin commands:
-
-  - /save <notename> <note text>: Save a new note called "word". Replying to a message
-  will save that message. Even works on media!
-
-  - /clear <notename>: Delete the associated note.
-
   - /notes: List all notes in the current chat.
 
   - /saved: Same as /notes.
 
-  - /clearall: Delete ALL notes in a chat. This cannot be undone.
+  Admin commands:
 
-  - /privatenotes: Whether or not to send notes in PM. Will send a message with a
-  button which users can click to get the note in PM.'
+  - /save /addnote <notename> <note text>: Save a new note called "word". Replying to a message
+  will save that message. Even works on media!
+
+  - /clear /rmnote <notename>: Delete the associated note.
+
+  - /clearall: Delete ALL notes in a chat (chat owner only). This cannot be undone.
+
+  - /privatenotes /privnote <on/off>: Whether or not to send notes in PM. Will send a message with a
+  button which users can click to get the note in PM. Without an argument, shows the current setting.'
 pins_help_msg:
   "All the pin-related commands can be found here; keep your chat up
   to date on the latest news with a simple pinned message!
@@ -853,7 +856,7 @@ pins_help_msg:
 
   *Admin commands:*
 
-  × /pin: Pin the message you replied to. Add 'loud' or 'notify' to send a notification
+  × /pin: Pin the message you replied to. Add 'loud', 'notify' or 'violent' to send a notification
   to group members.
 
   × /pinned: Gets the latest pinned message in the current Chat.
@@ -869,20 +872,16 @@ pins_help_msg:
   × /antichannelpin <yes/no/on/off>: Don't let telegram auto-pin linked channels.
   If no arguments are given, show the current setting.
 
-  × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel.
-
-  Note: When using anti channel pins, make sure to use the /unpin command, instead
-  of doing it manually. Otherwise, the old message will get re-pinned when the channel
-  sends any messages."
+  × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel."
 purges_help_msg: "*Admin only:*
 
-  - /purge: deletes all messages between this and the replied-to message.
+  - /purge <reason>: deletes all messages between this and the replied-to message. The reason is optional and is shown in the confirmation.
 
   - /del: deletes the message you replied to.
 
   - /purgefrom: marks the replied-to message as the start of a range to delete (then use /purgeto).
 
-  - /purgeto: deletes every message from the /purgefrom mark up to the replied-to message.
+  - /purgeto <reason>: deletes every message from the /purgefrom mark up to the replied-to message. The reason is optional and is shown in the confirmation.
 
 
   *Examples*:
@@ -897,14 +896,14 @@ reports_help_msg:
 
   × /report `<reason>`: reply to a message to report it to admins.
 
-  - @admin: same as /report but not a command.
+  - @admin / @admins: same as /report but not a command.
 
 
   *Admins Only:*
 
-  × /reports `<on/off/yes/no>`: change report setting, or view current status.
+  × /reports `<on/off/yes/no/true/false>`: change report setting, or view current status.
 
-  - If done in PM, toggles your status.
+  - If done in PM, toggles your status. This needs an active /connect to a group where both you and the bot are admins.
 
   - If in a group, toggles that group's status.
 
@@ -959,21 +958,24 @@ warns_help_msg:
   If you're looking for automated warnings, read about the blacklist module!
 
 
+  *User Commands:*
+
+  - /warns [user]: See your own warnings, or another user's.
+
+
   *Admin Commands:*
 
   - /warn <reason>: Warn a user.
 
   - /dwarn <reason>: Warn a user by reply, and delete their message.
 
-  - /swarn <reason>: Silently warn a user, and delete your message.
-
-  - /warns: See a user's warnings.
+  - /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
 
   - /rmwarn: Remove a user's latest warning.
 
   - /resetwarn: Reset all of a user's warnings to 0.
 
-  - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns.
+  - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 
   - /warnings: Get the chat's warning settings.
 
@@ -1003,9 +1005,7 @@ users_help_msg:
 
   *Rate Limiting:*
 
-  × User updates are throttled to one per UserUpdateInterval.
-
-  × Chat updates are throttled to one per ChatUpdateInterval.
+  × User, chat and channel records are refreshed at most once an hour, or straight away when a name, username or chat title changes.
 
   Other modules, such as /info, depend on data collected by this module."
 
@@ -1172,7 +1172,6 @@ mutes_mute_message: "Shh...\nMuted %s."
 mutes_reason_suffix: "\n<b>Reason: </b>%s"
 mutes_unmute_button: Unmute (Admin Only)
 mutes_mute_admin_error: Why would I mute an admin? That sounds like a pretty dumb idea.
-mutes_mute_admin_polite_error: I don't think you'd want me to mute an admin.
 mutes_restrict_self_error: Why would I restrict myself?
 mutes_unmute_message: "Alright!\nI'll allow %s to speak again."
 
@@ -1209,7 +1208,7 @@ warns_expiry_never: "never"
 warns_user_no_warnings: This user hasn't got any warnings!
 warns_removed_by: "Warn removed by %s."
 warns_no_warns_to_remove: User already has no warns!
-warns_limit_set_help: "Please specify how many warns a user should be allowed to receive before being acted upon. Eg. `/setwarnlimit 5`"
+warns_limit_set_help: "Please specify how many warns a user should be allowed to receive before being acted upon. Eg. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s is not a valid integer."
 warns_limit_range_error: The warn limit has to be set between 1 and 100.
 warns_limit_updated: "Warn limit settings for this chat have been updated to %d."
@@ -1223,7 +1222,7 @@ warns_reset_all_final: Removed all warns of all users in this chat.
 # Locks module strings
 locks_locktypes_header: "Locks:\n - "
 locks_what_to_lock: What do you want to lock? Check /locktypes for available options.
-locks_invalid_lock_type: "`%s` is not a correct lock type, check /locktypes."
+locks_invalid_lock_type: "<code>%s</code> is not a correct lock type, check /locktypes."
 locks_locked_successfully: "Locked the following in this group:\n - %s"
 locks_unlocked_successfully: "Un-Locked the following in this group:\n - %s"
 locks_lock_failed: "Failed to lock: %s. Please try again later."
@@ -1232,7 +1231,7 @@ locks_what_to_unlock: What do you want to unlock? Check /locktypes for available
 locks_current_locks_header: "These are the locks in this chat:"
 locks_bot_lock_no_permission: I see a bot, and I've been told to stop them joining... but I'm not admin!
 locks_bot_lock_no_ban_permission: I see a bot, and I've been told to stop them joining... but I don't have permission to ban them!
-locks_bot_only_admins: Only admins are allowed to add bots to this chat!
+locks_bot_only_admins: Only admins and approved users are allowed to add bots to this chat!
 
 # Pins module strings
 pins_unpin_not_pinned: Replied message is not a pinned message.
@@ -1250,8 +1249,8 @@ pins_antichannelpin_enabled: <b>Enabled</b> anti channel pins. Automatic pins fr
 pins_antichannelpin_disabled: <b>Disabled</b> anti channel pins. Automatic pins from a channel will not be removed.
 pins_antichannelpin_current_enabled: Anti-Channel pins are currently <b>enabled</b> in %s. All channel posts that get auto-pinned by telegram will be replaced with the previous pin.
 pins_antichannelpin_current_disabled: Anti-Channel pins are currently <b>disabled</b> in %s.
-pins_cleanlinked_enabled: <b>Enabled</b> linked channel post deletion in Logs. Messages sent from the linked channel will be deleted.
-pins_cleanlinked_disabled: <b>Disabled</b> linked channel post deletion in Logs.
+pins_cleanlinked_enabled: <b>Enabled</b> linked channel post deletion. Messages sent from the linked channel will be deleted.
+pins_cleanlinked_disabled: <b>Disabled</b> linked channel post deletion.
 pins_cleanlinked_current_enabled: Linked channel post deletion is currently <b>enabled</b> in %s. Messages sent from the linked channel will be deleted
 pins_cleanlinked_current_disabled: Linked channel post deletion is currently <b>disabled</b> in %s.
 pins_no_pinned_message: No message has been pinned in the current chat!
@@ -1273,8 +1272,6 @@ purges_need_purgefrom: You can only use this command after having used the /purg
 purges_use_del_single: Use /del command to delete one message!
 purges_reply_to_purgeto: Reply to a message to show me till where to purge.
 purges_limit_exceeded: "Cannot purge more than %d messages at once! Please select a smaller range."
-purges_invalid_button_data: "Invalid button data."
-purges_invalid_message_id: "Invalid message ID."
 
 # Rules module strings
 rules_cleared_successfully: Successfully cleared rules!
@@ -1287,7 +1284,7 @@ rules_for_chat_header: "The rules for <b>%s</b> are:"
 rules_no_rules_set: This chat doesn't seem to have had any rules set yet... I wouldn't take that as an invitation though.
 rules_click_for_rules: Click on the button to see the chat rules!
 rules_set_successfully: Successfully set rules for this group!
-rules_button_too_long: The custom button name you entered is too long. Please enter a text with less than 30 characters.
+rules_button_too_long: The custom button name you entered is too long. Please enter a text of 30 characters or fewer.
 rules_button_set_successfully: "Successfully set the rules button to: <b>%s</b>"
 rules_button_not_set: 'You haven''t set a custom rules button yet. The default text "%s" will be used.'
 rules_button_current: "The rules button is currently set to the following text:\n%s"
@@ -1322,8 +1319,6 @@ misc_user_link: "User link: %s"
 misc_owner_tag: "He is my owner!"
 misc_dev_user_tag: "He is one of my dev users!"
 misc_pinging: "<code>Pinging</code>"
-misc_pinged_in: Pinged in %d ms
-misc_ping_response: "🏓 Pong! <b>%dms</b>"
 misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>Send msg</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "Thread Id: <code>%d</code>"
 misc_chat_id: "<b>Chat ID:</b> <code>%d</code>"
@@ -1533,7 +1528,7 @@ main_bot_command_help: "Check Help section of bot"
 # Help module strings
 help_info_about_header: "Info & About\n\nHere are some of the FAQs about Alita."
 help_news_channel_text: "Join my <a href='https://t.me/AlitaRobotUpdates'>News Channel</a> to get information on all the latest updates."
-help_all_commands_usage: "All commands can be used with the following: / or !"
+help_all_commands_usage: "All commands start with /"
 help_button_about_me: "About me 👨‍💻"
 help_button_news_channel: "News Channel 📢"
 help_button_support_group: "Support Group 👥"
@@ -1638,7 +1633,7 @@ content_text_too_long: "Your message text is %d characters long. The maximum len
 content_caption_too_long: "Your message caption is %d characters long. The maximum caption length is 1024; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 helpers_module_help_header: "Here is the help for the *%s* module:\n\n"
 helpers_invalid_deep_link: "Invalid or malformed deep link. Please check the URL and try again."
-helpers_chat_not_found: "Could not find the chat associated with this link. The chat may no longer exist or I may not have access to it."
+helpers_chat_not_found: "Could not find that chat. It may no longer exist or I may not have access to it."
 
 
 # Formatting strings
@@ -1689,7 +1684,6 @@ language_current_user: "Your Current Language is %s\nChoose a language from keyb
 language_current_group: "This Group's Current Language is %s\nChoose a language from keyboard below."
 language_changed_user: "Your language has been changed to %s"
 language_changed_group: "This group's language has been changed to %s"
-language_admin_required: "You need to be an admin to change the group language."
 language_help_translate: "Help Us Translate 🌎"
 language_invalid_selection: "Invalid language selection."
 
@@ -1716,8 +1710,7 @@ help_pm_intro: |
   - /help: Sends this message; I'll tell you more about myself!
   - /donate: Gives you info on how to support me and my creator.
 
-  If you have any bugs or questions on how to use me, have a look at my website, or head to @DivideSupport.
-  All commands can be used with / or !.
+  If you have any bugs or questions on how to use me, have a look at my <a href="https://alita-docs.divkix.me">website</a>, or head to @DivideSupport.
 
 # Captcha module additional strings
 captcha_settings_header: "<b>Captcha Settings:</b>"
@@ -1753,12 +1746,12 @@ reports_button_ban: "⛔️ Ban"
 reports_button_delete: "❎ Delete Message"
 reports_button_resolved: "✔️ Mark Resolved"
 reports_blocked_users_header: "Users blocked from using report commands:"
-reports_invalid_input: "Your input was not recognised as one of: <code>&lt;yes/on/no/off&gt; or &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "Your input was not recognised as one of: <code>&lt;yes/on/true/no/off/false&gt; or &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Your current preference is true. You'll be notified whenever anyone reports something in groups you are admin."
 reports_preference_disabled_private: "You haven't enabled reports. You won't be notified."
 reports_status_enabled_group: "Reports are currently enabled in this chat.\nUsers can use the /report command, or mention @admin, to tag all admins."
 reports_status_disabled_group: "Reports are currently disabled in this chat."
-reports_change_settings_hint: "\n\nTo change this setting, try this command again, with one of the following args: yes/no/on/off"
+reports_change_settings_hint: "\n\nTo change this setting, try this command again, with one of the following args: yes/no/on/off/true/false"
 reports_success_kick: "✅ Successfully kicked"
 reports_success_ban: "✅ Successfully banned"
 reports_success_delete: "✅ Successfully deleted"
@@ -1900,37 +1893,10 @@ antiflood_notes_docs: |
   Antiflood is <b>disabled by default</b>. You must explicitly enable it using <code>/setflood &lt;number&gt;</code>.
 
 # Locks module extended documentation
-locks_types_docs: |
-  <b>Permission Locks</b> (16 types)
-  <code>sticker</code> - Block stickers
-  <code>audio</code> - Block audio files
-  <code>voice</code> - Block voice messages
-  <code>document</code> - Block documents
-  <code>video</code> - Block videos
-  <code>videonote</code> - Block video notes
-  <code>contact</code> - Block contacts
-  <code>photo</code> - Block photos
-  <code>gif</code> - Block GIFs
-  <code>url</code> - Block URLs
-  <code>bots</code> - Prevent adding bots
-  <code>forward</code> - Block forwards
-  <code>game</code> - Block games
-  <code>location</code> - Block locations
-  <code>rtl</code> - Block RTL text
-  <code>anonchannel</code> - Block channel messages
-
-  <b>Restriction Locks</b> (6 types)
-  <code>messages</code> - Block all messages
-  <code>comments</code> - Block non-member comments
-  <code>media</code> - Block all media
-  <code>other</code> - Block games/stickers/GIFs
-  <code>previews</code> - Block URL previews
-  <code>all</code> - Block everything
-
 locks_notes_docs: |
   <b>Technical Notes</b>
   • Lock enforcement is real-time
-  • Admins are exempt from all locks
+  • Admins and approved users are exempt from all locks
   • Locks persist across bot restarts
   • Cache invalidated on updates
 
@@ -1959,17 +1925,17 @@ notes_extended_docs: |
   • <b>Formatting Options</b>: Control note visibility and behavior
   • <b>Admin-Only Notes</b>: Restrict certain notes to administrators only
   • <b>Private Notes</b>: Send notes privately to users via DM
-  • <b>Web Preview Control</b>: Enable or disable link previews
+  • <b>Web Preview Control</b>: Link previews are off by default; add <code>{preview}</code> to turn them on
   • <b>Protected Content</b>: Prevent note content from being forwarded
 
   <b>Note Formatting Options:</b>
   When saving a note, you can use special tags to control its behavior:
   • <code>{private}</code> - Note will only be sent via DM, never in group
-  • <code>{noprivate}</code> - Note will only be sent in group, never via DM
+  • <code>{noprivate}</code> - When fetched in a group, the note is sent in the group even if private notes are on (fetching it from PM still delivers it in PM)
   • <code>{admin}</code> - Note can only be accessed by admins
   • <code>{protect}</code> - Content cannot be forwarded
   • <code>{nonotif}</code> - Send without notification sound
-  • <code>{nopreview}</code> - Disable link preview
+  • <code>{preview}</code> - Show link previews (off by default)
 
   <b>Private Notes Mode:</b>
   When private notes are enabled (<code>/privatenotes on</code>), all notes are sent to users via DM instead of in the group. This keeps the group chat clean.
@@ -1979,8 +1945,8 @@ notes_extended_docs: |
   • <code>{noprivate}</code> - Always send in group
 
   <b>Raw Note (No Formatting):</b>
-  To see a note's raw content without formatting (for editing):
-  <code>/get notename noformat</code>
+  Admins can see a note's raw content without formatting (for editing):
+  <code>/get notename noformat</code> or <code>#notename noformat</code>
 
 notes_permissions_docs: |
   <b>Required Permissions:</b>
@@ -1988,6 +1954,7 @@ notes_permissions_docs: |
   • View admin notes: Admin status
   • Clear all notes: Chat Owner
   • Get regular notes: Any user
+  • Bot: must be an admin for /save, /addnote, /clear, /rmnote, /notes and /saved (/get and #notename work without it)
 
 # Extended documentation locale keys - Pins module
 pins_extended_docs: |
@@ -1995,8 +1962,6 @@ pins_extended_docs: |
 
   <b>Anti-Channel Pin:</b>
   When enabled, the bot will automatically unpin any message that gets auto-pinned by a linked channel. This is useful when you want to maintain control over what gets pinned in your group.
-
-  <b>Important:</b> When using anti channel pins, always use the <code>/unpin</code> command instead of unpinning manually through Telegram. Manual unpinning will cause the old message to get re-pinned when the channel sends new messages.
 
   <b>Clean Linked:</b>
   When enabled, the bot will automatically delete any messages sent to the group from the linked channel. This keeps your group chat clean from cross-posted channel content.
@@ -2006,7 +1971,6 @@ pins_extended_docs: |
   • Text with HTML/Markdown formatting
   • Inline buttons with URLs
   • Media attachments (photos, documents, stickers, audio, video, voice notes, video notes)
-  • All standard message fillings ({first}, {chatname}, etc.)
 
   <b>Supported via Connection:</b>
   The following commands work when connected to a chat via <code>/connect</code>:
@@ -2016,11 +1980,11 @@ pins_extended_docs: |
 pins_notes_docs: |
   <b>Notes:</b>
   • The <code>/unpinall</code> command shows a confirmation dialog before unpinning all messages
-  • Permapin supports all media types that Telegram supports for pinning
+  • Permapin supports text, photos, documents and GIFs, stickers, audio, voice messages, videos and video notes; other message types are rejected
   • Anti-channel pin and clean linked settings are stored per-chat and persist across bot restarts
 
   <b>Required Permissions:</b>
-  <b>Bot:</b> Must be admin with "Pin Messages" permission
+  <b>Bot:</b> Must be admin with "Pin Messages" permission (and "Delete Messages" for <code>/cleanlinked</code>)
   <b>User:</b> Most commands require admin with "Pin Messages" permission
 
 # Extended documentation locale keys - Purges module
@@ -2060,14 +2024,14 @@ reports_extended_docs: |
   3. The notification includes action buttons for quick moderation
 
   <b>Admin Action Buttons:</b>
-  • <b>📩 Message</b> - Link to the reported message
-  • <b>👢 Kick</b> - Kick the reported user (they can rejoin)
-  • <b>🚫 Ban</b> - Permanently ban the reported user
-  • <b>🗑 Delete</b> - Delete the reported message
-  • <b>✅ Resolved</b> - Mark the report as resolved without action
+  • <b>➡ Message</b> - Link to the reported message
+  • <b>⚠ Kick</b> - Kick the reported user (they can rejoin)
+  • <b>⛔️ Ban</b> - Permanently ban the reported user
+  • <b>❎ Delete Message</b> - Delete the reported message
+  • <b>✔️ Mark Resolved</b> - Mark the report as resolved without action
 
   <b>Personal vs Group Settings:</b>
-  • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications
+  • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
   • <b>In Group:</b> <code>/reports on/off</code> toggles whether reporting is enabled for that group
 
 reports_permissions_docs: |
@@ -2122,8 +2086,8 @@ warns_extended_docs: |
   • <code>tban</code> - Ban the user for the time given with the mode, e.g. <code>/setwarnmode tban 1d</code>
   • <code>tmute</code> - Mute the user for the time given with the mode, e.g. <code>/setwarnmode tmute 2h</code>
 
-  <b>Silent and Delete Warnings:</b>
-  • <code>/swarn</code> - Delete your command and warn silently
+  <b>Warnings That Delete Messages:</b>
+  • <code>/swarn</code> - Delete your command; the warning is still posted
   • <code>/dwarn</code> - Delete the user's message and warn them
 
 warns_permissions_docs: |
@@ -2150,6 +2114,7 @@ mutes_extended_docs: |
   • <code>m</code> = minutes (e.g., <code>30m</code>)
   • <code>h</code> = hours (e.g., <code>2h</code>)
   • <code>d</code> = days (e.g., <code>1d</code>)
+  • <code>w</code> = weeks (e.g., <code>1w</code>)
 
   <b>Mute Variants:</b>
   • <code>/mute</code> - Standard mute with optional reason
@@ -2161,8 +2126,9 @@ mutes_extended_docs: |
   <b>Admin only commands.</b> Users executing these commands must have:
   • Admin status in the chat
   • Permission to restrict members
+  • Permission to delete messages (for <code>/smute</code> and <code>/dmute</code>)
 
-  The bot must also have admin privileges with permission to restrict members.
+  The bot must also have admin privileges with permission to restrict members, plus permission to delete messages for <code>/smute</code> and <code>/dmute</code>.
 
 # Extended documentation locale keys - Filters module
 filters_extended_docs: |
@@ -2304,8 +2270,8 @@ users_extended_docs: |
   • Channel IDs, names, and usernames for linked channels
 
   <b>Rate Limiting:</b>
-  • User updates: throttled to one per <code>UserUpdateInterval</code>
-  • Chat updates: throttled to one per <code>ChatUpdateInterval</code>
+  • User, chat and channel records: refreshed at most once an hour
+  • A changed name, username or chat title is saved straight away
   • This prevents excessive database writes while keeping data reasonably current
 
   <b>Passive Operation:</b>
@@ -2330,21 +2296,23 @@ reactions_help_msg: |
 
   Setup automated emoji reactions that trigger when users send specific words.
 
+  <b>User Commands:</b>
+  • /reactions - List configured reactions
+
   <b>Admin Commands:</b>
   • /addreaction <keyword> <emoji> - Add an auto-reaction
   • /removereaction <keyword> - Remove a reaction
-  • /reactions - List configured reactions
   • /resetreactions - Clear all reactions
 
   <b>Example:</b>
-  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+  • /addreaction hello 👍 - Bot reacts with 👍 when someone says "hello"
+  Only Telegram's standard reaction emoji (for example 👍 ❤ 🔥 🎉) can be used.
 
 reactions_add_usage: "Usage: /addreaction &lt;keyword&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Please provide a valid emoji."
 reactions_add_error: "Failed to save reaction. Please try again."
 reactions_add_success: "Reaction added: <code>{keyword}</code> -> {emoji}"
 reactions_remove_usage: "Usage: /removereaction &lt;keyword&gt;"
-reactions_not_found: "No reactions are configured for this chat."
 reactions_keyword_not_found: "No reaction found for keyword: <code>{keyword}</code>"
 reactions_remove_error: "Failed to remove reaction. Please try again."
 reactions_remove_success: "Reaction removed for keyword: <code>{keyword}</code>"
@@ -2537,12 +2505,14 @@ logchannels_help_msg: |
   *Admin commands:*
   × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
   × /unsetlog: Remove the log channel.
-  × /logchannel: Show the current log channel.
-  × /logcategories: List categories.
   × /log <category>: Enable a category.
   × /nolog <category>: Disable a category.
 
-  Categories: settings, admin, user, automated, reports, other.
+  *Anyone:*
+  × /logchannel: Show the current log channel (groups only).
+  × /logcategories: List categories.
+
+  Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated, other. Nothing is logged under automated or other yet.
 feds_pm_only: "This command can only be used in private chat with me."
 feds_group_only: "This command can only be used in groups."
 feds_need_name: "Give your federation a name."
@@ -2622,12 +2592,12 @@ feds_passive_ban: "{user} is fbanned in <b>{name}</b> and was removed.\nReason: 
 feds_callback_denied: "You cannot use this button."
 feds_callback_stale: "This button is no longer valid."
 logs_need_channel: "Use /setlog in a channel, then forward that message to the group."
-logs_forward_to_group: "Forward this message to the group you want to log."
+logs_forward_to_group: "Now forward your /setlog message (not this reply) to the group you want to log, within the next hour."
 logs_set_ok: "Log channel set. Admin actions from this chat will be sent there."
 logs_unset_ok: "Log channel removed."
 logs_not_set: "No log channel is set for this chat."
 logs_current: "Log channel: <code>{id}</code>"
-logs_categories: "Categories: settings, admin, user, automated, reports, other."
+logs_categories: "Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated, other. Nothing is logged under automated or other yet."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
@@ -2807,11 +2777,50 @@ logchannels_extend_msg: |
   /logcategories — list log categories
   /log — enable a log category
   /nolog — disable a log category
+logchannels_examples_docs: |
+  <b>Set up a log channel:</b>
+  1. Add the bot to the channel as an admin that can post messages.
+  2. Send <code>/setlog</code> in the channel.
+  3. Within an hour, forward that /setlog message to your group.
+
+  <b>Choose what gets logged:</b>
+  • <code>/logcategories</code> - list the categories
+  • <code>/log admin user</code> - turn on two categories
+  • <code>/nolog settings</code> - turn off one category
+
+federations_permissions_docs: |
+  <b>Fed owner:</b>
+  • <code>/delfed</code> (in PM), <code>/renamefed</code>, <code>/fedpromote</code>, <code>/feddemote</code>, <code>/fedreason</code>, <code>/fednotif</code>, <code>/subfed</code>, <code>/unsubfed</code>, <code>/fedsubs</code>, <code>/setfedlog</code>, <code>/unsetfedlog</code>, <code>/fbanlist</code>, <code>/importfbans</code>
+
+  <b>Fed admins:</b>
+  • <code>/fban</code>, <code>/unfban</code>, <code>/funban</code> in a member group (in PM they act on the fed you own), <code>/feddemoteme</code>
+
+  <b>Group creator:</b>
+  • <code>/joinfed</code>, <code>/leavefed</code>
+
+  <b>Group admins:</b>
+  • <code>/quietfed</code>
+
+  <b>Anyone:</b>
+  • <code>/newfed</code> (in PM, one federation per user), <code>/fedstat</code>, <code>/fbanstat</code>, <code>/fedinfo</code>, <code>/fedadmins</code>, <code>/chatfed</code>, <code>/myfeds</code>
+
+  <b>Bot Requirements:</b>
+  • Ban users in every member chat, to enforce fbans
+
+logchannels_permissions_docs: |
+  <b>User Permissions:</b>
+  • <code>/setlog</code> is sent in the channel itself, where only channel admins can post.
+  • Only group admins can bind the channel by forwarding that message, and only they can use <code>/unsetlog</code>, <code>/log</code> and <code>/nolog</code>.
+  • Anyone can use <code>/logchannel</code> (groups only) and <code>/logcategories</code>.
+
+  <b>Bot Permissions:</b>
+  • The bot must be an admin of the log channel with permission to post messages, both to see <code>/setlog</code> and to send log entries. Entries it cannot send are dropped without an error.
 misc_extend_msg: |
   /info — show user info
   /id — show chat or user ID
   /ping — check the bot's response time
   /stat — count messages in the chat
+  /tell — make the bot reply to a message with your text
   /tr — translate a message
   /removebotkeyboard — remove a stuck bot keyboard
   /stickerid — get a sticker's file ID
@@ -2828,12 +2837,15 @@ mutes_extend_msg: |
   /unmute — unmute a user
 notes_extend_msg: |
   /save — save a note
+  /addnote — same as /save
   /get — get a note (or #name)
   /notes — list notes
   /saved — same as /notes
   /clear — delete a note
-  /clearall — delete all notes
+  /rmnote — same as /clear
+  /clearall — delete all notes (owner only)
   /privatenotes — send notes in PM
+  /privnote — same as /privatenotes
 pins_extend_msg: |
   /pin — pin the replied message
   /unpin — unpin a message
@@ -2865,7 +2877,7 @@ rules_extend_msg: |
   /resetrulesbtn — same as /resetrulesbutton
 warns_extend_msg: |
   /warn — warn a user
-  /swarn — warn silently and delete your command
+  /swarn — warn and delete your command
   /dwarn — warn and delete the replied message
   /warns — show a user's warnings
   /rmwarn — remove a user's last warning
@@ -2874,7 +2886,7 @@ warns_extend_msg: |
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment
   /setwarntime — how long a warn counts
-  /setwarnmode — punishment: ban, kick or mute
+  /setwarnmode — punishment: ban, kick, mute, tban or tmute
 settings_summary_legend: "<i>• marks a value that differs from the default. Send the command shown to change it.</i>"
 settings_picker_text: "Choose a group to see its settings. Not in the list? Send /connect &lt;chat id&gt; here or /settings in the group."
 settings_picker_empty: "I could not find groups where you are an admin. I only know groups where you have written since I joined, so send /connect &lt;chat id&gt; here or /settings in the group."
