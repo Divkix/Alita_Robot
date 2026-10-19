@@ -236,7 +236,7 @@ func aispamCarvedOut(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) boo
 	// cached flag is unavailable).
 	pending, err := captcha.HasPendingCaptchaAttemptsContext(context.Background(), chatID)
 	if err != nil || pending {
-		if attempt, err := captcha.GetCaptchaAttempt(userID, chatID); err == nil && attempt != nil {
+		if attempt, err := captchaAttemptForUpdate(ctx, userID, chatID); err == nil && attempt != nil {
 			return true
 		}
 	}
