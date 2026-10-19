@@ -201,7 +201,12 @@ func CanInvite() CheckFunc {
 		}
 		result := chat_status.CanInvite(c.Bot, c.Ctx, nil, c.Msg)
 		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_invite_link_bot_error", "")
+			// CanInvite fails for the bot's rights and the user's alike; blame the right one.
+			key := "chat_status_invite_link_user_error"
+			if !chat_status.CanBotInvite(c.Bot, c.Ctx, nil) {
+				key = "chat_status_invite_link_bot_error"
+			}
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, key, "")
 		}
 		return result
 	}

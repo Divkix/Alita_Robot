@@ -190,18 +190,22 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		},
 		validate: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
+				if c.Msg.ReplyToMessage == nil {
+					text, _ := c.Tr.GetString("bans_anonymous_ban_reply_only")
+					if err := replyValidationError(c, text); err != nil {
+						return err
+					}
+					return fmt.Errorf("channel ban needs reply")
+				}
 				return nil
 			}
 			return banTargetValidation(c, t)
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-					_, err := c.Bot.BanChatSenderChat(c.Chat.Id, t.userID, nil)
-					return err
-				}
-				return nil
+				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				_, err := c.Bot.BanChatSenderChat(c.Chat.Id, t.userID, nil)
+				return err
 			}
 			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
 			return err
@@ -211,12 +215,8 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 			var sendMsgOptns *gotgbot.SendMessageOpts
 
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					temp, _ := c.Tr.GetString("bans_anonymous_ban_user")
-					text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
-				} else {
-					text, _ = c.Tr.GetString("bans_anonymous_ban_reply_only")
-				}
+				temp, _ := c.Tr.GetString("bans_anonymous_ban_user")
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
 				sendMsgOptns = formatting.Shtml()
 			} else {
 				return banReplyWithButton(c, t)
@@ -379,16 +379,20 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 				}
 				return errTargetIsBot
 			}
+			if t.isChannel && c.Msg.ReplyToMessage == nil {
+				text, _ := c.Tr.GetString("bans_anonymous_unban_reply_only")
+				if err := replyValidationError(c, text); err != nil {
+					return err
+				}
+				return fmt.Errorf("channel unban needs reply")
+			}
 			return nil
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-					_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
-					return err
-				}
-				return nil
+				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
+				return err
 			}
 			_, err := c.Chat.UnbanMember(c.Bot, t.userID, nil)
 			return err
@@ -396,12 +400,8 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 		reply: func(c *moderationCtx, t *target) error {
 			var text string
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
-					text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
-				} else {
-					text, _ = c.Tr.GetString("bans_anonymous_unban_reply_only")
-				}
+				temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
 			} else {
 				banUser, err := c.Bot.GetChat(t.userID, nil)
 				if err != nil {
@@ -1134,6 +1134,8 @@ func init() {
 	RegisterAnonymousAdminHandler("sban", anonPipelineHandler(sbanDesc, bansModule.sBan))
 	RegisterAnonymousAdminHandler("tban", anonPipelineHandler(tbanDesc, bansModule.tBan))
 	RegisterAnonymousAdminHandler("unban", anonPipelineHandler(unbanDesc, bansModule.unban))
+	RegisterAnonymousAdminHandler("kick", anonPipelineHandler(kickDesc, bansModule.kick))
+	RegisterAnonymousAdminHandler("dkick", anonPipelineHandler(dkickDesc, bansModule.dkick))
 	RegisterAnonymousAdminHandler("skick", anonPipelineHandler(skickDesc, bansModule.sKick))
 	RegisterAnonymousAdminHandler("restrict", anonPipelineHandler(restrictDesc, bansModule.restrict))
 	RegisterAnonymousAdminHandler("unrestrict", anonPipelineHandler(unrestrictDesc, bansModule.unrestrict))

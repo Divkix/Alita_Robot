@@ -2,11 +2,14 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 )
 
 func newBanReplyContext(
@@ -100,6 +103,68 @@ func TestBanCommandBansAnonymousChannelFromReply(t *testing.T) {
 	assertParams(t, client.onlyCall(t, "banChatSenderChat"), map[string]any{"chat_id": chat.Id, "sender_chat_id": channel.Id})
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want anonymous ban confirmation", len(calls))
+	}
+}
+
+// logChannelMessages counts the sendMessage calls that reached the log channel.
+func logChannelMessages(client *moduleBotClient, logChannelID int64) int {
+	n := 0
+	for _, call := range client.callsFor("sendMessage") {
+		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(logChannelID) {
+			n++
+		}
+	}
+	return n
+}
+
+func TestChannelBanWithoutReplyIsNotLogged(t *testing.T) {
+	const logChannelID int64 = -100778
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	if err := logchannels.Set(chat.Id, chat.Title, logChannelID); err != nil {
+		t.Fatalf("logchannels.Set: %v", err)
+	}
+	t.Cleanup(func() { _ = logchannels.Unset(chat.Id) })
+
+	for _, tt := range []struct {
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{text: "/ban -1001234567890", run: bansModule.ban},
+		{text: "/unban -1001234567890", run: bansModule.unban},
+	} {
+		resetCalls(client)
+		ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+		if err := tt.run(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("%s error = %v, want EndGroups", tt.text, err)
+		}
+		for _, method := range []string{"banChatSenderChat", "unbanChatSenderChat"} {
+			if calls := client.callsFor(method); len(calls) != 0 {
+				t.Fatalf("%s: %s calls = %d, want none without a reply", tt.text, method, len(calls))
+			}
+		}
+		if n := logChannelMessages(client, logChannelID); n != 0 {
+			t.Fatalf("%s: log channel got %d messages for an action that never ran", tt.text, n)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("%s: sendMessage calls = %d, want the reply-only notice", tt.text, len(calls))
+		}
+	}
+
+	resetCalls(client)
+	ctx := newModuleMessageContext(bot, chat, admin, "/ban -1001234567890")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId:  304,
+		Date:       1,
+		Chat:       chat,
+		SenderChat: &gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"},
+		Text:       "channel post",
+	}
+	if err := bansModule.ban(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("ban(reply) error = %v, want EndGroups", err)
+	}
+	if n := logChannelMessages(client, logChannelID); n != 1 {
+		t.Fatalf("log channel got %d messages for a channel ban, want 1", n)
 	}
 }
 
@@ -297,6 +362,23 @@ func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+// An anonymous admin's confirmed /kick and /dkick reach their handlers.
+func TestAnonymousAdminKickCommandsAreRouted(t *testing.T) {
+	for _, command := range []string{"kick", "dkick"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+			ctx := newBanReplyContext(bot, chat, admin, target, "/"+command)
+			if err := HandleAnonymousAdmin(bot, ctx, command); err != ext.EndGroups {
+				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", command, err)
+			}
+			assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
+		})
 	}
 }
 

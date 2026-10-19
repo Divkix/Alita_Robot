@@ -393,7 +393,7 @@ func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 
 	if chat.Username != "" {
 		linkText, _ := tr.GetString("admin_invitelink_public")
-		_, _ = msg.Reply(c.Bot, fmt.Sprintf(linkText, formatting.HtmlEscape(chat.Username)), nil)
+		_, _ = msg.Reply(c.Bot, fmt.Sprintf(linkText, "https://t.me/"+chat.Username), nil)
 	} else {
 		nchat, err := c.Bot.GetChat(chat.Id, nil)
 		if err != nil {
@@ -569,7 +569,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	_, err = msg.Reply(c.Bot,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_success_set")
-			return fmt.Sprintf(temp, mem.User.FirstName, mem.CustomTitle)
+			return fmt.Sprintf(temp, formatting.HtmlEscape(mem.User.FirstName), formatting.HtmlEscape(mem.CustomTitle))
 		}()+extraText,
 		formatting.Shtml(),
 	)
@@ -665,6 +665,11 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	var err error
 
+	if !chat_status.RequireGroup(b, c.Ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+		return ext.EndGroups
+	}
+
 	userMember, err := chat.GetMember(b, user.Id, nil)
 	if err != nil {
 		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
@@ -673,7 +678,10 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 	mem := userMember.MergeChatMember()
-	if mem.Status == "member" {
+	// Check the live status, not the admin cache this command refreshes.
+	// 1087968824 (GroupAnonymousBot) and 777000 (Telegram) count as admins, as
+	// in chat_status's tgAdminList.
+	if mem.Status != "administrator" && mem.Status != "creator" && user.Id != 1087968824 && user.Id != 777000 {
 		errorText, _ := c.Tr.GetString("admin_need_admin")
 		_, err = msg.Reply(b, errorText, nil)
 		if err != nil {
@@ -683,10 +691,6 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	}
 	if !chat_status.RequireBotAdmin(b, c.Ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireGroup(b, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -851,9 +855,11 @@ func (m moduleStruct) promoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		return ext.EndGroups
 	}
 	if !chat_status.CanBotPromote(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
 		return ext.EndGroups
 	}
 	return m.promote(c)
@@ -865,9 +871,11 @@ func (m moduleStruct) demoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		return ext.EndGroups
 	}
 	if !chat_status.CanBotPromote(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
 		return ext.EndGroups
 	}
 	return m.demote(c)

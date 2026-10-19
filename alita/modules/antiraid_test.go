@@ -4,6 +4,7 @@ package modules
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -435,6 +437,35 @@ func TestAntiRaidCommandShowsStatusAndTogglesState(t *testing.T) {
 	}
 }
 
+// /antiraid is listed in /disableable, so /disable antiraid must silence it
+// for non-admins while admins keep using it.
+func TestAntiRaidCommandHonoursDisable(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := disabling.DisableCMD(f.chat.Id, "antiraid"); err != nil {
+		t.Fatalf("DisableCMD() error = %v", err)
+	}
+	if err := disabling.ToggleDel(f.chat.Id, true); err != nil {
+		t.Fatalf("ToggleDel() error = %v", err)
+	}
+
+	if err := antiRaidModule.antiraid(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/antiraid")); err != ext.EndGroups {
+		t.Fatalf("antiraid(member) error = %v, want EndGroups", err)
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want none for a disabled command", len(calls))
+	}
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want the disabled command deleted", len(calls))
+	}
+
+	if err := antiRaidModule.antiraid(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/antiraid")); err != ext.EndGroups {
+		t.Fatalf("antiraid(admin) error = %v, want EndGroups", err)
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the admin's status reply", len(calls))
+	}
+}
+
 func TestAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -643,6 +674,26 @@ func TestAntiRaidCallbackTogglesState(t *testing.T) {
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 2", len(calls))
+	}
+}
+
+func TestAntiRaidCallbackRefusesNonAdminInChatLanguage(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	t.Cleanup(func() {
+		_, _ = antiRaidModule.disableRaid(f.chat.Id)
+	})
+
+	ctx := newModuleCallbackContext(f.bot, f.chat, f.member, encodeCallbackData("antiraid", map[string]string{"a": "on"}))
+	if err := antiRaidModule.callbackHandler(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("callbackHandler(non-admin) error = %v, want EndGroups", err)
+	}
+	if antiRaidModule.isRaidActive(f.chat.Id) {
+		t.Fatal("a non-admin enabled antiraid")
+	}
+	answer := f.client.onlyCall(t, "answerCallbackQuery")
+	if got, want := fmt.Sprint(answer.Params["text"]), translated(t, "connections_is_user_connected_user_not_admin"); got != want {
+		t.Fatalf("callback answer = %q, want %q", got, want)
 	}
 }
 

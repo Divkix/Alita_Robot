@@ -4,6 +4,7 @@ package content
 
 import (
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,7 +12,25 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
+
+// useEnglishLocale loads the real en.yml into the i18n manager, which this
+// package's tests otherwise run without. It swaps a global, so callers must not
+// call t.Parallel.
+func useEnglishLocale(t *testing.T) {
+	t.Helper()
+
+	raw, err := os.ReadFile("../../../locales/en.yml")
+	if err != nil {
+		t.Fatalf("read en.yml: %v", err)
+	}
+	restore, err := i18n.OverrideManagerForTest(string(raw))
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest: %v", err)
+	}
+	t.Cleanup(restore)
+}
 
 func TestExtractNoteAndFilterNilMessage(t *testing.T) {
 	t.Parallel()
@@ -106,6 +125,41 @@ func TestExtractNoteAndFilterFilterMode(t *testing.T) {
 	}
 }
 
+// Help tells users to quote a trigger of several words, as /stop expects.
+func TestExtractNoteAndFilterFilterTriggers(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name         string
+		text         string
+		reply        *gotgbot.Message
+		wantKeyWord  string
+		wantText     string
+		wantDataType int
+	}{
+		{name: "quoted trigger", text: `/filter "hello friend" Hello back`, wantKeyWord: "hello friend", wantText: "Hello back", wantDataType: db.TEXT},
+		{name: "unquoted trigger", text: "/filter hello Hello there", wantKeyWord: "hello", wantText: "Hello there", wantDataType: db.TEXT},
+		{name: "quoted trigger without content", text: `/filter "hello friend" `, wantKeyWord: "hello friend", wantDataType: -1},
+		{name: "quoted trigger on a reply", text: `/filter "hello friend"`, reply: &gotgbot.Message{Text: "Hi there"}, wantKeyWord: "hello friend", wantText: "Hi there", wantDataType: db.TEXT},
+		{name: "unquoted words on a reply", text: "/filter hello friend", reply: &gotgbot.Message{Text: "Hi there"}, wantKeyWord: "hello friend", wantText: "Hi there", wantDataType: db.TEXT},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := ExtractNoteAndFilter(&gotgbot.Message{Text: tt.text, ReplyToMessage: tt.reply}, true, "en")
+			if result.DataType != tt.wantDataType {
+				t.Fatalf("DataType = %d, want %d", result.DataType, tt.wantDataType)
+			}
+			if result.KeyWord != tt.wantKeyWord {
+				t.Errorf("KeyWord = %q, want %q", result.KeyWord, tt.wantKeyWord)
+			}
+			if tt.wantDataType != -1 && result.Text != tt.wantText {
+				t.Errorf("Text = %q, want %q", result.Text, tt.wantText)
+			}
+		})
+	}
+}
+
 func TestExtractWelcomeDirectText(t *testing.T) {
 	t.Parallel()
 
@@ -154,6 +208,27 @@ func TestExtractWelcomeNoContent(t *testing.T) {
 	}
 	if result.ErrorMsg == "" {
 		t.Fatal("expected errorMsg for no content")
+	}
+}
+
+// The empty /setwelcome and /setgoodbye replies are whole translated
+// sentences, so the English command word never lands in another locale.
+func TestExtractWelcomeNoContentNamesTheGreeting(t *testing.T) {
+	useEnglishLocale(t)
+
+	tr := i18n.MustNewTranslator("en")
+	for greetingType, key := range map[string]string{
+		"welcome": "content_need_welcome_content",
+		"goodbye": "content_need_goodbye_content",
+	} {
+		want, _ := tr.GetString(key)
+		if want == "" {
+			t.Fatalf("en locale has no %s", key)
+		}
+		result := ExtractWelcome(&gotgbot.Message{Text: "/set" + greetingType}, greetingType, "en")
+		if result.ErrorMsg != want {
+			t.Errorf("ExtractWelcome(%s) error = %q, want %q", greetingType, result.ErrorMsg, want)
+		}
 	}
 }
 

@@ -1589,7 +1589,8 @@ helpers_person_no_name: "OrangTanpaNama"
 content_need_filter_content: "Anda perlu memberikan konten untuk filter!"
 content_need_note_content: "Anda perlu memberikan konten untuk catatan!"
 content_invalid_message: "Pesan tidak valid: pesan adalah nil"
-content_need_content: "Anda perlu memberikan konten untuk %s pengguna!"
+content_need_welcome_content: "Anda perlu memberikan konten untuk menyambut pengguna!"
+content_need_goodbye_content: "Anda perlu memberikan konten untuk mengucapkan selamat tinggal kepada pengguna!"
 content_text_too_long: "Teks pesan Anda %d karakter. Panjang maksimum untuk teks adalah 4096; silakan pangkas ke ukuran yang lebih kecil. Perhatikan bahwa karakter markdown mungkin membutuhkan lebih banyak ruang dari yang diharapkan."
 content_caption_too_long: "Keterangan pesan Anda %d karakter. Panjang maksimum keterangan adalah 1024; silakan pangkas ke ukuran yang lebih kecil. Perhatikan bahwa karakter markdown mungkin membutuhkan lebih banyak ruang dari yang diharapkan."
 helpers_module_help_header: "Berikut adalah bantuan untuk modul *%s*:\n\n"
@@ -1755,6 +1756,12 @@ bot_updates_convert_howto: "Untuk mengubah grup ini menjadi supergrup, silakan i
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Buka Blokir (Khusus Admin)"
+antiflood_action_muted: "dibisukan"
+antiflood_action_banned: "diblokir"
+antiflood_action_kicked: "dikeluarkan"
+antiflood_action_tbanned: "diblokir selama {duration}"
+antiflood_action_tmuted: "dibisukan selama {duration}"
+antiflood_action_none: "tidak ada"
 
 # Helpers module strings
 helpers_notes_current_header: "Ini adalah catatan saat ini di Obrolan ini:\n"
@@ -2357,6 +2364,7 @@ backup_export_success: |
 backup_export_success_text: "✅ Berhasil mengekspor {modules} modul. Unduh file cadangan di atas."
 backup_export_rate_limited: "⏳ Silakan tunggu <b>{time}</b> sebelum mengekspor lagi."
 backup_export_no_modules: "❌ Tidak ada modul yang dapat diekspor untuk obrolan ini."
+backup_invalid_modules: "❌ Tidak ada modul tersebut yang dapat digunakan di sini. Modul yang valid: <code>{modules}</code>"
 backup_export_failed: "❌ Gagal mengekspor pengaturan. Silakan coba lagi nanti."
 
 backup_import_success: |

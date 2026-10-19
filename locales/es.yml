@@ -1598,7 +1598,8 @@ helpers_person_no_name: "PersonaSinNombre"
 content_need_filter_content: "¡Necesitas darle al filtro algo de contenido!"
 content_need_note_content: "¡Necesitas darle a la nota algo de contenido!"
 content_invalid_message: "Mensaje inválido: el mensaje es nil"
-content_need_content: "¡Necesitas darme algo de contenido para %s usuarios!"
+content_need_welcome_content: "¡Necesitas darme algo de contenido para dar la bienvenida a los usuarios!"
+content_need_goodbye_content: "¡Necesitas darme algo de contenido para despedir a los usuarios!"
 content_text_too_long: "Tu texto de mensaje tiene %d caracteres de largo. La longitud máxima para texto es 4096; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
 content_caption_too_long: "Tu pie de foto del mensaje tiene %d caracteres de largo. La longitud máxima del pie de foto es 1024; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
 helpers_module_help_header: "Aquí está la ayuda para el módulo *%s*:\n\n"
@@ -1768,6 +1769,12 @@ bot_updates_convert_howto: "Para convertir este grupo en un supergrupo, por favo
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Desbanear (Solo Administradores)"
+antiflood_action_muted: "silenciado"
+antiflood_action_banned: "baneado"
+antiflood_action_kicked: "expulsado"
+antiflood_action_tbanned: "baneado por {duration}"
+antiflood_action_tmuted: "silenciado por {duration}"
+antiflood_action_none: "ninguno"
 
 # Helpers module strings
 helpers_notes_current_header: "Estas son las notas actuales en este Chat:\n"
@@ -2369,6 +2376,7 @@ backup_export_success: |
 backup_export_success_text: "✅ Exportados exitosamente {modules} módulos. Descarga el archivo de copia de seguridad de arriba."
 backup_export_rate_limited: "⏳ Por favor espera <b>{time}</b> antes de exportar de nuevo."
 backup_export_no_modules: "❌ No se encontraron módulos exportables para este chat."
+backup_invalid_modules: "❌ Ninguno de esos módulos se puede usar aquí. Módulos válidos: <code>{modules}</code>"
 backup_export_failed: "❌ Error al exportar la configuración. Por favor inténtalo de nuevo más tarde."
 
 backup_import_success: |

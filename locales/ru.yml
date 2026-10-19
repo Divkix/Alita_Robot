@@ -63,7 +63,7 @@ antiflood_flood_deleter_enabled: |
 antiflood_flood_deleter_invalid_option: "Я понимаю только вариант из: `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: В этом чате в данный момент не применяется контроль флуда.
 antiflood_flood_show_settings: |
-  В этом чате в данный момент применяется контроль флуда после %d сообщений. Любые пользователи, отправляющие больше этого количества сообщений, будут %s.
+  В этом чате в данный момент применяется контроль флуда после %d сообщений. Любой пользователь, отправивший больше этого количества сообщений, будет %s.
 antiflood_help_msg:
   "Вы знаете, как иногда люди присоединяются, отправляют 100 сообщений и портят
     ваш чат? С антифлудом это больше не происходит!
@@ -1386,7 +1386,8 @@ helpers_person_no_name: "ЧеловекБезИмени"
 content_need_filter_content: "Вам нужно дать фильтру содержимое!"
 content_need_note_content: "Вам нужно дать заметке содержимое!"
 content_invalid_message: "Неверное сообщение: сообщение равно nil"
-content_need_content: "Вам нужно дать мне содержимое для %s пользователей!"
+content_need_welcome_content: "Вам нужно дать мне содержимое, чтобы приветствовать пользователей!"
+content_need_goodbye_content: "Вам нужно дать мне содержимое, чтобы прощаться с пользователями!"
 content_text_too_long: "Текст вашего сообщения составляет %d символов. Максимальная длина текста — 4096; пожалуйста, сократите его до меньшего размера. Обратите внимание, что символы разметки могут занимать больше места, чем ожидается."
 content_caption_too_long: "Подпись вашего сообщения составляет %d символов. Максимальная длина подписи — 1024; пожалуйста, сократите её до меньшего размера. Обратите внимание, что символы разметки могут занимать больше места, чем ожидается."
 helpers_module_help_header: "Вот справка для модуля *%s*:\n\n"
@@ -1537,6 +1538,12 @@ bot_updates_convert_howto: "Чтобы преобразовать эту гру�
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Разбанить (только для администраторов)"
+antiflood_action_muted: "заглушён"
+antiflood_action_banned: "забанен"
+antiflood_action_kicked: "исключён"
+antiflood_action_tbanned: "забанен на {duration}"
+antiflood_action_tmuted: "заглушён на {duration}"
+antiflood_action_none: "ничего"
 
 # Helpers module strings
 helpers_notes_current_header: "Это текущие заметки в этом чате:\n"
@@ -2139,6 +2146,7 @@ backup_export_success: |
 backup_export_success_text: "✅ Успешно экспортировано {modules} модулей. Скачайте файл резервной копии выше."
 backup_export_rate_limited: "⏳ Пожалуйста, подождите <b>{time}</b> перед следующим экспортом."
 backup_export_no_modules: "❌ Для этого чата не найдено модулей для экспорта."
+backup_invalid_modules: "❌ Ни один из этих модулей нельзя использовать здесь. Допустимые модули: <code>{modules}</code>"
 backup_export_failed: "❌ Не удалось экспортировать настройки. Пожалуйста, попробуйте позже."
 
 backup_import_success: |

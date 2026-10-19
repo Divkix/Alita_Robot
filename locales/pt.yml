@@ -1558,7 +1558,8 @@ helpers_person_no_name: "PessoaSemNome"
 content_need_filter_content: "Você precisa dar algum conteúdo ao filtro!"
 content_need_note_content: "Você precisa dar algum conteúdo à nota!"
 content_invalid_message: "Mensagem inválida: mensagem é nil"
-content_need_content: "Você precisa me dar algum conteúdo para %s usuários!"
+content_need_welcome_content: "Você precisa me dar algum conteúdo para dar boas-vindas aos usuários!"
+content_need_goodbye_content: "Você precisa me dar algum conteúdo para se despedir dos usuários!"
 content_text_too_long: "Seu texto de mensagem tem %d caracteres de comprimento. O comprimento máximo para texto é 4096; por favor reduza para um tamanho menor. Note que caracteres markdown podem ocupar mais espaço que o esperado."
 content_caption_too_long: "Sua legenda de mensagem tem %d caracteres de comprimento. O comprimento máximo para legenda é 1024; por favor reduza para um tamanho menor. Note que caracteres markdown podem ocupar mais espaço que o esperado."
 helpers_module_help_header: "Aqui está a ajuda para o módulo *%s*:\n\n"
@@ -1726,6 +1727,12 @@ bot_updates_convert_howto: "Para converter este grupo para supergrupo, por favor
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Desbanir (Apenas Admins)"
+antiflood_action_muted: "silenciado"
+antiflood_action_banned: "banido"
+antiflood_action_kicked: "expulso"
+antiflood_action_tbanned: "banido por {duration}"
+antiflood_action_tmuted: "silenciado por {duration}"
+antiflood_action_none: "nenhum"
 
 # Helpers module strings
 helpers_notes_current_header: "Estas são as notas atuais neste Chat:\n"
@@ -2329,6 +2336,7 @@ backup_export_success: |
 backup_export_success_text: "✅ Exportados com sucesso {modules} módulos. Baixe o arquivo de backup acima."
 backup_export_rate_limited: "⏳ Por favor aguarde <b>{time}</b> antes de exportar novamente."
 backup_export_no_modules: "❌ Nenhum módulo exportável encontrado para este chat."
+backup_invalid_modules: "❌ Nenhum desses módulos pode ser usado aqui. Módulos válidos: <code>{modules}</code>"
 backup_export_failed: "❌ Falha ao exportar configurações. Por favor tente novamente mais tarde."
 
 backup_import_success: |

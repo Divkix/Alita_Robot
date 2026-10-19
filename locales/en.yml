@@ -1640,7 +1640,8 @@ helpers_person_no_name: "PersonWithNoName"
 content_need_filter_content: "You need to give the filter some content!"
 content_need_note_content: "You need to give the note some content!"
 content_invalid_message: "Invalid message: message is nil"
-content_need_content: "You need to give me some content to %s users!"
+content_need_welcome_content: "You need to give me some content to welcome users!"
+content_need_goodbye_content: "You need to give me some content to say goodbye to users!"
 content_text_too_long: "Your message text is %d characters long. The maximum length for text is 4096; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 content_caption_too_long: "Your message caption is %d characters long. The maximum caption length is 1024; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 helpers_module_help_header: "Here is the help for the *%s* module:\n\n"
@@ -1808,6 +1809,12 @@ bot_updates_convert_howto: "To convert this group to a supergroup, please follow
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Unban (Admins Only)"
+antiflood_action_muted: "muted"
+antiflood_action_banned: "banned"
+antiflood_action_kicked: "kicked"
+antiflood_action_tbanned: "banned for {duration}"
+antiflood_action_tmuted: "muted for {duration}"
+antiflood_action_none: "none"
 
 # Helpers module strings
 helpers_notes_current_header: "These are the current notes in this Chat:\n"
@@ -2410,6 +2417,7 @@ backup_export_success: |
 backup_export_success_text: "✅ Successfully exported {modules} modules. Download the backup file above."
 backup_export_rate_limited: "⏳ Please wait <b>{time}</b> before exporting again."
 backup_export_no_modules: "❌ No exportable modules found for this chat."
+backup_invalid_modules: "❌ None of those modules can be used here. Valid modules: <code>{modules}</code>"
 backup_export_failed: "❌ Failed to export settings. Please try again later."
 
 backup_import_success: |

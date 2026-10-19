@@ -11,6 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 )
 
 var notesDirectiveReplacer = strings.NewReplacer(
@@ -81,16 +82,35 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	setRawText(msg, args, &rawText)
 
 	if len(args) >= 2 && replyMsg == nil {
-		if len(args) > 0 {
-			result.KeyWord = args[0]
-			if len(args) > 1 {
-				result.Text = strings.Join(args[1:], " ")
+		result.KeyWord = args[0]
+		result.Text = strings.Join(args[1:], " ")
+		// A filter trigger of several words is quoted: /filter "hello there" Hi!
+		if joined := strings.Join(args, " "); isFilter && strings.HasPrefix(joined, `"`) {
+			// matchWord stays off: its fallback regex is ASCII-only and would split
+			// a non-ASCII trigger.
+			if kw, rest := extraction.ExtractQuotes(joined, true, false); kw != "" {
+				result.KeyWord = kw
+				result.Text = strings.TrimSpace(rest)
 			}
 		}
 		result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(result.Text)
 		result.DataType = db.TEXT
 	} else if replyMsg != nil && len(args) >= 1 {
 		result.KeyWord = strings.Join(args, " ")
+		if isFilter {
+			if strings.HasPrefix(result.KeyWord, `"`) {
+				if kw, _ := extraction.ExtractQuotes(result.KeyWord, true, false); kw != "" {
+					result.KeyWord = kw
+				}
+			}
+			// Every argument is the trigger, so the content is the replied message
+			// alone; setRawText would take it from the second trigger word on.
+			if replyMsg.Text != "" {
+				rawText = replyMsg.OriginalMDV2()
+			} else {
+				rawText = replyMsg.OriginalCaptionMDV2()
+			}
+		}
 
 		if replyMsg.ReplyMarkup == nil {
 			result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
@@ -143,11 +163,14 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	var result WelcomeResult
 	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
-	template, _ := tr.GetString("content_need_content")
-	if template == "" {
-		template = "You need to give me some content to %s users!"
+	needKey, needFallback := "content_need_welcome_content", "You need to give me some content to welcome users!"
+	if greetingType == "goodbye" {
+		needKey, needFallback = "content_need_goodbye_content", "You need to give me some content to say goodbye to users!"
 	}
-	result.ErrorMsg = fmt.Sprintf(template, greetingType)
+	result.ErrorMsg, _ = tr.GetString(needKey)
+	if result.ErrorMsg == "" {
+		result.ErrorMsg = needFallback
+	}
 	var (
 		rawText string
 		args    = strings.Fields(msg.Text)[1:]

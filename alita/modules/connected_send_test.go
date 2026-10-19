@@ -11,6 +11,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 )
@@ -49,6 +50,25 @@ func TestGetNoteFromPMIsSentToThePM(t *testing.T) {
 	}
 	if rp, _ := call.Params["reply_parameters"].(*gotgbot.ReplyParameters); rp == nil || rp.MessageId != 101 {
 		t.Errorf("note reply_parameters = %+v, want a reply to the PM message 101", call.Params["reply_parameters"])
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+// /approved from PM on a connected group with more users than fit inline
+// sends the file to the PM, replying to the admin's message there.
+func TestApprovedFileFromPMIsSentToThePM(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	for i := 0; i < approvedUsersInlineLimit+1; i++ {
+		if err := approvals.AddApprovedUser(groupA, int64(20_000+i), admin.Id, "bulk"); err != nil {
+			t.Fatalf("AddApprovedUser() error = %v", err)
+		}
+	}
+
+	runInPM(t, bot, admin, "/approved", approvalsModule.listApprovedUsers)
+
+	call := client.onlyCall(t, "sendDocument")
+	if got := fmt.Sprint(call.Params["chat_id"]); got != fmt.Sprint(admin.Id) {
+		t.Errorf("approved file sent to chat %s, want the PM %d", got, admin.Id)
 	}
 	assertNothingSentTo(t, client, groupA)
 }

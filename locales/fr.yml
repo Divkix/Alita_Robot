@@ -1499,7 +1499,8 @@ helpers_person_no_name: "PersonneSansNom"
 content_need_filter_content: "Vous devez donner du contenu au filtre !"
 content_need_note_content: "Vous devez donner du contenu à la note !"
 content_invalid_message: "Message invalide: le message est nil"
-content_need_content: "Vous devez me donner du contenu pour %s les utilisateurs !"
+content_need_welcome_content: "Vous devez me donner du contenu pour souhaiter la bienvenue aux utilisateurs !"
+content_need_goodbye_content: "Vous devez me donner du contenu pour dire au revoir aux utilisateurs !"
 content_text_too_long: "Votre texte de message fait %d caractères. La longueur maximale pour le texte est de 4096 ; veuillez le réduire. Notez que les caractères markdown peuvent prendre plus d'espace que prévu."
 content_caption_too_long: "Votre légende de message fait %d caractères. La longueur maximale de la légende est de 1024 ; veuillez la réduire. Notez que les caractères markdown peuvent prendre plus d'espace que prévu."
 helpers_module_help_header: "Voici l'aide pour le module *%s* :\n\n"
@@ -2125,6 +2126,12 @@ antiflood_setfloodmode_specify_action: |
 antiflood_setfloodmode_success: Le mode d'inondation a été défini sur %s.
 antiflood_setfloodmode_unknown_type: "Type inconnu '%s'. Veuillez utiliser l'un des suivants : ban/kick/mute"
 antiflood_button_unban_admins: "Débannir (Admins uniquement)"
+antiflood_action_muted: "rendu muet"
+antiflood_action_banned: "banni"
+antiflood_action_kicked: "expulsé"
+antiflood_action_tbanned: "banni pendant {duration}"
+antiflood_action_tmuted: "rendu muet pendant {duration}"
+antiflood_action_none: "aucun"
 
 # Common strings admin cache
 commonstrings_admin_cache_cache_reloaded: Cache admin rechargé avec succès.
@@ -2265,6 +2272,7 @@ backup_export_success: |
 backup_export_success_text: "✅ {modules} modules exportés avec succès. Téléchargez le fichier de sauvegarde ci-dessus."
 backup_export_rate_limited: "⏳ Veuillez attendre <b>{time}</b> avant d'exporter à nouveau."
 backup_export_no_modules: "❌ Aucun module exportable trouvé pour ce chat."
+backup_invalid_modules: "❌ Aucun de ces modules ne peut être utilisé ici. Modules valides : <code>{modules}</code>"
 backup_export_failed: "❌ Échec de l'export des paramètres. Veuillez réessayer plus tard."
 
 backup_import_success: |

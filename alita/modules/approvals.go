@@ -67,7 +67,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
-		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -149,7 +149,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
-		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -354,10 +354,11 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approved_list_file_caption")
 	_, err = b.SendDocument(
-		chat.Id,
+		msg.Chat.Id,
 		gotgbot.InputFileByReader("approved_users.txt", openedFile),
 		&gotgbot.SendDocumentOpts{
-			Caption: func() string { return fmt.Sprintf(text, html.EscapeString(chat.Title)) }(),
+			Caption:   fmt.Sprintf(text, html.EscapeString(chat.Title)),
+			ParseMode: formatting.HTML,
 			ReplyParameters: &gotgbot.ReplyParameters{
 				MessageId:                msg.MessageId,
 				AllowSendingWithoutReply: true,

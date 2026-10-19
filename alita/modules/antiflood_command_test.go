@@ -12,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func resetAntifloodState(t *testing.T) {
@@ -549,6 +550,20 @@ func TestUpdateFloodWithSettingsReplacesIdleCounter(t *testing.T) {
 	}
 }
 
+// The unknown-type reply is HTML, so the echoed argument must be escaped or
+// Telegram rejects the reply and the admin gets no answer.
+func TestSetFloodModeEscapesUnknownType(t *testing.T) {
+	resetAntifloodState(t)
+	f := newAdminChatFixture(t)
+	if err := antifloodModule.setFloodMode(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/setfloodmode <x>")); err != ext.EndGroups {
+		t.Fatalf("setFloodMode() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+	if strings.Contains(text, "<x>") || !strings.Contains(text, "&lt;x&gt;") {
+		t.Fatalf("unknown-type reply does not escape the argument:\n%s", text)
+	}
+}
+
 // /setfloodmode cannot store tban/tmute, but the action CHECK allows them, so
 // rows restored from a backup or older versions carry them.
 func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
@@ -642,5 +657,28 @@ func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
 	replies := client.callsFor("sendMessage")
 	if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), "warn") {
 		t.Fatalf("/flood replies = %#v, want the stored action named", replies)
+	}
+}
+
+// The flood notice and /flood interpolate the action into a translated
+// template, so the action word must come from the same locale.
+func TestFloodActionLabelFollowsTheChatLanguage(t *testing.T) {
+	useRealLocales(t)
+
+	en := i18n.MustNewTranslator("en")
+	for _, langCode := range []string{"es", "fr", "hi", "id", "pt", "ru"} {
+		tr := i18n.MustNewTranslator(langCode)
+		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute", ""} {
+			got := floodActionLabel(tr, action)
+			if got == "" {
+				t.Fatalf("floodActionLabel(%s, %q) is empty", langCode, action)
+			}
+			if got == floodActionLabel(en, action) {
+				t.Errorf("floodActionLabel(%s, %q) = %q, same as English", langCode, action, got)
+			}
+			if (action == "tban" || action == "tmute") && !strings.Contains(got, "1h") {
+				t.Errorf("floodActionLabel(%s, %q) = %q, want the 1h duration", langCode, action, got)
+			}
+		}
 	}
 }

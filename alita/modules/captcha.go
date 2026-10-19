@@ -455,9 +455,9 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
 		}
-		status := "disabled"
+		status, _ := tr.GetString("captcha_status_disabled")
 		if settings.Enabled {
-			status = "enabled"
+			status, _ = tr.GetString("captcha_status_enabled")
 		}
 
 		statusUsage, _ := tr.GetString("captcha_status_usage")

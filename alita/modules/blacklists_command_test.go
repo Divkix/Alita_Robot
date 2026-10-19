@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -672,15 +673,14 @@ func TestBlacklistWatcherDoesNotBanChannelForTimedAction(t *testing.T) {
 // sit in the locale's "due to" slot and the user in the other one. hi.yml
 // once had the two swapped for ban, kick and mute.
 func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
-	const reason = "Blacklisted word: 'spam'"
-	reasonSlot := map[string]func(action string) string{
-		"en": func(string) string { return "due to " + reason },
-		"es": func(string) string { return "debido a " + reason },
-		"fr": func(string) string { return "à cause de " + reason },
-		"id": func(string) string { return "karena " + reason },
-		"pt": func(string) string { return "devido a " + reason },
-		"ru": func(string) string { return "из-за " + reason },
-		"hi": func(action string) string {
+	reasonSlot := map[string]func(reason, action string) string{
+		"en": func(reason, _ string) string { return "due to " + reason },
+		"es": func(reason, _ string) string { return "debido a " + reason },
+		"fr": func(reason, _ string) string { return "à cause de " + reason },
+		"id": func(reason, _ string) string { return "karena " + reason },
+		"pt": func(reason, _ string) string { return "devido a " + reason },
+		"ru": func(reason, _ string) string { return "из-за " + reason },
+		"hi": func(reason, action string) string {
 			if action == "tban" || action == "tmute" {
 				return "कारण: " + reason
 			}
@@ -718,6 +718,12 @@ func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	mention := formatting.MentionHtml(member.Id, member.FirstName)
 	for code, slot := range reasonSlot {
+		// The default reason is shown in the chat's language.
+		reasonTemplate, err := i18n.MustNewTranslator(code).GetString("db_blacklist_default_reason")
+		if err != nil || reasonTemplate == "" {
+			t.Fatalf("%s db_blacklist_default_reason missing: %v", code, err)
+		}
+		reason := fmt.Sprintf(reasonTemplate, "spam")
 		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute"} {
 			t.Run(code+"/"+action, func(t *testing.T) {
 				client := newModuleBotClient()
@@ -742,13 +748,110 @@ func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
 					t.Fatalf("sendMessage calls = %d, want one notice", len(notices))
 				}
 				text := fmt.Sprint(notices[0].Params["text"])
-				if !strings.Contains(text, slot(action)) {
-					t.Fatalf("notice = %q, want the reason in its slot %q", text, slot(action))
+				if want := slot(reason, action); !strings.Contains(text, want) {
+					t.Fatalf("notice = %q, want the reason in its slot %q", text, want)
 				}
 				if !strings.Contains(text, mention) {
 					t.Fatalf("notice = %q, want user mention %q", text, mention)
 				}
 			})
 		}
+	}
+}
+
+// A trigger with HTML characters is escaped in the notice, which is sent as
+// HTML; raw, Telegram would reject the message.
+func TestBlacklistWatcherNoticeEscapesTrigger(t *testing.T) {
+	useRealLocales(t)
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	for _, action := range []string{"ban", "mute", "kick", "tban", "tmute"} {
+		t.Run(action, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+			if err := blacklists.AddBlacklist(chat.Id, "<3"); err != nil {
+				t.Fatalf("AddBlacklist setup error = %v", err)
+			}
+			if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
+				t.Fatalf("SetBlacklistAction setup error = %v", err)
+			}
+
+			ctx := newModuleMessageContext(bot, chat, member, "i <3 this")
+			if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+				t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
+			}
+			notices := client.callsFor("sendMessage")
+			if len(notices) != 1 {
+				t.Fatalf("sendMessage calls = %d, want one notice", len(notices))
+			}
+			text := fmt.Sprint(notices[0].Params["text"])
+			if !strings.Contains(text, "&lt;3") || strings.Contains(text, "'<3'") {
+				t.Fatalf("notice = %q, want the trigger HTML-escaped", text)
+			}
+		})
+	}
+}
+
+// /blacklists and /blocklists share a handler, so disabling either name
+// stops both for members.
+func TestDisabledBlocklistsStopsBothListCommands(t *testing.T) {
+	for _, disabled := range []string{"blocklists", "blacklists"} {
+		t.Run(disabled, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			client, bot, chat, member := f.client, f.bot, f.chat, f.member
+			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+				t.Fatalf("AddBlacklist setup error = %v", err)
+			}
+			if err := disabling.DisableCMD(chat.Id, disabled); err != nil {
+				t.Fatalf("DisableCMD(%s) error = %v", disabled, err)
+			}
+
+			for _, command := range []string{"/blacklists", "/blocklists"} {
+				ctx := newModuleMessageContext(bot, chat, member, command)
+				if err := blacklistsModule.listBlacklists(bot, ctx); err != ext.EndGroups {
+					t.Fatalf("%s error = %v, want EndGroups", command, err)
+				}
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("sendMessage calls = %d, want none while %s is disabled", len(calls), disabled)
+			}
+		})
+	}
+}
+
+// /addblacklist replies in HTML, so the already-blacklisted and too-long
+// words it echoes are escaped like the newly added ones.
+func TestAddBlacklistEscapesEchoedWords(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	lastReply := func(t *testing.T) string {
+		t.Helper()
+		calls := client.callsFor("sendMessage")
+		if len(calls) == 0 {
+			t.Fatal("no reply sent")
+		}
+		return fmt.Sprint(calls[len(calls)-1].Params["text"])
+	}
+
+	for i := 0; i < 2; i++ {
+		ctx := newModuleMessageContext(bot, chat, admin, "/addblacklist <x")
+		if err := blacklistsModule.addBlacklist(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("addBlacklist error = %v, want EndGroups", err)
+		}
+		waitForModuleCondition(t, func() bool {
+			return len(blacklists.GetBlacklistSettings(chat.Id).Triggers()) == 1
+		})
+	}
+	if text := lastReply(t); !strings.Contains(text, "&lt;x") || strings.Contains(text, "<x") {
+		t.Fatalf("already-blacklisted reply = %q, want the word escaped", text)
+	}
+
+	tooLongCtx := newModuleMessageContext(bot, chat, admin, "/addblacklist <"+strings.Repeat("y", 100))
+	if err := blacklistsModule.addBlacklist(bot, tooLongCtx); err != ext.EndGroups {
+		t.Fatalf("addBlacklist too-long error = %v, want EndGroups", err)
+	}
+	if text := lastReply(t); !strings.Contains(text, "&lt;yyy") || strings.Contains(text, "<yyy") {
+		t.Fatalf("too-long reply = %q, want the word escaped", text)
 	}
 }

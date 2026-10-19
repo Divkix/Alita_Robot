@@ -94,7 +94,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 				if len(runes) > 20 {
 					preview = string(runes[:20]) + "..."
 				}
-				tooLong = append(tooLong, preview)
+				tooLong = append(tooLong, html.EscapeString(preview))
 			} else {
 				validArgs = append(validArgs, word)
 			}
@@ -115,7 +115,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		for _, blWord := range args {
 			blWord = strings.ToLower(blWord)
 			if _, exists := blWordSet[blWord]; exists {
-				alreadyBlacklisted = append(alreadyBlacklisted, blWord)
+				alreadyBlacklisted = append(alreadyBlacklisted, fmt.Sprintf("<code>%s</code>", html.EscapeString(blWord)))
 				continue
 			}
 			if err := blacklists.AddBlacklist(chat.Id, blWord); err != nil {
@@ -231,7 +231,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "blacklists") {
+	if chat_status.CheckDisabledCmd(b, msg, "blacklists") || chat_status.CheckDisabledCmd(b, msg, "blocklists") {
 		return ext.EndGroups
 	}
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
@@ -504,8 +504,11 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	reason := matched.Reason
-	if reason == "" {
-		reason = "Blacklisted word: '%s'"
+	if reason == "" || reason == models.DefaultBlacklistReason {
+		reason = models.DefaultBlacklistReason
+		if translated, _ := tr.GetString("db_blacklist_default_reason"); translated != "" {
+			reason = translated
+		}
 	}
 
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
@@ -525,7 +528,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_muted_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -546,7 +549,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_banned_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -566,7 +569,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_kicked_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -596,7 +599,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), formatDuration(blacklistTimedActionTime), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), formatDuration(blacklistTimedActionTime), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
