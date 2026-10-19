@@ -19,7 +19,7 @@ Hours between activity checks
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `1` |
-| **Validation** | min=1,max=24 |
+| **Recommended range** | 1-24 (not enforced) |
 
 ### `ENABLE_AUTO_CLEANUP`
 
@@ -40,7 +40,7 @@ Days before marking a chat as inactive
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `30` |
-| **Validation** | min=1,max=365 |
+| **Recommended range** | 1-365 (not enforced) |
 
 ## 📂 AI spam filter configuration
 
@@ -75,7 +75,7 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 |----------|-------|
 | **Type** | `integer` |
 | **Required** | Yes |
-| **Validation** | required,min=1 |
+| **Validation** | required, non-zero (log channel ID, starts with -100) |
 
 ### `OWNER_ID` (Required)
 
@@ -83,7 +83,7 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 |----------|-------|
 | **Type** | `integer` |
 | **Required** | Yes |
-| **Validation** | required,min=1 |
+| **Validation** | required, non-zero |
 
 ### `DROP_PENDING_UPDATES`
 
@@ -239,7 +239,7 @@ HTTP connection pool size
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `100` |
-| **Validation** | min=10,max=1000 |
+| **Recommended range** | 10-1000 (not enforced) |
 
 ### `HTTP_MAX_IDLE_CONNS_PER_HOST`
 
@@ -250,7 +250,7 @@ HTTP connections per host
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `50` |
-| **Validation** | min=5,max=500 |
+| **Recommended range** | 5-500 (not enforced) |
 
 ## 📂 Profiling configuration
 
@@ -277,7 +277,7 @@ OTLP gRPC endpoint for trace export (e.g., `localhost:4317`). When set, the bot 
 
 ### `OTEL_EXPORTER_CONSOLE`
 
-Enable console exporter for debugging traces (outputs to stderr).
+Enable console exporter for debugging traces (outputs to stderr). Only the exact lowercase value `true` enables it; unlike other boolean variables, `1`, `yes` and `TRUE` are ignored.
 
 | Property | Value |
 |----------|-------|
@@ -287,7 +287,7 @@ Enable console exporter for debugging traces (outputs to stderr).
 
 ### `OTEL_EXPORTER_OTLP_INSECURE`
 
-Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Only `true` (any letter case) enables it; unlike other boolean variables, `1` and `yes` are ignored.
 
 | Property | Value |
 |----------|-------|
@@ -371,9 +371,9 @@ override their URL components.
 |----------|-------|
 | **Type** | `integer` |
 | **Required** | No |
-| **Default** | `1` |
+| **Default** | `1` with `REDIS_ADDRESS`; with `REDIS_URL` alone, the URL's path database (`0` if the URL has no path) |
 
-Set `REDIS_DB=0` explicitly to select database zero.
+In `REDIS_ADDRESS` mode, set `REDIS_DB=0` explicitly to select database zero. In `REDIS_URL` mode, a set `REDIS_DB` overrides the URL path; when it is unset, the path decides, and a URL with no path uses database 0.
 
 ### `REDIS_PASSWORD`
 
@@ -413,6 +413,16 @@ evicted first.
 | **Default** | `50000` |
 | **Validation** | min=100,max=1000000 |
 
+### `DISABLE_CACHE`
+
+Bypasses the read-through cache: every cached lookup reads PostgreSQL directly, the in-process layer is turned off, and writes skip Redis cache deletes. The bot also starts when Redis is unreachable or misconfigured; it logs a warning and runs degraded (Redis-backed state such as antiraid does nothing). Intended for load-testing PostgreSQL, not normal operation.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
 ## 📂 Resource monitoring limits
 
 ### `RESOURCE_GC_THRESHOLD_MB`
@@ -424,7 +434,7 @@ Memory threshold for triggering GC
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `400` |
-| **Validation** | min=100,max=5000 |
+| **Recommended range** | 100-5000 (not enforced) |
 
 ### `RESOURCE_MAX_GOROUTINES`
 
@@ -435,7 +445,7 @@ Maximum goroutines before triggering cleanup
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `1000` |
-| **Validation** | min=100,max=10000 |
+| **Recommended range** | 100-10000 (not enforced) |
 
 ### `RESOURCE_MAX_MEMORY_MB`
 
@@ -446,7 +456,7 @@ Maximum memory usage in MB
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `500` |
-| **Validation** | min=100,max=10000 |
+| **Recommended range** | 100-10000 (not enforced) |
 
 ## 📂 Safety and performance limits
 
@@ -543,6 +553,7 @@ DB_CONN_MAX_LIFETIME_MIN=# max lifetime in min (default: 240)
 DB_MAX_IDLE_CONNS=# (default: 50)
 DB_MAX_OPEN_CONNS=# (default: 200)
 DEBUG=# enable debug logging (default: false)
+DISABLE_CACHE=# bypass the cache; bot starts without Redis, degraded (default: false)
 DISPATCHER_MAX_ROUTINES=# (default: 200)
 DROP_PENDING_UPDATES=# (default: false)
 ENABLE_AISPAM=# global AI spam filter kill switch (default: true)
@@ -563,7 +574,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint (e.g., localhost:4317)
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
 OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
-REDIS_DB=# Redis database number (default: 1)
+REDIS_DB=# Redis database number (default: 1 with REDIS_ADDRESS; REDIS_URL uses its path, else 0)
 REDIS_PASSWORD=# Redis password
 REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)
 RESOURCE_GC_THRESHOLD_MB=# GC threshold in MB (default: 400)

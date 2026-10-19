@@ -10,8 +10,8 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 26
-- **Modules with Callbacks**: 18
+- **Total Callbacks**: 28
+- **Modules with Callbacks**: 19
 
 ## Callback Data Format
 
@@ -21,7 +21,7 @@ Callbacks use a versioned codec with URL-encoded fields:
 <namespace>|v1|<url-encoded-fields>
 ```
 
-For example: `restrict|v1|a=ban&uid=123456789` routes to the `restrict` namespace handler.
+For example: `restrict|v1|a=ban&u=123456789` routes to the `restrict` namespace handler.
 
 When the payload has no fields, `_` is used as placeholder: `helpq|v1|_`.
 
@@ -39,6 +39,7 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Backup | `backup` | backupCallbackHandler |
 | Bans | `restrict` | restrictButtonHandler |
 | Bans | `unrestrict` | unrestrictButtonHandler |
+| Bans | `unbanall` | unbanAllCallback |
 | Blacklists | `rmAllBlacklist` | buttonHandler |
 | Bot Updates | `anon_admin` | verifyAnonymousAdmin |
 | AntiRaid | `antiraid` | callbackHandler |
@@ -46,6 +47,8 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Captcha | `captcha_refresh` | captchaRefreshCallback |
 | Captcha | `captcha_verify` | captchaVerifyCallback |
 | Connections | `connbtns` | connectionButtons |
+| Connections | `settings` | settingsCallback |
+| Federations | `fed` | fedCallback |
 | Filters | `filters_overwrite` | filterOverWriteHandler |
 | Filters | `rmAllFilters` | filtersButtonHandler |
 | Formatting | `formatting` | formattingHandler |
@@ -57,7 +60,6 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Notes | `notes.overwrite` | noteOverWriteHandler |
 | Notes | `rmAllNotes` | notesButtonHandler |
 | Pins | `unpinallbtn` | unpinallCallback |
-| Purges | `deleteMsg` | deleteButtonHandler |
 | Reactions | `reactions_help` | reactionsHelpHandler |
 | Reports | `report` | markResolvedButtonHandler |
 | Warns | `rmAllChatWarns` | warnsButtonHandler |
@@ -72,7 +74,7 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 - **Handler**: `backupCallbackHandler`
 - **Source**: `backup.go`
 
-Handles backup import/export operations via inline buttons.
+Confirms or cancels a pending /import or /reset via inline buttons (actions ci/xi for import, cr/xr for reset). Only the group creator can press them, and pending requests expire after 10 minutes. /export sends the backup file directly and uses no callback.
 
 ### Bans
 
@@ -85,6 +87,13 @@ Handles backup import/export operations via inline buttons.
 
 - **Handler**: `unrestrictButtonHandler`
 - **Source**: `bans.go`
+
+#### `unbanall`
+
+- **Handler**: `unbanAllCallback`
+- **Source**: `bans.go`
+
+Confirms or cancels `/unbanall`. Only the chat owner may press it.
 
 ### Blacklists
 
@@ -100,7 +109,7 @@ Handles backup import/export operations via inline buttons.
 - **Handler**: `verifyAnonymousAdmin`
 - **Source**: `bot_updates.go`
 
-Handles anonymous admin verification callbacks for channel messages.
+Verifies that the user who pressed the button is an admin of the group, then replays the command an anonymous group admin sent (fields: c = chat ID, m = message ID of the cached command).
 
 ### AntiRaid
 
@@ -138,6 +147,27 @@ Handles confirmation callback for removing all approved users.
 
 - **Handler**: `connectionButtons`
 - **Source**: `connections.go`
+
+#### `settings`
+
+- **Handler**: `settingsCallback`
+- **Source**: `settings.go` (registered in `connections.go`)
+
+Actions (field `a`):
+- `a=p&c=<chat_id>`: picks a group from the `/settings` list. Re-checks that the presser may connect to it and is an admin there, connects them to it and shows the settings summary.
+- `a=r&c=<chat_id>`: **Refresh**. Re-checks admin rights and redraws the summary.
+- `a=l`: **Another group**. Shows the group list again. During the picker cooldown it shows the stored list, or answers with the wait notice when there is none.
+
+Works only in a private chat. A press anywhere else, or a payload that does not decode, is answered as an invalid callback.
+
+### Federations
+
+#### `fed`
+
+- **Handler**: `fedCallback`
+- **Source**: `federations.go`
+
+Handles the `/delfed` confirmation buttons. `a=del` deletes the federation owned by the user who pressed it (anyone else is refused); `a=noop` cancels. Any other action is answered as a stale button.
 
 ### Filters
 
@@ -208,13 +238,6 @@ Handles confirmation callback for removing all approved users.
 - **Handler**: `unpinallCallback`
 - **Source**: `pins.go`
 
-### Purges
-
-#### `deleteMsg`
-
-- **Handler**: `deleteButtonHandler`
-- **Source**: `purges.go`
-
 ### Reactions
 
 #### `reactions_help`
@@ -250,20 +273,20 @@ Displays help information for reaction commands.
 ```go
 // Encode callback data
 data, err := callbackcodec.Encode("restrict", map[string]string{
-    "a":   "ban",
-    "uid": "123456789",
+    "a": "ban",
+    "u": "123456789",
 })
-// -> "restrict|v1|a=ban&uid=123456789"
+// -> "restrict|v1|a=ban&u=123456789"
 
 // Empty payload
 data, err := callbackcodec.Encode("helpq", map[string]string{})
 // -> "helpq|v1|_"
 
 // Decode callback data
-decoded, err := callbackcodec.Decode("restrict|v1|a=ban&uid=123456789")
+decoded, err := callbackcodec.Decode("restrict|v1|a=ban&u=123456789")
 namespace := decoded.Namespace  // "restrict"
 action, _ := decoded.Field("a") // "ban"
-uid, _ := decoded.Field("uid")  // "123456789"
+userID, _ := decoded.Field("u") // "123456789"
 ```
 
 ### EncodeOrFallback
