@@ -72,7 +72,7 @@ The following commands support anonymous admin verification. Only these commands
 
 | Module | Commands |
 |--------|----------|
-| Admin | `/promote`, `/demote`, `/title` |
+| Admin | `/promote`, `/demote`, `/title`, `/setgtitle` (`/setgrouptitle`), `/setgpic` (`/setgrouppic`), `/setgdesc` (`/setgroupdesc`, `/setdescription`) |
 | Bans | `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/kick`, `/dkick`, `/skick`, `/restrict`, `/unrestrict` |
 | Mutes | `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute` |
 | Pins | `/pin`, `/unpin`, `/permapin`, `/unpinall` |

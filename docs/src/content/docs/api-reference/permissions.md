@@ -10,7 +10,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 35
+- **Total Functions**: 36
 - **Location**: `alita/utils/chat_status/ (chat_status.go, access.go, update_memo.go, permission_responder.go)`
 
 ## Function Summary
@@ -35,6 +35,7 @@ This page documents all permission checking functions in Alita Robot.
 | `RequireUserOwner` | `bool` | RequireUserOwner ensures a user is the chat creator/owner... |
 | `RequireUser` | `*gotgbot.User` | RequireUser extracts the effective user from the update context safely... |
 | `CanInvite` | `bool` | CanInvite checks if the bot and user have permissions to ... |
+| `CanInviteAnswered` | `(bool, bool)` | CanInvite that also reports whether an anonymous admin was already sent the proof keyboard |
 | `CanUserInvite` | `bool` | CanUserInvite checks a user has CanInviteUsers |
 | `CanUserChangeInfo` | `bool` | CanUserChangeInfo checks if a user has permission to chan... |
 | `CanUserDelete` | `bool` | CanUserDelete checks if a user has permission to delete m... |
@@ -312,6 +313,20 @@ func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 ```
 
 CanInvite checks if the bot and user have permissions to generate invite links. Returns true immediately if the chat has a public username. Validates both bot and user permissions for invite link generation.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `chat`
+- `msg`
+
+#### `CanInviteAnswered`
+
+```go
+func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) (allowed, answered bool)
+```
+
+CanInviteAnswered is `CanInvite` that also reports whether the check already answered the sender. `answered` is true only when an anonymous admin was sent the proof keyboard, so the caller must not send a refusal on top of it. `CanInvite` returns only `allowed`.
 
 **Parameters:**
 - `b`
