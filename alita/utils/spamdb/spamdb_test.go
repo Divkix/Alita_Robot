@@ -213,12 +213,12 @@ func TestCheckTurnsLookupPanicIntoError(t *testing.T) {
 	})
 
 	for attempt := 1; attempt <= 2; attempt++ {
-		listed, err := c.Check(context.Background(), testUserID)
+		source, err := c.Check(context.Background(), testUserID, []Source{SourceCAS})
 		if err == nil {
-			t.Fatalf("attempt %d: Check() = %v, nil error; want an error", attempt, listed)
+			t.Fatalf("attempt %d: Check() = %q, nil error; want an error", attempt, source)
 		}
-		if listed {
-			t.Fatalf("attempt %d: Check() = %v, want not listed on error", attempt, listed)
+		if source != "" {
+			t.Fatalf("attempt %d: Check() = %q, want no source on error", attempt, source)
 		}
 	}
 	if got := transport.calls.Load(); got != 2 {
