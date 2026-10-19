@@ -3,6 +3,8 @@ package modules
 import (
 	"slices"
 	"testing"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
 func TestGetLockMapAsArray(t *testing.T) {
@@ -46,5 +48,29 @@ func TestGetLockMapAsArrayCachesResult(t *testing.T) {
 
 	if !slices.Equal(first, second) {
 		t.Fatalf("cached result should be identical: first=%v second=%v", first, second)
+	}
+}
+
+// The rtl lock blocks RTL text wherever a message carries it, captions included.
+func TestRTLLockMatchesTextAndCaptions(t *testing.T) {
+	t.Parallel()
+
+	photo := []gotgbot.PhotoSize{{FileId: "photo-1"}}
+	for _, tt := range []struct {
+		name string
+		msg  gotgbot.Message
+		want bool
+	}{
+		{name: "rtl text", msg: gotgbot.Message{Text: "مرحبا"}, want: true},
+		{name: "photo with rtl caption", msg: gotgbot.Message{Photo: photo, Caption: "مرحبا"}, want: true},
+		{name: "photo with latin caption", msg: gotgbot.Message{Photo: photo, Caption: "hello"}, want: false},
+		{name: "latin text", msg: gotgbot.Message{Text: "hello"}, want: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := lockMap["rtl"](&tt.msg); got != tt.want {
+				t.Fatalf("rtl lock match = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

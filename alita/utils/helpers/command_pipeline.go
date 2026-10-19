@@ -148,13 +148,24 @@ func RequireUserAdmin() CheckFunc {
 	}
 }
 
+// anonProofSent reports whether a chat_status check has already answered an
+// anonymous admin with the proof keyboard (checkAnonAdmin), so the CheckFunc
+// must not send a refusal on top of it.
+func anonProofSent(c *CommandContext) bool {
+	if c.Ctx == nil || c.Ctx.EffectiveMessage == nil {
+		return false
+	}
+	s := c.Ctx.EffectiveSender
+	return s != nil && s.IsAnonymousAdmin()
+}
+
 func CanUserPromote() CheckFunc {
 	return func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
 		result := chat_status.CanUserPromote(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
+		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		}
 		return result
@@ -177,7 +188,7 @@ func CanUserPin() CheckFunc {
 			return false
 		}
 		result := chat_status.CanUserPin(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
+		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_user_error", "")
 		}
 		return result
@@ -199,8 +210,8 @@ func CanInvite() CheckFunc {
 		if c.Msg == nil {
 			return false
 		}
-		result := chat_status.CanInvite(c.Bot, c.Ctx, nil, c.Msg)
-		if !result {
+		result, answered := chat_status.CanInviteAnswered(c.Bot, c.Ctx, nil, c.Msg)
+		if !result && !answered {
 			// CanInvite fails for the bot's rights and the user's alike; blame the right one.
 			key := "chat_status_invite_link_user_error"
 			if !chat_status.CanBotInvite(c.Bot, c.Ctx, nil) {
@@ -218,7 +229,7 @@ func CanUserChangeInfo() CheckFunc {
 			return false
 		}
 		result := chat_status.CanUserChangeInfo(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
+		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(
 				c.Ctx,
 				"chat_status_change_info_cmd_error",
@@ -245,7 +256,7 @@ func CanUserRestrict() CheckFunc {
 			return false
 		}
 		result := chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
+		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		}
 		return result
@@ -281,7 +292,7 @@ func CanUserDelete() CheckFunc {
 			return false
 		}
 		result := chat_status.CanUserDelete(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
+		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		}
 		return result

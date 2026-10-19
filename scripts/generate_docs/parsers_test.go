@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -81,5 +82,97 @@ func LoadAntispam(dispatcher) {
 	}
 	if w.HandlerGroup != 5 {
 		t.Errorf("Expected handler group 5, got %d", w.HandlerGroup)
+	}
+}
+
+func TestParseCommands_WrapCommandForms(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := `package modules
+
+var bansModule = moduleStruct{moduleName: "Bans"}
+
+var (
+	// Nested braces in RequiredChecks must not end the descriptor early.
+	banDesc = helpers.CommandDescriptor{
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.CheckDisabled("ban"),
+			func(c *helpers.CommandContext) bool { return c != nil }, // don't stop here
+		},
+		Name:    "ban",
+		Aliases: []string{"bean"},
+	}
+	kickmeDesc = helpers.CommandDescriptor{
+		Name:        "kickme",
+		Disableable: true,
+	}
+	listDesc = helpers.CommandDescriptor{Name: "banlist"}
+)
+
+func LoadBans(dispatcher *ext.Dispatcher) {
+	helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))
+	helpers.WrapCommand(dispatcher, kickmeDesc, pipelineHandler(bansModule.kickme))
+	helpers.WrapCommandRaw(dispatcher, listDesc, bansModule.banList)
+	for _, cfg := range []struct {
+		name    string
+		handler func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{"setban", bansModule.setBan},
+		{"resetban", bansModule.resetBan},
+	} {
+		desc := helpers.CommandDescriptor{
+			Name:           cfg.name,
+			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+		}
+		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
+	}
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "bansettings",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+		},
+	}, pipelineHandler(bansModule.banSettings))
+	helpers.AddCmdToDisableable("resetban")
+}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "bans.go"), []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
+	commands, err := parseCommands(tmpDir)
+	if err != nil {
+		t.Fatalf("parseCommands returned error: %v", err)
+	}
+	got := make(map[string]Command, len(commands))
+	for _, cmd := range commands {
+		got[cmd.Name] = cmd
+	}
+
+	for _, want := range []struct {
+		name, handler string
+		disableable   bool
+		aliases       []string
+	}{
+		{name: "ban", handler: "ban", aliases: []string{"ban", "bean"}},
+		{name: "bean", handler: "ban", aliases: []string{"ban", "bean"}},
+		{name: "kickme", handler: "kickme", disableable: true},
+		{name: "banlist", handler: "banList"},
+		{name: "setban", handler: "setBan"},
+		{name: "resetban", handler: "resetBan", disableable: true},
+		{name: "bansettings", handler: "banSettings"},
+	} {
+		cmd, ok := got[want.name]
+		if !ok {
+			t.Errorf("command %q not parsed", want.name)
+			continue
+		}
+		if cmd.Handler != want.handler || cmd.Module != "bans" || cmd.Disableable != want.disableable {
+			t.Errorf("command %q = %+v, want handler %q, module bans, disableable %v", want.name, cmd, want.handler, want.disableable)
+		}
+		if !slices.Equal(cmd.Aliases, want.aliases) {
+			t.Errorf("command %q aliases = %v, want %v", want.name, cmd.Aliases, want.aliases)
+		}
+	}
+	if len(commands) != 7 {
+		t.Errorf("parsed %d commands, want 7: %+v", len(commands), commands)
 	}
 }

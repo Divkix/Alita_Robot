@@ -11,7 +11,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
@@ -304,4 +306,130 @@ func TestLogUsersTouchesChatOncePerChatNotPerMember(t *testing.T) {
 	if got := loadChat().ChatName; got != renamed.Title {
 		t.Errorf("chat name = %q, want rename %q to bypass the per-chat throttle", got, renamed.Title)
 	}
+}
+
+// chatMemberIDs reads a chat's recorded members past the in-process cache.
+func chatMemberIDs(chatID int64) []int64 {
+	dbcache.ResetLocalForTest()
+	return chats.GetChatSettings(chatID).Users
+}
+
+func TestLogUsersRecordsLinkedChannelAutoForwardAsChannel(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Discussion Chat"}
+	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Linked Channel", Username: "linked_channel"}
+	msg := &gotgbot.Message{
+		MessageId:          102,
+		Date:               1,
+		Chat:               chat,
+		From:               &gotgbot.User{Id: 777000, FirstName: "Telegram"},
+		SenderChat:         &channel,
+		IsAutomaticForward: true,
+		Text:               "linked post",
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 5, Message: msg}, nil)
+
+	if err := usersModule.logUsers(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	waitForModuleCondition(t, func() bool {
+		settings := channels.GetChannelSettings(channel.Id)
+		return settings != nil && settings.ChannelId == channel.Id
+	})
+	DrainUsersAsyncWrites()
+	if _, _, found := user.GetUserInfoById(channel.Id); found {
+		t.Fatalf("linked channel %d was stored as a user", channel.Id)
+	}
+	if slices.Contains(chatMemberIDs(chat.Id), channel.Id) {
+		t.Fatalf("linked channel %d was recorded as a member of chat %d", channel.Id, chat.Id)
+	}
+}
+
+func TestLogUsersSkipsAnonymousAdminAsUser(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	anonMsg := &gotgbot.Message{
+		MessageId:  103,
+		Date:       1,
+		Chat:       chat,
+		From:       &gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group"},
+		SenderChat: &chat,
+		Text:       "anonymous admin post",
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 6, Message: anonMsg}, nil)
+
+	if err := usersModule.logUsers(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	waitForModuleCondition(t, func() bool { return db.ChatExists(chat.Id) })
+	DrainUsersAsyncWrites()
+	if _, _, found := user.GetUserInfoById(chat.Id); found {
+		t.Fatalf("anonymous admin chat %d was stored as a user", chat.Id)
+	}
+	if slices.Contains(chatMemberIDs(chat.Id), chat.Id) {
+		t.Fatalf("chat %d was recorded as its own member", chat.Id)
+	}
+}
+
+func TestLogUsersRepliesToChatSenders(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reply Chat"}
+	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Replied Channel", Username: "replied_channel"}
+	replier := gotgbot.User{Id: time.Now().UnixNano(), Username: "replier", FirstName: "Replier"}
+
+	t.Run("reply to anonymous admin", func(t *testing.T) {
+		ctx := newModuleMessageContext(bot, chat, replier, "answering the admin")
+		ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+			MessageId:  104,
+			Date:       1,
+			Chat:       chat,
+			From:       &gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group"},
+			SenderChat: &chat,
+			Text:       "anonymous admin post",
+		}
+		if err := usersModule.logUsers(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+		}
+		waitForModuleCondition(t, func() bool {
+			_, _, found := user.GetUserInfoById(replier.Id)
+			return found
+		})
+		DrainUsersAsyncWrites()
+		if _, _, found := user.GetUserInfoById(chat.Id); found {
+			t.Fatalf("replied anonymous admin chat %d was stored as a user", chat.Id)
+		}
+	})
+
+	t.Run("reply to automatic forward", func(t *testing.T) {
+		ctx := newModuleMessageContext(bot, chat, replier, "commenting the post")
+		ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+			MessageId:          105,
+			Date:               1,
+			Chat:               chat,
+			From:               &gotgbot.User{Id: 777000, FirstName: "Telegram"},
+			SenderChat:         &channel,
+			IsAutomaticForward: true,
+			Text:               "linked post",
+		}
+		if err := usersModule.logUsers(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+		}
+		waitForModuleCondition(t, func() bool {
+			settings := channels.GetChannelSettings(channel.Id)
+			return settings != nil && settings.ChannelId == channel.Id
+		})
+		DrainUsersAsyncWrites()
+		if _, _, found := user.GetUserInfoById(channel.Id); found {
+			t.Fatalf("replied linked channel %d was stored as a user", channel.Id)
+		}
+	})
 }

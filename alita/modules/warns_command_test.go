@@ -796,3 +796,29 @@ func TestLoadWarnsRegistersHelpAndHandlers(t *testing.T) {
 		t.Fatal("warns help registration = false, want enabled")
 	}
 }
+
+func TestWarnSettingsEscapeUserInputInHTMLReplies(t *testing.T) {
+	useRealLocales(t)
+	for _, tt := range []struct {
+		name    string
+		command string
+		run     func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "setwarnmode", command: "/setwarnmode <b", run: warnsModule.setWarnMode},
+		{name: "setwarnlimit", command: "/setwarnlimit a<b", run: warnsModule.setWarnLimit},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := tt.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, tt.command)); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tt.name, err)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			if mode := call.Params["parse_mode"]; mode != "HTML" {
+				t.Fatalf("parse_mode = %v, want HTML", mode)
+			}
+			if text, _ := call.Params["text"].(string); !strings.Contains(text, "&lt;b") || strings.Contains(text, "%!") {
+				t.Fatalf("reply = %q, want the input HTML-escaped", text)
+			}
+		})
+	}
+}

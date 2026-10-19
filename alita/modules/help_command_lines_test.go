@@ -8,10 +8,6 @@ import (
 	"testing"
 )
 
-// bans and mutes are covered by the per-command help work in #962, which owns
-// their help text; this test takes them over once that lands.
-var helpLinesSkippedModules = map[string]bool{"bans": true, "mutes": true}
-
 // Every command listed in en <module>_extend_msg must have its own line in
 // <module>_help_msg in every locale. Commands match by whole name, so /ban is
 // not satisfied by /banme.
@@ -24,7 +20,7 @@ func TestEveryExtendCommandHasALineInEveryLocaleHelp(t *testing.T) {
 
 	for key, extend := range en {
 		module, ok := strings.CutSuffix(key, "_extend_msg")
-		if !ok || helpLinesSkippedModules[module] {
+		if !ok {
 			continue
 		}
 		var commands []string

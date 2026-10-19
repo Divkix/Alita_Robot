@@ -550,6 +550,22 @@ func buildModules(translations map[string]string, extendedDocs map[string]Extend
 		commandsByModule[cmd.Module] = append(commandsByModule[cmd.Module], cmd)
 	}
 
+	// alt_names keys keep their own casing (LogChannels, AntiRaid), which
+	// title-casing the lowercase module name does not reproduce, so look
+	// them up case-insensitively and prefer their spelling for display.
+	aliasByLower := make(map[string][]string, len(aliases))
+	keyByLower := make(map[string]string, len(aliases))
+	for k, v := range aliases {
+		aliasByLower[strings.ToLower(k)] = v
+		keyByLower[strings.ToLower(k)] = k
+	}
+	displayNameFor := func(moduleName string) string {
+		if key, ok := keyByLower[strings.ToLower(moduleName)]; ok {
+			return key
+		}
+		return cases.Title(language.English).String(moduleName)
+	}
+
 	// Track which modules we've already added
 	addedModules := make(map[string]bool)
 	var modules []Module
@@ -558,7 +574,7 @@ func buildModules(translations map[string]string, extendedDocs map[string]Extend
 	for name, helpText := range translations {
 		// Extract module name from key (e.g., "admin_help_msg" -> "Admin")
 		moduleName := strings.TrimSuffix(name, "_help_msg")
-		displayName := cases.Title(language.English).String(moduleName)
+		displayName := displayNameFor(moduleName)
 
 		// Normalize module name for lookup
 		normalizedName := strings.ToLower(moduleName)
@@ -589,7 +605,7 @@ func buildModules(translations map[string]string, extendedDocs map[string]Extend
 			DisplayName:  displayName,
 			HelpText:     helpText,
 			Commands:     moduleCommands,
-			Aliases:      aliases[displayName],
+			Aliases:      aliasByLower[normalizedName],
 			ExtendedDocs: moduleDocs,
 		})
 
@@ -600,7 +616,7 @@ func buildModules(translations map[string]string, extendedDocs map[string]Extend
 	for moduleName, docs := range extendedDocs {
 		normalizedName := strings.ToLower(moduleName)
 		if !addedModules[normalizedName] {
-			displayName := cases.Title(language.English).String(moduleName)
+			displayName := displayNameFor(moduleName)
 
 			// Find commands for this module
 			var moduleCommands []Command
@@ -622,7 +638,7 @@ func buildModules(translations map[string]string, extendedDocs map[string]Extend
 				DisplayName:  displayName,
 				HelpText:     "", // No help message
 				Commands:     moduleCommands,
-				Aliases:      aliases[displayName],
+				Aliases:      aliasByLower[normalizedName],
 				ExtendedDocs: docs,
 			})
 		}

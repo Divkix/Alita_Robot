@@ -75,7 +75,7 @@ var (
 		"game":      message.Game,
 		"location":  message.Location,
 		"rtl": func(msg *gotgbot.Message) bool {
-			return arabmatch.MatchString(msg.Text)
+			return arabmatch.MatchString(msg.Text) || arabmatch.MatchString(msg.Caption)
 		},
 		"anonchannel": func(msg *gotgbot.Message) bool {
 			sender := msg.GetSender()

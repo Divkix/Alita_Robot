@@ -193,6 +193,10 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	if chat_status.CheckDisabledCmd(b, msg, "export") {
+		return ext.EndGroups
+	}
+
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -371,6 +375,10 @@ func parseModuleArgs(args []string, valid func(string) bool) ([]string, error) {
 }
 
 func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	if chat_status.CheckDisabledCmd(b, ctx.EffectiveMessage, "import") {
+		return ext.EndGroups
+	}
+
 	msg, chat, _, tr, ok := validateImportRequest(b, ctx)
 	if !ok {
 		return ext.EndGroups

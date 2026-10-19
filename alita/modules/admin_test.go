@@ -927,3 +927,40 @@ func TestSetGroupTitlePicAndDescription(t *testing.T) {
 func fmtInt(value int64) string {
 	return strconv.FormatInt(value, 10)
 }
+
+// An anonymous admin's confirmed /setg* command, under its name or any alias,
+// reaches its handler.
+func TestAnonymousAdminSetGroupCommandsAreRouted(t *testing.T) {
+	for _, tt := range []struct {
+		command string
+		method  string
+	}{
+		{command: "setgtitle", method: "setChatTitle"},
+		{command: "setgrouptitle", method: "setChatTitle"},
+		{command: "setgdesc", method: "setChatDescription"},
+		{command: "setgroupdesc", method: "setChatDescription"},
+		{command: "setdescription", method: "setChatDescription"},
+	} {
+		t.Run(tt.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tt.command+" New Value")
+			if err := HandleAnonymousAdmin(f.bot, ctx, tt.command); err != ext.EndGroups {
+				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", tt.command, err)
+			}
+			f.client.onlyCall(t, tt.method)
+		})
+	}
+
+	// Without a replied-to photo the handler answers instead of erroring as
+	// an unknown command.
+	for _, command := range []string{"setgpic", "setgrouppic"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+command)
+			if err := HandleAnonymousAdmin(f.bot, ctx, command); err != ext.EndGroups {
+				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", command, err)
+			}
+			f.client.onlyCall(t, "sendMessage")
+		})
+	}
+}

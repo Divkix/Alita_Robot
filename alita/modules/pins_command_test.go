@@ -11,6 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -641,5 +642,26 @@ func TestPinCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				t.Fatalf("unpinallCallback returned error %v, want request error", err)
 			}
 		})
+	}
+}
+
+func TestPinByAnonymousAdminSendsOnlyTheProofKeyboard(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	c := newAnonAdminCommandContext(t, f, "/pin")
+
+	if helpers.RunChecks(c, pinDesc.RequiredChecks) {
+		t.Fatal("RunChecks() = true, want the anonymous admin held for proof")
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want only the proof keyboard", len(calls))
+	}
+	if calls[0].Params["reply_markup"] == nil {
+		t.Fatalf("sendMessage = %#v, want the proof keyboard", calls[0].Params)
+	}
+	refusal, _ := i18n.MustNewTranslator("en").GetString("chat_status_pin_user_error")
+	if text, _ := calls[0].Params["text"].(string); refusal != "" && strings.Contains(text, refusal) {
+		t.Fatalf("sendMessage text = %q, want no pin refusal", text)
 	}
 }
