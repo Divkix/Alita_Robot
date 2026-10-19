@@ -318,6 +318,7 @@ connections_allow_connect_turned_on:
 
   Pengguna sekarang dapat menghubungkan obrolan ke PM mereka!"
 connections_connect_connected: Anda sekarang terhubung ke <b>%s</b>!
+connections_connect_not_member: "Anda harus menjadi anggota obrolan ini untuk terhubung ke sana."
 connections_connect_connection_disabled:
   "Koneksi pengguna saat ini <b>dinonaktifkan</b>
   ke obrolan ini.
@@ -1045,7 +1046,7 @@ notes_invalid: Catatan Tidak Valid!
 misc_translation_error: Kesalahan membuat permintaan terjemahan!
 
 # Devs module strings
-devs_specify_user: Anda harus menentukan pengguna untuk mendapatkan info
+devs_specify_chat: "Anda harus menentukan ID obrolan."
 
 # Common error messages used across modules
 error_generic: "Terjadi kesalahan. Silakan coba lagi nanti."
@@ -2598,6 +2599,8 @@ feds_admins_header: "Admins of <b>{name}</b>:"
 feds_chatfed: "This chat is in <b>{name}</b> (<code>{id}</code>)."
 feds_myfeds_none: "You don't own or admin any federations."
 feds_myfeds_header: "Your federations:"
+feds_role_owner: "pemilik"
+feds_role_admin: "admin"
 feds_cannot_promote_self: "You already own this federation."
 feds_cannot_promote_owner: "The owner is already a federation admin."
 feds_already_admin: "That user is already a federation admin."
@@ -2606,6 +2609,7 @@ feds_not_fed_admin: "That user is not a federation admin."
 feds_demoted: "Demoted {user} from federation admin."
 feds_demoteme_not_admin: "You are not a federation admin of that fed."
 feds_demoteme_ok: "You are no longer a federation admin there."
+feds_demoteme_owner: "Anda adalah pemilik federasi ini, jadi Anda tidak bisa mundur sebagai adminnya."
 feds_fedreason_on: "Fbans now require a reason."
 feds_fedreason_off: "Fbans no longer require a reason."
 feds_fednotif_on: "You will be notified of fbans."
@@ -2620,6 +2624,8 @@ feds_fban_already: "That user is already fbanned. Reason updated."
 feds_fban_ok: "Fbanned {user} in <b>{name}</b>.\nReason: {reason}"
 feds_unfban_not_banned: "That user is not fbanned."
 feds_unfban_ok: "Unfbanned {user} from <b>{name}</b>."
+feds_log_fban: "FBAN <code>{user_id}</code> oleh {actor}\nAlasan: {reason}"
+feds_log_unfban: "UNFBAN <code>{user_id}</code> oleh {actor}"
 feds_fedstat_none: "That user is not fbanned in any federation I know."
 feds_fedstat_reason: "Banned in <b>{name}</b>: {reason}"
 feds_fedstat_header: "Federation bans for {user}:"

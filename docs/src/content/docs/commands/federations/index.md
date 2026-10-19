@@ -90,12 +90,9 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands in this module require **admin permissions** in the group.
+Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/newfed` (in PM), `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.
 
 **Bot Permissions Required:**
 
-- Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
+- Ban users (to enforce and lift federation bans)
 

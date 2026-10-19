@@ -37,14 +37,23 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId == 0 {
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
 	chat := chat_status.IsUserConnected(b, ctx, false, false)
 	if chat == nil {
 		return ext.EndGroups
 	}
 
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
-	_text := fmt.Sprintf(temp, chat.Title)
-	connKeyboard := keyboard.InitButtons(b, chat.Id, user.Id)
+	_text := fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
+	connKeyboard := keyboard.InitButtons(b, tr, chat.Id, user.Id)
 	_, err := msg.Reply(b,
 		_text,
 		&gotgbot.SendMessageOpts{
@@ -139,8 +148,8 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("common_settings_save_failed")
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
-			text = fmt.Sprintf(temp, chat.Title)
-			replyMarkup = keyboard.InitButtons(b, chat.Id, user.Id)
+			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
+			replyMarkup = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 		}
 	} else {
 		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
@@ -217,6 +226,15 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		}
 	)
 
+	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId == 0 {
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text}); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
 	chat := chat_status.IsUserConnected(b, ctx, false, false)
 	if chat == nil {
 		return ext.EndGroups
@@ -229,8 +247,8 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_user_conn_cmds")
 	case "Main":
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
-		replyText = fmt.Sprintf(temp, chat.Title)
-		replyKb = keyboard.InitButtons(b, chat.Id, user.Id)
+		replyText = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
+		replyKb = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 	}
 
 	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ReplyMarkup: replyKb,
@@ -299,32 +317,30 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if chatId != 0 {
 			gchat, err := b.GetChat(chatId, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-
-			_chat := gchat.ToChat()
-
-			isMember, err := chat_status.IsUserInChatWithError(b, &_chat, user.Id)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if !isMember {
-				if err := connections.DisconnectId(user.Id); err != nil {
+			if err != nil || gchat == nil {
+				log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Last chat lookup failed")
+				text, _ = tr.GetString("error_generic")
+			} else {
+				_chat := gchat.ToChat()
+				isMember, err := chat_status.IsUserInChatWithError(b, &_chat, user.Id)
+				if err != nil {
+					log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Membership check failed")
+					text, _ = tr.GetString("error_generic")
+				} else if !isMember {
+					if err := connections.DisconnectId(user.Id); err != nil {
+						text, _ = tr.GetString("common_settings_save_failed")
+					} else {
+						text, _ = tr.GetString("connections_stale_connection")
+					}
+				} else if allowed, denyKey := canUserConnectToChat(b, chatId, user.Id); !allowed {
+					text, _ = tr.GetString(denyKey)
+				} else if err := connections.ConnectId(user.Id, chatId); err != nil {
 					text, _ = tr.GetString("common_settings_save_failed")
 				} else {
-					text, _ = tr.GetString("connections_stale_connection")
+					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
+					text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
+					connKeyboard = keyboard.InitButtons(b, tr, gchat.Id, user.Id)
 				}
-			} else if allowed, denyKey := canUserConnectToChat(b, chatId, user.Id); !allowed {
-				text, _ = tr.GetString(denyKey)
-			} else if err := connections.ConnectId(user.Id, chatId); err != nil {
-				text, _ = tr.GetString("common_settings_save_failed")
-			} else {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
-				text = fmt.Sprintf(temp, gchat.Title)
-				connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
 			}
 		} else {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_no_last_chat")
@@ -413,7 +429,7 @@ func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 	}
 
 	Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
-	connKeyboard := keyboard.InitButtons(b, cochat.Id, user.Id)
+	connKeyboard := keyboard.InitButtons(b, tr, cochat.Id, user.Id)
 
 	_, err = msg.Reply(b, Text,
 		&gotgbot.SendMessageOpts{

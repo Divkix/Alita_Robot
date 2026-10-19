@@ -10,6 +10,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 type keyboardBotClient struct{}
@@ -84,7 +85,7 @@ func TestMakeLanguageKeyboardSkipsUnavailableLanguages(t *testing.T) {
 func TestInitButtonsReflectsAdminStatus(t *testing.T) {
 	bot := newKeyboardBot()
 
-	adminKb := InitButtons(bot, -1001, 777000)
+	adminKb := InitButtons(bot, i18n.MustNewTranslator("en"), -1001, 777000)
 	if len(adminKb.InlineKeyboard) != 2 {
 		t.Fatalf("InitButtons(admin) rows = %d, want admin and user rows", len(adminKb.InlineKeyboard))
 	}
@@ -92,7 +93,7 @@ func TestInitButtonsReflectsAdminStatus(t *testing.T) {
 		t.Fatalf("InitButtons(admin) has empty button text: %#v", adminKb.InlineKeyboard)
 	}
 
-	userKb := InitButtons(bot, -1001, 42)
+	userKb := InitButtons(bot, i18n.MustNewTranslator("en"), -1001, 42)
 	if len(userKb.InlineKeyboard) != 1 {
 		t.Fatalf("InitButtons(user) rows = %d, want only user row", len(userKb.InlineKeyboard))
 	}

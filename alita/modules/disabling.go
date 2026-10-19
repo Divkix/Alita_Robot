@@ -227,14 +227,14 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "true", "yes":
 			if err := disabling.ToggleDel(chat.Id, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
-				text = "Failed to update setting. Please try again."
+				text, _ = tr.GetString("error_generic")
 			} else {
 				text, _ = tr.GetString("disabling_delete_enabled")
 			}
 		case "off", "false", "no":
 			if err := disabling.ToggleDel(chat.Id, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
-				text = "Failed to update setting. Please try again."
+				text, _ = tr.GetString("error_generic")
 			} else {
 				text, _ = tr.GetString("disabling_delete_disabled")
 			}

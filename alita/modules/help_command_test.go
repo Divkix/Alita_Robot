@@ -8,6 +8,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
+
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func TestStartCommandRepliesInPrivateAndGroup(t *testing.T) {
@@ -345,5 +347,36 @@ func TestDonateSendsMessage(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+// Module help buttons follow the viewer's language, like the help text.
+func TestModuleHelpButtonsFollowTheViewersLanguage(t *testing.T) {
+	useRealLocales(t)
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() { defaultHelpRegistry = previousRegistry })
+
+	LoadFilters(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+
+	en, err := i18n.MustNewTranslator("en").GetString("common_formatting_button")
+	if err != nil {
+		t.Fatalf("en common_formatting_button: %v", err)
+	}
+	fr, err := i18n.MustNewTranslator("fr").GetString("common_formatting_button")
+	if err != nil {
+		t.Fatalf("fr common_formatting_button: %v", err)
+	}
+	if fr == en {
+		t.Fatalf("fr and en labels are both %q; the test needs a translated label", fr)
+	}
+	for lang, want := range map[string]string{"en": en, "fr": fr} {
+		_, kb := getModuleHelpAndKb("filters", lang, DefaultHelpRegistry())
+		if len(kb.InlineKeyboard) == 0 || len(kb.InlineKeyboard[0]) == 0 {
+			t.Fatalf("%s: help keyboard is empty", lang)
+		}
+		if got := kb.InlineKeyboard[0][0].Text; got != want {
+			t.Errorf("%s: first help button = %q, want %q", lang, got, want)
+		}
 	}
 }

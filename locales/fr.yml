@@ -895,6 +895,7 @@ connections_allow_connect_turned_on: |
 
   Les utilisateurs peuvent maintenant connecter ce chat à leurs MP !
 connections_connect_connected: Vous êtes maintenant connecté à <b>%s</b> !
+connections_connect_not_member: "Vous devez être membre de ce chat pour vous y connecter."
 connections_connect_connection_disabled: |
   Les connexions utilisateur sont actuellement <b>désactivées</b>
   pour ce chat.
@@ -1462,7 +1463,7 @@ bot_updates_convert_instruction: "Après avoir converti ce groupe en supergroupe
 bot_updates_convert_howto: "Pour convertir ce groupe en supergroupe, veuillez suivre les instructions ici :\n"
 
 # Devs module strings
-devs_specify_user: Vous devez spécifier un utilisateur pour obtenir des informations
+devs_specify_chat: "Vous devez spécifier l'ID d'un chat."
 devs_chat_info: "<b>Nom :</b> %s\n<b>ID du chat</b> : %d\n<b>Nombre d'utilisateurs :</b> %d\n<b>Lien :</b> %s"
 devs_getting_chat_list: Obtention de la liste des chats où je suis...
 devs_chat_list_caption: Voici la liste des chats dans ma base de données !
@@ -2506,6 +2507,8 @@ feds_admins_header: "Admins of <b>{name}</b>:"
 feds_chatfed: "This chat is in <b>{name}</b> (<code>{id}</code>)."
 feds_myfeds_none: "You don't own or admin any federations."
 feds_myfeds_header: "Your federations:"
+feds_role_owner: "propriétaire"
+feds_role_admin: "administrateur"
 feds_cannot_promote_self: "You already own this federation."
 feds_cannot_promote_owner: "The owner is already a federation admin."
 feds_already_admin: "That user is already a federation admin."
@@ -2514,6 +2517,7 @@ feds_not_fed_admin: "That user is not a federation admin."
 feds_demoted: "Demoted {user} from federation admin."
 feds_demoteme_not_admin: "You are not a federation admin of that fed."
 feds_demoteme_ok: "You are no longer a federation admin there."
+feds_demoteme_owner: "Vous êtes le propriétaire de cette fédération, vous ne pouvez donc pas renoncer à votre rôle d'administrateur."
 feds_fedreason_on: "Fbans now require a reason."
 feds_fedreason_off: "Fbans no longer require a reason."
 feds_fednotif_on: "You will be notified of fbans."
@@ -2528,6 +2532,8 @@ feds_fban_already: "That user is already fbanned. Reason updated."
 feds_fban_ok: "Fbanned {user} in <b>{name}</b>.\nReason: {reason}"
 feds_unfban_not_banned: "That user is not fbanned."
 feds_unfban_ok: "Unfbanned {user} from <b>{name}</b>."
+feds_log_fban: "FBAN <code>{user_id}</code> par {actor}\nRaison : {reason}"
+feds_log_unfban: "UNFBAN <code>{user_id}</code> par {actor}"
 feds_fedstat_none: "That user is not fbanned in any federation I know."
 feds_fedstat_reason: "Banned in <b>{name}</b>: {reason}"
 feds_fedstat_header: "Federation bans for {user}:"

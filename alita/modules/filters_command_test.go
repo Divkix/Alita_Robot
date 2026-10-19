@@ -621,3 +621,62 @@ func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
 		t.Fatalf("answerCallbackQuery calls = %d, want none when chat is missing", len(calls))
 	}
 }
+
+// A trigger with HTML-special characters is escaped in the confirmations, so
+// Telegram accepts them.
+func TestFilterConfirmationsEscapeTheTrigger(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+
+	if err := filtersModule.addFilter(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/filter <3 hi")); err != ext.EndGroups {
+		t.Fatalf("addFilter error = %v, want EndGroups", err)
+	}
+	if !filters.DoesFilterExists(f.chat.Id, "<3") {
+		t.Fatal("filter was not stored")
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls after /filter = %d, want 1", len(calls))
+	}
+	if text, _ := calls[0].Params["text"].(string); !strings.Contains(text, "&lt;3") {
+		t.Fatalf("/filter reply = %q, want the trigger escaped", text)
+	}
+
+	if err := filtersModule.rmFilter(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/stop <3")); err != ext.EndGroups {
+		t.Fatalf("rmFilter error = %v, want EndGroups", err)
+	}
+	if filters.DoesFilterExists(f.chat.Id, "<3") {
+		t.Fatal("filter still exists after /stop")
+	}
+	calls = f.client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls after /stop = %d, want 2", len(calls))
+	}
+	if text, _ := calls[1].Params["text"].(string); !strings.Contains(text, "&lt;3") {
+		t.Fatalf("/stop reply = %q, want the trigger escaped", text)
+	}
+}
+
+// /stopall from someone who is not the chat creator answers with the owner
+// error instead of staying silent, and keeps the filters.
+func TestRemoveAllFiltersFromNonOwnerRepliesWithoutConfirmation(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	if err := filters.AddFilter(f.chat.Id, "keep", "reply", "", nil, db.TEXT); err != nil {
+		t.Fatalf("AddFilter setup error = %v", err)
+	}
+
+	if err := filtersModule.rmAllFilters(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/stopall")); err != ext.EndGroups {
+		t.Fatalf("rmAllFilters error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the owner error", len(calls))
+	}
+	if calls[0].Params["reply_markup"] != nil {
+		t.Fatalf("non-owner got the confirmation keyboard: %+v", calls[0].Params)
+	}
+	if !filters.DoesFilterExists(f.chat.Id, "keep") {
+		t.Fatal("filter was removed by a non-owner")
+	}
+}

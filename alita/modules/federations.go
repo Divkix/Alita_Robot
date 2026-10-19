@@ -37,6 +37,7 @@ import (
 const (
 	fedHandlerGroup      = -6
 	fedExportCooldown    = 30 * time.Minute
+	fedExportKeyPrefix   = "alita:fed_export:"
 	fedCallbackNamespace = "fed"
 )
 
@@ -307,6 +308,12 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func formatFedInfo(tr *i18n.Translator, fed *models.Federation) string {
+	yesNo := func(v bool) string {
+		if v {
+			return trS(tr, "common_yes")
+		}
+		return trS(tr, "common_no")
+	}
 	text, _ := tr.GetString("feds_info", i18n.TranslationParams{
 		"name":   html.EscapeString(fed.Name),
 		"id":     fed.FedID,
@@ -315,8 +322,8 @@ func formatFedInfo(tr *i18n.Translator, fed *models.Federation) string {
 		"bans":   federations.CountFedBans(fed.FedID),
 		"admins": len(federations.ListFedAdmins(fed.FedID)),
 		"subs":   len(federations.ListSubscribedFedIDs(fed.FedID)),
-		"reason": strconv.FormatBool(fed.RequireReason),
-		"notify": strconv.FormatBool(fed.NotifyOwner),
+		"reason": yesNo(fed.RequireReason),
+		"notify": yesNo(fed.NotifyOwner),
 	})
 	return text
 }
@@ -398,7 +405,7 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	bld.WriteString(header)
 	bld.WriteString("\n")
-	fmt.Fprintf(&bld, "• %s (<code>%d</code>)", formatting.MentionHtml(fed.OwnerID, "owner"), fed.OwnerID)
+	fmt.Fprintf(&bld, "• %s (<code>%d</code>)", formatting.MentionHtml(fed.OwnerID, trS(tr, "feds_role_owner")), fed.OwnerID)
 	for _, adminID := range federations.ListFedAdmins(fed.FedID) {
 		_, name, found := user.GetUserInfoById(adminID)
 		if !found || name == "" {
@@ -462,9 +469,9 @@ func (moduleStruct) myFeds(b *gotgbot.Bot, ctx *ext.Context) error {
 	var bld strings.Builder
 	bld.WriteString(header)
 	for _, fed := range feds {
-		role := "admin"
+		role := trS(tr, "feds_role_admin")
 		if fed.OwnerID == from.Id {
-			role = "owner"
+			role = trS(tr, "feds_role_owner")
 		}
 		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>) — %s", html.EscapeString(fed.Name), fed.FedID, role)
 	}
@@ -565,7 +572,7 @@ func (moduleStruct) fedDemoteMe(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if federations.IsFedOwner(fedID, from.Id) {
-		text, _ := tr.GetString("feds_cannot_promote_owner")
+		text, _ := tr.GetString("feds_demoteme_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -729,12 +736,14 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 			})
 			replyHTML(b, msg, text)
 		}
-		notifyFedAction(b, fed, from, fmt.Sprintf(
-			"FBAN <code>%d</code> by %s\nReason: %s",
-			targetID,
-			formatting.MentionHtml(from.Id, from.FirstName),
-			html.EscapeString(reason),
-		))
+		logText, _ := tr.GetString("feds_log_fban", i18n.TranslationParams{
+			"user_id": targetID,
+			"actor":   formatting.MentionHtml(from.Id, from.FirstName),
+			"reason":  html.EscapeString(reason),
+		})
+		if logText != "" {
+			notifyFedAction(b, fed, from, logText)
+		}
 		go applyActiveFban(b, fed.FedID, targetID)
 		return ext.EndGroups
 	}
@@ -748,11 +757,13 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		"name": html.EscapeString(fed.Name),
 	})
 	replyHTML(b, msg, text)
-	notifyFedAction(b, fed, from, fmt.Sprintf(
-		"UNFBAN <code>%d</code> by %s",
-		targetID,
-		formatting.MentionHtml(from.Id, from.FirstName),
-	))
+	logText, _ := tr.GetString("feds_log_unfban", i18n.TranslationParams{
+		"user_id": targetID,
+		"actor":   formatting.MentionHtml(from.Id, from.FirstName),
+	})
+	if logText != "" {
+		notifyFedAction(b, fed, from, logText)
+	}
 	go applyActiveUnfban(b, fed.FedID, targetID)
 	return ext.EndGroups
 }
@@ -1086,29 +1097,6 @@ func (moduleStruct) setFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	arg := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
-	if chat.Type == "channel" {
-		fedID, ok := parseFedID(arg)
-		if !ok {
-			text, _ := tr.GetString("feds_setfedlog_need_id")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		fed := federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
-		if fed == nil || fed.OwnerID != from.Id {
-			text, _ := tr.GetString("feds_not_owner")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		if err := federations.SetFedLogChat(fed.FedID, chat.Id); err != nil {
-			text, _ := tr.GetString("feds_create_failed")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("feds_setfedlog_ok")
-		replyHTML(b, msg, text)
-		return ext.EndGroups
-	}
 	if chat_status.RequirePrivate(b, ctx, chat) {
 		text, _ := tr.GetString("feds_group_only")
 		replyHTML(b, msg, text)
@@ -1154,11 +1142,21 @@ func allowFedExport(fedID string) bool {
 	if client == nil {
 		return true
 	}
-	ok, err := client.SetNX(cache.Context, "alita:fed_export:"+fedID, "1", fedExportCooldown).Result()
+	ok, err := client.SetNX(cache.Context, fedExportKeyPrefix+fedID, "1", fedExportCooldown).Result()
 	if err != nil {
 		return true
 	}
 	return ok
+}
+
+// releaseFedExport frees the export cooldown claimed by allowFedExport, for an
+// export that delivered no file.
+func releaseFedExport(fedID string) {
+	if client := cache.GetRedisClient(); client != nil {
+		if err := client.Del(cache.Context, fedExportKeyPrefix+fedID).Err(); err != nil {
+			log.Debugf("[Federations] release export cooldown: %v", err)
+		}
+	}
 }
 
 func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -1177,6 +1175,12 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
+	delivered := false
+	defer func() {
+		if !delivered {
+			releaseFedExport(fed.FedID)
+		}
+	}()
 	bans, err := federations.ListFedBans(fed.FedID)
 	if err != nil {
 		text, _ := tr.GetString("feds_create_failed")
@@ -1219,6 +1223,8 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		text, _ := tr.GetString("feds_create_failed")
 		replyHTML(b, msg, text)
+	} else {
+		delivered = true
 	}
 	return ext.EndGroups
 }
@@ -1257,6 +1263,16 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
+	// Drop the rows /fban would refuse: the bot, the owner and fed admins.
+	// An imported ban on them would be enforced but could not be lifted.
+	kept := bans[:0]
+	for _, ban := range bans {
+		if ban.UserID == b.Id || federations.IsFedAdmin(fed.FedID, ban.UserID) {
+			continue
+		}
+		kept = append(kept, ban)
+	}
+	bans = kept
 	for i := range bans {
 		if bans[i].BannedBy == 0 {
 			bans[i].BannedBy = from.Id

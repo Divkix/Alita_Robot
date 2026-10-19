@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 func uniquePositiveUserID() int64 {
@@ -127,7 +129,7 @@ func TestJoinFedAndFban(t *testing.T) {
 	}
 }
 
-func TestImportFBansNeedsFileAndSetFedLogInChannel(t *testing.T) {
+func TestImportFBansNeedsFileAndOwnedFedLookup(t *testing.T) {
 	bot := newModuleTestBot(newModuleBotClient())
 	ownerID := uniquePositiveUserID()
 	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
@@ -141,14 +143,6 @@ func TestImportFBansNeedsFileAndSetFedLogInChannel(t *testing.T) {
 	}
 	if _, err := downloadTelegramFile(nil, ""); err == nil {
 		t.Fatal("downloadTelegramFile should reject missing file")
-	}
-
-	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Fed Log"}
-	if err := federationsModule.setFedLog(bot, newModuleMessageContext(bot, channel, owner, "/setfedlog "+fed.FedID)); err != ext.EndGroups {
-		t.Fatalf("setFedLog channel: %v", err)
-	}
-	if federations.GetFed(fed.FedID).LogChatID != channel.Id {
-		t.Fatal("channel setfedlog did not persist")
 	}
 
 	if ownedFedOrReply(bot, newModuleMessageContext(bot, pm, owner, "/noop")) == nil {
@@ -313,6 +307,66 @@ func TestFedAdminPromoteDemoteAndToggles(t *testing.T) {
 	if federations.GetFed(fed.FedID).NotifyOwner {
 		t.Fatal("fednotif off did not persist")
 	}
+}
+
+// The owner cannot step down; /feddemoteme tells them so and keeps the fed.
+func TestFedDemoteMeFromOwnerRepliesOwnerCannotStepDown(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Demoteme Owner Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	if err := federationsModule.fedDemoteMe(bot, newModuleMessageContext(bot, pm, owner, "/feddemoteme "+fed.FedID)); err != ext.EndGroups {
+		t.Fatalf("fedDemoteMe: %v, want EndGroups", err)
+	}
+	want, err := i18n.MustNewTranslator("en").GetString("feds_demoteme_owner")
+	require.NoError(t, err)
+	require.NotEmpty(t, want)
+	calls := client.callsFor("sendMessage")
+	require.Len(t, calls, 1)
+	require.Equal(t, want, calls[0].Params["text"])
+	require.True(t, federations.IsFedOwner(fed.FedID, ownerID), "owner must keep the federation")
+}
+
+// The fed log notice for /fban and /unfban comes from the locale.
+func TestFbanAndUnfbanLogNoticesAreTranslated(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Log Notice Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	logChatID := uniqueModuleChatID()
+	require.NoError(t, federations.SetFedLogChat(fed.FedID, logChatID))
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	if err := federationsModule.fban(bot, newModuleMessageContext(bot, pm, owner, "/fban 5150 spam")); err != ext.EndGroups {
+		t.Fatalf("fban: %v", err)
+	}
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, pm, owner, "/unfban 5150")); err != ext.EndGroups {
+		t.Fatalf("unfban: %v", err)
+	}
+
+	tr := i18n.MustNewTranslator("en")
+	actor := formatting.MentionHtml(ownerID, "Owner")
+	wantFban, err := tr.GetString("feds_log_fban", i18n.TranslationParams{"user_id": int64(5150), "actor": actor, "reason": "spam"})
+	require.NoError(t, err)
+	wantUnfban, err := tr.GetString("feds_log_unfban", i18n.TranslationParams{"user_id": int64(5150), "actor": actor})
+	require.NoError(t, err)
+	var logged []any
+	for _, call := range client.callsFor("sendMessage") {
+		if fmt.Sprint(call.Params["chat_id"]) == strconv.FormatInt(logChatID, 10) {
+			logged = append(logged, call.Params["text"])
+		}
+	}
+	require.Equal(t, []any{wantFban, wantUnfban}, logged)
 }
 
 func TestUnfbanAndFedStat(t *testing.T) {
@@ -688,6 +742,82 @@ func TestImportFBansFromCSVDocument(t *testing.T) {
 	}
 }
 
+// An imported list cannot ban the owner, a fed admin or the bot: /fban
+// refuses them and /unfban could not lift such a ban.
+func TestImportFBansSkipsOwnerAdminsAndBot(t *testing.T) {
+	ownerID := uniquePositiveUserID()
+	adminID := uniquePositiveUserID()
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	csvBody := "id,reason\n" +
+		strconv.FormatInt(ownerID, 10) + ",x\n" +
+		strconv.FormatInt(adminID, 10) + ",x\n" +
+		strconv.FormatInt(bot.Id, 10) + ",x\n" +
+		"4343,ok\n"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(csvBody))
+	}))
+	t.Cleanup(server.Close)
+	oldBaseURL := backupDownloadBaseURL
+	oldHTTPClient := backupDownloadHTTPClient
+	backupDownloadBaseURL = server.URL + "/file/bot"
+	backupDownloadHTTPClient = server.Client()
+	t.Cleanup(func() {
+		backupDownloadBaseURL = oldBaseURL
+		backupDownloadHTTPClient = oldHTTPClient
+	})
+
+	client.responses["getFile"] = json.RawMessage(
+		`{"file_id":"fed-bans","file_path":"fbans/bans.csv"}`,
+	)
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Import Guard Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	require.NoError(t, federations.PromoteFedAdmin(fed.FedID, adminID))
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, pm, owner, "/importfbans")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 77,
+		Date:      1,
+		Chat:      pm,
+		Document:  &gotgbot.Document{FileId: "fed-bans", FileName: "bans.csv", FileSize: int64(len(csvBody))},
+	}
+	if err := federationsModule.importFBans(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("importFBans: %v", err)
+	}
+	for _, id := range []int64{ownerID, adminID, bot.Id} {
+		require.Nil(t, federations.GetFedBan(fed.FedID, id), "user %d must not be fbanned by an import", id)
+	}
+	require.NotNil(t, federations.GetFedBan(fed.FedID, 4343), "ordinary user must be imported")
+}
+
+func TestFedBanExportImportKeepsBannedBy(t *testing.T) {
+	bans := []models.FederationBan{{UserID: 5001, Reason: "r", BannedBy: 77}}
+
+	rawCSV, err := formatFedBanCSV(bans, false)
+	require.NoError(t, err)
+	parsed, err := parseFedBanCSV(rawCSV)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Equal(t, int64(77), parsed[0].BannedBy)
+
+	rawJSONL, err := formatFedBanJSONL(bans)
+	require.NoError(t, err)
+	parsed, err = parseFedBanJSON(rawJSONL)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Equal(t, int64(77), parsed[0].BannedBy)
+
+	rawMini, err := formatFedBanCSV(bans, true)
+	require.NoError(t, err)
+	parsed, err = parseFedBanCSV(rawMini)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Zero(t, parsed[0].BannedBy, "minicsv has no banned_by column")
+}
+
 func TestFbanInPrivateAndEmptyExport(t *testing.T) {
 	bot := newModuleTestBot(newModuleBotClient())
 	ownerID := uniquePositiveUserID()
@@ -720,6 +850,61 @@ func TestFbanInPrivateAndEmptyExport(t *testing.T) {
 	if federations.GetFedBan(fed.FedID, 889) != nil {
 		t.Fatal("reason-required fban should not persist")
 	}
+}
+
+// The export cooldown only holds once a file was delivered.
+func TestFbanlistCooldownStartsOnlyAfterADeliveredExport(t *testing.T) {
+	withMiniredis(t)
+
+	t.Run("empty export does not hold the cooldown", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ownerID := uniquePositiveUserID()
+		owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+		fed, err := federations.CreateFederation(ownerID, "Cooldown Fed")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+		pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+		run := func(text string) {
+			t.Helper()
+			ctx := newModuleMessageContext(bot, pm, owner, text)
+			var err error
+			if strings.HasPrefix(text, "/fban ") {
+				err = federationsModule.fban(bot, ctx)
+			} else {
+				err = federationsModule.fbanList(bot, ctx)
+			}
+			require.ErrorIs(t, err, ext.EndGroups)
+		}
+
+		run("/fbanlist")
+		require.Empty(t, client.callsFor("sendDocument"), "empty fed has nothing to export")
+		run("/fban 888 spam")
+		run("/fbanlist")
+		require.Len(t, client.callsFor("sendDocument"), 1, "export after the empty one must not be on cooldown")
+		run("/fbanlist")
+		require.Len(t, client.callsFor("sendDocument"), 1, "a delivered export holds the cooldown")
+	})
+
+	t.Run("failed upload does not hold the cooldown", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ownerID := uniquePositiveUserID()
+		owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+		fed, err := federations.CreateFederation(ownerID, "Cooldown Upload Fed")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+		_, _, err = federations.Fban(fed.FedID, 889, ownerID, "spam")
+		require.NoError(t, err)
+		pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+		client.errors["sendDocument"] = errors.New("upload failed")
+		require.ErrorIs(t, federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist")), ext.EndGroups)
+		require.Len(t, client.callsFor("sendDocument"), 1)
+		delete(client.errors, "sendDocument")
+		require.ErrorIs(t, federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist")), ext.EndGroups)
+		require.Len(t, client.callsFor("sendDocument"), 2, "a failed export must not hold the cooldown")
+	})
 }
 
 func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
@@ -796,7 +981,6 @@ func TestFedCommandErrorPaths(t *testing.T) {
 		{"sub invalid", pm, owner, "/subfed nope", federationsModule.subFed},
 		{"unsub missing", pm, owner, "/unsubfed 550e8400-e29b-41d4-a716-446655440000", federationsModule.unsubFed},
 		{"setfedlog private", pm, owner, "/setfedlog", federationsModule.setFedLog},
-		{"setfedlog channel no id", gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "C"}, owner, "/setfedlog", federationsModule.setFedLog},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

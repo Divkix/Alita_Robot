@@ -210,7 +210,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	successText, _ := tr.GetString("filters_added_success")
-	_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), formatting.Shtml())
+	_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -266,7 +266,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 				return ext.EndGroups
 			}
 			successText, _ := tr.GetString("filters_removed_success")
-			_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), formatting.Shtml())
+			_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -350,33 +350,36 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		confirmText, _ := tr.GetString("filters_clear_all_confirm")
-		yesText, _ := tr.GetString("common_yes")
-		noText, _ := tr.GetString("common_no")
-		_, err := msg.Reply(b, confirmText,
-			&gotgbot.SendMessageOpts{
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+		return ext.EndGroups
+	}
+
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	confirmText, _ := tr.GetString("filters_clear_all_confirm")
+	yesText, _ := tr.GetString("common_yes")
+	noText, _ := tr.GetString("common_no")
+	_, err := msg.Reply(b, confirmText,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+					{
 						{
-							{
-								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
-							},
-							{
-								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
-							},
+							Text:         yesText,
+							CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
+						},
+						{
+							Text:         noText,
+							CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
 						},
 					},
 				},
 			},
-		)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
 	return ext.EndGroups
@@ -680,17 +683,11 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadFilters(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(filtersModule.moduleName, true)
 
-	SetModuleHelp(filtersModule.moduleName, [][]gotgbot.InlineKeyboardButton{
-		{
-			{
-				Text: func() string {
-					tr := i18n.MustNewTranslator("en")
-					t, _ := tr.GetString("common_formatting_button")
-					return t
-				}(),
-				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
-			},
-		},
+	SetModuleHelpBuilder(filtersModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
+		return [][]gotgbot.InlineKeyboardButton{{{
+			Text:         trS(i18n.MustNewTranslator(l), "common_formatting_button"),
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
+		}}}
 	})
 	dispatcher.AddHandler(handlers.NewCommand("filter", filtersModule.addFilter))
 	dispatcher.AddHandler(handlers.NewCommand("addfilter", filtersModule.addFilter))
