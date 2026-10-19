@@ -167,11 +167,10 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "locks") {
 		return ext.EndGroups
 	}
-	chat := chat_status.IsUserConnected(b, ctx, true, true)
+	chat := resolveAdminChat(b, ctx, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = chat
 
 	_, err := msg.Reply(b, m.buildLockTypesMessage(ctx, chat.Id), formatting.Shtml())
 	if err != nil {
@@ -185,11 +184,10 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // lockPerm has symmetric logic with unlockPerm
 func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
@@ -266,11 +264,10 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // unlockPerm has symmetric logic with lockPerm
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 

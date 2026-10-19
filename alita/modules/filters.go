@@ -59,11 +59,10 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}()
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, false)
+	connectedChat := resolveAdminChat(b, ctx, false)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -220,11 +219,10 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, false)
+	connectedChat := resolveAdminChat(b, ctx, false)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	user := chat_status.RequireUser(b, ctx)
