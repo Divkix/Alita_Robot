@@ -12,7 +12,7 @@ If you're looking for automated warnings, read about the blacklist module!
 *Admin Commands:*
 - /warn <reason>: Warn a user.
 - /dwarn <reason>: Warn a user by reply, and delete their message.
-- /swarn <reason>: Silently warn a user, and delete your message.
+- /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
 - /warns: See a user's warnings.
 - /rmwarn: Remove a user's latest warning.
 - /resetwarn: Reset all of a user's warnings to 0.
@@ -38,8 +38,8 @@ If you're looking for automated warnings, read about the blacklist module!
 - `tban` - Ban the user for the time given with the mode, e.g. `/setwarnmode tban 1d`
 - `tmute` - Mute the user for the time given with the mode, e.g. `/setwarnmode tmute 2h`
 
-**Silent and Delete Warnings:**
-- `/swarn` - Delete your command and warn silently
+**Warnings That Delete Messages:**
+- `/swarn` - Delete your command; the warning is still posted
 - `/dwarn` - Delete the user's message and warn them
 
 
@@ -65,7 +65,7 @@ This module can be accessed using the following aliases:
 | `/setwarnlimit` | Set maximum warnings before action (range: 1–100) | ❌ |
 | `/setwarnmode` | Set action taken when warn limit is reached | ❌ |
 | `/setwarntime` | Set how long a warn counts before it expires | ❌ |
-| `/swarn` | Warn a user silently and delete your command | ❌ |
+| `/swarn` | Warn a user and delete your command (the warning is still posted) | ❌ |
 | `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |
 | `/warn` | Warn a user | ❌ |
 | `/warnings` | Get the chat's warning settings | ❌ |
