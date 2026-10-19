@@ -9,7 +9,7 @@ description: Complete guide to Reports module commands and features
 We're all busy people who don't have time to monitor our groups 24/7. But how do you react if someone in your group is spamming?
 
 × /report `<reason>`: reply to a message to report it to admins.
-- @admin: same as /report but not a command.
+- @admin / @admins: same as /report but not a command.
 
 *Admins Only:*
 × /reports `<on/off/yes/no/true/false>`: change report setting, or view current status.
