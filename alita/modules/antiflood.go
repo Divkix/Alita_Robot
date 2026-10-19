@@ -19,7 +19,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -135,21 +134,8 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 	}
 }
 
-func cachedAdminStatus(chatId, userId int64) (known bool, isAdmin bool) {
-	ok, cached := cache.GetAdminCacheList(chatId)
-	if !ok || !cached.Cached || cached.Negative || len(cached.UserInfo) == 0 {
-		return false, false
-	}
-	for i := range cached.UserInfo {
-		if cached.UserInfo[i].User.Id == userId {
-			return true, true
-		}
-	}
-	return true, false
-}
-
 func (a *antifloodStruct) userIsFloodExempt(b *gotgbot.Bot, chatId, userId int64) bool {
-	if known, isAdmin := cachedAdminStatus(chatId, userId); known {
+	if isAdmin, known := chat_status.IsUserAdminCached(chatId, userId); known {
 		return isAdmin
 	}
 	return a.adminCheckWithTimeout(b, chatId, userId)
@@ -296,16 +282,11 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	var keyboard [][]gotgbot.InlineKeyboardButton
 	userId := user.Id()
 
-	if antifloodModule.userIsFloodExempt(b, chatId, userId) {
-		return ext.ContinueGroups
-	}
-
-	if chat_status.IsApprovedForUpdate(b, ctx, chatId, userId) {
-		return ext.ContinueGroups
-	}
-
+	// Counting is in-memory while the exemption checks read the cache or call
+	// Telegram, so they run only once the user crosses the limit.
 	flooded, floodCrc := antifloodModule.updateFloodWithSettings(chatId, userId, msg.MessageId, flood)
-	if !flooded {
+	if !flooded || antifloodModule.userIsFloodExempt(b, chatId, userId) ||
+		chat_status.IsApprovedForUpdate(b, ctx, chatId, userId) {
 		return ext.ContinueGroups
 	}
 
