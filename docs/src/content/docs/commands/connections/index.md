@@ -82,8 +82,8 @@ per command (for example `/captcha — on`). Lines that differ from what a new g
 are marked with `•`. **Refresh** re-reads the settings and **Another group**
 returns to the list. Showing the summary never writes settings.
 
-`/settings` in a group (admins only) replies with a button that opens the
-same summary in PM. Admins who never wrote in the group, and anonymous
+`/settings` in a group (admins only) replies with a button
+(`t.me/<bot>?start=settings_<chat_id>`) that opens the same summary in PM. Admins who never wrote in the group, and anonymous
 admins, are not in the list; they can use `/connect <chatid>` or `/settings`
 in the group.
 
