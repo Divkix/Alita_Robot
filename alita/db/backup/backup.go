@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -702,16 +703,23 @@ func importDisabling(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if data.ChatSettings != nil {
 		data.ChatSettings.ChatId = chatID
 	}
-	for i := range data.Commands {
-		if data.Commands[i].Command == "" {
+	commands := make([]models.DisableSettings, 0, len(data.Commands))
+	for _, cmd := range data.Commands {
+		if cmd.Command == "" {
 			return nil, fmt.Errorf("invalid empty disabled command")
 		}
-		data.Commands[i].ChatId = chatID
+		// Older exports may list /export or /import as disabled; they are no
+		// longer disableable, so the row would be one /enable cannot clear.
+		if disabling.IsNoLongerDisableable(cmd.Command) {
+			continue
+		}
+		cmd.ChatId = chatID
+		commands = append(commands, cmd)
 	}
 	if err := replaceChatSetting(tx, chatID, data.ChatSettings); err != nil {
 		return nil, err
 	}
-	if err := replaceChatRows(tx, chatID, data.Commands); err != nil {
+	if err := replaceChatRows(tx, chatID, commands); err != nil {
 		return nil, err
 	}
 	return []string{cacheKey("disabled_cmds", chatID)}, nil

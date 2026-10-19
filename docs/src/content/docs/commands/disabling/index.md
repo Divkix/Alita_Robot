@@ -78,6 +78,6 @@ For detailed command usage, refer to the commands table above.
 
 **Important Notes:**
 - **Admin Bypass:** Disabled commands only affect non-admin users. All admins can still use any command.
-- **Only listed commands:** `/disable` accepts only the commands `/disableable` lists. Backup's `/export`, `/import` and `/reset` are not on that list.
+- **Only listed commands:** `/disable` accepts only the commands `/disableable` lists. Backup's `/export`, `/import` and `/reset` are not on that list; rows that older releases stored for `/export` or `/import` are deleted on upgrade and skipped when a backup is imported.
 - **Connection Support:** Disabled commands are still accessible through the `/connect` feature for connected chats.
 - **Multiple Commands:** Both `/disable` and `/enable` support multiple command names in a single message.

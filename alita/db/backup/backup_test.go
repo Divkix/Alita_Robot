@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
@@ -565,6 +566,28 @@ func TestImportBlacklistsReplacesUnusableAction(t *testing.T) {
 			assert.Equal(t, tc.want, word.Action)
 		})
 	}
+}
+
+// An export from a release that let chats disable /export and /import keeps
+// those rows; importing it must not recreate rows /enable cannot clear.
+func TestImportDisablingSkipsBackupCommands(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_disabling_backup_cmds"))
+	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+
+	backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleDisabling})
+	backup.Data[BackupModuleDisabling] = map[string]interface{}{
+		"commands": []interface{}{
+			map[string]interface{}{"command": "rules", "disabled": true},
+			map[string]interface{}{"command": "export", "disabled": true},
+			map[string]interface{}{"command": "Import", "disabled": true},
+		},
+	}
+
+	require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleDisabling}))
+	assert.Equal(t, []string{"rules"}, disabling.GetChatDisabledCMDs(chatID))
 }
 
 // The admin module's blacklist_mode rewrites every word's action; an unusable
