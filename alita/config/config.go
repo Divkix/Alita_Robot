@@ -152,6 +152,9 @@ type Config struct {
 	RedisURL      string
 	RedisPassword string
 	RedisDB       int
+	// RedisTLSInsecureSkipVerify skips certificate verification for a
+	// rediss:// REDIS_URL. Heroku Redis needs it: its certificate is self-signed.
+	RedisTLSInsecureSkipVerify bool
 
 	HTTPPort int `validate:"min=1,max=65535"`
 
@@ -290,6 +293,8 @@ func LoadConfig() (*Config, error) {
 		RedisURL:      getRedisURL(),
 		RedisPassword: getRedisPassword(),
 		RedisDB:       redisDB,
+
+		RedisTLSInsecureSkipVerify: typeConvertor{str: os.Getenv("REDIS_TLS_INSECURE_SKIP_VERIFY")}.Bool(),
 
 		HTTPPort: getHTTPPort(),
 

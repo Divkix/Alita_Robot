@@ -245,6 +245,29 @@ func TestLoadConfig(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("REDIS_TLS_INSECURE_SKIP_VERIFY", func(t *testing.T) {
+		for env, want := range map[string]bool{"": false, "false": false, "true": true, "yes": true} {
+			t.Run("env="+env, func(t *testing.T) {
+				t.Setenv("BOT_TOKEN", "tk")
+				t.Setenv("OWNER_ID", "1")
+				t.Setenv("MESSAGE_DUMP", "1")
+				t.Setenv("DATABASE_URL", "postgres://localhost/test")
+				t.Setenv("REDIS_ADDRESS", "")
+				t.Setenv("REDIS_URL", "rediss://:secret@redis.example.com:6380")
+				t.Setenv("HTTP_PORT", "8080")
+				t.Setenv("REDIS_TLS_INSECURE_SKIP_VERIFY", env)
+
+				cfg, err := LoadConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.RedisTLSInsecureSkipVerify != want {
+					t.Fatalf("RedisTLSInsecureSkipVerify = %v, want %v", cfg.RedisTLSInsecureSkipVerify, want)
+				}
+			})
+		}
+	})
 }
 
 func TestRedisEnvParsingPure(t *testing.T) {

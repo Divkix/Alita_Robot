@@ -382,6 +382,24 @@ In `REDIS_ADDRESS` mode, set `REDIS_DB=0` explicitly to select database zero. In
 | **Type** | `string` |
 | **Required** | No |
 
+### `REDIS_TLS_INSECURE_SKIP_VERIFY`
+
+Skip TLS certificate verification when `REDIS_URL` is a `rediss://` URL. Set it
+to `true` on Heroku: Heroku Redis serves TLS with a self-signed certificate, so
+verification fails and the bot cannot start. The Heroku button (`app.json`) sets
+it for you. It has no effect with a `redis://` URL or with `REDIS_ADDRESS`. The
+bot logs a warning at startup when it skips verification.
+
+Leave it unset elsewhere. With verification off, the connection is still
+encrypted, but the bot does not check who it is talking to, so anyone who can
+intercept traffic to Redis can impersonate it.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
 ## 📂 Local cache layer
 
 Read-through lookups keep a short-lived copy in process memory in front of

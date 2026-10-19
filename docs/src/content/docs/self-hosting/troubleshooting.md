@@ -89,6 +89,10 @@ With `DISABLE_CACHE=true` the bot logs a warning and keeps running without Redis
 
 3. **Docker:** Ensure Redis is started before Alita
 
+4. **Heroku:** Heroku Redis sets a `rediss://` `REDIS_URL` with a self-signed certificate, so the attempts fail with
+   `tls: failed to verify certificate: x509: ...`. Set `REDIS_TLS_INSECURE_SKIP_VERIFY=true` (the Heroku button does
+   this). See the [environment reference](/api-reference/environment/#redis_tls_insecure_skip_verify).
+
 ### MESSAGE_DUMP Invalid
 
 **Error:**
