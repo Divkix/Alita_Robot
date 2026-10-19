@@ -2,15 +2,15 @@
 
 lang_sample: "Português"
 language_flag: "🇵🇹"
-language_name: "Portuguese"
+language_name: "Português"
 
 admin_adminlist: "Administradores em <b>%s</b>:"
 admin_anon_admin_already_disabled: "Modo AnonAdmin já está <b>desativado</b> para %s"
 admin_anon_admin_already_enabled: "Modo AnonAdmin já está <b>ativado</b> para %s"
-admin_anon_admin_disabled: "Modo AnonAdmin está atualmente <b>desativado</b> para %s.  Isso exige que administradores anônimos pressionem um botão para confirmar suas permissões."
-admin_anon_admin_disabled_now: "Modo AnonAdmin agora está <b>desativado</b> para %s.  De agora em diante, admins anônimos precisarão apertar um botão para confirmar suas permissões."
-admin_anon_admin_enabled: "Modo AnonAdmin está atualmente <b>ativado</b> para %s.  Isso permite que todos os administradores anônimos realizem ações de admin sem restrições."
-admin_anon_admin_enabled_now: "Modo AnonAdmin agora está <b>ativado</b> para %s.  De agora em diante, admins anônimos podem usar comandos de administrador sem confirmar com um botão."
+admin_anon_admin_disabled: "Modo AnonAdmin está atualmente <b>desativado</b> para %s.\nIsso exige que administradores anônimos pressionem um botão para confirmar suas permissões."
+admin_anon_admin_disabled_now: "Modo AnonAdmin agora está <b>desativado</b> para %s.\nDe agora em diante, admins anônimos precisarão apertar um botão para confirmar suas permissões."
+admin_anon_admin_enabled: "Modo AnonAdmin está atualmente <b>ativado</b> para %s.\nIsso permite que todos os administradores anônimos realizem ações de admin sem restrições."
+admin_anon_admin_enabled_now: "Modo AnonAdmin agora está <b>ativado</b> para %s.\nDe agora em diante, admins anônimos podem usar comandos de administrador sem confirmar com um botão."
 admin_anon_admin_invalid_arg:
   Argumento inválido, eu só entendo <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
@@ -41,7 +41,7 @@ admin_help_msg: "Facilite a promoção e rebaixamento de usuários com o módulo
 
   *Comandos de Admin:*
 
-  × /promote `<reply/username/mention/userid>`: Promove um usuário.
+  × /promote `<reply/username/mention/userid>` `[título]`: Promove um usuário, opcionalmente com um título de admin personalizado (máx. 16 caracteres).
 
   × /demote `<reply/username/mention/userid>`: Rebaixa um usuário.
 
@@ -68,9 +68,7 @@ admin_promote_is_bot_itself: Se eu pudesse fazer isso comigo mesma ;_;
 admin_promote_is_owner: Esta pessoa criou este chat, como eu vou
   promovê-la?
 admin_promote_success_promote: "%s promovido com sucesso!"
-admin_title_is_admin:
-  Esta pessoa já é administradora, como posso definir um título de admin
-  personalizado para ela?
+admin_title_is_admin: "Esta pessoa não é administradora, então não posso definir um título de admin personalizado para ela. Promova-a primeiro."
 admin_title_is_bot_itself: Se eu pudesse fazer isso comigo mesma ;_;
 admin_title_is_owner: Esta pessoa criou este chat, como eu vou definir
   um título de administrador para ela?
@@ -82,20 +80,16 @@ admin_anon_admin_db_error: Falha ao atualizar configuração de administrador an
 antiflood_checkflood_perform_action: "É, eu não gosto do seu flood. %s foi %s!"
 antiflood_errors_expected_args:
   "Eu esperava alguns argumentos! Ou off, ou um número inteiro.
-  ex: `/setflood 5`, ou `/setflood off`"
+  ex: <code>/setflood 5</code>, ou <code>/setflood off</code>"
 antiflood_errors_invalid_int:
   Isso não é um número inteiro válido. Por favor, me dê um número inteiro válido,
-  ou `off`.
+  ou <code>off</code>.
 antiflood_errors_set_in_limit: O limite de antiflood deve ser definido entre 3 e 100.
-antiflood_flood_deleter_already_disabled:
-  Exclusão de mensagens de flood está atualmente
-  *desativada* neste chat, mensagens causando flood serão ignoradas!
+antiflood_flood_deleter_already_disabled: "Exclusão de mensagens de flood está atualmente *desativada* neste chat. Apenas a mensagem que acionar o antiflood será excluída; as mensagens anteriores do flood permanecem."
 antiflood_flood_deleter_already_enabled:
   Exclusão de mensagens de flood está atualmente *ativada*
   neste chat, mensagens causando flood serão deletadas!
-antiflood_flood_deleter_disabled:
-  Desativei a Exclusão de Mensagens de Flood. Mensagens
-  causando flood serão ignoradas!
+antiflood_flood_deleter_disabled: "Desativei a Exclusão de Mensagens de Flood. Apenas a mensagem que acionar o antiflood será excluída; as mensagens anteriores do flood permanecem."
 antiflood_flood_deleter_enabled:
   Ativei a Exclusão de Mensagens de Flood. Mensagens causando
   flood serão deletadas!
@@ -107,13 +101,15 @@ antiflood_help_msg:
   seu chat? Com antiflood, isso não acontece mais!
 
 
-  Antiflood permite que você tome ação em usuários que enviam mais de x mensagens em sequência.
-  Ações são: ban/kick/mute
+  Antiflood permite que você tome ação em usuários que enviam mais de x mensagens sem uma pausa de mais de 60 segundos entre elas (mensagens de outros membros não zeram a contagem). Ações são: ban/kick/mute
+
+
+  *Comandos de Usuário*:
+
+  × /flood: Veja as configurações atuais de antiflood.
 
 
   *Comandos de Admin*:
-
-  × /flood: Veja as configurações atuais de antiflood.
 
   × /setflood `<número/off/no>`: Define o número de mensagens após o qual tomar ação
   em um usuário. Defina como '0', 'off', ou 'no' para desativar.
@@ -166,11 +162,10 @@ bans_help_msg:
 
   × /dkick: expulsa um usuário e deleta a mensagem respondida. (apenas reply)
 
-  × /dban <userhandle>: bane um usuário e deleta a mensagem respondida. (via handle, ou
-  reply)
+  × /dban: bane um usuário e deleta a mensagem respondida. (apenas reply)
 
-  × /tban <userhandle> x(m/h/d): bane um usuário por `x` tempo. (via handle, ou reply).
-  m = minutos, h = horas, d = dias.
+  × /tban <userhandle> x(m/h/d/w): bane um usuário por `x` tempo. (via handle, ou reply).
+  m = minutos, h = horas, d = dias, w = semanas.
 
   × /unban <userhandle>: desbane um usuário. (via handle, ou reply)
 
@@ -371,17 +366,20 @@ disabling_help_msg:
   de usarem texto azul.
 
 
+  *Comandos de Usuário*:
+
+  × /disableable: Lista todos os comandos desativáveis.
+
+  × /disabled: Lista os comandos desativados neste chat.
+
+
   *Comandos de admin*:
 
   × /disable `<commandname>`: Impede usuários de usar commandname neste grupo.
 
-  × /enable `<item name>`: Permite usuários de usar commandname neste grupo.
-
-  × /disableable: Lista todos os comandos desativáveis.
+  × /enable `<commandname>`: Permite que usuários voltem a usar commandname neste grupo.
 
   × /disabledel `<yes/no/on/off>`: Deleta comandos desativados quando usados por não-admins.
-
-  × /disabled: Lista os comandos desativados neste chat.
 
 
   Nota:
@@ -397,8 +395,6 @@ devs_help_msg:
 
   *Comandos de Equipe:*
 
-  × /stats: Exibir estatísticas do bot e informações do sistema.
-
   × /teamusers: Listar todos os membros da equipe.
 
   *Comandos do Proprietário:*
@@ -412,6 +408,8 @@ devs_help_msg:
   × /remdev: Revogar permissões de desenvolvedor de um usuário.
 
   *Comandos de Diagnóstico:*
+
+  × /stats: Exibir estatísticas do bot e informações do sistema.
 
   × /chatinfo: Exibir informações detalhadas sobre um chat.
 
@@ -446,10 +444,6 @@ filters_help_msg:
 
   -> /filter \"olá amigo\" Olá de volta! Quanto tempo!
 
-  - Definir um filtro que só pode ser usado por admins:
-
-  -> /filter exemplo Este filtro não acontecerá se um usuário normal disser {admin}
-
   - Para salvar um arquivo, imagem, gif, ou qualquer outro anexo, simplesmente responda ao arquivo
   com:
 
@@ -474,20 +468,28 @@ formatting_fillings: "<b>Preenchedores</b>
   - <code>{username}</code>: Nome de usuário do usuário. Se não tiver, menciona
   o usuário em vez disso.
 
-  - <code>{mention}</code>: Menciona o usuário com seu primeiro nome.
+  - <code>{mention}</code>: O mesmo que <code>{username}</code> (o @usuário do usuário ou, se não tiver, uma menção pelo primeiro nome).
 
   - <code>{id}</code>: ID do usuário.
 
   - <code>{chatname}</code>: Nome do chat.
 
-  - <code>{rules}</code>: Adiciona Botão de Regras à Mensagem.
+  - <code>{count}</code>: O número de membros do chat.
 
-  - <code>{protect}</code>: Protege o conteúdo de ser compartilhado.
+  - <code>{rules}</code>: Adiciona um botão de Regras abaixo dos outros botões da mensagem (só se o chat tiver regras). Use <code>{rules:same}</code> para colocá-lo na mesma linha do botão anterior, ou <code>{rules:up}</code> para colocá-lo antes de todos os outros botões.
 
-  - <code>{preview}</code>: Ativa prévias nas mensagens.
+  - <code>{protect}</code>: Protege o conteúdo de ser compartilhado (somente notas).
 
-  - <code>{nonotif}</code>: Desativa a notificação para aquela mensagem."
-formatting_help_msg: "Alita suporta um grande número de opções de formatação para tornar suas mensagens mais expressivas. Dê uma olhada clicando nos botões abaixo!"
+  - <code>{preview}</code>: Ativa prévias de links (somente notas).
+
+  - <code>{nonotif}</code>: Desativa a notificação para aquela mensagem (somente notas)."
+formatting_help_msg: "Alita suporta um grande número de opções de formatação para tornar suas mensagens mais expressivas. Dê uma olhada clicando nos botões abaixo!
+
+  *Comandos de usuário*:
+
+  × /markdownhelp: Mostra o guia de formatação. Em um grupo, responde com um botão que abre o guia no privado.
+
+  × /formatting: O mesmo que /markdownhelp."
 formatting_markdown: |
   <b>Formatação Markdown</b>
 
@@ -512,24 +514,24 @@ formatting_markdown: |
 
   - <code>[hyperlink](exemplo.com)</code>: Esta é a formatação usada para hyperlinks. Aparece como: <a href='https://example.com/'>hyperlink</a>.
 
-  - <code>[Meu Botão](buttonurl://exemplo.com)</code>: Esta é a formatação usada para criar botões. Este exemplo criará um botão chamado "Meu botão" que abre <code>exemplo.com</code> quando clicado.
+  - <code>[Meu Botão](buttonurl://https://exemplo.com)</code>: Esta é a formatação usada para criar botões. Este exemplo criará um botão chamado "Meu botão" que abre <code>https://exemplo.com</code> quando clicado. O link deve começar com <code>http://</code> ou <code>https://</code>, ou nenhum botão será criado.
 
   Se você quiser enviar botões na mesma linha, use a formatação <code>:same</code>.
 
   <b>Exemplo:</b>
 
-  <code>[botão 1](buttonurl:exemplo.com)</code>
+  <code>[botão 1](buttonurl:https://exemplo.com)</code>
 
-  <code>[botão 2](buttonurl://exemplo.com:same)</code>
+  <code>[botão 2](buttonurl://https://exemplo.com:same)</code>
 
-  <code>[botão 3](buttonurl://exemplo.com)</code>
+  <code>[botão 3](buttonurl://https://exemplo.com)</code>
 
   Isso mostrará botão 1 e 2 na mesma linha, com o 3 embaixo.
 formatting_random: |
   <b>Conteúdo Aleatório</b>
 
   Outra coisa que pode ser divertida é randomizar o conteúdo de uma mensagem. Deixe as coisas
-  um pouco mais pessoais mudando mensagens de boas-vindas, ou mudando notas!
+  um pouco mais pessoais randomizando respostas de filtros ou notas!
 
   Como usar conteúdos aleatórios:
 
@@ -548,9 +550,9 @@ formatting_random: |
 
   Use isso para deixar Alita um pouco mais personalizada! (só funciona em filtros/notas)
 
-  Exemplo de mensagem de boas-vindas:
+  Exemplo de filtro:
 
-  - Toda vez que um novo usuário entrar, ele será apresentado com uma das três mensagens
+  - Toda vez que alguém disser "oi", o bot responderá com uma das três mensagens
   mostradas aqui.
 
   -> /filter "oi"
@@ -573,24 +575,25 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Define texto de boas-vindas para o grupo.
 
-  × /welcome `<yes/no/on/off>`: Ativa ou Desativa configuração de boas-vindas para o grupo.
+  × /welcome `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de boas-vindas e uma prévia da mensagem de boas-vindas. on/off ativa ou desativa as boas-vindas; noformat mostra a prévia sem preencher os marcadores e com os códigos dos botões em vez de botões.
 
   × /resetwelcome: Reseta a mensagem de boas-vindas para o padrão.
 
   × /setgoodbye `<reply/text>`: Define texto de despedida para o grupo.
 
-  × /goodbye `<yes/no/on/off>`: Ativa ou Desativa configuração de despedida para o grupo.
+  × /goodbye `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de despedida e uma prévia da mensagem de despedida. on/off ativa ou desativa a despedida; noformat mostra a prévia sem preencher os marcadores e com os códigos dos botões em vez de botões.
 
   × /resetgoodbye: Reseta a mensagem de despedida para o padrão.
 
-  × /cleanservice `<yes/no/on/off>`: Deleta todas as mensagens de serviço como notificação de 'x entrou
-  no grupo'.
+  × /cleanservice `<yes/no/on/off>`: Apaga mensagens de serviço de entrada e saída, como a notificação de 'x entrou no grupo'.
 
   × /cleanwelcome `<yes/no/on/off>`: Deleta a mensagem de boas-vindas antiga, sempre que um novo
   membro entrar.
 
-  × /autoapprove `<yes/no/on/off>`: Aprova automaticamente todos os novos membros."
-help_about: "@%s  é um dos gerenciadores de grupo mais rápidos e cheios de recursos.   Alita ✨ é desenvolvido e ativamente mantido por @DivideProjects!   Alita está online desde 2020 e serviu milhares de grupos com centenas de milhares de usuários!   <b>Por que Alita:</b>  - Simples: Uso fácil e compatível com muitos comandos de bot.  - Completo: Muitos recursos que outros bots de gerenciamento de grupo não têm.  - Rápido: Adivinhe? Não é feito usando Python, usamos <a href='https://go.dev/'>Go</a> como nossa linguagem de programação principal.   <b>Versão Atual:</b> %s"
+  × /cleangoodbye `<yes/no/on/off>`: Deleta a mensagem de despedida antiga, sempre que um membro sair.
+
+  × /autoapprove `<yes/no/on/off>`: Aprova automaticamente pedidos de entrada."
+help_about: "@%s  é um dos gerenciadores de grupo mais rápidos e cheios de recursos.\n\nAlita ✨ é desenvolvido e ativamente mantido por @DivideProjects!\n\nAlita está online desde 2020 e serviu milhares de grupos com centenas de milhares de usuários!\n\n<b>Por que Alita:</b>\n- Simples: Uso fácil e compatível com muitos comandos de bot.\n- Completo: Muitos recursos que outros bots de gerenciamento de grupo não têm.\n- Rápido: Adivinhe? Não é feito usando Python, usamos <a href='https://go.dev/'>Go</a> como nossa linguagem de programação principal.\n\n<b>Versão Atual:</b> %s"
 help_configuration_step-1: "Bem-vindo à Configuração do Alita
 
 
@@ -652,7 +655,9 @@ help_help_msg:
 
   × /about: Mostrar informações do bot, versão e links úteis.
 
-  × /donate: Mostrar informações de doação para apoiar o projeto."
+  × /donate: Mostrar informações de doação para apoiar o projeto.
+
+  × /extend: Envia todos os comandos de todos os módulos em uma só lista; em grupos, envia um botão para recebê-la no privado."
 languages_help_msg: "Não consegue mudar o idioma do bot?
 
   Mude facilmente usando este módulo!
@@ -732,8 +737,8 @@ mutes_help_msg:
   × /dmute <userhandle>: silencia um usuário e deleta a mensagem respondida. (via handle,
   ou reply)
 
-  × /tmute <userhandle> x(m/h/d): silencia um usuário por `x` tempo. (via handle, ou reply).
-  m = minutos, h = horas, d = dias.
+  × /tmute <userhandle> x(m/h/d/w): silencia um usuário por `x` tempo. (via handle, ou reply).
+  m = minutos, h = horas, d = dias, w = semanas.
 
   × /unmute <userhandle>: desmuta um usuário. (via handle, ou reply)"
 notes_help_msg: 'Guarde dados para usuários futuros com notas!
@@ -1202,7 +1207,7 @@ rules_private_current_pm: Uso de /rules enviará as regras para o PM do usuário
 rules_private_current_group: "Todos os comandos /rules enviarão as regras para %s."
 rules_for_chat_header: "As regras para <b>%s</b> são:"
 
-rules_no_rules_set: Este chat ainda não parece ter regras definidas... Eu não tomaria isso como um convido though.
+rules_no_rules_set: Este chat ainda não parece ter regras definidas... Mas eu não tomaria isso como um convite.
 rules_click_for_rules: Clique no botão para ver as regras do chat!
 rules_set_successfully: Regras definidas com sucesso para este grupo!
 rules_button_too_long: O nome de botão personalizado que você inseriu é muito longo. Por favor insira um texto com menos de 30 caracteres.
@@ -1224,7 +1229,7 @@ disabling_delete_current_enabled: Exclusão de Comando Desativado está *ativada
 disabling_delete_current_disabled: Exclusão de Comando Desativado está *desativada*, comandos desativados de usuários *não* serão deletados!
 disabling_enabled_successfully: "Re-Ativado o uso do seguinte neste chat:%s"
 disabling_unknown_reenable: "Comando desconhecido para Re-Ativar:\n-%s\nVerifique /disableable!"
-disabling_no_command_reenable: Você não especificou um comando para desativar.
+disabling_no_command_reenable: Você não especificou um comando para reativar.
 disabling_invalid_option: "Eu só entendo uma opção de: `yes`/`no`/`on`/`off`"
 
 # Misc module strings
@@ -1300,7 +1305,7 @@ greetings_welcome_status: |
   Estou dando boas-vindas a usuários: <code>%s</code>
   Estou deletando boas-vindas antigas: <code>%s</code>
   Estou deletando mensagens de serviço: <code>%s</code>
-  A mensagem de boas-vindas sem preencher os {} é:
+  A mensagem de boas-vindas atual é:
 greetings_welcome_enabled: "Vou dar boas-vindas aos usuários de agora em diante."
 greetings_welcome_disabled: "Não vou dar boas-vindas aos usuários de agora em diante."
 greetings_welcome_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
@@ -1310,24 +1315,10 @@ greetings_goodbye_status: |
   Estou dando adeus a usuários: <code>%s</code>
   Estou deletando adeus antigos: <code>%s</code>
   Estou deletando mensagens de serviço: <code>%s</code>
-  A mensagem de adeus sem preencher os {} é:
-greetings_goodbye_enabled: "Vou dar adeus aos usuários de agora em diante."
-greetings_goodbye_disabled: "Não vou dar adeus aos usuários de agora em diante."
-greetings_goodbye_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
+  A mensagem de despedida atual é:
 greetings_goodbye_set_success: "Mensagem de adeus personalizada definida com sucesso!"
-greetings_goodbye_reset_success: "Mensagem de adeus resetada para o padrão com sucesso!"
-greetings_clean_welcome_status_should: "Eu deveria estar deletando mensagens de boas-vindas com até dois dias de idade."
-greetings_clean_welcome_status_not: "Atualmente não estou deletando mensagens de boas-vindas antigas!"
-greetings_clean_welcome_disabled: "Não vou deletar mensagens de boas-vindas antigas!"
-greetings_clean_welcome_enabled: "Vou tentar deletar mensagens de boas-vindas antigas!"
 greetings_clean_welcome_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
-greetings_clean_goodbye_status_should: "Eu deveria estar deletando mensagens de adeus com até dois dias de idade."
-greetings_clean_goodbye_status_not: "Atualmente não estou deletando mensagens de adeus antigas!"
-greetings_clean_goodbye_disabled: "Não vou deletar mensagens de adeus antigas!"
-greetings_clean_goodbye_enabled: "Vou tentar deletar mensagens de adeus antigas!"
 greetings_clean_goodbye_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
-greetings_clean_service_enabled: "Eu deveria estar deletando mensagens de 'usuário' entrou no chat agora."
-greetings_clean_service_disabled: "Atualmente não estou deletando mensagens de entrada."
 greetings_clean_service_disable: "Não vou deletar mensagens de entrada."
 greetings_clean_service_enable: "Vou tentar deletar mensagens de entrada!"
 greetings_clean_service_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
@@ -1766,11 +1757,11 @@ aispam_help_msg: |
   Mensagens escritas em inglês agem a partir de 80% de confiança, e mensagens em qualquer outro idioma a partir de 90%, porque o modelo é otimizado para inglês.
 
 
-  *Comandos de administrador:*
+  <b>Comandos de administrador:</b>
 
   × /aispam: Mostra se o filtro está ativo e exatamente o que é enviado ao modelo.
 
-  × /aispam `<on/off>`: Ativa ou desativa o filtro neste chat.
+  × /aispam <code><on/off></code>: Ativa ou desativa o filtro neste chat.
 
 
   O filtro fica desativado em todos os chats até um administrador ativá-lo, e exige que o operador do bot tenha configurado uma chave de API.
@@ -1791,7 +1782,7 @@ aispam_enabled_success: "✅ O filtro de spam com IA agora está <b>ativado</b>.
 aispam_disabled_success: "❌ O filtro de spam com IA agora está <b>desativado</b>."
 aispam_no_key: "❌ Não consigo ativar o filtro de spam com IA: o operador do bot não configurou uma chave de API da TypeSafe. Nada mudou."
 aispam_globally_disabled: "❌ Não consigo ativar o filtro de spam com IA: o operador do bot o desativou globalmente. Nada mudou."
-aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ As verificações de spam com IA estão pausadas neste chat por alguns minutos após falhas repetidas do provedor de IA. Elas retomam sozinhas e o filtro continua ativado."
 
 # Admin module extended documentation
@@ -1807,16 +1798,16 @@ admin_extended_docs: |
   <b>Como Funciona a Verificação de Admin Anônimo:</b>
   1. Bot detecta que remetente é GroupAnonymousBot
   2. Mensagem original em cache com TTL de 20 segundos
-  3. Botão "Verificar Admin" enviado ao chat
+  3. Botão "Clique para provar admin" enviado ao chat
   4. Usuário que clicar verificado como admin, comando executado
   5. Botão expira após 20 segundos se não verificado
 
   <b>Comandos Suportados:</b>
-  Admin: /promote, /demote, /title
-  Bans: /ban, /dban, /sban, /tban, /unban
+  Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
+  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del
+  Purges: /purge, /del, /purgefrom, /purgeto
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |
@@ -2116,32 +2107,6 @@ filters_extended_docs: |
   [Botão 1](buttonurl:https://exemplo.com)
   [Botão 2](buttonurl:https://exemplo2.com)</code>
 
-filters_technical_docs: |
-  <b>Como Filtros Funcionam:</b>
-  1. Quando uma mensagem é recebida, o busca todos os filtros para o chat usando uma consulta cacheada otimizada
-  2. O algoritmo Aho-Corasick eficientemente combina todas as palavras-chave de filtro contra o texto da mensagem
-  3. O primeiro filtro correspondente dispara uma resposta
-  4. Filtros suportam respostas de texto, mídia, e botões
-
-  <b>Confirmação de Sobrescrita:</b>
-  Quando você tenta adicionar um filtro que já existe, o bot pedirá confirmação antes de sobrescrever. A confirmação expira após 5 minutos.
-
-  <b>Comportamento de Cache:</b>
-  • Listas de filtros são cacheadas por 15 minutos por chat
-  • Cache é automaticamente invalidado quando filtros são adicionados ou removidos
-
-filters_limits_docs: |
-  <b>Limites:</b>
-  • Máximo 150 filtros por chat
-  • Máximo 100 caracteres por palavra-chave de filtro
-  • Palavras-chave de filtro são armazenadas em minúsculas
-
-  <b>Permissões Necessárias:</b>
-  • <code>/filter</code>, <code>/addfilter</code>: Admin com permissão Alterar Info
-  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code>: Admin com permissão Alterar Info
-  • <code>/stopall</code>: Dono do Chat apenas
-  • <code>/filters</code>: Disponível para todos os usuários
-
 # Extended documentation locale keys - Captcha module
 captcha_extended_docs: |
   <b>Como Funciona:</b>
@@ -2214,7 +2179,6 @@ disabling_notes_docs: |
   • <b>Contorno de Admin:</b> Comandos desativados afetam apenas usuários não-admin. Todos os admins ainda podem usar qualquer comando.
   • <b>Suporte a Conexão:</b> Comandos desativados ainda são acessíveis através do recurso <code>/connect</code> para chats conectados.
   • <b>Múltiplos Comandos:</b> Tanto <code>/disable</code> quanto <code>/enable</code> suportam múltiplos nomes de comando em uma única mensagem.
-  • <b>Tratamento de Erros:</b> Se alguns comandos falharem ao desativar/ativar, você será notificado sobre quais tiveram sucesso e quais falharam.
 
   <b>Permissões Necessárias:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Apenas admin
@@ -2229,6 +2193,8 @@ help_extended_docs: |
 
   <code>/about</code> mostra informações do bot, versão e links, enquanto <code>/donate</code> mostra informações de doação para apoiar o projeto.
 
+  <code>/extend</code> envia todos os comandos de todos os módulos em uma só lista; em um grupo, responde com um botão que abre a lista no privado.
+
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |
   <b>Hierarquia da Equipe:</b>
@@ -2236,11 +2202,15 @@ devs_extended_docs: |
 
   <b>Nível 1 — Proprietário:</b> Definido via variável de ambiente <code>OWNER_ID</code> na implantação. Controle total: gerenciar a lista da equipe, todos os comandos de diagnóstico, todos os comandos da equipe.
 
-  <b>Nível 2 — Sudo / Dev:</b> Atribuídos pelo proprietário via <code>/addsudo</code> ou <code>/adddev</code>. Comandos de diagnóstico: estatísticas do bot, informações do chat, gerenciamento do chat.
+  <b>Nível 2 — Dev:</b> Atribuído pelo proprietário via <code>/adddev</code>. Tem acesso aos comandos de diagnóstico: <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, <code>/leavechat</code>. Também aparece em <code>/teamusers</code> e é marcado como usuário dev em <code>/info</code>.
+
+  <b>Nível 2 — Sudo:</b> Atribuído pelo proprietário via <code>/addsudo</code>. Aparece em <code>/teamusers</code>, mas NÃO tem acesso aos comandos de diagnóstico.
+
+  <b>Promoções:</b> Quando um usuário Dev ou Sudo que é admin do chat com permissão para adicionar admins usa <code>/promote</code>, o novo admin recebe todas as permissões de admin que o bot tem, mesmo as que faltam a quem promove. O criador do chat recebe o mesmo tratamento. Os demais admins só podem conceder as permissões que eles mesmos têm.
 
   <b>Nível 3 — Membro da Equipe:</b> Inclui automaticamente o proprietário + todos os usuários sudo + todos os usuários dev. Ver a lista da equipe apenas via <code>/teamusers</code>.
 
-  <b>Nota:</b> Sudo e Dev têm acesso idêntico a comandos. A distinção existe para fins organizacionais.
+  <b>Nota:</b> Dos comandos deste módulo, usuários Sudo só podem usar <code>/teamusers</code>. <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code> e <code>/leavechat</code> exigem Dev ou Proprietário.
 
   <b>Importante:</b> Estes comandos não são visíveis no menu de ajuda público e ignoram silenciosamente usuários não autorizados.
 
@@ -2310,7 +2280,7 @@ backup_help_msg: |
 
   Faça backup e restaure as configurações do seu grupo usando estes comandos:
 
-  <b>Comandos de Usuário:</b>
+  <b>Comandos de Admin:</b>
   • /export - Exportar todas as configurações do grupo para um arquivo JSON
   • /export notes filters rules - Exportar apenas módulos específicos
 
@@ -2318,15 +2288,13 @@ backup_help_msg: |
   • /import - Responda a um arquivo de backup para restaurar as configurações
   • /import notes filters - Importar apenas módulos específicos
   • /reset - Redefinir todas as configurações para o padrão
-  • /reset warnings locks - Redefinir apenas módulos específicos
+  • /reset warns locks - Redefinir apenas módulos específicos
 
   <b>Limites de Taxa:</b>
   • Exportar: 1 a cada 5 minutos
   • Importar: 1 a cada 10 minutos
   • Redefinir: 1 a cada hora
 
-backup_export_button: "📤 Exportar"
-backup_import_button: "📥 Importar"
 backup_export_success: |
   <b>✅ Exportação Bem-Sucedida!</b>
 
@@ -2337,7 +2305,6 @@ backup_export_success: |
   <b>Módulos:</b>
   %s
 
-backup_export_success_text: "✅ Exportados com sucesso {modules} módulos. Baixe o arquivo de backup acima."
 backup_export_rate_limited: "⏳ Por favor aguarde <b>{time}</b> antes de exportar novamente."
 backup_export_no_modules: "❌ Nenhum módulo exportável encontrado para este chat."
 backup_invalid_modules: "❌ Nenhum desses módulos pode ser usado aqui. Módulos válidos: <code>{modules}</code>"
@@ -2356,7 +2323,7 @@ backup_import_no_reply: "❌ Por favor responda a um arquivo de backup com <code
 backup_import_invalid_file: "❌ Formato de arquivo de backup inválido. Por favor envie um arquivo de backup JSON válido."
 backup_import_file_too_large: "❌ O arquivo de backup é muito grande. O tamanho máximo é 10MB."
 backup_import_download_failed: "❌ Falha ao baixar o arquivo de backup. Por favor tente novamente."
-backup_import_version_mismatch: "⚠️ Este backup foi criado com uma versão diferente. Algumas configurações podem não ser importadas corretamente."
+backup_import_version_mismatch: "❌ Este backup usa uma versão de formato não suportada e não pode ser importado. Exporte um novo backup com este bot e tente novamente."
 backup_import_creator_only: "❌ Apenas o criador do grupo pode importar configurações."
 backup_import_confirm: |
   <b>⚠️ Confirmar Importação</b>
@@ -2394,23 +2361,8 @@ backup_reset_failed: "❌ Falha na redefinição: %s"
 
 button_confirm_import: "✅ Confirmar Importação"
 button_cancel_import: "❌ Cancelar"
-button_confirm_reset: "⚠️ Sim, Redefinir Tudo"
+button_confirm_reset: "⚠️ Sim, Redefinir"
 button_cancel_reset: "❌ Cancelar"
-
-backup_module_admin: "Configurações de Admin"
-backup_module_antiflood: "Antiflood"
-backup_module_blacklists: "Listas Negras"
-backup_module_captcha: "Captcha"
-backup_module_connections: "Conexões"
-backup_module_disabling: "Comandos Desativados"
-backup_module_filters: "Filtros"
-backup_module_greetings: "Saudações"
-backup_module_locks: "Bloqueios"
-backup_module_notes: "Notas"
-backup_module_pins: "Configurações de Fixar"
-backup_module_reports: "Denúncias"
-backup_module_rules: "Regras"
-backup_module_warns: "Avisos"
 
 # Callback validation strings (previously hardcoded)
 common_callback_invalid_request: "Solicitação inválida."
@@ -2440,7 +2392,7 @@ approvals_help_msg: |
   × /approved: Listar todos os usuários aprovados
   × /unapproveall: Remover todas as aprovações (apenas criador)
 
-  Usuários aprovados estão isentos de: antiflood, blacklists, locks e CAPTCHA.
+  Usuários aprovados estão isentos de: antiflood, antiraid, blacklists, locks, CAPTCHA e o filtro de spam com IA.
 approvals_user_approved: "%s aprovado por %s.%s"
 approvals_already_approved: "%s já está aprovado neste chat."
 approvals_not_approved: "%s não está na lista de aprovados."
@@ -2486,7 +2438,6 @@ antiraid_disabled: "AntiRaid desativado."
 antiraid_already_active: "AntiRaid já está ativo."
 antiraid_not_active: "AntiRaid não está ativo."
 antiraid_invalid_duration: "Duração inválida. Use um formato como: 30m, 2h, 1d, 1w"
-antiraid_duration_must_be_positive: "A duração deve ser positiva."
 antiraid_raidtime_usage: "Uso: /raidtime &lt;duration&gt; (ex., 6h)"
 antiraid_raidtime_no_change: "O tempo de raid já é {duration}."
 antiraid_raidtime_set: "Tempo de raid definido para {duration}."
@@ -2508,26 +2459,36 @@ federations_help_msg: |
   × /newfed <name>: Cria uma federação (uma por usuário).
   × /renamefed <name>: Renomeia sua federação.
   × /delfed: Exclui sua federação (com confirmação).
-  × /fedpromote /feddemote: Gerencia os administradores da federação.
+  × /fedpromote /feddemote <user>: Promove ou rebaixa um administrador da federação (resposta, ID ou @usuário).
   × /fedreason on/off: Exige um motivo nos fban.
   × /fednotif on/off: Avisa o dono dos fban no privado.
-  × /subfed /unsubfed /fedsubs: Assina outra federação (máx. 5).
+  × /subfed /unsubfed <fed_id>: Assina ou cancela a assinatura dos bans de outra federação (máx. 5).
+  × /fedsubs: Lista as federações que a sua assina.
   × /fbanlist [csv|json|minicsv]: Exporta os fban.
   × /importfbans: Importa de um arquivo CSV/JSON respondido.
-  × /setfedlog /unsetfedlog: Chat de log da federação.
+  × /unsetfedlog: Remove o chat de log da federação.
+
+  *Dono (em um grupo):*
+  × /setfedlog: Torna este grupo o chat de log da sua federação.
 
   *Dono do grupo:*
   × /joinfed <fed_id>: Adiciona este chat a uma federação.
   × /leavefed: Sai da federação.
+
+  *Administradores do grupo:*
   × /quietfed on/off: Oculta os avisos passivos de fban.
 
   *Administradores da federação:*
-  × /fban /unfban /funban: Ban/desban na federação.
-  × /fedstat /fbanstat: Consulta o fban de um usuário.
+  × /fban <user> [reason]: Bane um usuário em toda a federação (em um grupo da federação; o dono também pode usá-lo no privado).
+  × /unfban /funban <user>: Remove um ban da federação.
   × /feddemoteme <fed_id>: Deixa de ser administrador de uma federação.
 
   *Qualquer pessoa:*
-  × /fedinfo /fedadmins /chatfed /myfeds
+  × /fedstat /fbanstat [user] [fed_id]: Consulta os fban de um usuário (os seus por padrão); com um fed_id, mostra o motivo desse ban.
+  × /fedinfo [fed_id]: Mostra as informações da federação.
+  × /fedadmins [fed_id]: Lista os administradores de uma federação.
+  × /chatfed: Mostra a federação deste grupo (somente grupos).
+  × /myfeds: Lista as federações que você possui ou administra.
 logchannels_help_msg: |
   Envie as ações dos administradores para um canal de log dedicado.
 
@@ -2584,7 +2545,7 @@ feds_not_fed_admin: "Esse usuário não é administrador da federação."
 feds_demoted: "{user} não é mais administrador da federação."
 feds_demoteme_not_admin: "Você não é administrador dessa federação."
 feds_demoteme_ok: "Você não é mais administrador dessa federação."
-feds_demoteme_owner: "Você é o dono desta federação, então não pode deixar de ser administrador dela."
+feds_demoteme_owner: "Você é o dono desta federação, então não pode deixar de ser administrador dela. Use /delfed para excluí-la."
 feds_fedreason_on: "Agora os fban exigem um motivo."
 feds_fedreason_off: "Os fban não exigem mais um motivo."
 feds_fednotif_on: "Você será avisado dos fban."
@@ -2612,11 +2573,9 @@ feds_not_sub: "Não assina essa federação."
 feds_unsub_ok: "Assinatura dessa federação cancelada."
 feds_subs_none: "Esta federação não tem assinaturas."
 feds_subs_header: "Assinaturas:"
-feds_setfedlog_need_id: "Informe um ID de federação ou use isto em um grupo que esteja na sua federação."
-feds_not_owner: "Apenas o dono da federação pode definir o log da federação."
 feds_setfedlog_ok: "Chat de log da federação definido."
 feds_unsetfedlog_ok: "Chat de log da federação removido."
-feds_export_wait: "Aguarde antes de exportar novamente."
+feds_export_wait: "Você pode exportar a lista de fban uma vez a cada 30 minutos. Tente novamente mais tarde."
 feds_export_empty: "Esta federação não tem bans para exportar."
 feds_import_need_file: "Responda a uma lista de fban em CSV ou JSON."
 feds_import_failed: "Não foi possível importar essa lista de fban."
@@ -2689,7 +2648,7 @@ aispam_extend_msg: |
   /aispam — ver ou ativar o filtro de spam com IA
 antiflood_extend_msg: |
   /flood — ver as configurações de antiflood
-  /setflood — mensagens seguidas antes da ação (off para desativar)
+  /setflood — mensagens permitidas (sem pausa de mais de 60 s) antes da ação (off para desativar)
   /setfloodmode — ação contra flood: ban, kick ou mute
   /delflood — apagar também as mensagens de flood
 antiraid_extend_msg: |
@@ -2698,7 +2657,7 @@ antiraid_extend_msg: |
   /raidactiontime — duração do ban temporário durante um raid
   /autoantiraid — ativar o modo raid após N entradas por minuto
 approvals_extend_msg: |
-  /approve — isentar um usuário de antiflood, listas negras, bloqueios e captcha
+  /approve — isentar um usuário de antiflood, antiraid, listas negras, bloqueios, captcha e o filtro de spam com IA
   /unapprove — remover a aprovação de um usuário
   /approval — verificar se um usuário está aprovado
   /approved — lista de usuários aprovados
@@ -2711,7 +2670,7 @@ bans_extend_msg: |
   /ban — banir um usuário
   /sban — banir em silêncio e apagar seu comando
   /dban — banir e apagar a mensagem respondida
-  /tban — banir por um tempo (m/h/d)
+  /tban — banir por um tempo (m/h/d/w)
   /unban — desbanir um usuário
   /kick — expulsar um usuário
   /skick — expulsar em silêncio e apagar seu comando
@@ -2782,14 +2741,18 @@ filters_extend_msg: |
   /filters — lista de filtros
   /stop — remover um filtro
   /stopall — remover todos os filtros
+formatting_extend_msg: |
+  /markdownhelp — mostra o guia de formatação
+  /formatting — o mesmo que /markdownhelp
 greetings_extend_msg: |
-  /welcome — ativar ou desativar a mensagem de boas-vindas
+  /welcome — mostrar a mensagem de boas-vindas, ou ativá-la ou desativá-la
   /setwelcome — definir a mensagem de boas-vindas
   /resetwelcome — redefinir a mensagem de boas-vindas
-  /goodbye — ativar ou desativar a mensagem de despedida
+  /goodbye — mostrar a mensagem de despedida, ou ativá-la ou desativá-la
   /setgoodbye — definir a mensagem de despedida
   /resetgoodbye — redefinir a mensagem de despedida
   /cleanwelcome — apagar a mensagem de boas-vindas anterior
+  /cleangoodbye — apagar a mensagem de despedida anterior
   /cleanservice — apagar mensagens de serviço de entrada e saída
   /autoapprove — aprovar automaticamente pedidos de entrada
 languages_extend_msg: |
@@ -2823,7 +2786,7 @@ mutes_extend_msg: |
   /mute — silenciar um usuário
   /smute — silenciar em silêncio e apagar seu comando
   /dmute — silenciar e apagar a mensagem respondida
-  /tmute — silenciar por um tempo (m/h/d)
+  /tmute — silenciar por um tempo (m/h/d/w)
   /unmute — tirar o silêncio de um usuário
 notes_extend_msg: |
   /save — salvar uma nota
