@@ -19,7 +19,8 @@ Setup automated emoji reactions that trigger when users send specific words.
 - /resetreactions - Clear all reactions
 
 **Example:**
-- /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+- /addreaction hello 👍 - Bot reacts with 👍 when someone says "hello"
+- Only Telegram's standard reaction emoji (for example 👍 ❤ 🔥 🎉) can be used.
 
 
 ## Module Aliases
