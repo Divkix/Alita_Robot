@@ -1922,7 +1922,8 @@ warns_extended_docs: |
 
 warns_permissions_docs: |
   <b>Requisitos de Permissão:</b>
-  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: Bot admin + Usuário admin com restringir
+  • <code>/warn</code>: Bot admin + Usuário admin com restringir
+  • <code>/dwarn</code>, <code>/swarn</code>: Bot admin + Usuário admin, ambos com permissão para restringir e apagar mensagens
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + Usuário admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + Usuário admin
   • <code>/resetallwarns</code>: Dono do chat apenas

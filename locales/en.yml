@@ -1999,7 +1999,8 @@ warns_extended_docs: |
 
 warns_permissions_docs: |
   <b>Permission Requirements:</b>
-  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: Bot admin + User admin with restrict
+  • <code>/warn</code>: Bot admin + User admin with restrict
+  • <code>/dwarn</code>, <code>/swarn</code>: Bot admin + User admin, both with restrict and delete rights
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + User admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + User admin
   • <code>/resetallwarns</code>: Chat owner only

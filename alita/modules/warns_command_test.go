@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -475,6 +476,62 @@ func TestDeleteWarnDeletesReplyAndStoresReason(t *testing.T) {
 	}
 	if len(reasons) != 1 || reasons[0].Reason != "remove this" {
 		t.Fatalf("reasons = %v, want [remove this]", reasons)
+	}
+}
+
+// /dwarn and /swarn delete a message, so like /dban and /sban they need delete
+// rights: an admin who can restrict but not delete is refused before the warn
+// is stored or anything is deleted.
+func TestDeletingWarnsRequireDeleteRights(t *testing.T) {
+	useEnglishLocale(t)
+	for _, command := range []string{"/dwarn", "/swarn"} {
+		for _, tt := range []struct {
+			name      string
+			canDelete bool
+			wantWarns int
+		}{
+			{name: "without delete rights", canDelete: false, wantWarns: 0},
+			{name: "with delete rights", canDelete: true, wantWarns: 1},
+		} {
+			t.Run(command+" "+tt.name, func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+				target := gotgbot.User{Id: 42, FirstName: "Member"}
+				adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},`+
+					`"can_manage_chat":true,"can_restrict_members":true,"can_delete_messages":%t}`, admin.Id, tt.canDelete)
+				botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + fixtureAdminRights + `}`
+				client.adminsByChat[fmt.Sprint(chat.Id)] = json.RawMessage("[" + botJSON + "," + adminJSON + "]")
+				client.membersByUser[fmt.Sprint(admin.Id)] = json.RawMessage(adminJSON)
+
+				dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+				LoadWarns(dispatcher)
+				ctx := newWarnReplyContext(bot, chat, admin, target, command+" spam")
+				if err := dispatcher.ProcessUpdate(bot, &gotgbot.Update{UpdateId: 1, Message: ctx.EffectiveMessage}, nil); err != nil {
+					t.Fatalf("ProcessUpdate(%s) error = %v", command, err)
+				}
+
+				if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != tt.wantWarns {
+					t.Fatalf("%s numWarns = %d, want %d", command, numWarns, tt.wantWarns)
+				}
+				deletes := client.callsFor("deleteMessage")
+				if tt.canDelete {
+					if len(deletes) != 1 {
+						t.Fatalf("%s deleteMessage calls = %d, want 1", command, len(deletes))
+					}
+					return
+				}
+				if len(deletes) != 0 {
+					t.Fatalf("%s deleteMessage calls = %d, want none without delete rights", command, len(deletes))
+				}
+				refusal := translated(t, "chat_status_delete_cmd_error")
+				for _, call := range client.callsFor("sendMessage") {
+					if fmt.Sprint(call.Params["text"]) == refusal {
+						return
+					}
+				}
+				t.Fatalf("%s sent no delete-rights refusal", command)
+			})
+		}
 	}
 }
 

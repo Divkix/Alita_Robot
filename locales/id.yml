@@ -1950,7 +1950,8 @@ warns_extended_docs: |
 
 warns_permissions_docs: |
   <b>Persyaratan Izin:</b>
-  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: Bot admin + Pengguna admin dengan pembatasan
+  • <code>/warn</code>: Bot admin + Pengguna admin dengan pembatasan
+  • <code>/dwarn</code>, <code>/swarn</code>: Bot admin + Pengguna admin, keduanya dengan izin membatasi dan menghapus pesan
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + Pengguna admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + Pengguna admin
   • <code>/resetallwarns</code>: Pemilik obrolan saja
