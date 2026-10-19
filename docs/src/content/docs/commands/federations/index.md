@@ -100,9 +100,22 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/newfed` (in PM), `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.
+**Fed owner:**
+- `/delfed` (in PM), `/renamefed`, `/fedpromote`, `/feddemote`, `/fedreason`, `/fednotif`, `/subfed`, `/unsubfed`, `/fedsubs`, `/setfedlog`, `/unsetfedlog`, `/fbanlist`, `/importfbans`
 
-**Bot Permissions Required:**
+**Fed admins:**
+- `/fban`, `/unfban`, `/funban` in a member group (in PM they act on the fed you own), `/feddemoteme`
 
-- Ban users (to enforce and lift federation bans)
+**Group creator:**
+- `/joinfed`, `/leavefed`
+
+**Group admins:**
+- `/quietfed`
+
+**Anyone:**
+- `/newfed` (in PM, one federation per user), `/fedstat`, `/fbanstat`, `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds`
+
+**Bot Requirements:**
+- Ban users in every member chat, to enforce fbans
+
 

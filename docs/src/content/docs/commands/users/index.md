@@ -11,8 +11,7 @@ Automatic background user and chat tracker. This module has no user-facing comma
 - Chat IDs and names for every group the bot is in.
 - Channel IDs, names, and usernames for linked channels.
 ### Rate Limiting:
-- User updates are throttled to one per UserUpdateInterval.
-- Chat updates are throttled to one per ChatUpdateInterval.
+- User, chat and channel records are refreshed at most once an hour, or straight away when a name, username or chat title changes.
 Other modules, such as /info, depend on data collected by this module.
 
 **Background Tracker:**
@@ -24,8 +23,8 @@ The Users module is a passive background module with no user-facing commands. It
 - Channel IDs, names, and usernames for linked channels
 
 **Rate Limiting:**
-- User updates: throttled to one per `UserUpdateInterval`
-- Chat updates: throttled to one per `ChatUpdateInterval`
+- User, chat and channel records: refreshed at most once an hour
+- A changed name, username or chat title is saved straight away
 - This prevents excessive database writes while keeping data reasonably current
 
 **Passive Operation:**
