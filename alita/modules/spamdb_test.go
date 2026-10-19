@@ -643,6 +643,71 @@ func TestSpamDBCommandSelectsDatabases(t *testing.T) {
 	}
 }
 
+// Switching a database on says members are looked up there, and lols.bot that
+// their IDs are sent, only while the check runs: it does not with the chat's
+// switch off or with the operator's off.
+func TestSpamDBDatabaseOnReplyFollowsTheCheck(t *testing.T) {
+	useEnglishLocale(t)
+	tr := i18n.MustNewTranslator("en")
+	text := func(key string, params i18n.TranslationParams) string {
+		t.Helper()
+		got, _ := tr.GetString(key, params)
+		if got == "" {
+			t.Fatalf("locale key %s is missing", key)
+		}
+		return got
+	}
+	lols := i18n.TranslationParams{"database": "lols.bot"}
+	cas := i18n.TranslationParams{"database": "CAS"}
+
+	cases := []struct {
+		name               string
+		chatOn, operatorOn bool
+		wantCAS, wantLols  string
+	}{
+		{
+			name: "check running", chatOn: true, operatorOn: true,
+			wantCAS:  text("spamdb_db_enabled", cas),
+			wantLols: text("spamdb_db_enabled", lols) + "\n\n" + text("spamdb_db_lols_warning", nil),
+		},
+		{
+			name: "chat switch off", chatOn: false, operatorOn: true,
+			wantCAS:  text("spamdb_db_enabled_idle", cas),
+			wantLols: text("spamdb_db_enabled_idle", lols) + "\n\n" + text("spamdb_db_lols_warning_idle", nil),
+		},
+		{
+			name: "operator switch off", chatOn: true, operatorOn: false,
+			wantCAS:  text("spamdb_db_enabled_idle", cas),
+			wantLols: text("spamdb_db_enabled_idle", lols) + "\n\n" + text("spamdb_db_lols_warning_idle", nil),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dispatcher, _ := withSpamDBCAS(t, tc.operatorOn, http.StatusOK, spamDBCASNotFound)
+			client := aispamAdminClient()
+			bot := newModuleTestBot(client)
+			chat := spamDBChat(t, tc.chatOn, spamdbsettings.ActionBan)
+			admin := gotgbot.User{Id: 42, FirstName: "Admin"}
+
+			// CAS is on by default, so switch lols on first, then CAS off and on.
+			spamDBCommand(t, dispatcher, bot, chat, admin, "/spamdb db lols on")
+			spamDBCommand(t, dispatcher, bot, chat, admin, "/spamdb db cas off")
+			spamDBCommand(t, dispatcher, bot, chat, admin, "/spamdb db cas on")
+
+			replies := spamDBMessagesTo(client, chat.Id)
+			if len(replies) != 3 {
+				t.Fatalf("replies = %d, want 3", len(replies))
+			}
+			if replies[0] != tc.wantLols {
+				t.Errorf("db lols on replied %q, want %q", replies[0], tc.wantLols)
+			}
+			if replies[2] != tc.wantCAS {
+				t.Errorf("db cas on replied %q, want %q", replies[2], tc.wantCAS)
+			}
+		})
+	}
+}
+
 // The chat's databases decide what /spamdb says is sent, and to whom.
 func TestSpamDBStatusNamesTheChatsDatabases(t *testing.T) {
 	useEnglishLocale(t)

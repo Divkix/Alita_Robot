@@ -1753,6 +1753,8 @@ spamdb_db_enabled: "✅ Anggota baru sekarang akan dicari di {database}."
 spamdb_db_disabled: "❌ Anggota baru tidak akan lagi dicari di {database}."
 spamdb_db_last: "❌ {database} adalah satu-satunya database yang tersisa, jadi tetap aktif. Aktifkan yang lain dulu, atau matikan pemeriksaan dengan <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. ID Telegram setiap anggota baru sekarang dikirim ke lols.bot."
+spamdb_db_enabled_idle: "✅ {database} dipilih, tetapi tidak ada yang dicari selama pemeriksaan mati. Lihat statusnya dengan <code>/spamdb</code>."
+spamdb_db_lols_warning_idle: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. Setelah pemeriksaan aktif, ID Telegram setiap anggota baru akan dikirim ke lols.bot."
 
 # Admin module extended documentation
 admin_extended_docs: |

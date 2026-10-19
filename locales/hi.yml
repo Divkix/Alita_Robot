@@ -738,6 +738,8 @@ spamdb_db_enabled: "✅ अब नए सदस्यों को {database} �
 spamdb_db_disabled: "❌ अब नए सदस्यों को {database} में नहीं खोजा जाएगा।"
 spamdb_db_last: "❌ {database} आख़िरी बचा डेटाबेस है, इसलिए यह चालू रहेगा। पहले दूसरा चालू करें, या <code>/spamdb off</code> से जाँच बंद करें।"
 spamdb_db_lols_warning: "⚠️ lols.bot खातों को CAS से ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा होगी। जब तक भरोसा न हो, <code>/spamdb action log</code> पर विचार करें। अब हर नए सदस्य की Telegram ID lols.bot को भेजी जाती है।"
+spamdb_db_enabled_idle: "✅ {database} चुना गया है, लेकिन जाँच बंद रहने तक कुछ भी नहीं खोजा जाएगा। उसकी स्थिति <code>/spamdb</code> से देखें।"
+spamdb_db_lols_warning_idle: "⚠️ lols.bot खातों को CAS से ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा होगी। जब तक भरोसा न हो, <code>/spamdb action log</code> पर विचार करें। जाँच चालू होने पर हर नए सदस्य की Telegram ID lols.bot को भेजी जाएगी।"
 
 # Antiflood module strings
 antiflood_checkflood_perform_action: "हाँ, मुझे आपकी flooding पसंद नहीं है। %s को %s कर दिया गया है!"

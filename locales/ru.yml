@@ -1539,6 +1539,8 @@ spamdb_db_enabled: "✅ Теперь новых участников ищут в
 spamdb_db_disabled: "❌ Новых участников больше не ищут в {database}."
 spamdb_db_last: "❌ {database} — последняя оставшаяся база, поэтому она остаётся включённой. Сначала включите другую или выключите проверку: <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ lols.bot вносит аккаунты агрессивнее, чем CAS, поэтому ложных срабатываний будет больше. Пока не убедитесь в ней, подумайте о <code>/spamdb action log</code>. Telegram ID каждого нового участника теперь отправляется на lols.bot."
+spamdb_db_enabled_idle: "✅ {database} выбрана, но пока проверка выключена, никого не ищут. Её состояние — в <code>/spamdb</code>."
+spamdb_db_lols_warning_idle: "⚠️ lols.bot вносит аккаунты агрессивнее, чем CAS, поэтому ложных срабатываний будет больше. Пока не убедитесь в ней, подумайте о <code>/spamdb action log</code>. Когда проверка заработает, Telegram ID каждого нового участника будет отправляться на lols.bot."
 
 # Admin module extended documentation
 admin_extended_docs: |

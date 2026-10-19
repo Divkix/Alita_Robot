@@ -225,12 +225,33 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	if !want {
 		return spamDBReplyKey(c, "spamdb_db_disabled", params)
 	}
-	text, _ := c.Tr.GetString("spamdb_db_enabled", params)
+	// Members are looked up, and their IDs sent, only while the check runs, so
+	// the reply must not say otherwise when it does not.
+	enabledKey, warningKey := "spamdb_db_enabled_idle", "spamdb_db_lols_warning_idle"
+	if spamDBCheckRuns(c) {
+		enabledKey, warningKey = "spamdb_db_enabled", "spamdb_db_lols_warning"
+	}
+	text, _ := c.Tr.GetString(enabledKey, params)
 	if database.source == spamdb.SourceLols {
-		warning, _ := c.Tr.GetString("spamdb_db_lols_warning")
+		warning, _ := c.Tr.GetString(warningKey)
 		text += "\n\n" + warning
 	}
 	return spamDBReply(c, text)
+}
+
+// spamDBCheckRuns reports whether new members of the chat are looked up now:
+// the operator allows the feature and the chat has the check on. An unreadable
+// setting counts as not running, so no reply claims a lookup that may not happen.
+func spamDBCheckRuns(c *helpers.CommandContext) bool {
+	if !config.AppConfig.EnableSpamDB {
+		return false
+	}
+	settings, err := spamdbsettings.GetSpamDBSettingsContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
+	if err != nil {
+		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Warn("[SpamDB] could not read the chat settings")
+		return false
+	}
+	return settings.Enabled
 }
 
 func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) string {

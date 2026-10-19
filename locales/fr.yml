@@ -1582,6 +1582,8 @@ spamdb_db_enabled: "✅ Les nouveaux membres seront désormais recherchés dans 
 spamdb_db_disabled: "❌ Les nouveaux membres ne seront plus recherchés dans {database}."
 spamdb_db_last: "❌ {database} est la seule base restante, elle reste donc activée. Activez d'abord l'autre, ou désactivez la vérification avec <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ lols.bot liste les comptes plus agressivement que CAS, attendez-vous donc à plus de faux positifs. Envisagez <code>/spamdb action log</code> tant que vous ne lui faites pas confiance. L'ID Telegram de chaque nouveau membre est désormais envoyé à lols.bot."
+spamdb_db_enabled_idle: "✅ {database} est sélectionnée, mais rien n'est recherché tant que la vérification est désactivée. Consultez son état avec <code>/spamdb</code>."
+spamdb_db_lols_warning_idle: "⚠️ lols.bot liste les comptes plus agressivement que CAS, attendez-vous donc à plus de faux positifs. Envisagez <code>/spamdb action log</code> tant que vous ne lui faites pas confiance. Une fois la vérification active, l'ID Telegram de chaque nouveau membre sera envoyé à lols.bot."
 
 # Locks module extended documentation
 locks_notes_docs: |

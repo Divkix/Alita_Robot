@@ -1802,6 +1802,8 @@ spamdb_db_enabled: "✅ New members will now be looked up in {database}."
 spamdb_db_disabled: "❌ New members will no longer be looked up in {database}."
 spamdb_db_last: "❌ {database} is the only database left, so it stays on. Switch the other one on first, or turn the check off with <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ lols.bot lists accounts more aggressively than CAS, so expect more false positives. Consider <code>/spamdb action log</code> until you trust it. Each new member's Telegram user ID is now sent to lols.bot."
+spamdb_db_enabled_idle: "✅ {database} is selected, but nothing is looked up while the check is off. See <code>/spamdb</code> for its state."
+spamdb_db_lols_warning_idle: "⚠️ lols.bot lists accounts more aggressively than CAS, so expect more false positives. Consider <code>/spamdb action log</code> until you trust it. Once the check is running, each new member's Telegram user ID is sent to lols.bot."
 
 # Admin module extended documentation
 admin_extended_docs: |

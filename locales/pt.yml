@@ -1725,6 +1725,8 @@ spamdb_db_enabled: "✅ Novos membros agora serão procurados em {database}."
 spamdb_db_disabled: "❌ Novos membros não serão mais procurados em {database}."
 spamdb_db_last: "❌ {database} é a única base restante, então continua ativada. Ative a outra primeiro ou desative a verificação com <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ O lols.bot lista contas de forma mais agressiva que o CAS, então haverá mais falsos positivos. Considere <code>/spamdb action log</code> até confiar nele. O ID do Telegram de cada novo membro agora é enviado ao lols.bot."
+spamdb_db_enabled_idle: "✅ {database} está selecionada, mas nada é procurado enquanto a verificação estiver desativada. Veja o estado dela com <code>/spamdb</code>."
+spamdb_db_lols_warning_idle: "⚠️ O lols.bot lista contas de forma mais agressiva que o CAS, então haverá mais falsos positivos. Considere <code>/spamdb action log</code> até confiar nele. Quando a verificação estiver ativa, o ID do Telegram de cada novo membro será enviado ao lols.bot."
 
 # Admin module extended documentation
 admin_extended_docs: |
