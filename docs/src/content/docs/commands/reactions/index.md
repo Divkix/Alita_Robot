@@ -72,5 +72,5 @@ usage for each command using `reactions_help` prefixed callback data:
 
 | Button | Action |
 |--------|--------|
-| "Add Reaction" | Shows `/addreaction` usage via `reactions_help.add` |
-| "Remove Reaction" | Shows `/removereaction` usage via `reactions_help.remove` |
+| "Add Reaction" | Shows `/addreaction` usage via `reactions_help\|v1\|action=add` |
+| "Remove Reaction" | Shows `/removereaction` usage via `reactions_help\|v1\|action=remove` |
