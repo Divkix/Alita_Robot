@@ -1199,6 +1199,7 @@ help_button_language: "Langue 🌏"
 help_click_button_info: "Cliquez sur le bouton ci-dessous pour obtenir des infos sur moi !"
 help_click_here: "Cliquez ici pour de l'aide !"
 help_contact_pm: "Contactez-moi en MP pour de l'aide !"
+help_contact_pm_module: "Contactez-moi en MP pour de l'aide sur <code>{module}</code> !"
 help_markdown_help_button: "Aide Markdown"
 help_markdown_formatting_button: "Formatage Markdown"
 help_fillings_button: "Remplissages"
@@ -1260,6 +1261,7 @@ misc_dev_user_tag: "C'est l'un de mes développeurs !"
 misc_pinging: "<code>Ping en cours</code>"
 misc_pinged_in: Ping effectué en %d ms
 misc_ping_response: "🏓 Pong ! <b>%dms</b>"
+misc_ping_result: "🏓 <b>Pong !</b>\n\n<b>RTT de l’API</b> (getMe) : <code>%dms</code>\n<b>Envoi du message</b> : <code>%dms</code>\n<b>Surcoût</b> : <code>%dms</code>"
 misc_thread_id: "ID du fil : <code>%d</code>"
 misc_chat_id: "<b>ID du chat :</b> <code>%d</code>"
 misc_user_id: "<b>ID de %s :</b> <code>%d</code>"
@@ -1359,6 +1361,7 @@ purges_purged_with_reason: "%d messages supprimés.\n*Raison* :\n%s"
 purges_reply_to_purge: Répondez à un message pour sélectionner où commencer la suppression.
 purges_reply_to_delete: Répondez à un message pour le supprimer !
 purges_message_marked: Ce message est déjà marqué pour la suppression !
+purges_mark_already_active: "Un autre message est déjà marqué pour la suppression dans ce chat. Utilisez /purgeto pour terminer cette suppression ou attendez que la marque expire."
 purges_marked_for_deletion: Message marqué pour suppression. Répondez à un autre message avec /purgeto pour supprimer tous les messages entre les deux ; dans les 30s !
 purges_reply_to_purgefrom: Répondez à un message pour sélectionner où commencer la suppression.
 purges_need_purgefrom: Vous ne pouvez utiliser cette commande qu'après avoir utilisé la commande /purgefrom !

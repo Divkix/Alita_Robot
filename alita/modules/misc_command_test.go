@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -14,7 +16,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/channels"
 	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -33,6 +37,7 @@ func withMiscHTTPClient(t *testing.T, client *http.Client) {
 }
 
 func TestPingSendsAndEditsLatencyMessage(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
@@ -48,8 +53,11 @@ func TestPingSendsAndEditsLatencyMessage(t *testing.T) {
 	if calls := client.callsFor("getMe"); len(calls) != 1 {
 		t.Fatalf("getMe calls = %d, want 1", len(calls))
 	}
-	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
-		t.Fatalf("editMessageText calls = %d, want 1", len(calls))
+	edited := fmt.Sprint(client.onlyCall(t, "editMessageText").Params["text"])
+	tmpl := trS(i18n.MustNewTranslator("en"), "misc_ping_result")
+	var getMeMs, sendMs, overheadMs int64
+	if n, err := fmt.Sscanf(edited, tmpl, &getMeMs, &sendMs, &overheadMs); tmpl == "" || err != nil || n != 3 {
+		t.Fatalf("ping result = %q, want misc_ping_result %q filled with three latencies (%d parsed: %v)", edited, tmpl, n, err)
 	}
 }
 
@@ -225,6 +233,34 @@ func TestTranslateHandlesReplyAndHTTPBranches(t *testing.T) {
 	}
 }
 
+func TestTranslateEscapesTranslatedText(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	withMiscHTTPClient(t, &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`[["x < y & z","en"]]`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	ctx := newModuleMessageContext(bot, chat, user, "/tr es x < y & z")
+	if err := miscModule.translate(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("translate() error = %v, want EndGroups", err)
+	}
+
+	call := client.onlyCall(t, "sendMessage")
+	text := fmt.Sprint(call.Params["text"])
+	if !strings.Contains(text, "x &lt; y &amp; z") {
+		t.Fatalf("translate text = %q, want the translation HTML-escaped", text)
+	}
+}
+
 func TestGetIdRepliesForCurrentGroupUserAndReply(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -289,6 +325,61 @@ func TestGetIdHandlesPrivateAnonymousAndMediaReply(t *testing.T) {
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
 		t.Fatalf("sendMessage calls = %d, want 3", len(calls))
+	}
+}
+
+func TestGetIdEscapesStoredUserName(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	sender := gotgbot.User{Id: 42, FirstName: "Member"}
+	targetID := uniquePositiveUserID()
+	if err := user.EnsureUserInDb(targetID, "", "<3 & Bob"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, sender, "/id")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 55,
+		Date:      1,
+		Chat:      chat,
+		From:      &gotgbot.User{Id: targetID, FirstName: "<3 & Bob"},
+		Text:      "hi",
+	}
+	if err := miscModule.getId(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("getId() error = %v, want EndGroups", err)
+	}
+
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(text, "&lt;3 &amp; Bob") || strings.Contains(text, "<3") {
+		t.Fatalf("getId text = %q, want the user name HTML-escaped", text)
+	}
+}
+
+func TestDisabledIdAndInfoStaySilentForUnknownUsername(t *testing.T) {
+	for _, cmd := range []string{"id", "info"} {
+		t.Run(cmd, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := disabling.DisableCMD(f.chat.Id, cmd); err != nil {
+				t.Fatalf("DisableCMD(%s) error = %v", cmd, err)
+			}
+			t.Cleanup(func() { _ = disabling.EnableCMD(f.chat.Id, cmd) })
+			// Telegram cannot resolve the username either.
+			f.client.errors["getChat"] = errors.New("Bad Request: chat not found")
+
+			ctx := newModuleMessageContext(f.bot, f.chat, f.member, "/"+cmd+" @nonexistentuser")
+			handler := miscModule.getId
+			if cmd == "info" {
+				handler = miscModule.info
+			}
+			if err := handler(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s() error = %v, want EndGroups", cmd, err)
+			}
+			if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("sendMessage calls = %d, want 0 for a disabled command", len(calls))
+			}
+		})
 	}
 }
 

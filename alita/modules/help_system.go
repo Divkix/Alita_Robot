@@ -13,8 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
-var markup gotgbot.InlineKeyboardMarkup
-
 func listModulesFrom(registry *moduleStruct) []string {
 	var modules []string
 	for module, enabled := range registry.AbleMap {
@@ -26,11 +24,9 @@ func listModulesFrom(registry *moduleStruct) []string {
 	return modules
 }
 
-func initHelpButtons() {
-	markup = initHelpButtonsFrom(DefaultHelpRegistry())
-}
-
-func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
+// initHelpButtonsFrom builds the module list keyboard with its Back button
+// labelled in langCode.
+func initHelpButtonsFrom(registry *moduleStruct, langCode string) gotgbot.InlineKeyboardMarkup {
 	var kb []gotgbot.InlineKeyboardButton
 
 	for _, i := range listModulesFrom(registry) {
@@ -40,7 +36,7 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 		})
 	}
 	zb := slices.Collect(slices.Chunk(kb, 3))
-	tr := i18n.MustNewTranslator("en")
+	tr := i18n.MustNewTranslator(langCode)
 	backText, _ := tr.GetString("helpers_back_button")
 	zb = append(zb, []gotgbot.InlineKeyboardButton{{
 		Text:         backText,
@@ -93,14 +89,16 @@ func renderModuleHelp(headerTemplate, modName, helpMsg string) string {
 func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *moduleStruct) (msg *gotgbot.Message, err error) {
 	module = strings.ToLower(module)
 	if module == "help" {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		langCode := lang.GetLanguage(ctx)
+		tr := i18n.MustNewTranslator(langCode)
 		helpText := getMainHelp(tr, html.EscapeString(ctx.EffectiveMessage.From.FirstName))
+		kb := initHelpButtonsFrom(registry, langCode)
 		_, err = b.SendMessage(
 			ctx.EffectiveMessage.Chat.Id,
 			helpText,
 			&gotgbot.SendMessageOpts{
 				ParseMode:   formatting.HTML,
-				ReplyMarkup: &markup,
+				ReplyMarkup: &kb,
 			},
 		)
 		return
@@ -155,7 +153,7 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruc
 		_parsemode = formatting.HTML
 		tr := i18n.MustNewTranslator(userOrGroupLanguage)
 		helpText = getMainHelp(tr, html.EscapeString(ctx.EffectiveUser.FirstName))
-		kbmarkup = initHelpButtonsFrom(registry)
+		kbmarkup = initHelpButtonsFrom(registry, userOrGroupLanguage)
 	}
 
 	return

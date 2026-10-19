@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -27,13 +28,14 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 	}
 
 	baseStr, _ := c.Tr.GetString("mutes_mute_message")
+	text := fmt.Sprintf(baseStr, formatting.MentionHtml(muteUser.Id, muteUser.FirstName))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString("mutes_reason_suffix")
-		baseStr += fmt.Sprintf(temp, t.reason)
+		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
 
 	_, err = c.Msg.Reply(c.Bot,
-		fmt.Sprintf(baseStr, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
+		text,
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -108,7 +110,7 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 			baseStr := fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName), t.timeVal)
 			if t.reason != "" {
 				temp, _ := c.Tr.GetString("mutes_reason_suffix")
-				baseStr += fmt.Sprintf(temp, t.reason)
+				baseStr += fmt.Sprintf(temp, html.EscapeString(t.reason))
 			}
 
 			_, err = c.Msg.Reply(c.Bot, baseStr, formatting.Shtml())

@@ -20,13 +20,13 @@ import (
 
 var languagesModule = moduleStruct{moduleName: "Languages"}
 
-func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
-	return withHelpTranslateRow(keyboard.MakeLanguageKeyboard())
+func (moduleStruct) genFullLanguageKb(langCode string) [][]gotgbot.InlineKeyboardButton {
+	return withHelpTranslateRow(keyboard.MakeLanguageKeyboard(), langCode)
 }
 
-// withHelpTranslateRow appends the Crowdin "help translate" link row.
-func withHelpTranslateRow(kb [][]gotgbot.InlineKeyboardButton) [][]gotgbot.InlineKeyboardButton {
-	tr := i18n.MustNewTranslator("en")
+// withHelpTranslateRow appends the Crowdin "help translate" link row, labelled in langCode.
+func withHelpTranslateRow(kb [][]gotgbot.InlineKeyboardButton, langCode string) [][]gotgbot.InlineKeyboardButton {
+	tr := i18n.MustNewTranslator(langCode)
 	helpTranslateText, _ := tr.GetString("language_help_translate")
 	return append(
 		kb,
@@ -52,7 +52,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	cLang := lang.GetLanguage(ctx)
 	tr := i18n.MustNewTranslator(cLang)
 
-	langKb := m.genFullLanguageKb()
+	langKb := m.genFullLanguageKb(cLang)
 	if args := ctx.Args(); ctx.Message.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
 		// /lang group in PM: pick the language of the connected group.
 		group := resolveAdminChat(b, ctx, false)
@@ -62,7 +62,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		// lang.GetLanguage(ctx) answers in the PM's language; name the group's.
 		groupLang := lang.GetLanguage(&ext.Context{EffectiveChat: group})
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
-		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id))
+		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id), cLang)
 	} else if ctx.Message.Chat.Type == "private" {
 		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
@@ -197,7 +197,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func LoadLanguage(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(languagesModule.moduleName, true)
-	SetModuleHelp(languagesModule.moduleName, languagesModule.genFullLanguageKb())
+	SetModuleHelpBuilder(languagesModule.moduleName, languagesModule.genFullLanguageKb)
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	dispatcher.AddHandler(handlers.NewCommand("lang", languagesModule.changeLanguage))

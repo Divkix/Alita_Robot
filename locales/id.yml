@@ -1213,6 +1213,7 @@ purges_purged_with_reason: "Membersihkan %d pesan.\n*Alasan*:\n%s"
 purges_reply_to_purge: Balas ke pesan untuk memilih dari mana mulai membersihkan.
 purges_reply_to_delete: Balas ke pesan untuk menghapusnya!
 purges_message_marked: Pesan ini sudah ditandai untuk pembersihan!
+purges_mark_already_active: "Pesan lain di obrolan ini sudah ditandai untuk pembersihan. Gunakan /purgeto untuk menyelesaikan pembersihan itu atau tunggu hingga tandanya kedaluwarsa."
 purges_marked_for_deletion: Pesan ditandai untuk penghapusan. Balas ke pesan lain dengan /purgeto untuk menghapus semua pesan di antaranya; dalam 30 detik!
 purges_reply_to_purgefrom: Balas ke pesan untuk memilih dari mana mulai membersihkan.
 purges_need_purgefrom: Anda hanya dapat menggunakan perintah ini setelah menggunakan perintah /purgefrom!
@@ -1270,6 +1271,7 @@ misc_dev_user_tag: "Dia adalah salah satu pengguna dev saya!"
 misc_pinging: "<code>Menguji koneksi...</code>"
 misc_pinged_in: Ping dalam %d ms
 misc_ping_response: "🏓 Pong! <b>%dms</b>"
+misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>RTT API</b> (getMe): <code>%dms</code>\n<b>Kirim pesan</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "ID Thread: <code>%d</code>"
 misc_chat_id: "<b>ID Obrolan:</b> <code>%d</code>"
 misc_user_id: "<b>ID %s:</b> <code>%d</code>"
@@ -1505,6 +1507,7 @@ help_button_language: "Bahasa 🌏"
 help_click_button_info: "Klik tombol di bawah untuk mendapatkan info tentang saya!"
 help_click_here: "Klik di sini untuk bantuan!"
 help_contact_pm: "Hubungi saya di PM untuk bantuan!"
+help_contact_pm_module: "Hubungi saya di PM untuk bantuan tentang <code>{module}</code>!"
 help_markdown_help_button: "Bantuan Markdown"
 help_markdown_formatting_button: "Pemformatan Markdown"
 help_fillings_button: "Isian"

@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/locks"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
@@ -391,5 +394,98 @@ func TestBotLockHandlerReportsAndPropagatesGotgbotErrors(t *testing.T) {
 				t.Fatalf("botLockHandler() error = %v, want request error", err)
 			}
 		})
+	}
+}
+
+// An invalid lock type is echoed back HTML-escaped, so Telegram accepts the
+// reply.
+func TestLockInvalidTypeReplyEscapesInput(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := locksModule.lockPerm(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/lock <b")); err != ext.EndGroups {
+		t.Fatalf("lockPerm error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	text, _ := calls[0].Params["text"].(string)
+	if !strings.Contains(text, "&lt;b") || strings.Contains(text, "<b") {
+		t.Fatalf("invalid lock reply = %q, want the input escaped", text)
+	}
+}
+
+// Anonymous admins post as the group itself; they are admins and exempt
+// from locks.
+func TestLockWatchersDoNotDeleteForAnonymousAdmins(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	anonBot := gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group", Username: "GroupAnonymousBot"}
+	client.responses["getChatAdministrators"] = json.RawMessage(
+		`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true,"can_restrict_members":true}]`,
+	)
+	if err := locks.UpdateLock(chat.Id, "sticker", true); err != nil {
+		t.Fatalf("UpdateLock sticker setup error = %v", err)
+	}
+	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
+		t.Fatalf("UpdateLock media setup error = %v", err)
+	}
+	asGroup := func(ctx *ext.Context) *ext.Context {
+		groupChat := chat
+		ctx.EffectiveMessage.SenderChat = &groupChat
+		ctx.EffectiveSender = &gotgbot.Sender{Chat: &groupChat, User: &anonBot, ChatId: chat.Id}
+		return ctx
+	}
+
+	stickerCtx := asGroup(newModuleMessageContext(bot, chat, anonBot, ""))
+	stickerCtx.EffectiveMessage.Sticker = &gotgbot.Sticker{FileId: "sticker-1"}
+	if err := locksModule.permHandler(bot, stickerCtx); err != ext.ContinueGroups {
+		t.Fatalf("permHandler error = %v, want ContinueGroups", err)
+	}
+
+	mediaCtx := asGroup(newModuleMessageContext(bot, chat, anonBot, "photo"))
+	mediaCtx.EffectiveMessage.Photo = []gotgbot.PhotoSize{{FileId: "photo-1"}}
+	if err := locksModule.restHandler(bot, mediaCtx); err != ext.ContinueGroups {
+		t.Fatalf("restHandler error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for an anonymous admin", len(calls))
+	}
+}
+
+// When the bot is an admin without ban rights, the bot lock tells the chat
+// so instead of failing silently.
+func TestBotLockHandlerReportsMissingBanPermission(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
+	client.responses["getChatAdministrators"] = json.RawMessage(
+		`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true,"can_restrict_members":false}]`,
+	)
+	if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
+		t.Fatalf("UpdateLock bots setup error = %v", err)
+	}
+
+	if err := locksModule.botLockHandler(bot, newBotLockContext(bot, chat, member, addedBot)); err != ext.ContinueGroups {
+		t.Fatalf("botLockHandler error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none without ban rights", len(calls))
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the missing-permission notice", len(sent))
+	}
+	if got := fmt.Sprint(sent[0].Params["chat_id"]); got != fmt.Sprint(chat.Id) {
+		t.Errorf("notice chat_id = %s, want %d", got, chat.Id)
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("locks_bot_lock_no_ban_permission")
+	if got, _ := sent[0].Params["text"].(string); got != want {
+		t.Errorf("notice text = %q, want %q", got, want)
 	}
 }

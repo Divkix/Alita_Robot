@@ -435,7 +435,7 @@ func getLockDescription(lockName, category string) string {
 		"forward":     "Blocks forwarded messages",
 		"game":        "Blocks game messages",
 		"location":    "Blocks location/venue messages",
-		"rtl":         "Blocks messages containing right-to-left (Arabic) text",
+		"rtl":         "Blocks message text containing Arabic-script characters (U+0600-U+06FF); captions and other RTL scripts such as Hebrew are not checked",
 		"anonchannel": "Blocks messages from anonymous channels and linked channel posts",
 
 		// Restriction locks (from restrMap)
@@ -443,7 +443,7 @@ func getLockDescription(lockName, category string) string {
 		"comments": "Blocks messages from non-members (discussion comments)",
 		"media":    "Blocks all media files (audio, document, video, photo, video note, voice)",
 		"other":    "Blocks games, stickers, and GIFs",
-		"previews": "Blocks messages with URL previews",
+		"previews": "Blocks messages containing URLs, whether or not a preview is shown (same match as url)",
 		"all":      "Blocks all messages from non-admins",
 	}
 

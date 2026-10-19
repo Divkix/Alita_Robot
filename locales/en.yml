@@ -1264,6 +1264,7 @@ purges_purged_with_reason: "Purged %d messages.\n*Reason*:\n%s"
 purges_reply_to_purge: Reply to a message to select where to start purging from.
 purges_reply_to_delete: Reply to a message to delete it!
 purges_message_marked: This message is already marked for purging!
+purges_mark_already_active: "Another message is already marked for purging in this chat. Use /purgeto to finish that purge or wait for the mark to expire."
 purges_marked_for_deletion: Message marked for deletion. Reply to another message with /purgeto to delete all messages in between; within 30s!
 purges_reply_to_purgefrom: Reply to a message to select where to start purging from.
 purges_need_purgefrom: You can only use this command after having used the /purgefrom command!
@@ -1321,6 +1322,7 @@ misc_dev_user_tag: "He is one of my dev users!"
 misc_pinging: "<code>Pinging</code>"
 misc_pinged_in: Pinged in %d ms
 misc_ping_response: "🏓 Pong! <b>%dms</b>"
+misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>Send msg</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "Thread Id: <code>%d</code>"
 misc_chat_id: "<b>Chat ID:</b> <code>%d</code>"
 misc_user_id: "<b>%s's ID:</b> <code>%d</code>"
@@ -1556,6 +1558,7 @@ help_button_language: "Language 🌏"
 help_click_button_info: "Click on the button below to get info about me!"
 help_click_here: "Click here for help!"
 help_contact_pm: "Contact me in PM for help!"
+help_contact_pm_module: "Contact me in PM for help regarding <code>{module}</code>!"
 help_markdown_help_button: "Markdown Help"
 help_markdown_formatting_button: "Markdown Formatting"
 help_fillings_button: "Fillings"

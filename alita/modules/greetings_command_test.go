@@ -1318,3 +1318,36 @@ func TestJoinRequestHandlerReportsRequestsHandledElsewhere(t *testing.T) {
 		})
 	}
 }
+
+func TestGreetingStatusShowsSettingsAsWords(t *testing.T) {
+	useRealLocales(t)
+	for _, tt := range []struct {
+		command string
+		run     func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{command: "/welcome", run: greetingsModule.welcome},
+		{command: "/goodbye", run: greetingsModule.goodbye},
+	} {
+		t.Run(tt.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := tt.run(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, tt.command+" on")); err != ext.EndGroups {
+				t.Fatalf("%s on error = %v, want EndGroups", tt.command, err)
+			}
+			before := len(f.client.callsFor("sendMessage"))
+			if err := tt.run(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, tt.command)); err != ext.EndGroups {
+				t.Fatalf("%s status error = %v, want EndGroups", tt.command, err)
+			}
+			sent := f.client.callsFor("sendMessage")
+			if len(sent) <= before {
+				t.Fatalf("%s status sent no message", tt.command)
+			}
+			status := fmt.Sprint(sent[before].Params["text"])
+			if strings.Contains(status, "%!") {
+				t.Fatalf("%s status has a bad format verb: %q", tt.command, status)
+			}
+			if !strings.Contains(status, "<code>true</code>") {
+				t.Fatalf("%s status = %q, want the enabled setting shown as true", tt.command, status)
+			}
+		})
+	}
+}

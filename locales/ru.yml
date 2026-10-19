@@ -520,6 +520,7 @@ help_button_language: "Язык 🌏"
 help_click_button_info: "Нажмите на кнопку ниже, чтобы получить информацию обо мне!"
 help_click_here: "Нажмите здесь для справки!"
 help_contact_pm: "Свяжитесь со мной в ЛС, если есть вопросы!"
+help_contact_pm_module: "Свяжитесь со мной в ЛС, если есть вопросы о <code>{module}</code>!"
 help_markdown_help_button: "Справка по Markdown"
 help_markdown_formatting_button: "Форматирование Markdown"
 help_fillings_button: "Заполнения"
@@ -890,14 +891,18 @@ common_action_demote: "понизить"
 common_action_restrict: "ограничить"
 
 # Time units for duration formatting
-common_time_minute: "минута"
+common_time_minute: "минуту"
 common_time_minutes: "минут"
+common_time_minutes_few: "минуты"
 common_time_hour: "час"
 common_time_hours: "часов"
+common_time_hours_few: "часа"
 common_time_day: "день"
 common_time_days: "дней"
-common_time_week: "неделя"
+common_time_days_few: "дня"
+common_time_week: "неделю"
 common_time_weeks: "недель"
+common_time_weeks_few: "недели"
 
 # Status indicators (for replacing %t boolean formatters)
 common_status_enabled: "Включено"
@@ -1033,6 +1038,7 @@ purges_purged_with_reason: "Удалено %d сообщений.\n*Причин
 purges_reply_to_purge: Ответьте на сообщение, чтобы выбрать, откуда начать удаление.
 purges_reply_to_delete: Ответьте на сообщение, чтобы удалить его!
 purges_message_marked: Это сообщение уже отмечено для удаления!
+purges_mark_already_active: "Другое сообщение в этом чате уже отмечено для удаления. Используйте /purgeto, чтобы завершить удаление, или дождитесь истечения отметки."
 purges_marked_for_deletion: Сообщение отмечено для удаления. Ответьте на другое сообщение с /purgeto, чтобы удалить все сообщения между ними; в течение 30 секунд!
 purges_reply_to_purgefrom: Ответьте на сообщение, чтобы выбрать, откуда начать удаление.
 purges_need_purgefrom: Вы можете использовать эту команду только после использования команды /purgefrom!
@@ -1089,6 +1095,7 @@ misc_dev_user_tag: "Он один из моих разработчиков!"
 misc_pinging: "<code>Пингование</code>"
 misc_pinged_in: Пинговано за %d мс
 misc_ping_response: "🏓 Понг! <b>%dмс</b>"
+misc_ping_result: "🏓 <b>Понг!</b>\n\n<b>RTT API</b> (getMe): <code>%dмс</code>\n<b>Отправка сообщения</b>: <code>%dмс</code>\n<b>Накладные расходы</b>: <code>%dмс</code>"
 misc_thread_id: "ID темы: <code>%d</code>"
 misc_chat_id: "<b>ID чата:</b> <code>%d</code>"
 misc_user_id: "<b>ID %s:</b> <code>%d</code>"

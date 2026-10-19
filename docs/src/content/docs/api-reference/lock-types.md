@@ -37,7 +37,7 @@ Restriction locks affect broad categories of messages. These are powerful locks 
 | `media` | Blocks all media files (audio, document, video, photo, video note, voice) |
 | `messages` | Blocks all text, media, contacts, locations, games, stickers, and GIFs |
 | `other` | Blocks games, stickers, and GIFs |
-| `previews` | Blocks messages with URL previews |
+| `previews` | Blocks messages containing URLs, whether or not a preview is shown (same match as url) |
 
 ## Permission Locks
 
@@ -55,7 +55,7 @@ Permission locks target specific types of content or actions. Use these for fine
 | `gif` | Blocks GIF/animation messages |
 | `location` | Blocks location/venue messages |
 | `photo` | Blocks photo messages |
-| `rtl` | Blocks messages containing right-to-left (Arabic) text |
+| `rtl` | Blocks message text containing Arabic-script characters (U+0600-U+06FF); captions and other RTL scripts such as Hebrew are not checked |
 | `sticker` | Blocks sticker messages |
 | `url` | Blocks messages containing URLs |
 | `video` | Blocks video messages |
@@ -81,8 +81,8 @@ These locks control how content behaves:
 
 - **`forward`**: Blocks forwarded messages
 - **`url`**: Blocks messages containing URLs
-- **`previews`**: Blocks messages with URL previews
-- **`rtl`**: Blocks messages containing right-to-left (Arabic) text
+- **`previews`**: Blocks messages containing URLs, whether or not a preview is shown (same match as url)
+- **`rtl`**: Blocks message text containing Arabic-script characters (U+0600-U+06FF); captions and other RTL scripts such as Hebrew are not checked
 - **`anonchannel`**: Blocks messages from anonymous channels and linked channel posts
 - **`comments`**: Blocks messages from non-members (discussion comments)
 

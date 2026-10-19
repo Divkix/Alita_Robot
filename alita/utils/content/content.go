@@ -102,16 +102,20 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 			result.DataType = db.TEXT
 		}
 	} else if replyMsg != nil && len(args) >= 1 {
-		result.KeyWord = strings.Join(args, " ")
 		if isFilter {
+			// A filter trigger may be a phrase.
+			result.KeyWord = strings.Join(args, " ")
 			if m := quotedFilterKeywordRegex.FindStringSubmatch(result.KeyWord); m != nil {
 				if kw := strings.TrimSpace(m[1]); kw != "" {
 					result.KeyWord = kw
 				}
 			}
+		} else {
+			// #name and /get look a note up by its first word only.
+			result.KeyWord = args[0]
 		}
-		// Every argument is the name, so the content is the replied message
-		// alone; setRawText would take it from the second name word on.
+		// The content is the replied message alone; setRawText would take it
+		// from the second argument on.
 		switch {
 		case replyMsg.Caption != "":
 			rawText = replyMsg.OriginalCaptionMDV2()

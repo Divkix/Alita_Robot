@@ -1468,6 +1468,7 @@ purges_purged_with_reason: "%d संदेश हटाए गए।\n*का�
 purges_reply_to_purge: पर्ज शुरू करने के लिए किसी संदेश का जवाब दें।
 purges_reply_to_delete: इसे हटाने के लिए किसी संदेश का जवाब दें!
 purges_message_marked: यह संदेश पहले से ही पर्ज के लिए चिह्नित है!
+purges_mark_already_active: "इस चैट में एक और संदेश पहले से ही पर्ज के लिए चिह्नित है। उस पर्ज को पूरा करने के लिए /purgeto का उपयोग करें या चिह्न की समय-सीमा समाप्त होने तक प्रतीक्षा करें।"
 purges_marked_for_deletion: "संदेश विलोपन के लिए चिह्नित। बीच के सभी संदेशों को हटाने के लिए 30s के भीतर दूसरे संदेश का जवाब /purgeto के साथ दें!"
 purges_reply_to_purgefrom: पर्ज शुरू करने के लिए किसी संदेश का जवाब दें।
 purges_need_purgefrom: आप इस कमांड का उपयोग केवल /purgefrom कमांड का उपयोग करने के बाद कर सकते हैं!
@@ -1681,6 +1682,7 @@ misc_dev_user_tag: "वह मेरे डेव उपयोगकर्ता
 misc_pinging: "<code>पिंग कर रहा हूं</code>"
 misc_pinged_in: "%d ms में पिंग हुआ"
 misc_ping_response: "🏓 पॉन्ग! <b>%dms</b>"
+misc_ping_result: "🏓 <b>पॉन्ग!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>संदेश भेजना</b>: <code>%dms</code>\n<b>अतिरिक्त समय</b>: <code>%dms</code>"
 misc_thread_id: "थ्रेड Id: <code>%d</code>"
 misc_chat_id: "<b>चैट ID:</b> <code>%d</code>"
 misc_user_id: "<b>%s की ID:</b> <code>%d</code>"
@@ -1801,6 +1803,7 @@ help_button_language: "भाषा 🌏"
 help_click_button_info: "मेरे बारे में जानकारी प्राप्त करने के लिए नीचे दिए गए बटन पर क्लिक करें!"
 help_click_here: "सहायता के लिए यहां क्लिक करें!"
 help_contact_pm: "सहायता के लिए मुझसे PM में संपर्क करें!"
+help_contact_pm_module: "<code>{module}</code> के बारे में सहायता के लिए मुझसे PM में संपर्क करें!"
 help_markdown_help_button: "मार्कडाउन सहायता"
 help_markdown_formatting_button: "मार्कडाउन फॉर्मेटिंग"
 help_fillings_button: "फिलिंग्स"
