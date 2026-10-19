@@ -9,9 +9,9 @@ admin_adminlist: "Administrateurs de <b>%s</b> :"
 admin_anon_admin_already_disabled: Le mode AnonAdmin est déjà <b>désactivé</b> pour %s
 admin_anon_admin_already_enabled: Le mode AnonAdmin est déjà <b>activé</b> pour %s
 admin_anon_admin_disabled: "Le mode AnonAdmin est actuellement <b>désactivé</b> pour %s.\n\nCela nécessite que les administrateurs anonymes appuient sur un bouton pour confirmer leurs permissions."
-admin_anon_admin_disabled_now: "Le mode AnonAdmin est maintenant <b>désactivé</b> pour %s.\n\nDésormais, je ne demanderai plus aux administrateurs anonymes de vérifier leurs permissions."
+admin_anon_admin_disabled_now: "Le mode AnonAdmin est maintenant <b>désactivé</b> pour %s.\n\nDésormais, les administrateurs anonymes devront appuyer sur un bouton pour confirmer leurs permissions."
 admin_anon_admin_enabled: "Le mode AnonAdmin est actuellement <b>activé</b> pour %s.\n\nCela permet à tous les administrateurs anonymes d'effectuer des actions d'administration sans restriction."
-admin_anon_admin_enabled_now: "Le mode AnonAdmin est maintenant <b>activé</b> pour %s.\n\nDésormais, je demanderai aux administrateurs de vérifier les permissions des administrateurs anonymes."
+admin_anon_admin_enabled_now: "Le mode AnonAdmin est maintenant <b>activé</b> pour %s.\n\nDésormais, les administrateurs anonymes peuvent exécuter des commandes d'administration sans confirmer avec un bouton."
 admin_anon_admin_invalid_arg: "Argument invalide, je comprends uniquement <code>on</code>, <code>off</code>, <code>yes</code>, <code>no</code>"
 admin_demote_not_admin: "Cette personne n'est pas administrateur, comment suis-je censé la rétrograder ?"
 admin_demote_is_bot_itself: Je ne vais pas me rétrograder moi-même.
@@ -22,7 +22,7 @@ admin_errors_err_cannot_promote: "Échec de la promotion ; il se peut que je ne 
 admin_errors_err_set_title: "Échec de la définition du titre d'administrateur personnalisé ; le titre peut être incorrect ou contenir des emojis."
 admin_errors_title_empty: Vous devez me donner un titre d'administrateur à définir.
 admin_errors_admin_cache_failed: "J'ai du mal à accéder à la liste des administrateurs. Veuillez réessayer plus tard."
-admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n\n× /setgtitle <titre> : Changer le titre du groupe.\n\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n\n× /setgdesc [texte] : Changer la description du groupe.\n\n× /invitelink : Obtenir le lien d'invitation du chat.\n\n× /anonadmin `<on/off>` : Exiger que les administrateurs anonymes confirment avec un bouton (propriétaire du groupe uniquement).\n\n× /admincache : Recharger la liste des administrateurs.\n\n× /clearadmincache : Vider la liste des administrateurs en cache."
+admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n*Commandes Utilisateur :*\n× /adminlist : Lister les administrateurs du chat actuel.\n\n*Commandes Admin :*\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n× /setgtitle <titre> : Changer le titre du groupe.\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n× /setgdesc [texte] : Changer la description du groupe.\n× /invitelink : Obtenir le lien d'invitation du chat.\n× /anonadmin `<on/off>` : on permet aux administrateurs anonymes d'agir sans confirmation ; off (par défaut) les oblige à confirmer avec un bouton (propriétaire du groupe uniquement).\n× /admincache : Recharger la liste des administrateurs.\n× /clearadmincache : Vider la liste des administrateurs en cache."
 admin_promote_admin_title_truncated: Titre d'administrateur tronqué à 16 caractères depuis %d
 admin_promote_is_admin: "Cette personne est déjà administrateur, comment suis-je censé la promouvoir ?"
 admin_promote_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
@@ -45,10 +45,10 @@ admin_extended_docs: |
   <b>Support des Administrateurs Anonymes</b>
 
   La commande <code>/anonadmin</code> permet aux propriétaires de groupe de basculer la reconnaissance des administrateurs anonymes :
-  <code>/anonadmin on</code> - Activer les vérifications d'administrateurs anonymes
-  <code>/anonadmin off</code> - Désactiver les vérifications d'administrateurs anonymes
+  <code>/anonadmin on</code> - Faire confiance aux administrateurs anonymes sans vérification
+  <code>/anonadmin off</code> - Exiger une vérification par bouton (par défaut)
 
-  Lorsque c'est activé, le bot demandera une vérification pour les actions d'administration des comptes anonymes.
+  Lorsque c'est désactivé (par défaut), le bot demande une vérification par bouton avant d'exécuter les actions d'administration des comptes anonymes.
 
   <b>Comment fonctionne la vérification des administrateurs anonymes :</b>
   1. Le bot détecte que l'expéditeur est GroupAnonymousBot
@@ -454,33 +454,33 @@ blacklists_help_msg: "*Commandes Utilisateur :*
 
   *Note :*
 
-  Le mode par défaut pour la liste noire est *none*, ce qui supprimera simplement les messages du
-  chat."
+  Le mode par défaut pour la liste noire est *warn*, ce qui supprimera le message et avertira
+  l'utilisateur."
 blacklists_ls_bl_list_bl: "Ces mots sont sur la liste noire de ce chat :"
 blacklists_ls_bl_no_blacklisted: Il n'y a pas de mots sur la liste noire dans ce chat.
-blacklists_rm_all_bl_ask: |
-  Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
-  ce chat ?
-blacklists_rm_all_bl_button_handler_no: |
-  Suppression de la liste noire de ce chat annulée
-  ❌
+blacklists_rm_all_bl_ask:
+  "Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
+  ce chat ?"
+blacklists_rm_all_bl_button_handler_no:
+  "Suppression de la liste noire de ce chat annulée
+  ❌"
 blacklists_rm_all_bl_button_handler_yes: Tous les mots de la liste noire ont été supprimés de ce chat ✅
 blacklists_set_bl_action_changed_mode: "Mode de liste noire changé avec succès : *%s*"
 blacklists_set_bl_action_choose_correct_option: Veuillez choisir une option parmi <mute/kick/ban/warn/none>
-blacklists_set_bl_action_current_mode: |
-  Le mode de liste noire actuel pour ce chat est :
-  %s
+blacklists_set_bl_action_current_mode:
+  "Le mode de liste noire actuel pour ce chat est :
+  %s"
 blacklists_unblacklist_give_bl_word: Veuillez me donner un mot à retirer de la liste noire !
-blacklists_unblacklist_no_removed_bl: |
-  Aucun des mots donnés n'était sur la liste noire
-  et ne peut être supprimé !
-blacklists_unblacklist_removed_bl: |
-  '%s' supprimé avec succès de la liste
-  noire !
+blacklists_unblacklist_no_removed_bl:
+  "Aucun des mots donnés n'était sur la liste noire
+  et ne peut être supprimé !"
+blacklists_unblacklist_removed_bl:
+  "'%s' supprimé avec succès de la liste
+  noire !"
 
 # Captcha module strings
-captcha_help_msg: |
-  Protégez votre groupe des bots et spammeurs avec la vérification CAPTCHA !
+captcha_help_msg:
+  "Protégez votre groupe des bots et spammeurs avec la vérification CAPTCHA !
 
 
   Obligez les nouveaux membres à prouver qu'ils sont humains en résolvant un simple défi avant de
@@ -514,7 +514,7 @@ captcha_help_msg: |
 
   Lorsque c'est activé, les nouveaux membres sont automatiquement rendus muets jusqu'à ce qu'ils complètent le captcha.
 
-  S'ils échouent ou dépassent le délai, l'action configurée est appliquée.
+  S'ils échouent ou dépassent le délai, l'action configurée est appliquée."
 captcha_enable_failed: Échec de l'activation du captcha. Veuillez réessayer.
 captcha_disable_failed: Échec de la désactivation du captcha. Veuillez réessayer.
 captcha_usage: Veuillez utiliser <code>/captcha on</code> ou <code>/captcha off</code>
@@ -571,7 +571,7 @@ captcha_wrong_answer_final: "❌ Mauvaise réponse ! Vous avez été %s."
 captcha_wrong_answer_remaining: "❌ Mauvaise réponse ! %d tentatives restantes."
 captcha_action_kicked: "expulsé"
 captcha_action_banned: "banni"
-captcha_action_muted: "rendu muet définitivement"
+captcha_action_muted: "rendu muet pendant 24 heures"
 captcha_refresh_success: "🔄 Nouveau captcha envoyé !"
 captcha_timeout_failure_kicked: "❌ %s n'a pas complété la vérification captcha et a été expulsé."
 captcha_timeout_failure_banned: "❌ %s n'a pas complété la vérification captcha et a été banni."
@@ -627,8 +627,8 @@ captcha_pending_message_content: "   Contenu : %s\n"
 captcha_pending_message_time: "   Heure : %s\n\n"
 
 # Greetings module strings
-greetings_help_msg: |
-  Accueillez les nouveaux membres dans vos groupes ou dites au revoir après leur départ !
+greetings_help_msg:
+  "Accueillez les nouveaux membres dans vos groupes ou dites au revoir après leur départ !
 
 
   *Commandes Admin :*
@@ -651,7 +651,7 @@ greetings_help_msg: |
   × /cleanwelcome `<yes/no/on/off>` : Supprime l'ancien message de bienvenue à chaque fois qu'un nouveau
   membre rejoint.
 
-  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres.
+  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres."
 greetings_welcome_status: |
   J'accueille actuellement les utilisateurs : <code>%s</code>
   Je supprime actuellement les anciens messages de bienvenue : <code>%s</code>
@@ -717,8 +717,8 @@ greetings_clean_service_should: "Je devrais supprimer les messages 'utilisateur 
 greetings_clean_service_not: "Je ne supprime actuellement pas les messages de rejointe."
 
 # Filters module strings
-filters_help_msg: |
-  Les filtres ne sont pas sensibles à la casse ; chaque fois que quelqu'un dit vos mots
+filters_help_msg:
+  "Les filtres ne sont pas sensibles à la casse ; chaque fois que quelqu'un dit vos mots
   déclencheurs, Alita répondra autre chose ! Cela peut être utilisé pour créer vos propres commandes,
   si désiré.
 
@@ -743,7 +743,7 @@ filters_help_msg: |
 
   - Définir un filtre à plusieurs mots :
 
-  -> /filter bonjour ami Salut ! Ça faisait longtemps !
+  -> /filter \"bonjour ami\" Salut ! Ça faisait longtemps !
 
   - Définir un filtre qui ne peut être utilisé que par les admins :
 
@@ -752,7 +752,7 @@ filters_help_msg: |
   - Pour sauvegarder un fichier, image, gif ou tout autre pièce jointe, répondez simplement au fichier
   avec :
 
-  -> /filter déclencheur
+  -> /filter déclencheur"
 filters_invalid: Filtre invalide !
 filters_limit_exceeded: |
   Limite de filtres dépassée, un groupe ne peut avoir que 150 filtres maximum !
@@ -836,8 +836,8 @@ notes_admin_only_access: "Cette note ne peut être consultée que par un admin !
 notes_private_conflict_warning: "\n\n<b>Note :</b> Cette note sera envoyée selon le paramètre par défaut des notes de groupe, car elle a à la fois <code>{private}</code> et <code>{noprivate}</code>."
 
 # Rules module strings
-rules_help_msg: |
-  Chaque chat fonctionne avec des règles différentes ; ce module vous aidera à rendre
+rules_help_msg:
+  "Chaque chat fonctionne avec des règles différentes ; ce module vous aidera à rendre
   ces règles plus claires !
 
   *Commandes Utilisateur* :
@@ -857,7 +857,7 @@ rules_help_msg: |
 
   × /resetrulesbutton : Réinitialiser le texte du bouton des règles par défaut.
 
-  × /resetrulesbtn : Identique à ci-dessus.
+  × /resetrulesbtn : Identique à ci-dessus."
 rules_not_set: Ce chat n'a pas de règles définies !
 rules_for_chat: "Règles pour <b>%s</b> :\n\n%s"
 rules_need_text: "Vous devez me donner des règles à définir !\nRépondez à un message pour les fournir avec la commande."
@@ -877,44 +877,44 @@ rules_button_current: "Le bouton des règles est actuellement défini au texte s
 rules_button_cleared: Texte du bouton des règles personnalisé supprimé avec succès !
 
 # Connections module strings
-connections_allow_connect_currently_off: |
-  Les connexions utilisateur sont actuellement <b>désactivées</b>.
+connections_allow_connect_currently_off:
+  "Les connexions utilisateur sont actuellement <b>désactivées</b>.
 
-  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !
-connections_allow_connect_currently_on: |
-  Les connexions utilisateur sont actuellement <b>activées</b>.
+  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !"
+connections_allow_connect_currently_on:
+  "Les connexions utilisateur sont actuellement <b>activées</b>.
 
-  Les utilisateurs peuvent connecter ce chat à leurs MP !
-connections_allow_connect_turned_off: |
-  Connexions utilisateur <b>désactivées</b> pour ce
+  Les utilisateurs peuvent connecter ce chat à leurs MP !"
+connections_allow_connect_turned_off:
+  "Connexions utilisateur <b>désactivées</b> pour ce
   chat !
 
-  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !
-connections_allow_connect_turned_on: |
-  Connexions utilisateur <b>activées</b> pour ce chat !
+  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !"
+connections_allow_connect_turned_on:
+  "Connexions utilisateur <b>activées</b> pour ce chat !
 
-  Les utilisateurs peuvent maintenant connecter ce chat à leurs MP !
+  Les utilisateurs peuvent maintenant connecter ce chat à leurs MP !"
 connections_connect_connected: Vous êtes maintenant connecté à <b>%s</b> !
 connections_connect_not_member: "Vous devez être membre de ce chat pour vous y connecter."
-connections_connect_connection_disabled: |
-  Les connexions utilisateur sont actuellement <b>désactivées</b>
+connections_connect_connection_disabled:
+  "Les connexions utilisateur sont actuellement <b>désactivées</b>
   pour ce chat.
 
-  Veuillez demander aux admins d'autoriser si vous souhaitez vous connecter !
-connections_connect_tap_btn_connect: |
-  Veuillez appuyer sur le bouton ci-dessous pour connecter ce
-  chat à votre MP.
+  Veuillez demander aux admins d'autoriser si vous souhaitez vous connecter !"
+connections_connect_tap_btn_connect:
+  "Veuillez appuyer sur le bouton ci-dessous pour connecter ce
+  chat à votre MP."
 connections_connected: Vous êtes actuellement connecté à <b>%s</b> !
 connections_connections_btns_admin_conn_cmds: Commandes Admin disponibles
 connections_connections_btns_user_conn_cmds: Commandes Utilisateur disponibles
-connections_disconnect_disconnected: |
-  Déconnecté avec succès du chat
-  connecté.
-connections_disconnect_need_pm: |
-  Vous devez m'envoyer ceci en MP pour vous déconnecter
-  du chat !
-connections_help_msg: |
-  Ce module vous permet de vous connecter à la base de données d'un chat et
+connections_disconnect_disconnected:
+  "Déconnecté avec succès du chat
+  connecté."
+connections_disconnect_need_pm:
+  "Vous devez m'envoyer ceci en MP pour vous déconnecter
+  du chat !"
+connections_help_msg:
+  "Ce module vous permet de vous connecter à la base de données d'un chat et
   d'y ajouter des choses sans que le chat le sache ! Pour des raisons évidentes, vous devez
   être admin pour ajouter des choses ; mais tout membre peut voir vos données. (les utilisateurs bannis/expulsés
   ne peuvent pas !)
@@ -942,11 +942,11 @@ connections_help_msg: |
 
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
-  si l'id est négatif ; tous les super groupes ont des ids négatifs.
+  si l'id est négatif ; tous les super groupes ont des ids négatifs."
 connections_is_user_connected_bot_not_admin: Je ne suis pas admin dans ce chat !
-connections_is_user_connected_need_group: |
-  Cette commande est faite pour être utilisée dans les chats de groupe,
-  pas en MP !
+connections_is_user_connected_need_group:
+  "Cette commande est faite pour être utilisée dans les chats de groupe,
+  pas en MP !"
 connections_is_user_connected_user_not_admin: Vous devez être admin pour faire cela.
 connections_not_connected: Vous n'êtes connecté à aucun chat.
 connections_stale_connection: "Votre connexion est obsolète - je ne peux plus accéder à ce chat. Veuillez utiliser /connect pour vous reconnecter à un chat valide."
@@ -957,8 +957,8 @@ connections_invalid_option: "Veuillez me donner une option valide parmi &lt;yes/
 connections_button_connect: "Se connecter au chat"
 
 # Disabling module strings
-disabling_help_msg: |
-  Ce module vous permet de désactiver certaines commandes couramment utilisées,
+disabling_help_msg:
+  "Ce module vous permet de désactiver certaines commandes couramment utilisées,
   afin que personne ne puisse les utiliser. Il vous permettra également de les supprimer automatiquement, empêchant les gens
   de faire du texte bleu.
 
@@ -982,7 +982,7 @@ disabling_help_msg: |
   peuvent toujours utiliser ces commandes.
 
   Les commandes désactivées sont toujours accessibles via la fonction /connect. Si vous souhaitez
-  voir cela également désactivé, faites-le moi savoir dans le chat de support.
+  voir cela également désactivé, faites-le moi savoir dans le chat de support."
 devs_help_msg:
   "Commandes de gestion du bot et de diagnostic réservées au propriétaire du bot et
   aux développeurs de confiance. Ces commandes ne sont pas affichées aux utilisateurs normaux.
@@ -1048,14 +1048,11 @@ locks_help_msg: "*Admin uniquement* :
   **Exemple :**
 
   `/lock media` : cela verrouille tous les messages média dans le chat."
-locks_locktypes_header: "Verrous :
-  - "
+locks_locktypes_header: "Verrous :\n - "
 locks_what_to_lock: Que voulez-vous verrouiller ? Vérifiez /locktypes pour les options disponibles.
 locks_invalid_lock_type: "`%s` n'est pas un type de verrou correct, vérifiez /locktypes."
-locks_locked_successfully: "Les éléments suivants ont été verrouillés dans ce groupe :
-  - %s"
-locks_unlocked_successfully: "Les éléments suivants ont été déverrouillés dans ce groupe :
-  - %s"
+locks_locked_successfully: "Les éléments suivants ont été verrouillés dans ce groupe :\n - %s"
+locks_unlocked_successfully: "Les éléments suivants ont été déverrouillés dans ce groupe :\n - %s"
 locks_lock_failed: "Échec du verrouillage : %s. Veuillez réessayer plus tard."
 locks_unlock_failed: "Échec du déverrouillage : %s. Veuillez réessayer plus tard."
 locks_what_to_unlock: Que voulez-vous déverrouiller ? Vérifiez /locktypes pour les options disponibles.
@@ -1221,8 +1218,8 @@ help_pm_intro: |
   Toutes les commandes peuvent être utilisées avec / ou !.
 
 # Misc module strings
-misc_help_msg: |
-  × /info : Obtenez vos informations utilisateur, peut être utilisé en réponse ou en passant
+misc_help_msg:
+  "× /info : Obtenez vos informations utilisateur, peut être utilisé en réponse ou en passant
   un ID utilisateur ou un nom d'utilisateur.
 
   × /id : Obtenez l'ID du groupe actuel. Si utilisé en réponse à un message, obtenez l'ID de cet utilisateur.
@@ -1245,7 +1242,7 @@ misc_help_msg: |
 
   × /ud <terme> : Rechercher dans Urban Dictionary.
 
-  × /runs : Une répartie aléatoire.
+  × /runs : Une répartie aléatoire."
 misc_translation_error: Erreur lors de la demande de traduction !
 misc_reply_to_someone: Répondez à quelqu'un.
 misc_provide_content: Fournissez du contenu pour répondre !
@@ -1288,8 +1285,8 @@ misc_translate_read_error: Erreur de lecture
 misc_translate_result: "<b>Langue détectée :</b> <code>%s</code>\n\n<b>Traduction :</b> <code>%s</code>"
 
 # Pins module strings
-pins_help_msg: |
-  Toutes les commandes liées aux épingles peuvent être trouvées ici ; gardez votre chat à
+pins_help_msg:
+  "Toutes les commandes liées aux épingles peuvent être trouvées ici ; gardez votre chat à
   jour sur les dernières actualités avec un simple message épinglé !
 
 
@@ -1320,7 +1317,7 @@ pins_help_msg: |
 
   Note : Lors de l'utilisation des anti-épingles de chaîne, assurez-vous d'utiliser la commande /unpin, au lieu
   de le faire manuellement. Sinon, l'ancien message sera ré-épinglé quand la chaîne
-  enverra des messages.
+  enverra des messages."
 pins_unpin_not_pinned: Le message en réponse n'est pas un message épinglé.
 pins_unpinned_message: Message désépinglé.
 pins_unpinned_last: Dernier message épinglé désépinglé.
@@ -1348,13 +1345,20 @@ pins_input_not_recognized: "Votre entrée n'a pas été reconnue comme l'une des
 # Purges module strings
 purges_help_msg: "*Admin uniquement :*
 
-  × /purge : Supprime tous les messages depuis le message auquel vous avez répondu.
+  - /purge : supprime tous les messages entre celui-ci et le message auquel vous avez répondu.
 
-  × /purgeto : Marque l'endroit jusqu'où supprimer.
+  - /del : supprime le message auquel vous avez répondu.
 
-  × /purgefrom : Marque l'endroit depuis où supprimer.
+  - /purgefrom : marque le message auquel vous avez répondu comme début de la plage à supprimer (utilisez ensuite /purgeto).
 
-  × /del : Supprime le message auquel vous avez répondu."
+  - /purgeto : supprime tous les messages depuis la marque /purgefrom jusqu'au message auquel vous avez répondu.
+
+
+  *Exemples* :
+
+  - Supprimer tous les messages depuis le message auquel vous avez répondu jusqu'à maintenant.
+
+  -> `/purge`"
 purges_cannot_delete_old: Vous ne pouvez pas supprimer des messages de plus de deux jours. Veuillez choisir un message plus récent.
 purges_purged_messages: "%d messages supprimés."
 purges_purged_with_reason: "%d messages supprimés.\n*Raison* :\n%s"
@@ -1372,8 +1376,8 @@ purges_invalid_button_data: "Données de bouton invalides."
 purges_invalid_message_id: "ID de message invalide."
 
 # Reports module strings
-reports_help_msg: |
-  Nous sommes tous occupés et n'avons pas le temps de surveiller nos groupes
+reports_help_msg:
+  "Nous sommes tous occupés et n'avons pas le temps de surveiller nos groupes
   24h/24. Mais comment réagir si quelqu'un spamme dans votre groupe ?
 
 
@@ -1405,7 +1409,7 @@ reports_help_msg: |
   pour taguer les admins sans raison !
 
 
-  *NOTE :* Aucun de ces deux ne se déclenchera s'il est utilisé par des admins.
+  *NOTE :* Aucun de ces deux ne se déclenchera s'il est utilisé par des admins."
 reports_reply_to_report: Vous devez répondre à un message pour le signaler.
 reports_expose_yourself: Vous devez d'abord vous exposer !
 reports_reply_to_block: Vous devez répondre à un utilisateur pour le bloquer.
@@ -1569,12 +1573,14 @@ languages_help_msg: "Vous n'arrivez pas à changer la langue du bot ?
   Vous pouvez nous aider à apporter le bot dans plus de langues en contribuant sur [Crowdin](https://crowdin.com/project/alita_robot)"
 
 # Antiflood module help message
-antiflood_help_msg: |
-  Vous savez comment parfois, des gens rejoignent, envoient 100 messages, et ruinent
+antiflood_help_msg:
+  "Vous savez comment parfois, des gens rejoignent, envoient 100 messages, et ruinent
   votre chat ? Avec antiflood, ça n'arrive plus !
+
 
   Antiflood vous permet d'agir sur les utilisateurs qui envoient plus de x messages
   d'affilée. Actions : ban/kick/mute
+
 
   *Commandes Admin* :
 
@@ -1586,7 +1592,7 @@ antiflood_help_msg: |
   × /setfloodmode `<type d'action>` : Choisir l'action à prendre sur un utilisateur qui a
   floodé. Options : ban/kick/mute
 
-  × /delflood `<yes/no/on/off>` : Si vous voulez que le bot supprime les messages floodés par l'utilisateur.
+  × /delflood `<yes/no/on/off>` : Si vous voulez que le bot supprime les messages floodés par l'utilisateur."
 
 antiflood_notes_docs: |
   <b>Comportement par défaut</b>
@@ -1915,7 +1921,7 @@ captcha_permissions_docs: |
   • Supprimer des messages (pour nettoyer les messages captcha)
 
   <b>Actions d'Échec :</b>
-  • <code>kick</code> - Bannir puis débannir immédiatement (permet à l'utilisateur de rejoindre)
+  • <code>kick</code> - Retire l'utilisateur tout en lui permettant de revenir
   • <code>ban</code> - Bannir permanemment l'utilisateur
   • <code>mute</code> - Garder l'utilisateur muet pendant 24 heures
 
@@ -2093,40 +2099,40 @@ formatting_random: |
   Salut ! <code>{first}</code>
 
 # Antiflood module runtime strings
-antiflood_checkflood_perform_action: |
-  Ouais, je n'aime pas vos inondations. %s a été
-  %s !
-antiflood_errors_expected_args: |
-  J'attendais des arguments ! Soit off, soit un entier.
-  ex: `/setflood 5`, ou `/setflood off`
-antiflood_errors_invalid_int: |
-  Ce n'est pas un entier valide. Veuillez me donner un entier valide,
-  ou `off`.
+antiflood_checkflood_perform_action:
+  "Ouais, je n'aime pas vos inondations. %s a été
+  %s !"
+antiflood_errors_expected_args:
+  "J'attendais des arguments ! Soit off, soit un entier.
+  ex: `/setflood 5`, ou `/setflood off`"
+antiflood_errors_invalid_int:
+  "Ce n'est pas un entier valide. Veuillez me donner un entier valide,
+  ou `off`."
 antiflood_errors_set_in_limit: La limite antiflood doit être définie entre 3 et 100.
-antiflood_flood_deleter_already_disabled: |
-  La suppression des messages antiflood est actuellement
-  *désactivée* dans ce chat, les messages causant l'antiflood seront ignorés !
-antiflood_flood_deleter_already_enabled: |
-  La suppression des messages antiflood est actuellement *activée*
-  dans ce chat, les messages causant l'antiflood seront supprimés !
-antiflood_flood_deleter_disabled: |
-  Désactivation de la suppression des messages antiflood. Les messages
-  causant l'antiflood seront ignorés !
-antiflood_flood_deleter_enabled: |
-  Activation de la suppression des messages antiflood. Les messages causant
-  l'antiflood seront supprimés !
+antiflood_flood_deleter_already_disabled:
+  "La suppression des messages antiflood est actuellement
+  *désactivée* dans ce chat, les messages causant l'antiflood seront ignorés !"
+antiflood_flood_deleter_already_enabled:
+  "La suppression des messages antiflood est actuellement *activée*
+  dans ce chat, les messages causant l'antiflood seront supprimés !"
+antiflood_flood_deleter_disabled:
+  "Désactivation de la suppression des messages antiflood. Les messages
+  causant l'antiflood seront ignorés !"
+antiflood_flood_deleter_enabled:
+  "Activation de la suppression des messages antiflood. Les messages causant
+  l'antiflood seront supprimés !"
 antiflood_flood_deleter_invalid_option: "Je ne comprends qu'une option parmi : `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: Ce chat n'applique actuellement pas le contrôle d'inondation.
-antiflood_flood_show_settings: |
-  Ce chat applique actuellement le contrôle d'inondation après
-  %d messages. Tout utilisateur envoyant plus que cette quantité de messages sera %s.
+antiflood_flood_show_settings:
+  "Ce chat applique actuellement le contrôle d'inondation après
+  %d messages. Tout utilisateur envoyant plus que cette quantité de messages sera %s."
 antiflood_setflood_disabled: |
   D'accord.
   Je n'avertirai pas les utilisateurs pour inondation.
 antiflood_setflood_success: La limite d'inondation a été définie à <b>%d</b> messages.
-antiflood_setfloodmode_specify_action: |
-  Vous devez spécifier une action à prendre en cas
-  d'inondation. Les modes actuels sont : `ban`/`kick`/`mute`
+antiflood_setfloodmode_specify_action:
+  "Vous devez spécifier une action à prendre en cas
+  d'inondation. Les modes actuels sont : `ban`/`kick`/`mute`"
 antiflood_setfloodmode_success: Le mode d'inondation a été défini sur %s.
 antiflood_setfloodmode_unknown_type: "Type inconnu '%s'. Veuillez utiliser l'un des suivants : ban/kick/mute"
 antiflood_button_unban_admins: "Débannir (Admins uniquement)"
@@ -2139,9 +2145,9 @@ antiflood_action_none: "aucun"
 
 # Common strings admin cache
 commonstrings_admin_cache_cache_reloaded: Cache admin rechargé avec succès.
-commonstrings_admin_cache_not_found: |
-  Cache admin introuvable. Demandez à un admin d'utiliser /admincache
-  pour recharger le cache admin.
+commonstrings_admin_cache_not_found:
+  "Cache admin introuvable. Demandez à un admin d'utiliser /admincache
+  pour recharger le cache admin."
 
 # Formatting fillings
 formatting_fillings: "<b>Remplissages</b>
@@ -2206,15 +2212,15 @@ blacklists_set_bl_action_update_failed: "Impossible de mettre à jour l'action d
 blacklists_set_bl_action_no_words: "Il n'y a encore aucun mot dans la liste noire de ce chat. Ajoutez-en un avec /addblacklist, puis choisissez l'action."
 filters_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
 notes_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
-common_settings_save_failed: "Echec de la sauvegarde des parametres. Veuillez reessayer plus tard."
-devs_chatlist_error: "Echec de la generation de la liste des chats. Veuillez reessayer."
+common_settings_save_failed: "Échec de la sauvegarde des paramètres. Veuillez réessayer plus tard."
+devs_chatlist_error: "Échec de la génération de la liste des chats. Veuillez réessayer."
 
 # Reactions module strings
 # TODO: Translate
 reactions_help_msg: |
   <b>🎭 Auto-Réactions</b>
 
-  Réagissez automatiquement aux messages avec des emojis spécifiques !
+  Réagissez automatiquement aux messages contenant des mots-clés spécifiques !
 
   Configurez des réactions automatiques qui se déclenchent quand les utilisateurs envoient des mots spécifiques.
 
@@ -2438,170 +2444,170 @@ antiraid_btn_disable: "Désactiver AntiRaid"
 
 # Rose feature-parity keys (federations, log channels, extras)
 federations_help_msg: |
-  Federations share a ban list across groups you own.
+  Les fédérations partagent une liste de bannissements entre les groupes que vous possédez.
 
-  *Owner (PM):*
-  × /newfed <name>: Create a federation (one per user).
-  × /renamefed <name>: Rename your federation.
-  × /delfed: Delete your federation (confirm).
-  × /fedpromote /feddemote: Manage fed admins.
-  × /fedreason on/off: Require a reason for fbans.
-  × /fednotif on/off: PM the owner on fbans.
-  × /subfed /unsubfed /fedsubs: Subscribe to another fed (max 5).
-  × /fbanlist [csv|json|minicsv]: Export fbans.
-  × /importfbans: Import from a replied CSV/JSON file.
-  × /setfedlog /unsetfedlog: Federation log chat.
+  *Propriétaire (privé) :*
+  × /newfed <name>: Créer une fédération (une par utilisateur).
+  × /renamefed <name>: Renommer votre fédération.
+  × /delfed: Supprimer votre fédération (avec confirmation).
+  × /fedpromote /feddemote: Gérer les administrateurs de la fédération.
+  × /fedreason on/off: Exiger un motif pour les fban.
+  × /fednotif on/off: Prévenir le propriétaire des fban en privé.
+  × /subfed /unsubfed /fedsubs: S'abonner à une autre fédération (5 max).
+  × /fbanlist [csv|json|minicsv]: Exporter les fban.
+  × /importfbans: Importer depuis un fichier CSV/JSON cité.
+  × /setfedlog /unsetfedlog: Chat de journal de la fédération.
 
-  *Group owner:*
-  × /joinfed <fed_id>: Join this chat to a federation.
-  × /leavefed: Leave the federation.
-  × /quietfed on/off: Suppress passive fban notices.
+  *Propriétaire du groupe :*
+  × /joinfed <fed_id>: Rattacher ce chat à une fédération.
+  × /leavefed: Quitter la fédération.
+  × /quietfed on/off: Masquer les avis passifs de fban.
 
-  *Fed admins:*
-  × /fban /unfban /funban: Federation ban/unban.
-  × /fedstat /fbanstat: Check a user's fban.
-  × /feddemoteme <fed_id>: Step down as a federation admin.
+  *Administrateurs de la fédération :*
+  × /fban /unfban /funban: Bannir/débannir dans la fédération.
+  × /fedstat /fbanstat: Vérifier le fban d'un utilisateur.
+  × /feddemoteme <fed_id>: Quitter votre rôle d'administrateur de la fédération.
 
-  *Anyone:*
+  *Tout le monde :*
   × /fedinfo /fedadmins /chatfed /myfeds
 logchannels_help_msg: |
-  Send admin actions to a dedicated log channel.
+  Envoyez les actions des administrateurs vers un canal de journal dédié.
 
-  1. Add the bot to a channel as admin.
-  2. In that channel, send /setlog.
-  3. Forward that message to the group.
+  1. Ajoutez le bot à un canal en tant qu'administrateur.
+  2. Dans ce canal, envoyez /setlog.
+  3. Transférez ce message dans le groupe.
 
-  *Admin commands:*
-  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
-  × /unsetlog: Remove the log channel.
-  × /logchannel: Show the current log channel.
-  × /logcategories: List categories.
-  × /log <category>: Enable a category.
-  × /nolog <category>: Disable a category.
+  *Commandes admin :*
+  × /setlog: Définir le canal de journal (envoyez-le dans le canal, puis transférez le message dans le groupe).
+  × /unsetlog: Retirer le canal de journal.
+  × /logchannel: Afficher le canal de journal actuel.
+  × /logcategories: Lister les catégories.
+  × /log <category>: Activer une catégorie.
+  × /nolog <category>: Désactiver une catégorie.
 
-  Categories: settings, admin, user, automated, reports, other.
-feds_pm_only: "This command can only be used in private chat with me."
-feds_group_only: "This command can only be used in groups."
-feds_need_name: "Give your federation a name."
-feds_already_own: "You already own a federation. Delete it first with /delfed."
-feds_create_failed: "Could not complete that federation action. Try again."
-feds_created: "Created federation <b>{name}</b>.\nID: <code>{id}</code>\nKeep this ID — group owners use it with /joinfed."
-feds_no_fed: "You don't own a federation. Create one with /newfed."
-feds_rename_failed: "Could not rename the federation."
-feds_renamed: "Federation renamed to <b>{name}</b>."
-feds_delfed_confirm: "Delete federation <b>{name}</b>? This cannot be undone."
-feds_delfed_confirm_btn: "Yes, delete"
-feds_delfed_cancel_btn: "Cancel"
-feds_deleted: "Federation deleted."
-feds_delete_failed: "Could not delete the federation."
-feds_owner_only_join: "Only the group creator can join or leave a federation."
-feds_invalid_id: "That doesn't look like a federation ID."
-feds_not_found: "I couldn't find that federation."
-feds_already_joined: "This chat is already in a federation. /leavefed first."
-feds_join_failed: "Could not join that federation."
-feds_joined: "This chat joined federation <b>{name}</b> (<code>{id}</code>)."
-feds_not_in_fed: "This chat is not in a federation."
-feds_left: "This chat left its federation."
-feds_invalid_toggle: "Use on or off."
-feds_quiet_on: "Quiet federation is on. Passive fbans will not be announced here."
-feds_quiet_off: "Quiet federation is off. Passive fbans will be announced."
-feds_info: "<b>{name}</b>\nID: <code>{id}</code>\nOwner: <code>{owner}</code>\nChats: {chats}\nBans: {bans}\nAdmins: {admins}\nSubscriptions: {subs}\nRequire reason: {reason}\nNotify owner: {notify}"
-feds_admins_header: "Admins of <b>{name}</b>:"
-feds_chatfed: "This chat is in <b>{name}</b> (<code>{id}</code>)."
-feds_myfeds_none: "You don't own or admin any federations."
-feds_myfeds_header: "Your federations:"
+  Catégories : settings, admin, user, automated, reports, other.
+feds_pm_only: "Cette commande ne peut être utilisée qu'en discussion privée avec moi."
+feds_group_only: "Cette commande ne peut être utilisée que dans les groupes."
+feds_need_name: "Donnez un nom à votre fédération."
+feds_already_own: "Vous possédez déjà une fédération. Supprimez-la d'abord avec /delfed."
+feds_create_failed: "Impossible d'effectuer cette action sur la fédération. Réessayez."
+feds_created: "Fédération <b>{name}</b> créée.\nID : <code>{id}</code>\nConservez cet ID : les propriétaires de groupe l'utilisent avec /joinfed."
+feds_no_fed: "Vous ne possédez aucune fédération. Créez-en une avec /newfed."
+feds_rename_failed: "Impossible de renommer la fédération."
+feds_renamed: "Fédération renommée en <b>{name}</b>."
+feds_delfed_confirm: "Supprimer la fédération <b>{name}</b> ? Cette action est irréversible."
+feds_delfed_confirm_btn: "Oui, supprimer"
+feds_delfed_cancel_btn: "Annuler"
+feds_deleted: "Fédération supprimée."
+feds_delete_failed: "Impossible de supprimer la fédération."
+feds_owner_only_join: "Seul le créateur du groupe peut rejoindre ou quitter une fédération."
+feds_invalid_id: "Cela ne ressemble pas à un ID de fédération."
+feds_not_found: "Je n'ai pas trouvé cette fédération."
+feds_already_joined: "Ce chat fait déjà partie d'une fédération. Utilisez d'abord /leavefed."
+feds_join_failed: "Impossible de rejoindre cette fédération."
+feds_joined: "Ce chat a rejoint la fédération <b>{name}</b> (<code>{id}</code>)."
+feds_not_in_fed: "Ce chat ne fait partie d'aucune fédération."
+feds_left: "Ce chat a quitté sa fédération."
+feds_invalid_toggle: "Utilisez on ou off."
+feds_quiet_on: "La fédération silencieuse est activée. Les fban passifs ne seront pas annoncés ici."
+feds_quiet_off: "La fédération silencieuse est désactivée. Les fban passifs seront annoncés."
+feds_info: "<b>{name}</b>\nID : <code>{id}</code>\nPropriétaire : <code>{owner}</code>\nChats : {chats}\nBannissements : {bans}\nAdministrateurs : {admins}\nAbonnements : {subs}\nMotif obligatoire : {reason}\nPrévenir le propriétaire : {notify}"
+feds_admins_header: "Administrateurs de <b>{name}</b> :"
+feds_chatfed: "Ce chat fait partie de <b>{name}</b> (<code>{id}</code>)."
+feds_myfeds_none: "Vous ne possédez ni n'administrez aucune fédération."
+feds_myfeds_header: "Vos fédérations :"
 feds_role_owner: "propriétaire"
 feds_role_admin: "administrateur"
-feds_cannot_promote_self: "You already own this federation."
-feds_cannot_promote_owner: "The owner is already a federation admin."
-feds_already_admin: "That user is already a federation admin."
-feds_promoted: "Promoted {user} to federation admin."
-feds_not_fed_admin: "That user is not a federation admin."
-feds_demoted: "Demoted {user} from federation admin."
-feds_demoteme_not_admin: "You are not a federation admin of that fed."
-feds_demoteme_ok: "You are no longer a federation admin there."
+feds_cannot_promote_self: "Vous possédez déjà cette fédération."
+feds_cannot_promote_owner: "Le propriétaire est déjà administrateur de la fédération."
+feds_already_admin: "Cet utilisateur est déjà administrateur de la fédération."
+feds_promoted: "{user} est désormais administrateur de la fédération."
+feds_not_fed_admin: "Cet utilisateur n'est pas administrateur de la fédération."
+feds_demoted: "{user} n'est plus administrateur de la fédération."
+feds_demoteme_not_admin: "Vous n'êtes pas administrateur de cette fédération."
+feds_demoteme_ok: "Vous n'êtes plus administrateur de cette fédération."
 feds_demoteme_owner: "Vous êtes le propriétaire de cette fédération, vous ne pouvez donc pas renoncer à votre rôle d'administrateur."
-feds_fedreason_on: "Fbans now require a reason."
-feds_fedreason_off: "Fbans no longer require a reason."
-feds_fednotif_on: "You will be notified of fbans."
-feds_fednotif_off: "You will not be notified of fbans."
-feds_not_admin: "You are not a federation admin here."
-feds_cannot_fban_self: "You cannot fban yourself."
-feds_cannot_fban_owner: "You cannot fban the federation owner."
-feds_cannot_fban_admin: "You cannot fban a federation admin."
-feds_need_reason: "This federation requires a reason for fbans."
-feds_fban_failed: "Could not fban that user."
-feds_fban_already: "That user is already fbanned. Reason updated."
-feds_fban_ok: "Fbanned {user} in <b>{name}</b>.\nReason: {reason}"
-feds_unfban_not_banned: "That user is not fbanned."
-feds_unfban_ok: "Unfbanned {user} from <b>{name}</b>."
+feds_fedreason_on: "Les fban exigent désormais un motif."
+feds_fedreason_off: "Les fban n'exigent plus de motif."
+feds_fednotif_on: "Vous serez prévenu des fban."
+feds_fednotif_off: "Vous ne serez pas prévenu des fban."
+feds_not_admin: "Vous n'êtes pas administrateur de la fédération ici."
+feds_cannot_fban_self: "Vous ne pouvez pas vous fban vous-même."
+feds_cannot_fban_owner: "Vous ne pouvez pas fban le propriétaire de la fédération."
+feds_cannot_fban_admin: "Vous ne pouvez pas fban un administrateur de la fédération."
+feds_need_reason: "Cette fédération exige un motif pour les fban."
+feds_fban_failed: "Impossible de fban cet utilisateur."
+feds_fban_already: "Cet utilisateur est déjà fban. Motif mis à jour."
+feds_fban_ok: "{user} a été fban dans <b>{name}</b>.\nMotif : {reason}"
+feds_unfban_not_banned: "Cet utilisateur n'est pas fban."
+feds_unfban_ok: "Le fban de {user} dans <b>{name}</b> a été levé."
 feds_log_fban: "FBAN <code>{user_id}</code> par {actor}\nRaison : {reason}"
 feds_log_unfban: "UNFBAN <code>{user_id}</code> par {actor}"
-feds_fedstat_none: "That user is not fbanned in any federation I know."
-feds_fedstat_reason: "Banned in <b>{name}</b>: {reason}"
-feds_fedstat_header: "Federation bans for {user}:"
-feds_sub_self: "A federation cannot subscribe to itself."
-feds_already_sub: "Already subscribed to that federation."
-feds_sub_max: "A federation can subscribe to at most 5 others."
-feds_sub_ok: "Subscribed to that federation's ban list."
-feds_not_sub: "Not subscribed to that federation."
-feds_unsub_ok: "Unsubscribed from that federation."
-feds_subs_none: "This federation has no subscriptions."
-feds_subs_header: "Subscriptions:"
-feds_setfedlog_need_id: "Give a federation ID, or use this in a group that is in your fed."
-feds_not_owner: "Only the federation owner can set the fed log."
-feds_setfedlog_ok: "Federation log chat set."
-feds_unsetfedlog_ok: "Federation log chat cleared."
-feds_export_wait: "Please wait before exporting again."
-feds_export_empty: "This federation has no bans to export."
-feds_import_need_file: "Reply to a CSV or JSON fban list."
-feds_import_failed: "Could not import that fban list."
-feds_import_ok: "Imported {count} federation bans."
-feds_passive_ban: "{user} is fbanned in <b>{name}</b> and was removed.\nReason: {reason}"
-feds_callback_denied: "You cannot use this button."
-feds_callback_stale: "This button is no longer valid."
-logs_need_channel: "Use /setlog in a channel, then forward that message to the group."
-logs_forward_to_group: "Forward this message to the group you want to log."
-logs_set_ok: "Log channel set. Admin actions from this chat will be sent there."
-logs_unset_ok: "Log channel removed."
-logs_not_set: "No log channel is set for this chat."
-logs_current: "Log channel: <code>{id}</code>"
-logs_categories: "Categories: settings, admin, user, automated, reports, other."
-logs_enabled: "Enabled logging for: {cats}"
-logs_disabled: "Disabled logging for: {cats}"
-logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
-logs_group_only: "This command can only be used in groups."
-bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
-bans_banme_ok: "As you wish. You are banned."
-bans_unbanall_ask: "Unban every known user in this chat? This cannot be undone easily."
-bans_unbanall_done: "Issued unban for {count} known users."
-bans_unbanall_cancel: "Cancelled."
-admin_setgtitle_need_title: "Give me a new group title."
-admin_setgtitle_ok: "Group title updated."
-admin_setgtitle_failed: "I couldn't change the group title. Make sure I can change group info."
-admin_setgpic_need_photo: "Reply to a photo to set it as the group picture."
-admin_setgpic_ok: "Group picture updated."
-admin_setgpic_failed: "I couldn't change the group picture."
-admin_setgdesc_ok: "Group description updated."
-admin_setgdesc_failed: "I couldn't change the group description."
-misc_stickerid_need_sticker: "Reply to a sticker to get its file ID."
-misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
-misc_zombies_scanning: "Scanning for deleted accounts…"
-misc_zombies_none: "No deleted accounts found among known members."
-misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
-misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
-misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud &lt;term&gt;"
-misc_ud_not_found: "No Urban Dictionary result for that."
+feds_fedstat_none: "Cet utilisateur n'est fban dans aucune fédération que je connais."
+feds_fedstat_reason: "Banni dans <b>{name}</b> : {reason}"
+feds_fedstat_header: "Bannissements de fédération de {user} :"
+feds_sub_self: "Une fédération ne peut pas s'abonner à elle-même."
+feds_already_sub: "Déjà abonné à cette fédération."
+feds_sub_max: "Une fédération peut s'abonner à 5 autres au maximum."
+feds_sub_ok: "Abonné à la liste de bannissements de cette fédération."
+feds_not_sub: "Pas abonné à cette fédération."
+feds_unsub_ok: "Désabonné de cette fédération."
+feds_subs_none: "Cette fédération n'a aucun abonnement."
+feds_subs_header: "Abonnements :"
+feds_setfedlog_need_id: "Indiquez un ID de fédération, ou utilisez ceci dans un groupe qui fait partie de votre fédération."
+feds_not_owner: "Seul le propriétaire de la fédération peut définir son journal."
+feds_setfedlog_ok: "Chat de journal de la fédération défini."
+feds_unsetfedlog_ok: "Chat de journal de la fédération retiré."
+feds_export_wait: "Veuillez patienter avant d'exporter à nouveau."
+feds_export_empty: "Cette fédération n'a aucun bannissement à exporter."
+feds_import_need_file: "Répondez à une liste de fban au format CSV ou JSON."
+feds_import_failed: "Impossible d'importer cette liste de fban."
+feds_import_ok: "{count} bannissements de fédération importés."
+feds_passive_ban: "{user} est fban dans <b>{name}</b> et a été retiré.\nMotif : {reason}"
+feds_callback_denied: "Vous ne pouvez pas utiliser ce bouton."
+feds_callback_stale: "Ce bouton n'est plus valide."
+logs_need_channel: "Utilisez /setlog dans un canal, puis transférez ce message dans le groupe."
+logs_forward_to_group: "Transférez ce message dans le groupe à journaliser."
+logs_set_ok: "Canal de journal défini. Les actions d'administration de ce chat y seront envoyées."
+logs_unset_ok: "Canal de journal retiré."
+logs_not_set: "Aucun canal de journal n'est défini pour ce chat."
+logs_current: "Canal de journal : <code>{id}</code>"
+logs_categories: "Catégories : settings, admin, user, automated, reports, other."
+logs_enabled: "Journalisation activée pour : {cats}"
+logs_disabled: "Journalisation désactivée pour : {cats}"
+logs_unknown_category: "Catégorie inconnue. Voir /logcategories."
+logs_usage: "Utilisation : /log &lt;catégorie&gt; ou /nolog &lt;catégorie&gt;"
+logs_group_only: "Cette commande ne peut être utilisée que dans les groupes."
+bans_banme_is_admin: "Les administrateurs ne peuvent pas se bannir eux-mêmes. Démissionnez d'abord."
+bans_banme_ok: "Comme vous voulez. Vous êtes banni."
+bans_unbanall_ask: "Débannir tous les utilisateurs connus de ce chat ? Cette action est difficile à annuler."
+bans_unbanall_done: "Débannissement envoyé pour {count} utilisateurs connus."
+bans_unbanall_cancel: "Annulé."
+admin_setgtitle_need_title: "Donnez-moi un nouveau titre pour le groupe."
+admin_setgtitle_ok: "Titre du groupe mis à jour."
+admin_setgtitle_failed: "Je n'ai pas pu changer le titre du groupe. Vérifiez que je peux modifier les infos du groupe."
+admin_setgpic_need_photo: "Répondez à une photo pour la définir comme image du groupe."
+admin_setgpic_ok: "Image du groupe mise à jour."
+admin_setgpic_failed: "Je n'ai pas pu changer l'image du groupe."
+admin_setgdesc_ok: "Description du groupe mise à jour."
+admin_setgdesc_failed: "Je n'ai pas pu changer la description du groupe."
+misc_stickerid_need_sticker: "Répondez à un sticker pour obtenir son ID de fichier."
+misc_stickerid_result: "ID de fichier du sticker : <code>{id}</code>"
+misc_zombies_scanning: "Recherche des comptes supprimés…"
+misc_zombies_none: "Aucun compte supprimé trouvé parmi les membres connus."
+misc_zombies_cleaned: "{count} comptes supprimés retirés."
+misc_github_usage: "Utilisation : /github &lt;utilisateur&gt; ou /github &lt;utilisateur/dépôt&gt;"
+misc_github_not_found: "Je n'ai pas trouvé cet utilisateur ou ce dépôt GitHub."
+misc_wiki_usage: "Utilisation : /wiki &lt;recherche&gt;"
+misc_wiki_not_found: "Aucun résultat Wikipédia pour cela."
+misc_ud_usage: "Utilisation : /ud &lt;terme&gt;"
+misc_ud_not_found: "Aucun résultat Urban Dictionary pour cela."
 misc_runs:
-  - "Runs away."
-  - "Nope."
-  - "I'm out."
-  - "Catch me if you can."
-chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+  - "S'enfuit en courant."
+  - "Non merci."
+  - "Je me tire."
+  - "Attrape-moi si tu peux."
+chat_status_bot_change_info_error: "Je ne peux pas modifier les infos du groupe ici ! Vérifiez que je suis administrateur et que je peux modifier les infos du groupe."
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "Toutes les commandes en une liste"
@@ -2615,7 +2621,7 @@ admin_extend_msg: |
   /demote — rétrograder un administrateur
   /title — définir le titre personnalisé d'un administrateur
   /invitelink — obtenir le lien d'invitation du chat
-  /anonadmin — exiger une confirmation par bouton des administrateurs anonymes
+  /anonadmin — faire confiance aux administrateurs anonymes (on) ou exiger une confirmation par bouton (off)
   /admincache — recharger la liste des administrateurs
   /clearadmincache — vider le cache des administrateurs
   /setgtitle — changer le titre du groupe

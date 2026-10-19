@@ -6,14 +6,14 @@ admin_anon_admin_disabled: "AnonAdmin mode is currently <b>disabled</b> for %s.
   This requires anonymous admins to press a button to confirm their permissions."
 admin_anon_admin_disabled_now: "AnonAdmin mode is now <b>disabled</b> for %s.
 
-  From now onwards, I won't ask the admins to verify for permissions anymore from
-  anonymous admins."
+  From now onwards, anonymous admins must press a button to confirm their
+  permissions."
 admin_anon_admin_enabled: "AnonAdmin mode is currently <b>enabled</b> for %s.
 
   This allows all anonymous admin to perform admin actions without restriction."
 admin_anon_admin_enabled_now: "AnonAdmin mode is now <b>enabled</b> for %s.
 
-  From now onwards, I will ask the admins to verify permissions from anonymous admins."
+  From now onwards, anonymous admins can run admin commands without confirming with a button."
 admin_anon_admin_invalid_arg:
   Invalid argument, I only understand <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
@@ -59,7 +59,7 @@ admin_help_msg: "Make it easy to promote and demote users with the admin module!
 
   × /invitelink: Get the chat's invite link.
 
-  × /anonadmin `<on/off>`: Require anonymous admins to confirm with a button (group owner only).
+  × /anonadmin `<on/off>`: on lets anonymous admins act without confirming; off (default) makes them confirm with a button (group owner only).
 
   × /admincache: Reload the admin list.
 
@@ -277,8 +277,8 @@ blacklists_help_msg: "*User Commands:*
 
   *Note:*
 
-  The Default mode for Blacklist is *none*, which will just delete the messages from
-  the chat."
+  The Default mode for Blacklist is *warn*, which will delete the message and issue a
+  warning to the user."
 blacklists_ls_bl_list_bl: "These words are blacklisted in this chat:"
 blacklists_ls_bl_no_blacklisted: There are no blacklisted words in this chat.
 blacklists_rm_all_bl_ask:
@@ -495,7 +495,7 @@ filters_help_msg:
 
   - Set a multiword filter:
 
-  -> /filter hello friend Hello back! Long time no see!
+  -> /filter \"hello friend\" Hello back! Long time no see!
 
   - Set a filter that can only be used by admins:
 
@@ -1216,14 +1216,11 @@ warns_reset_all_cancelled: Cancelled the removal of all the warns of all the use
 warns_reset_all_final: Removed all warns of all users in this chat.
 
 # Locks module strings
-locks_locktypes_header: "Locks:
-  - "
+locks_locktypes_header: "Locks:\n - "
 locks_what_to_lock: What do you want to lock? Check /locktypes for available options.
 locks_invalid_lock_type: "`%s` is not a correct lock type, check /locktypes."
-locks_locked_successfully: "Locked the following in this group:
-  - %s"
-locks_unlocked_successfully: "Un-Locked the following in this group:
-  - %s"
+locks_locked_successfully: "Locked the following in this group:\n - %s"
+locks_unlocked_successfully: "Un-Locked the following in this group:\n - %s"
 locks_lock_failed: "Failed to lock: %s. Please try again later."
 locks_unlock_failed: "Failed to unlock: %s. Please try again later."
 locks_what_to_unlock: What do you want to unlock? Check /locktypes for available options.
@@ -1438,7 +1435,7 @@ captcha_wrong_answer_final: "❌ Wrong answer! You have been %s."
 captcha_wrong_answer_remaining: "❌ Wrong answer! %d attempts remaining."
 captcha_action_kicked: "kicked"
 captcha_action_banned: "banned"
-captcha_action_muted: "muted permanently"
+captcha_action_muted: "muted for 24 hours"
 captcha_refresh_success: "🔄 New captcha sent!"
 captcha_timeout_failure_kicked: "❌ %s failed to complete captcha verification and has been kicked."
 captcha_timeout_failure_banned: "❌ %s failed to complete captcha verification and has been banned."
@@ -1881,10 +1878,10 @@ admin_extended_docs: |
   <b>Anonymous Admin Support</b>
 
   The <code>/anonadmin</code> command allows group owners to toggle anonymous admin recognition:
-  <code>/anonadmin on</code> - Enable anonymous admin checks
-  <code>/anonadmin off</code> - Disable anonymous admin checks
+  <code>/anonadmin on</code> - Trust anonymous admins without verification
+  <code>/anonadmin off</code> - Require button verification (default)
 
-  When enabled, the bot will request verification for admin actions from anonymous accounts.
+  When disabled (the default), the bot asks for button verification before running admin actions from anonymous accounts.
 
   <b>How Anonymous Admin Verification Works:</b>
   1. Bot detects sender is GroupAnonymousBot
@@ -2721,7 +2718,7 @@ admin_extend_msg: |
   /demote — demote an admin
   /title — set an admin's custom title
   /invitelink — get the chat's invite link
-  /anonadmin — require anonymous admins to confirm with a button
+  /anonadmin — trust anonymous admins (on) or make them confirm with a button (off)
   /admincache — reload the admin list
   /clearadmincache — clear the cached admin list
   /setgtitle — change the group title

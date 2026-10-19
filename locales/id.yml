@@ -9,30 +9,30 @@ admin_anon_admin_disabled: "Mode AnonAdmin saat ini <b>dinonaktifkan</b> untuk %
   Ini memerlukan admin anonim untuk menekan tombol untuk mengonfirmasi izin mereka."
 admin_anon_admin_disabled_now: "Mode AnonAdmin sekarang <b>dinonaktifkan</b> untuk %s.
 
-  Mulai sekarang, saya tidak akan meminta admin untuk memverifikasi izin dari admin anonim lagi."
+  Mulai sekarang, admin anonim harus menekan tombol untuk mengonfirmasi izin mereka."
 admin_anon_admin_enabled: "Mode AnonAdmin saat ini <b>diaktifkan</b> untuk %s.
 
   Ini memungkinkan semua admin anonim untuk melakukan tindakan admin tanpa batasan."
 admin_anon_admin_enabled_now: "Mode AnonAdmin sekarang <b>diaktifkan</b> untuk %s.
 
-  Mulai sekarang, saya akan meminta admin untuk memverifikasi izin dari admin anonim."
-admin_anon_admin_invalid_arg: |
-  Argumen tidak valid, saya hanya mengerti <code>on</code>,
-  <code>off</code>, <code>yes</code>, <code>no</code>
+  Mulai sekarang, admin anonim dapat menjalankan perintah admin tanpa konfirmasi dengan tombol."
+admin_anon_admin_invalid_arg:
+  "Argumen tidak valid, saya hanya mengerti <code>on</code>,
+  <code>off</code>, <code>yes</code>, <code>no</code>"
 admin_demote_not_admin: |
   Orang ini bukan admin, bagaimana saya bisa menurunkannya?
 admin_demote_is_bot_itself: Saya tidak akan menurunkan diri saya sendiri.
 admin_demote_is_owner: Orang ini membuat obrolan ini, bagaimana saya bisa menurunkannya?
 admin_demote_success_demote: Berhasil menurunkan %s!
-admin_errors_err_cannot_demote: |
-  Gagal menurunkan; mungkin saya bukan admin, atau mereka
-  mungkin dipromosikan oleh admin lain.
-admin_errors_err_cannot_promote: |
-  Gagal mempromosikan; mungkin saya bukan admin, atau mereka
-  mungkin dipromosikan oleh admin lain.
-admin_errors_err_set_title: |
-  Gagal mengatur judul admin khusus; Judul mungkin tidak
-  benar atau mungkin mengandung emoji.
+admin_errors_err_cannot_demote:
+  "Gagal menurunkan; mungkin saya bukan admin, atau mereka
+  mungkin dipromosikan oleh admin lain."
+admin_errors_err_cannot_promote:
+  "Gagal mempromosikan; mungkin saya bukan admin, atau mereka
+  mungkin dipromosikan oleh admin lain."
+admin_errors_err_set_title:
+  "Gagal mengatur judul admin khusus; Judul mungkin tidak
+  benar atau mungkin mengandung emoji."
 admin_errors_title_empty: Anda perlu memberikan judul admin untuk mengaturnya.
 admin_errors_admin_cache_failed: "Saya kesulitan mengakses daftar admin. Silakan coba lagi nanti."
 admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna dengan modul admin!
@@ -60,7 +60,7 @@ admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna denga
 
   × /invitelink: Dapatkan tautan undangan obrolan.
 
-  × /anonadmin `<on/off>`: Wajibkan admin anonim mengonfirmasi dengan tombol (hanya pemilik grup).
+  × /anonadmin `<on/off>`: on mengizinkan admin anonim bertindak tanpa konfirmasi; off (default) mewajibkan mereka mengonfirmasi dengan tombol (hanya pemilik grup).
 
   × /admincache: Muat ulang daftar admin.
 
@@ -70,45 +70,45 @@ admin_promote_is_admin: Orang ini sudah menjadi admin, bagaimana saya bisa mempr
 admin_promote_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
 admin_promote_is_owner: Orang ini membuat obrolan ini, bagaimana saya bisa mempromosikannya?
 admin_promote_success_promote: Berhasil mempromosikan %s!
-admin_title_is_admin: |
-  Orang ini sudah menjadi admin, bagaimana saya bisa mengatur
-  judul admin khusus untuk mereka?
+admin_title_is_admin:
+  "Orang ini sudah menjadi admin, bagaimana saya bisa mengatur
+  judul admin khusus untuk mereka?"
 admin_title_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
-admin_title_is_owner: |
-  Orang ini membuat obrolan ini, bagaimana saya bisa mengatur
-  judul admin untuk mereka?
+admin_title_is_owner:
+  "Orang ini membuat obrolan ini, bagaimana saya bisa mengatur
+  judul admin untuk mereka?"
 admin_title_success_set: Berhasil mengatur judul admin %s menjadi <b>%s</b>
 admin_title_truncated: "\nCatatan: Judul admin dipotong menjadi 16 karakter dari %d"
 admin_cache_cleared: Berhasil menghapus cache admin.
 admin_no_visible_admins: "\nTidak ada admin yang terlihat (semua adalah bot atau anonim)."
 admin_anon_admin_db_error: Gagal memperbarui pengaturan admin anonim. Silakan coba lagi.
-antiflood_checkflood_perform_action: |
-  Ya, saya tidak suka spam Anda. %s telah
-  %s!
+antiflood_checkflood_perform_action:
+  "Ya, saya tidak suka spam Anda. %s telah
+  %s!"
 antiflood_errors_expected_args:
   "Saya mengharapkan beberapa argumen! Entah off, atau bilangan bulat.
   misal: `/setflood 5`, atau `/setflood off`"
-antiflood_errors_invalid_int: |
-  Itu bukan bilangan bulat yang valid. Berikan bilangan bulat yang valid,
-  atau `off`.
+antiflood_errors_invalid_int:
+  "Itu bukan bilangan bulat yang valid. Berikan bilangan bulat yang valid,
+  atau `off`."
 antiflood_errors_set_in_limit: Batas antiflood harus diatur antara 3 dan 100.
-antiflood_flood_deleter_already_disabled: |
-  Penghapusan pesan Antiflood saat ini
-  *dinonaktifkan* di obrolan ini, pesan yang menyebabkan antiflood akan diabaikan!
-antiflood_flood_deleter_already_enabled: |
-  Penghapusan pesan Antiflood saat ini *diaktifkan*
-  di obrolan ini, pesan yang menyebabkan antiflood akan dihapus!
-antiflood_flood_deleter_disabled: |
-  Menonaktifkan Penghapusan Pesan Antiflood. Pesan
-  yang menyebabkan antiflood akan diabaikan!
-antiflood_flood_deleter_enabled: |
-  Mengaktifkan Penghapusan Pesan Antiflood. Pesan yang menyebabkan
-  antiflood akan dihapus!
+antiflood_flood_deleter_already_disabled:
+  "Penghapusan pesan Antiflood saat ini
+  *dinonaktifkan* di obrolan ini, pesan yang menyebabkan antiflood akan diabaikan!"
+antiflood_flood_deleter_already_enabled:
+  "Penghapusan pesan Antiflood saat ini *diaktifkan*
+  di obrolan ini, pesan yang menyebabkan antiflood akan dihapus!"
+antiflood_flood_deleter_disabled:
+  "Menonaktifkan Penghapusan Pesan Antiflood. Pesan
+  yang menyebabkan antiflood akan diabaikan!"
+antiflood_flood_deleter_enabled:
+  "Mengaktifkan Penghapusan Pesan Antiflood. Pesan yang menyebabkan
+  antiflood akan dihapus!"
 antiflood_flood_deleter_invalid_option: "Saya hanya mengerti opsi dari: `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: Obrolan ini saat ini tidak menegakkan kontrol flood.
-antiflood_flood_show_settings: |
-  Obrolan ini saat ini menegakkan kontrol flood setelah
-  %d pesan. Pengguna yang mengirim lebih dari jumlah itu akan %s.
+antiflood_flood_show_settings:
+  "Obrolan ini saat ini menegakkan kontrol flood setelah
+  %d pesan. Pengguna yang mengirim lebih dari jumlah itu akan %s."
 antiflood_help_msg:
   "Tahukah Anda bagaimana terkadang, orang bergabung, mengirim 100 pesan, dan merusak
   obrolan Anda? Dengan antiflood, itu tidak terjadi lagi!
@@ -189,15 +189,15 @@ bans_help_msg:
   × /restrict: Menampilkan InlineKeyboard untuk memilih opsi dari kick, ban dan mute
 
   × /unrestrict: Menampilkan InlineKeyboard untuk memilih opsi dari unmute dan unban."
-bans_kick_cannot_kick_admin: |
-  Mengapa saya menendang admin? Itu terdengar seperti ide yang sangat
-  bodoh.
+bans_kick_cannot_kick_admin:
+  "Mengapa saya menendang admin? Itu terdengar seperti ide yang sangat
+  bodoh."
 bans_kick_is_bot_itself: Mengapa saya menendang diri saya sendiri?
 bans_kick_kicked_reason: <b>Alasan:</b> %s
 bans_kick_kicked_user: Berhasil Menendang %s.
-bans_kick_user_not_in_chat: |
-  Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa
-  membatasi mereka?
+bans_kick_user_not_in_chat:
+  "Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa
+  membatasi mereka?"
 bans_kickme_is_admin: Anda adalah admin, dan Anda terjebak di sini bersama orang lain!
 bans_kickme_ok_out: Sesuai keinginan Anda, Keluar!
 bans_unban_is_admin: Mengapa saya membuka blokir admin?
@@ -238,16 +238,16 @@ blacklists_help_msg: "*Perintah Pengguna:*
 
   *Catatan:*
 
-  Mode default untuk Daftar Hitam adalah *none*, yang hanya akan menghapus pesan dari
-  obrolan."
+  Mode default untuk Daftar Hitam adalah *warn*, yang akan menghapus pesan dan memberi
+  peringatan kepada pengguna."
 blacklists_ls_bl_list_bl: "Kata-kata ini didaftar hitam di obrolan ini:"
 blacklists_ls_bl_no_blacklisted: Tidak ada kata yang didaftar hitam di obrolan ini.
-blacklists_rm_all_bl_ask: |
-  Apakah Anda yakin ingin menghapus semua kata yang didaftar hitam dari
-  obrolan ini?
-blacklists_rm_all_bl_button_handler_no: |
-  Dibatalkan menghapus semua Daftar Hitam dari Obrolan Ini
-  ❌
+blacklists_rm_all_bl_ask:
+  "Apakah Anda yakin ingin menghapus semua kata yang didaftar hitam dari
+  obrolan ini?"
+blacklists_rm_all_bl_button_handler_no:
+  "Dibatalkan menghapus semua Daftar Hitam dari Obrolan Ini
+  ❌"
 blacklists_rm_all_bl_button_handler_yes: Menghapus semua Daftar Hitam dari Obrolan Ini ✅
 blacklists_set_bl_action_changed_mode: "Berhasil mengubah mode daftar hitam ke: *%s*"
 blacklists_set_bl_action_choose_correct_option: Silakan pilih opsi dari <mute/kick/ban/warn/none>
@@ -255,9 +255,9 @@ blacklists_set_bl_action_current_mode:
   "Mode daftar hitam saat ini untuk obrolan ini adalah:
   %s"
 blacklists_unblacklist_give_bl_word: Berikan saya kata untuk menghapusnya dari daftar hitam!
-blacklists_unblacklist_no_removed_bl: |
-  Tidak ada dari kata-kata yang diberikan ada di daftar hitam
-  yang dapat dihapus!
+blacklists_unblacklist_no_removed_bl:
+  "Tidak ada dari kata-kata yang diberikan ada di daftar hitam
+  yang dapat dihapus!"
 blacklists_unblacklist_removed_bl: |
   Berhasil menghapus '%s' dari kata-kata yang didaftar hitam!
 captcha_help_msg:
@@ -297,9 +297,9 @@ captcha_help_msg:
 
   Jika mereka gagal atau batas waktu habis, tindakan yang dikonfigurasi akan diambil."
 commonstrings_admin_cache_cache_reloaded: Berhasil memuat ulang cache admin.
-commonstrings_admin_cache_not_found: |
-  Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
-  untuk memuat ulang cache admin.
+commonstrings_admin_cache_not_found:
+  "Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
+  untuk memuat ulang cache admin."
 connections_allow_connect_currently_off:
   "Koneksi pengguna saat ini dimatikan <b>off</b>.
 
@@ -324,17 +324,17 @@ connections_connect_connection_disabled:
   ke obrolan ini.
 
   Silakan minta admin untuk mengizinkan jika Anda ingin terhubung!"
-connections_connect_tap_btn_connect: |
-  Silakan tekan tombol di bawah untuk menghubungkan obrolan ini
-  ke PM Anda.
+connections_connect_tap_btn_connect:
+  "Silakan tekan tombol di bawah untuk menghubungkan obrolan ini
+  ke PM Anda."
 connections_connected: Anda saat ini terhubung ke <b>%s</b>!
 connections_connections_btns_admin_conn_cmds: Perintah Admin yang Tersedia
 connections_connections_btns_user_conn_cmds: Perintah Pengguna yang Tersedia
 connections_disconnect_disconnected: |
   Berhasil memutuskan dari obrolan yang terhubung.
-connections_disconnect_need_pm: |
-  Anda perlu mengirim ini di PM ke saya untuk memutuskan dari
-  obrolan!
+connections_disconnect_need_pm:
+  "Anda perlu mengirim ini di PM ke saya untuk memutuskan dari
+  obrolan!"
 connections_help_msg:
   "Modul ini memungkinkan Anda untuk terhubung ke database obrolan, dan
   menambahkan sesuatu ke sana tanpa obrolan mengetahuinya! Untuk alasan yang jelas, Anda perlu
@@ -365,9 +365,9 @@ connections_help_msg:
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
   jika id negatif; semua grup super memiliki id negatif."
 connections_is_user_connected_bot_not_admin: Saya bukan admin di obrolan ini!
-connections_is_user_connected_need_group: |
-  Perintah ini dibuat untuk digunakan di grup
-  obrolan, bukan di PM!
+connections_is_user_connected_need_group:
+  "Perintah ini dibuat untuk digunakan di grup
+  obrolan, bukan di PM!"
 connections_is_user_connected_user_not_admin: Anda perlu menjadi admin untuk melakukan ini.
 connections_not_connected: Anda tidak terhubung ke obrolan mana pun.
 connections_stale_connection: "Koneksi Anda sudah tidak valid - saya tidak dapat lagi mengakses obrolan ini. Silakan gunakan /connect untuk terhubung kembali ke obrolan yang valid."
@@ -436,7 +436,7 @@ filters_help_msg:
   Perintah:
 
   - /filter <trigger> <reply>: Setiap kali seseorang mengatakan trigger, bot akan membalas
-  dengan kalimat. Untuk filter multi-kata, tandai trigger.
+  dengan kalimat. Untuk filter multi-kata, apit trigger dengan tanda kutip.
 
   - /filters: Daftar semua filter obrolan.
 
@@ -801,7 +801,7 @@ pins_help_msg:
 
   *Perintah Admin:*
 
-  × /pin: Pin pesan yang Anda balas. Tambahkan ''loud'' atau ''notify'' untuk mengirim notifikasi
+  × /pin: Pin pesan yang Anda balas. Tambahkan 'loud' atau 'notify' untuk mengirim notifikasi
   ke anggota grup.
 
   × /pinned: Mendapatkan pesan yang dipin terbaru di Obrolan Saat Ini.
@@ -1168,11 +1168,11 @@ warns_reset_all_cancelled: Membatalkan penghapusan semua peringatan semua penggu
 warns_reset_all_final: Menghapus semua peringatan semua pengguna di obrolan ini.
 
 # Locks module strings
-locks_locktypes_header: "Kunci:\n  - "
+locks_locktypes_header: "Kunci:\n - "
 locks_what_to_lock: Apa yang ingin Anda kunci? Periksa /locktypes untuk opsi yang tersedia.
 locks_invalid_lock_type: "`%s` bukan tipe kunci yang benar, periksa /locktypes."
-locks_locked_successfully: "Berhasil mengunci berikut di grup ini:\n  - %s"
-locks_unlocked_successfully: "Berhasil membuka kunci berikut di grup ini:\n  - %s"
+locks_locked_successfully: "Berhasil mengunci berikut di grup ini:\n - %s"
+locks_unlocked_successfully: "Berhasil membuka kunci berikut di grup ini:\n - %s"
 locks_lock_failed: "Gagal mengunci: %s. Silakan coba lagi nanti."
 locks_unlock_failed: "Gagal membuka kunci: %s. Silakan coba lagi nanti."
 locks_what_to_unlock: Apa yang ingin Anda buka kuncinya? Periksa /locktypes untuk opsi yang tersedia.
@@ -1387,7 +1387,7 @@ captcha_wrong_answer_final: "❌ Jawaban salah! Anda telah %s."
 captcha_wrong_answer_remaining: "❌ Jawaban salah! %d percobaan tersisa."
 captcha_action_kicked: "ditendang"
 captcha_action_banned: "diblokir"
-captcha_action_muted: "dibisukan secara permanen"
+captcha_action_muted: "dibisukan selama 24 jam"
 captcha_refresh_success: "🔄 Captcha baru dikirim!"
 captcha_timeout_failure_kicked: "❌ %s gagal menyelesaikan verifikasi captcha dan telah ditendang."
 captcha_timeout_failure_banned: "❌ %s gagal menyelesaikan verifikasi captcha dan telah diblokir."
@@ -1828,10 +1828,10 @@ admin_extended_docs: |
   <b>Dukungan Admin Anonim</b>
 
   Perintah <code>/anonadmin</code> memungkinkan pemilik grup untuk mengalihkan pengenalan admin anonim:
-  <code>/anonadmin on</code> - Aktifkan pemeriksaan admin anonim
-  <code>/anonadmin off</code> - Nonaktifkan pemeriksaan admin anonim
+  <code>/anonadmin on</code> - Percayai admin anonim tanpa verifikasi
+  <code>/anonadmin off</code> - Wajibkan verifikasi dengan tombol (default)
 
-  Ketika diaktifkan, bot akan meminta verifikasi untuk tindakan admin dari akun anonim.
+  Ketika dinonaktifkan (default), bot meminta verifikasi dengan tombol sebelum menjalankan tindakan admin dari akun anonim.
 
   <b>Cara Kerja Verifikasi Admin Anonim:</b>
   1. Bot mendeteksi pengirim adalah GroupAnonymousBot
@@ -2198,7 +2198,7 @@ captcha_permissions_docs: |
   • Hapus pesan (untuk membersihkan pesan captcha)
 
   <b>Tindakan Kegagalan:</b>
-  • <code>kick</code> - Blokir kemudian segera buka blokir (memungkinkan pengguna bergabung kembali)
+  • <code>kick</code> - Keluarkan pengguna sambil tetap mengizinkannya bergabung kembali
   • <code>ban</code> - Blokir pengguna secara permanen
   • <code>mute</code> - Pertahankan pengguna dibisukan selama 24 jam
 
@@ -2306,7 +2306,7 @@ devs_chatlist_error: "Gagal membuat daftar obrolan. Silakan coba lagi."
 reactions_help_msg: |
   <b>🎭 Reaksi Otomatis</b>
 
-  Secara otomatis bereaksi terhadap pesan dengan emoji tertentu!
+  Secara otomatis bereaksi terhadap pesan yang berisi kata kunci tertentu!
 
   Siapkan reaksi emoji otomatis yang dipicu ketika pengguna mengirim kata-kata tertentu.
 
@@ -2530,170 +2530,170 @@ antiraid_btn_disable: "Nonaktifkan AntiRaid"
 
 # Rose feature-parity keys (federations, log channels, extras)
 federations_help_msg: |
-  Federations share a ban list across groups you own.
+  Federasi berbagi daftar ban di antara grup-grup yang Anda miliki.
 
-  *Owner (PM):*
-  × /newfed <name>: Create a federation (one per user).
-  × /renamefed <name>: Rename your federation.
-  × /delfed: Delete your federation (confirm).
-  × /fedpromote /feddemote: Manage fed admins.
-  × /fedreason on/off: Require a reason for fbans.
-  × /fednotif on/off: PM the owner on fbans.
-  × /subfed /unsubfed /fedsubs: Subscribe to another fed (max 5).
-  × /fbanlist [csv|json|minicsv]: Export fbans.
-  × /importfbans: Import from a replied CSV/JSON file.
-  × /setfedlog /unsetfedlog: Federation log chat.
+  *Pemilik (PM):*
+  × /newfed <name>: Buat federasi (satu per pengguna).
+  × /renamefed <name>: Ganti nama federasi Anda.
+  × /delfed: Hapus federasi Anda (dengan konfirmasi).
+  × /fedpromote /feddemote: Kelola admin federasi.
+  × /fedreason on/off: Wajibkan alasan untuk fban.
+  × /fednotif on/off: Beri tahu pemilik soal fban lewat PM.
+  × /subfed /unsubfed /fedsubs: Berlangganan federasi lain (maks. 5).
+  × /fbanlist [csv|json|minicsv]: Ekspor fban.
+  × /importfbans: Impor dari file CSV/JSON yang dibalas.
+  × /setfedlog /unsetfedlog: Obrolan log federasi.
 
-  *Group owner:*
-  × /joinfed <fed_id>: Join this chat to a federation.
-  × /leavefed: Leave the federation.
-  × /quietfed on/off: Suppress passive fban notices.
+  *Pemilik grup:*
+  × /joinfed <fed_id>: Gabungkan obrolan ini ke federasi.
+  × /leavefed: Keluar dari federasi.
+  × /quietfed on/off: Sembunyikan notifikasi fban pasif.
 
-  *Fed admins:*
-  × /fban /unfban /funban: Federation ban/unban.
-  × /fedstat /fbanstat: Check a user's fban.
-  × /feddemoteme <fed_id>: Step down as a federation admin.
+  *Admin federasi:*
+  × /fban /unfban /funban: Ban/buka ban federasi.
+  × /fedstat /fbanstat: Cek fban seorang pengguna.
+  × /feddemoteme <fed_id>: Mundur sebagai admin federasi.
 
-  *Anyone:*
+  *Siapa saja:*
   × /fedinfo /fedadmins /chatfed /myfeds
 logchannels_help_msg: |
-  Send admin actions to a dedicated log channel.
+  Kirim tindakan admin ke kanal log khusus.
 
-  1. Add the bot to a channel as admin.
-  2. In that channel, send /setlog.
-  3. Forward that message to the group.
+  1. Tambahkan bot ke kanal sebagai admin.
+  2. Di kanal itu, kirim /setlog.
+  3. Teruskan pesan itu ke grup.
 
-  *Admin commands:*
-  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
-  × /unsetlog: Remove the log channel.
-  × /logchannel: Show the current log channel.
-  × /logcategories: List categories.
-  × /log <category>: Enable a category.
-  × /nolog <category>: Disable a category.
+  *Perintah admin:*
+  × /setlog: Atur kanal log (kirim di kanal, lalu teruskan pesannya ke grup).
+  × /unsetlog: Hapus kanal log.
+  × /logchannel: Tampilkan kanal log saat ini.
+  × /logcategories: Daftar kategori.
+  × /log <category>: Aktifkan kategori.
+  × /nolog <category>: Nonaktifkan kategori.
 
-  Categories: settings, admin, user, automated, reports, other.
-feds_pm_only: "This command can only be used in private chat with me."
-feds_group_only: "This command can only be used in groups."
-feds_need_name: "Give your federation a name."
-feds_already_own: "You already own a federation. Delete it first with /delfed."
-feds_create_failed: "Could not complete that federation action. Try again."
-feds_created: "Created federation <b>{name}</b>.\nID: <code>{id}</code>\nKeep this ID — group owners use it with /joinfed."
-feds_no_fed: "You don't own a federation. Create one with /newfed."
-feds_rename_failed: "Could not rename the federation."
-feds_renamed: "Federation renamed to <b>{name}</b>."
-feds_delfed_confirm: "Delete federation <b>{name}</b>? This cannot be undone."
-feds_delfed_confirm_btn: "Yes, delete"
-feds_delfed_cancel_btn: "Cancel"
-feds_deleted: "Federation deleted."
-feds_delete_failed: "Could not delete the federation."
-feds_owner_only_join: "Only the group creator can join or leave a federation."
-feds_invalid_id: "That doesn't look like a federation ID."
-feds_not_found: "I couldn't find that federation."
-feds_already_joined: "This chat is already in a federation. /leavefed first."
-feds_join_failed: "Could not join that federation."
-feds_joined: "This chat joined federation <b>{name}</b> (<code>{id}</code>)."
-feds_not_in_fed: "This chat is not in a federation."
-feds_left: "This chat left its federation."
-feds_invalid_toggle: "Use on or off."
-feds_quiet_on: "Quiet federation is on. Passive fbans will not be announced here."
-feds_quiet_off: "Quiet federation is off. Passive fbans will be announced."
-feds_info: "<b>{name}</b>\nID: <code>{id}</code>\nOwner: <code>{owner}</code>\nChats: {chats}\nBans: {bans}\nAdmins: {admins}\nSubscriptions: {subs}\nRequire reason: {reason}\nNotify owner: {notify}"
-feds_admins_header: "Admins of <b>{name}</b>:"
-feds_chatfed: "This chat is in <b>{name}</b> (<code>{id}</code>)."
-feds_myfeds_none: "You don't own or admin any federations."
-feds_myfeds_header: "Your federations:"
+  Kategori: settings, admin, user, automated, reports, other.
+feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."
+feds_group_only: "Perintah ini hanya bisa digunakan di grup."
+feds_need_name: "Beri nama federasi Anda."
+feds_already_own: "Anda sudah memiliki federasi. Hapus dulu dengan /delfed."
+feds_create_failed: "Tidak dapat menyelesaikan tindakan federasi itu. Coba lagi."
+feds_created: "Federasi <b>{name}</b> dibuat.\nID: <code>{id}</code>\nSimpan ID ini — pemilik grup memakainya dengan /joinfed."
+feds_no_fed: "Anda tidak memiliki federasi. Buat dengan /newfed."
+feds_rename_failed: "Tidak dapat mengganti nama federasi."
+feds_renamed: "Nama federasi diganti menjadi <b>{name}</b>."
+feds_delfed_confirm: "Hapus federasi <b>{name}</b>? Ini tidak dapat dibatalkan."
+feds_delfed_confirm_btn: "Ya, hapus"
+feds_delfed_cancel_btn: "Batal"
+feds_deleted: "Federasi dihapus."
+feds_delete_failed: "Tidak dapat menghapus federasi."
+feds_owner_only_join: "Hanya pembuat grup yang dapat bergabung atau keluar dari federasi."
+feds_invalid_id: "Itu tidak terlihat seperti ID federasi."
+feds_not_found: "Saya tidak dapat menemukan federasi itu."
+feds_already_joined: "Obrolan ini sudah ada di federasi. Gunakan /leavefed dulu."
+feds_join_failed: "Tidak dapat bergabung ke federasi itu."
+feds_joined: "Obrolan ini bergabung ke federasi <b>{name}</b> (<code>{id}</code>)."
+feds_not_in_fed: "Obrolan ini tidak ada di federasi mana pun."
+feds_left: "Obrolan ini keluar dari federasinya."
+feds_invalid_toggle: "Gunakan on atau off."
+feds_quiet_on: "Federasi senyap aktif. Fban pasif tidak akan diumumkan di sini."
+feds_quiet_off: "Federasi senyap nonaktif. Fban pasif akan diumumkan."
+feds_info: "<b>{name}</b>\nID: <code>{id}</code>\nPemilik: <code>{owner}</code>\nObrolan: {chats}\nBan: {bans}\nAdmin: {admins}\nLangganan: {subs}\nWajib alasan: {reason}\nBeri tahu pemilik: {notify}"
+feds_admins_header: "Admin <b>{name}</b>:"
+feds_chatfed: "Obrolan ini ada di <b>{name}</b> (<code>{id}</code>)."
+feds_myfeds_none: "Anda tidak memiliki atau mengelola federasi mana pun."
+feds_myfeds_header: "Federasi Anda:"
 feds_role_owner: "pemilik"
 feds_role_admin: "admin"
-feds_cannot_promote_self: "You already own this federation."
-feds_cannot_promote_owner: "The owner is already a federation admin."
-feds_already_admin: "That user is already a federation admin."
-feds_promoted: "Promoted {user} to federation admin."
-feds_not_fed_admin: "That user is not a federation admin."
-feds_demoted: "Demoted {user} from federation admin."
-feds_demoteme_not_admin: "You are not a federation admin of that fed."
-feds_demoteme_ok: "You are no longer a federation admin there."
+feds_cannot_promote_self: "Anda sudah menjadi pemilik federasi ini."
+feds_cannot_promote_owner: "Pemilik sudah menjadi admin federasi."
+feds_already_admin: "Pengguna itu sudah menjadi admin federasi."
+feds_promoted: "{user} dijadikan admin federasi."
+feds_not_fed_admin: "Pengguna itu bukan admin federasi."
+feds_demoted: "{user} dicopot dari admin federasi."
+feds_demoteme_not_admin: "Anda bukan admin federasi tersebut."
+feds_demoteme_ok: "Anda bukan lagi admin federasi tersebut."
 feds_demoteme_owner: "Anda adalah pemilik federasi ini, jadi Anda tidak bisa mundur sebagai adminnya."
-feds_fedreason_on: "Fbans now require a reason."
-feds_fedreason_off: "Fbans no longer require a reason."
-feds_fednotif_on: "You will be notified of fbans."
-feds_fednotif_off: "You will not be notified of fbans."
-feds_not_admin: "You are not a federation admin here."
-feds_cannot_fban_self: "You cannot fban yourself."
-feds_cannot_fban_owner: "You cannot fban the federation owner."
-feds_cannot_fban_admin: "You cannot fban a federation admin."
-feds_need_reason: "This federation requires a reason for fbans."
-feds_fban_failed: "Could not fban that user."
-feds_fban_already: "That user is already fbanned. Reason updated."
-feds_fban_ok: "Fbanned {user} in <b>{name}</b>.\nReason: {reason}"
-feds_unfban_not_banned: "That user is not fbanned."
-feds_unfban_ok: "Unfbanned {user} from <b>{name}</b>."
+feds_fedreason_on: "Fban sekarang wajib disertai alasan."
+feds_fedreason_off: "Fban tidak lagi wajib disertai alasan."
+feds_fednotif_on: "Anda akan diberi tahu soal fban."
+feds_fednotif_off: "Anda tidak akan diberi tahu soal fban."
+feds_not_admin: "Anda bukan admin federasi di sini."
+feds_cannot_fban_self: "Anda tidak dapat mem-fban diri sendiri."
+feds_cannot_fban_owner: "Anda tidak dapat mem-fban pemilik federasi."
+feds_cannot_fban_admin: "Anda tidak dapat mem-fban admin federasi."
+feds_need_reason: "Federasi ini mewajibkan alasan untuk fban."
+feds_fban_failed: "Tidak dapat mem-fban pengguna itu."
+feds_fban_already: "Pengguna itu sudah di-fban. Alasan diperbarui."
+feds_fban_ok: "{user} di-fban di <b>{name}</b>.\nAlasan: {reason}"
+feds_unfban_not_banned: "Pengguna itu tidak di-fban."
+feds_unfban_ok: "Fban {user} di <b>{name}</b> dicabut."
 feds_log_fban: "FBAN <code>{user_id}</code> oleh {actor}\nAlasan: {reason}"
 feds_log_unfban: "UNFBAN <code>{user_id}</code> oleh {actor}"
-feds_fedstat_none: "That user is not fbanned in any federation I know."
-feds_fedstat_reason: "Banned in <b>{name}</b>: {reason}"
-feds_fedstat_header: "Federation bans for {user}:"
-feds_sub_self: "A federation cannot subscribe to itself."
-feds_already_sub: "Already subscribed to that federation."
-feds_sub_max: "A federation can subscribe to at most 5 others."
-feds_sub_ok: "Subscribed to that federation's ban list."
-feds_not_sub: "Not subscribed to that federation."
-feds_unsub_ok: "Unsubscribed from that federation."
-feds_subs_none: "This federation has no subscriptions."
-feds_subs_header: "Subscriptions:"
-feds_setfedlog_need_id: "Give a federation ID, or use this in a group that is in your fed."
-feds_not_owner: "Only the federation owner can set the fed log."
-feds_setfedlog_ok: "Federation log chat set."
-feds_unsetfedlog_ok: "Federation log chat cleared."
-feds_export_wait: "Please wait before exporting again."
-feds_export_empty: "This federation has no bans to export."
-feds_import_need_file: "Reply to a CSV or JSON fban list."
-feds_import_failed: "Could not import that fban list."
-feds_import_ok: "Imported {count} federation bans."
-feds_passive_ban: "{user} is fbanned in <b>{name}</b> and was removed.\nReason: {reason}"
-feds_callback_denied: "You cannot use this button."
-feds_callback_stale: "This button is no longer valid."
-logs_need_channel: "Use /setlog in a channel, then forward that message to the group."
-logs_forward_to_group: "Forward this message to the group you want to log."
-logs_set_ok: "Log channel set. Admin actions from this chat will be sent there."
-logs_unset_ok: "Log channel removed."
-logs_not_set: "No log channel is set for this chat."
-logs_current: "Log channel: <code>{id}</code>"
-logs_categories: "Categories: settings, admin, user, automated, reports, other."
-logs_enabled: "Enabled logging for: {cats}"
-logs_disabled: "Disabled logging for: {cats}"
-logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
-logs_group_only: "This command can only be used in groups."
-bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
-bans_banme_ok: "As you wish. You are banned."
-bans_unbanall_ask: "Unban every known user in this chat? This cannot be undone easily."
-bans_unbanall_done: "Issued unban for {count} known users."
-bans_unbanall_cancel: "Cancelled."
-admin_setgtitle_need_title: "Give me a new group title."
-admin_setgtitle_ok: "Group title updated."
-admin_setgtitle_failed: "I couldn't change the group title. Make sure I can change group info."
-admin_setgpic_need_photo: "Reply to a photo to set it as the group picture."
-admin_setgpic_ok: "Group picture updated."
-admin_setgpic_failed: "I couldn't change the group picture."
-admin_setgdesc_ok: "Group description updated."
-admin_setgdesc_failed: "I couldn't change the group description."
-misc_stickerid_need_sticker: "Reply to a sticker to get its file ID."
-misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
-misc_zombies_scanning: "Scanning for deleted accounts…"
-misc_zombies_none: "No deleted accounts found among known members."
-misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
-misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
-misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud &lt;term&gt;"
-misc_ud_not_found: "No Urban Dictionary result for that."
+feds_fedstat_none: "Pengguna itu tidak di-fban di federasi mana pun yang saya ketahui."
+feds_fedstat_reason: "Diblokir di <b>{name}</b>: {reason}"
+feds_fedstat_header: "Ban federasi untuk {user}:"
+feds_sub_self: "Federasi tidak dapat berlangganan dirinya sendiri."
+feds_already_sub: "Sudah berlangganan federasi itu."
+feds_sub_max: "Federasi dapat berlangganan paling banyak 5 federasi lain."
+feds_sub_ok: "Berlangganan daftar ban federasi itu."
+feds_not_sub: "Tidak berlangganan federasi itu."
+feds_unsub_ok: "Berhenti berlangganan federasi itu."
+feds_subs_none: "Federasi ini tidak memiliki langganan."
+feds_subs_header: "Langganan:"
+feds_setfedlog_need_id: "Berikan ID federasi, atau gunakan ini di grup yang ada di federasi Anda."
+feds_not_owner: "Hanya pemilik federasi yang dapat mengatur log federasi."
+feds_setfedlog_ok: "Obrolan log federasi diatur."
+feds_unsetfedlog_ok: "Obrolan log federasi dihapus."
+feds_export_wait: "Harap tunggu sebelum mengekspor lagi."
+feds_export_empty: "Federasi ini tidak memiliki ban untuk diekspor."
+feds_import_need_file: "Balas ke daftar fban berformat CSV atau JSON."
+feds_import_failed: "Tidak dapat mengimpor daftar fban itu."
+feds_import_ok: "{count} ban federasi diimpor."
+feds_passive_ban: "{user} di-fban di <b>{name}</b> dan telah dikeluarkan.\nAlasan: {reason}"
+feds_callback_denied: "Anda tidak dapat menggunakan tombol ini."
+feds_callback_stale: "Tombol ini sudah tidak berlaku."
+logs_need_channel: "Gunakan /setlog di kanal, lalu teruskan pesan itu ke grup."
+logs_forward_to_group: "Teruskan pesan ini ke grup yang ingin Anda catat."
+logs_set_ok: "Kanal log diatur. Tindakan admin dari obrolan ini akan dikirim ke sana."
+logs_unset_ok: "Kanal log dihapus."
+logs_not_set: "Belum ada kanal log untuk obrolan ini."
+logs_current: "Kanal log: <code>{id}</code>"
+logs_categories: "Kategori: settings, admin, user, automated, reports, other."
+logs_enabled: "Pencatatan diaktifkan untuk: {cats}"
+logs_disabled: "Pencatatan dinonaktifkan untuk: {cats}"
+logs_unknown_category: "Kategori tidak dikenal. Lihat /logcategories."
+logs_usage: "Penggunaan: /log &lt;kategori&gt; atau /nolog &lt;kategori&gt;"
+logs_group_only: "Perintah ini hanya bisa digunakan di grup."
+bans_banme_is_admin: "Admin tidak dapat memblokir diri sendiri. Mundur dulu."
+bans_banme_ok: "Sesuai keinginan Anda. Anda diblokir."
+bans_unbanall_ask: "Buka blokir semua pengguna yang dikenal di obrolan ini? Ini tidak mudah dibatalkan."
+bans_unbanall_done: "Buka blokir dikirim untuk {count} pengguna yang dikenal."
+bans_unbanall_cancel: "Dibatalkan."
+admin_setgtitle_need_title: "Berikan saya judul grup yang baru."
+admin_setgtitle_ok: "Judul grup diperbarui."
+admin_setgtitle_failed: "Saya tidak dapat mengubah judul grup. Pastikan saya bisa mengubah info grup."
+admin_setgpic_need_photo: "Balas ke foto untuk menjadikannya gambar grup."
+admin_setgpic_ok: "Gambar grup diperbarui."
+admin_setgpic_failed: "Saya tidak dapat mengubah gambar grup."
+admin_setgdesc_ok: "Deskripsi grup diperbarui."
+admin_setgdesc_failed: "Saya tidak dapat mengubah deskripsi grup."
+misc_stickerid_need_sticker: "Balas ke stiker untuk mendapatkan ID filenya."
+misc_stickerid_result: "ID file stiker: <code>{id}</code>"
+misc_zombies_scanning: "Memindai akun yang dihapus…"
+misc_zombies_none: "Tidak ada akun terhapus di antara anggota yang dikenal."
+misc_zombies_cleaned: "{count} akun terhapus dikeluarkan."
+misc_github_usage: "Penggunaan: /github &lt;pengguna&gt; atau /github &lt;pengguna/repo&gt;"
+misc_github_not_found: "Saya tidak dapat menemukan pengguna atau repositori GitHub itu."
+misc_wiki_usage: "Penggunaan: /wiki &lt;pencarian&gt;"
+misc_wiki_not_found: "Tidak ada hasil Wikipedia untuk itu."
+misc_ud_usage: "Penggunaan: /ud &lt;istilah&gt;"
+misc_ud_not_found: "Tidak ada hasil Urban Dictionary untuk itu."
 misc_runs:
-  - "Runs away."
-  - "Nope."
-  - "I'm out."
-  - "Catch me if you can."
-chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+  - "Kabur."
+  - "Tidak mau."
+  - "Saya pergi."
+  - "Tangkap aku kalau bisa."
+chat_status_bot_change_info_error: "Saya tidak bisa mengubah info grup di sini! Pastikan saya admin dan bisa mengubah info grup."
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "Semua perintah dalam satu daftar"
@@ -2707,7 +2707,7 @@ admin_extend_msg: |
   /demote — turunkan admin
   /title — atur judul khusus admin
   /invitelink — dapatkan tautan undangan obrolan
-  /anonadmin — wajibkan admin anonim konfirmasi dengan tombol
+  /anonadmin — percayai admin anonim (on) atau wajibkan konfirmasi dengan tombol (off)
   /admincache — muat ulang daftar admin
   /clearadmincache — hapus cache daftar admin
   /setgtitle — ubah judul grup
