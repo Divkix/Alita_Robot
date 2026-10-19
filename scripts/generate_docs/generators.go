@@ -339,15 +339,21 @@ func generatePermissionsSection(module Module) string {
 
 	// Determine permission level based on module name
 	adminModules := map[string]bool{
-		"admin": true, "bans": true, "locks": true, "muting": true,
-		"purges": true, "warnings": true, "antiflood": true,
-		"logchannels": true,
+		"admin": true, "bans": true, "locks": true, "mutes": true,
+		"purges": true, "warns": true, "antiflood": true,
 	}
 
 	if module.Name == "federations" {
 		content.WriteString("Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/newfed` (in PM), `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.\n\n")
 		content.WriteString("**Bot Permissions Required:**\n\n")
 		content.WriteString("- Ban users (to enforce and lift federation bans)\n")
+		return content.String()
+	}
+
+	if module.Name == "logchannels" {
+		content.WriteString("`/setlog` is posted in the log channel by one of its admins, then that post is forwarded to the group by a group admin. `/unsetlog`, `/log` and `/nolog` require a group admin. `/logchannel` and `/logcategories` are open to everyone.\n\n")
+		content.WriteString("**Bot Permissions Required:**\n\n")
+		content.WriteString("- Admin in the log channel with permission to post messages (to receive `/setlog` and send the logs)\n")
 		return content.String()
 	}
 
@@ -373,20 +379,20 @@ func getModuleEmoji(moduleName string) string {
 		"admin":       "👑",
 		"bans":        "🔨",
 		"locks":       "🔒",
-		"muting":      "🔇",
+		"mutes":       "🔇",
 		"purges":      "🧹",
-		"warnings":    "⚠️",
+		"warns":       "⚠️",
 		"filters":     "🔍",
 		"notes":       "📝",
 		"rules":       "📋",
 		"greetings":   "👋",
-		"reporting":   "📢",
-		"language":    "🌐",
+		"reports":     "📢",
+		"languages":   "🌐",
 		"antiflood":   "🌊",
-		"blacklist":   "🚫",
-		"approval":    "✅",
+		"blacklists":  "🚫",
+		"approvals":   "✅",
 		"captcha":     "🔐",
-		"connection":  "🔗",
+		"connections": "🔗",
 		"disabling":   "❌",
 		"extras":      "⭐",
 		"misc":        "🔧",

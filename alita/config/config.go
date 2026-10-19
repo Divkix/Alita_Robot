@@ -134,7 +134,7 @@ type Config struct {
 	Debug       bool
 
 	OwnerId            int64 `validate:"required,min=1"`
-	MessageDump        int64 `validate:"required,min=1"`
+	MessageDump        int64 `validate:"required"`
 	DropPendingUpdates bool
 	AllowedUpdates     []string
 	ValidLangCodes     []string
@@ -202,10 +202,10 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("BOT_TOKEN is required")
 	}
 	if cfg.OwnerId == 0 {
-		return fmt.Errorf("OWNER_ID is required and must be greater than 0")
+		return fmt.Errorf("OWNER_ID is required")
 	}
 	if cfg.MessageDump == 0 {
-		return fmt.Errorf("MESSAGE_DUMP is required and must be greater than 0")
+		return fmt.Errorf("MESSAGE_DUMP is required (the log channel ID, e.g. -100xxxxxxxxxx)")
 	}
 	if cfg.DatabaseURL == "" {
 		return fmt.Errorf("DATABASE_URL is required")

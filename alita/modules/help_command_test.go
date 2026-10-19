@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -505,5 +506,90 @@ func TestGroupModuleHelpNamesTheModuleInChatLanguage(t *testing.T) {
 	want, _ := i18n.MustNewTranslator("es").GetString("help_contact_pm_module", i18n.TranslationParams{"module": "Admin"})
 	if got, _ := sent[0].Params["text"].(string); got != want || !strings.Contains(got, "Admin") {
 		t.Errorf("group /help admin text = %q, want %q", got, want)
+	}
+}
+
+// Extra words after the module name still get that module's PM deep link.
+func TestGroupHelpWithExtraWordsLinksTheModule(t *testing.T) {
+	useRealLocales(t)
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		cachedBotUsername = ""
+	})
+	registry := DefaultHelpRegistry()
+	registry.AbleMap["Admin"] = true
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Helper"}
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Help Chat"}
+
+	if err := DefaultHelpRegistry().help(bot, newModuleMessageContext(bot, group, user, "/help admin extra")); err != ext.EndGroups {
+		t.Fatalf("help() error = %v, want EndGroups", err)
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(sent))
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("help_contact_pm_module", i18n.TranslationParams{"module": "Admin"})
+	if got, _ := sent[0].Params["text"].(string); got != want {
+		t.Errorf("group /help admin extra text = %q, want %q", got, want)
+	}
+	markup, ok := sent[0].Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok || len(markup.InlineKeyboard) == 0 || len(markup.InlineKeyboard[0]) == 0 {
+		t.Fatalf("reply_markup = %#v, want the PM link button", sent[0].Params["reply_markup"])
+	}
+	if url := markup.InlineKeyboard[0][0].Url; !strings.HasSuffix(url, "?start=help_admin") {
+		t.Errorf("PM link = %q, want the admin module deep link", url)
+	}
+}
+
+// The main help text links the docs site; no reply showing it may expand
+// that link into a preview card.
+func TestHelpRepliesDisableLinkPreviews(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		cachedBotUsername = ""
+	})
+	registry := DefaultHelpRegistry()
+	registry.AbleMap["Admin"] = true
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Helper"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+
+	for _, text := range []string{"/help", "/help admin", "/help nosuchmodule"} {
+		if err := DefaultHelpRegistry().help(bot, newModuleMessageContext(bot, privateChat, user, text)); err != ext.EndGroups {
+			t.Fatalf("help(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+	for _, module := range []string{"help", "admin"} {
+		if _, err := sendHelpkb(bot, newModuleMessageContext(bot, privateChat, user, "/start help_"+module), module, registry); err != nil {
+			t.Fatalf("sendHelpkb(%q) error = %v", module, err)
+		}
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 5 {
+		t.Fatalf("sendMessage calls = %d, want 5", len(sent))
+	}
+	for i, call := range sent {
+		var raw []byte
+		if encoded, ok := call.Params["link_preview_options"].(string); ok {
+			raw = []byte(encoded)
+		} else {
+			var err error
+			if raw, err = json.Marshal(call.Params["link_preview_options"]); err != nil {
+				t.Fatalf("marshal link_preview_options: %v", err)
+			}
+		}
+		var opts gotgbot.LinkPreviewOptions
+		if err := json.Unmarshal(raw, &opts); err != nil || !opts.IsDisabled {
+			t.Errorf("reply %d link_preview_options = %s, want previews disabled", i, raw)
+		}
 	}
 }

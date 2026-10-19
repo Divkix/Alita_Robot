@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -1021,5 +1022,55 @@ func TestBackupCommandsHonourDisable(t *testing.T) {
 				t.Fatalf("deleteMessage calls = %d, want the disabled command deleted", len(calls))
 			}
 		})
+	}
+}
+
+// The real locales fill the backup messages with %-verbs, while the fake one
+// above uses {names}; both styles must come out with every value in place.
+func TestBackupMessagesFillEveryLocale(t *testing.T) {
+	t.Parallel()
+
+	bkp := backup.NewBackupFormat(12345, "A<B", 67890, []string{"notes", "rules"})
+	bkp.Data["notes"] = map[string]interface{}{"test": "data"}
+	bkp.Data["rules"] = map[string]interface{}{"test": "data"}
+	bkp.ExportedAt = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	modules := []string{"notes", "rules"}
+
+	named := "backup_import_confirm: \"{modules} {list}\"\n" +
+		"backup_reset_confirm: \"{modules} {list}\"\n" +
+		"backup_import_success: \"{modules} {list}\"\n" +
+		"backup_reset_success: \"{modules} {list}\"\n" +
+		"backup_export_success: \"{chat} {modules} {time} {list}\"\n"
+	sources := map[string]string{"named": named}
+	for _, code := range localeCodes {
+		raw, err := os.ReadFile("../../locales/" + code + ".yml")
+		require.NoError(t, err)
+		sources[code] = string(raw)
+	}
+
+	for name, content := range sources {
+		tr, err := i18n.NewTestTranslator(content)
+		require.NoError(t, err, name)
+
+		outputs := map[string]string{"backup_export_success": buildExportCaption(tr, bkp)}
+		for key, params := range map[string]i18n.TranslationParams{
+			"backup_import_confirm": backupConfirmParams(modules),
+			"backup_reset_confirm":  backupConfirmParams(modules),
+			"backup_import_success": backupResultParams(modules),
+			"backup_reset_success":  backupResultParams(modules),
+		} {
+			outputs[key], _ = tr.GetString(key, params)
+		}
+
+		for key, text := range outputs {
+			for _, want := range []string{"2", "• notes\n• rules"} {
+				assert.Contains(t, text, want, "%s %s", name, key)
+			}
+			for _, bad := range []string{"%s", "%d", "%!", "{"} {
+				assert.NotContains(t, text, bad, "%s %s", name, key)
+			}
+		}
+		assert.Contains(t, outputs["backup_export_success"], "A&lt;B", name)
+		assert.Contains(t, outputs["backup_export_success"], "2026-01-02 03:04:05", name)
 	}
 }

@@ -689,3 +689,32 @@ items:
 		})
 	}
 }
+
+// A '%' inside a substituted value is user text: filling {name} placeholders
+// must not hand the result to Sprintf, while %-templates still interpolate.
+func TestTranslator_GetString_SubstitutedValuesAreNotFormatStrings(t *testing.T) {
+	t.Parallel()
+
+	const yamlContent = "feds_fedstat_reason: \"Banned in <b>{name}</b>: {reason}\"\n" +
+		"hello: \"Hello, %s!\"\n" +
+		"pair: \"%s and %s\"\n"
+	tr := newTestTranslator(t, yamlContent)
+
+	for _, tt := range []struct {
+		key    string
+		params TranslationParams
+		want   string
+	}{
+		{key: "feds_fedstat_reason", params: TranslationParams{"name": "MyFed", "reason": "50%s off 100%d"}, want: "Banned in <b>MyFed</b>: 50%s off 100%d"},
+		{key: "hello", params: TranslationParams{"name": "X"}, want: "Hello, X!"},
+		{key: "pair", params: TranslationParams{"0": "a", "1": "b"}, want: "a and b"},
+	} {
+		got, err := tr.GetString(tt.key, tt.params)
+		if err != nil {
+			t.Fatalf("GetString(%s) error = %v", tt.key, err)
+		}
+		if got != tt.want {
+			t.Fatalf("GetString(%s) = %q, want %q", tt.key, got, tt.want)
+		}
+	}
+}

@@ -98,15 +98,17 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
+	reasonStr := ""
+	if reason != "" {
+		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		reasonStr = fmt.Sprintf(temp, html.EscapeString(reason))
+	}
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_approved")
 	baseStr := fmt.Sprintf(text,
 		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 		html.EscapeString(approverName),
+		reasonStr,
 	)
-	if reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
-		baseStr += fmt.Sprintf(temp, html.EscapeString(reason))
-	}
 	_, err := msg.Reply(b, baseStr, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
@@ -240,15 +242,18 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_status")
 	dateStr := foundUser.CreatedAt.Format("2006-01-02")
+	reasonStr := ""
+	if foundUser.Reason != "" {
+		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		// The status template already puts the reason slot on its own line.
+		reasonStr = strings.TrimPrefix(fmt.Sprintf(temp, html.EscapeString(foundUser.Reason)), "\n")
+	}
 	baseStr := fmt.Sprintf(text,
 		html.EscapeString(targetName),
 		html.EscapeString(dateStr),
 		html.EscapeString(approverName),
+		reasonStr,
 	)
-	if foundUser.Reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
-		baseStr += fmt.Sprintf(temp, html.EscapeString(foundUser.Reason))
-	}
 	_, err := msg.Reply(b, baseStr, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
