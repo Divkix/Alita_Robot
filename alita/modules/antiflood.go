@@ -272,6 +272,7 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 	return
 }
 
+//nolint:gocyclo // The ordered skip checks, flood counting and per-mode punishment form one watcher pass.
 func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
