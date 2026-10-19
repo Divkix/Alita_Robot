@@ -67,7 +67,8 @@ The wizard is PM-only and uses English regardless of user language setting.
 ## Deep-Link Support in `/start`
 
 When `/start` is used with a parameter in private chat, the bot resolves it
-as a deep link:
+as a deep link: an exact match is tried first, then the longest matching
+prefix; any other parameter shows the default start menu.
 
 | Parameter | Example | Behavior |
 |--------|---------|----------|
