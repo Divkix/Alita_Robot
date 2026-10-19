@@ -525,6 +525,44 @@ func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
 	}
 }
 
+// Postgres rejects a warn mode outside chk_warns_mode, which would abort the
+// whole import; an unusable or missing mode falls back to the default.
+func TestImportWarnsReplacesUnusableWarnMode(t *testing.T) {
+	skipIfNoDb(t)
+
+	for _, tc := range []struct {
+		name string
+		mode string
+		want string
+	}{
+		{name: "ban", mode: "ban", want: "ban"},
+		{name: "kick", mode: "kick", want: "kick"},
+		{name: "mute", mode: "mute", want: "mute"},
+		{name: "tban", mode: "tban", want: "tban"},
+		{name: "tmute", mode: "tmute", want: "tmute"},
+		{name: "missing", mode: "", want: "mute"},
+		{name: "wrong case", mode: "Ban", want: "mute"},
+		{name: "unknown", mode: "explode", want: "mute"},
+		{name: "warn is not a warn mode", mode: "warn", want: "mute"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_warn_mode"))
+			t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+
+			settings := map[string]interface{}{"warn_limit": float64(3)}
+			if tc.mode != "" {
+				settings["warn_mode"] = tc.mode
+			}
+			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleWarns})
+			backup.Data[BackupModuleWarns] = map[string]interface{}{"warn_settings": settings}
+
+			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+			assert.Equal(t, tc.want, warns.GetWarnSetting(chatID).WarnMode)
+		})
+	}
+}
+
 // Postgres rejects a blacklist action outside chk_blacklist_action, which would
 // abort the whole import; an unusable action falls back to the backup's mode,
 // then to the default.
