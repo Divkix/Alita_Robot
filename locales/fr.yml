@@ -1545,6 +1545,36 @@ aispam_globally_disabled: "❌ Je ne peux pas activer le filtre anti-spam par IA
 aispam_invalid_option: "Je ne comprends qu'une option parmi : <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ Les analyses anti-spam par IA sont en pause dans ce chat pendant quelques minutes après des échecs répétés du fournisseur d'IA. Elles reprennent d'elles-mêmes et le filtre reste activé."
 
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 Base anti-spam</b>
+
+  Une vérification facultative qui recherche chaque nouveau membre dans la base anti-spam CAS (cas.chat) à son arrivée et agit sur ceux qui y figurent.
+
+  Les admins, les utilisateurs approuvés et les bots ne sont jamais vérifiés. Si CAS est injoignable, le membre est admis. Chaque action est signalée uniquement dans le canal de logs, jamais dans le groupe.
+
+
+  *Commandes admin :*
+
+  × /spamdb : Indique si la vérification est activée et ce qu'elle fait.
+
+  × /spamdb `<on/off>` : Active ou désactive la vérification dans ce chat.
+
+  × /spamdb action `<ban/mute/log>` : Choisit ce qui arrive à un membre listé. Par défaut ban ; log se contente de le signaler.
+
+
+  La vérification est désactivée dans tous les chats tant qu'un admin ne l'active pas. Une fois activée, l'ID Telegram de chaque nouveau membre est envoyé à cas.chat.
+spamdb_status_enabled: "La vérification CAS à l'arrivée est <b>activée</b> dans ce chat. Les membres listés reçoivent : <code>{action}</code>."
+spamdb_status_disabled: "La vérification CAS à l'arrivée est <b>désactivée</b> dans ce chat. Activez-la avec <code>/spamdb on</code>."
+spamdb_status_globally_disabled: "⚠️ Indisponible : l'opérateur du bot a désactivé la vérification de la base anti-spam, aucun membre n'est donc vérifié."
+spamdb_data_notice: "<b>Ce qui est envoyé :</b> l'ID Telegram de chaque nouveau membre, à cas.chat. Rien d'autre ne quitte le bot."
+spamdb_enabled_success: "✅ La vérification CAS à l'arrivée est maintenant <b>activée</b>. Les nouveaux membres sont recherchés dans CAS à leur arrivée."
+spamdb_disabled_success: "❌ La vérification CAS à l'arrivée est maintenant <b>désactivée</b>."
+spamdb_globally_disabled: "❌ Je ne peux pas activer la vérification CAS : l'opérateur du bot l'a désactivée. Rien n'a changé."
+spamdb_invalid_option: "Je ne comprends qu'une option parmi : <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "Choisissez une action parmi : <code>ban</code>/<code>mute</code>/<code>log</code>. Exemple : <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ Les membres listés dans CAS recevront désormais : <code>{action}</code>."
+
 # Locks module extended documentation
 locks_notes_docs: |
   <b>Notes techniques</b>
@@ -2695,6 +2725,8 @@ rules_extend_msg: |
   /rulesbtn — définir le texte du bouton des règles
   /resetrulesbutton — réinitialiser le texte du bouton des règles
   /resetrulesbtn — identique à /resetrulesbutton
+spamdb_extend_msg: |
+  /spamdb — afficher ou basculer la vérification CAS, ou choisir son action
 warns_extend_msg: |
   /warn — avertir un utilisateur
   /swarn — avertir et supprimer votre commande

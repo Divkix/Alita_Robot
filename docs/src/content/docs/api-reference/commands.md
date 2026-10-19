@@ -64,6 +64,12 @@ This page provides a complete reference of all commands available in Alita Robot
 |---------|-------------|------------|-------------|---------|
 | `/aispam` | Show filter status, or turn it on/off (`on`/`off`) | Admin | ✅ | — |
 
+#### 🛡 Spamdb
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/spamdb` | Show the CAS join check, turn it on/off, or set its action (`action ban\|mute\|log`) | Admin | ✅ | — |
+
 #### 👤 Approvals
 
 | Command | Description | Permission | Disableable | Aliases |

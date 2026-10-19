@@ -701,6 +701,36 @@ aispam_globally_disabled: "❌ मैं AI स्पैम फ़िल्ट�
 aispam_invalid_option: "मैं इनमें से कोई एक विकल्प समझता हूँ: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ AI प्रदाता की बार-बार विफलता के बाद इस चैट में AI स्पैम जाँच कुछ मिनट के लिए रोक दी गई है। यह अपने आप फिर शुरू हो जाएगी और फ़िल्टर चालू ही रहेगा।"
 
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 स्पैम डेटाबेस</b>
+
+  एक वैकल्पिक जाँच जो हर नए सदस्य को जुड़ते समय CAS (cas.chat) स्पैम डेटाबेस में खोजती है और जो उसमें सूचीबद्ध हैं उन पर कार्रवाई करती है।
+
+  एडमिन, स्वीकृत उपयोगकर्ता और बॉट कभी नहीं जाँचे जाते। अगर CAS तक नहीं पहुँचा जा सके, तो सदस्य को आने दिया जाता है। हर कार्रवाई की सूचना केवल लॉग चैनल में दी जाती है, ग्रुप में कभी नहीं।
+
+
+  *एडमिन कमांड:*
+
+  × /spamdb: दिखाएँ कि जाँच चालू है या नहीं और वह क्या करती है।
+
+  × /spamdb `<on/off>`: इस चैट में जाँच चालू या बंद करें।
+
+  × /spamdb action `<ban/mute/log>`: चुनें कि सूचीबद्ध सदस्य के साथ क्या हो। डिफ़ॉल्ट ban है; log केवल सूचना देता है।
+
+
+  जब तक कोई एडमिन इसे चालू न करे, जाँच हर चैट में बंद रहती है। चालू करने पर हर नए सदस्य की Telegram ID cas.chat को भेजी जाती है।
+spamdb_status_enabled: "इस चैट में जुड़ने पर CAS जाँच <b>चालू</b> है। सूचीबद्ध सदस्यों पर: <code>{action}</code>।"
+spamdb_status_disabled: "इस चैट में जुड़ने पर CAS जाँच <b>बंद</b> है। <code>/spamdb on</code> से चालू करें।"
+spamdb_status_globally_disabled: "⚠️ उपलब्ध नहीं: बॉट ऑपरेटर ने स्पैम डेटाबेस जाँच बंद कर दी है, इसलिए किसी सदस्य की जाँच नहीं हो रही।"
+spamdb_data_notice: "<b>क्या भेजा जाता है:</b> हर नए सदस्य की Telegram ID, cas.chat को। बॉट से और कुछ नहीं जाता।"
+spamdb_enabled_success: "✅ जुड़ने पर CAS जाँच अब <b>चालू</b> है। नए सदस्यों को जुड़ते समय CAS में खोजा जाएगा।"
+spamdb_disabled_success: "❌ जुड़ने पर CAS जाँच अब <b>बंद</b> है।"
+spamdb_globally_disabled: "❌ मैं CAS जाँच चालू नहीं कर सकता: बॉट ऑपरेटर ने इसे बंद कर दिया है। कुछ नहीं बदला।"
+spamdb_invalid_option: "मैं केवल इनमें से विकल्प समझता हूँ: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "इनमें से कार्रवाई चुनें: <code>ban</code>/<code>mute</code>/<code>log</code>। उदाहरण: <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ CAS में सूचीबद्ध सदस्यों पर अब: <code>{action}</code>।"
+
 # Antiflood module strings
 antiflood_checkflood_perform_action: "हाँ, मुझे आपकी flooding पसंद नहीं है। %s को %s कर दिया गया है!"
 antiflood_errors_expected_args: "मुझे कुछ तर्क चाहिए! या तो off, या एक पूर्णांक। उदा: <code>/setflood 5</code>, या <code>/setflood off</code>"
@@ -2493,6 +2523,8 @@ rules_extend_msg: |
   /rulesbtn — नियम बटन का टेक्स्ट सेट करें
   /resetrulesbutton — नियम बटन का टेक्स्ट रीसेट करें
   /resetrulesbtn — /resetrulesbutton के समान
+spamdb_extend_msg: |
+  /spamdb — CAS जाँच दिखाएँ या बदलें, या उसकी कार्रवाई तय करें
 warns_extend_msg: |
   /warn — यूज़र को चेतावनी दें
   /swarn — चेतावनी दें और अपनी कमांड हटाएँ

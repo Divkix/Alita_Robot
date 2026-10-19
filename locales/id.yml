@@ -1716,6 +1716,36 @@ aispam_globally_disabled: "❌ Saya tidak dapat mengaktifkan filter spam AI: ope
 aispam_invalid_option: "Saya hanya memahami salah satu opsi: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ Pemeriksaan spam AI dijeda di chat ini selama beberapa menit setelah penyedia AI gagal berulang kali. Pemeriksaan lanjut sendiri, dan filter tetap aktif."
 
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 Database Spam</b>
+
+  Pemeriksaan opsional yang mencari setiap anggota baru di database spam CAS (cas.chat) saat mereka bergabung, lalu menindak yang terdaftar.
+
+  Admin, pengguna yang disetujui, dan bot tidak pernah diperiksa. Jika CAS tidak bisa dihubungi, anggota tetap masuk. Setiap tindakan hanya dilaporkan ke kanal log, tidak pernah di grup.
+
+
+  *Perintah admin:*
+
+  × /spamdb: Tampilkan apakah pemeriksaan aktif dan apa yang dilakukannya.
+
+  × /spamdb `<on/off>`: Aktifkan atau nonaktifkan pemeriksaan di chat ini.
+
+  × /spamdb action `<ban/mute/log>`: Pilih tindakan untuk anggota yang terdaftar. Bawaannya ban; log hanya melaporkannya.
+
+
+  Pemeriksaan nonaktif di semua chat sampai admin mengaktifkannya. Jika aktif, ID Telegram setiap anggota baru dikirim ke cas.chat.
+spamdb_status_enabled: "Pemeriksaan CAS saat bergabung <b>aktif</b> di chat ini. Anggota yang terdaftar mendapat: <code>{action}</code>."
+spamdb_status_disabled: "Pemeriksaan CAS saat bergabung <b>nonaktif</b> di chat ini. Aktifkan dengan <code>/spamdb on</code>."
+spamdb_status_globally_disabled: "⚠️ Tidak tersedia: operator bot telah mematikan pemeriksaan database spam, jadi tidak ada anggota yang diperiksa."
+spamdb_data_notice: "<b>Yang dikirim:</b> ID Telegram setiap anggota baru, ke cas.chat. Tidak ada yang lain keluar dari bot."
+spamdb_enabled_success: "✅ Pemeriksaan CAS saat bergabung sekarang <b>aktif</b>. Anggota baru dicari di CAS saat bergabung."
+spamdb_disabled_success: "❌ Pemeriksaan CAS saat bergabung sekarang <b>nonaktif</b>."
+spamdb_globally_disabled: "❌ Saya tidak bisa mengaktifkan pemeriksaan CAS: operator bot telah mematikannya. Tidak ada yang berubah."
+spamdb_invalid_option: "Saya hanya mengerti opsi dari: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "Pilih tindakan dari: <code>ban</code>/<code>mute</code>/<code>log</code>. Contoh: <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ Anggota yang terdaftar di CAS sekarang mendapat: <code>{action}</code>."
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Dukungan Admin Anonim</b>
@@ -2775,6 +2805,8 @@ rules_extend_msg: |
   /rulesbtn — atur teks tombol aturan
   /resetrulesbutton — reset teks tombol aturan
   /resetrulesbtn — sama dengan /resetrulesbutton
+spamdb_extend_msg: |
+  /spamdb — tampilkan atau ubah pemeriksaan CAS, atau atur tindakannya
 warns_extend_msg: |
   /warn — beri peringatan pengguna
   /swarn — beri peringatan dan hapus perintahmu

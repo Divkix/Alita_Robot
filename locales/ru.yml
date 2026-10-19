@@ -1502,6 +1502,36 @@ aispam_globally_disabled: "❌ Я не могу включить ИИ-фильт
 aispam_invalid_option: "Я понимаю только один из вариантов: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ ИИ-проверки спама приостановлены в этом чате на несколько минут из-за повторяющихся сбоев поставщика ИИ. Они возобновятся сами, а фильтр останется включённым."
 
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 База спамеров</b>
+
+  Проверка по желанию: каждого нового участника при входе ищут в базе спамеров CAS (cas.chat) и применяют действие к тем, кто там есть.
+
+  Админов, одобренных пользователей и ботов не проверяют. Если CAS недоступен, участника пускают. О каждом действии сообщается только в лог-канал, не в группу.
+
+
+  *Команды админов:*
+
+  × /spamdb: Показать, включена ли проверка и что она делает.
+
+  × /spamdb `<on/off>`: Включить или выключить проверку в этом чате.
+
+  × /spamdb action `<ban/mute/log>`: Выбрать, что делать с участником из базы. По умолчанию ban; log только сообщает о нём.
+
+
+  Проверка выключена во всех чатах, пока админ её не включит. Включённая проверка отправляет на cas.chat Telegram ID каждого нового участника.
+spamdb_status_enabled: "Проверка по CAS при входе <b>включена</b> в этом чате. Участникам из базы: <code>{action}</code>."
+spamdb_status_disabled: "Проверка по CAS при входе <b>выключена</b> в этом чате. Включить: <code>/spamdb on</code>."
+spamdb_status_globally_disabled: "⚠️ Недоступно: оператор бота отключил проверку по базе спамеров, поэтому участники не проверяются."
+spamdb_data_notice: "<b>Что отправляется:</b> Telegram ID каждого нового участника на cas.chat. Больше ничего не уходит."
+spamdb_enabled_success: "✅ Проверка по CAS при входе теперь <b>включена</b>. Новых участников ищут в CAS при входе."
+spamdb_disabled_success: "❌ Проверка по CAS при входе теперь <b>выключена</b>."
+spamdb_globally_disabled: "❌ Не могу включить проверку по CAS: оператор бота её отключил. Ничего не изменилось."
+spamdb_invalid_option: "Я понимаю только варианты: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "Выберите действие: <code>ban</code>/<code>mute</code>/<code>log</code>. Пример: <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ Участникам из базы CAS теперь: <code>{action}</code>."
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Поддержка анонимных администраторов</b>
@@ -2562,6 +2592,8 @@ rules_extend_msg: |
   /rulesbtn — текст кнопки правил
   /resetrulesbutton — сбросить текст кнопки правил
   /resetrulesbtn — то же, что /resetrulesbutton
+spamdb_extend_msg: |
+  /spamdb — показать или переключить проверку по CAS, задать действие
 warns_extend_msg: |
   /warn — предупредить
   /swarn — предупредить и удалить команду

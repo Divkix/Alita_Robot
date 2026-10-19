@@ -1688,6 +1688,36 @@ aispam_globally_disabled: "❌ Não consigo ativar o filtro de spam com IA: o op
 aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ As verificações de spam com IA estão pausadas neste chat por alguns minutos após falhas repetidas do provedor de IA. Elas retomam sozinhas e o filtro continua ativado."
 
+# CAS spam database join check strings
+spamdb_help_msg: |
+  <b>🛡 Base de spam</b>
+
+  Uma verificação opcional que procura cada novo membro na base de spam CAS (cas.chat) ao entrar e age sobre os que estão listados.
+
+  Admins, usuários aprovados e bots nunca são verificados. Se o CAS não responder, o membro entra. Cada ação é informada só no canal de logs, nunca no grupo.
+
+
+  *Comandos de admin:*
+
+  × /spamdb: Mostra se a verificação está ativada e o que ela faz.
+
+  × /spamdb `<on/off>`: Ativa ou desativa a verificação neste chat.
+
+  × /spamdb action `<ban/mute/log>`: Escolhe o que acontece com um membro listado. O padrão é ban; log só informa.
+
+
+  A verificação fica desativada em todos os chats até um admin ativá-la. Ao ativá-la, o ID do Telegram de cada novo membro é enviado ao cas.chat.
+spamdb_status_enabled: "A verificação CAS na entrada está <b>ativada</b> neste chat. Membros listados recebem: <code>{action}</code>."
+spamdb_status_disabled: "A verificação CAS na entrada está <b>desativada</b> neste chat. Ative com <code>/spamdb on</code>."
+spamdb_status_globally_disabled: "⚠️ Indisponível: o operador do bot desativou a verificação da base de spam, então nenhum membro está sendo verificado."
+spamdb_data_notice: "<b>O que é enviado:</b> o ID do Telegram de cada novo membro, ao cas.chat. Nada mais sai do bot."
+spamdb_enabled_success: "✅ A verificação CAS na entrada agora está <b>ativada</b>. Novos membros são procurados no CAS ao entrar."
+spamdb_disabled_success: "❌ A verificação CAS na entrada agora está <b>desativada</b>."
+spamdb_globally_disabled: "❌ Não posso ativar a verificação CAS: o operador do bot a desativou. Nada mudou."
+spamdb_invalid_option: "Só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_invalid_action: "Escolha uma ação entre: <code>ban</code>/<code>mute</code>/<code>log</code>. Exemplo: <code>/spamdb action mute</code>"
+spamdb_action_success: "✅ Membros listados no CAS agora recebem: <code>{action}</code>."
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Suporte a Admin Anônimo</b>
@@ -2748,6 +2778,8 @@ rules_extend_msg: |
   /rulesbtn — definir o texto do botão de regras
   /resetrulesbutton — redefinir o texto do botão de regras
   /resetrulesbtn — igual a /resetrulesbutton
+spamdb_extend_msg: |
+  /spamdb — mostrar ou alternar a verificação CAS, ou definir sua ação
 warns_extend_msg: |
   /warn — advertir um usuário
   /swarn — advertir e apagar seu comando
