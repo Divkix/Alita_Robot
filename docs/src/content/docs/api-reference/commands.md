@@ -153,7 +153,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/fbanstat` | Alias of `/fedstat` | Everyone | ❌ | `/fedstat` |
 | `/fedinfo` | Show federation info | Everyone | ✅ | — |
 | `/fedadmins` | List a federation's admins | Everyone | ✅ | — |
-| `/chatfed` | Show this group's federation | Everyone | ❌ | — |
+| `/chatfed` | Show this group's federation | Everyone | ✅ | — |
 | `/myfeds` | List the federations you own or admin | Everyone | ❌ | — |
 
 #### 🔒 Locks
