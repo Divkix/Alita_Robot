@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -387,6 +388,76 @@ func TestSetTitleReplyUpdatesAdminTitle(t *testing.T) {
 	}
 }
 
+// The success reply is HTML, so a name or title with markup characters must be
+// escaped or Telegram rejects the reply after the title was already set.
+func TestSetTitleReplyEscapesNameAndTitle(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client := f.client
+	targetJSON := `{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"<x & y>"},"custom_title":"<x & y>","can_promote_members":true}`
+	client.responses["getChatMember"] = []byte(targetJSON)
+	f.addAdmins(targetJSON)
+	bot, chat, admin := f.bot, f.chat, f.admin
+	target := gotgbot.User{Id: 42, FirstName: "<x & y>"}
+	ctx := newBanReplyContext(bot, chat, admin, target, "/title Captain")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+
+	if err := adminModule.setTitle(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("setTitle() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if strings.Contains(text, "<x & y>") || !strings.Contains(text, "&lt;x &amp; y&gt;") {
+		t.Fatalf("title reply does not escape the name and title:\n%s", text)
+	}
+}
+
+// Anonymous admins skip WrapCommand, so the anon handlers send the refusal the
+// pipeline would have sent instead of ending silently.
+func TestAnonAdminPromoteAndDemoteExplainMissingRights(t *testing.T) {
+	useRealLocales(t)
+	const noRights = `"can_manage_chat":true`
+	for _, tt := range []struct {
+		name      string
+		adminRule string
+		botRule   string
+		wantKey   string
+	}{
+		{name: "admin cannot promote", adminRule: noRights, botRule: fixtureAdminRights, wantKey: "chat_status_promote_cmd_error"},
+		{name: "bot cannot promote", adminRule: fixtureAdminRights, botRule: noRights, wantKey: "chat_status_bot_promote_error"},
+	} {
+		for _, cmd := range []struct {
+			text string
+			run  func(*gotgbot.Bot, *ext.Context) error
+		}{
+			{text: "/promote 42", run: adminModule.promoteAnonAdmin},
+			{text: "/demote 42", run: adminModule.demoteAnonAdmin},
+		} {
+			t.Run(tt.name+" "+cmd.text, func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, f.admin.Id, tt.adminRule)
+				botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + tt.botRule + `}`
+				f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + botJSON + "," + adminJSON + "]")
+				f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+				// The fake answers getChatMember for the bot with every right, so
+				// the bot's rights come from the loaded admin cache.
+				cache.LoadAdminCache(f.bot, f.chat.Id)
+
+				if err := cmd.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, cmd.text)); err != ext.EndGroups {
+					t.Fatalf("%s error = %v, want EndGroups", cmd.text, err)
+				}
+				if calls := f.client.callsFor("promoteChatMember"); len(calls) != 0 {
+					t.Fatalf("promoteChatMember calls = %d, want none", len(calls))
+				}
+				if got, want := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]), translated(t, tt.wantKey); got != want {
+					t.Fatalf("%s reply = %q, want %q", cmd.text, got, want)
+				}
+			})
+		}
+	}
+}
+
 func TestSetTitleValidationAndTruncation(t *testing.T) {
 	f := newAdminChatFixture(t)
 	f.makeOwner()
@@ -450,8 +521,8 @@ func TestGetInviteLinkUsesPublicUsernameWithoutFetchingChat(t *testing.T) {
 	if calls := client.callsFor("getChat"); len(calls) != 0 {
 		t.Fatalf("getChat calls = %d, want 0 for public username", len(calls))
 	}
-	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(text, chat.Username) {
-		t.Fatalf("invite reply lacks the public username %q:\n%s", chat.Username, text)
+	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(text, "https://t.me/"+chat.Username) {
+		t.Fatalf("invite reply lacks the public link https://t.me/%s:\n%s", chat.Username, text)
 	}
 }
 
@@ -680,6 +751,25 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 		t.Fatalf("sendMessage calls = %d, want non-admin denial", len(calls))
 	}
 
+	// A restricted user is not an admin either, though their status is not "member".
+	restrictedClient := newModuleBotClient()
+	restrictedBot := newModuleTestBot(restrictedClient)
+	restrictedClient.responses["getChatMember"] = []byte(`{"status":"restricted","user":{"id":42,"is_bot":false,"first_name":"Member"},"is_member":true}`)
+	restrictedCtx := newModuleMessageContext(restrictedBot, chat, member, "/admincache")
+	cmdCtx, err = helpers.BuildCommandContext(restrictedBot, restrictedCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("adminCache(restricted) error = %v, want EndGroups", err)
+	}
+	if calls := restrictedClient.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want non-admin denial for a restricted user", len(calls))
+	}
+	if calls := restrictedClient.callsFor("getChatAdministrators"); len(calls) != 0 {
+		t.Fatalf("getChatAdministrators calls = %d, want no reload for a restricted user", len(calls))
+	}
+
 	f := newAdminChatFixture(t)
 	errorClient, errorBot, admin := f.client, f.bot, f.admin
 	errorClient.errors["getChatMember"] = errors.New("telegram unavailable")
@@ -836,4 +926,41 @@ func TestSetGroupTitlePicAndDescription(t *testing.T) {
 
 func fmtInt(value int64) string {
 	return strconv.FormatInt(value, 10)
+}
+
+// An anonymous admin's confirmed /setg* command, under its name or any alias,
+// reaches its handler.
+func TestAnonymousAdminSetGroupCommandsAreRouted(t *testing.T) {
+	for _, tt := range []struct {
+		command string
+		method  string
+	}{
+		{command: "setgtitle", method: "setChatTitle"},
+		{command: "setgrouptitle", method: "setChatTitle"},
+		{command: "setgdesc", method: "setChatDescription"},
+		{command: "setgroupdesc", method: "setChatDescription"},
+		{command: "setdescription", method: "setChatDescription"},
+	} {
+		t.Run(tt.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tt.command+" New Value")
+			if err := HandleAnonymousAdmin(f.bot, ctx, tt.command); err != ext.EndGroups {
+				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", tt.command, err)
+			}
+			f.client.onlyCall(t, tt.method)
+		})
+	}
+
+	// Without a replied-to photo the handler answers instead of erroring as
+	// an unknown command.
+	for _, command := range []string{"setgpic", "setgrouppic"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+command)
+			if err := HandleAnonymousAdmin(f.bot, ctx, command); err != ext.EndGroups {
+				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", command, err)
+			}
+			f.client.onlyCall(t, "sendMessage")
+		})
+	}
 }

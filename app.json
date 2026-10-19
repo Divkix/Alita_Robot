@@ -22,6 +22,10 @@
     },
     "AUTO_MIGRATE": {
       "value": "true"
+    },
+    "REDIS_TLS_INSECURE_SKIP_VERIFY": {
+      "description": "Skip TLS certificate verification for REDIS_URL. Heroku Redis uses a self-signed certificate, so the bot cannot connect without this.",
+      "value": "true"
     }
   },
   "buildpacks": [

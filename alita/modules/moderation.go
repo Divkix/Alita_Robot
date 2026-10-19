@@ -2,6 +2,8 @@ package modules
 
 import (
 	"fmt"
+	"html"
+	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -26,6 +28,14 @@ type moderationCtx struct {
 	Ctx    *ext.Context
 	Tr     *i18n.Translator
 	Module *moduleStruct
+	// Command is the command name whose help answers a wrong call.
+	Command string
+}
+
+// replyCommandHelp answers a call the command cannot run as given with
+// errText (HTML) and the command's help.
+func (c *moderationCtx) replyCommandHelp(errText string) error {
+	return replyCommandHelp(c.Bot, c.Msg, c.Tr, c.Command, errText)
 }
 
 // gateFn is a permission gate. Returns true if the gate passes.
@@ -106,10 +116,8 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 		return target{}, fmt.Errorf("anonymous user")
 	}
 	if uid == 0 {
-		noUserKey := "common_no_user_specified"
-		text, _ := c.Tr.GetString(noUserKey)
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
+		text, _ := c.Tr.GetString("common_no_user_specified")
+		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
 		}
@@ -125,8 +133,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_no_reply_to_message")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
+		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
 		}
@@ -187,6 +194,8 @@ type replyFn func(c *moderationCtx, t *target) error
 //
 // It eliminates the 30+ lines of boilerplate that every moderation command repeats.
 type moderationCommand struct {
+	// command names the help entry a wrong call answers with (commandHelpModules).
+	command   string
 	gates     []gateFn
 	extract   func(*moderationCtx) (target, error)
 	validate  validateTargetFn
@@ -221,6 +230,7 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return ext.EndGroups
 	}
+	mc.Command = cmd.command
 
 	// Run all permission gates in order.
 	for _, g := range cmd.gates {
@@ -323,8 +333,17 @@ func validateTarget(c *moderationCtx, userID int64, checkInChat bool, notInChatK
 
 // extractTemporalTarget parses the duration from the target reason via
 // ExtractTime, storing the normalized timeVal/reason back on the target.
-// Returns the Telegram until_date, or -1 when extraction already replied.
+// Returns the Telegram until_date, or -1 when it already replied. A call
+// without any time gets the command's help; a malformed time keeps the
+// extractor's reply, which names the accepted units.
 func extractTemporalTarget(c *moderationCtx, t *target) int64 {
+	if len(strings.Fields(t.reason)) == 0 {
+		text, _ := c.Tr.GetString("extraction_no_time_specified")
+		if err := c.replyCommandHelp(html.EscapeString(text)); err != nil {
+			log.Error(err)
+		}
+		return -1
+	}
 	_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
 	if _time == -1 {
 		return -1

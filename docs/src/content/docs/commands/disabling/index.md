@@ -8,12 +8,14 @@ description: Complete guide to Disabling module commands and features
 
 This module allows you to disable some commonly used commands, So, no one can use them. It'll also allow you to autodelete them, stopping people from blue texting.
 
+*User commands*:
+× /disableable: List all disableable commands.
+× /disabled: List the disabled commands in this chat.
+
 *Admin commands*:
 × /disable `<commandname>`: Stop users from using commandname in this group.
-× /enable `<item name>`: Allow users from using commandname in this group.
-× /disableable: List all disableable commands.
+× /enable `<commandname>`: Allow users to use commandname in this group again.
 × /disabledel `<yes/no/on/off>`: Delete disabled commands when used by non-admins.
-× /disabled: List the disabled commands in this chat.
 
 Note:
 When disabling a command, the command only gets disabled for non-admins. All admins can still use those commands.
@@ -68,14 +70,14 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-- `/disable`, `/enable`, `/disabledel` — **Admin only** (`RequireUserAdmin`).
-- `/disableable`, `/disabled` — Available to all users (though `/disabled`
-  can itself be disabled).
+- `/disable`, `/enable`, `/disabledel` — **Group admins only**, and the bot must be an admin in the group. In PM they act on the group you connected with `/connect`.
+- `/disabled` — Available to all users, but the bot must be an admin in the group. In PM it needs an active `/connect`. `/disabled` can itself be disabled.
+- `/disableable` — Available to all users, in any chat, including PM.
 
 ## Technical Notes
 
 **Important Notes:**
 - **Admin Bypass:** Disabled commands only affect non-admin users. All admins can still use any command.
+- **Only listed commands:** `/disable` accepts only the commands `/disableable` lists. Backup's `/export`, `/import` and `/reset` are not on that list; rows that older releases stored for `/export` or `/import` are deleted on upgrade and skipped when a backup is imported.
 - **Connection Support:** Disabled commands are still accessible through the `/connect` feature for connected chats.
 - **Multiple Commands:** Both `/disable` and `/enable` support multiple command names in a single message.
-- **Error Handling:** If some commands fail to disable/enable, you'll be notified about which ones succeeded and which failed.

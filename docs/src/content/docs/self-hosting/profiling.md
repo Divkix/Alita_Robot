@@ -32,7 +32,7 @@ When enabled, the following endpoints become available:
 | `/debug/pprof/mutex` | Mutex contention profile |
 
 :::note
-The block and mutex profiles are **disabled by default** in Go. With `ENABLE_PPROF=true` set, the endpoints are exposed but will return empty data unless you enable collection via `GODEBUG=blockprofilerate=1,mutexprofilefraction=1` environment variable or `runtime.SetBlockProfileRate()` in code.
+The block and mutex profiles are **disabled by default** in Go, and Alita Robot does not turn them on. With `ENABLE_PPROF=true` set, `/debug/pprof/block` and `/debug/pprof/mutex` are exposed but always return empty profiles. No environment variable changes this (GODEBUG has no setting for these profiles); collecting them requires adding `runtime.SetBlockProfileRate` and `runtime.SetMutexProfileFraction` calls to the source and rebuilding.
 :::
 
 ### CPU Profiling
@@ -100,7 +100,6 @@ go tool pprof http://localhost:8080/debug/pprof/goroutine
 
 ```bash
 # Collect 30 seconds of CPU profile
-# Note: The server has a 10s WriteTimeout - use shorter duration or profile externally
 go tool pprof -seconds=30 http://localhost:8080/debug/pprof/profile
 ```
 
@@ -136,8 +135,8 @@ cd FlameGraph
 # First, get the profile as raw protobuf
 curl -s http://localhost:8080/debug/pprof/heap > heap.pb
 
-# Convert to SVG using go tool pprof to export folded stacks
-go tool pprof -proto -output=heap.folded ./your-binary heap.pb
+# Export raw stacks and collapse them into folded format
+go tool pprof -raw -sample_index=inuse_space heap.pb | ./stackcollapse-go.pl > heap.folded
 
 # Generate flame graph
 ./flamegraph.pl heap.folded > heap-flamegraph.svg

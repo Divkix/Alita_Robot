@@ -89,3 +89,17 @@ func TestSweepUpdateCacheDropsOnlyExpiredEntries(t *testing.T) {
 		t.Fatal("fresh entry should have been kept")
 	}
 }
+
+func TestSpawnAsyncUpdateRecoversPanics(t *testing.T) {
+	ran := make(chan struct{})
+	spawnAsyncUpdate(func() {
+		close(ran)
+		panic("async writer panic")
+	})
+	DrainUsersAsyncWrites()
+	select {
+	case <-ran:
+	default:
+		t.Fatal("async update did not run")
+	}
+}

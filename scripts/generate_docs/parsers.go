@@ -264,50 +264,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 		}
 
 		// Extract WrapCommand registrations (helpers.WrapCommand/WrapCommandRaw)
-		// First, find all CommandDescriptor definitions with their command names
-		wrapDescPattern := regexp.MustCompile(`(?s)(\w+)Desc\s*=\s*helpers\.CommandDescriptor\s*\{.*?Name:\s*"([^"]+)"`)
-		wrapDescMatches := wrapDescPattern.FindAllStringSubmatch(content, -1)
-		wrapDescriptors := make(map[string]string) // map[descVar]cmdName
-		for _, match := range wrapDescMatches {
-			if len(match) >= 3 {
-				wrapDescriptors[match[1]+"Desc"] = match[2]
-			}
-		}
-
-		// Find WrapCommand and WrapCommandRaw calls
-		wrapCommandPattern := regexp.MustCompile(
-			`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(\w+)\.(\w+)\s*\)`,
-		)
-		wrapMatches := wrapCommandPattern.FindAllStringSubmatch(content, -1)
-		for _, match := range wrapMatches {
-			if len(match) >= 4 {
-				descVar := match[1] + "Desc"
-				moduleVar := match[2]
-				handler := match[3]
-
-				// Resolve command name from descriptor
-				cmdName := ""
-				if name, ok := wrapDescriptors[descVar]; ok {
-					cmdName = name
-				}
-				if cmdName == "" {
-					continue
-				}
-
-				// Resolve module name
-				modName := moduleName
-				if name, ok := moduleNames[moduleVar]; ok {
-					modName = strings.ToLower(name)
-				}
-
-				commands = append(commands, Command{
-					Name:        cmdName,
-					Handler:     handler,
-					Module:      modName,
-					Disableable: disableableCmds[cmdName],
-				})
-			}
-		}
+		commands = append(commands, parseWrapCommands(content, moduleName, moduleNames, disableableCmds)...)
 	}
 
 	// Sort commands
@@ -319,6 +276,185 @@ func parseCommands(modulesPath string) ([]Command, error) {
 	})
 
 	return commands, nil
+}
+
+// wrapDescriptor is what the docs need from a helpers.CommandDescriptor literal.
+type wrapDescriptor struct {
+	name        string
+	aliases     []string
+	disableable bool
+}
+
+var (
+	wrapDescDeclPattern    = regexp.MustCompile(`(\w+Desc)\s*=\s*helpers\.CommandDescriptor\s*\{`)
+	wrapDescNamePattern    = regexp.MustCompile(`\bName:\s*"([^"]+)"`)
+	wrapDescAliasPattern   = regexp.MustCompile(`\bAliases:\s*\[\]string\s*\{([^}]*)\}`)
+	wrapDescDisablePattern = regexp.MustCompile(`\bDisableable:\s*true\b`)
+	quotedStringPattern    = regexp.MustCompile(`"([^"]+)"`)
+	wrapNamedDescPattern   = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)\s*\)?\s*\)`)
+	wrapInlineDescPattern  = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*helpers\.CommandDescriptor\s*\{`)
+	wrapHandlerAfterDesc   = regexp.MustCompile(`^\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)`)
+	wrapLoopDescPattern    = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)\s*,`)
+	loopStructPattern      = regexp.MustCompile(`\[\]struct\s*\{`)
+	loopTuplePattern       = regexp.MustCompile(`\{\s*"([a-z_]+)"\s*,\s*(\w+)\.(\w+)`)
+)
+
+// matchingBrace returns the index of the '}' closing the '{' at open, skipping
+// braces inside comments and string, rune and raw string literals, or -1 if
+// unbalanced.
+func matchingBrace(s string, open int) int {
+	depth := 0
+	for i := open; i < len(s); i++ {
+		if strings.HasPrefix(s[i:], "//") {
+			if nl := strings.IndexByte(s[i:], '\n'); nl >= 0 {
+				i += nl
+				continue
+			}
+			return -1
+		}
+		if strings.HasPrefix(s[i:], "/*") {
+			if end := strings.Index(s[i+2:], "*/"); end >= 0 {
+				i += end + 3
+				continue
+			}
+			return -1
+		}
+		switch c := s[i]; c {
+		case '"', '\'', '`':
+			for i++; i < len(s) && s[i] != c; i++ {
+				if s[i] == '\\' && c != '`' {
+					i++
+				}
+			}
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// parseDescriptorBody reads Name, Aliases and Disableable from the body of a
+// CommandDescriptor literal.
+func parseDescriptorBody(body string) wrapDescriptor {
+	var d wrapDescriptor
+	if m := wrapDescNamePattern.FindStringSubmatch(body); m != nil {
+		d.name = m[1]
+	}
+	if m := wrapDescAliasPattern.FindStringSubmatch(body); m != nil {
+		for _, a := range quotedStringPattern.FindAllStringSubmatch(m[1], -1) {
+			d.aliases = append(d.aliases, a[1])
+		}
+	}
+	d.disableable = wrapDescDisablePattern.MatchString(body)
+	return d
+}
+
+// parseWrapCommands extracts the commands one file registers through
+// helpers.WrapCommand or WrapCommandRaw: with a named <x>Desc descriptor, an
+// inline helpers.CommandDescriptor literal, or a descriptor built in a loop
+// over a []struct{name, handler} literal. The handler may be wrapped in one
+// call such as pipelineHandler(...).
+func parseWrapCommands(content, fileModule string, moduleNames map[string]string, disableableCmds map[string]bool) []Command {
+	var commands []Command
+	emit := func(d wrapDescriptor, moduleVar, handler string) {
+		if d.name == "" {
+			return
+		}
+		modName := fileModule
+		if name, ok := moduleNames[moduleVar]; ok {
+			modName = strings.ToLower(name)
+		}
+		names := []string{d.name}
+		var aliases []string
+		if len(d.aliases) > 0 {
+			aliases = append([]string{d.name}, d.aliases...)
+			names = aliases
+		}
+		for _, n := range names {
+			commands = append(commands, Command{
+				Name:        n,
+				Handler:     handler,
+				Module:      modName,
+				Disableable: disableableCmds[n] || d.disableable,
+				Aliases:     aliases,
+			})
+		}
+	}
+
+	descriptors := make(map[string]wrapDescriptor)
+	for _, loc := range wrapDescDeclPattern.FindAllStringSubmatchIndex(content, -1) {
+		open := loc[1] - 1
+		closeIdx := matchingBrace(content, open)
+		if closeIdx < 0 {
+			continue
+		}
+		descriptors[content[loc[2]:loc[3]]] = parseDescriptorBody(content[open+1 : closeIdx])
+	}
+
+	for _, m := range wrapNamedDescPattern.FindAllStringSubmatch(content, -1) {
+		if d, ok := descriptors[m[1]+"Desc"]; ok {
+			emit(d, m[2], m[3])
+		}
+	}
+
+	for _, loc := range wrapInlineDescPattern.FindAllStringIndex(content, -1) {
+		open := loc[1] - 1
+		closeIdx := matchingBrace(content, open)
+		if closeIdx < 0 {
+			continue
+		}
+		h := wrapHandlerAfterDesc.FindStringSubmatch(content[closeIdx+1:])
+		if h == nil {
+			continue
+		}
+		emit(parseDescriptorBody(content[open+1:closeIdx]), h[1], h[2])
+	}
+
+	for _, loc := range wrapLoopDescPattern.FindAllStringSubmatchIndex(content, -1) {
+		if strings.HasSuffix(content[loc[2]:loc[3]], "Desc") {
+			continue
+		}
+		literal, literalEnd, ok := precedingStructLiteral(content, loc[0])
+		if !ok {
+			continue
+		}
+		disableable := wrapDescDisablePattern.MatchString(content[literalEnd:loc[0]])
+		for _, t := range loopTuplePattern.FindAllStringSubmatch(literal, -1) {
+			emit(wrapDescriptor{name: t[1], disableable: disableable}, t[2], t[3])
+		}
+	}
+
+	return commands
+}
+
+// precedingStructLiteral finds the last []struct{...}{...} literal that starts
+// before pos and returns its value body and the index just past it.
+func precedingStructLiteral(content string, pos int) (string, int, bool) {
+	locs := loopStructPattern.FindAllStringIndex(content[:pos], -1)
+	if len(locs) == 0 {
+		return "", 0, false
+	}
+	typeClose := matchingBrace(content, locs[len(locs)-1][1]-1)
+	if typeClose < 0 {
+		return "", 0, false
+	}
+	open := typeClose + 1
+	for open < len(content) && (content[open] == ' ' || content[open] == '\t' || content[open] == '\n') {
+		open++
+	}
+	if open >= len(content) || content[open] != '{' {
+		return "", 0, false
+	}
+	valueClose := matchingBrace(content, open)
+	if valueClose < 0 || valueClose > pos {
+		return "", 0, false
+	}
+	return content[open+1 : valueClose], valueClose + 1, true
 }
 
 // parseLockTypes extracts lock types from locks.go by parsing the lockMap and restrMap
@@ -431,20 +567,20 @@ func getLockDescription(lockName, category string) string {
 		"photo":       "Blocks photo messages",
 		"gif":         "Blocks GIF/animation messages",
 		"url":         "Blocks messages containing URLs",
-		"bots":        "Prevents non-admins from adding bots to the group",
+		"bots":        "Prevents users who are neither admins nor approved from adding bots to the group",
 		"forward":     "Blocks forwarded messages",
 		"game":        "Blocks game messages",
 		"location":    "Blocks location/venue messages",
-		"rtl":         "Blocks messages containing right-to-left (Arabic) text",
+		"rtl":         "Blocks message text and media captions containing Arabic-script characters (U+0600-U+06FF); other RTL scripts such as Hebrew are not checked",
 		"anonchannel": "Blocks messages from anonymous channels and linked channel posts",
 
 		// Restriction locks (from restrMap)
 		"messages": "Blocks all text, media, contacts, locations, games, stickers, and GIFs",
 		"comments": "Blocks messages from non-members (discussion comments)",
-		"media":    "Blocks all media files (audio, document, video, photo, video note, voice)",
+		"media":    "Blocks all media files (audio, document, GIF, video, photo, video note, voice)",
 		"other":    "Blocks games, stickers, and GIFs",
-		"previews": "Blocks messages with URL previews",
-		"all":      "Blocks all messages from non-admins",
+		"previews": "Blocks messages containing URLs, whether or not a preview is shown (same match as url)",
+		"all":      "Blocks all messages from users who are neither admins nor approved",
 	}
 
 	if desc, exists := descriptions[lockName]; exists {

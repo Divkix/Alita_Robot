@@ -455,9 +455,9 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
 		}
-		status := "disabled"
+		status, _ := tr.GetString("captcha_status_disabled")
 		if settings.Enabled {
-			status = "enabled"
+			status, _ = tr.GetString("captcha_status_enabled")
 		}
 
 		statusUsage, _ := tr.GetString("captcha_status_usage")
@@ -701,9 +701,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("captcha_max_attempts_current", map[string]any{
-			"attempts": settings.MaxAttempts,
-		})
+		text, _ := tr.GetString("captcha_max_attempts_current", i18n.TranslationParams{"d": settings.MaxAttempts})
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
@@ -723,9 +721,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 		return err
 	}
 
-	text, _ := tr.GetString("captcha_max_attempts_set", map[string]any{
-		"attempts": attempts,
-	})
+	text, _ := tr.GetString("captcha_max_attempts_set", i18n.TranslationParams{"d": attempts})
 	_, err = msg.Reply(bot, text, formatting.Shtml())
 	return err
 }
@@ -1496,11 +1492,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 				}
 			}
 			summaryText, _ := tr.GetString("captcha_stored_messages_summary",
-				i18n.TranslationParams{
-					"user":  formatting.MentionHtml(targetUserID, user.FirstName),
-					"count": len(storedMessages),
-					"types": strings.Join(messageTypes, ", "),
-				})
+				captchaStoredSummaryParams(formatting.MentionHtml(targetUserID, user.FirstName), len(storedMessages), strings.Join(messageTypes, ", ")))
 
 			summaryMsg, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, summaryText, &gotgbot.SendMessageOpts{
 				ParseMode: formatting.HTML,
@@ -2054,4 +2046,14 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Captcha", 220, LoadCaptcha)
+}
+
+// captchaStoredSummaryParams fills captcha_stored_messages_summary by name and,
+// under "0".."2", in the order of the "%s %d %s" verbs the locales use: the
+// positional fallback does not know "types" and would leave the verbs raw.
+func captchaStoredSummaryParams(mention string, count int, types string) i18n.TranslationParams {
+	return i18n.TranslationParams{
+		"user": mention, "count": count, "types": types,
+		"0": mention, "1": count, "2": types,
+	}
 }

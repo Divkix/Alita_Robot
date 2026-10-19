@@ -476,3 +476,78 @@ func TestReportActionCallbackAllowsGranularAdmin(t *testing.T) {
 		t.Fatalf("answerCallbackQuery calls = %d, want success acknowledgement", len(calls))
 	}
 }
+
+func TestReportMentionWatcherContinuesGroups(t *testing.T) {
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+	target := gotgbot.User{Id: 43, FirstName: "Target"}
+
+	t.Run("mention without reply", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newModuleMessageContext(bot, chat, reporter, "ask @admin later")
+		if err := reportsModule.reportWatcher(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("reportWatcher(no reply) error = %v, want ContinueGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want the reply-to-report hint", len(calls))
+		}
+	})
+
+	t.Run("mention as reply sends the report", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newReportReplyContext(bot, chat, reporter, target, "@admin spam")
+		if err := reportsModule.reportWatcher(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("reportWatcher(reply) error = %v, want ContinueGroups", err)
+		}
+		calls := client.callsFor("sendMessage")
+		if len(calls) == 0 {
+			t.Fatal("reportWatcher sent no report")
+		}
+		if calls[len(calls)-1].Params["reply_markup"] == nil {
+			t.Fatal("report message did not include action buttons")
+		}
+	})
+}
+
+func TestReportStaysSilentWhenReportsDisabled(t *testing.T) {
+	disable := func(t *testing.T, chatID int64) {
+		t.Helper()
+		if err := reports.SetChatReportStatus(chatID, false); err != nil {
+			t.Fatalf("SetChatReportStatus setup error = %v", err)
+		}
+	}
+	assertSilent := func(t *testing.T, client *moduleBotClient, bot *gotgbot.Bot, ctx *ext.Context) {
+		t.Helper()
+		if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("report error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want reports off to stay silent", len(calls))
+		}
+	}
+	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+
+	t.Run("mention without reply", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		disable(t, chat.Id)
+		assertSilent(t, client, bot, newModuleMessageContext(bot, chat, reporter, "@admin"))
+	})
+
+	t.Run("self report", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		disable(t, chat.Id)
+		assertSilent(t, client, bot, newReportReplyContext(bot, chat, reporter, reporter, "/report"))
+	})
+
+	t.Run("admin reporter", func(t *testing.T) {
+		f := newAdminChatFixture(t)
+		disable(t, f.chat.Id)
+		assertSilent(t, f.client, f.bot, newReportReplyContext(f.bot, f.chat, f.admin, f.member, "/report"))
+	})
+}

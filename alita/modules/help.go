@@ -315,7 +315,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch module {
 		case "Help":
 			helpText = getMainHelp(tr, html.EscapeString(query.From.FirstName))
-			replyKb = markup
+			replyKb = initHelpButtonsFrom(DefaultHelpRegistry(), lang.GetLanguage(ctx))
 		case "BackStart":
 			helpText = getStartHelp(tr)
 			replyKb = getStartMarkup(tr, getBotUsername(b))
@@ -399,7 +399,7 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := b.SendMessage(chat.Id,
 		func() string {
-			tr := i18n.MustNewTranslator("en")
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("help_donatetext")
 			return text
 		}(),
@@ -536,32 +536,36 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if ctx.Message.Chat.Type == "private" {
 		if len(args) == 1 {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			langCode := lang.GetLanguage(ctx)
+			tr := i18n.MustNewTranslator(langCode)
 			name := "User"
 			if msg.From != nil {
 				name = html.EscapeString(msg.From.FirstName)
 			}
 			mainHelpText := getMainHelp(tr, name)
+			kb := initHelpButtonsFrom(DefaultHelpRegistry(), langCode)
 			_, err := b.SendMessage(chat.Id,
 				mainHelpText,
 				&gotgbot.SendMessageOpts{
-					ParseMode:   formatting.HTML,
-					ReplyMarkup: &markup,
+					ParseMode:          formatting.HTML,
+					LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
+					ReplyMarkup:        &kb,
 				},
 			)
 			if err != nil {
 				log.Error(err)
 				return err
 			}
-		} else if len(args) == 2 {
+		} else {
 			module := strings.ToLower(args[1])
 			helpText, replyMarkup, _parsemode := getHelpTextAndMarkup(ctx, module, DefaultHelpRegistry())
 			_, err := b.SendMessage(
 				chat.Id,
 				helpText,
 				&gotgbot.SendMessageOpts{
-					ParseMode:   _parsemode,
-					ReplyMarkup: &replyMarkup,
+					ParseMode:          _parsemode,
+					LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
+					ReplyMarkup:        &replyMarkup,
 				},
 			)
 			if err != nil {
@@ -577,13 +581,12 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId := msg.MessageId
 		var lowerModName string
 
-		if len(args) == 2 {
+		if len(args) >= 2 {
 			helpModName := args[1]
 			lowerModName = strings.ToLower(helpModName)
 			originalModuleName := getModuleNameFromAltName(lowerModName, DefaultHelpRegistry())
 			if originalModuleName != "" && slices.Contains(getAltNamesOfModule(originalModuleName), lowerModName) {
-				contactPmText, _ := tr.GetString("help_contact_pm")
-				moduleHelpString = strings.Replace(contactPmText, "for help!", fmt.Sprintf("for help regarding <code>%s</code>!", originalModuleName), 1)
+				moduleHelpString, _ = tr.GetString("help_contact_pm_module", i18n.TranslationParams{"module": html.EscapeString(originalModuleName)})
 				pmMeKbUri = fmt.Sprintf("https://t.me/%s?start=help_%s", b.Username, lowerModName)
 			}
 		}
@@ -626,7 +629,6 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), DefaultHelpRegistry().botConfig))
 	dispatcher.AddHandler(handlers.NewCommand("about", DefaultHelpRegistry().about))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), DefaultHelpRegistry().about))
-	initHelpButtons()
 }
 
 func init() {

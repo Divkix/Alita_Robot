@@ -47,13 +47,15 @@ func parseFedBanCSV(data []byte) ([]models.FederationBan, error) {
 	for i, col := range records[0] {
 		header[i] = strings.ToLower(strings.TrimSpace(col))
 	}
-	idIdx, reasonIdx := -1, -1
+	idIdx, reasonIdx, bannedByIdx := -1, -1, -1
 	for i, col := range header {
 		switch col {
 		case "id", "user_id", "userid":
 			idIdx = i
 		case "reason":
 			reasonIdx = i
+		case "banned_by":
+			bannedByIdx = i
 		}
 	}
 	start := 1
@@ -74,7 +76,13 @@ func parseFedBanCSV(data []byte) ([]models.FederationBan, error) {
 		if reasonIdx >= 0 && reasonIdx < len(rec) {
 			reason = strings.TrimSpace(rec[reasonIdx])
 		}
-		out = append(out, models.FederationBan{UserID: userID, Reason: reason})
+		ban := models.FederationBan{UserID: userID, Reason: reason}
+		if bannedByIdx >= 0 && bannedByIdx < len(rec) {
+			if by, err := strconv.ParseInt(strings.TrimSpace(rec[bannedByIdx]), 10, 64); err == nil && by > 0 {
+				ban.BannedBy = by
+			}
+		}
+		out = append(out, ban)
 	}
 	return out, nil
 }
@@ -128,7 +136,11 @@ func mapToFedBan(row map[string]any) (models.FederationBan, bool) {
 		return models.FederationBan{}, false
 	}
 	reason, _ := row["reason"].(string)
-	return models.FederationBan{UserID: userID, Reason: reason}, true
+	ban := models.FederationBan{UserID: userID, Reason: reason}
+	if by, ok := anyToInt64(row["banned_by"]); ok && by > 0 {
+		ban.BannedBy = by
+	}
+	return ban, true
 }
 
 func anyToInt64(v any) (int64, bool) {

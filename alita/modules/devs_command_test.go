@@ -1,7 +1,10 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -10,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func withOwnerID(t *testing.T, ownerID int64) {
@@ -24,17 +28,19 @@ func withOwnerID(t *testing.T, ownerID int64) {
 
 func TestDevLeaveChatHandlesMissingArgsAndRequestErrors(t *testing.T) {
 	withOwnerID(t, 777000)
+	useEnglishLocale(t)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
 
 	missingClient := newModuleBotClient()
 	missingBot := newModuleTestBot(missingClient)
 	missingCtx := newModuleMessageContext(missingBot, chat, owner, "/leavechat")
-	if err := devsModule.leaveChat(missingBot, missingCtx); err != ext.ContinueGroups {
-		t.Fatalf("leaveChat(missing args) error = %v, want ContinueGroups", err)
+	if err := devsModule.leaveChat(missingBot, missingCtx); err != ext.EndGroups {
+		t.Fatalf("leaveChat(missing args) error = %v, want EndGroups", err)
 	}
-	if calls := missingClient.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want missing-arg reply", len(calls))
+	want, _ := i18n.MustNewTranslator("en").GetString("devs_specify_chat")
+	if text := missingClient.onlyCall(t, "sendMessage").Params["text"]; want == "" || text != want {
+		t.Fatalf("leaveChat(missing args) reply = %q, want the chat-ID prompt %q", text, want)
 	}
 
 	requestClient := newModuleBotClient()
@@ -68,13 +74,13 @@ func TestDevTeamRoleCommandsHandleNoopAndAuthorizationBranches(t *testing.T) {
 		t.Fatalf("AddSudo setup error = %v", err)
 	}
 	alreadySudoCtx := newModuleMessageContext(bot, chat, owner, "/addsudo 42")
-	if err := devsModule.addSudo(bot, alreadySudoCtx); err != ext.ContinueGroups {
-		t.Fatalf("addSudo(already sudo) error = %v, want ContinueGroups", err)
+	if err := devsModule.addSudo(bot, alreadySudoCtx); err != ext.EndGroups {
+		t.Fatalf("addSudo(already sudo) error = %v, want EndGroups", err)
 	}
 
 	notDevCtx := newModuleMessageContext(bot, chat, owner, "/remdev 43")
-	if err := devsModule.remDev(bot, notDevCtx); err != ext.ContinueGroups {
-		t.Fatalf("remDev(not dev) error = %v, want ContinueGroups", err)
+	if err := devsModule.remDev(bot, notDevCtx); err != ext.EndGroups {
+		t.Fatalf("remDev(not dev) error = %v, want EndGroups", err)
 	}
 }
 
@@ -108,32 +114,32 @@ func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {
 	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
 
 	addSudoCtx := newModuleMessageContext(bot, chat, owner, "/addsudo 42")
-	if err := devsModule.addSudo(bot, addSudoCtx); err != ext.ContinueGroups {
-		t.Fatalf("addSudo() error = %v, want ContinueGroups", err)
+	if err := devsModule.addSudo(bot, addSudoCtx); err != ext.EndGroups {
+		t.Fatalf("addSudo() error = %v, want EndGroups", err)
 	}
 	if got := devs.GetTeamMemInfo(42); !got.Sudo {
 		t.Fatalf("Sudo = false after addsudo, full settings: %#v", got)
 	}
 
 	addDevCtx := newModuleMessageContext(bot, chat, owner, "/adddev 42")
-	if err := devsModule.addDev(bot, addDevCtx); err != ext.ContinueGroups {
-		t.Fatalf("addDev() error = %v, want ContinueGroups", err)
+	if err := devsModule.addDev(bot, addDevCtx); err != ext.EndGroups {
+		t.Fatalf("addDev() error = %v, want EndGroups", err)
 	}
 	if got := devs.GetTeamMemInfo(42); !got.IsDev {
 		t.Fatalf("IsDev = false after adddev, full settings: %#v", got)
 	}
 
 	remSudoCtx := newModuleMessageContext(bot, chat, owner, "/remsudo 42")
-	if err := devsModule.remSudo(bot, remSudoCtx); err != ext.ContinueGroups {
-		t.Fatalf("remSudo() error = %v, want ContinueGroups", err)
+	if err := devsModule.remSudo(bot, remSudoCtx); err != ext.EndGroups {
+		t.Fatalf("remSudo() error = %v, want EndGroups", err)
 	}
 	if got := devs.GetTeamMemInfo(42); got.Sudo {
 		t.Fatalf("Sudo = true after remsudo, full settings: %#v", got)
 	}
 
 	remDevCtx := newModuleMessageContext(bot, chat, owner, "/remdev 42")
-	if err := devsModule.remDev(bot, remDevCtx); err != ext.ContinueGroups {
-		t.Fatalf("remDev() error = %v, want ContinueGroups", err)
+	if err := devsModule.remDev(bot, remDevCtx); err != ext.EndGroups {
+		t.Fatalf("remDev() error = %v, want EndGroups", err)
 	}
 	if got := devs.GetTeamMemInfo(42); got.IsDev {
 		t.Fatalf("IsDev = true after remdev, full settings: %#v", got)
@@ -171,16 +177,16 @@ func TestDevChatInfoLeaveChatStatsAndTeamList(t *testing.T) {
 	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
 
 	chatInfoCtx := newModuleMessageContext(bot, chat, owner, "/chatinfo -100123")
-	if err := devsModule.chatInfo(bot, chatInfoCtx); err != ext.ContinueGroups {
-		t.Fatalf("chatInfo() error = %v, want ContinueGroups", err)
+	if err := devsModule.chatInfo(bot, chatInfoCtx); err != ext.EndGroups {
+		t.Fatalf("chatInfo() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("getChatMemberCount"); len(calls) != 1 {
 		t.Fatalf("getChatMemberCount calls = %d, want 1", len(calls))
 	}
 
 	leaveCtx := newModuleMessageContext(bot, chat, owner, "/leavechat -100123")
-	if err := devsModule.leaveChat(bot, leaveCtx); err != ext.ContinueGroups {
-		t.Fatalf("leaveChat() error = %v, want ContinueGroups", err)
+	if err := devsModule.leaveChat(bot, leaveCtx); err != ext.EndGroups {
+		t.Fatalf("leaveChat() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("leaveChat"); len(calls) != 1 {
 		t.Fatalf("leaveChat calls = %d, want 1", len(calls))
@@ -192,8 +198,8 @@ func TestDevChatInfoLeaveChatStatsAndTeamList(t *testing.T) {
 	}
 
 	statsCtx := newModuleMessageContext(bot, chat, owner, "/stats")
-	if err := devsModule.getStats(bot, statsCtx); err != ext.ContinueGroups {
-		t.Fatalf("getStats() error = %v, want ContinueGroups", err)
+	if err := devsModule.getStats(bot, statsCtx); err != ext.EndGroups {
+		t.Fatalf("getStats() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
 		t.Fatalf("editMessageText calls = %d, want 1 stats edit", len(calls))
@@ -223,5 +229,77 @@ func TestDevChatListSendsDocument(t *testing.T) {
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
 		t.Fatalf("deleteMessage calls = %d, want status message deletion", len(calls))
+	}
+}
+
+func TestDevChatInfoEscapesChatTitle(t *testing.T) {
+	withOwnerID(t, 777000)
+	useEnglishLocale(t)
+	client := newModuleBotClient()
+	client.responses["getChat"] = json.RawMessage(`{"id":-100123,"type":"supergroup","title":"A & <B>","accent_color_id":0,"max_reaction_count":0}`)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/chatinfo -100123")
+	if err := devsModule.chatInfo(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("chatInfo() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(text, "A &amp; &lt;B&gt;") || strings.Contains(text, "<B>") {
+		t.Fatalf("chatInfo reply = %q, want the chat title HTML-escaped", text)
+	}
+}
+
+func TestDevTeamRoleCommandRepliesWhenNoUserGiven(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/addsudo")
+	if err := devsModule.addSudo(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("addSudo(no user) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want a no-user reply", len(calls))
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 0 {
+		t.Fatalf("getChat calls = %d, want none without a target user", len(calls))
+	}
+}
+
+func TestDevChatListRepliesWhenTheDocumentFails(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	client.errors["sendDocument"] = errors.New("upload failed")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/chatlist")
+	if err := devsModule.chatList(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("chatList(send error) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want progress message and error reply", len(calls))
+	}
+}
+
+func TestDevChatListSendsDocumentWhenProgressDeleteFails(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	client.errors["deleteMessage"] = errors.New("delete failed")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/chatlist")
+	if err := devsModule.chatList(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("chatList(delete error) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendDocument"); len(calls) != 1 {
+		t.Fatalf("sendDocument calls = %d, want 1 despite the delete failure", len(calls))
 	}
 }

@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 
@@ -46,17 +47,15 @@ func kickReply(c *moderationCtx, t *target) error {
 	}
 
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_user")
+	text := fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_reason")
 		if temp != "" {
-			baseStr += fmt.Sprintf(temp, t.reason)
+			text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 		}
 	}
 
-	_, err = c.Msg.Reply(c.Bot,
-		fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName)),
-		formatting.Shtml(),
-	)
+	_, err = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -71,6 +70,7 @@ func banTargetValidation(c *moderationCtx, t *target) error {
 
 func moderationDkick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "dkick",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractFromReply,
@@ -90,6 +90,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 
 func moderationTban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "tban",
 		module:   m,
 		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
@@ -114,7 +115,7 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 			if t.reason != "" {
 				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
 				if temp != "" {
-					baseStr += fmt.Sprintf(temp, t.reason)
+					baseStr += fmt.Sprintf(temp, html.EscapeString(t.reason))
 				}
 			}
 
@@ -137,12 +138,11 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 	}
 
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_normal_ban")
+	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
-		baseStr += fmt.Sprintf(temp, t.reason)
+		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
-
-	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
 
 	_, err = c.Msg.Reply(c.Bot, text,
 		&gotgbot.SendMessageOpts{
@@ -168,18 +168,17 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 
 func moderationBan(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
-		module: m,
-		gates:  []gateFn{standardModGates},
+		command: "ban",
+		module:  m,
+		gates:   []gateFn{standardModGates},
 		extract: func(c *moderationCtx) (target, error) {
 			uid, reason := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 			if uid == -1 {
 				return target{}, fmt.Errorf("extraction failed")
 			}
 			if uid == 0 {
-				noUserKey := "common_no_user_specified"
-				text, _ := c.Tr.GetString(noUserKey)
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				text, _ := c.Tr.GetString("common_no_user_specified")
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return target{}, err
 				}
@@ -189,18 +188,22 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		},
 		validate: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
+				if c.Msg.ReplyToMessage == nil {
+					text, _ := c.Tr.GetString("bans_anonymous_ban_reply_only")
+					if err := replyValidationError(c, text); err != nil {
+						return err
+					}
+					return fmt.Errorf("channel ban needs reply")
+				}
 				return nil
 			}
 			return banTargetValidation(c, t)
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-					_, err := c.Bot.BanChatSenderChat(c.Chat.Id, t.userID, nil)
-					return err
-				}
-				return nil
+				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				_, err := c.Bot.BanChatSenderChat(c.Chat.Id, t.userID, nil)
+				return err
 			}
 			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
 			return err
@@ -210,12 +213,8 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 			var sendMsgOptns *gotgbot.SendMessageOpts
 
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					temp, _ := c.Tr.GetString("bans_anonymous_ban_user")
-					text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
-				} else {
-					text, _ = c.Tr.GetString("bans_anonymous_ban_reply_only")
-				}
+				temp, _ := c.Tr.GetString("bans_anonymous_ban_user")
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
 				sendMsgOptns = formatting.Shtml()
 			} else {
 				return banReplyWithButton(c, t)
@@ -233,6 +232,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 
 func moderationKick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "kick",
 		module:   m,
 		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
@@ -292,6 +292,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 
 func moderationSban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "sban",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
@@ -311,6 +312,7 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 
 func moderationDban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command: "dban",
 		module:  m,
 		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
@@ -320,8 +322,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 				if text == "" {
 					text, _ = c.Tr.GetString("common_no_reply_to_message")
 				}
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -345,18 +346,17 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 
 func moderationUnban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
-		module: m,
-		gates:  []gateFn{standardModGates},
+		command: "unban",
+		module:  m,
+		gates:   []gateFn{standardModGates},
 		extract: func(c *moderationCtx) (target, error) {
 			uid := extraction.ExtractUser(c.Bot, c.Ctx)
 			if uid == -1 {
 				return target{}, fmt.Errorf("extraction failed")
 			}
 			if uid == 0 {
-				noUserKey := "common_no_user_specified"
-				text, _ := c.Tr.GetString(noUserKey)
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				text, _ := c.Tr.GetString("common_no_user_specified")
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return target{}, err
 				}
@@ -377,16 +377,20 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 				}
 				return errTargetIsBot
 			}
+			if t.isChannel && c.Msg.ReplyToMessage == nil {
+				text, _ := c.Tr.GetString("bans_anonymous_unban_reply_only")
+				if err := replyValidationError(c, text); err != nil {
+					return err
+				}
+				return fmt.Errorf("channel unban needs reply")
+			}
 			return nil
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-					_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
-					return err
-				}
-				return nil
+				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
+				return err
 			}
 			_, err := c.Chat.UnbanMember(c.Bot, t.userID, nil)
 			return err
@@ -394,12 +398,8 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 		reply: func(c *moderationCtx, t *target) error {
 			var text string
 			if t.isChannel {
-				if c.Msg.ReplyToMessage != nil {
-					temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
-					text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
-				} else {
-					text, _ = c.Tr.GetString("bans_anonymous_unban_reply_only")
-				}
+				temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
 			} else {
 				banUser, err := c.Bot.GetChat(t.userID, nil)
 				if err != nil {
@@ -476,8 +476,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
+		if err := replyCommandHelp(b, msg, tr, "restrict", text); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -689,8 +688,7 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
+		if err := replyCommandHelp(b, msg, tr, "unrestrict", text); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -879,6 +877,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 
 func moderationSkick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "skick",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
@@ -1133,6 +1132,8 @@ func init() {
 	RegisterAnonymousAdminHandler("sban", anonPipelineHandler(sbanDesc, bansModule.sBan))
 	RegisterAnonymousAdminHandler("tban", anonPipelineHandler(tbanDesc, bansModule.tBan))
 	RegisterAnonymousAdminHandler("unban", anonPipelineHandler(unbanDesc, bansModule.unban))
+	RegisterAnonymousAdminHandler("kick", anonPipelineHandler(kickDesc, bansModule.kick))
+	RegisterAnonymousAdminHandler("dkick", anonPipelineHandler(dkickDesc, bansModule.dkick))
 	RegisterAnonymousAdminHandler("skick", anonPipelineHandler(skickDesc, bansModule.sKick))
 	RegisterAnonymousAdminHandler("restrict", anonPipelineHandler(restrictDesc, bansModule.restrict))
 	RegisterAnonymousAdminHandler("unrestrict", anonPipelineHandler(unrestrictDesc, bansModule.unrestrict))

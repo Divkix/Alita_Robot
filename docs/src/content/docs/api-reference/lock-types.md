@@ -15,14 +15,14 @@ This page documents all available lock types in the Locks module. Locks allow ad
 
 ## How Locks Work
 
-Locks prevent non-admin users from posting specific types of content. When a lock is enabled, the bot will automatically delete matching messages from regular users.
+Locks prevent users who are neither admins nor approved from posting specific types of content. When a lock is enabled, the bot will automatically delete matching messages from regular users.
 
 ### Usage
 
 ```
 /lock <lock_type> [lock_type2 ...]
 /unlock <lock_type> [lock_type2 ...]
-/locks - View all currently enabled locks
+/locks - View the lock settings stored for this chat
 /locktypes - View all available lock types
 ```
 
@@ -32,12 +32,12 @@ Restriction locks affect broad categories of messages. These are powerful locks 
 
 | Lock Type | Description |
 |-----------|-------------|
-| `all` | Blocks all messages from non-admins |
+| `all` | Blocks all messages from users who are neither admins nor approved |
 | `comments` | Blocks messages from non-members (discussion comments) |
-| `media` | Blocks all media files (audio, document, video, photo, video note, voice) |
+| `media` | Blocks all media files (audio, document, GIF, video, photo, video note, voice) |
 | `messages` | Blocks all text, media, contacts, locations, games, stickers, and GIFs |
 | `other` | Blocks games, stickers, and GIFs |
-| `previews` | Blocks messages with URL previews |
+| `previews` | Blocks messages containing URLs, whether or not a preview is shown (same match as url) |
 
 ## Permission Locks
 
@@ -47,7 +47,7 @@ Permission locks target specific types of content or actions. Use these for fine
 |-----------|-------------|
 | `anonchannel` | Blocks messages from anonymous channels and linked channel posts |
 | `audio` | Blocks audio file messages |
-| `bots` | Prevents non-admins from adding bots to the group |
+| `bots` | Prevents users who are neither admins nor approved from adding bots to the group |
 | `contact` | Blocks contact card messages |
 | `document` | Blocks document files (excludes GIFs/animations) |
 | `forward` | Blocks forwarded messages |
@@ -55,7 +55,7 @@ Permission locks target specific types of content or actions. Use these for fine
 | `gif` | Blocks GIF/animation messages |
 | `location` | Blocks location/venue messages |
 | `photo` | Blocks photo messages |
-| `rtl` | Blocks messages containing right-to-left (Arabic) text |
+| `rtl` | Blocks message text and media captions containing Arabic-script characters (U+0600-U+06FF); other RTL scripts such as Hebrew are not checked |
 | `sticker` | Blocks sticker messages |
 | `url` | Blocks messages containing URLs |
 | `video` | Blocks video messages |
@@ -81,8 +81,8 @@ These locks control how content behaves:
 
 - **`forward`**: Blocks forwarded messages
 - **`url`**: Blocks messages containing URLs
-- **`previews`**: Blocks messages with URL previews
-- **`rtl`**: Blocks messages containing right-to-left (Arabic) text
+- **`previews`**: Blocks messages containing URLs, whether or not a preview is shown (same match as url)
+- **`rtl`**: Blocks message text and media captions containing Arabic-script characters (U+0600-U+06FF); other RTL scripts such as Hebrew are not checked
 - **`anonchannel`**: Blocks messages from anonymous channels and linked channel posts
 - **`comments`**: Blocks messages from non-members (discussion comments)
 
@@ -90,13 +90,13 @@ These locks control how content behaves:
 
 ### `bots`
 
-Prevents non-admins from adding bots to the group
+Prevents users who are neither admins nor approved from adding bots to the group
 
-**Behavior**: When enabled, the bot will automatically ban any bot added by non-admins.
+**Behavior**: When enabled, the bot will automatically ban any bot added by a user who is neither an admin nor approved.
 
 ### `all`
 
-Blocks all messages from non-admins
+Blocks all messages from users who are neither admins nor approved
 
 **Use Case**: Useful for temporarily freezing chat activity or creating read-only channels.
 
@@ -107,14 +107,14 @@ Blocks all messages from non-admins
 ```
 /lock media
 ```
-Blocks all media files (audio, documents, videos, photos, video notes, and voice messages).
+Blocks all media files (audio, documents, GIFs, videos, photos, video notes, and voice messages).
 
 ### Create Read-Only Chat
 
 ```
 /lock all
 ```
-Prevents all non-admin users from sending any messages.
+Prevents all users who are neither admins nor approved from sending any messages.
 
 ### Block Forwarded Content
 
@@ -128,7 +128,7 @@ Prevents users from forwarding messages from other chats.
 ```
 /lock bots
 ```
-Only admins can add bots to the group.
+Only admins and approved users can add bots to the group.
 
 ### Multiple Locks at Once
 
@@ -139,9 +139,9 @@ Lock multiple content types in a single command.
 
 ## Important Notes
 
-### Admin Exemption
+### Admin and Approved User Exemption
 
-All locks automatically exempt administrators. Admins can always post any content type, regardless of which locks are enabled.
+All locks automatically exempt administrators and approved users (see /approve). They can always post any content type, regardless of which locks are enabled.
 
 ### Bot Permissions
 
@@ -162,7 +162,7 @@ Locks work independently but complement other moderation modules:
 
 - `/lock <type>` - Enable one or more locks
 - `/unlock <type>` - Disable one or more locks
-- `/locks` - View currently enabled locks
+- `/locks` - View the lock settings stored for this chat (true = locked, false = unlocked)
 - `/locktypes` - View all available lock types
 
 For more information, see the [Locks module documentation](/commands/locks/).

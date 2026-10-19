@@ -8,19 +8,25 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // Failures are swallowed so logging never blocks a user-facing command.
 func Log(b *gotgbot.Bot, chat *gotgbot.Chat, category, htmlText string) {
-	if b == nil || chat == nil || htmlText == "" {
+	if b == nil || chat == nil || htmlText == "" || chat.Type == "channel" {
 		return
 	}
-	if chat.Type == "channel" {
+	logTo(b, chat, logchannels.Get(chat.Id), category, htmlText)
+}
+
+// logTo sends to the log channel in settings rather than looking it up, so a
+// change that removes the settings can still be logged to them.
+func logTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, category, htmlText string) {
+	if b == nil || chat == nil || htmlText == "" || chat.Type == "channel" {
 		return
 	}
-	settings := logchannels.Get(chat.Id)
 	if settings == nil || !logchannels.CategoryEnabled(settings, category) {
 		return
 	}
@@ -74,9 +80,18 @@ func Reports(b *gotgbot.Bot, chat *gotgbot.Chat, reporter *gotgbot.User, targetI
 }
 
 func Settings(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, summary string) {
+	Log(b, chat, logchannels.CategorySettings, settingsText(actor, summary))
+}
+
+// SettingsTo logs to the given settings, for changes that remove them.
+func SettingsTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, actor *gotgbot.User, summary string) {
+	logTo(b, chat, settings, logchannels.CategorySettings, settingsText(actor, summary))
+}
+
+func settingsText(actor *gotgbot.User, summary string) string {
 	actorBit := "unknown"
 	if actor != nil {
 		actorBit = formatting.MentionHtml(actor.Id, actor.FirstName)
 	}
-	Log(b, chat, logchannels.CategorySettings, fmt.Sprintf("#SETTINGS\nAdmin: %s\n%s", actorBit, html.EscapeString(summary)))
+	return fmt.Sprintf("#SETTINGS\nAdmin: %s\n%s", actorBit, html.EscapeString(summary))
 }

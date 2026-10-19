@@ -218,8 +218,8 @@ loads modules and starts the persisted captcha lifecycle:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    // Initialize help system first
-    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
+    // Reset the help registry (under its lock)
+    modules.ResetHelpRegistry()
 
     // Load help LAST (deferred) to collect all commands
     defer modules.LoadHelp(dispatcher)
@@ -239,21 +239,22 @@ attempts, and reschedules still-valid attempts. It then starts the periodic
 attempt-cleanup and scheduled-unmute workers. A recovery failure aborts startup
 instead of accepting updates with an unknown captcha state.
 
-Registered modules include: BotUpdates, AISpam, SpamDB, Languages, Admin, Approvals, Pins, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, AntiRaid, Blacklists, Reactions, Formatting, Backup.
+Registered modules, in priority order: BotUpdates, AISpam, SpamDB, Languages, Admin, Approvals, Pins, LogChannels, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, AntiRaid, Federations, Blacklists, Reactions, Formatting, Backup. Help loads last.
 
 ## Handler Registration Pattern
 
-Each module registers handlers using gotgbot's handler system:
+Each module registers commands through the command pipeline (`helpers.WrapCommand`) and other handlers through gotgbot's handler system. Abridged from `alita/modules/bans.go`:
 
 ```go
 func LoadBans(dispatcher *ext.Dispatcher) {
-    // Register module in help system
-    DefaultHelpRegistry().AbleMap[bansModule.moduleName] = true
+    // Register module in help system (takes the registry lock)
+    SetModuleEnabled(bansModule.moduleName, true)
+    initBanDescs() // fills each descriptor's RequiredChecks
 
-    // Command handlers
-    dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))
-    dispatcher.AddHandler(handlers.NewCommand("kick", bansModule.kick))
-    dispatcher.AddHandler(handlers.NewCommand("unban", bansModule.unban))
+    // Command handlers: WrapCommand runs the descriptor's checks first
+    helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))
+    helpers.WrapCommand(dispatcher, kickDesc, pipelineHandler(bansModule.kick))
+    helpers.WrapCommand(dispatcher, unbanDesc, pipelineHandler(bansModule.unban))
 
     // Callback query handlers
     dispatcher.AddHandler(handlers.NewCallback(
@@ -261,16 +262,25 @@ func LoadBans(dispatcher *ext.Dispatcher) {
         bansModule.restrictButtonHandler,
     ))
 }
+
+func init() {
+    RegisterLegacyModule("Bans", 70, LoadBans)
+    initBanDescs()
+    // Anonymous admins bypass WrapCommand; this re-runs the same checks after they prove admin rights
+    RegisterAnonymousAdminHandler("ban", anonPipelineHandler(banDesc, bansModule.ban))
+}
 ```
 
 ### Handler Types
 
 | Type | Registration | Trigger |
 |------|--------------|---------|
-| Command | `handlers.NewCommand("cmd", fn)` | `/cmd` messages |
+| Command (pipeline) | `helpers.WrapCommand(dispatcher, desc, handler)` | `/cmd` messages, after the descriptor's `RequiredChecks` |
+| Command (legacy) | `handlers.NewCommand("cmd", fn)` | `/cmd` messages |
 | Callback | `handlers.NewCallback(filter, fn)` | Button presses |
 | Message | `handlers.NewMessage(filter, fn)` | Text messages |
-| ChatMember | `handlers.NewChatMemberUpdated(filter, fn)` | Member updates |
+| ChatMember | `handlers.NewChatMember(filter, fn)` | Other members' status changes |
+| MyChatMember | `handlers.NewMyChatMember(filter, fn)` | The bot's own member status changes |
 
 ### Handler Groups
 
@@ -288,9 +298,10 @@ dispatcher.AddHandlerToGroup(handler, 10)
 ```
 
 :::tip[Handler group conventions]
-- **Negative groups**: Early interception — captcha (-10), antiraid (-5), spamdb (-4), user logging (-1)
+- **Negative groups**: Early interception — captcha (-10), fed-ban (-6), antiraid (-5), spamdb (-4), admin-cache refresh (-2), bot-join and user logging (-1)
 - **Group 0**: Standard command handlers (default)
-- **Positive groups (3-10)**: Message watchers — aispam (3), antiflood (4), locks (5-6), blacklists (7), reports (8), filters (9), pins (10)
+- **Group 1**: connected-chat guard (ends processing after a PM command swaps to the connected group)
+- **Positive groups (3-11)**: Message watchers — aispam (3), antiflood (4), locks (5-6), blacklists (7), reports and reactions (8), filters (9), pins (10), log-channel /setlog capture (11)
 
 For the complete precedence table with propagation behavior, see [Handler Group Precedence](/architecture/handler-groups).
 :::
@@ -375,7 +386,7 @@ return err
 ```go
 // Reply to the triggering message
 msg.Reply(b, "Response text", &gotgbot.SendMessageOpts{
-    ParseMode: helpers.HTML,
+    ParseMode: formatting.HTML,
 })
 
 // Send new message to chat

@@ -230,6 +230,16 @@ func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId 
 	if isAdmin, known := IsUserAdminCached(chatID, userId); known {
 		return isAdmin, nil
 	}
+	// A stored list without admins (the bot is not an admin there, or could
+	// not check its own status) cannot answer, and reloading it before it
+	// expires would only store it again: ask for the user's membership instead.
+	// Only groups (negative IDs) qualify; a private chat still goes through
+	// getChat below, which answers false for it.
+	if chatID < 0 {
+		if ok, admins := cache.GetAdminCacheList(chatID); ok && admins.Cached && len(admins.UserInfo) == 0 {
+			return isUserAdminByMember(ctx, b, chatID, userId)
+		}
+	}
 
 	ctxGetChat, cancelGetChat := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelGetChat()
@@ -350,44 +360,54 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return mem.Status == "administrator"
 }
 
+// CanInvite reports whether the invite link may be shared: the chat is public,
+// or the bot and the sender both hold the invite right.
 func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool {
+	allowed, _ := CanInviteAnswered(b, ctx, chat, msg)
+	return allowed
+}
+
+// CanInviteAnswered is CanInvite that also reports whether the check already
+// answered the sender: answered is true only when an anonymous admin was sent
+// the proof keyboard, so the caller must not send a refusal on top of it.
+func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) (allowed, answered bool) {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		log.Error("CanInvite: No chat information available in context")
-		return false
+		return false, false
 	}
 	if chat.Username != "" {
-		return true
+		return true, false
 	}
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
 	if err != nil {
 		log.Errorf("[CanInvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
-		return false
+		return false, false
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
-		return false
+		return false, false
 	}
 	sender := ctx.EffectiveSender
 
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
-		return isAdmin
+		return isAdmin, !isAdmin && msg != nil
 	}
 
 	// msg.From can be nil for channel posts
 	if msg.From == nil {
-		return false
+		return false, false
 	}
 
 	userid := msg.From.Id
 	userMember, ok := getUserMemberWithCache(b, chat, userid, "CanInvite")
 	if !ok {
-		return false
+		return false, false
 	}
 
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
-		return false
+		return false, false
 	}
-	return true
+	return true, false
 }
 
 // IsUserInChatWithError reports definitive membership separately from Telegram
@@ -642,8 +662,11 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 }
 
 func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat) (*gotgbot.Message, error) {
+	// lang.GetLanguage answers "en" without a chat, so pass the chat the
+	// message was sent in.
 	ctx := &ext.Context{
 		EffectiveMessage: msg,
+		EffectiveChat:    &msg.Chat,
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

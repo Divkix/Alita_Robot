@@ -1,8 +1,12 @@
 package modules
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"html"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,6 +32,25 @@ import (
 
 var notesModule = moduleStruct{
 	moduleName: "Notes",
+}
+
+// noteStartSafeName matches note names Telegram accepts verbatim in a /start parameter.
+var noteStartSafeName = regexp.MustCompile(`^[a-z0-9_-]+$`)
+
+// noteNameHash is the short stand-in for a note name that cannot appear in a /start parameter.
+func noteNameHash(name string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(name)))
+	return "h" + hex.EncodeToString(sum[:6])
+}
+
+// noteStartParam returns the /start payload that opens a note in PM.
+func noteStartParam(chatID int64, name string) string {
+	name = strings.ToLower(name)
+	p := fmt.Sprintf("note_%d_%s", chatID, name)
+	if len(p) <= 64 && noteStartSafeName.MatchString(name) {
+		return p
+	}
+	return fmt.Sprintf("note_%d_%s", chatID, noteNameHash(name))
 }
 
 func noteOverwriteCacheKey(token string) string {
@@ -189,7 +212,8 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := msg.Reply(b, fmt.Sprintf(noteString, noteWord, noteWord, noteWord), formatting.Shtml())
+	esc := html.EscapeString(noteWord)
+	_, err := msg.Reply(b, fmt.Sprintf(noteString, esc, esc, esc), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -260,7 +284,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("notes_removed_success")
-	_, err := msg.Reply(b, fmt.Sprintf(text, noteWord), formatting.Shtml())
+	_, err := msg.Reply(b, fmt.Sprintf(text, html.EscapeString(noteWord)), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -290,12 +314,14 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			txt, _ = tr.GetString("notes_private_enabled")
 			if err := notes.TooglePrivateNote(chat.Id, true); err != nil {
 				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
+				txt, _ = tr.GetString("error_generic")
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_disabled")
 			if err := notes.TooglePrivateNote(chat.Id, false); err != nil {
 				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
+				txt, _ = tr.GetString("error_generic")
 			}
 		default:
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -351,11 +377,11 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		admin := chat_status.IsUserAdmin(b, chat.Id, user.Id)
 		noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, admin)
 		listText, _ := tr.GetString("notes_list_for_chat")
-		info = fmt.Sprintf(listText, chat.Title)
+		info = fmt.Sprintf(listText, html.EscapeString(chat.Title))
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			fmt.Fprintf(&sb, "\n - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>",
-				b.Username, chat.Id, note, note)
+			fmt.Fprintf(&sb, "\n - <a href='https://t.me/%s?start=%s'>%s</a>",
+				b.Username, noteStartParam(chat.Id, note), html.EscapeString(note))
 		}
 		info += sb.String()
 		_, err := msg.Reply(b, info, formatting.Shtml())
@@ -396,7 +422,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info = currentNotesText
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			fmt.Fprintf(&sb, " - <code>#%s</code>\n", note)
+			fmt.Fprintf(&sb, " - <code>#%s</code>\n", html.EscapeString(note))
 		}
 		info += sb.String()
 		instructionText, _ := tr.GetString("notes_get_instruction")
@@ -750,7 +776,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 								{
 									{
 										Text: trS(tr, "button_click_me"),
-										Url:  fmt.Sprintf("https://t.me/%s?start=note_%d_%s", b.Username, chat.Id, noteName),
+										Url:  "https://t.me/" + b.Username + "?start=" + noteStartParam(chat.Id, noteName),
 									},
 								},
 							},
@@ -862,7 +888,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 							{
 								{
 									Text: trS(tr, "button_click_me"),
-									Url:  fmt.Sprintf("https://t.me/%s?start=note_%d_%s", b.Username, chat.Id, noteName),
+									Url:  "https://t.me/" + b.Username + "?start=" + noteStartParam(chat.Id, noteName),
 								},
 							},
 						},
@@ -932,13 +958,11 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 func LoadNotes(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(notesModule.moduleName, true)
 
-	SetModuleHelp(notesModule.moduleName, [][]gotgbot.InlineKeyboardButton{
-		{
-			{
-				Text:         trS(i18n.MustNewTranslator("en"), "button_formatting"),
-				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
-			},
-		},
+	SetModuleHelpBuilder(notesModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
+		return [][]gotgbot.InlineKeyboardButton{{{
+			Text:         trS(i18n.MustNewTranslator(l), "button_formatting"),
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
+		}}}
 	})
 	dispatcher.AddHandler(handlers.NewCommand("save", notesModule.addNote))
 	dispatcher.AddHandler(handlers.NewCommand("addnote", notesModule.addNote))
@@ -1023,7 +1047,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 		info, _ = tr.GetString("helpers_notes_current_header")
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>\n", b.Username, chatinfo.Id, note, note)
+			fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=%s'>%s</a>\n", b.Username, noteStartParam(chatinfo.Id, note), html.EscapeString(note))
 		}
 		info += sb.String()
 	}
@@ -1062,6 +1086,15 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 
 	noteName := strings.ToLower(nArgs[2])
 	noteData := notes.GetNote(chatinfo.Id, noteName)
+	// A name /start cannot carry arrives as its hash; a real note of that name wins.
+	if noteData == nil && len(noteName) == 13 && strings.HasPrefix(noteName, "h") {
+		for _, n := range notes.GetNotesListContext(tracing.UpdateContext(ctx), chatinfo.Id, true) {
+			if noteNameHash(n) == noteName {
+				noteData = notes.GetNote(chatinfo.Id, n)
+				break
+			}
+		}
+	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if noteData == nil {
 		text, _ := tr.GetString("helpers_note_not_exist")

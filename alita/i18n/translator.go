@@ -77,21 +77,26 @@ func (t *Translator) interpolateParams(text string, params TranslationParams) (s
 		return text, nil
 	}
 
-	result := text
-
-	result = paramRegex.ReplaceAllStringFunc(result, func(match string) string {
+	substituted := false
+	result := paramRegex.ReplaceAllStringFunc(text, func(match string) string {
 		keyName := match[1 : len(match)-1]
 		if value, exists := params[keyName]; exists {
+			substituted = true
 			return fmt.Sprintf("%v", value)
 		}
 		return match
 	})
+	// A filled {name} template is done: a '%' in a substituted value is user
+	// text, not a verb, so it must never reach Sprintf.
+	if substituted {
+		return result, nil
+	}
 
-	if legacyParamRegex.MatchString(result) {
+	if legacyParamRegex.MatchString(text) {
 		if orderedValues := extractOrderedValues(params); len(orderedValues) > 0 {
-			specCount := len(legacyParamRegex.FindAllString(result, -1))
+			specCount := len(legacyParamRegex.FindAllString(text, -1))
 			if specCount <= len(orderedValues) {
-				result = fmt.Sprintf(result, orderedValues[:specCount]...)
+				result = fmt.Sprintf(text, orderedValues[:specCount]...)
 			} else {
 				log.Warnf("Translation specifier count mismatch: %d specifiers, %d values for key in lang %s", specCount, len(orderedValues), t.langCode)
 			}

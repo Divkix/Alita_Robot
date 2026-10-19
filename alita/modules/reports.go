@@ -43,6 +43,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	reportprefs := reports.GetChatReportSettings(chat.Id)
+	if !reportprefs.Status {
+		return ext.EndGroups
+	}
+
 	if msg.ReplyToMessage == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_reply_to_report")
@@ -75,7 +80,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		replyMsgId = msg.MessageId
 	}
-	reportprefs := reports.GetChatReportSettings(chat.Id)
 
 	if slices.Contains(reportprefs.BlockedList, user.Id) {
 		if chat_status.CanBotDelete(b, ctx, nil) {
@@ -109,10 +113,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
-	}
-
-	if !reportprefs.Status {
 		return ext.EndGroups
 	}
 
@@ -250,6 +250,15 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	actionlog.Reports(b, chat, user, reportedUser.Id)
 	return ext.EndGroups
+}
+
+// reportWatcher serves the group-8 @admin mention watcher. report() ends
+// iteration for the /report command, but a watcher must let reactions (8),
+// filters (9), pins (10) and log-channel (11) still see the message.
+// report() logs its own errors before returning them.
+func (m moduleStruct) reportWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
+	_ = m.report(b, ctx)
+	return ext.ContinueGroups
 }
 
 //nolint:dupl // reports has symmetric block/unblock logic
@@ -563,7 +572,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 			func(msg *gotgbot.Message) bool {
 				return adminMentionRegex.MatchString(msg.Text)
 			},
-			reportsModule.report,
+			reportsModule.reportWatcher,
 		),
 		reportsModule.handlerGroup,
 	)

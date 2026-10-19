@@ -21,16 +21,9 @@ Failed to create new bot: invalid token
 2. Ensure no extra spaces or newlines in the token
 3. Check that the token format is correct: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
 
-:::caution
-Do not wrap the token in quotes in your `.env` file. The quotes become part of the value and will cause authentication failure.
-:::
-
 ```bash
-# Correct format in .env
+# .env (surrounding quotes are optional; godotenv, Docker Compose and systemd EnvironmentFile strip them)
 BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-
-# Wrong - has quotes
-BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 ```
 
 ### Database Connection Failed
@@ -74,8 +67,11 @@ BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 
 **Error:**
 ```
-[Redis] Failed to connect: connection refused
+[Cache] Failed to connect to Redis, retrying...   (logged once per attempt, up to 5 attempts)
+Failed to initialize cache: failed to connect to Redis after 5 attempts: dial tcp 127.0.0.1:6379: connect: connection refused
 ```
+
+With `DISABLE_CACHE=true` the bot logs a warning and keeps running without Redis instead.
 
 **Solutions:**
 
@@ -92,6 +88,10 @@ BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
    ```
 
 3. **Docker:** Ensure Redis is started before Alita
+
+4. **Heroku:** Heroku Redis sets a `rediss://` `REDIS_URL` with a self-signed certificate, so the attempts fail with
+   `tls: failed to verify certificate: x509: ...`. Set `REDIS_TLS_INSECURE_SKIP_VERIFY=true` (the Heroku button does
+   this). See the [environment reference](/api-reference/environment/#redis_tls_insecure_skip_verify).
 
 ### MESSAGE_DUMP Invalid
 
@@ -282,7 +282,7 @@ telegram: Bad Request: need administrator rights in the chat
 
 **Error:**
 ```
-You need to be an admin to use this command
+Only admins can execute this command!
 ```
 
 **This is expected behavior.** Admin commands require the user to be a group admin.
@@ -469,9 +469,9 @@ DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, n
 **Symptoms:**
 - Bot sends empty messages
 - Commands execute but no text is displayed
-- Works in some languages but not others
+- Works in some languages but not others (the key exists in a translation but not in `locales/en.yml`)
 
-**Cause:** Translation key mismatch between code and locale files.
+**Cause:** The key the code asks for is missing from `locales/en.yml` or misspelled in the Go code. A key missing only from a translation (e.g. `hi.yml`) falls back to English, so it never shows up as an empty message.
 
 **Solutions:**
 
@@ -486,7 +486,7 @@ DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, n
    - Locale file must have: `misc_translate_need_text: "..."`
    - Common issue: Similar but different key names (e.g., `misc_need_text_and_lang` vs `misc_translate_need_text`)
 
-3. **Add missing keys:** If a key exists in one locale but not another, add it to all supported locales.
+3. **Add missing keys:** Add the key to `locales/en.yml` first (it is the fallback for every language), then to the other 6 locale files. Run `make check-translations` to list keys missing from the translations.
 
 4. **Check YAML syntax:**
    ```yaml
@@ -497,14 +497,9 @@ DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, n
    misc_result: 'Line 1\nLine 2'
    ```
 
-### Translation Errors Logged
+### Missing Keys Are Not Logged
 
-**Error:**
-```
-[i18n] Translation key not found: misc_example_key
-```
-
-**Solution:** Add the missing key to all locale files in `locales/`.
+A missing translation key is not logged: the lookup returns an empty string and callers ignore the error. Run `make check-translations` to find keys missing from a locale, and grep the Go source and `locales/en.yml` for the key name to catch typos.
 
 ## Getting Help
 

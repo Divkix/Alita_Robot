@@ -1,9 +1,9 @@
 ---
-title: Logchannels Commands
-description: Complete guide to Logchannels module commands and features
+title: LogChannels Commands
+description: Complete guide to LogChannels module commands and features
 ---
 
-# 📜 Logchannels Commands
+# 📜 LogChannels Commands
 
 Send admin actions to a dedicated log channel.
 
@@ -12,14 +12,25 @@ Send admin actions to a dedicated log channel.
 3. Forward that message to the group.
 
 ### Admin commands:
+- `/setlog`: Set the log channel (send it in the channel, then forward the message to the group).
 - `/unsetlog`: Remove the log channel.
-- `/logchannel`: Show the current log channel.
-- `/logcategories`: List categories.
 - `/log <category>`: Enable a category.
 - `/nolog <category>`: Disable a category.
 
-Categories: settings, admin, user, automated, reports, other.
+### Anyone:
+- `/logchannel`: Show the current log channel (groups only).
+- `/logcategories`: List categories.
 
+Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated, other. Nothing is logged under automated or other yet.
+
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+
+- `setlog`
+- `logchannel`
+- `logcategories`
 
 ## Available Commands
 
@@ -27,31 +38,32 @@ Categories: settings, admin, user, automated, reports, other.
 |---------|-------------|-------------|
 | `/log` | Enable a category. | ❌ |
 | `/logcategories` | List categories. | ❌ |
-| `/logchannel` | Show the current log channel. | ❌ |
+| `/logchannel` | Show the current log channel (groups only). | ❌ |
 | `/nolog` | Disable a category. | ❌ |
-| `/setlog` | No description available | ❌ |
+| `/setlog` | Set the log channel (send it in the channel, then forward the message to the group). | ❌ |
 | `/unsetlog` | Remove the log channel. | ❌ |
 
 ## Usage Examples
 
-### Basic Usage
+**Set up a log channel:**
+1. Add the bot to the channel as an admin that can post messages.
+2. Send `/setlog` in the channel.
+3. Within an hour, forward that /setlog message to your group.
 
-```text
-/log
-/logcategories
-/logchannel
-```
+**Choose what gets logged:**
+- `/logcategories` - list the categories
+- `/log admin user` - turn on two categories
+- `/nolog settings` - turn off one category
 
-For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands in this module require **admin permissions** in the group.
+**User Permissions:**
+- `/setlog` is sent in the channel itself, where only channel admins can post.
+- Only group admins can bind the channel by forwarding that message, and only they can use `/unsetlog`, `/log` and `/nolog`.
+- Anyone can use `/logchannel` (groups only) and `/logcategories`.
 
-**Bot Permissions Required:**
+**Bot Permissions:**
+- The bot must be an admin of the log channel with permission to post messages, both to see `/setlog` and to send log entries. Entries it cannot send are dropped without an error.
 
-- Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
 

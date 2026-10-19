@@ -48,18 +48,21 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(reactionsModule.moduleName, true)
 
 	DefaultHelpRegistry().AltHelpOptions["Reactions"] = []string{"reaction"}
-	DefaultHelpRegistry().helpableKb["Reactions"] = [][]gotgbot.InlineKeyboardButton{
-		{
+	SetModuleHelpBuilder(reactionsModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
+		tr := i18n.MustNewTranslator(l)
+		return [][]gotgbot.InlineKeyboardButton{
 			{
-				Text:         "Add Reaction",
-				CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "add"}),
+				{
+					Text:         trS(tr, "reactions_button_add"),
+					CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "add"}),
+				},
+				{
+					Text:         trS(tr, "reactions_button_remove"),
+					CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "remove"}),
+				},
 			},
-			{
-				Text:         "Remove Reaction",
-				CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "remove"}),
-			},
-		},
-	}
+		}
+	})
 
 	log.Info("[Modules] Reactions module loaded")
 }
@@ -93,7 +96,7 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	if query.Message == nil {
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: html.UnescapeString(helpText)})
 		return ext.EndGroups
 	}
 

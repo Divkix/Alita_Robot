@@ -12,14 +12,17 @@ Automatically react to messages with specific keywords!
 
 Setup automated emoji reactions that trigger when users send specific words.
 
+**User Commands:**
+- /reactions - List configured reactions
+
 **Admin Commands:**
 - /addreaction <keyword> <emoji> - Add an auto-reaction
 - /removereaction <keyword> - Remove a reaction
-- /reactions - List configured reactions
 - /resetreactions - Clear all reactions
 
 **Example:**
-- /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+- /addreaction hello 👍 - Bot reacts with 👍 when someone says "hello"
+- Only Telegram's standard reaction emoji (for example 👍 ❤ 🔥 🎉) can be used.
 
 
 ## Module Aliases
@@ -60,10 +63,13 @@ For detailed command usage, refer to the commands table above.
 ## Automatic Message Watcher
 
 The Reactions module includes a background message watcher at **handler group 8**.
-When any user sends a message in the chat, the bot scans the text for configured
-keywords and sets the matching emoji reaction automatically. Only the first matching
-keyword is used to avoid rate limiting. The watcher runs silently and uses
-`ext.ContinueGroups` so it never blocks other handlers.
+When a user sends a text message in the chat, the bot scans the message text for configured
+keywords (case-insensitive substring match) and sets the matching emoji reaction automatically.
+Media captions are not scanned. A message that mentions @admin or @admins (as a separate word) also
+goes to the Reports module, which files a report only when the message replies to another user's
+message; either way it can still get a reaction. Only the first matching
+keyword (in alphabetical order) is used to avoid rate limiting. The watcher runs silently and uses
+`ext.ContinueGroups`, so it never stops later handler groups.
 
 ## Inline Help Callbacks
 
@@ -72,5 +78,5 @@ usage for each command using `reactions_help` prefixed callback data:
 
 | Button | Action |
 |--------|--------|
-| "Add Reaction" | Shows `/addreaction` usage via `reactions_help.add` |
-| "Remove Reaction" | Shows `/removereaction` usage via `reactions_help.remove` |
+| "Add Reaction" | Shows `/addreaction` usage via `reactions_help\|v1\|action=add` |
+| "Remove Reaction" | Shows `/removereaction` usage via `reactions_help\|v1\|action=remove` |

@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"regexp"
 	"slices"
 	"strings"
@@ -74,7 +75,7 @@ var (
 		"game":      message.Game,
 		"location":  message.Location,
 		"rtl": func(msg *gotgbot.Message) bool {
-			return arabmatch.MatchString(msg.Text)
+			return arabmatch.MatchString(msg.Text) || arabmatch.MatchString(msg.Caption)
 		},
 		"anonchannel": func(msg *gotgbot.Message) bool {
 			sender := msg.GetSender()
@@ -117,11 +118,11 @@ func (moduleStruct) getLockMapAsArray() []string {
 	return cachedLockTypes
 }
 
-func (moduleStruct) buildLockTypesMessage(chatID int64) (res string) {
+func (moduleStruct) buildLockTypesMessage(ctx *ext.Context, chatID int64) (res string) {
 	chatLocks := locks.GetChatLocks(chatID)
 
 	newMapLocks := chatLocks
-	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: &gotgbot.Chat{Id: chatID}}))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	res, _ = tr.GetString("locks_current_locks_header")
 
 	keys := make([]string, 0, len(newMapLocks))
@@ -172,7 +173,7 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = chat
 
-	_, err := msg.Reply(b, m.buildLockTypesMessage(chat.Id), formatting.Shtml())
+	_, err := msg.Reply(b, m.buildLockTypesMessage(ctx, chat.Id), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -222,7 +223,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !slices.Contains(m.getLockMapAsArray(), perm) {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("locks_invalid_lock_type")
-			text := fmt.Sprintf(temp, perm)
+			text := fmt.Sprintf(temp, html.EscapeString(perm))
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -303,7 +304,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !slices.Contains(m.getLockMapAsArray(), perm) {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("locks_invalid_lock_type")
-			text := fmt.Sprintf(temp, perm)
+			text := fmt.Sprintf(temp, html.EscapeString(perm))
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -382,6 +383,12 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
+	// which IsUserAdmin rejects; they are admins and exempt from locks.
+	if sender.IsAnonymousAdmin() {
+		return ext.ContinueGroups
+	}
+
 	senderID := sender.Id()
 
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
@@ -430,6 +437,12 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Pure in-memory check first so unlocked content never pays for the
 	// admin/approval/bot-permission lookups below.
 	if !anyLockHit(chatLocks, lockMap, msg, "bots") {
+		return ext.ContinueGroups
+	}
+
+	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
+	// which IsUserAdmin rejects; they are admins and exempt from locks.
+	if sender.IsAnonymousAdmin() {
 		return ext.ContinueGroups
 	}
 
@@ -494,7 +507,13 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+		// A ChatMember update has no message to reply to, so send to the chat.
+		tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
+		text, _ := tr.GetString("locks_bot_lock_no_ban_permission")
+		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+			return err
+		}
 		return ext.ContinueGroups
 	}
 

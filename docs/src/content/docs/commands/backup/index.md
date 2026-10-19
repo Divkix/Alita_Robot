@@ -18,7 +18,7 @@ Backup and restore your group settings using these commands:
 - /import - Reply to a backup file to restore settings
 - /import notes filters - Import only specific modules
 - /reset - Reset all settings to default
-- /reset warnings locks - Reset specific modules only
+- /reset warns locks - Reset specific modules only
 
 **Rate Limits:**
 - Export: 1 per 5 minutes
@@ -36,17 +36,20 @@ This module can be accessed using the following aliases:
 
 ## Supported Data
 
-Backups cover 17 modules: admin, antiflood, antiraid, approvals, blacklists,
-captcha, connections, disabling, filters, greetings, locks, notes, pins,
-reactions, reports, rules, and warns. Import and reset are transactional: if one
-selected module fails, no selected module is changed.
+Backups cover 19 modules: admin, antiflood, antiraid, approvals, blacklists,
+captcha, connections, disabling, federations (the chat's federation
+membership), filters, greetings, locks, logchannels (the log channel setting),
+notes, pins, reactions, reports, rules, and warns. A bare `/reset` resets all 19,
+so it also removes the chat from its federation and unsets its log channel; pass
+module names (e.g. `/reset locks notes`) to reset only those. Import and reset
+are transactional: if one selected module fails, no selected module is changed.
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/export` | Export all group settings to a JSON file | ✅ |
-| `/import` | Reply to a backup file to restore settings | ✅ |
+| `/export` | Export all group settings to a JSON file | ❌ |
+| `/import` | Reply to a backup file to restore settings | ❌ |
 | `/reset` | Reset all settings to default | ❌ |
 
 ## Usage Examples
@@ -63,11 +66,13 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
+All three commands work only in groups (`RequireGroup`); in a private chat the bot replies with the group-only error. None of them can be turned off with `/disable`.
+
 - `/export` — Requires **Admin** (`RequireUserAdmin` + `RequireBotAdmin`).
   Rate limited: 1 per 5 minutes.
-- `/import` — Requires **Group Creator** (`RequireUserOwner`).
+- `/import` — Requires **Group Creator** (`RequireUserOwner` + `RequireBotAdmin`).
   Rate limited: 1 per 10 minutes.
-- `/reset` — Requires **Group Creator** (`RequireUserOwner`).
+- `/reset` — Requires **Group Creator** (`RequireUserOwner` + `RequireBotAdmin`).
   Rate limited: 1 per hour.
 
 ## Confirmation Flow

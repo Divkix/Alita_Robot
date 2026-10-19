@@ -6,7 +6,9 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func TestChangeLanguagePrivateShowsLanguageKeyboard(t *testing.T) {
@@ -187,5 +189,45 @@ func TestLanguageCallbackPropagatesAnswerAndEditErrors(t *testing.T) {
 				t.Fatalf("langBtnHandler(%s) error = nil, want request error", tt.name)
 			}
 		})
+	}
+}
+
+// The "help translate" button on /lang is labelled in the reader's language.
+func TestChangeLanguageHelpTranslateButtonFollowsReadersLanguage(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Lector"}
+	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Lector"}
+	if err := lang.ChangeUserLanguage(user.Id, "es"); err != nil {
+		t.Fatalf("ChangeUserLanguage: %v", err)
+	}
+	want, _ := i18n.MustNewTranslator("es").GetString("language_help_translate")
+	en, _ := i18n.MustNewTranslator("en").GetString("language_help_translate")
+	if want == "" || want == en {
+		t.Fatal("the test needs an es translation of language_help_translate")
+	}
+
+	if err := languagesModule.changeLanguage(bot, newModuleMessageContext(bot, chat, user, "/lang")); err != ext.EndGroups {
+		t.Fatalf("changeLanguage() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	kb, ok := calls[0].Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok {
+		t.Fatalf("reply_markup = %#v, want an inline keyboard", calls[0].Params["reply_markup"])
+	}
+	var label string
+	for _, row := range kb.InlineKeyboard {
+		for _, button := range row {
+			if button.Url != "" {
+				label = button.Text
+			}
+		}
+	}
+	if label != want {
+		t.Errorf("help translate button = %q, want the es language_help_translate %q", label, want)
 	}
 }

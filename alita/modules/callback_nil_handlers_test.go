@@ -44,7 +44,6 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 		{name: "connectionButtons", want: ext.EndGroups, call: module.connectionButtons},
 		{name: "restrictButtonHandler", want: ext.EndGroups, call: module.restrictButtonHandler},
 		{name: "unrestrictButtonHandler", want: ext.EndGroups, call: module.unrestrictButtonHandler},
-		{name: "deleteButtonHandler", want: ext.EndGroups, call: module.deleteButtonHandler},
 		{name: "buttonHandler", want: ext.EndGroups, call: module.buttonHandler},
 		{name: "antiRaidCallbackHandler", want: ext.ContinueGroups, call: antiRaid.callbackHandler},
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -572,7 +573,9 @@ func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	if err := replaceChatSetting(tx, chatID, data.ConnectionSettings); err != nil {
 		return nil, fmt.Errorf("restore connection settings: %w", err)
 	}
-	if data.BlacklistMode != "" {
+	// An unusable mode is ignored like a missing one; Postgres would reject it
+	// and abort the whole import.
+	if models.ValidBlacklistAction(data.BlacklistMode) {
 		if err := tx.Model(&models.BlacklistSettings{}).
 			Where("chat_id = ?", chatID).
 			Update("action", data.BlacklistMode).Error; err != nil {
@@ -645,16 +648,20 @@ func importBlacklists(tx *gorm.DB, chatID int64, payload interface{}) ([]string,
 	if len(data.Entries) == 0 && data.Settings != nil {
 		data.Entries = []models.BlacklistSettings{*data.Settings}
 	}
+	// Postgres rejects an action outside chk_blacklist_action and would abort
+	// the whole import, so a missing or unusable one falls back to the mode,
+	// then to the default.
+	mode := data.BlacklistMode
+	if !models.ValidBlacklistAction(mode) {
+		mode = "warn"
+	}
 	for i := range data.Entries {
 		if data.Entries[i].Word == "" {
 			return nil, fmt.Errorf("invalid empty blacklist word")
 		}
 		data.Entries[i].ChatId = chatID
-		if data.Entries[i].Action == "" {
-			data.Entries[i].Action = data.BlacklistMode
-		}
-		if data.Entries[i].Action == "" {
-			data.Entries[i].Action = "warn"
+		if !models.ValidBlacklistAction(data.Entries[i].Action) {
+			data.Entries[i].Action = mode
 		}
 	}
 	if err := replaceChatRows(tx, chatID, data.Entries); err != nil {
@@ -696,16 +703,23 @@ func importDisabling(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if data.ChatSettings != nil {
 		data.ChatSettings.ChatId = chatID
 	}
-	for i := range data.Commands {
-		if data.Commands[i].Command == "" {
+	commands := make([]models.DisableSettings, 0, len(data.Commands))
+	for _, cmd := range data.Commands {
+		if cmd.Command == "" {
 			return nil, fmt.Errorf("invalid empty disabled command")
 		}
-		data.Commands[i].ChatId = chatID
+		// Older exports may list /export or /import as disabled; they are no
+		// longer disableable, so the row would be one /enable cannot clear.
+		if disabling.IsNoLongerDisableable(cmd.Command) {
+			continue
+		}
+		cmd.ChatId = chatID
+		commands = append(commands, cmd)
 	}
 	if err := replaceChatSetting(tx, chatID, data.ChatSettings); err != nil {
 		return nil, err
 	}
-	if err := replaceChatRows(tx, chatID, data.Commands); err != nil {
+	if err := replaceChatRows(tx, chatID, commands); err != nil {
 		return nil, err
 	}
 	return []string{cacheKey("disabled_cmds", chatID)}, nil
@@ -862,8 +876,9 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if !models.ValidWarnExpiry(data.WarnSettings.WarnExpiry) {
 			data.WarnSettings.WarnExpiry = 0
 		}
-		// Exports omit an empty mode; Postgres rejects '', so use the default.
-		if data.WarnSettings.WarnMode == "" {
+		// Exports omit an empty mode, and Postgres rejects '' or any value
+		// outside the CHECK, which would abort the import: use the default.
+		if !models.ValidWarnMode(data.WarnSettings.WarnMode) {
 			data.WarnSettings.WarnMode = "mute"
 		}
 	}

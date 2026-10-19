@@ -37,7 +37,7 @@ Or reply to a message:
 `/setrules`
 
 **Required Permissions:**
-- `/rules`: Available to all users (disableable)
+- `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it works only for a group connected with `/connect`
 - All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Require admin permissions in the connected chat via `IsUserConnected`
 
 
@@ -81,7 +81,7 @@ For detailed command usage, refer to the commands table above.
 
 | Command | Permissions |
 |---------|-------------|
-| `/rules` | Available to all users (disableable) |
+| `/rules` | Any user (disableable) — **bot must be admin**; in PM needs a `/connect`ed group |
 | `/setrules` | Admin only — requires `IsUserConnected` (bot admin + user admin) |
 | `/resetrules`, `/clearrules` | Admin only — requires `IsUserConnected` |
 | `/privaterules` | Admin only — requires `IsUserConnected`, user must be admin in connected chat |

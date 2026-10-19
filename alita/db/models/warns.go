@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // WarnSettings.WarnMode: Postgres has two CHECKs on warn_mode. chk_warn_mode
 // allows an empty string but the older chk_warns_mode does not, so Postgres
@@ -16,6 +19,15 @@ type WarnSettings struct {
 	WarnExpiry int       `gorm:"column:warn_expiry;not null;default:0;check:chk_warn_expiry,warn_expiry >= 0" json:"warn_expiry,omitempty"`
 	CreatedAt  time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt  time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+}
+
+// warnModes are the non-empty modes chk_warns_mode and chk_warn_mode allow.
+var warnModes = []string{"ban", "kick", "mute", "tban", "tmute"}
+
+// ValidWarnMode reports whether mode is a warn mode both CHECKs on
+// warns_settings.warn_mode accept; the empty string is not one.
+func ValidWarnMode(mode string) bool {
+	return slices.Contains(warnModes, mode)
 }
 
 // Bounds for WarnActionTime, in seconds. Telegram reads an until_date less

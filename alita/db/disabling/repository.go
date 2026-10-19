@@ -3,6 +3,7 @@ package disabling
 import (
 	"context"
 	"slices"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm/clause"
@@ -11,6 +12,20 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
+
+// noLongerDisableable lists commands that older releases let chats disable
+// and that have since lost that (helpers.IsDisableable is the live list).
+// /enable refuses them, so a stored row could never be cleared: migration
+// 20261018130000 deleted the existing ones and backup imports skip them. Add a
+// command here, with a migration deleting its rows, whenever it stops being
+// disableable.
+var noLongerDisableable = []string{"export", "import"}
+
+// IsNoLongerDisableable reports whether cmd was disableable in an older
+// release but is not any more.
+func IsNoLongerDisableable(cmd string) bool {
+	return slices.Contains(noLongerDisableable, strings.ToLower(cmd))
+}
 
 func DisableCMD(chatID int64, cmd string) error {
 	disableSetting := &models.DisableSettings{

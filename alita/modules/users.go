@@ -26,6 +26,7 @@ func spawnAsyncUpdate(fn func()) {
 	usersAsyncWG.Add(1)
 	go func() {
 		defer usersAsyncWG.Done()
+		defer error_handling.RecoverFromPanic("spawnAsyncUpdate", "users")
 		fn()
 	}()
 }
@@ -124,16 +125,20 @@ func sweepUpdateCache(cache *sync.Map, now time.Time, interval time.Duration) {
 	})
 }
 
+func sweepUsersThrottleCaches(now time.Time) {
+	sweepUpdateCache(userUpdateCache, now, userUpdateInterval)
+	sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
+	sweepUpdateCache(chatMemberUpdateCache, now, chatUpdateInterval)
+	sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
+}
+
 func usersThrottleSweepLoop() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for now := range ticker.C {
 		func() {
 			defer error_handling.RecoverFromPanic("usersThrottleSweep", "users")
-			sweepUpdateCache(userUpdateCache, now, userUpdateInterval)
-			sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
-			sweepUpdateCache(chatMemberUpdateCache, now, chatUpdateInterval)
-			sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
+			sweepUsersThrottleCaches(now)
 		}()
 	}
 }
@@ -163,24 +168,35 @@ func updateCurrentUser(userID int64, username, name string) {
 	})
 }
 
-// updateCurrentChat touches the chats row once per chat per interval (or on a
-// rename), and records membership once per (chat, user) per interval. The
-// touch runs first so a chat seen for the first time exists before the append.
-func updateCurrentChat(chatID int64, chatName string, userID int64) {
-	chatKey := strconv.FormatInt(chatID, 10)
-	_, _, _ = chatUpdateGroup.Do(chatKey, func() (any, error) {
+// touchCurrentChat touches the chats row once per chat per interval (or on a
+// rename).
+func touchCurrentChat(chatID int64, chatName string) {
+	_, _, _ = chatUpdateGroup.Do(strconv.FormatInt(chatID, 10), func() (any, error) {
 		if shouldTouchChat(chatUpdateCache, chatID, chatName, chatUpdateInterval) {
 			asyncTouchChat(chatID, chatName)
 		}
 		return nil, nil
 	})
-	memberKey := chatKey + ":" + strconv.FormatInt(userID, 10)
+}
+
+// updateCurrentChat touches the chats row, then records membership once per
+// (chat, user) per interval. The touch runs first so a chat seen for the first
+// time exists before the append.
+func updateCurrentChat(chatID int64, chatName string, userID int64) {
+	touchCurrentChat(chatID, chatName)
+	memberKey := strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
 	_, _, _ = chatMemberUpdateGroup.Do(memberKey, func() (any, error) {
 		if shouldUpdateChatMember(chatMemberUpdateCache, chatID, userID, chatUpdateInterval) {
 			asyncAddChatMember(chatID, userID)
 		}
 		return nil, nil
 	})
+}
+
+// isChannelSender reports a channel posting into a group: send-as-channel or a
+// linked channel's automatic forward.
+func isChannelSender(s *gotgbot.Sender) bool {
+	return s.Chat != nil && s.Chat.Type == "channel" && !s.IsChannelPost()
 }
 
 func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -190,11 +206,16 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	repliedMsg := msg.ReplyToMessage
 
 	if user != nil {
-		if user.IsAnonymousChannel() {
+		if isChannelSender(user) {
 			uid, uname, username := user.Id(), user.Name(), user.Username()
 			if shouldUpdateChannel(channelUpdateCache, uid, uname, username, channelUpdateInterval) {
 				log.Debugf("Updating channel %d in db", uid)
 				spawnAsyncUpdate(func() { asyncUpdateChannel(uid, uname, username) })
+			}
+		} else if user.Chat != nil {
+			// Anonymous admin (or other chat sender): the chat is not a user or a member.
+			if chat_status.RequireGroup(bot, ctx, chat) {
+				touchCurrentChat(chat.Id, chat.Title)
 			}
 		} else {
 			if chat_status.RequireGroup(bot, ctx, chat) {
@@ -208,13 +229,13 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if repliedMsg != nil {
 		replySender := repliedMsg.GetSender()
 		if replySender != nil {
-			if replySender.IsAnonymousChannel() {
+			if isChannelSender(replySender) {
 				sid, sname, susername := replySender.Id(), replySender.Name(), replySender.Username()
 				if shouldUpdateChannel(channelUpdateCache, sid, sname, susername, channelUpdateInterval) {
 					log.Debugf("Updating channel %d in db", sid)
 					spawnAsyncUpdate(func() { asyncUpdateChannel(sid, sname, susername) })
 				}
-			} else {
+			} else if replySender.Chat == nil {
 				sid, susername, sname := replySender.Id(), replySender.Username(), replySender.Name()
 				if shouldUpdateUser(userUpdateCache, sid, susername, sname, userUpdateInterval) {
 					log.Debugf("Updating user %d in db", sid)

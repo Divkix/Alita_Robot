@@ -9,11 +9,11 @@ description: Complete guide to Reports module commands and features
 We're all busy people who don't have time to monitor our groups 24/7. But how do you react if someone in your group is spamming?
 
 × /report `<reason>`: reply to a message to report it to admins.
-- @admin: same as /report but not a command.
+- @admin / @admins: same as /report but not a command.
 
 *Admins Only:*
 × /reports `<on/off/yes/no/true/false>`: change report setting, or view current status.
-- If done in PM, toggles your status.
+- If done in PM, toggles your status. This needs an active /connect to a group where both you and the bot are admins.
 - If in a group, toggles that group's status.
 × /reports `block` (via reply only): Block a user from using /report or @admin.
 × /reports `unblock` (via reply only): Unblock a user from using /report or @admin.
@@ -32,14 +32,14 @@ You MUST reply to a message to report a user; you can't just use @admin to tag a
 3. The notification includes action buttons for quick moderation
 
 **Admin Action Buttons:**
-- **📩 Message** - Link to the reported message
-- **👢 Kick** - Kick the reported user (they can rejoin)
-- **🚫 Ban** - Permanently ban the reported user
-- **🗑 Delete** - Delete the reported message
-- **✅ Resolved** - Mark the report as resolved without action
+- **➡ Message** - Link to the reported message
+- **⚠ Kick** - Kick the reported user (they can rejoin)
+- **⛔️ Ban** - Permanently ban the reported user
+- **❎ Delete Message** - Delete the reported message
+- **✔️ Mark Resolved** - Mark the report as resolved without action
 
 **Personal vs Group Settings:**
-- **In PM:** `/reports on/off` toggles whether YOU receive report notifications
+- **In PM:** `/reports on/off` toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
 - **In Group:** `/reports on/off` toggles whether reporting is enabled for that group
 
 

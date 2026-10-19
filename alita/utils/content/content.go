@@ -3,7 +3,9 @@ package content
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
@@ -12,6 +14,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
+
+// quotedFilterKeywordRegex splits `"several words" rest` into the quoted
+// trigger and what follows it.
+var quotedFilterKeywordRegex = regexp.MustCompile(`(?s)^"([^"]*)"(.*)$`)
 
 var notesDirectiveReplacer = strings.NewReplacer(
 	"{private}", "",
@@ -81,16 +87,43 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	setRawText(msg, args, &rawText)
 
 	if len(args) >= 2 && replyMsg == nil {
-		if len(args) > 0 {
+		// The keyword comes from the plain text, so matching is unchanged; the
+		// body comes from rawText, which keeps line breaks and formatting.
+		body, ok := "", true
+		if isFilter && strings.HasPrefix(args[0], `"`) {
+			// A filter trigger of several words is quoted: /filter "hello there" Hi!
+			body, ok = splitQuotedFilterKeyword(msg.Text, rawText, &result.KeyWord)
+		} else {
 			result.KeyWord = args[0]
-			if len(args) > 1 {
-				result.Text = strings.Join(args[1:], " ")
-			}
+			body = dropFirstToken(rawText)
 		}
-		result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(result.Text)
-		result.DataType = db.TEXT
+		if ok {
+			result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(body)
+			result.DataType = db.TEXT
+		}
 	} else if replyMsg != nil && len(args) >= 1 {
-		result.KeyWord = strings.Join(args, " ")
+		if isFilter {
+			// A filter trigger may be a phrase.
+			result.KeyWord = strings.Join(args, " ")
+			if m := quotedFilterKeywordRegex.FindStringSubmatch(result.KeyWord); m != nil {
+				if kw := strings.TrimSpace(m[1]); kw != "" {
+					result.KeyWord = kw
+				}
+			}
+		} else {
+			// #name and /get look a note up by its first word only.
+			result.KeyWord = args[0]
+		}
+		// The content is the replied message alone; setRawText would take it
+		// from the second argument on.
+		switch {
+		case replyMsg.Caption != "":
+			rawText = replyMsg.OriginalCaptionMDV2()
+		case replyMsg.Text != "":
+			rawText = replyMsg.OriginalMDV2()
+		default:
+			rawText = ""
+		}
 
 		if replyMsg.ReplyMarkup == nil {
 			result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
@@ -113,6 +146,39 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	}
 
 	return result
+}
+
+// splitQuotedFilterKeyword sets keyWord to the quoted trigger at the start of
+// the command arguments and returns the formatted body after it. It reports
+// false when the quote is unterminated or empty.
+func splitQuotedFilterKeyword(plainText, rawText string, keyWord *string) (string, bool) {
+	plain := quotedFilterKeywordRegex.FindStringSubmatch(dropFirstToken(plainText))
+	if plain == nil {
+		return "", false
+	}
+	kw := strings.TrimSpace(plain[1])
+	if kw == "" {
+		return "", false
+	}
+	*keyWord = kw
+	// MarkdownV2 does not escape '"', so the quotes line up in rawText unless
+	// formatting wraps the trigger; then fall back to the plain body.
+	body := plain[2]
+	if rich := quotedFilterKeywordRegex.FindStringSubmatch(strings.TrimLeftFunc(rawText, unicode.IsSpace)); rich != nil {
+		body = rich[2]
+	}
+	return strings.TrimLeftFunc(body, unicode.IsSpace), true
+}
+
+// dropFirstToken drops leading whitespace, the first whitespace-delimited
+// token, and the whitespace after it.
+func dropFirstToken(s string) string {
+	s = strings.TrimLeftFunc(s, unicode.IsSpace)
+	i := strings.IndexFunc(s, unicode.IsSpace)
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimLeftFunc(s[i:], unicode.IsSpace)
 }
 
 func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType int) {
@@ -143,11 +209,14 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	var result WelcomeResult
 	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
-	template, _ := tr.GetString("content_need_content")
-	if template == "" {
-		template = "You need to give me some content to %s users!"
+	needKey, needFallback := "content_need_welcome_content", "You need to give me some content to welcome users!"
+	if greetingType == "goodbye" {
+		needKey, needFallback = "content_need_goodbye_content", "You need to give me some content to say goodbye to users!"
 	}
-	result.ErrorMsg = fmt.Sprintf(template, greetingType)
+	result.ErrorMsg, _ = tr.GetString(needKey)
+	if result.ErrorMsg == "" {
+		result.ErrorMsg = needFallback
+	}
 	var (
 		rawText string
 		args    = strings.Fields(msg.Text)[1:]
@@ -242,15 +311,9 @@ func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 	replyMsg := msg.ReplyToMessage
 	if replyMsg == nil {
 		if msg.Text == "" && msg.Caption != "" {
-			parts := strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)
-			if len(parts) >= 2 {
-				*rawText = parts[1]
-			}
+			*rawText = dropFirstToken(msg.OriginalCaptionMDV2())
 		} else if msg.Text != "" && msg.Caption == "" {
-			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
-			if len(parts) >= 2 {
-				*rawText = parts[1]
-			}
+			*rawText = dropFirstToken(msg.OriginalMDV2())
 		}
 	} else {
 		if replyMsg.Text == "" && replyMsg.Caption != "" {

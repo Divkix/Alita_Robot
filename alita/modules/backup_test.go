@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -24,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/backup"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -432,6 +434,18 @@ func TestBuildExportCaption(t *testing.T) {
 	assert.Contains(t, caption, "filters")
 }
 
+func TestBuildExportCaptionEscapesChatName(t *testing.T) {
+	t.Parallel()
+
+	tr := testTranslator(t)
+	bkp := backup.NewBackupFormat(12345, "A<b>&C", 67890, []string{"notes"})
+	bkp.Data["notes"] = map[string]interface{}{"test": "data"}
+
+	caption := buildExportCaption(tr, bkp)
+	assert.Contains(t, caption, "A&lt;b&gt;&amp;C")
+	assert.NotContains(t, caption, "A<b>&C")
+}
+
 func TestBuildImportKeyboard(t *testing.T) {
 	t.Parallel()
 
@@ -672,7 +686,8 @@ func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
 	assert.Empty(t, client.callsFor("sendMessage"))
 }
 
-func TestExportHandlerFallsBackToTextWhenDocumentSendFails(t *testing.T) {
+func TestExportHandlerReportsFailureWhenDocumentSendFails(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	client.errors["sendDocument"] = fmt.Errorf("document upload failed")
 	bot := newModuleTestBot(client)
@@ -685,7 +700,41 @@ func TestExportHandlerFallsBackToTextWhenDocumentSendFails(t *testing.T) {
 	err := backupModule.exportHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
 	assert.Len(t, client.callsFor("sendDocument"), 1)
-	assert.Len(t, client.callsFor("sendMessage"), 1)
+	want, trErr := i18n.MustNewTranslator("en").GetString("backup_export_failed")
+	require.NoError(t, trErr)
+	assert.Equal(t, want, client.onlyCall(t, "sendMessage").Params["text"])
+}
+
+func TestExportAndResetListValidModulesForUnknownNames(t *testing.T) {
+	useRealLocales(t)
+	en := i18n.MustNewTranslator("en")
+	noModules, err := en.GetString("backup_export_no_modules")
+	require.NoError(t, err)
+	for _, tt := range []struct {
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{text: "/export bogus", run: backupModule.exportHandler},
+		{text: "/reset bogus", run: backupModule.resetHandler},
+	} {
+		t.Run(tt.text, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+			owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			t.Cleanup(func() { dropPendingReset(chat.Id) })
+
+			ctx := newModuleMessageContext(bot, chat, owner, tt.text)
+			require.Equal(t, ext.EndGroups, tt.run(bot, ctx))
+
+			text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+			assert.Contains(t, text, backup.BackupModuleNotes)
+			assert.NotEqual(t, noModules, text)
+			assert.Empty(t, client.callsFor("sendDocument"))
+			_, pending := peekPendingReset(chat.Id)
+			assert.False(t, pending)
+		})
+	}
 }
 
 func TestValidateImportRequestRejectsNonOwner(t *testing.T) {
@@ -852,6 +901,41 @@ func TestBackupCallbackHandlerRejectsInvalidCallbackData(t *testing.T) {
 	assert.Len(t, client.callsFor("answerCallbackQuery"), 4)
 }
 
+func TestBackupCallbackHandlerTellsNonOwnerWhichActionIsCreatorOnly(t *testing.T) {
+	useRealLocales(t)
+	en := i18n.MustNewTranslator("en")
+	for _, tt := range []struct {
+		action string
+		key    string
+	}{
+		{action: backupActionConfirmReset, key: "backup_reset_creator_only"},
+		{action: backupActionCancelReset, key: "backup_reset_creator_only"},
+		{action: backupActionConfirmImport, key: "backup_import_creator_only"},
+	} {
+		t.Run(tt.action, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+			member := gotgbot.User{Id: 42, FirstName: "Member"}
+			data := encodeCallbackData("backup", map[string]string{
+				"a": tt.action,
+				"c": strconv.FormatInt(chat.Id, 10),
+				"t": "token",
+			})
+
+			ctx := newModuleCallbackContext(bot, chat, member, data)
+			require.Equal(t, ext.EndGroups, backupModule.backupCallbackHandler(bot, ctx))
+
+			want, err := en.GetString(tt.key)
+			require.NoError(t, err)
+			require.NotEmpty(t, want)
+			call := client.onlyCall(t, "answerCallbackQuery")
+			assert.Equal(t, want, call.Params["text"])
+			assert.Equal(t, true, call.Params["show_alert"])
+		})
+	}
+}
+
 func TestBackupConfirmHandlersReportExpiredState(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -903,4 +987,83 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	assert.False(t, ok)
 
 	assert.Len(t, client.callsFor("answerCallbackQuery"), 2)
+}
+
+// /export and /import are admin commands and cannot be disabled. A chat that
+// disabled them on an older release still answers a non-admin with the
+// permission refusal instead of silently deleting the command.
+func TestBackupCommandsIgnoreStaleDisableRows(t *testing.T) {
+	for _, tt := range []struct {
+		cmd string
+		run func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{cmd: "export", run: backupModule.exportHandler},
+		{cmd: "import", run: backupModule.importHandler},
+	} {
+		t.Run(tt.cmd, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			require.NoError(t, disabling.DisableCMD(f.chat.Id, tt.cmd))
+			require.NoError(t, disabling.ToggleDel(f.chat.Id, true))
+
+			if err := tt.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/"+tt.cmd)); err != ext.EndGroups {
+				t.Fatalf("%s(member) error = %v, want EndGroups", tt.cmd, err)
+			}
+			if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want the permission refusal", len(calls))
+			}
+			if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+				t.Fatalf("deleteMessage calls = %d, want the command left in place", len(calls))
+			}
+		})
+	}
+}
+
+// The real locales fill the backup messages with %-verbs, while the fake one
+// above uses {names}; both styles must come out with every value in place.
+func TestBackupMessagesFillEveryLocale(t *testing.T) {
+	t.Parallel()
+
+	bkp := backup.NewBackupFormat(12345, "A<B", 67890, []string{"notes", "rules"})
+	bkp.Data["notes"] = map[string]interface{}{"test": "data"}
+	bkp.Data["rules"] = map[string]interface{}{"test": "data"}
+	bkp.ExportedAt = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	modules := []string{"notes", "rules"}
+
+	named := "backup_import_confirm: \"{modules} {list}\"\n" +
+		"backup_reset_confirm: \"{modules} {list}\"\n" +
+		"backup_import_success: \"{modules} {list}\"\n" +
+		"backup_reset_success: \"{modules} {list}\"\n" +
+		"backup_export_success: \"{chat} {modules} {time} {list}\"\n"
+	sources := map[string]string{"named": named}
+	for _, code := range localeCodes {
+		raw, err := os.ReadFile("../../locales/" + code + ".yml")
+		require.NoError(t, err)
+		sources[code] = string(raw)
+	}
+
+	for name, content := range sources {
+		tr, err := i18n.NewTestTranslator(content)
+		require.NoError(t, err, name)
+
+		outputs := map[string]string{"backup_export_success": buildExportCaption(tr, bkp)}
+		for key, params := range map[string]i18n.TranslationParams{
+			"backup_import_confirm": backupConfirmParams(modules),
+			"backup_reset_confirm":  backupConfirmParams(modules),
+			"backup_import_success": backupResultParams(modules),
+			"backup_reset_success":  backupResultParams(modules),
+		} {
+			outputs[key], _ = tr.GetString(key, params)
+		}
+
+		for key, text := range outputs {
+			for _, want := range []string{"2", "• notes\n• rules"} {
+				assert.Contains(t, text, want, "%s %s", name, key)
+			}
+			for _, bad := range []string{"%s", "%d", "%!", "{"} {
+				assert.NotContains(t, text, bad, "%s %s", name, key)
+			}
+		}
+		assert.Contains(t, outputs["backup_export_success"], "A&lt;B", name)
+		assert.Contains(t, outputs["backup_export_success"], "2026-01-02 03:04:05", name)
+	}
 }

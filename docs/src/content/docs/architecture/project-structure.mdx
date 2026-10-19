@@ -25,7 +25,7 @@ This document explains the directory structure of Alita Robot, helping developer
     - cache/ Cache key patterns, TTLs, and loader
       - keys.go CacheKey helper for consistent key formatting
       - ttl.go TTL constants
-      - loader.go GetFromCacheOrLoad with singleflight stampede protection
+      - loader.go GetFromCacheOrLoad with shared-load stampede protection
     - models/ GORM model definitions
     - migrations/ Migration runner
       - runner.go Custom SQL migration engine
@@ -75,7 +75,7 @@ This document explains the directory structure of Alita Robot, helping developer
     - devs.go Developer and sudo commands
     - misc.go Utility commands
     - admin.go Admin promotion and management
-    - bot_updates.go Bot join/leave event handler
+    - bot_updates.go Bot join handler, admin-cache refresh, anonymous-admin verification
     - rules_format.go HTML formatting for rules
     - connections_auth.go Connection auth helper
     - callback_codec.go Callback data encoding
@@ -89,6 +89,7 @@ This document explains the directory structure of Alita Robot, helping developer
       - cache.go Cache client setup
       - adminCache.go Admin cache operations
       - restrictedCache.go Restricted chat cache
+    - actionlog/ Moderation action entries sent to the chat's log channel
     - callbackcodec/ Versioned callback data encoding/decoding
     - chat_status/
       - access.go Public permission checks
@@ -111,6 +112,8 @@ This document explains the directory structure of Alita Robot, helping developer
       - server.go HTTP server
     - keyword_matcher/ Keyword matching utilities
       - matcher.go Pattern matching
+    - logredact/ Secret redaction for log output (register secrets with `logredact.RegisterSecret`)
+    - metrics/ Prometheus metric definitions
     - monitoring/ Activity and resource monitoring
       - activity_monitor.go Activity tracking
       - auto_remediation.go Auto-remediation
@@ -120,6 +123,7 @@ This document explains the directory structure of Alita Robot, helping developer
     - shutdown/ Graceful shutdown manager
       - graceful.go Graceful shutdown
     - tracing/ OpenTelemetry distributed tracing
+    - updatememo/ Values memoised for one update (backs the `*ForUpdate` predicates)
     - media/ Media sending utilities
       - sender.go Unified media sender
     - keyboard/ Keyboard building utilities
@@ -127,6 +131,9 @@ This document explains the directory structure of Alita Robot, helping developer
 - migrations/ **SQL migration files**
   - 20250805200527_initial_migration.sql
   - ...
+- internal/
+  - testdb/ SQLite test database harness (`testdb.Run`)
+- scripts/ Docs generator, translation checker, test-result gate, migrate_psql.sh, bump_version.sh, backup_database.sh
 - locales/ **Translation files**
   - en.yml English translations
   - es.yml Spanish translations
@@ -140,8 +147,8 @@ This document explains the directory structure of Alita Robot, helping developer
   - alpine.debug Debug variant Dockerfile
   - goreleaser GoReleaser configuration
   - pr-build PR build scripts
-- docs/ **Documentation site (Starlight)**
-  - astro.config.mjs Astro configuration
+- docs/ **Documentation site (Blume)**
+  - blume.config.ts Blume configuration
   - src/content/docs/ Documentation pages
   - ...
 </FileTree>
@@ -216,7 +223,7 @@ Application entry point handling:
 Module loading and initialization:
 - `LoadModules()` - Loads all feature modules in order
 - `ListModules()` - Returns list of loaded modules
-- `InitialChecks()` - Validates configuration and performs startup health checks
+- `InitialChecks()` - Ensures the bot's own user row exists in the database (`user.EnsureBotInDb`)
 
 ### `alita/config/config.go`
 
@@ -245,7 +252,7 @@ Modules are loaded in a specific order in `alita/main.go`:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
+    modules.ResetHelpRegistry()
     defer modules.LoadHelp(dispatcher)  // Help loaded LAST
 
     // Loads all modules registered via RegisterLegacyModule

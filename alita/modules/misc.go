@@ -115,16 +115,15 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	if chat_status.CheckDisabledCmd(b, msg, "id") {
+		return ext.EndGroups
+	}
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
 	}
 	var builder strings.Builder
 	builder.Grow(512)
-
-	if chat_status.CheckDisabledCmd(b, msg, "id") {
-		return ext.EndGroups
-	}
 
 	if userId != 0 {
 		if msg.ReplyToMessage != nil {
@@ -143,7 +142,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 				originalId := msg.ReplyToMessage.From.Id
 				_, user1Name, _ := extraction.GetUserInfo(originalId)
 				temp3, _ := tr.GetString("misc_user_id")
-				text = fmt.Sprintf(temp3, user1Name, originalId)
+				text = fmt.Sprintf(temp3, html.EscapeString(user1Name), originalId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
 			}
@@ -157,14 +156,14 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 							user1Id := fwdc.Id
 							_, user1Name, _ := extraction.GetUserInfo(user1Id)
 							temp4, _ := tr.GetString("misc_forwarded_from_user")
-							text = fmt.Sprintf(temp4, user1Name, user1Id)
+							text = fmt.Sprintf(temp4, html.EscapeString(user1Name), user1Id)
 							builder.WriteString(text)
 							builder.WriteString("\n")
 						}
 
 						if fwdc := fwdd.Chat; fwdc != nil {
 							temp5, _ := tr.GetString("misc_forwarded_from_chat")
-							text = fmt.Sprintf(temp5, fwdc.Title, fwdc.Id)
+							text = fmt.Sprintf(temp5, html.EscapeString(fwdc.Title), fwdc.Id)
 							builder.WriteString(text)
 							builder.WriteString("\n")
 						}
@@ -187,7 +186,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, name, _ := extraction.GetUserInfo(userId)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("misc_user_id_is")
-			text := fmt.Sprintf(temp, name, userId)
+			text := fmt.Sprintf(temp, html.EscapeString(name), userId)
 			builder.WriteString(text)
 		}
 	} else {
@@ -248,11 +247,9 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.WithError(getMeErr).Error("[Ping] Failed to call getMe")
 	}
 
+	resultTemplate, _ := tr.GetString("misc_ping_result")
 	text := fmt.Sprintf(
-		"🏓 <b>Pong!</b>\n\n"+
-			"<b>API RTT</b> (getMe): <code>%dms</code>\n"+
-			"<b>Send msg</b>: <code>%dms</code>\n"+
-			"<b>Overhead</b>: <code>%dms</code>",
+		resultTemplate,
 		getMeLatency.Milliseconds(),
 		sendLatency.Milliseconds(),
 		(sendLatency - getMeLatency).Milliseconds(),
@@ -279,6 +276,9 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
+	if chat_status.CheckDisabledCmd(b, msg, "info") {
+		return ext.EndGroups
+	}
 	userId := extraction.ExtractUser(b, ctx)
 	switch userId {
 	case -1:
@@ -288,10 +288,6 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 		userId = sender.Id()
-	}
-
-	if chat_status.CheckDisabledCmd(b, msg, "info") {
-		return ext.EndGroups
 	}
 
 	username, name, found := extraction.GetUserInfo(userId)
@@ -432,8 +428,10 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	textTemplate, _ := tr.GetString("misc_translate_result")
-	text := fmt.Sprintf(textTemplate, detectedLang, translatedText)
-	_, _ = msg.Reply(b, text, formatting.Shtml())
+	text := fmt.Sprintf(textTemplate, html.EscapeString(detectedLang), html.EscapeString(translatedText))
+	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
+		log.WithError(err).Warn("[Misc] failed to send translation")
+	}
 	return ext.EndGroups
 }
 

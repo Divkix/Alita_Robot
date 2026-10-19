@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"slices"
 	"strings"
 
@@ -400,7 +401,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 		if pinprefs.AntiChannelPin {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_antichannelpin_current_enabled")
-			text := fmt.Sprintf(temp, chat.Title)
+			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -409,7 +410,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_antichannelpin_current_disabled")
-			text := fmt.Sprintf(temp, chat.Title)
+			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -476,7 +477,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 		if pinprefs.CleanLinked {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_cleanlinked_current_enabled")
-			text := fmt.Sprintf(temp, chat.Title)
+			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -485,7 +486,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_cleanlinked_current_disabled")
-			text := fmt.Sprintf(temp, chat.Title)
+			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)

@@ -36,15 +36,12 @@ func setlogPendingKey(channelID, messageID int64) string {
 func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	from := requireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
-	tr := ctxTr(ctx)
 	if chat == nil || msg == nil {
 		return ext.EndGroups
 	}
+	tr := ctxTr(ctx)
 	if chat.Type == "channel" {
+		// Channel posts have no user sender; only channel admins can post here.
 		m := cache.GetMarshal()
 		if m == nil {
 			text, _ := tr.GetString("common_settings_save_failed")
@@ -64,6 +61,14 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, _ := tr.GetString("logs_forward_to_group")
 		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	// A forwarded /setlog post is the bind step; let the group-11 watcher
+	// (captureSetLogForward) handle it instead of answering logs_need_channel.
+	if msg.ForwardOrigin != nil {
+		return ext.ContinueGroups
+	}
+	if requireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_need_channel")
@@ -88,6 +93,9 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
+	// Read the settings first: Unset deletes them, and the change is logged
+	// to the channel that was just unset.
+	prev := logchannels.Get(chat.Id)
 	if err := logchannels.Unset(chat.Id); err != nil {
 		text, _ := tr.GetString("logs_not_set")
 		replyHTML(b, msg, text)
@@ -95,7 +103,7 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	text, _ := tr.GetString("logs_unset_ok")
 	replyHTML(b, msg, text)
-	actionlog.Settings(b, chat, from, "unset log channel")
+	actionlog.SettingsTo(b, chat, prev, from, "unset log channel")
 	return ext.EndGroups
 }
 
@@ -216,12 +224,20 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 	if msg.ForwardOrigin == nil {
 		return ext.ContinueGroups
 	}
+	// Telegram copies every post of a channel into its linked discussion
+	// group on its own; a /setlog posted there arrives as such a copy, and no
+	// group admin sent it.
+	if msg.IsAutomaticForward {
+		return ext.ContinueGroups
+	}
 	origin := msg.ForwardOrigin.MergeMessageOrigin()
 	if origin.Chat == nil || origin.Chat.Type != "channel" {
 		return ext.ContinueGroups
 	}
 	from := chat_status.RequireUser(b, ctx)
-	if from == nil {
+	// 777000 is Telegram's own account, which the admin checks count as an
+	// admin; it must not stand in for a group admin binding the channel.
+	if from == nil || from.Id == 777000 {
 		return ext.ContinueGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
@@ -261,7 +277,8 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(logChannelsModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("setlog", logChannelsModule.setLog))
+	// Channel posts must reach /setlog: posting it in the channel starts the bind.
+	dispatcher.AddHandler(handlers.NewCommand("setlog", logChannelsModule.setLog).SetAllowChannel(true))
 	dispatcher.AddHandler(handlers.NewCommand("unsetlog", logChannelsModule.unsetLog))
 	dispatcher.AddHandler(handlers.NewCommand("logchannel", logChannelsModule.logChannel))
 	dispatcher.AddHandler(handlers.NewCommand("logcategories", logChannelsModule.logCategories))

@@ -43,6 +43,7 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 				chat.Id,
 				fmt.Sprint(
 					text,
+					"\n\n",
 					convertInstr,
 					convertHowto,
 					"https://telegra.ph/Convert-group-to-Supergroup-07-29",
@@ -251,7 +252,7 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 			},
 			botJoinedGroup,
 		),
-		-1, // process before all other handlers
+		-1, // process before the default command group (after the group -2 admin-cache refresh)
 	)
 
 	dispatcher.AddHandler(

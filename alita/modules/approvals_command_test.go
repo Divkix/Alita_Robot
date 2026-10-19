@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -107,15 +108,32 @@ func TestApprovalCommandsHandleMissingAndDuplicateUsers(t *testing.T) {
 	if got := len(approvals.GetApprovedUsers(chat.Id)); got != 1 {
 		t.Fatalf("approved users after duplicate = %d, want 1", got)
 	}
+	assertLastReplyNamesUser(t, f.client, 42)
 
 	notApprovedCtx := newModuleMessageContext(bot, chat, admin, "/unapprove 43")
 	if err := approvalsModule.unapproveUser(bot, notApprovedCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveUser missing approval error = %v, want EndGroups", err)
 	}
+	assertLastReplyNamesUser(t, f.client, 43)
 
 	statusMissingCtx := newModuleMessageContext(bot, chat, admin, "/approval 43")
 	if err := approvalsModule.checkApprovalStatus(bot, statusMissingCtx); err != ext.EndGroups {
 		t.Fatalf("checkApprovalStatus missing approval error = %v, want EndGroups", err)
+	}
+}
+
+// assertLastReplyNamesUser fails unless the last reply links to userID with
+// visible link text, so the user it is about is actually named.
+func assertLastReplyNamesUser(t *testing.T, client *moduleBotClient, userID int64) {
+	t.Helper()
+	calls := client.callsFor("sendMessage")
+	if len(calls) == 0 {
+		t.Fatal("no reply sent")
+	}
+	text := fmt.Sprint(calls[len(calls)-1].Params["text"])
+	link := fmt.Sprintf(`<a href="tg://user?id=%d">`, userID)
+	if !strings.Contains(text, link) || strings.Contains(text, link+"</a>") {
+		t.Fatalf("reply %q does not name user %d", text, userID)
 	}
 }
 
@@ -142,7 +160,7 @@ func TestApprovedListHandlesEmptyAndLargeLists(t *testing.T) {
 	if err := approvalsModule.listApprovedUsers(bot, largeCtx); err != ext.EndGroups {
 		t.Fatalf("listApprovedUsers large error = %v, want EndGroups", err)
 	}
-	assertParams(t, client.onlyCall(t, "sendDocument"), map[string]any{"chat_id": chat.Id})
+	assertParams(t, client.onlyCall(t, "sendDocument"), map[string]any{"chat_id": chat.Id, "parse_mode": "HTML"})
 }
 
 func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
@@ -368,6 +386,43 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			err := approvalsModule.unapproveAllCallback(bot, ctx)
 			if !errors.Is(err, requestErr) {
 				t.Fatalf("unapproveAllCallback() error = %v, want request error", err)
+			}
+		})
+	}
+}
+
+// The approve and status templates keep their last %s for the reason, so the
+// replies must fill it, with or without one.
+func TestApprovalRepliesFillTheReasonSlot(t *testing.T) {
+	useRealLocales(t)
+	for _, tt := range []struct {
+		name   string
+		args   string
+		reason string
+	}{
+		{name: "with reason", args: "42 trusted <ok>", reason: "trusted &lt;ok&gt;"},
+		{name: "without reason", args: "42"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := approvalsModule.approveUser(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/approve "+tt.args)); err != ext.EndGroups {
+				t.Fatalf("approveUser error = %v, want EndGroups", err)
+			}
+			if err := approvalsModule.checkApprovalStatus(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/approval 42")); err != ext.EndGroups {
+				t.Fatalf("checkApprovalStatus error = %v, want EndGroups", err)
+			}
+			calls := f.client.callsFor("sendMessage")
+			if len(calls) != 2 {
+				t.Fatalf("sendMessage calls = %d, want the approve and status replies", len(calls))
+			}
+			for i, call := range calls {
+				text, _ := call.Params["text"].(string)
+				if strings.Contains(text, "%!") {
+					t.Fatalf("reply %d = %q, want every verb filled", i, text)
+				}
+				if tt.reason != "" && !strings.Contains(text, tt.reason) {
+					t.Fatalf("reply %d = %q, want the reason %q", i, text, tt.reason)
+				}
 			}
 		})
 	}

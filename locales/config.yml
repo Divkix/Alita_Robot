@@ -1,8 +1,19 @@
 ---
 #stringcode: string
-db_default_welcome: "Hey {first}, how are you?"
-db_default_goodbye: "Sad to see you leaving {first}"
-db_warn_no_reason: "No Reason"
+# Sample calls shown under a command's help when it is called wrongly
+# (commandHelpModules). Commands are the same in every language.
+ban_example: "/ban @username spam"
+sban_example: "/sban @username"
+tban_example: "/tban @username 1d spam"
+unban_example: "/unban @username"
+kick_example: "/kick @username"
+skick_example: "/skick @username"
+restrict_example: "/restrict @username"
+unrestrict_example: "/unrestrict @username"
+mute_example: "/mute @username"
+smute_example: "/smute @username"
+tmute_example: "/tmute @username 30m"
+unmute_example: "/unmute @username"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]

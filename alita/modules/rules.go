@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"unicode"
 
 	log "github.com/sirupsen/logrus"
 
@@ -24,6 +25,24 @@ import (
 var rulesModule = moduleStruct{
 	moduleName:      "Rules",
 	defaultRulesBtn: "Rules",
+}
+
+// textAfterCommand returns the text after the command token, split at the first
+// whitespace of any kind (as gotgbot does), with leading whitespace trimmed.
+func textAfterCommand(s string) string {
+	i := strings.IndexFunc(s, unicode.IsSpace)
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimLeftFunc(s[i:], unicode.IsSpace)
+}
+
+// defaultRulesButtonText returns the localized default rules-button label.
+func (m moduleStruct) defaultRulesButtonText(tr *i18n.Translator) string {
+	if text, _ := tr.GetString("button_rules_default"); text != "" {
+		return text
+	}
+	return m.defaultRulesBtn
 }
 
 //nolint:dupl // clearRules has similar structure to resetRulesBtn
@@ -126,13 +145,13 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	rules := rules.GetChatRulesInfo(chat.Id)
 	rulesBtn = rules.RulesBtn
 	if rulesBtn == "" {
-		rulesBtn = m.defaultRulesBtn
+		rulesBtn = m.defaultRulesButtonText(tr)
 	}
 	normalizedRules := normalizeRulesForHTML(rules.Rules)
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if normalizedRules != "" {
 		temp, _ := tr.GetString("rules_for_chat_header")
 		Text += fmt.Sprintf(temp, html.EscapeString(chat.Title)) + "\n\n"
@@ -180,35 +199,23 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	args := ctx.Args()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	var text string
-
-	if len(args) == 1 && msg.ReplyToMessage == nil {
+	var text, rulesText string
+	// A reply to the topic-creation service message is Telegram's implicit
+	// reply in forum topics, not a user's choice of rules source.
+	if reply := msg.ReplyToMessage; reply != nil && reply.ForumTopicCreated == nil {
+		rulesText = reply.OriginalTextMDV2() // text, or caption for media
+	}
+	if strings.TrimSpace(rulesText) == "" {
+		rulesText = textAfterCommand(msg.OriginalMDV2())
+	}
+	if strings.TrimSpace(rulesText) == "" {
 		text, _ = tr.GetString("rules_need_text")
+	} else if err := rules.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(rulesText)); err != nil {
+		log.Errorf("[Rules] Failed to set rules for chat %d: %v", chat.Id, err)
+		text, _ = tr.GetString("common_settings_save_failed")
 	} else {
-		if msg.ReplyToMessage != nil {
-			text = msg.ReplyToMessage.OriginalMDV2()
-		} else {
-			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
-			if len(parts) >= 2 {
-				text = parts[1]
-			} else {
-				text, _ = tr.GetString("rules_need_text")
-				_, err := msg.Reply(bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return ext.EndGroups
-			}
-		}
-		if err := rules.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text)); err != nil {
-			log.Errorf("[Rules] Failed to set rules for chat %d: %v", chat.Id, err)
-			text, _ = tr.GetString("common_settings_save_failed")
-		} else {
-			text, _ = tr.GetString("rules_set_successfully")
-		}
+		text, _ = tr.GetString("rules_set_successfully")
 	}
 
 	_, err := msg.Reply(bot, text, formatting.Shtml())
@@ -257,10 +264,13 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 		customRulesBtn := rules.GetChatRulesInfo(chat.Id).RulesBtn
 		if customRulesBtn == "" {
 			temp4, _ := tr.GetString("rules_button_not_set")
-			text = fmt.Sprintf(temp4, m.defaultRulesBtn)
+			// The button is drawn in the group, so its label follows the
+			// group's language even when /rulesbtn runs from a connected PM.
+			groupTr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
+			text = fmt.Sprintf(temp4, html.EscapeString(m.defaultRulesButtonText(groupTr)))
 		} else {
 			temp5, _ := tr.GetString("rules_button_current")
-			text = fmt.Sprintf(temp5, customRulesBtn)
+			text = fmt.Sprintf(temp5, html.EscapeString(customRulesBtn))
 		}
 	}
 

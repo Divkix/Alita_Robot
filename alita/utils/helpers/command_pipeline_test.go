@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -17,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
@@ -346,6 +349,70 @@ func TestCheckFuncFalseBranches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.check(tc.c); got != false {
 				t.Fatalf("%s returned %v, want false", tc.name, got)
+			}
+		})
+	}
+}
+
+// sentTextsClient records the text of every sendMessage on top of cpBotClient.
+type sentTextsClient struct {
+	cpBotClient
+	mu    sync.Mutex
+	texts []string
+}
+
+func (c *sentTextsClient) RequestWithContext(ctx context.Context, token string, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "sendMessage" {
+		c.mu.Lock()
+		c.texts = append(c.texts, fmt.Sprint(params["text"]))
+		c.mu.Unlock()
+	}
+	return c.cpBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// CanInvite fails both when the bot and when the user lacks invite rights,
+// and the reply must name the one that does.
+func TestCanInviteBlamesWhoeverLacksTheRight(t *testing.T) {
+	raw, err := os.ReadFile("../../../locales/en.yml")
+	if err != nil {
+		t.Fatalf("read en.yml: %v", err)
+	}
+	restore, err := i18n.OverrideManagerForTest(string(raw))
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest: %v", err)
+	}
+	t.Cleanup(restore)
+	tr := i18n.MustNewTranslator("en")
+
+	for _, tt := range []struct {
+		name    string
+		botID   int64
+		wantKey string
+	}{
+		{name: "user lacks invite rights", botID: 999, wantKey: "chat_status_invite_link_user_error"},
+		{name: "bot lacks invite rights", botID: 998, wantKey: "chat_status_invite_link_bot_error"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &sentTextsClient{}
+			bot := &gotgbot.Bot{Token: fmt.Sprintf("%d:test", tt.botID), BotClient: client, User: gotgbot.User{Id: tt.botID, IsBot: true, FirstName: "Bot"}}
+			// A private (no username) supergroup and a plain member.
+			msg := &gotgbot.Message{
+				MessageId: 1,
+				Date:      1,
+				Chat:      gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Test Chat"},
+				From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+			}
+			ctx := ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+
+			if CanInvite()(&CommandContext{Bot: bot, Ctx: ctx, Msg: msg}) {
+				t.Fatal("CanInvite() = true, want false")
+			}
+			want, _ := tr.GetString(tt.wantKey)
+			if want == "" {
+				t.Fatalf("en locale has no %s", tt.wantKey)
+			}
+			if len(client.texts) != 1 || client.texts[0] != want {
+				t.Fatalf("replies = %q, want only %q", client.texts, want)
 			}
 		})
 	}

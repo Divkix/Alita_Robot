@@ -32,7 +32,7 @@ Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redi
     git clone https://github.com/divkix/Alita_Robot.git
     cd Alita_Robot
     cp sample.env .env
-    # Edit .env with your configuration
+    # Set BOT_TOKEN, OWNER_ID, MESSAGE_DUMP, WEBHOOK_DOMAIN, WEBHOOK_SECRET in .env
     docker compose up -d
     ```
   </Card>
@@ -41,7 +41,7 @@ Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redi
 
     - Linux (amd64, arm64)
     - macOS (amd64, arm64)
-    - Windows (amd64)
+    - Windows (amd64, arm64)
   </Card>
   <Card title="Build from Source" href="/self-hosting/source/" icon="settings">
     Compile the bot yourself for development or customization:
@@ -65,7 +65,7 @@ MESSAGE_DUMP=-100xxxxxxxxxx  # Log channel ID
 DATABASE_URL=postgresql://alita:change-me@localhost:5432/alita
 ```
 
-Redis itself is also required at runtime. No Redis endpoint variable is needed
+Redis itself is also required at runtime (only `DISABLE_CACHE=true`, a load-testing mode, starts without it, with Redis-backed features degraded). No Redis endpoint variable is needed
 when it is available at the default `localhost:6379`; otherwise set either
 `REDIS_ADDRESS=host:port` or a full `REDIS_URL`.
 
@@ -105,8 +105,8 @@ make psql-migrate
 Built-in observability endpoints:
 
 - `GET /health` - Health check with DB/Redis status
-- `GET /metrics` - Prometheus metrics
-- `GET /db_metrics` - Database performance metrics
+- `GET /metrics` - Prometheus metrics (bearer-protected when `METRICS_AUTH_TOKEN` is set)
+- `GET /db_metrics` - Database performance metrics (bearer-protected when `METRICS_AUTH_TOKEN` is set)
 
 <Card title="Monitoring Guide" href="/self-hosting/monitoring/" icon="activity">
   Health checks, Prometheus metrics, and resource monitoring.

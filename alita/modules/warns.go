@@ -120,7 +120,7 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			temp, _ := tr.GetString("warns_mode_unknown")
-			replyText = fmt.Sprintf(temp, args[0])
+			replyText = fmt.Sprintf(temp, html.EscapeString(args[0]))
 		}
 	} else {
 		replyText, _ = tr.GetString("warns_specify_action")
@@ -748,7 +748,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 		num, err := strconv.Atoi(args[0])
 		if err != nil {
 			temp, _ := tr.GetString("warns_invalid_number")
-			replyText = fmt.Sprintf(temp, args[0])
+			replyText = fmt.Sprintf(temp, html.EscapeString(args[0]))
 		} else {
 			if num < 1 || num > 100 {
 				replyText, _ = tr.GetString("warns_limit_range_error")
@@ -756,7 +756,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 				if err := warns.SetWarnLimit(chat.Id, num); err != nil {
 					log.Errorf("[Warns] SetWarnLimit failed for chat %d: %v", chat.Id, err)
 					errText, _ := tr.GetString("common_settings_save_failed")
-					_, _ = msg.Reply(b, errText, formatting.Smarkdown())
+					_, _ = msg.Reply(b, errText, formatting.Shtml())
 					return ext.EndGroups
 				}
 				temp, _ := tr.GetString("warns_limit_updated")
@@ -765,7 +765,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(b, replyText, formatting.Smarkdown())
+	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -1045,8 +1045,8 @@ func adminBotUserChecks(cmd string) []helpers.CheckFunc {
 
 func initWarnDescs() {
 	warnDesc.RequiredChecks = restrictChecks("warn")
-	swarnDesc.RequiredChecks = restrictChecks("swarn")
-	dwarnDesc.RequiredChecks = restrictChecks("dwarn")
+	swarnDesc.RequiredChecks = deleteRestrictChecks("swarn")
+	dwarnDesc.RequiredChecks = deleteRestrictChecks("dwarn")
 	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns")
 	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn")
 	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns")}

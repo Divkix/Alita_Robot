@@ -99,12 +99,20 @@ Besides the Go runtime metrics, the bot exports:
 | `alita_update_duration_seconds` | histogram | none | Time to process one update |
 | `alita_redis_commands_total` | counter | `command` | Redis commands sent (`get`, `set`, `del`, ...) |
 | `alita_db_queries_total` | counter | `operation` | Database statements (`query`, `create`, `update`, `delete`, `row`, `raw`) |
+| `alita_cache_local_hits_total` | counter | none | Read-through cache lookups served by the in-process layer (`CACHE_LOCAL_TTL`) |
+| `alita_cache_local_misses_total` | counter | none | Read-through cache lookups that missed the in-process layer and fell through to Redis |
 
 Per-update cost:
 
 ```promql
 sum(rate(alita_redis_commands_total[5m])) / rate(alita_updates_processed_total[5m])
 sum(rate(alita_db_queries_total[5m])) / rate(alita_updates_processed_total[5m])
+```
+
+In-process cache hit ratio:
+
+```promql
+rate(alita_cache_local_hits_total[5m]) / (rate(alita_cache_local_hits_total[5m]) + rate(alita_cache_local_misses_total[5m]))
 ```
 
 ### Prometheus Scrape Configuration
@@ -119,7 +127,15 @@ scrape_configs:
     scrape_interval: 15s
     scrape_timeout: 10s
     metrics_path: /metrics
+    # Required when METRICS_AUTH_TOKEN is set
+    authorization:
+      type: Bearer
+      credentials: <METRICS_AUTH_TOKEN value>   # or credentials_file: /etc/prometheus/alita_token
 ```
+
+### Authentication
+
+When `METRICS_AUTH_TOKEN` is set, `/metrics` and `/db_metrics` return `401 Unauthorized` unless the request sends `Authorization: Bearer <token>`. When it is empty, both endpoints are open and the bot logs a warning at startup. See [METRICS_AUTH_TOKEN](/api-reference/environment/#metrics_auth_token).
 
 ### Docker Compose with Prometheus
 
@@ -199,11 +215,11 @@ Track group activity automatically:
 
 ```bash
 # Days of inactivity before marking chat as inactive
-# Default: 30, Range: 1-365
+# Default: 30, recommended 1-365 (not enforced)
 INACTIVITY_THRESHOLD_DAYS=30
 
 # Hours between automatic activity checks
-# Default: 1, Range: 1-24
+# Default: 1, recommended 1-24 (not enforced)
 ACTIVITY_CHECK_INTERVAL=1
 
 # Enable automatic cleanup of inactive chats
@@ -256,19 +272,23 @@ The `/db_metrics` endpoint exposes real-time database connection pool statistics
 GET /db_metrics
 ```
 
+When `METRICS_AUTH_TOKEN` is set, send the same bearer header: `curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" http://localhost:8080/db_metrics`.
+
 ### Response Format
 
 ```json
 {
-  "open_connections": 12,
+  "open_connections": 45,
   "idle": 38,
   "in_use": 7,
   "wait_count": 0,
-  "wait_duration": "0s",
+  "wait_duration": 0,
   "max_idle_closed": 0,
   "max_lifetime_closed": 0
 }
 ```
+
+`wait_duration` is the total time spent waiting for a connection, in nanoseconds.
 
 The endpoint is always registered. It queries the underlying `*sql.DB` connection pool
 stats via `db.Stats()`.
@@ -281,18 +301,16 @@ logs pool health metrics.
 ### Configuration
 
 ```bash
-# Enable background database monitoring (logs pool stats every minute)
+# Enable background database monitoring (logs pool stats every minute at debug level; needs DEBUG=true to show)
 # Controls the background goroutine, NOT the /db_metrics endpoint registration
 ENABLE_DB_MONITORING=true
 ```
 
-When enabled, the monitoring goroutine logs pool stats at one-minute intervals:
+When enabled, the monitoring goroutine logs pool stats every minute at **debug** level, so the line appears only when `DEBUG=true`. With `DEBUG=false` the goroutine still runs, but only its start and stop messages are logged; use `/db_metrics` to read the stats in production.
 
 ```
-[DB] Pool stats - Open: 50, Idle: 38, InUse: 12, WaitCount: 0
+[DBMonitoring] Connections: 12 open, 7 in-use, 5 idle | Wait: 0 calls, 0s total | Closed: 0 (max idle), 0 (max lifetime)
 ```
-
-If `InUse` exceeds 80% of `MaxOpen`, a warning is logged to signal potential pool exhaustion.
 
 ## Debug Mode
 

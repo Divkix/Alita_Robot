@@ -72,8 +72,12 @@ func makeLanguageKeyboard(groupID int64) [][]gotgbot.InlineKeyboardButton {
 	return slices.Collect(slices.Chunk(kb, 2))
 }
 
-func InitButtons(b *gotgbot.Bot, chatId, userId int64) gotgbot.InlineKeyboardMarkup {
-	tr := i18n.MustNewTranslator("en")
+// InitButtons builds the connection keyboard with labels from tr, the
+// translator of the chat the reply goes to; a nil tr falls back to English.
+func InitButtons(b *gotgbot.Bot, tr *i18n.Translator, chatId, userId int64) gotgbot.InlineKeyboardMarkup {
+	if tr == nil {
+		tr = i18n.MustNewTranslator("en")
+	}
 	adminText, _ := tr.GetString("helpers_admin_commands")
 	if adminText == "" {
 		adminText = "Admin commands"

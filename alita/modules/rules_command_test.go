@@ -8,7 +8,10 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func uniqueModuleChatID() int64 {
@@ -206,5 +209,172 @@ func TestClearRulesRemovesStoredRules(t *testing.T) {
 	}
 	if got := rules.GetChatRulesInfo(chatID).Rules; got != "" {
 		t.Fatalf("Rules = %q, want cleared", got)
+	}
+}
+
+func TestDefaultRulesButtonFollowsGroupLanguage(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	if err := lang.ChangeGroupLanguage(f.chat.Id, "es"); err != nil {
+		t.Fatalf("ChangeGroupLanguage() error = %v", err)
+	}
+	if err := rules.SetChatRules(f.chat.Id, "Read before posting"); err != nil {
+		t.Fatalf("SetChatRules() error = %v", err)
+	}
+	if err := rules.SetPrivateRules(f.chat.Id, true); err != nil {
+		t.Fatalf("SetPrivateRules() error = %v", err)
+	}
+
+	rulesCtx := newModuleMessageContext(f.bot, f.chat, f.member, "/rules")
+	if err := rulesModule.sendRules(f.bot, rulesCtx); err != ext.EndGroups {
+		t.Fatalf("sendRules() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	replyMarkup, ok := calls[0].Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok {
+		t.Fatalf("reply_markup = %#v, want InlineKeyboardMarkup", calls[0].Params["reply_markup"])
+	}
+	if got := replyMarkup.InlineKeyboard[0][0].Text; got != "Reglas" {
+		t.Fatalf("rules button text = %q, want the Spanish default", got)
+	}
+
+	btnCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/rulesbtn")
+	if err := rulesModule.rulesBtn(f.bot, btnCtx); err != ext.EndGroups {
+		t.Fatalf("rulesBtn() error = %v, want EndGroups", err)
+	}
+	calls = f.client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want 2", len(calls))
+	}
+	if text, _ := calls[1].Params["text"].(string); !strings.Contains(text, "Reglas") {
+		t.Fatalf("rulesbtn reply = %q, want the Spanish default label", text)
+	}
+}
+
+func TestRulesButtonEscapesStoredCustomText(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := rules.SetChatRulesButton(f.chat.Id, "<Read me>"); err != nil {
+		t.Fatalf("SetChatRulesButton() error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/rulesbtn")
+	if err := rulesModule.rulesBtn(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("rulesBtn() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	if text, _ := calls[0].Params["text"].(string); !strings.Contains(text, "&lt;Read me&gt;") {
+		t.Fatalf("rulesbtn reply = %q, want the stored text HTML-escaped", text)
+	}
+}
+
+func TestSetRulesSplitsCommandAtAnyWhitespace(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		text string
+		want []string
+	}{
+		{name: "rules on following lines", text: "/setrules\nRule one\nRule two", want: []string{"Rule one", "Rule two"}},
+		{name: "single word on next line", text: "/setrules\nNoSpaces", want: []string{"NoSpaces"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tt.text)
+			if err := rulesModule.setRules(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("setRules() error = %v, want EndGroups", err)
+			}
+			got := rules.GetChatRulesInfo(f.chat.Id).Rules
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Fatalf("stored rules = %q, want it to contain %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestSetRulesReadsReplyCaptionAndFallsBackToCommandText(t *testing.T) {
+	useRealLocales(t)
+	tr := i18n.MustNewTranslator("en")
+	needText, _ := tr.GetString("rules_need_text")
+	if needText == "" {
+		t.Fatal("rules_need_text missing from en locale")
+	}
+
+	for _, tt := range []struct {
+		name      string
+		command   string
+		reply     gotgbot.Message
+		existing  string
+		wantRules string
+		wantReply string
+	}{
+		{
+			name:      "reply to captioned media",
+			command:   "/setrules",
+			reply:     gotgbot.Message{Caption: "Caption rules", Photo: []gotgbot.PhotoSize{{FileId: "p"}}},
+			wantRules: "Caption rules",
+		},
+		{
+			name:      "reply to text-less message keeps rules",
+			command:   "/setrules",
+			reply:     gotgbot.Message{Sticker: &gotgbot.Sticker{FileId: "s"}},
+			existing:  "existing rules",
+			wantRules: "existing rules",
+			wantReply: needText,
+		},
+		{
+			name:      "reply to text-less message with command text",
+			command:   "/setrules foo",
+			reply:     gotgbot.Message{Sticker: &gotgbot.Sticker{FileId: "s"}},
+			wantRules: "foo",
+		},
+		{
+			name:      "implicit forum topic reply",
+			command:   "/setrules foo",
+			reply:     gotgbot.Message{ForumTopicCreated: &gotgbot.ForumTopicCreated{Name: "Topic"}},
+			wantRules: "foo",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if tt.existing != "" {
+				if err := rules.SetChatRules(f.chat.Id, tt.existing); err != nil {
+					t.Fatalf("SetChatRules() error = %v", err)
+				}
+			}
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tt.command)
+			reply := tt.reply
+			reply.MessageId = 505
+			reply.Date = 1
+			reply.Chat = f.chat
+			reply.From = &f.member
+			if reply.ForumTopicCreated != nil {
+				ctx.EffectiveMessage.IsTopicMessage = true
+				ctx.EffectiveMessage.MessageThreadId = reply.MessageId
+			}
+			ctx.EffectiveMessage.ReplyToMessage = &reply
+
+			if err := rulesModule.setRules(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("setRules() error = %v, want EndGroups", err)
+			}
+			if got := rules.GetChatRulesInfo(f.chat.Id).Rules; !strings.Contains(got, tt.wantRules) {
+				t.Fatalf("stored rules = %q, want it to contain %q", got, tt.wantRules)
+			}
+			if tt.wantReply != "" {
+				calls := f.client.callsFor("sendMessage")
+				if len(calls) != 1 {
+					t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+				}
+				if got, _ := calls[0].Params["text"].(string); got != tt.wantReply {
+					t.Fatalf("reply = %q, want %q", got, tt.wantReply)
+				}
+			}
+		})
 	}
 }

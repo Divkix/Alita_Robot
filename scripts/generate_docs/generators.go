@@ -339,9 +339,22 @@ func generatePermissionsSection(module Module) string {
 
 	// Determine permission level based on module name
 	adminModules := map[string]bool{
-		"admin": true, "bans": true, "locks": true, "muting": true,
-		"purges": true, "warnings": true, "antiflood": true,
-		"federations": true, "logchannels": true,
+		"admin": true, "bans": true, "locks": true, "mutes": true,
+		"purges": true, "warns": true, "antiflood": true,
+	}
+
+	if module.Name == "federations" {
+		content.WriteString("Most commands are limited to the federation owner or federation admins, not group admins. `/joinfed` and `/leavefed` require the group **creator**, and `/quietfed` requires a group admin. `/newfed` (in PM), `/fedinfo`, `/fedadmins`, `/chatfed`, `/myfeds` and `/fedstat` are open to everyone.\n\n")
+		content.WriteString("**Bot Permissions Required:**\n\n")
+		content.WriteString("- Ban users (to enforce and lift federation bans)\n")
+		return content.String()
+	}
+
+	if module.Name == "logchannels" {
+		content.WriteString("`/setlog` is posted in the log channel by one of its admins, then that post is forwarded to the group by a group admin. `/unsetlog`, `/log` and `/nolog` require a group admin. `/logchannel` and `/logcategories` are open to everyone.\n\n")
+		content.WriteString("**Bot Permissions Required:**\n\n")
+		content.WriteString("- Admin in the log channel with permission to post messages (to receive `/setlog` and send the logs)\n")
+		return content.String()
 	}
 
 	if adminModules[module.Name] {
@@ -366,20 +379,20 @@ func getModuleEmoji(moduleName string) string {
 		"admin":       "👑",
 		"bans":        "🔨",
 		"locks":       "🔒",
-		"muting":      "🔇",
+		"mutes":       "🔇",
 		"purges":      "🧹",
-		"warnings":    "⚠️",
+		"warns":       "⚠️",
 		"filters":     "🔍",
 		"notes":       "📝",
 		"rules":       "📋",
 		"greetings":   "👋",
-		"reporting":   "📢",
-		"language":    "🌐",
+		"reports":     "📢",
+		"languages":   "🌐",
 		"antiflood":   "🌊",
-		"blacklist":   "🚫",
-		"approval":    "✅",
+		"blacklists":  "🚫",
+		"approvals":   "✅",
 		"captcha":     "🔐",
-		"connection":  "🔗",
+		"connections": "🔗",
 		"disabling":   "❌",
 		"extras":      "⭐",
 		"misc":        "🔧",
@@ -445,14 +458,14 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 
 	// How locks work
 	content.WriteString("## How Locks Work\n\n")
-	content.WriteString("Locks prevent non-admin users from posting specific types of content. ")
+	content.WriteString("Locks prevent users who are neither admins nor approved from posting specific types of content. ")
 	content.WriteString("When a lock is enabled, the bot will automatically delete matching messages from regular users.\n\n")
 
 	content.WriteString("### Usage\n\n")
 	content.WriteString("```\n")
 	content.WriteString("/lock <lock_type> [lock_type2 ...]\n")
 	content.WriteString("/unlock <lock_type> [lock_type2 ...]\n")
-	content.WriteString("/locks - View all currently enabled locks\n")
+	content.WriteString("/locks - View the lock settings stored for this chat\n")
 	content.WriteString("/locktypes - View all available lock types\n")
 	content.WriteString("```\n\n")
 
@@ -521,7 +534,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 			fmt.Fprintf(&content, "%s\n\n", lock.Description)
 		}
 	}
-	content.WriteString("**Behavior**: When enabled, the bot will automatically ban any bot added by non-admins.\n\n")
+	content.WriteString("**Behavior**: When enabled, the bot will automatically ban any bot added by a user who is neither an admin nor approved.\n\n")
 
 	content.WriteString("### `all`\n\n")
 	for _, lock := range lockTypes {
@@ -538,13 +551,13 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	content.WriteString("```\n")
 	content.WriteString("/lock media\n")
 	content.WriteString("```\n")
-	content.WriteString("Blocks all media files (audio, documents, videos, photos, video notes, and voice messages).\n\n")
+	content.WriteString("Blocks all media files (audio, documents, GIFs, videos, photos, video notes, and voice messages).\n\n")
 
 	content.WriteString("### Create Read-Only Chat\n\n")
 	content.WriteString("```\n")
 	content.WriteString("/lock all\n")
 	content.WriteString("```\n")
-	content.WriteString("Prevents all non-admin users from sending any messages.\n\n")
+	content.WriteString("Prevents all users who are neither admins nor approved from sending any messages.\n\n")
 
 	content.WriteString("### Block Forwarded Content\n\n")
 	content.WriteString("```\n")
@@ -556,7 +569,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	content.WriteString("```\n")
 	content.WriteString("/lock bots\n")
 	content.WriteString("```\n")
-	content.WriteString("Only admins can add bots to the group.\n\n")
+	content.WriteString("Only admins and approved users can add bots to the group.\n\n")
 
 	content.WriteString("### Multiple Locks at Once\n\n")
 	content.WriteString("```\n")
@@ -566,8 +579,8 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 
 	// Admin exemption
 	content.WriteString("## Important Notes\n\n")
-	content.WriteString("### Admin Exemption\n\n")
-	content.WriteString("All locks automatically exempt administrators. Admins can always post any content type, ")
+	content.WriteString("### Admin and Approved User Exemption\n\n")
+	content.WriteString("All locks automatically exempt administrators and approved users (see /approve). They can always post any content type, ")
 	content.WriteString("regardless of which locks are enabled.\n\n")
 
 	content.WriteString("### Bot Permissions\n\n")
@@ -585,7 +598,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	content.WriteString("## Related Commands\n\n")
 	content.WriteString("- `/lock <type>` - Enable one or more locks\n")
 	content.WriteString("- `/unlock <type>` - Disable one or more locks\n")
-	content.WriteString("- `/locks` - View currently enabled locks\n")
+	content.WriteString("- `/locks` - View the lock settings stored for this chat (true = locked, false = unlocked)\n")
 	content.WriteString("- `/locktypes` - View all available lock types\n\n")
 
 	content.WriteString("For more information, see the [Locks module documentation](/commands/locks/).\n\n")

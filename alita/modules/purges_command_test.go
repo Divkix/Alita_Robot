@@ -1,12 +1,15 @@
 package modules
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func newPurgeReplyContext(
@@ -128,6 +131,35 @@ func TestPurgeRequiresReplyAndDeletesRange(t *testing.T) {
 	}
 }
 
+// The reason is user text inside a legacy-Markdown message; markup
+// characters in it must not break or restyle the notification.
+func TestPurgeReasonIsEscapedForMarkdown(t *testing.T) {
+	useRealLocales(t)
+	for _, cmd := range []string{"purge", "purgeto"} {
+		t.Run(cmd, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			delMsgs.Delete(f.chat.Id)
+			t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+			handler, replyID := purgesModule.purge, int64(501)
+			if cmd == "purgeto" {
+				// /purgefrom marked 501; /purgeto replies to the range's last message.
+				delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 501, timestamp: time.Now()})
+				handler, replyID = purgesModule.purgeTo, 503
+			}
+
+			ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/"+cmd+" spam_bot *x* [y] `z`", 505, replyID)
+			if err := handler(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s() error = %v, want EndGroups", cmd, err)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			assertParams(t, call, map[string]any{"parse_mode": "Markdown"})
+			if text := fmt.Sprint(call.Params["text"]); !strings.Contains(text, "spam\\_bot \\*x\\* \\[y] \\`z\\`") {
+				t.Fatalf("%s notification = %q, want the reason Markdown-escaped", cmd, text)
+			}
+		})
+	}
+}
+
 func TestPurgeRejectsOverLimitRange(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
@@ -204,6 +236,49 @@ func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
 	assertDeleted(t, client, chat.Id, 215, 216, 217, 218, 220, 230)
 }
 
+// An anonymous admin's confirmed /purgefrom and /purgeto reach their handlers.
+func TestAnonymousAdminPurgeFromToAreRouted(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	delMsgs.Delete(chat.Id)
+	t.Cleanup(func() { delMsgs.Delete(chat.Id) })
+
+	fromCtx := newPurgeReplyContext(bot, chat, admin, "/purgefrom", 420, 415)
+	if err := HandleAnonymousAdmin(bot, fromCtx, "purgefrom"); err != ext.EndGroups {
+		t.Fatalf("HandleAnonymousAdmin(purgefrom) error = %v, want EndGroups", err)
+	}
+	if stored, ok := delMsgs.Load(chat.Id); !ok || stored.(delMsgEntry).msgID != 415 {
+		t.Fatalf("purge marker = %v, %v, want message 415", stored, ok)
+	}
+
+	toCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto", 430, 417)
+	if err := HandleAnonymousAdmin(bot, toCtx, "purgeto"); err != ext.EndGroups {
+		t.Fatalf("HandleAnonymousAdmin(purgeto) error = %v, want EndGroups", err)
+	}
+	assertDeleted(t, client, chat.Id, 415, 416, 417)
+}
+
+// A second /purgefrom on another message is refused with its own message and
+// keeps the first mark.
+func TestPurgeFromRefusesWhileAnotherMessageIsMarked(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 215, timestamp: time.Now()})
+	t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+
+	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/purgefrom", 220, 216)
+	if err := purgesModule.purgeFrom(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("purgeFrom() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+	if want := trS(i18n.MustNewTranslator("en"), "purges_mark_already_active"); want == "" || text != want {
+		t.Fatalf("purgeFrom reply = %q, want purges_mark_already_active %q", text, want)
+	}
+	if stored, ok := delMsgs.Load(f.chat.Id); !ok || stored.(delMsgEntry).msgID != 215 {
+		t.Fatalf("purge marker = %v, %v, want message 215 kept", stored, ok)
+	}
+}
+
 func TestPurgeFromToValidationBranches(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
@@ -240,52 +315,5 @@ func TestPurgeFromToValidationBranches(t *testing.T) {
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want no deletion for validation branches", len(calls))
-	}
-}
-
-func TestDeleteButtonHandlerDeletesTargetMessage(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-
-	validData := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
-	ctx := newModuleCallbackContext(bot, chat, admin, validData)
-	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("deleteButtonHandler error = %v, want EndGroups", err)
-	}
-	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": 345})
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want callback answer", len(calls))
-	}
-}
-
-func TestDeleteButtonHandlerRejectsInvalidData(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-
-	ctx := newModuleCallbackContext(bot, chat, admin, "deleteMsg.bad")
-	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("deleteButtonHandler invalid data error = %v, want EndGroups", err)
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
-		t.Fatalf("deleteMessage calls = %d, want no deletion", len(calls))
-	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want error answer", len(calls))
-	}
-}
-
-func TestDeleteButtonHandlerReturnsDeleteFailure(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-	requestErr := errors.New("delete failed")
-	client.errors["deleteMessage"] = requestErr
-	data := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
-
-	err := purgesModule.deleteButtonHandler(bot, newModuleCallbackContext(bot, chat, admin, data))
-	if !errors.Is(err, requestErr) {
-		t.Fatalf("deleteButtonHandler error = %v, want delete failure", err)
-	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
-		t.Fatalf("answerCallbackQuery calls = %d, want no success answer", len(calls))
 	}
 }

@@ -67,7 +67,7 @@ MIGRATIONS_PATH=migrations
 ### How Auto-Migration Works
 
 :::tip
-Auto-migration is safe to enable on every startup for a single bot instance. If you run multiple replicas, serialize deployments so only one instance migrates at a time.
+Auto-migration is safe to enable on every startup, including with multiple replicas: on PostgreSQL the bot's migration runner holds an advisory lock while it checks and applies migrations, so replicas sharing one database apply pending migrations one at a time and the rest wait. The lock covers only the bot's startup runner, not `scripts/migrate_psql.sh`, so do not run that script while instances are starting.
 :::
 
 1. **Migration Files**: SQL migrations are stored in the `migrations/` directory
@@ -206,11 +206,12 @@ Each table has an auto-incremented `id` field as the primary key (internal ident
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,        -- Internal ID
     user_id BIGINT NOT NULL UNIQUE,  -- Telegram user ID
-    username VARCHAR(255),
-    name VARCHAR(255),
-    language VARCHAR(10) DEFAULT 'en',
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
+    username TEXT,
+    name TEXT,
+    language TEXT DEFAULT 'en',
+    last_activity TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 );
 ```
 
@@ -244,6 +245,7 @@ Alita Robot creates the following tables:
 | `chats` | Chat/group information |
 | `warns_settings` | Warning configuration per chat |
 | `warns_users` | User warning records |
+| `warn_entries` | One row per warn (reason, issuer, time) |
 | `greetings` | Welcome/goodbye messages |
 | `filters` | Chat filters |
 | `notes` | Saved notes |
@@ -269,6 +271,13 @@ Alita Robot creates the following tables:
 | `captcha_muted_users` | Users muted due to captcha failure |
 | `stored_messages` | Messages stored during captcha |
 | `reactions` | Per-chat keyword reactions |
+| `ai_spam_settings` | Per-chat AI spam filter switch |
+| `federations` | Federation definitions (owner, name, settings, log chat) |
+| `federation_admins` | Federation admins |
+| `federation_chats` | Chats joined to a federation |
+| `federation_bans` | Federation bans |
+| `federation_subs` | Federation-to-federation subscriptions |
+| `log_channels` | Per-chat log channel and enabled log categories |
 | `schema_migrations` | Migration versions and checksums |
 
 ## Backup and Restore
