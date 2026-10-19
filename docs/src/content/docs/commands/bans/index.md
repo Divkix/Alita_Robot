@@ -84,6 +84,9 @@ For detailed command usage, refer to the commands table above.
 
 Most commands in this module require **admin permissions** in the group.
 
+- `/unbanall` — Requires the **chat owner**.
+- `/kickme`, `/banme` — Available to everyone (disableable).
+
 **Bot Permissions Required:**
 
 - Delete messages
