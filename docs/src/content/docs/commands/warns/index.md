@@ -63,12 +63,12 @@ This module can be accessed using the following aliases:
 | `/resetallwarns` | Reset all warnings for all users in the chat (chat owner only) | ❌ |
 | `/resetwarn` | Alias of `/resetwarns` - reset all warnings for a user | ❌ |
 | `/resetwarns` | Reset all warnings for a user | ❌ |
-| `/rmwarn` | Alias of `/unwarn` - remove the last warning from a user | ❌ |
+| `/rmwarn` | Remove the last warning from a user | ❌ |
 | `/setwarnlimit` | Set maximum warnings before action (range: 1–100) | ❌ |
 | `/setwarnmode` | Set action taken when warn limit is reached | ❌ |
 | `/setwarntime` | Set how long a warn counts before it expires | ❌ |
 | `/swarn` | Warn a user and delete your command (the warning is still posted) | ❌ |
-| `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |
+| `/unwarn` | Alias of `/rmwarn` - remove the last warning from a user | ❌ |
 | `/warn` | Warn a user | ❌ |
 | `/warnings` | Get the chat's warning settings | ❌ |
 | `/warns` | Show warning count for a user | ✅ |
