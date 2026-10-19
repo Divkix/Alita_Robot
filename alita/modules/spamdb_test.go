@@ -22,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/spamdb"
 )
@@ -587,25 +588,37 @@ func TestSpamDBReadsCacheEntryWithoutDatabaseFieldsAsCAS(t *testing.T) {
 }
 
 func TestSpamDBCommandSelectsDatabases(t *testing.T) {
+	useEnglishLocale(t)
 	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
 	client := aispamAdminClient()
 	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Databases Chat"}
+	chat := spamDBChat(t, true, spamdbsettings.ActionBan)
 	admin := gotgbot.User{Id: 42, FirstName: "Admin"}
+
+	tr := i18n.MustNewTranslator("en")
+	lastText, _ := tr.GetString("spamdb_db_last", i18n.TranslationParams{"database": "lols.bot"})
+	warning, _ := tr.GetString("spamdb_db_lols_warning")
+	if lastText == "" || warning == "" {
+		t.Fatal("spamdb_db_last or spamdb_db_lols_warning is missing from en.yml")
+	}
 
 	steps := []struct {
 		command   string
 		cas, lols bool
+		// last: the reply is the refusal to switch off the last database.
+		// warning: the reply carries the lols.bot warning. Neither: the
+		// reply is not the refusal and carries no warning.
+		last, warning bool
 	}{
-		{"/spamdb db lols on", true, true},
-		{"/spamdb db cas off", false, true},
+		{"/spamdb db lols on", true, true, false, true},
+		{"/spamdb db cas off", false, true, false, false},
 		// The last database cannot be switched off.
-		{"/spamdb db lols off", false, true},
-		{"/spamdb db spamwatch on", false, true},
-		{"/spamdb db cas maybe", false, true},
-		{"/spamdb db", false, true},
-		{"/spamdb db CAS ON", true, true},
-		{"/spamdb db lols no", true, false},
+		{"/spamdb db lols off", false, true, true, false},
+		{"/spamdb db spamwatch on", false, true, false, false},
+		{"/spamdb db cas maybe", false, true, false, false},
+		{"/spamdb db", false, true, false, false},
+		{"/spamdb db CAS ON", true, true, false, false},
+		{"/spamdb db lols no", true, false, false, false},
 	}
 	for i, s := range steps {
 		spamDBCommand(t, dispatcher, bot, chat, admin, s.command)
@@ -616,8 +629,16 @@ func TestSpamDBCommandSelectsDatabases(t *testing.T) {
 		if settings.CheckCAS != s.cas || settings.CheckLols != s.lols {
 			t.Fatalf("after %q: cas %v lols %v, want cas %v lols %v", s.command, settings.CheckCAS, settings.CheckLols, s.cas, s.lols)
 		}
-		if got := len(spamDBMessagesTo(client, chat.Id)); got != i+1 {
-			t.Fatalf("after %q: replies = %d, want one per command", s.command, got)
+		replies := spamDBMessagesTo(client, chat.Id)
+		if len(replies) != i+1 {
+			t.Fatalf("after %q: replies = %d, want one per command", s.command, len(replies))
+		}
+		reply := replies[i]
+		if (reply == lastText) != s.last {
+			t.Fatalf("after %q: reply %q, refusal expected = %v", s.command, reply, s.last)
+		}
+		if strings.Contains(reply, warning) != s.warning {
+			t.Fatalf("after %q: reply %q, lols.bot warning expected = %v", s.command, reply, s.warning)
 		}
 	}
 }
