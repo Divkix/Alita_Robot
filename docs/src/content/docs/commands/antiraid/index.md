@@ -18,6 +18,15 @@ Protect your group from spam-join attacks with AntiRaid.
 /autoantiraid off: Disable auto-trigger.
 
 
+## Module Aliases
+
+> These are help-menu module names, not command aliases.
+
+This module can be accessed using the following aliases:
+
+- `antiraid`
+- `raid`
+
 ## Available Commands
 
 | Command | Description | Disableable |
