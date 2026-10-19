@@ -25,7 +25,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
@@ -190,10 +189,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
-		return ext.EndGroups
-	}
-
-	if chat_status.CheckDisabledCmd(b, msg, "export") {
 		return ext.EndGroups
 	}
 
@@ -375,10 +370,6 @@ func parseModuleArgs(args []string, valid func(string) bool) ([]string, error) {
 }
 
 func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	if chat_status.CheckDisabledCmd(b, ctx.EffectiveMessage, "import") {
-		return ext.EndGroups
-	}
-
 	msg, chat, _, tr, ok := validateImportRequest(b, ctx)
 	if !ok {
 		return ext.EndGroups
@@ -787,9 +778,6 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 		callbackquery.Prefix("backup"),
 		backupModule.backupCallbackHandler,
 	))
-
-	helpers.AddCmdToDisableable("export")
-	helpers.AddCmdToDisableable("import")
 
 	log.Info("[Backup] Module loaded successfully")
 }
