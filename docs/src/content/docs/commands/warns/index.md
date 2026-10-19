@@ -16,7 +16,7 @@ If you're looking for automated warnings, read about the blacklist module!
 - /warns: See a user's warnings.
 - /rmwarn: Remove a user's latest warning.
 - /resetwarn: Reset all of a user's warnings to 0.
-- /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns.
+- /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 - /warnings: Get the chat's warning settings.
 - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
 - /setwarntime <time/off>: Set how long a warn counts, e.g. 30d; off keeps warns forever. Warns issued before the bot recorded warn times never expire; /resetwarn removes them.
@@ -58,7 +58,7 @@ This module can be accessed using the following aliases:
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/dwarn` | Warn a user and delete the replied message | ❌ |
-| `/resetallwarns` | Reset all warnings for all users in the chat | ❌ |
+| `/resetallwarns` | Reset all warnings for all users in the chat (chat owner only) | ❌ |
 | `/resetwarn` | Alias of `/resetwarns` - reset all warnings for a user | ❌ |
 | `/resetwarns` | Reset all warnings for a user | ❌ |
 | `/rmwarn` | Alias of `/unwarn` - remove the last warning from a user | ❌ |
