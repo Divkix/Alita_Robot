@@ -1376,6 +1376,7 @@ reports_action_by: "Action effectuée par %s"
 reports_resolved_by: "<b>Résolu par :</b> %s"
 reports_message_template: "<b>⚠️ Signalement :</b>\n<b> • Signalé par :</b> %s\n<b> • Utilisateur signalé :</b> %s\n<b>Statut :</b> <i>En attente...</i>"
 reports_invalid_action: "Action invalide."
+reports_sent_to_admins: "Signalé aux administrateurs."
 
 # Mute module strings (additional)
 mute_reply_to_dmute: Vous devez répondre à un message pour le supprimer et rendre l'utilisateur muet !

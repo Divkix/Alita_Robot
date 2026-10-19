@@ -46,6 +46,8 @@ type moduleBotClient struct {
 	calls     []moduleBotCall
 	responses map[string]json.RawMessage
 	errors    map[string]error
+	// errorsByChat fails a method for one chat_id, keyed "method|chat_id".
+	errorsByChat map[string]error
 	// adminsByChat overrides getChatAdministrators per chat_id.
 	adminsByChat map[string]json.RawMessage
 	// membersByUser overrides getChatMember per user_id.
@@ -123,6 +125,9 @@ func (c *moduleBotClient) RequestWithContext(_ context.Context, _ string, method
 	c.calls = append(c.calls, moduleBotCall{Method: method, Params: copied})
 
 	if err := c.errors[method]; err != nil {
+		return nil, err
+	}
+	if err := c.errorsByChat[method+"|"+fmt.Sprint(params["chat_id"])]; err != nil {
 		return nil, err
 	}
 	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "999" {
@@ -488,6 +493,7 @@ func TestMain(m *testing.M) {
 		&models.ChannelSettings{},
 		&models.ReportChatSettings{},
 		&models.ReportUserSettings{},
+		&models.Report{},
 		&db.AntifloodSettings{},
 		&models.AntiRaidSettings{},
 		&db.DevSettings{},

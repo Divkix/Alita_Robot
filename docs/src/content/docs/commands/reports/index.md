@@ -38,6 +38,16 @@ You MUST reply to a message to report a user; you can't just use @admin to tag a
 - **❎ Delete Message** - Delete the reported message
 - **✔️ Mark Resolved** - Mark the report as resolved without action
 
+**Log Channel Card:**
+If the group has a log channel (`/setlog`) with the `reports` category on, each reported message also gets one card there. The card has no action buttons, so the group still gets the full report with admin mentions and the buttons described above.
+
+In the log channel:
+- A copy of the reported message, so the evidence survives if the original is deleted. Messages that cannot be copied are quoted as text instead.
+- A card replying to that copy with the reported user, the number of members who reported the message, the last reporter and their reason, and a link to the original message.
+- Further reports of the same message update the same card; a member reporting the same message twice is counted once.
+
+Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in `/export`.
+
 **Personal vs Group Settings:**
 - **In PM:** `/reports on/off` toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
 - **In Group:** `/reports on/off` toggles whether reporting is enabled for that group

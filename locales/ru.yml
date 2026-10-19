@@ -1415,6 +1415,7 @@ reports_action_by: "Действие выполнено %s"
 reports_resolved_by: "<b>Решено:</b> %s"
 reports_message_template: "<b>⚠️ Отчёт:</b>\n<b> • Сообщил:</b> %s\n<b> • Сообщённый пользователь:</b> %s\n<b>Статус:</b> <i>В ожидании...</i>"
 reports_invalid_action: "Неверное действие."
+reports_sent_to_admins: "Жалоба отправлена админам."
 
 # Captcha module strings
 captcha_mode_math_desc: "математические задачи"

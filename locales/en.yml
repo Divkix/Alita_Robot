@@ -1677,6 +1677,7 @@ reports_action_by: "Action taken by %s"
 reports_resolved_by: "<b>Resolved by:</b> %s"
 reports_message_template: "<b>⚠️ Report:</b>\n<b> • Report by:</b> %s\n<b> • Reported user:</b> %s\n<b>Status:</b> <i>Pending...</i>"
 reports_invalid_action: "Invalid action."
+reports_sent_to_admins: "Reported to admins."
 
 # Captcha module strings
 captcha_mode_math_desc: "mathematical problems"
@@ -1936,6 +1937,16 @@ reports_extended_docs: |
   • <b>⛔️ Ban</b> - Permanently ban the reported user
   • <b>❎ Delete Message</b> - Delete the reported message
   • <b>✔️ Mark Resolved</b> - Mark the report as resolved without action
+
+  <b>Log Channel Card:</b>
+  If the group has a log channel (<code>/setlog</code>) with the <code>reports</code> category on, each reported message also gets one card there. The card has no action buttons, so the group still gets the full report with admin mentions and the buttons described above.
+
+  In the log channel:
+  • A copy of the reported message, so the evidence survives if the original is deleted. Messages that cannot be copied are quoted as text instead.
+  • A card replying to that copy with the reported user, the number of members who reported the message, the last reporter and their reason, and a link to the original message.
+  • Further reports of the same message update the same card; a member reporting the same message twice is counted once.
+
+  Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in <code>/export</code>.
 
   <b>Personal vs Group Settings:</b>
   • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)

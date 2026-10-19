@@ -1467,6 +1467,7 @@ reports_action_by: "%s द्वारा कार्रवाई की गई
 reports_resolved_by: "<b>द्वारा समाधान:</b> %s"
 reports_message_template: "<b>⚠️ रिपोर्ट:</b>\n<b> • द्वारा रिपोर्ट:</b> %s\n<b> • रिपोर्ट किया गया उपयोगकर्ता:</b> %s\n<b>स्थिति:</b> <i>लंबित...</i>"
 reports_invalid_action: "अमान्य कार्रवाई।"
+reports_sent_to_admins: "एडमिन्स को रिपोर्ट कर दिया गया।"
 reports_extended_docs: |
   <b>यह कैसे काम करता है:</b>
 

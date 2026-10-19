@@ -67,18 +67,6 @@ func User(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string
 	Log(b, chat, logchannels.CategoryUser, text)
 }
 
-func Reports(b *gotgbot.Bot, chat *gotgbot.Chat, reporter *gotgbot.User, targetID int64) {
-	if reporter == nil {
-		return
-	}
-	text := fmt.Sprintf(
-		"#REPORT\nReporter: %s\nTarget: <code>%d</code>",
-		formatting.MentionHtml(reporter.Id, reporter.FirstName),
-		targetID,
-	)
-	Log(b, chat, logchannels.CategoryReports, text)
-}
-
 func Settings(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, summary string) {
 	Log(b, chat, logchannels.CategorySettings, settingsText(actor, summary))
 }

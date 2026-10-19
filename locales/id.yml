@@ -1572,6 +1572,7 @@ reports_action_by: "Tindakan diambil oleh %s"
 reports_resolved_by: "<b>Diselesaikan oleh:</b> %s"
 reports_message_template: "<b>⚠️ Laporan:</b>\n<b> • Dilaporkan oleh:</b> %s\n<b> • Pengguna dilaporkan:</b> %s\n<b>Status:</b> <i>Menunggu...</i>"
 reports_invalid_action: "Tindakan tidak valid."
+reports_sent_to_admins: "Dilaporkan ke admin."
 
 # Language module additional strings
 language_current_user: "Bahasa Anda Saat Ini adalah %s\nPilih bahasa dari keyboard di bawah."
