@@ -39,7 +39,7 @@ You MUST reply to a message to report a user; you can't just use @admin to tag a
 - **✔️ Mark Resolved** - Mark the report as resolved without action
 
 **Log Channel Card:**
-If the group has a log channel (`/setlog`) with the `reports` category on, each reported message also gets one card there. The card has no action buttons, so the group still gets the full report with admin mentions and the buttons described above.
+If the group has a log channel (`/setlog`) with the `reports` category on, each reported message also gets one card there, with its own **Ban**, **Mute**, **Delete** and **Dismiss** buttons (below). The group still gets the full report with admin mentions and the buttons described above.
 
 In the log channel:
 - A copy of the reported message, so the evidence survives if the original is deleted. Messages that cannot be copied are quoted as text instead.
