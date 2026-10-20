@@ -820,7 +820,6 @@ func TestLegacyButtonClosesReportStoredDuringAction(t *testing.T) {
 	}
 }
 
-// Guard: a decision on a message is final for its reporters.
 // expireReports backdates the reports of message 505 by reporterIDs past the
 // retention period and runs the sweep.
 func expireReports(t *testing.T, chatID int64, reporterIDs ...int64) {
@@ -926,6 +925,7 @@ func TestCardPressWithUnknownIdActsOnlyOnPressedCard(t *testing.T) {
 	answeredWith(t, f, "reports_expired")
 }
 
+// Guard: a decision on a message is final for its reporters.
 func TestRepeatReportAfterDecisionIsIgnored(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
