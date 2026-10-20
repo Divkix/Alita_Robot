@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -179,7 +180,7 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 				MessageId: 504, Date: 1, Chat: chat, From: &target, Text: "spam",
 			},
 		}
-		key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, command.MessageId)
+		key := chat_status.AnonAdminCacheKey(chat.Id, command.MessageId)
 		if err := m.Set(cache.Context, key, command); err != nil {
 			t.Fatalf("cache set: %v", err)
 		}

@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	keyboardutils "github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -355,12 +356,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 		keyboard = [][]gotgbot.InlineKeyboardButton{
-			{
-				{
-					Text:         trS(tr, "button_unmute_admins"),
-					CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(user.Id())}),
-				},
-			},
+			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id())},
 		}
 
 		_, err := chat.RestrictMember(b, userId,
@@ -389,12 +385,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{
-					{
-						Text:         trS(tr, "antiflood_button_unban_admins"),
-						CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(user.Id())}),
-					},
-				},
+				{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", user.Id())},
 			}
 			_, err := chat.BanSenderChat(b, userId, nil)
 			if err != nil {
@@ -415,12 +406,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
 		} else {
 			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{
-					{
-						Text:         trS(tr, "button_unmute_admins"),
-						CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(user.Id())}),
-					},
-				},
+				{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id())},
 			}
 			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 		}
@@ -433,10 +419,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
-		func() string {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_checkflood_perform_action")
-			return fmt.Sprintf(temp, formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood.Action))
-		}(),
+		trSprintf(tr, strings.ToLower(m.moduleName)+"_checkflood_perform_action", formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood.Action)),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -631,8 +614,7 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
 	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))
-	dispatcher.AddHandler(handlers.NewCommand("delflood", antifloodModule.setFloodDeleter))
-	dispatcher.AddHandler(handlers.NewCommand("clearflood", antifloodModule.setFloodDeleter))
+	helpers.MultiCommand(dispatcher, []string{"delflood", "clearflood"}, antifloodModule.setFloodDeleter)
 	dispatcher.AddHandler(handlers.NewCommand("flood", antifloodModule.flood))
 	helpers.AddCmdToDisableable("flood")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)

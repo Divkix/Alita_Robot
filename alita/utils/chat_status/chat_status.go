@@ -28,12 +28,24 @@ import (
 // 777000 - Telegram
 // 136817688 - SendAsChannel Bot (For users that send messages as channel)
 const (
-	groupAnonymousBot = 1087968824
-	tgUserId          = 777000
+	GroupAnonymousBotID int64 = 1087968824
+	TelegramUserID      int64 = 777000
+	SendAsChannelBotID  int64 = 136817688
 )
 
+// IsSystemUser reports whether id belongs to one of Telegram's service
+// accounts: GroupAnonymousBot, Telegram itself, or SendAsChannelBot.
+func IsSystemUser(id int64) bool {
+	switch id {
+	case GroupAnonymousBotID, TelegramUserID, SendAsChannelBotID:
+		return true
+	default:
+		return false
+	}
+}
+
 var (
-	tgAdminList           = []int64{groupAnonymousBot, tgUserId}
+	tgAdminList           = []int64{GroupAnonymousBotID, TelegramUserID}
 	anonChatMapExpiration = 20 * time.Second
 )
 
@@ -49,7 +61,7 @@ func IsChannelId(id int64) bool {
 	return id < -1000000000000
 }
 
-func callbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
+func CallbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
 	if ctx == nil {
 		return nil, false
 	}
@@ -403,7 +415,7 @@ func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg
 // IsUserInChatWithError reports definitive membership separately from Telegram
 // lookup failures so callers do not destroy persisted state on transient errors.
 func IsUserInChatWithError(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) (bool, error) {
-	if b == nil || chat == nil || userId == tgUserId {
+	if b == nil || chat == nil || userId == TelegramUserID {
 		return false, nil
 	}
 	member, err := chat.GetMember(b, userId, nil)
@@ -445,7 +457,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 
 	userAdminVerified := false
 	respond := func(text string) {
-		if query, ok := callbackQueryFromContext(ctx); ok {
+		if query, ok := CallbackQueryFromContext(ctx); ok {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return
 		}
@@ -503,7 +515,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 			chat = &_chat
 		} else {
 			text, _ := tr.GetString("connections_is_user_connected_need_group")
-			if query, ok := callbackQueryFromContext(ctx); ok {
+			if query, ok := CallbackQueryFromContext(ctx); ok {
 				_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			} else {
 				_, err := msg.Reply(b,
@@ -565,13 +577,19 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 	return IsUserAdmin(b, ctx.EffectiveChat.Id, userId) || slices.Contains(tgAdminList, userId)
 }
 
+// AnonAdminCacheKey is the operational Redis key holding the message behind an
+// anonymous admin's confirmation button.
+func AnonAdminCacheKey(chatId, msgId int64) string {
+	return fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId)
+}
+
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
 	m := cache.GetMarshal()
 	if m == nil || msg == nil {
 		log.Debug("Skipping anonymous admin cache set: cache unavailable or message nil")
 		return
 	}
-	err := m.Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
+	err := m.Set(cache.Context, AnonAdminCacheKey(chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
 	if err != nil {
 		log.Errorf("Failed to set anonymous admin cache: %v", err)
 	}

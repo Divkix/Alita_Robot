@@ -297,8 +297,8 @@ func TestIsUserAdminTelegramServiceAccounts(t *testing.T) {
 		name string
 		id   int64
 	}{
-		{name: "groupAnonymousBot", id: groupAnonymousBot},
-		{name: "tgUserId", id: tgUserId},
+		{name: "GroupAnonymousBotID", id: GroupAnonymousBotID},
+		{name: "TelegramUserID", id: TelegramUserID},
 	}
 
 	for _, svc := range serviceIDs {

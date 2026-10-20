@@ -1,16 +1,18 @@
 package pins
 
 import (
+	"context"
 	"errors"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func GetPinData(chatID int64) (pinrc *models.PinSettings) {
+func checkPinData(chatID int64) (pinrc *models.PinSettings) {
 	pinrc = &models.PinSettings{}
 	err := db.GetRecord(pinrc, models.PinSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -26,6 +28,21 @@ func GetPinData(chatID int64) (pinrc *models.PinSettings) {
 	return
 }
 
+func GetPinData(chatID int64) (pinrc *models.PinSettings) {
+	pinrc, err := cache.GetFromCacheOrLoad(
+		context.Background(),
+		cache.CacheKey("pins", chatID),
+		cache.CacheTTLPins,
+		func(context.Context) (*models.PinSettings, error) {
+			return checkPinData(chatID), nil
+		},
+	)
+	if err != nil || pinrc == nil {
+		return checkPinData(chatID)
+	}
+	return pinrc
+}
+
 func SetCleanLinked(chatID int64, pref bool) error {
 	GetPinData(chatID)
 	err := db.UpdateRecordWithZeroValues(&models.PinSettings{}, models.PinSettings{ChatId: chatID}, map[string]any{"clean_linked": pref})
@@ -33,6 +50,7 @@ func SetCleanLinked(chatID int64, pref bool) error {
 		log.Errorf("[Database] SetCleanLinked: %v", err)
 		return err
 	}
+	cache.DeleteCache(cache.CacheKey("pins", chatID))
 	return nil
 }
 
@@ -43,6 +61,7 @@ func SetAntiChannelPin(chatID int64, pref bool) error {
 		log.Errorf("[Database] SetAntiChannelPin: %v", err)
 		return err
 	}
+	cache.DeleteCache(cache.CacheKey("pins", chatID))
 	return nil
 }
 

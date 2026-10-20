@@ -404,9 +404,9 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 
-		// but skip Telegram's system account (777000) which forwards channel posts
+		// but skip Telegram's system account, which forwards channel posts
 		if restr == "comments" {
-			if msg.From != nil && msg.From.Id == 777000 {
+			if msg.From != nil && msg.From.Id == chat_status.TelegramUserID {
 				continue
 			}
 			if chat_status.IsUserInChat(b, chat, senderID) {

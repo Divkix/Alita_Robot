@@ -37,26 +37,38 @@ func IsPermissionError(errStr string) bool {
 		strings.Contains(errStr, "CHAT_RESTRICTED") ||
 		strings.Contains(errStr, "need administrator rights in the channel chat")
 }
+
+// IsChatPermissionError reports whether err means the bot may not send to the
+// chat. It marks the chat restricted so later sends skip it.
+func IsChatPermissionError(err error, chatId int64) bool {
+	if err == nil || !IsPermissionError(err.Error()) {
+		return false
+	}
+	cache.MarkChatRestricted(chatId)
+	return true
+}
+
 func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
-	if cache.IsChatRestricted(chatId) {
+	restricted, restrictedFlagPresent := cache.IsChatRestrictedState(chatId)
+	if restricted {
 		log.WithField("chat_id", chatId).Debug("[Helpers] Skipping send to restricted chat")
 		return nil, nil
 	}
 	sentAt := time.Now()
 	msg, err := bot.SendMessage(chatId, text, opts)
 	if err != nil {
-		errStr := err.Error()
-		if IsPermissionError(errStr) {
-			cache.MarkChatRestricted(chatId)
+		if IsChatPermissionError(err, chatId) {
 			log.WithFields(log.Fields{
 				"chat_id": chatId,
-				"error":   errStr,
+				"error":   err.Error(),
 			}).Debug("Bot lacks permission to send messages in this chat")
 			return nil, nil
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", chatId)
 	}
-	cache.MarkChatNotRestrictedIfOlder(chatId, sentAt)
+	if restrictedFlagPresent {
+		cache.MarkChatNotRestrictedIfOlder(chatId, sentAt)
+	}
 	return msg, nil
 }
 

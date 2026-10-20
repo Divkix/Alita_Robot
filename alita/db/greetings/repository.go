@@ -1,6 +1,7 @@
 package greetings
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -122,11 +123,22 @@ func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) 
 }
 
 func GetGreetingSettings(chatID int64) *models.GreetingSettings {
-	return checkGreetingSettings(chatID)
+	settings, err := cache.GetFromCacheOrLoad(
+		context.Background(),
+		cache.CacheKey("greetings", chatID),
+		cache.CacheTTLGreetings,
+		func(context.Context) (*models.GreetingSettings, error) {
+			return checkGreetingSettings(chatID), nil
+		},
+	)
+	if err != nil || settings == nil {
+		return checkGreetingSettings(chatID)
+	}
+	return settings
 }
 
 func GetWelcomeButtons(chatId int64) []models.Button {
-	greetingSettings := checkGreetingSettings(chatId)
+	greetingSettings := GetGreetingSettings(chatId)
 	if greetingSettings.WelcomeSettings != nil {
 		return []models.Button(greetingSettings.WelcomeSettings.Button)
 	}
@@ -134,7 +146,7 @@ func GetWelcomeButtons(chatId int64) []models.Button {
 }
 
 func GetGoodbyeButtons(chatId int64) []models.Button {
-	greetingSettings := checkGreetingSettings(chatId)
+	greetingSettings := GetGreetingSettings(chatId)
 	if greetingSettings.GoodbyeSettings != nil {
 		return []models.Button(greetingSettings.GoodbyeSettings.Button)
 	}

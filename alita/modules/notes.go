@@ -8,7 +8,6 @@ import (
 	"html"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -399,12 +398,8 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 						{
 							{
-								Text: func() string {
-									tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-									t, _ := tr.GetString("button_click_me")
-									return t
-								}(),
-								Url: fmt.Sprintf("https://t.me/%s?start=notes_%d", b.Username, chat.Id),
+								Text: trS(ctxTr(ctx), "button_click_me"),
+								Url:  fmt.Sprintf("https://t.me/%s?start=notes_%d", b.Username, chat.Id),
 							},
 						},
 					},
@@ -962,12 +957,9 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 		}}}
 	})
-	dispatcher.AddHandler(handlers.NewCommand("save", notesModule.addNote))
-	dispatcher.AddHandler(handlers.NewCommand("addnote", notesModule.addNote))
-	dispatcher.AddHandler(handlers.NewCommand("clear", notesModule.rmNote))
-	dispatcher.AddHandler(handlers.NewCommand("rmnote", notesModule.rmNote))
-	dispatcher.AddHandler(handlers.NewCommand("notes", notesModule.notesList))
-	dispatcher.AddHandler(handlers.NewCommand("saved", notesModule.notesList))
+	helpers.MultiCommand(dispatcher, []string{"save", "addnote"}, notesModule.addNote)
+	helpers.MultiCommand(dispatcher, []string{"clear", "rmnote"}, notesModule.rmNote)
+	helpers.MultiCommand(dispatcher, []string{"notes", "saved"}, notesModule.notesList)
 	helpers.AddCmdToDisableable("notes")
 	dispatcher.AddHandler(handlers.NewCommand("clearall", notesModule.rmAllNotes))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes"), notesModule.notesButtonHandler))
@@ -990,35 +982,6 @@ func init() {
 	RegisterDeepLinkHandler("notes_", notesListDeepLinkHandler)
 	RegisterDeepLinkHandler("note_", noteDeepLinkHandler)
 	RegisterDeepLinkHandler("note", invalidNoteDeepLinkHandler)
-}
-
-func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (chatinfo *gotgbot.ChatFullInfo, err error) {
-	nArgs := strings.SplitN(arg, "_", 3)
-	msg := ctx.EffectiveMessage
-
-	if len(nArgs) < 2 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return nil, ext.EndGroups
-	}
-
-	chatID, parseErr := strconv.ParseInt(nArgs[1], 10, 64)
-	if parseErr != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return nil, ext.EndGroups
-	}
-
-	chatinfo, chatErr := b.GetChat(chatID, nil)
-	if chatErr != nil || chatinfo == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_chat_not_found")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return nil, ext.EndGroups
-	}
-	return chatinfo, nil
 }
 
 func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {

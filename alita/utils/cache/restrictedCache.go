@@ -45,15 +45,24 @@ func MarkChatRestricted(chatID int64) {
 }
 
 func IsChatRestricted(chatID int64) bool {
+	restricted, _ := IsChatRestrictedState(chatID)
+	return restricted
+}
+
+// IsChatRestrictedState reports whether sends to chatID are suppressed and
+// whether a restriction flag was actually found. Callers that would otherwise
+// clear the flag after a successful send use flagPresent to skip a second
+// lookup on the common no-flag path.
+func IsChatRestrictedState(chatID int64) (restricted, flagPresent bool) {
 	m := GetMarshal()
 	if m == nil {
-		return false
+		return false, false
 	}
 	var ts string
 	_, err := m.Get(Context, restrictedChatKey(chatID), &ts)
 	if err != nil {
 		restrictedCacheMisses.Add(1)
-		return false
+		return false, false
 	}
 
 	restrictedSince, parseErr := time.Parse(time.RFC3339, ts)
@@ -64,7 +73,7 @@ func IsChatRestricted(chatID int64) bool {
 			"value":   ts,
 			"error":   parseErr,
 		}).Debug("[RestrictedCache] Invalid timestamp, allowing send probe")
-		return false
+		return false, true
 	}
 
 	if time.Since(restrictedSince) >= constants.RestrictedProbeInterval {
@@ -85,7 +94,7 @@ func IsChatRestricted(chatID int64) bool {
 						"chat_id": chatID,
 						"since":   ts,
 					}).Debug("[RestrictedCache] Probe already in progress, skipping send")
-					return true
+					return true, true
 				}
 
 				log.WithFields(log.Fields{
@@ -100,12 +109,12 @@ func IsChatRestricted(chatID int64) bool {
 			"chat_id": chatID,
 			"since":   ts,
 		}).Debug("[RestrictedCache] Probe window reached, allowing send attempt")
-		return false
+		return false, true
 	}
 
 	restrictedCacheHits.Add(1)
 	log.WithField("chat_id", chatID).Debugf("[RestrictedCache] Cache hit — skipping send to restricted chat (since %s)", ts)
-	return true
+	return true, true
 }
 
 func MarkChatNotRestricted(chatID int64) {

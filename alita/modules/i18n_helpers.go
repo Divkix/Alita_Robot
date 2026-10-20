@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -19,6 +21,11 @@ import (
 func trS(tr *i18n.Translator, key string) string {
 	s, _ := tr.GetString(key)
 	return s
+}
+
+// trSprintf is trS followed by fmt.Sprintf with args.
+func trSprintf(tr *i18n.Translator, key string, args ...any) string {
+	return fmt.Sprintf(trS(tr, key), args...)
 }
 
 func ctxTr(ctx *ext.Context) *i18n.Translator {

@@ -12,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 var mutesModule = moduleStruct{moduleName: "Mutes"}
@@ -40,12 +41,7 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         trS(c.Tr, "mutes_unmute_button"),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(t.userID)}),
-						},
-					},
+					{keyboard.UnrestrictButton(c.Tr, "mutes_unmute_button", "unmute", t.userID)},
 				},
 			},
 		},

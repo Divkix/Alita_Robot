@@ -22,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 
 	"github.com/divkix/Alita_Robot/alita/utils/content"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
@@ -53,11 +54,7 @@ func deleteFilterOverwriteCache(token string) {
 
 //nolint:dupl // addFilter shares validation logic with notes module by design
 func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Filters][addFilter] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("addFilter", "Filters")
 	msg := ctx.EffectiveMessage
 	connectedChat := resolveAdminChat(b, ctx, false)
 	if connectedChat == nil {

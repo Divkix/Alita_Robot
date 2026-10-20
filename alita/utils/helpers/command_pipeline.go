@@ -127,7 +127,7 @@ func RequireGroup() CheckFunc {
 
 func RequireBotAdmin() CheckFunc {
 	return func(c *CommandContext) bool {
-		result := chat_status.RequireBotAdmin(c.Bot, c.Ctx, nil)
+		result := chat_status.IsBotAdminForUpdate(c.Bot, c.Ctx, nil)
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		}
@@ -140,7 +140,11 @@ func RequireUserAdmin() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		result := chat_status.RequireUserAdmin(c.Bot, c.Ctx, nil, c.User.Id)
+		chat := c.Chat
+		if chat == nil && c.Ctx != nil {
+			chat = c.Ctx.EffectiveChat
+		}
+		result := chat != nil && chat_status.IsUserAdminForUpdate(c.Bot, c.Ctx, chat.Id, c.User.Id)
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		}
@@ -164,7 +168,9 @@ func CanUserPromote() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		result := chat_status.CanUserPromote(c.Bot, c.Ctx, nil, c.User.Id)
+		result := chat_status.UserHasPermissionForUpdate(c.Bot, c.Ctx, nil, c.User.Id, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanPromoteMembers
+		})
 		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		}
@@ -174,7 +180,9 @@ func CanUserPromote() CheckFunc {
 
 func CanBotPromote() CheckFunc {
 	return func(c *CommandContext) bool {
-		result := chat_status.CanBotPromote(c.Bot, c.Ctx, nil)
+		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanPromoteMembers
+		})
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_promote_error", "")
 		}
@@ -187,7 +195,9 @@ func CanUserPin() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		result := chat_status.CanUserPin(c.Bot, c.Ctx, nil, c.User.Id)
+		result := chat_status.UserHasPermissionForUpdate(c.Bot, c.Ctx, nil, c.User.Id, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanPinMessages
+		})
 		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_user_error", "")
 		}
@@ -197,7 +207,9 @@ func CanUserPin() CheckFunc {
 
 func CanBotPin() CheckFunc {
 	return func(c *CommandContext) bool {
-		result := chat_status.CanBotPin(c.Bot, c.Ctx, nil)
+		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanPinMessages
+		})
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_bot_error", "")
 		}
@@ -228,7 +240,9 @@ func CanUserChangeInfo() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		result := chat_status.CanUserChangeInfo(c.Bot, c.Ctx, nil, c.User.Id)
+		result := chat_status.UserHasPermissionForUpdate(c.Bot, c.Ctx, nil, c.User.Id, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanChangeInfo
+		})
 		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(
 				c.Ctx,
@@ -242,7 +256,9 @@ func CanUserChangeInfo() CheckFunc {
 
 func CanBotChangeInfo() CheckFunc {
 	return func(c *CommandContext) bool {
-		result := chat_status.CanBotChangeInfo(c.Bot, c.Ctx, nil)
+		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanChangeInfo
+		})
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_change_info_error", "")
 		}
@@ -255,7 +271,9 @@ func CanUserRestrict() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		result := chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id)
+		result := chat_status.UserHasPermissionForUpdate(c.Bot, c.Ctx, nil, c.User.Id, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanRestrictMembers
+		})
 		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		}
@@ -265,7 +283,9 @@ func CanUserRestrict() CheckFunc {
 
 func CanBotRestrict() CheckFunc {
 	return func(c *CommandContext) bool {
-		result := chat_status.CanBotRestrict(c.Bot, c.Ctx, nil)
+		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanRestrictMembers
+		})
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		}
@@ -291,7 +311,9 @@ func CanUserDelete() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		result := chat_status.CanUserDelete(c.Bot, c.Ctx, nil, c.User.Id)
+		result := chat_status.UserHasPermissionForUpdate(c.Bot, c.Ctx, nil, c.User.Id, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanDeleteMessages
+		})
 		if !result && !anonProofSent(c) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		}
@@ -301,7 +323,9 @@ func CanUserDelete() CheckFunc {
 
 func CanBotDelete() CheckFunc {
 	return func(c *CommandContext) bool {
-		result := chat_status.CanBotDelete(c.Bot, c.Ctx, nil)
+		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
+			return m.CanDeleteMessages
+		})
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		}

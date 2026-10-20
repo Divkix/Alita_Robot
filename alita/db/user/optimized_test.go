@@ -44,7 +44,7 @@ func TestGetUserBasicInfo(t *testing.T) {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
-	if err := db.EnsureUserInDb(userID, username, name); err != nil {
+	if err := EnsureUserInDb(userID, username, name); err != nil {
 		t.Fatalf("EnsureUserInDb() error = %v", err)
 	}
 
@@ -78,7 +78,7 @@ func TestGetUserBasicInfoCached(t *testing.T) {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
-	if err := db.EnsureUserInDb(userID, username, name); err != nil {
+	if err := EnsureUserInDb(userID, username, name); err != nil {
 		t.Fatalf("EnsureUserInDb() error = %v", err)
 	}
 

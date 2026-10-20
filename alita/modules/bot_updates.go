@@ -231,7 +231,7 @@ func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
 	if m == nil {
 		return nil, fmt.Errorf("cache not initialized")
 	}
-	result, err := m.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
+	result, err := m.Get(cache.Context, chat_status.AnonAdminCacheKey(chatId, msgId), new(gotgbot.Message))
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"context"
 	"errors"
 	"slices"
 
@@ -9,12 +10,13 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
-func GetChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) {
+func checkChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) {
 	reportsrc = &models.ReportChatSettings{}
 	err := db.GetRecord(reportsrc, models.ReportChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -35,6 +37,21 @@ func GetChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) 
 	return
 }
 
+func GetChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) {
+	reportsrc, err := cache.GetFromCacheOrLoad(
+		context.Background(),
+		cache.CacheKey("report_settings", chatID),
+		cache.CacheTTLReportSettings,
+		func(context.Context) (*models.ReportChatSettings, error) {
+			return checkChatReportSettings(chatID), nil
+		},
+	)
+	if err != nil || reportsrc == nil {
+		return checkChatReportSettings(chatID)
+	}
+	return reportsrc
+}
+
 func SetChatReportStatus(chatID int64, pref bool) error {
 	GetChatReportSettings(chatID)
 	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatID}, map[string]any{
@@ -43,8 +60,10 @@ func SetChatReportStatus(chatID int64, pref bool) error {
 	})
 	if err != nil {
 		log.Errorf("[Database] SetChatReportStatus: %v", err)
+		return err
 	}
-	return err
+	cache.DeleteCache(cache.CacheKey("report_settings", chatID))
+	return nil
 }
 
 func BlockReportUser(chatId, userId int64) error {
@@ -66,7 +85,7 @@ func UnblockReportUser(chatId, userId int64) error {
 func updateReportBlockList(chatId, userId int64, block bool) error {
 	GetChatReportSettings(chatId)
 
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var chat models.Chat
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Select("id").
@@ -101,6 +120,35 @@ func updateReportBlockList(chatId, userId int64, block bool) error {
 
 		return tx.Model(&settings).Update("blocked_list", settings.BlockedList).Error
 	})
+	if err != nil {
+		return err
+	}
+	cache.DeleteCache(cache.CacheKey("report_settings", chatId))
+	return nil
+}
+
+// GetUserReportStatuses returns each user's report-notification setting in one
+// query. Users without a row default to enabled, matching GetUserReportSettings.
+func GetUserReportStatuses(userIDs []int64) map[int64]bool {
+	statuses := make(map[int64]bool, len(userIDs))
+	for _, userID := range userIDs {
+		statuses[userID] = true
+	}
+	if len(userIDs) == 0 {
+		return statuses
+	}
+	var rows []models.ReportUserSettings
+	if err := db.DB.Model(&models.ReportUserSettings{}).
+		Select("user_id", "status").
+		Where("user_id IN ?", userIDs).
+		Find(&rows).Error; err != nil {
+		log.Errorf("[Database] GetUserReportStatuses: %v", err)
+		return statuses
+	}
+	for i := range rows {
+		statuses[rows[i].UserId] = rows[i].Status
+	}
+	return statuses
 }
 
 func GetUserReportSettings(userId int64) (reportsrc *models.ReportUserSettings) {

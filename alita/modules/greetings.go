@@ -35,8 +35,10 @@ import (
 
 var recentJoinProcessTTL = 5 * time.Second
 
-var greetingsModule = moduleStruct{moduleName: "Greetings"}
-var recentJoinProcessing sync.Map
+var (
+	greetingsModule      = moduleStruct{moduleName: "Greetings"}
+	recentJoinProcessing sync.Map
+)
 
 type joinClaim struct{ exp time.Time }
 
@@ -617,11 +619,7 @@ func (m moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // SendWelcomeMessage sends the configured welcome message for a user in a chat.
 func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstName string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Greetings][SendWelcomeMessage] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("SendWelcomeMessage", "Greetings")
 	chat := ctx.EffectiveChat
 	greetPrefs := greetings.GetGreetingSettings(chat.Id)
 

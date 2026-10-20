@@ -71,7 +71,12 @@ func CanUserInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 	})
 }
 
-func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+func hasBotPermission(
+	b *gotgbot.Bot,
+	ctx *ext.Context,
+	chat *gotgbot.Chat,
+	requiredField func(*gotgbot.MergedChatMember) bool,
+) bool {
 	if b == nil {
 		return false
 	}
@@ -80,91 +85,47 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return false
 	}
 
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotRestrict")
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "hasBotPermission")
 	if !ok {
 		return false
 	}
-	return botMember.CanRestrictMembers
+	return requiredField(&botMember)
+}
+
+func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return hasBotPermission(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanRestrictMembers
+	})
 }
 
 func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	if b == nil {
-		return false
-	}
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
-		return false
-	}
-
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotPromote")
-	if !ok {
-		return false
-	}
-	return botMember.CanPromoteMembers
+	return hasBotPermission(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanPromoteMembers
+	})
 }
 
 func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	if b == nil {
-		return false
-	}
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
-		return false
-	}
-
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotPin")
-	if !ok {
-		return false
-	}
-	return botMember.CanPinMessages
+	return hasBotPermission(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanPinMessages
+	})
 }
 
 func CanBotChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	if b == nil {
-		return false
-	}
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
-		return false
-	}
-
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotChangeInfo")
-	if !ok {
-		return false
-	}
-	return botMember.CanChangeInfo
+	return hasBotPermission(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanChangeInfo
+	})
 }
 
 func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	if b == nil {
-		return false
-	}
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
-		return false
-	}
-
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotDelete")
-	if !ok {
-		return false
-	}
-	return botMember.CanDeleteMessages
+	return hasBotPermission(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanDeleteMessages
+	})
 }
 
 func CanBotInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	if b == nil {
-		return false
-	}
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
-		return false
-	}
-
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotInvite")
-	if !ok {
-		return false
-	}
-	return botMember.CanInviteUsers
+	return hasBotPermission(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanInviteUsers
+	})
 }
 
 func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {

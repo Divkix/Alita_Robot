@@ -3,6 +3,7 @@
 package locks
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func TestGetChatLocksOptimized(t *testing.T) {
 		}
 	}
 
-	result, err := GetChatLocksOptimized(chatID)
+	result, err := GetChatLocksOptimizedContext(context.Background(), chatID)
 	if err != nil {
 		t.Fatalf("GetChatLocksOptimized() error = %v", err)
 	}
@@ -42,7 +43,7 @@ func TestGetChatLocksOptimized(t *testing.T) {
 	}
 
 	differentChatID := chatID + 1
-	emptyResult, err := GetChatLocksOptimized(differentChatID)
+	emptyResult, err := GetChatLocksOptimizedContext(context.Background(), differentChatID)
 	if err != nil {
 		t.Fatalf("GetChatLocksOptimized() different chat error = %v", err)
 	}

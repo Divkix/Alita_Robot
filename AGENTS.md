@@ -64,7 +64,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - After such a swap `lang.GetLanguage(ctx)` returns the language of the chat the message came from (the user's, in
   PM), since replies go there. Read the group's language with `lang.GetLanguage(&ext.Context{EffectiveChat: group})`.
 - `IsUserAdmin` returns false for channel and non-positive IDs. Never pass a chat ID as a user ID.
-- `*ForUpdate` predicates are memoised per update. Watchers only, never after a state change in the same update.
+- `*ForUpdate` predicates are memoised per update. Watchers and command-pipeline checks only, never after a state change in the same update.
 
 ## Data
 

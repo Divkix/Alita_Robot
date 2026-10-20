@@ -512,6 +512,19 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+
+	// notify renders the action's locale line and posts it to the chat.
+	notify := func(key string, args ...any) error {
+		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
+		args = append([]any{formatting.MentionHtml(user.Id(), user.Name())}, args...)
+		args = append(args, fmt.Sprintf(reason, html.EscapeString(i)))
+		_, err := b.SendMessage(chat.Id, fmt.Sprintf(temp, args...), formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+		}
+		return err
+	}
+
 	var err error
 	switch matched.Action {
 	case "mute":
@@ -524,15 +537,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-
-		_, err = b.SendMessage(chat.Id,
-			func() string {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_muted_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
-			}(),
-			formatting.Shtml())
-		if err != nil {
-			log.Error(err)
+		if err = notify("_bl_watcher_muted_user"); err != nil {
 			return err
 		}
 	case "ban":
@@ -545,15 +550,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-
-		_, err = b.SendMessage(chat.Id,
-			func() string {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_banned_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
-			}(),
-			formatting.Shtml())
-		if err != nil {
-			log.Error(err)
+		if err = notify("_bl_watcher_banned_user"); err != nil {
 			return err
 		}
 	case "kick":
@@ -565,15 +562,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-
-		_, err = b.SendMessage(chat.Id,
-			func() string {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_kicked_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
-			}(),
-			formatting.Shtml())
-		if err != nil {
-			log.Error(err)
+		if err = notify("_bl_watcher_kicked_user"); err != nil {
 			return err
 		}
 	case "tban", "tmute":
@@ -595,15 +584,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-
-		_, err = b.SendMessage(chat.Id,
-			func() string {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), formatDuration(blacklistTimedActionTime), fmt.Sprintf(reason, html.EscapeString(i)))
-			}(),
-			formatting.Shtml())
-		if err != nil {
-			log.Error(err)
+		if err = notify(key, formatDuration(blacklistTimedActionTime)); err != nil {
 			return err
 		}
 	case "warn":
@@ -628,19 +609,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(blacklistsModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("blacklists", blacklistsModule.listBlacklists))
+	helpers.MultiCommand(dispatcher, []string{"blacklists", "blocklists"}, blacklistsModule.listBlacklists)
 	helpers.AddCmdToDisableable("blacklists")
-	dispatcher.AddHandler(handlers.NewCommand("blocklists", blacklistsModule.listBlacklists))
 	helpers.AddCmdToDisableable("blocklists")
-	dispatcher.AddHandler(handlers.NewCommand("addblacklist", blacklistsModule.addBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("blacklist", blacklistsModule.addBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("addblocklist", blacklistsModule.addBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("blocklist", blacklistsModule.addBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("rmblacklist", blacklistsModule.removeBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("rmblocklist", blacklistsModule.removeBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("unblacklist", blacklistsModule.removeBlacklist))
-	dispatcher.AddHandler(handlers.NewCommand("blaction", blacklistsModule.setBlacklistAction))
-	dispatcher.AddHandler(handlers.NewCommand("blacklistaction", blacklistsModule.setBlacklistAction))
+	helpers.MultiCommand(dispatcher, []string{"addblacklist", "blacklist", "addblocklist", "blocklist"}, blacklistsModule.addBlacklist)
+	helpers.MultiCommand(dispatcher, []string{"rmblacklist", "rmblocklist", "unblacklist"}, blacklistsModule.removeBlacklist)
+	helpers.MultiCommand(dispatcher, []string{"blaction", "blacklistaction"}, blacklistsModule.setBlacklistAction)
 	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl", "rmblocklistall", "rmallblocklist"}, blacklistsModule.rmAllBlacklists)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist"), blacklistsModule.buttonHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {

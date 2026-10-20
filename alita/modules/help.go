@@ -215,11 +215,13 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 		default:
 			return answerInvalidCallback(b, ctx, query)
 		}
-		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: currText, ReplyMarkup: currKb,
+		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{
+			Text: currText, ReplyMarkup: currKb,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
-			ParseMode: formatting.HTML})
+			ParseMode: formatting.HTML,
+		})
 		if err != nil {
 			log.Error(err)
 			return err
@@ -324,11 +326,13 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		helpText, replyKb, parsemode = getHelpTextAndMarkup(ctx, strings.ToLower(module), DefaultHelpRegistry())
 	}
 
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: parsemode,
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{
+		Text: helpText, ParseMode: parsemode,
 		ReplyMarkup: replyKb,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 			IsDisabled: true,
-		}})
+		},
+	})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -398,11 +402,7 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 
 	_, err := b.SendMessage(chat.Id,
-		func() string {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("help_donatetext")
-			return text
-		}(),
+		trS(ctxTr(ctx), "help_donatetext"),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
@@ -508,13 +508,15 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	default:
 		return answerInvalidCallback(b, ctx, query)
 	}
-	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML,
+	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{
+		Text: text, ParseMode: formatting.HTML,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 			IsDisabled: true,
 		},
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: iKeyboard,
-		}})
+		},
+	})
 	if err != nil {
 		log.Error(err)
 		return err

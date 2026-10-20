@@ -431,8 +431,8 @@ func TestAnonAdminPromoteAndDemoteExplainMissingRights(t *testing.T) {
 			text string
 			run  func(*gotgbot.Bot, *ext.Context) error
 		}{
-			{text: "/promote 42", run: adminModule.promoteAnonAdmin},
-			{text: "/demote 42", run: adminModule.demoteAnonAdmin},
+			{text: "/promote 42", run: anonCommandContextHandler(promoteDesc, adminModule.promote)},
+			{text: "/demote 42", run: anonCommandContextHandler(demoteDesc, adminModule.demote)},
 		} {
 			t.Run(tt.name+" "+cmd.text, func(t *testing.T) {
 				f := newAdminChatFixture(t)

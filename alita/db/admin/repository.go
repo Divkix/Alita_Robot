@@ -1,16 +1,29 @@
 package admin
 
 import (
+	"context"
 	"errors"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 func GetAdminSettings(chatID int64) *models.AdminSettings {
-	return checkAdminSetting(chatID)
+	settings, err := cache.GetFromCacheOrLoad(
+		context.Background(),
+		cache.CacheKey("admin", chatID),
+		cache.CacheTTLAdminSettings,
+		func(context.Context) (*models.AdminSettings, error) {
+			return checkAdminSetting(chatID), nil
+		},
+	)
+	if err != nil || settings == nil {
+		return checkAdminSetting(chatID)
+	}
+	return settings
 }
 
 func checkAdminSetting(chatID int64) (adminSrc *models.AdminSettings) {
@@ -39,5 +52,6 @@ func SetAnonAdminMode(chatID int64, val bool) error {
 		log.Errorf("[Database] SetAnonAdminMode: %v - %d", err, chatID)
 		return err
 	}
+	cache.DeleteCache(cache.CacheKey("admin", chatID))
 	return nil
 }
