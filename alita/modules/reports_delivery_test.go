@@ -10,6 +10,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
@@ -766,4 +767,42 @@ func TestCardPressBetweenCardEditAndLinkClosesNewReport(t *testing.T) {
 	if left := cardActions(t, lastCardMarkup(t, f, 9001)); len(left) != 0 {
 		t.Fatalf("decided card 9001 actions = %v, want none", left)
 	}
+}
+
+// A card already acting keeps its buttons when linking a new report to it
+// fails: its earlier reports are still open on it.
+func TestCardKeptWhenLinkingNewReportFails(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	actions := reportedCard(t, f) // report A → card 9001
+	const failUpdates = "test:fail_report_updates"
+	f.hook("editMessageText", reportCardChannelID, func(string) {
+		// A transient store failure while the second report is linked.
+		if err := db.DB.Callback().Update().Before("gorm:update").Register(failUpdates, func(tx *gorm.DB) {
+			if tx.Statement.Table == "reports" {
+				_ = tx.AddError(errors.New("transient update failure"))
+			}
+		}); err != nil {
+			t.Fatalf("register update failure: %v", err)
+		}
+	})
+	t.Cleanup(func() { _ = db.DB.Callback().Update().Remove(failUpdates) })
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+	if err := db.DB.Callback().Update().Remove(failUpdates); err != nil {
+		t.Fatalf("remove update failure: %v", err)
+	}
+
+	if left := cardActions(t, lastCardMarkup(t, f, 9001)); len(left) != 4 {
+		t.Fatalf("card 9001 actions = %v, want all four kept", left)
+	}
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 1 {
+		t.Fatalf("banChatMember calls = %d, want the card still acting", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
 }

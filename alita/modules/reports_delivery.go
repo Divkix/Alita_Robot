@@ -167,12 +167,16 @@ func sendReportCard(
 // (the store failed, every report was closed meanwhile, or a concurrent
 // report linked them to its own card first) would answer "Invalid action"
 // to every press, so it loses its action buttons and keeps the link to the
-// message.
+// message. A card that was already theirs (card == replaces) keeps its
+// buttons when the store fails: its earlier reports are still on it.
 func recordReportCard(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, messageID, channelID, cardID, replaces int64) {
 	recorded, err := reports.SetAdminMessage(chat.Id, messageID, channelID, cardID, replaces)
 	switch {
 	case err != nil:
 		log.Errorf("[Reports] failed to record report card for chat %d message %d: %v", chat.Id, messageID, err)
+		if cardID == replaces {
+			return
+		}
 	case recorded == cardID:
 		return
 	default:
