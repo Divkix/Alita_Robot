@@ -2,15 +2,14 @@ package formatting
 
 import (
 	"fmt"
-	"github.com/PaulSonOfLars/gotgbot/v2"
 	"html"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -104,9 +103,40 @@ func Smarkdown() *gotgbot.SendMessageOpts {
 	}
 }
 
+// UTF16Len returns s in Telegram's length unit: UTF-16 code units.
+func UTF16Len(s string) int {
+	n := 0
+	for _, r := range s {
+		if r > 0xFFFF {
+			n += 2
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+// SplitByUTF16Limit cuts s into pieces of at most limit UTF-16 units. It cuts
+// between runes, so a surrogate pair is never split. limit must be at least 2.
+func SplitByUTF16Limit(s string, limit int) []string {
+	var pieces []string
+	start, units := 0, 0
+	for i, r := range s {
+		w := 1
+		if r > 0xFFFF {
+			w = 2
+		}
+		if units+w > limit {
+			pieces = append(pieces, s[start:i])
+			start, units = i, 0
+		}
+		units += w
+	}
+	return append(pieces, s[start:])
+}
+
 func SplitMessage(msg string) []string {
-	totalRunes := utf8.RuneCountInString(msg)
-	if totalRunes <= MaxMessageLength {
+	if UTF16Len(msg) <= MaxMessageLength {
 		return []string{msg}
 	}
 
@@ -115,42 +145,39 @@ func SplitMessage(msg string) []string {
 		lines = lines[:len(lines)-1]
 	}
 
-	result := make([]string, 0, totalRunes/MaxMessageLength+1)
+	result := make([]string, 0, len(lines))
 
 	smallMsg := ""
-	smallMsgRunes := 0
+	smallMsgUnits := 0
+	flush := func() {
+		if smallMsg != "" {
+			result = append(result, smallMsg)
+			smallMsg = ""
+			smallMsgUnits = 0
+		}
+	}
 
 	for _, line := range lines {
-		lineRunes := utf8.RuneCountInString(line)
-		potentialRunes := smallMsgRunes + lineRunes + 1
+		lineUnits := UTF16Len(line)
 
-		if potentialRunes <= MaxMessageLength {
+		if smallMsgUnits+lineUnits+1 <= MaxMessageLength {
 			smallMsg += line + "\n"
-			smallMsgRunes = potentialRunes
+			smallMsgUnits += lineUnits + 1
 			continue
 		}
 
-		if lineRunes > MaxMessageLength {
-			if smallMsg != "" {
-				result = append(result, smallMsg)
-				smallMsg = ""
-				smallMsgRunes = 0
-			}
-			for chunk := range slices.Chunk([]rune(line), MaxMessageLength) {
-				result = append(result, string(chunk))
-			}
-		} else {
-			if smallMsg != "" {
-				result = append(result, smallMsg)
-			}
+		flush()
+
+		if lineUnits <= MaxMessageLength {
 			smallMsg = line + "\n"
-			smallMsgRunes = lineRunes + 1
+			smallMsgUnits = lineUnits + 1
+			continue
 		}
+
+		result = append(result, SplitByUTF16Limit(line, MaxMessageLength)...)
 	}
 
-	if smallMsg != "" {
-		result = append(result, smallMsg)
-	}
+	flush()
 
 	return result
 }

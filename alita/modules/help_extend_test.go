@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -20,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 const extendTestLocale = `
@@ -127,7 +127,7 @@ func TestExtendSplitsAtModuleBoundariesWithinTelegramLimit(t *testing.T) {
 	}
 	joined := strings.Join(texts, "\n")
 	for _, text := range texts {
-		if n := len(utf16.Encode([]rune(text))); n > 4096 {
+		if n := formatting.UTF16Len(text); n > 4096 {
 			t.Errorf("message is %d UTF-16 units, over Telegram's 4096 limit", n)
 		}
 	}
@@ -313,8 +313,8 @@ func TestPackExtendBlocksSplitsAnOverlongLineWithoutBreakingSurrogatePairs(t *te
 	// A leading ASCII char shifts every emoji (2 UTF-16 units each) onto an odd
 	// offset, so a cut at exactly `limit` units would land inside a pair.
 	line := "/cmd — a" + strings.Repeat("🛡", 3000)
-	if utf16Len(line) <= limit {
-		t.Fatalf("fixture is %d units, must exceed %d", utf16Len(line), limit)
+	if formatting.UTF16Len(line) <= limit {
+		t.Fatalf("fixture is %d units, must exceed %d", formatting.UTF16Len(line), limit)
 	}
 
 	parts := packExtendBlocks("", []string{line}, limit)
@@ -323,7 +323,7 @@ func TestPackExtendBlocksSplitsAnOverlongLineWithoutBreakingSurrogatePairs(t *te
 		t.Fatalf("parts = %d, want the overlong line split", len(parts))
 	}
 	for i, p := range parts {
-		if n := utf16Len(p); n > limit {
+		if n := formatting.UTF16Len(p); n > limit {
 			t.Errorf("part %d is %d UTF-16 units, over %d", i, n, limit)
 		}
 		if !utf8.ValidString(p) || strings.ContainsRune(p, utf8.RuneError) {
