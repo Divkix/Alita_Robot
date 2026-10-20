@@ -97,16 +97,18 @@ func Resolve(chatID, messageID int64, status string, resolvedBy int64) (closed [
 	})
 }
 
-// ResolveCard closes the open reports of r's message that are shown on r's
-// report card, like Resolve, and only while r itself is open: a card whose
-// report was decided returns no ids, even if a newer report of the message
-// is open on a card of its own. r must have a card.
+// ResolveCard closes the open reports of r's message on r's report card,
+// like Resolve, and only while r itself is open: a card whose report was
+// decided returns no ids, even if a newer report of the message is open on
+// a card of its own. Reports not linked to a card yet are closed too: while
+// r is open, a new report is counted onto r's card before it is linked to
+// it. r must have a card.
 func ResolveCard(r *models.Report, status string, resolvedBy int64) (closed []int64, err error) {
 	if r.AdminChatId == nil || r.AdminMessageId == nil {
 		return nil, fmt.Errorf("resolve report %d: no report card", r.ID)
 	}
 	return resolveLocked(status, resolvedBy, r.ID, func(q *gorm.DB) *gorm.DB {
-		return q.Where("chat_id = ? AND reported_message_id = ? AND admin_chat_id = ? AND admin_message_id = ?",
+		return q.Where("chat_id = ? AND reported_message_id = ? AND ((admin_chat_id = ? AND admin_message_id = ?) OR admin_message_id IS NULL)",
 			r.ChatId, r.ReportedMessageId, *r.AdminChatId, *r.AdminMessageId)
 	})
 }

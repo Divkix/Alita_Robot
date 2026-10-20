@@ -268,7 +268,9 @@ func TestResolveCardClosesOnlyReportsOnTheCard(t *testing.T) {
 	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
 	b := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44}
 	c := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 45}
-	for _, r := range []*models.Report{a, b, c} {
+	// d is counted onto card 31, but not linked to it yet.
+	d := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 46}
+	for _, r := range []*models.Report{a, b, c, d} {
 		mustCreateReport(t, r)
 	}
 	card := linkCard(t, a.ID, 31)
@@ -279,8 +281,8 @@ func TestResolveCardClosesOnlyReportsOnTheCard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveCard() error = %v", err)
 	}
-	if len(closed) != 2 || closed[0] != a.ID || closed[1] != b.ID {
-		t.Fatalf("ResolveCard() closed = %v, want reports %d and %d of card 31", closed, a.ID, b.ID)
+	if len(closed) != 3 || closed[0] != a.ID || closed[1] != b.ID || closed[2] != d.ID {
+		t.Fatalf("ResolveCard() closed = %v, want reports %d and %d of card 31 and unlinked %d", closed, a.ID, b.ID, d.ID)
 	}
 	if left, err := GetByID(c.ID); err != nil || left.Status != models.ReportStatusOpen {
 		t.Fatalf("report on card 32 = %+v, %v; want it open", left, err)

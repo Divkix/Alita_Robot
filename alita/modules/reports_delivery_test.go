@@ -723,3 +723,47 @@ func TestConcurrentFirstReportsLeaveOneActiveCard(t *testing.T) {
 	}
 	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
 }
+
+// lastCardMarkup returns the reply markup of the last edit of card in the log
+// channel.
+func lastCardMarkup(t *testing.T, f reportCardFixture, card int64) any {
+	t.Helper()
+	var markup any
+	for _, call := range f.client.calls {
+		if (call.Method == "editMessageText" || call.Method == "editMessageReplyMarkup") &&
+			fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(reportCardChannelID) &&
+			fmt.Sprint(call.Params["message_id"]) == fmt.Sprint(card) {
+			markup = call.Params["reply_markup"]
+		}
+	}
+	if markup == nil {
+		t.Fatalf("card %d was never edited", card)
+	}
+	return markup
+}
+
+// A report counted onto the card is linked to it only after the card is
+// edited. A press in between decides it too, so it is not left open on a
+// card whose buttons carry the closed report.
+func TestCardPressBetweenCardEditAndLinkClosesNewReport(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	actions := reportedCard(t, f) // report A → card 9001
+	f.hook("editMessageText", reportCardChannelID, func(string) {
+		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+			t.Fatalf("ban press error = %v, want EndGroups", err)
+		}
+	})
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report") // report B, counted onto 9001
+
+	if got := len(f.client.callsFor("banChatMember")); got != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+	if left := cardActions(t, lastCardMarkup(t, f, 9001)); len(left) != 0 {
+		t.Fatalf("decided card 9001 actions = %v, want none", left)
+	}
+}
