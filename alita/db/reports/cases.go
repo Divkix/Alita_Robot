@@ -41,6 +41,31 @@ func GetByID(id int64) (*models.Report, error) {
 	return &r, nil
 }
 
+// GetByReporter returns a member's report of a message, or
+// gorm.ErrRecordNotFound when they have none.
+func GetByReporter(chatID, messageID, reporterID int64) (*models.Report, error) {
+	var r models.Report
+	if err := db.DB.
+		Where("chat_id = ? AND reported_message_id = ? AND reporter_id = ?", chatID, messageID, reporterID).
+		Take(&r).Error; err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// OpenForCard returns the open reports linked to report card adminMessageID
+// in adminChatID, oldest first.
+func OpenForCard(adminChatID, adminMessageID int64) ([]models.Report, error) {
+	var rows []models.Report
+	// 'open' is a literal so a prepared generic plan can scan only the open
+	// rows through their partial index; card columns have no index.
+	err := db.DB.
+		Where("status = 'open' AND admin_chat_id = ? AND admin_message_id = ?", adminChatID, adminMessageID).
+		Order("id").
+		Find(&rows).Error
+	return rows, err
+}
+
 func OpenForMessage(chatID, messageID int64) ([]models.Report, error) {
 	var rows []models.Report
 	err := db.DB.
@@ -100,9 +125,13 @@ func Resolve(chatID, messageID int64, status string, resolvedBy int64) (closed [
 // ResolveCard closes the open reports of r's message on r's report card,
 // like Resolve, and only while r itself is open: a card whose report was
 // decided returns no ids, even if a newer report of the message is open on
-// a card of its own. Reports not linked to a card yet are closed too: while
-// r is open, a new report is counted onto r's card before it is linked to
-// it. r must have a card.
+// a card of its own. Reports of the message not linked to any card are
+// closed too. Mostly that is a new report counted onto r's card, which is
+// edited before the report is linked to it; it can also be one that never
+// got onto a card (the reports category off, no log channel, the channel
+// changed, the card not sent, or the lookup or link failing). Deciding such
+// a report with the rest of its message does no harm, as Resolve would close
+// it too. r must have a card.
 func ResolveCard(r *models.Report, status string, resolvedBy int64) (closed []int64, err error) {
 	if r.AdminChatId == nil || r.AdminMessageId == nil {
 		return nil, fmt.Errorf("resolve report %d: no report card", r.ID)

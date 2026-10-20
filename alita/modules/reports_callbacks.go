@@ -64,16 +64,23 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return answer("reports_invalid_action")
 	}
 
+	card := query.Message
 	rep, err := reports.GetByID(reportID)
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("[Reports] failed to load report %d: %v", reportID, err)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// The buttons carry the card's oldest open report, which the
+		// retention sweep removes while newer reports on the card may still
+		// be open: those take its place.
+		rep, err = oldestOpenOnCard(card)
+		if err == nil && rep == nil {
+			return answer("reports_expired")
 		}
+	}
+	if err != nil {
+		log.Errorf("[Reports] failed to load report %d: %v", reportID, err)
 		return answer("reports_invalid_action")
 	}
 	// Callback data can be forged: the report must belong to the card that
 	// was pressed.
-	card := query.Message
 	if rep.AdminChatId == nil || rep.AdminMessageId == nil ||
 		*rep.AdminChatId != card.GetChat().Id || *rep.AdminMessageId != card.GetMessageId() {
 		log.Warnf("[Reports] report %d pressed on card %d in %d, which is not its card",
@@ -117,6 +124,16 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	closeReportCard(b, card, action.status, user)
 	return answer(action.successKey)
+}
+
+// oldestOpenOnCard returns the oldest open report linked to card, or nil when
+// none is.
+func oldestOpenOnCard(card gotgbot.MaybeInaccessibleMessage) (*models.Report, error) {
+	rows, err := reports.OpenForCard(card.GetChat().Id, card.GetMessageId())
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	return &rows[0], nil
 }
 
 // reportCardAllowed checks the presser and the bot in the report's source

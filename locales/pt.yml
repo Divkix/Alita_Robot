@@ -1604,6 +1604,8 @@ reports_button_mute: "🔇 Silenciar"
 reports_button_dismiss: "✔️ Descartar"
 reports_success_mute: "✅ Silenciado com sucesso"
 reports_already_handled: "Este report já foi tratado."
+reports_already_reviewed: "Os admins já analisaram seu report desta mensagem."
+reports_expired: "Este report expirou."
 reports_action_failed: "Não foi possível concluir a ação. Tente novamente."
 reports_sent_to_admins: "Reportado aos administradores."
 

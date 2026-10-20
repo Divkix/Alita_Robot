@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -13,6 +14,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -198,6 +200,13 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if storeErr == nil && !created && reporterDecided(chat.Id, reportedMsgId, user.Id) {
+		// The admins decided this member's report of the message: repeating
+		// it neither pings them again nor counts on a card.
+		text, _ := tr.GetString("reports_already_reviewed")
+		_, _ = msg.Reply(b, text, nil)
+		return ext.EndGroups
+	}
 	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
 		reportTemplate,
@@ -303,6 +312,19 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	return ext.EndGroups
+}
+
+// reporterDecided reports whether a member's stored report of a message was
+// decided. On a lookup failure it says no, so the report goes out as usual.
+func reporterDecided(chatID, messageID, reporterID int64) bool {
+	rep, err := reports.GetByReporter(chatID, messageID, reporterID)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Errorf("[Reports] failed to load report of %d in chat %d: %v", reporterID, chatID, err)
+		}
+		return false
+	}
+	return rep.Status != models.ReportStatusOpen
 }
 
 // reportWatcher serves the group-8 @admin mention watcher. report() ends

@@ -379,23 +379,85 @@ func TestRepeatReportDoesNotTouchCard(t *testing.T) {
 }
 
 func TestRepeatReportAfterCloseSendsNoCard(t *testing.T) {
+	useReportLocales(t, "en")
+	for _, withLogChannel := range []bool{true, false} {
+		t.Run(fmt.Sprintf("log channel %v", withLogChannel), func(t *testing.T) {
+			f := newReportCardFixture(t, withLogChannel)
+			f.report(t, f.reporter, "/report spam")
+			if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
+				t.Fatalf("Resolve() error = %v", err)
+			}
+			f.client.calls = nil
+
+			f.report(t, f.reporter, "/report still spam")
+
+			// The admins already decided this member's report: no new card,
+			// and the group is told so instead of getting a pending report
+			// that pings the admins again.
+			if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
+				t.Fatalf("log channel sendMessage calls = %d, want no card for a decided report", got)
+			}
+			assertAlreadyReviewedReply(t, f)
+			if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].Status != models.ReportStatusDismissed {
+				t.Fatalf("stored reports = %+v, want the decided report left closed", rows)
+			}
+		})
+	}
+}
+
+// When the member's stored report cannot be looked up, a repeat is not
+// treated as decided: the group gets the full report as before.
+func TestRepeatReportGoesOutWhenItsLookupFails(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	f.report(t, f.reporter, "/report spam")
 	if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
 	f.client.calls = nil
+	failReportQueries(t, "query")
 
 	f.report(t, f.reporter, "/report still spam")
 
-	// The admins already decided this member's report: no new card. The
-	// group gets the report as it does without a log channel.
-	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
-		t.Fatalf("log channel sendMessage calls = %d, want no card for a decided report", got)
-	}
 	assertFullGroupReply(t, f)
-	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].Status != models.ReportStatusDismissed {
-		t.Fatalf("stored reports = %+v, want the decided report left closed", rows)
+}
+
+// A newer report of the message by another member does not reopen this
+// member's decided report: they are still told it was reviewed.
+func TestRepeatReportAfterCloseWithNewerOpenReport(t *testing.T) {
+	useReportLocales(t, "en")
+	f := newReportCardFixture(t, true)
+	f.report(t, f.reporter, "/report spam")
+	if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	f.client.responses["sendMessage"] = json.RawMessage(
+		`{"message_id":9002,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
+	)
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+	f.client.calls = nil
+
+	f.report(t, f.reporter, "/report still spam")
+
+	if got := len(callsToChat(f.client, "editMessageText", reportCardChannelID)); got != 0 {
+		t.Fatalf("card edits = %d, want the decided reporter left off the open card", got)
+	}
+	assertAlreadyReviewedReply(t, f)
+}
+
+// assertAlreadyReviewedReply checks that the group got exactly one reply,
+// reports_already_reviewed, with no admin mentions and no buttons.
+func assertAlreadyReviewedReply(t *testing.T, f reportCardFixture) {
+	t.Helper()
+	group := callsToChat(f.client, "sendMessage", f.chat.Id)
+	if len(group) != 1 {
+		t.Fatalf("group sendMessage calls = %d, want exactly one reply", len(group))
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("reports_already_reviewed")
+	if got := fmt.Sprint(group[0].Params["text"]); want == "" || got != want {
+		t.Fatalf("group reply text = %q, want reports_already_reviewed %q", got, want)
+	}
+	if markup := group[0].Params["reply_markup"]; markup != nil {
+		t.Fatalf("group reply markup = %v, want no buttons", markup)
 	}
 }
 
