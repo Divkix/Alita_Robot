@@ -294,10 +294,10 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		log.Error(err)
 	}
-	// The log channel card has no moderation actions, so the group gets the
-	// report with its admin mentions and buttons whether or not the card is
-	// posted. The card goes second so that a slow log channel does not hold
-	// up the group reply, and still goes when that reply failed.
+	// The group gets the report with its admin mentions and buttons whether
+	// or not the card is posted; the card goes second so that a slow log
+	// channel does not hold up the group reply, and still goes when that
+	// reply failed.
 	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
 	if err != nil {
 		return err
@@ -570,6 +570,35 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		}
 	}
 
+	// A message with stored reports is decided once: they are closed before
+	// acting, so a decision already taken on the card or by another admin
+	// stops this press, and opened again if the action fails. A message
+	// reported before reports were stored has none and acts as before.
+	status := legacyReportStatus[action]
+	closed, err := reports.Resolve(chat.Id, msgId, status, user.Id)
+	legacy := false
+	if err == nil && len(closed) == 0 {
+		var stored bool
+		stored, err = reports.HasReports(chat.Id, msgId)
+		if err == nil && stored {
+			handledText, _ := tr.GetString("reports_already_handled")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: handledText})
+			return ext.EndGroups
+		}
+		legacy = true
+	}
+	if err != nil {
+		log.Errorf("[Reports] failed to close reports of message %d in %d for %s: %v", msgId, chat.Id, action, err)
+		failedText, _ := tr.GetString("reports_action_failed")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: failedText})
+		return err
+	}
+	reopen := func() {
+		if reopenErr := reports.Reopen(closed, status); reopenErr != nil {
+			log.Errorf("[Reports] failed to reopen reports %v after a failed %s: %v", closed, action, reopenErr)
+		}
+	}
+
 	switch action {
 	case "kick":
 		replyQuery, _ = tr.GetString("reports_success_kick")
@@ -577,6 +606,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
 		if err := kickMember(b, chat.Id, userId); err != nil {
+			reopen()
 			log.Error(err)
 			return err
 		}
@@ -587,6 +617,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyText = fmt.Sprintf("%s\n%s", bannedText, actionBy)
 		_, err := chat.BanMember(b, userId, nil)
 		if err != nil {
+			reopen()
 			log.Error(err)
 			return err
 		}
@@ -597,6 +628,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", deletedText, actionBy)
 		if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId); err != nil {
+			reopen()
 			log.Error(err)
 			return err
 		}
@@ -604,9 +636,12 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
-	// Record the decision on the stored reports, so they count as closed.
-	if _, err := reports.Resolve(chat.Id, msgId, legacyReportStatus[action], user.Id); err != nil {
-		log.Errorf("[Reports] failed to close reports of message %d in %d after %s: %v", msgId, chat.Id, action, err)
+	if legacy {
+		// Close any report stored while the action ran, so its card stops
+		// acting.
+		if _, err := reports.Resolve(chat.Id, msgId, status, user.Id); err != nil {
+			log.Errorf("[Reports] failed to close reports of message %d in %d after %s: %v", msgId, chat.Id, action, err)
+		}
 	}
 	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ChatId: chat.Id,
 		ParseMode: formatting.HTML})
@@ -641,6 +676,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 		reportsModule.handlerGroup,
 	)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("report"), reportsModule.markResolvedButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(reportCardNamespace+"|"), reportsModule.reportCardHandler))
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
 	helpers.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))

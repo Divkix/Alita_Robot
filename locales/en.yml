@@ -1677,6 +1677,11 @@ reports_action_by: "Action taken by %s"
 reports_resolved_by: "<b>Resolved by:</b> %s"
 reports_message_template: "<b>⚠️ Report:</b>\n<b> • Report by:</b> %s\n<b> • Reported user:</b> %s\n<b>Status:</b> <i>Pending...</i>"
 reports_invalid_action: "Invalid action."
+reports_button_mute: "🔇 Mute"
+reports_button_dismiss: "✔️ Dismiss"
+reports_success_mute: "✅ Successfully muted"
+reports_already_handled: "This report has already been handled."
+reports_action_failed: "Could not complete this action. Try again."
 reports_sent_to_admins: "Reported to admins."
 
 # Captcha module strings

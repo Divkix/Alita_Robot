@@ -48,6 +48,12 @@ func GetLanguage(ctx *ext.Context) string {
 	return getGroupLanguageContext(tracing.UpdateContext(ctx), chat.Id)
 }
 
+// GetGroupLanguage returns a group's language by id, for updates that come
+// from another chat, such as a log channel.
+func GetGroupLanguage(ctx context.Context, groupID int64) string {
+	return getGroupLanguageContext(ctx, groupID)
+}
+
 func getGroupLanguage(GroupID int64) string {
 	return getGroupLanguageContext(context.Background(), GroupID)
 }

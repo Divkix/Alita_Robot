@@ -199,19 +199,19 @@ func TestResolveClosesOpenReportsOnce(t *testing.T) {
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
 
-	affected, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	closed, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
-	if affected != 2 {
-		t.Fatalf("Resolve() affected = %d, want 2", affected)
+	if len(closed) != 2 {
+		t.Fatalf("Resolve() closed = %v, want 2 reports", closed)
 	}
-	affected, err = Resolve(chatID, 505, models.ReportStatusDismissed, 8)
+	closed, err = Resolve(chatID, 505, models.ReportStatusDismissed, 8)
 	if err != nil {
 		t.Fatalf("second Resolve() error = %v", err)
 	}
-	if affected != 0 {
-		t.Fatalf("second Resolve() affected = %d, want 0", affected)
+	if len(closed) != 0 {
+		t.Fatalf("second Resolve() closed = %v, want none", closed)
 	}
 
 	var rows []models.Report
@@ -249,6 +249,148 @@ func TestResolveRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+// linkCard puts report id on card adminMessageID in channel -100777.
+func linkCard(t *testing.T, id, adminMessageID int64) *models.Report {
+	t.Helper()
+	if err := db.DB.Model(&models.Report{}).Where("id = ?", id).
+		Updates(map[string]any{"admin_chat_id": -100777, "admin_message_id": adminMessageID}).Error; err != nil {
+		t.Fatalf("link report %d to card %d: %v", id, adminMessageID, err)
+	}
+	r, err := GetByID(id)
+	if err != nil {
+		t.Fatalf("GetByID(%d) error = %v", id, err)
+	}
+	return r
+}
+
+func TestResolveCardClosesOnlyReportsOnTheCard(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
+	b := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44}
+	c := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 45}
+	// d is counted onto card 31, but not linked to it yet.
+	d := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 46}
+	for _, r := range []*models.Report{a, b, c, d} {
+		mustCreateReport(t, r)
+	}
+	card := linkCard(t, a.ID, 31)
+	linkCard(t, b.ID, 31)
+	linkCard(t, c.ID, 32)
+
+	closed, err := ResolveCard(card, models.ReportStatusBanned, 7)
+	if err != nil {
+		t.Fatalf("ResolveCard() error = %v", err)
+	}
+	if len(closed) != 3 || closed[0] != a.ID || closed[1] != b.ID || closed[2] != d.ID {
+		t.Fatalf("ResolveCard() closed = %v, want reports %d and %d of card 31 and unlinked %d", closed, a.ID, b.ID, d.ID)
+	}
+	if left, err := GetByID(c.ID); err != nil || left.Status != models.ReportStatusOpen {
+		t.Fatalf("report on card 32 = %+v, %v; want it open", left, err)
+	}
+}
+
+// The pressed card's report was decided after it was loaded, and a newer
+// report of the message is open on a card of its own.
+func TestResolveCardIgnoresClosedReport(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
+	mustCreateReport(t, a)
+	stale := linkCard(t, a.ID, 31)
+	if _, err := Resolve(chatID, 505, models.ReportStatusDismissed, 8); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	c := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44}
+	mustCreateReport(t, c)
+	linkCard(t, c.ID, 31) // even on the same card
+
+	closed, err := ResolveCard(stale, models.ReportStatusBanned, 7)
+	if err != nil || len(closed) != 0 {
+		t.Fatalf("ResolveCard() = %v, %v; want nothing closed for a decided report", closed, err)
+	}
+	if left, err := GetByID(c.ID); err != nil || left.Status != models.ReportStatusOpen {
+		t.Fatalf("newer report = %+v, %v; want it open", left, err)
+	}
+
+	if _, err := ResolveCard(&models.Report{ID: c.ID, ChatId: chatID, ReportedMessageId: 505}, models.ReportStatusBanned, 7); err == nil {
+		t.Fatal("ResolveCard() without a card error = nil, want rejection")
+	}
+}
+
+func TestHasReportsCountsDecidedReports(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	if _, err := Resolve(chatID, 505, models.ReportStatusDismissed, 7); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	for msgID, want := range map[int64]bool{505: true, 606: false} {
+		got, err := HasReports(chatID, msgID)
+		if err != nil || got != want {
+			t.Fatalf("HasReports(%d) = %v, %v; want %v", msgID, got, err, want)
+		}
+	}
+}
+
+func TestReopenRestoresOnlyTheFailedDecision(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	earlier, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	if err != nil || len(earlier) != 1 {
+		t.Fatalf("first Resolve() = %v, %v; want one report", earlier, err)
+	}
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
+	failed, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	if err != nil || len(failed) != 1 {
+		t.Fatalf("second Resolve() = %v, %v; want the new report", failed, err)
+	}
+
+	if err := Reopen(failed, models.ReportStatusBanned); err != nil {
+		t.Fatalf("Reopen() error = %v", err)
+	}
+
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil {
+		t.Fatalf("OpenForMessage() error = %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != failed[0] || rows[0].ResolvedBy != nil || rows[0].ResolvedAt != nil {
+		t.Fatalf("open reports = %+v, want only report %d reopened without a resolver", rows, failed[0])
+	}
+	kept, err := GetByID(earlier[0])
+	if err != nil || kept.Status != models.ReportStatusBanned {
+		t.Fatalf("earlier report = %+v, %v; want it still banned", kept, err)
+	}
+}
+
+func TestReopenLeavesOtherDecisionsAlone(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
+	failed, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	if err != nil || len(failed) != 2 {
+		t.Fatalf("Resolve() = %v, %v; want both reports", failed, err)
+	}
+	// Before the failed ban is undone, one of its reports gets another decision.
+	if err := db.DB.Model(&models.Report{}).Where("id = ?", failed[1]).
+		Updates(map[string]any{"status": models.ReportStatusDismissed, "resolved_by": 8}).Error; err != nil {
+		t.Fatalf("redecide report: %v", err)
+	}
+
+	if err := Reopen(failed, models.ReportStatusBanned); err != nil {
+		t.Fatalf("Reopen() error = %v", err)
+	}
+
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil {
+		t.Fatalf("OpenForMessage() error = %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != failed[0] {
+		t.Fatalf("open reports = %+v, want only report %d reopened", rows, failed[0])
+	}
+	other, err := GetByID(failed[1])
+	if err != nil || other.Status != models.ReportStatusDismissed || other.ResolvedBy == nil || *other.ResolvedBy != 8 {
+		t.Fatalf("redecided report = %+v, %v; want it still dismissed by 8", other, err)
+	}
+}
+
 func TestConcurrentResolveHasOneWinner(t *testing.T) {
 	chatID := newReportCaseChat(t)
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
@@ -264,14 +406,14 @@ func TestConcurrentResolveHasOneWinner(t *testing.T) {
 		wg.Add(1)
 		go func(adminID int64) {
 			defer wg.Done()
-			affected, err := Resolve(chatID, 505, models.ReportStatusBanned, adminID)
+			closed, err := Resolve(chatID, 505, models.ReportStatusBanned, adminID)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
 				errs = append(errs, err)
 				return
 			}
-			if affected > 0 {
+			if len(closed) > 0 {
 				winners++
 			}
 		}(int64(1000 + i))
@@ -292,8 +434,8 @@ func TestSetAdminMessageStoresCardOnOpenReports(t *testing.T) {
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 606, ReporterId: 42})
 
-	if err := SetAdminMessage(chatID, 505, -100777, 31); err != nil {
-		t.Fatalf("SetAdminMessage() error = %v", err)
+	if recorded, err := SetAdminMessage(chatID, 505, -100777, 31, 0); err != nil || recorded != 31 {
+		t.Fatalf("SetAdminMessage() = %d, %v; want card 31", recorded, err)
 	}
 
 	rows, err := OpenForMessage(chatID, 505)
@@ -314,6 +456,55 @@ func TestSetAdminMessageStoresCardOnOpenReports(t *testing.T) {
 	}
 	if len(other) != 1 || other[0].AdminChatId != nil {
 		t.Fatalf("other message rows = %+v, want untouched card fields", other)
+	}
+}
+
+// Two first reports of a message post a card each at once: the card
+// recorded first keeps the reports, and the later one is told it lost.
+func TestSetAdminMessageKeepsCardRecordedFirst(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
+	mustCreateReport(t, a)
+	if recorded, err := SetAdminMessage(chatID, 505, -100777, 32, 0); err != nil || recorded != 32 {
+		t.Fatalf("first SetAdminMessage() = %d, %v; want card 32", recorded, err)
+	}
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
+
+	recorded, err := SetAdminMessage(chatID, 505, -100777, 31, 0)
+	if err != nil || recorded != 32 {
+		t.Fatalf("second SetAdminMessage() = %d, %v; want card 32 kept", recorded, err)
+	}
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("OpenForMessage() = %+v, %v; want 2 rows", rows, err)
+	}
+	for _, row := range rows {
+		if row.AdminMessageId == nil || *row.AdminMessageId != 32 {
+			t.Fatalf("report %d card = %v, want 32 on every open report", row.ID, row.AdminMessageId)
+		}
+	}
+}
+
+// A card posted to replace one that can no longer be edited takes the
+// reports over, as does a card in a new log channel.
+func TestSetAdminMessageReplacesCard(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	if _, err := SetAdminMessage(chatID, 505, -100777, 31, 0); err != nil {
+		t.Fatalf("SetAdminMessage() error = %v", err)
+	}
+	if recorded, err := SetAdminMessage(chatID, 505, -100777, 40, 31); err != nil || recorded != 40 {
+		t.Fatalf("replacing SetAdminMessage() = %d, %v; want card 40", recorded, err)
+	}
+	if recorded, err := SetAdminMessage(chatID, 505, -100888, 50, 0); err != nil || recorded != 50 {
+		t.Fatalf("SetAdminMessage() in another channel = %d, %v; want card 50", recorded, err)
+	}
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil || len(rows) != 1 || *rows[0].AdminChatId != -100888 || *rows[0].AdminMessageId != 50 {
+		t.Fatalf("OpenForMessage() = %+v, %v; want the report on card 50 in -100888", rows, err)
+	}
+	if recorded, err := SetAdminMessage(chatID, 606, -100777, 60, 0); err != nil || recorded != 0 {
+		t.Fatalf("SetAdminMessage() without open reports = %d, %v; want 0", recorded, err)
 	}
 }
 
@@ -345,7 +536,7 @@ func TestConcurrentResolveAndSetAdminMessage(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			cardErr = SetAdminMessage(chatID, messageID, -100777, 31)
+			_, cardErr = SetAdminMessage(chatID, messageID, -100777, 31, 0)
 		}()
 		wg.Wait()
 

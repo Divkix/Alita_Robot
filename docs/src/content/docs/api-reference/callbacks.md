@@ -10,7 +10,7 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 28
+- **Total Callbacks**: 29
 - **Modules with Callbacks**: 19
 
 ## Callback Data Format
@@ -62,6 +62,7 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Pins | `unpinallbtn` | unpinallCallback |
 | Reactions | `reactions_help` | reactionsHelpHandler |
 | Reports | `report` | markResolvedButtonHandler |
+| Reports | `rpt` | reportCardHandler |
 | Warns | `rmAllChatWarns` | warnsButtonHandler |
 | Warns | `rmWarn` | rmWarnButton |
 
@@ -253,6 +254,14 @@ Displays help information for reaction commands.
 
 - **Handler**: `markResolvedButtonHandler`
 - **Source**: `reports.go`
+
+#### `rpt`
+
+- **Handler**: `reportCardHandler`
+- **Source**: `reports_callbacks.go`
+- **Data**: `rpt|v1|a=<ban|mute|delete|dismiss>&i=<report id>`
+
+Acts on a report card in the log channel. The presser must be an admin of the group the report came from, with the right for the action (restrict for ban/mute, delete for delete); admin rights in the log channel alone are not enough. The report id must belong to the card that was pressed. The first decision closes every open report of the message; later presses get "already handled".
 
 ### Warns
 

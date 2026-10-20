@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
@@ -117,6 +119,47 @@ func (f reportCardFixture) report(t *testing.T, reporter gotgbot.User, text stri
 	if err := reportsModule.report(f.bot, ctx); err != ext.EndGroups {
 		t.Fatalf("report error = %v, want EndGroups", err)
 	}
+}
+
+// hookedReportClient runs before once, ahead of the first call of method
+// (any method when empty) to chatID (any chat when 0), to stand for an update
+// handled while that call is in flight. Calls are still recorded by the
+// wrapped client.
+type hookedReportClient struct {
+	*moduleBotClient
+	method string
+	chatID int64
+	before func(method string)
+	fired  bool
+}
+
+func (c *hookedReportClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if !c.fired && (c.method == "" || method == c.method) && (c.chatID == 0 || fmt.Sprint(params["chat_id"]) == fmt.Sprint(c.chatID)) {
+		c.fired = true
+		c.before(method)
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// hook makes f's bot run before ahead of the first matching call.
+func (f reportCardFixture) hook(method string, chatID int64, before func(method string)) *hookedReportClient {
+	hooked := &hookedReportClient{moduleBotClient: f.client, method: method, chatID: chatID, before: before}
+	f.bot.BotClient = hooked
+	return hooked
+}
+
+// cardButtonsRemoved reports whether card in the log channel was edited to
+// keep no action buttons.
+func cardButtonsRemoved(t *testing.T, f reportCardFixture, card int64) bool {
+	t.Helper()
+	for _, method := range []string{"editMessageReplyMarkup", "editMessageText"} {
+		for _, edit := range callsToChat(f.client, method, reportCardChannelID) {
+			if fmt.Sprint(edit.Params["message_id"]) == fmt.Sprint(card) && len(cardActions(t, edit.Params["reply_markup"])) == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestReportCardSentToLogChannel(t *testing.T) {
@@ -361,16 +404,23 @@ func editMessageTextError(description string) error {
 }
 
 func TestCardRecreatedWhenEditFails(t *testing.T) {
-	f := newReportCardFixture(t, true)
-	f.report(t, f.reporter, "/report spam")
-	f.client.errors["editMessageText"] = editMessageTextError("Bad Request: message to edit not found")
-	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+	for _, description := range []string{
+		"Bad Request: message to edit not found",
+		"Bad Request: MESSAGE_ID_INVALID",
+	} {
+		t.Run(description, func(t *testing.T) {
+			f := newReportCardFixture(t, true)
+			f.report(t, f.reporter, "/report spam")
+			f.client.errors["editMessageText"] = editMessageTextError(description)
+			f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
 
-	if got := len(f.client.callsFor("copyMessage")); got != 2 {
-		t.Fatalf("copyMessage calls = %d, want a fresh copy for the new card", got)
-	}
-	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 2 {
-		t.Fatalf("log channel sendMessage calls = %d, want a replacement card", got)
+			if got := len(f.client.callsFor("copyMessage")); got != 2 {
+				t.Fatalf("copyMessage calls = %d, want a fresh copy for the new card", got)
+			}
+			if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 2 {
+				t.Fatalf("log channel sendMessage calls = %d, want a replacement card", got)
+			}
+		})
 	}
 }
 
@@ -527,8 +577,11 @@ func TestReportCardSentWhenStoreFails(t *testing.T) {
 	if len(cards) != 1 || !strings.Contains(fmt.Sprint(cards[0].Params["text"]), "#REPORT") {
 		t.Fatalf("log channel sendMessage calls = %v, want the report card despite the store failure", cards)
 	}
-	// The card is not linked to a stored report, so the group keeps the
-	// full report with its buttons.
+	// Nothing was stored, so there is no report for card buttons to close.
+	if actions := cardActions(t, cards[0].Params["reply_markup"]); len(actions) != 0 {
+		t.Fatalf("untracked card actions = %v, want none", actions)
+	}
+	// The card cannot act, so the group keeps the buttons that can.
 	assertFullGroupReply(t, f)
 }
 
@@ -588,4 +641,168 @@ func TestReportsCategoryDisabledSkipsCard(t *testing.T) {
 		t.Fatalf("log channel sendMessage calls = %d, want 0", got)
 	}
 	assertFullGroupReply(t, f)
+}
+
+// A card whose reports could not be linked to it cannot act: every press
+// would answer "Invalid action". It loses its action buttons and keeps the
+// link to the message; the group still gets the full report.
+func TestCardLosesButtonsWhenNotRecorded(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.hook("sendMessage", reportCardChannelID, func(string) {
+		// The card is posted, but storing where fails.
+		if err := db.DB.Migrator().DropColumn(&models.Report{}, "admin_message_id"); err != nil {
+			t.Fatalf("drop admin_message_id: %v", err)
+		}
+	})
+	t.Cleanup(func() {
+		if err := db.DB.AutoMigrate(&models.Report{}); err != nil {
+			t.Fatalf("restore reports table: %v", err)
+		}
+	})
+	f.report(t, f.reporter, "/report spam")
+
+	assertFullGroupReply(t, f)
+	if !cardButtonsRemoved(t, f, 9001) {
+		t.Fatalf("card 9001 edits = %v, want its action buttons removed", callsToChat(f.client, "editMessageReplyMarkup", reportCardChannelID))
+	}
+	edit := callsToChat(f.client, "editMessageReplyMarkup", reportCardChannelID)[0]
+	if !strings.Contains(fmt.Sprint(edit.Params["reply_markup"]), "t.me/") {
+		t.Fatalf("stripped card markup = %v, want the link to the message kept", edit.Params["reply_markup"])
+	}
+}
+
+// Two first reports of a message delivered at once each post a card; the
+// reports end up on one of them, and the other must not keep buttons that
+// only answer "Invalid action".
+func TestConcurrentFirstReportsLeaveOneActiveCard(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	card9001 := f.client.responses["sendMessage"]
+	f.hook("sendMessage", reportCardChannelID, func(string) {
+		// The second report is delivered while the first card is being
+		// posted: it sees no card yet and posts card 9002.
+		f.client.responses["sendMessage"] = json.RawMessage(
+			`{"message_id":9002,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
+		)
+		f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+		f.client.responses["sendMessage"] = card9001
+	})
+	f.report(t, f.reporter, "/report spam")
+
+	cards := callsToChat(f.client, "sendMessage", reportCardChannelID)
+	if len(cards) != 2 {
+		t.Fatalf("log channel cards = %d, want 2 posted at once", len(cards))
+	}
+	rows := storedReports(t, f.chat.Id)
+	if len(rows) != 2 || rows[0].AdminMessageId == nil {
+		t.Fatalf("stored reports = %+v, want 2 with a card", rows)
+	}
+	recorded := *rows[0].AdminMessageId
+	for _, row := range rows {
+		if row.AdminMessageId == nil || *row.AdminMessageId != recorded {
+			t.Fatalf("report %d card = %v, want both on card %d", row.ID, row.AdminMessageId, recorded)
+		}
+	}
+	other := int64(9001)
+	if recorded == 9001 {
+		other = 9002
+	}
+	if !cardButtonsRemoved(t, f, other) {
+		t.Fatalf("card %d (reports on %d) kept its action buttons", other, recorded)
+	}
+
+	// Both cards carry the oldest report's id.
+	data := cardActions(t, cards[0].Params["reply_markup"])["ban"]
+	if err := pressCard(t, f, reportCardChannel, recorded, admin, data); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1 from the card holding the reports", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+}
+
+// lastCardMarkup returns the reply markup of the last edit of card in the log
+// channel.
+func lastCardMarkup(t *testing.T, f reportCardFixture, card int64) any {
+	t.Helper()
+	var markup any
+	for _, call := range f.client.calls {
+		if (call.Method == "editMessageText" || call.Method == "editMessageReplyMarkup") &&
+			fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(reportCardChannelID) &&
+			fmt.Sprint(call.Params["message_id"]) == fmt.Sprint(card) {
+			markup = call.Params["reply_markup"]
+		}
+	}
+	if markup == nil {
+		t.Fatalf("card %d was never edited", card)
+	}
+	return markup
+}
+
+// A report counted onto the card is linked to it only after the card is
+// edited. A press in between decides it too, so it is not left open on a
+// card whose buttons carry the closed report.
+func TestCardPressBetweenCardEditAndLinkClosesNewReport(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	actions := reportedCard(t, f) // report A → card 9001
+	f.hook("editMessageText", reportCardChannelID, func(string) {
+		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+			t.Fatalf("ban press error = %v, want EndGroups", err)
+		}
+	})
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report") // report B, counted onto 9001
+
+	if got := len(f.client.callsFor("banChatMember")); got != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+	if left := cardActions(t, lastCardMarkup(t, f, 9001)); len(left) != 0 {
+		t.Fatalf("decided card 9001 actions = %v, want none", left)
+	}
+}
+
+// A card already acting keeps its buttons when linking a new report to it
+// fails: its earlier reports are still open on it.
+func TestCardKeptWhenLinkingNewReportFails(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	actions := reportedCard(t, f) // report A → card 9001
+	const failUpdates = "test:fail_report_updates"
+	f.hook("editMessageText", reportCardChannelID, func(string) {
+		// A transient store failure while the second report is linked.
+		if err := db.DB.Callback().Update().Before("gorm:update").Register(failUpdates, func(tx *gorm.DB) {
+			if tx.Statement.Table == "reports" {
+				_ = tx.AddError(errors.New("transient update failure"))
+			}
+		}); err != nil {
+			t.Fatalf("register update failure: %v", err)
+		}
+	})
+	t.Cleanup(func() { _ = db.DB.Callback().Update().Remove(failUpdates) })
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+	if err := db.DB.Callback().Update().Remove(failUpdates); err != nil {
+		t.Fatalf("remove update failure: %v", err)
+	}
+
+	if left := cardActions(t, lastCardMarkup(t, f, 9001)); len(left) != 4 {
+		t.Fatalf("card 9001 actions = %v, want all four kept", left)
+	}
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 1 {
+		t.Fatalf("banChatMember calls = %d, want the card still acting", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
 }
