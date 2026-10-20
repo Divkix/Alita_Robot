@@ -71,9 +71,11 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 
 ### `ENABLE_SPAMDB`
 
-Operator kill switch for the CAS join check (`/spamdb`). When `false`, no chat
-sends new members' user IDs to CAS regardless of its per-chat setting, and
-`/spamdb on` refuses. The check is off in every chat until an admin turns it on.
+Operator kill switch for the spam database join check (`/spamdb`). When
+`false`, no chat sends new members' user IDs to CAS or lols.bot regardless of
+its per-chat settings, and `/spamdb on` refuses. The check is off in every chat
+until an admin turns it on; CAS is its default database and lols.bot is opt-in
+per chat.
 
 | Property | Value |
 |----------|-------|
@@ -606,7 +608,7 @@ ENABLE_BACKGROUND_STATS=# (default: true in prod, false in debug)
 ENABLE_DB_MONITORING=# (default: false)
 ENABLE_PERFORMANCE_MONITORING=# (default: true in prod, false in debug)
 ENABLE_PPROF=# enable pprof endpoints (default: false)
-ENABLE_SPAMDB=# operator kill switch for the /spamdb CAS join check (default: true)
+ENABLE_SPAMDB=# operator kill switch for the /spamdb CAS and lols.bot join check (default: true)
 ENABLED_LOCALES=# comma-separated language codes (default: en)
 HTTP_MAX_IDLE_CONNS=# (default: 100)
 HTTP_MAX_IDLE_CONNS_PER_HOST=# (default: 50)

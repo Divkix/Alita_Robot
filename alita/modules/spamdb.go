@@ -1,7 +1,9 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -39,12 +42,42 @@ var spamDBDesc = helpers.CommandDescriptor{
 	},
 }
 
-// spamDBChecker answers the CAS lookups. LoadSpamDB builds it from the config.
+// spamDBChecker answers the database lookups. LoadSpamDB builds it from the
+// config.
 var spamDBChecker *spamdb.Checker
 
-// checkSpamDB looks every new member up in CAS and, when listed, applies the
-// chat's action and reports it to the log channel only, so a raid does not
-// flood the group with notices. A failed lookup lets the member in.
+// spamDBEntry ties the name admins type for a database to its source.
+type spamDBEntry struct {
+	name   string
+	source spamdb.Source
+	// service is where the user IDs go, as /spamdb names it.
+	service string
+}
+
+// spamDBDatabases lists the databases in the order /spamdb shows them.
+var spamDBDatabases = []spamDBEntry{
+	{spamdbsettings.DatabaseCAS, spamdb.SourceCAS, "cas.chat"},
+	{spamdbsettings.DatabaseLols, spamdb.SourceLols, "lols.bot"},
+}
+
+// spamDBSources lists the databases the chat checks, CAS first. The table
+// never holds a row with both off, so that reading comes from a cache entry
+// written before chats could choose; it means CAS, not nothing.
+func spamDBSources(settings *models.SpamDBSettings) []spamdb.Source {
+	var sources []spamdb.Source
+	if settings.CheckCAS || !settings.CheckLols {
+		sources = append(sources, spamdb.SourceCAS)
+	}
+	if settings.CheckLols {
+		sources = append(sources, spamdb.SourceLols)
+	}
+	return sources
+}
+
+// checkSpamDB looks every new member up in the chat's databases and, when one
+// lists them, applies the chat's action and reports it to the log channel
+// only, so a raid does not flood the group with notices. A failed lookup lets
+// the member in.
 func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -64,6 +97,7 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !settings.Enabled {
 		return ext.ContinueGroups
 	}
+	sources := spamDBSources(settings)
 
 	for _, member := range msg.NewChatMembers {
 		if member.IsBot || !chat_status.IsValidUserId(member.Id) {
@@ -74,12 +108,12 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 
-		listed, err := spamDBChecker.Check(reqCtx, member.Id)
+		source, err := spamDBChecker.Check(reqCtx, member.Id, sources)
 		if err != nil {
 			log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": err}).Debug("[SpamDB] lookup failed; letting the member in")
 			continue
 		}
-		if !listed {
+		if source == "" {
 			continue
 		}
 
@@ -93,8 +127,8 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 			claimRecentJoinProcessing(chat.Id, member.Id)
 		}
 		actionlog.Log(b, chat, logchannels.CategoryAutomated, fmt.Sprintf(
-			"#SPAMDB\nUser: %s (<code>%d</code>)\nListed in: CAS\nAction: %s",
-			formatting.MentionHtml(member.Id, member.FirstName), member.Id, outcome,
+			"#SPAMDB\nUser: %s (<code>%d</code>)\nListed in: %s\nAction: %s",
+			formatting.MentionHtml(member.Id, member.FirstName), member.Id, source.Name(), outcome,
 		))
 	}
 	return ext.ContinueGroups
@@ -114,8 +148,9 @@ func applySpamDBAction(b *gotgbot.Bot, chatID, userID int64, action string) erro
 }
 
 // spamdb is the /spamdb command: a bare call reports the settings, on/off
-// toggles the check and "action ban|mute|log" picks what happens to a listed
-// member. Enabling refuses when the operator has switched the feature off.
+// toggles the check, "db cas|lols on|off" picks the databases and
+// "action ban|mute|log" picks what happens to a listed member. Enabling
+// refuses when the operator has switched the feature off.
 func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	// Admin check runs here, against the connected group when used from PM.
 	chat := resolveAdminChat(c.Bot, c.Ctx, false)
@@ -130,7 +165,11 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 		return spamDBSaveFailed(c, err)
 	}
 	if len(args) == 0 {
-		return spamDBReply(c, spamDBStatusText(c.Tr, settings.Enabled, settings.Action))
+		return spamDBReply(c, spamDBStatusText(c.Tr, settings))
+	}
+
+	if strings.EqualFold(args[0], "db") {
+		return spamDBDatabase(c, args[1:])
 	}
 
 	if strings.EqualFold(args[0], "action") {
@@ -160,19 +199,84 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	return spamDBReplyKey(c, "spamdb_disabled_success", nil)
 }
 
-func spamDBStatusText(tr *i18n.Translator, enabled bool, action string) string {
+// spamDBDatabase is "/spamdb db <cas|lols> <on|off>". The last database left
+// cannot be switched off, so a chat with the check on always asks one.
+// Switching lols.bot on warns about its false positives.
+func spamDBDatabase(c *helpers.CommandContext, args []string) error {
+	if len(args) < 2 {
+		return spamDBReplyKey(c, "spamdb_db_usage", nil)
+	}
+	name := strings.ToLower(args[0])
+	idx := slices.IndexFunc(spamDBDatabases, func(d spamDBEntry) bool { return d.name == name })
+	want, ok := parseToggleArg(args[1])
+	if idx < 0 || !ok {
+		return spamDBReplyKey(c, "spamdb_db_usage", nil)
+	}
+	database := spamDBDatabases[idx]
+	params := i18n.TranslationParams{"database": database.source.Name()}
+
+	err := spamdbsettings.SetSpamDBDatabase(c.Chat.Id, database.name, want)
+	if errors.Is(err, spamdbsettings.ErrLastDatabase) {
+		return spamDBReplyKey(c, "spamdb_db_last", params)
+	}
+	if err != nil {
+		return spamDBSaveFailed(c, err)
+	}
+	if !want {
+		return spamDBReplyKey(c, "spamdb_db_disabled", params)
+	}
+	// Members are looked up, and their IDs sent, only while the check runs, so
+	// the reply must not say otherwise when it does not.
+	enabledKey, warningKey := "spamdb_db_enabled_idle", "spamdb_db_lols_warning_idle"
+	if spamDBCheckRuns(c) {
+		enabledKey, warningKey = "spamdb_db_enabled", "spamdb_db_lols_warning"
+	}
+	text, _ := c.Tr.GetString(enabledKey, params)
+	if database.source == spamdb.SourceLols {
+		warning, _ := c.Tr.GetString(warningKey)
+		text += "\n\n" + warning
+	}
+	return spamDBReply(c, text)
+}
+
+// spamDBCheckRuns reports whether new members of the chat are looked up now:
+// the operator allows the feature and the chat has the check on. An unreadable
+// setting counts as not running, so no reply claims a lookup that may not happen.
+func spamDBCheckRuns(c *helpers.CommandContext) bool {
+	if !config.AppConfig.EnableSpamDB {
+		return false
+	}
+	settings, err := spamdbsettings.GetSpamDBSettingsContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
+	if err != nil {
+		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Warn("[SpamDB] could not read the chat settings")
+		return false
+	}
+	return settings.Enabled
+}
+
+func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) string {
 	lineKey := "spamdb_status_disabled"
-	if enabled {
+	if settings.Enabled {
 		lineKey = "spamdb_status_enabled"
 	}
-	line, _ := tr.GetString(lineKey, i18n.TranslationParams{"action": action})
+	line, _ := tr.GetString(lineKey, i18n.TranslationParams{"action": settings.Action})
 
-	parts := []string{line}
+	sources := spamDBSources(settings)
+	var names, services []string
+	for _, d := range spamDBDatabases {
+		if slices.Contains(sources, d.source) {
+			names = append(names, d.source.Name())
+			services = append(services, d.service)
+		}
+	}
+	databases, _ := tr.GetString("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(names, ", ")})
+
+	parts := []string{line, databases}
 	if !config.AppConfig.EnableSpamDB {
 		warning, _ := tr.GetString("spamdb_status_globally_disabled")
 		parts = append(parts, warning)
 	}
-	notice, _ := tr.GetString("spamdb_data_notice")
+	notice, _ := tr.GetString("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
 	parts = append(parts, notice)
 
 	return strings.Join(parts, "\n\n")

@@ -197,9 +197,10 @@ type Config struct {
 	EnableAISpam   bool
 	TypeSafeAPIKey string
 
-	// Join-time CAS (cas.chat) spam database check. EnableSpamDB is the
-	// operator's kill switch; each chat still opts in with /spamdb on. The
-	// API key is optional until CAS starts requiring it.
+	// Join-time CAS (cas.chat) and lols.bot spam database check. EnableSpamDB
+	// is the operator's kill switch; each chat still opts in with /spamdb on.
+	// The CAS API key is optional until CAS starts requiring it; lols.bot
+	// takes none.
 	EnableSpamDB bool
 	CASAPIKey    string
 }
