@@ -14,6 +14,7 @@ import (
 	gocache_store "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -32,6 +33,21 @@ func benchRealRedisCache(b *testing.B) {
 		_ = client.Close()
 		utilsCache.SetCacheState(previousMarshal, previousManager, previousClient)
 	})
+}
+
+// benchDisableLocalLayer turns the in-process LRU off for one benchmark.
+// Without it the warm-up call populates local and every measured iteration
+// serves from process memory, so a benchmark that names Redis never reaches it.
+func benchDisableLocalLayer(b *testing.B) {
+	b.Helper()
+	previous := config.AppConfig
+	cfg := config.Config{}
+	if previous != nil {
+		cfg = *previous
+	}
+	cfg.CacheLocalTTLSeconds = 0
+	config.AppConfig = &cfg
+	b.Cleanup(func() { config.AppConfig = previous })
 }
 
 func BenchmarkGetFromCacheOrLoadHitMemory(b *testing.B) {
@@ -59,6 +75,7 @@ func BenchmarkGetFromCacheOrLoadHitMemory(b *testing.B) {
 }
 
 func BenchmarkGetFromCacheOrLoadHitRedis(b *testing.B) {
+	benchDisableLocalLayer(b)
 	benchRealRedisCache(b)
 
 	ctx := context.Background()
@@ -82,6 +99,7 @@ func BenchmarkGetFromCacheOrLoadHitRedis(b *testing.B) {
 }
 
 func BenchmarkGetFromCacheOrLoadHitRedisParallel(b *testing.B) {
+	benchDisableLocalLayer(b)
 	benchRealRedisCache(b)
 
 	ctx := context.Background()
