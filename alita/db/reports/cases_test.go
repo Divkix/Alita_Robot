@@ -432,8 +432,8 @@ func TestSetAdminMessageStoresCardOnOpenReports(t *testing.T) {
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 606, ReporterId: 42})
 
-	if err := SetAdminMessage(chatID, 505, -100777, 31); err != nil {
-		t.Fatalf("SetAdminMessage() error = %v", err)
+	if recorded, err := SetAdminMessage(chatID, 505, -100777, 31, 0); err != nil || recorded != 31 {
+		t.Fatalf("SetAdminMessage() = %d, %v; want card 31", recorded, err)
 	}
 
 	rows, err := OpenForMessage(chatID, 505)
@@ -454,6 +454,55 @@ func TestSetAdminMessageStoresCardOnOpenReports(t *testing.T) {
 	}
 	if len(other) != 1 || other[0].AdminChatId != nil {
 		t.Fatalf("other message rows = %+v, want untouched card fields", other)
+	}
+}
+
+// Two first reports of a message post a card each at once: the card
+// recorded first keeps the reports, and the later one is told it lost.
+func TestSetAdminMessageKeepsCardRecordedFirst(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
+	mustCreateReport(t, a)
+	if recorded, err := SetAdminMessage(chatID, 505, -100777, 32, 0); err != nil || recorded != 32 {
+		t.Fatalf("first SetAdminMessage() = %d, %v; want card 32", recorded, err)
+	}
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
+
+	recorded, err := SetAdminMessage(chatID, 505, -100777, 31, 0)
+	if err != nil || recorded != 32 {
+		t.Fatalf("second SetAdminMessage() = %d, %v; want card 32 kept", recorded, err)
+	}
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("OpenForMessage() = %+v, %v; want 2 rows", rows, err)
+	}
+	for _, row := range rows {
+		if row.AdminMessageId == nil || *row.AdminMessageId != 32 {
+			t.Fatalf("report %d card = %v, want 32 on every open report", row.ID, row.AdminMessageId)
+		}
+	}
+}
+
+// A card posted to replace one that can no longer be edited takes the
+// reports over, as does a card in a new log channel.
+func TestSetAdminMessageReplacesCard(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	if _, err := SetAdminMessage(chatID, 505, -100777, 31, 0); err != nil {
+		t.Fatalf("SetAdminMessage() error = %v", err)
+	}
+	if recorded, err := SetAdminMessage(chatID, 505, -100777, 40, 31); err != nil || recorded != 40 {
+		t.Fatalf("replacing SetAdminMessage() = %d, %v; want card 40", recorded, err)
+	}
+	if recorded, err := SetAdminMessage(chatID, 505, -100888, 50, 0); err != nil || recorded != 50 {
+		t.Fatalf("SetAdminMessage() in another channel = %d, %v; want card 50", recorded, err)
+	}
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil || len(rows) != 1 || *rows[0].AdminChatId != -100888 || *rows[0].AdminMessageId != 50 {
+		t.Fatalf("OpenForMessage() = %+v, %v; want the report on card 50 in -100888", rows, err)
+	}
+	if recorded, err := SetAdminMessage(chatID, 606, -100777, 60, 0); err != nil || recorded != 0 {
+		t.Fatalf("SetAdminMessage() without open reports = %d, %v; want 0", recorded, err)
 	}
 }
 
@@ -485,7 +534,7 @@ func TestConcurrentResolveAndSetAdminMessage(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			cardErr = SetAdminMessage(chatID, messageID, -100777, 31)
+			_, cardErr = SetAdminMessage(chatID, messageID, -100777, 31, 0)
 		}()
 		wg.Wait()
 

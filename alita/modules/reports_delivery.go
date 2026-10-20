@@ -74,6 +74,7 @@ func deliverReport(
 	// identifies them.
 	markup := reportCardMarkup(tr, chat, reported.MessageId, rows[0].ID)
 
+	var replaces int64
 	for _, row := range rows {
 		if row.AdminChatId == nil || row.AdminMessageId == nil || *row.AdminChatId != channelID {
 			continue
@@ -93,6 +94,7 @@ func deliverReport(
 			// messages: post a new card. If the channel is unusable, that
 			// fails too and the report gets no card.
 			log.Debugf("[Reports] cannot update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
+			replaces = *row.AdminMessageId
 			break
 		}
 		if err != nil {
@@ -101,7 +103,7 @@ func deliverReport(
 			// report updates its count.
 			log.Warnf("[Reports] failed to update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
 		}
-		recordReportCard(b, tr, chat, reported.MessageId, channelID, *row.AdminMessageId)
+		recordReportCard(b, tr, chat, reported.MessageId, channelID, *row.AdminMessageId, *row.AdminMessageId)
 		return true
 	}
 
@@ -109,7 +111,7 @@ func deliverReport(
 	if cardID == 0 {
 		return false
 	}
-	recordReportCard(b, tr, chat, reported.MessageId, channelID, cardID)
+	recordReportCard(b, tr, chat, reported.MessageId, channelID, cardID, replaces)
 	return true
 }
 
@@ -160,14 +162,23 @@ func sendReportCard(
 	return card.MessageId
 }
 
-// recordReportCard links the open reports of a message to card. A card they
-// could not be linked to would answer "Invalid action" to every press, so it
-// loses its action buttons and keeps the link to the message.
-func recordReportCard(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, messageID, channelID, cardID int64) {
-	if err := reports.SetAdminMessage(chat.Id, messageID, channelID, cardID); err != nil {
+// recordReportCard links the open reports of a message to card, which
+// replaces the card replaces (0 for none). A card they end up not linked to
+// (the store failed, every report was closed meanwhile, or a concurrent
+// report linked them to its own card first) would answer "Invalid action"
+// to every press, so it loses its action buttons and keeps the link to the
+// message.
+func recordReportCard(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, messageID, channelID, cardID, replaces int64) {
+	recorded, err := reports.SetAdminMessage(chat.Id, messageID, channelID, cardID, replaces)
+	switch {
+	case err != nil:
 		log.Errorf("[Reports] failed to record report card for chat %d message %d: %v", chat.Id, messageID, err)
-		removeReportCardActions(b, tr, chat, messageID, channelID, cardID)
+	case recorded == cardID:
+		return
+	default:
+		log.Debugf("[Reports] report card %d in %d left unused: the reports are on card %d", cardID, channelID, recorded)
 	}
+	removeReportCardActions(b, tr, chat, messageID, channelID, cardID)
 }
 
 func removeReportCardActions(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, messageID, channelID, cardID int64) {

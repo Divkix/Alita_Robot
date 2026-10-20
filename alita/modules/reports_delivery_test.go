@@ -669,3 +669,57 @@ func TestCardLosesButtonsWhenNotRecorded(t *testing.T) {
 		t.Fatalf("stripped card markup = %v, want the link to the message kept", edit.Params["reply_markup"])
 	}
 }
+
+// Two first reports of a message delivered at once each post a card; the
+// reports end up on one of them, and the other must not keep buttons that
+// only answer "Invalid action".
+func TestConcurrentFirstReportsLeaveOneActiveCard(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	card9001 := f.client.responses["sendMessage"]
+	f.hook("sendMessage", reportCardChannelID, func(string) {
+		// The second report is delivered while the first card is being
+		// posted: it sees no card yet and posts card 9002.
+		f.client.responses["sendMessage"] = json.RawMessage(
+			`{"message_id":9002,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
+		)
+		f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+		f.client.responses["sendMessage"] = card9001
+	})
+	f.report(t, f.reporter, "/report spam")
+
+	cards := callsToChat(f.client, "sendMessage", reportCardChannelID)
+	if len(cards) != 2 {
+		t.Fatalf("log channel cards = %d, want 2 posted at once", len(cards))
+	}
+	rows := storedReports(t, f.chat.Id)
+	if len(rows) != 2 || rows[0].AdminMessageId == nil {
+		t.Fatalf("stored reports = %+v, want 2 with a card", rows)
+	}
+	recorded := *rows[0].AdminMessageId
+	for _, row := range rows {
+		if row.AdminMessageId == nil || *row.AdminMessageId != recorded {
+			t.Fatalf("report %d card = %v, want both on card %d", row.ID, row.AdminMessageId, recorded)
+		}
+	}
+	other := int64(9001)
+	if recorded == 9001 {
+		other = 9002
+	}
+	if !cardButtonsRemoved(t, f, other) {
+		t.Fatalf("card %d (reports on %d) kept its action buttons", other, recorded)
+	}
+
+	// Both cards carry the oldest report's id.
+	data := cardActions(t, cards[0].Params["reply_markup"])["ban"]
+	if err := pressCard(t, f, reportCardChannel, recorded, admin, data); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1 from the card holding the reports", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+}

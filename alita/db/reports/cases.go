@@ -175,32 +175,51 @@ func Reopen(ids []int64, status string) error {
 	return nil
 }
 
-// SetAdminMessage records where the report card for a message was posted.
-// It locks the open rows in id order, like Resolve, so the two cannot
-// deadlock on the same message.
-func SetAdminMessage(chatID, messageID, adminChatID, adminMessageID int64) error {
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		var ids []int64
+// SetAdminMessage links the open reports of a message to report card
+// adminMessageID in adminChatID and returns the card they are linked to
+// afterwards, or 0 when none is open. replaces is the card of adminChatID
+// the caller found on them before posting its own, or 0. Any other card of
+// adminChatID on them was posted by a concurrent report of the message and
+// recorded first: it keeps the reports and the rest join it, so a message
+// never has two cards that act. It locks the open rows in id order, like
+// Resolve, so the two cannot deadlock on the same message.
+func SetAdminMessage(chatID, messageID, adminChatID, adminMessageID, replaces int64) (recorded int64, err error) {
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		var rows []models.Report
 		if err := tx.Model(&models.Report{}).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id", "admin_chat_id", "admin_message_id").
 			Where("chat_id = ? AND reported_message_id = ? AND status = ?", chatID, messageID, models.ReportStatusOpen).
 			Order("id").
-			Pluck("id", &ids).Error; err != nil {
+			Find(&rows).Error; err != nil {
 			return err
 		}
-		if len(ids) == 0 {
+		if len(rows) == 0 {
 			return nil
 		}
-		return tx.Model(&models.Report{}).
+		card := adminMessageID
+		ids := make([]int64, 0, len(rows))
+		for _, row := range rows {
+			ids = append(ids, row.ID)
+			if card == adminMessageID && row.AdminChatId != nil && *row.AdminChatId == adminChatID &&
+				row.AdminMessageId != nil && *row.AdminMessageId != replaces && *row.AdminMessageId != adminMessageID {
+				card = *row.AdminMessageId
+			}
+		}
+		if err := tx.Model(&models.Report{}).
 			Where("id IN ? AND status = ?", ids, models.ReportStatusOpen).
 			Updates(map[string]any{
 				"admin_chat_id":    adminChatID,
-				"admin_message_id": adminMessageID,
+				"admin_message_id": card,
 				"updated_at":       time.Now(),
-			}).Error
+			}).Error; err != nil {
+			return err
+		}
+		recorded = card
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("set report admin message: %w", err)
+		return 0, fmt.Errorf("set report admin message: %w", err)
 	}
-	return nil
+	return recorded, nil
 }
