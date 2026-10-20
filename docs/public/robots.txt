@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://alita-docs.divkix.me/sitemap-index.xml
+Sitemap: https://alita-docs.divkix.me/sitemap.xml
