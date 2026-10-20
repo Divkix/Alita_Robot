@@ -476,9 +476,16 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if chat_status.IsUserAdmin(bot, chat.Id, member.Id) {
 			continue
 		}
+		banRaider := func() {
+			// Fed-ban (group -6) has banned a fbanned newcomer for good; a raid
+			// ban with an until_date on top could make that ban temporary.
+			if !fedBannedInChat(ctx, chat.Id, member.Id) {
+				banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+			}
+		}
 
 		if isActive {
-			banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+			banRaider()
 			continue
 		}
 
@@ -500,7 +507,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			isActive = true
 			if !enabled {
-				banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+				banRaider()
 				continue
 			}
 			log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
@@ -509,7 +516,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
 			_, _ = chat.SendMessage(bot, text, formatting.Shtml())
 
-			banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+			banRaider()
 		}
 	}
 

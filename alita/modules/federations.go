@@ -1477,3 +1477,14 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 func init() {
 	RegisterLegacyModule("Federations", 235, LoadFederations)
 }
+
+// fedBannedInChat reports whether the chat's federation tree has a ban for
+// userID, which fed-ban enforces on join before the other join guards run.
+func fedBannedInChat(ctx *ext.Context, chatID, userID int64) bool {
+	membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chatID)
+	if membership == nil {
+		return false
+	}
+	ban, _ := federations.FindBanInFedTree(membership.FedID, userID)
+	return ban != nil
+}

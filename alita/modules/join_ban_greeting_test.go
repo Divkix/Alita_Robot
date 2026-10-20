@@ -536,3 +536,101 @@ func TestFedBanOnJoinPostsOneNoticeWhenServiceMessageFollowsTheKick(t *testing.T
 		})
 	}
 }
+
+// During a raid, fed-ban (group -6) bans a fbanned newcomer for good on
+// whichever join update comes first. Antiraid (group -5) must not ban them again
+// with an until_date, which could turn the permanent ban into a temporary one;
+// everyone else still gets the raid's temp-ban.
+func TestAntiRaidLeavesFedBannedNewcomerToFedBan(t *testing.T) {
+	for _, tc := range []struct {
+		fbanned bool
+		order   []string
+	}{
+		{fbanned: true, order: []string{"service message"}},
+		{fbanned: true, order: []string{"chat member update", "service message"}},
+		{fbanned: false, order: []string{"service message"}},
+	} {
+		t.Run(fmt.Sprintf("fbanned=%v/%s", tc.fbanned, strings.Join(tc.order, " then ")), func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			if tc.fbanned {
+				_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+				require.NoError(t, err)
+			}
+			enabled, err := antiRaidModule.enableRaid(chat.Id, 3600)
+			require.NoError(t, err)
+			require.True(t, enabled)
+			t.Cleanup(func() {
+				StopAntiRaidExpiryPoller()
+				_, _ = antiRaidModule.disableRaid(chat.Id)
+			})
+			clearRecentJoinProcessing(chat.Id, member.Id)
+
+			updates := map[string]*gotgbot.Update{
+				"service message": {UpdateId: 1, Message: &gotgbot.Message{
+					MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+				}},
+				"chat member update": {UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+					Chat:          chat,
+					From:          member,
+					Date:          1,
+					OldChatMember: gotgbot.ChatMemberLeft{User: member},
+					NewChatMember: gotgbot.ChatMemberMember{User: member},
+				}},
+			}
+			for _, path := range tc.order {
+				dispatchJoinGuards(t, bot, updates[path])
+			}
+
+			bans := client.callsFor("banChatMember")
+			require.Len(t, bans, 1)
+			require.Equal(t, fmt.Sprint(member.Id), fmt.Sprint(bans[0].Params["user_id"]))
+			_, temporary := bans[0].Params["until_date"]
+			require.Equal(t, !tc.fbanned, temporary, "fed-ban bans for good, antiraid for the raid action time")
+		})
+	}
+}
+
+// A fbanned newcomer's join still counts towards the auto-antiraid threshold:
+// a join wave is a raid whoever is in it.
+func TestFedBannedJoinCountsTowardsAutoAntiRaid(t *testing.T) {
+	withMiniredis(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+	fbanned := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Fbanned"}
+	newcomer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+	ownerID := uniquePositiveUserID()
+	fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+	_, _, err = federations.Fban(fed.FedID, fbanned.Id, ownerID, "spam")
+	require.NoError(t, err)
+	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 2))
+	t.Cleanup(func() {
+		StopAntiRaidExpiryPoller()
+		_, _ = antiRaidModule.disableRaid(chat.Id)
+	})
+
+	for i, member := range []gotgbot.User{fbanned, newcomer} {
+		clearRecentJoinProcessing(chat.Id, member.Id)
+		dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: int64(i + 1), Message: &gotgbot.Message{
+			MessageId: int64(11 + i), Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+		}})
+	}
+
+	require.True(t, antiRaidModule.isRaidActive(chat.Id), "the second join must switch the raid on")
+	bans := client.callsFor("banChatMember")
+	require.Len(t, bans, 2)
+	require.Equal(t, fmt.Sprint(newcomer.Id), fmt.Sprint(bans[1].Params["user_id"]))
+	_, temporary := bans[1].Params["until_date"]
+	require.True(t, temporary, "the newcomer gets the raid's temp-ban")
+}
