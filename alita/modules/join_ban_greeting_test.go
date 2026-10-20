@@ -317,6 +317,64 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 // either order, and large groups may send no service message at all. Fed-ban
 // must ban a fbanned newcomer on whichever update comes, exactly once, with a
 // single notice, and leave everyone else alone.
+// With Redis down the shared join claim fails closed, but fed-ban must still
+// ban a fbanned newcomer on join, once per join on this replica.
+func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
+	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
+	require.NoError(t, err)
+	t.Cleanup(restore)
+
+	for _, order := range [][]string{
+		{"service message"},
+		{"chat member update"},
+		{"service message", "chat member update"},
+		{"chat member update", "service message"},
+	} {
+		t.Run(strings.Join(order, " then "), func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+			require.NoError(t, err)
+			clearRecentJoinProcessing(chat.Id, member.Id)
+			withUnreachableRedis(t)
+
+			updates := map[string]*gotgbot.Update{
+				"service message": {UpdateId: 1, Message: &gotgbot.Message{
+					MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+				}},
+				"chat member update": {UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+					Chat:          chat,
+					From:          member,
+					Date:          1,
+					OldChatMember: gotgbot.ChatMemberLeft{User: member},
+					NewChatMember: gotgbot.ChatMemberMember{User: member},
+				}},
+			}
+			for _, path := range order {
+				dispatchJoinGuards(t, bot, updates[path])
+			}
+
+			bans := client.callsFor("banChatMember")
+			require.Len(t, bans, 1, "a fbanned newcomer must be banned exactly once while Redis is down")
+			require.Equal(t, fmt.Sprint(member.Id), fmt.Sprint(bans[0].Params["user_id"]))
+			notices := 0
+			for _, call := range client.callsFor("sendMessage") {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), "is fbanned") {
+					notices++
+				}
+			}
+			require.Equal(t, 1, notices, "one fed-ban notice per join")
+		})
+	}
+}
+
 func TestFedBanEnforcedOnEveryJoinUpdateExactlyOnce(t *testing.T) {
 	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
 	require.NoError(t, err)

@@ -1378,7 +1378,8 @@ func (moduleStruct) enforceFedBanOnJoin(b *gotgbot.Bot, ctx *ext.Context) error 
 // either order and possibly at once. For a join the ban first takes the join
 // claim greetings uses, so only one of the two updates bans and posts, and the
 // claim keeps the banned newcomer from getting a captcha or welcome. A failed
-// ban gives the claim back, so greetings still challenges the newcomer.
+// ban gives the claim back, so greetings still challenges the newcomer. While
+// Redis is down the claim is this replica's, so the ban still happens.
 func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membership *models.FederationChat, userID int64, name string, join bool) {
 	if !chat_status.IsValidUserId(userID) || userID == b.Id {
 		return
@@ -1390,7 +1391,7 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 		return
 	}
-	if join && !claimRecentJoinProcessing(chat.Id, userID) {
+	if join && !claimRecentJoinForBan(chat.Id, userID) {
 		return
 	}
 	if _, err := b.BanChatMember(chat.Id, userID, nil); err != nil {
