@@ -83,8 +83,9 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	// The channel has no language of its own: answer in the reported group's,
 	// the language of the card's buttons.
 	tr = i18n.MustNewTranslator(lang.GetGroupLanguage(tracing.UpdateContext(ctx), rep.ChatId))
-	// Resolve closes every open report of the message, so a card whose own
-	// report is closed must not close a newer one that has its own card.
+	// A card whose own report is closed must not close a newer one that has
+	// its own card. ResolveCard checks again under lock, as the checks below
+	// may wait on Telegram.
 	if rep.Status != models.ReportStatusOpen {
 		return answer("reports_already_handled")
 	}
@@ -95,7 +96,7 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	closed, err := reports.Resolve(rep.ChatId, rep.ReportedMessageId, action.status, user.Id)
+	closed, err := reports.ResolveCard(rep, action.status, user.Id)
 	if err != nil {
 		log.Errorf("[Reports] failed to resolve report %d: %v", reportID, err)
 		_ = answer("reports_action_failed")

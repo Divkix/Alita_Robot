@@ -15,7 +15,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 var reportCardChannel = gotgbot.Chat{Id: reportCardChannelID, Type: "channel", Title: "Log Channel"}
@@ -349,11 +351,11 @@ func TestStaleCardLeavesNewReportOpen(t *testing.T) {
 	}
 }
 
-// The card sits in a channel the bot has no language for; its presses are
-// answered in the reported group's language, like the card's buttons.
-func TestCardAnswersInSourceGroupLanguage(t *testing.T) {
+// useReportLocales loads the real locale files for codes for one test.
+func useReportLocales(t *testing.T, codes ...string) {
+	t.Helper()
 	locales := map[string]string{}
-	for _, code := range []string{"en", "ru"} {
+	for _, code := range codes {
 		raw, err := os.ReadFile("../../locales/" + code + ".yml")
 		if err != nil {
 			t.Fatalf("read %s.yml: %v", code, err)
@@ -365,6 +367,22 @@ func TestCardAnswersInSourceGroupLanguage(t *testing.T) {
 		t.Fatalf("OverrideLocalesForTest: %v", err)
 	}
 	t.Cleanup(restoreI18n)
+}
+
+// answeredWith fails unless the last callback answer is key in English.
+func answeredWith(t *testing.T, f reportCardFixture, key string) {
+	t.Helper()
+	want, _ := i18n.MustNewTranslator("en").GetString(key)
+	answers := f.client.callsFor("answerCallbackQuery")
+	if want == "" || len(answers) == 0 || fmt.Sprint(answers[len(answers)-1].Params["text"]) != want {
+		t.Fatalf("answers = %v, want the last one %s %q", answers, key, want)
+	}
+}
+
+// The card sits in a channel the bot has no language for; its presses are
+// answered in the reported group's language, like the card's buttons.
+func TestCardAnswersInSourceGroupLanguage(t *testing.T) {
+	useReportLocales(t, "en", "ru")
 
 	f := newReportCardFixture(t, true)
 	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
@@ -576,6 +594,60 @@ func TestCardIgnoresReportClosedInGroup(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A press is checked against the group before its reports are closed, and
+// the checks may wait on Telegram. If the card's report is decided and a new
+// report of the message gets a card of its own meanwhile, the press must
+// leave the new report alone.
+func TestCardPressLeavesReportArrivingDuringChecks(t *testing.T) {
+	useReportLocales(t, "en")
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	actions := reportedCard(t, f) // report A of message 505 → card 9001
+
+	// With the admin list not cached, the press asks Telegram for it.
+	if err := cache.GetMarshal().Delete(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", f.chat.Id)); err != nil {
+		t.Fatalf("clear admin cache: %v", err)
+	}
+	f.client.adminsByChat = map[string]json.RawMessage{
+		fmt.Sprint(f.chat.Id): json.RawMessage(fmt.Sprintf(
+			`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_restrict_members":true,"can_delete_messages":true},`+
+				`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Group Admin"},"can_restrict_members":true}]`,
+			reportCardAdminID)),
+	}
+	newer := models.Report{ChatId: f.chat.Id, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44}
+	hooked := f.hook("", 0, func(string) {
+		// Another admin dismisses A in the group; B is reported and gets
+		// card 9002.
+		if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID+1); err != nil {
+			t.Fatalf("Resolve() error = %v", err)
+		}
+		if _, err := reports.Create(&newer); err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+		if err := db.DB.Model(&models.Report{}).Where("id = ?", newer.ID).
+			Updates(map[string]any{"admin_chat_id": reportCardChannelID, "admin_message_id": 9002}).Error; err != nil {
+			t.Fatalf("link card 9002: %v", err)
+		}
+	})
+
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if !hooked.fired || len(f.client.callsFor("banChatMember")) != 0 {
+		t.Fatalf("hook fired = %v, banChatMember calls = %d; want the checks to call Telegram and no ban",
+			hooked.fired, len(f.client.callsFor("banChatMember")))
+	}
+	for _, row := range storedReports(t, f.chat.Id) {
+		if row.ID == newer.ID && row.Status != models.ReportStatusOpen {
+			t.Fatalf("report B status = %q, want it left open for card 9002", row.Status)
+		}
+	}
+	if got := len(f.client.callsFor("answerCallbackQuery")); got != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1", got)
+	}
+	answeredWith(t, f, "reports_already_handled")
 }
 
 // Guard: a decision on a message is final for its reporters.

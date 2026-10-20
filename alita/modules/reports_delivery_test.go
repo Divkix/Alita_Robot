@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -117,6 +118,33 @@ func (f reportCardFixture) report(t *testing.T, reporter gotgbot.User, text stri
 	if err := reportsModule.report(f.bot, ctx); err != ext.EndGroups {
 		t.Fatalf("report error = %v, want EndGroups", err)
 	}
+}
+
+// hookedReportClient runs before once, ahead of the first call of method
+// (any method when empty) to chatID (any chat when 0), to stand for an update
+// handled while that call is in flight. Calls are still recorded by the
+// wrapped client.
+type hookedReportClient struct {
+	*moduleBotClient
+	method string
+	chatID int64
+	before func(method string)
+	fired  bool
+}
+
+func (c *hookedReportClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if !c.fired && (c.method == "" || method == c.method) && (c.chatID == 0 || fmt.Sprint(params["chat_id"]) == fmt.Sprint(c.chatID)) {
+		c.fired = true
+		c.before(method)
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// hook makes f's bot run before ahead of the first matching call.
+func (f reportCardFixture) hook(method string, chatID int64, before func(method string)) *hookedReportClient {
+	hooked := &hookedReportClient{moduleBotClient: f.client, method: method, chatID: chatID, before: before}
+	f.bot.BotClient = hooked
+	return hooked
 }
 
 func TestReportCardSentToLogChannel(t *testing.T) {

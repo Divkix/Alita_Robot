@@ -2,6 +2,7 @@ package reports
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"gorm.io/gorm"
@@ -77,19 +78,42 @@ func isDecision(status string) bool {
 // act. Rows are locked in id order so concurrent resolvers cannot split a
 // message's reports between them.
 func Resolve(chatID, messageID int64, status string, resolvedBy int64) (closed []int64, err error) {
+	return resolveLocked(status, resolvedBy, 0, func(q *gorm.DB) *gorm.DB {
+		return q.Where("chat_id = ? AND reported_message_id = ?", chatID, messageID)
+	})
+}
+
+// ResolveCard closes the open reports of r's message that are shown on r's
+// report card, like Resolve, and only while r itself is open: a card whose
+// report was decided returns no ids, even if a newer report of the message
+// is open on a card of its own. r must have a card.
+func ResolveCard(r *models.Report, status string, resolvedBy int64) (closed []int64, err error) {
+	if r.AdminChatId == nil || r.AdminMessageId == nil {
+		return nil, fmt.Errorf("resolve report %d: no report card", r.ID)
+	}
+	return resolveLocked(status, resolvedBy, r.ID, func(q *gorm.DB) *gorm.DB {
+		return q.Where("chat_id = ? AND reported_message_id = ? AND admin_chat_id = ? AND admin_message_id = ?",
+			r.ChatId, r.ReportedMessageId, *r.AdminChatId, *r.AdminMessageId)
+	})
+}
+
+// resolveLocked closes the open reports scope selects, locking them in id
+// order like every writer of a message's open rows. With mustInclude set it
+// closes nothing unless that report is among them.
+func resolveLocked(status string, resolvedBy, mustInclude int64, scope func(*gorm.DB) *gorm.DB) (closed []int64, err error) {
 	if !isDecision(status) {
 		return nil, fmt.Errorf("resolve report: invalid status %q", status)
 	}
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		var ids []int64
-		if err := tx.Model(&models.Report{}).
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("chat_id = ? AND reported_message_id = ? AND status = ?", chatID, messageID, models.ReportStatusOpen).
+		if err := scope(tx.Model(&models.Report{}).
+			Clauses(clause.Locking{Strength: "UPDATE"})).
+			Where("status = ?", models.ReportStatusOpen).
 			Order("id").
 			Pluck("id", &ids).Error; err != nil {
 			return err
 		}
-		if len(ids) == 0 {
+		if len(ids) == 0 || (mustInclude != 0 && !slices.Contains(ids, mustInclude)) {
 			return nil
 		}
 		now := time.Now()

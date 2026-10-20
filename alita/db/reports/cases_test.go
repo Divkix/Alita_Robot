@@ -249,6 +249,71 @@ func TestResolveRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+// linkCard puts report id on card adminMessageID in channel -100777.
+func linkCard(t *testing.T, id, adminMessageID int64) *models.Report {
+	t.Helper()
+	if err := db.DB.Model(&models.Report{}).Where("id = ?", id).
+		Updates(map[string]any{"admin_chat_id": -100777, "admin_message_id": adminMessageID}).Error; err != nil {
+		t.Fatalf("link report %d to card %d: %v", id, adminMessageID, err)
+	}
+	r, err := GetByID(id)
+	if err != nil {
+		t.Fatalf("GetByID(%d) error = %v", id, err)
+	}
+	return r
+}
+
+func TestResolveCardClosesOnlyReportsOnTheCard(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
+	b := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44}
+	c := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 45}
+	for _, r := range []*models.Report{a, b, c} {
+		mustCreateReport(t, r)
+	}
+	card := linkCard(t, a.ID, 31)
+	linkCard(t, b.ID, 31)
+	linkCard(t, c.ID, 32)
+
+	closed, err := ResolveCard(card, models.ReportStatusBanned, 7)
+	if err != nil {
+		t.Fatalf("ResolveCard() error = %v", err)
+	}
+	if len(closed) != 2 || closed[0] != a.ID || closed[1] != b.ID {
+		t.Fatalf("ResolveCard() closed = %v, want reports %d and %d of card 31", closed, a.ID, b.ID)
+	}
+	if left, err := GetByID(c.ID); err != nil || left.Status != models.ReportStatusOpen {
+		t.Fatalf("report on card 32 = %+v, %v; want it open", left, err)
+	}
+}
+
+// The pressed card's report was decided after it was loaded, and a newer
+// report of the message is open on a card of its own.
+func TestResolveCardIgnoresClosedReport(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	a := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}
+	mustCreateReport(t, a)
+	stale := linkCard(t, a.ID, 31)
+	if _, err := Resolve(chatID, 505, models.ReportStatusDismissed, 8); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	c := &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44}
+	mustCreateReport(t, c)
+	linkCard(t, c.ID, 31) // even on the same card
+
+	closed, err := ResolveCard(stale, models.ReportStatusBanned, 7)
+	if err != nil || len(closed) != 0 {
+		t.Fatalf("ResolveCard() = %v, %v; want nothing closed for a decided report", closed, err)
+	}
+	if left, err := GetByID(c.ID); err != nil || left.Status != models.ReportStatusOpen {
+		t.Fatalf("newer report = %+v, %v; want it open", left, err)
+	}
+
+	if _, err := ResolveCard(&models.Report{ID: c.ID, ChatId: chatID, ReportedMessageId: 505}, models.ReportStatusBanned, 7); err == nil {
+		t.Fatal("ResolveCard() without a card error = nil, want rejection")
+	}
+}
+
 func TestReopenRestoresOnlyTheFailedDecision(t *testing.T) {
 	chatID := newReportCaseChat(t)
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
