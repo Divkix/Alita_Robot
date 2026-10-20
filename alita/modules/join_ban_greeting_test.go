@@ -476,3 +476,63 @@ func TestFedBanEnforcedOnEveryJoinUpdateExactlyOnce(t *testing.T) {
 		}
 	}
 }
+
+// The fed-ban on a join's ChatMemberUpdated makes Telegram send a second one,
+// member→kicked, which greetings handles as a leave. The join's service message
+// may still come after it; it must not ban again or post a second notice.
+func TestFedBanOnJoinPostsOneNoticeWhenServiceMessageFollowsTheKick(t *testing.T) {
+	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
+	require.NoError(t, err)
+	t.Cleanup(restore)
+
+	for _, redis := range []bool{false, true} {
+		t.Run(fmt.Sprintf("redis=%v", redis), func(t *testing.T) {
+			if redis {
+				withMiniredis(t)
+			}
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+			require.NoError(t, err)
+			clearRecentJoinProcessing(chat.Id, member.Id)
+
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat:          chat,
+				From:          member,
+				Date:          1,
+				OldChatMember: gotgbot.ChatMemberLeft{User: member},
+				NewChatMember: gotgbot.ChatMemberMember{User: member},
+			}})
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat:          chat,
+				From:          bot.User,
+				Date:          2,
+				OldChatMember: gotgbot.ChatMemberMember{User: member},
+				NewChatMember: gotgbot.ChatMemberBanned{User: member},
+			}})
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 3, Message: &gotgbot.Message{
+				MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+			}})
+
+			require.Len(t, client.callsFor("banChatMember"), 1, "a fbanned newcomer must be banned once per join")
+			notices := 0
+			for _, call := range client.callsFor("sendMessage") {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), "is fbanned") {
+					notices++
+				}
+			}
+			require.Equal(t, 1, notices, "one fed-ban notice per join")
+			require.False(t, captchaSentTo(t, chat.Id, member.Id), "banned newcomer got a captcha")
+			require.False(t, welcomeSent(client), "banned newcomer was welcomed")
+		})
+	}
+}
