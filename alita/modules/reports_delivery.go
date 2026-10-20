@@ -29,9 +29,9 @@ const reportExcerptRunes = 300
 // even if the original is deleted) and shows how many members reported it.
 // Failures are logged.
 //
-// It reports whether the admins already have the report without the in-group
-// one: its card is in the log channel, or they decided this member's report
-// of the message before.
+// It reports whether the card in the log channel holds the report, or the
+// admins decided this member's report of the message before. report() does
+// not use it: the group gets the full report with its buttons either way.
 //
 // When the report could not be stored (stored is false), the card is posted
 // on its own: the open reports cannot be counted or linked to it, so it has
