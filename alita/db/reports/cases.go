@@ -125,9 +125,13 @@ func Resolve(chatID, messageID int64, status string, resolvedBy int64) (closed [
 // ResolveCard closes the open reports of r's message on r's report card,
 // like Resolve, and only while r itself is open: a card whose report was
 // decided returns no ids, even if a newer report of the message is open on
-// a card of its own. Reports not linked to a card yet are closed too: while
-// r is open, a new report is counted onto r's card before it is linked to
-// it. r must have a card.
+// a card of its own. Reports of the message not linked to any card are
+// closed too. Mostly that is a new report counted onto r's card, which is
+// edited before the report is linked to it; it can also be one that never
+// got onto a card (the reports category off, no log channel, the channel
+// changed, the card not sent, or the lookup or link failing). Deciding such
+// a report with the rest of its message does no harm, as Resolve would close
+// it too. r must have a card.
 func ResolveCard(r *models.Report, status string, resolvedBy int64) (closed []int64, err error) {
 	if r.AdminChatId == nil || r.AdminMessageId == nil {
 		return nil, fmt.Errorf("resolve report %d: no report card", r.ID)
