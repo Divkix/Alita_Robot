@@ -1682,6 +1682,7 @@ reports_button_dismiss: "✔️ Dismiss"
 reports_success_mute: "✅ Successfully muted"
 reports_already_handled: "This report has already been handled."
 reports_already_reviewed: "The admins have already reviewed your report of this message."
+reports_expired: "This report has expired."
 reports_action_failed: "Could not complete this action. Try again."
 reports_sent_to_admins: "Reported to admins."
 

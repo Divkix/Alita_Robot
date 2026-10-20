@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -820,6 +821,111 @@ func TestLegacyButtonClosesReportStoredDuringAction(t *testing.T) {
 }
 
 // Guard: a decision on a message is final for its reporters.
+// expireReports backdates the reports of message 505 by reporterIDs past the
+// retention period and runs the sweep.
+func expireReports(t *testing.T, chatID int64, reporterIDs ...int64) {
+	t.Helper()
+	now := time.Now()
+	if err := db.DB.Model(&models.Report{}).
+		Where("chat_id = ? AND reported_message_id = ? AND reporter_id IN ?", chatID, 505, reporterIDs).
+		Update("created_at", now.Add(-reportRetention-time.Hour)).Error; err != nil {
+		t.Fatalf("backdate reports: %v", err)
+	}
+	sweepExpiredReports(now)
+}
+
+// uniqueReportCard makes the next card posted to the log channel take a
+// message id no other test's card has: the tests share one channel, and a
+// press on a card whose report is gone looks up the card's other reports.
+func uniqueReportCard(f reportCardFixture) int64 {
+	card := 1_000_000 + (-uniqueModuleChatID())%1_000_000_000
+	f.client.responses["sendMessage"] = json.RawMessage(fmt.Sprintf(
+		`{"message_id":%d,"date":1,"chat":{"id":%d,"type":"channel","title":"Log Channel"}}`, card, reportCardChannelID,
+	))
+	return card
+}
+
+func TestCardPressAfterReportExpiredSaysExpired(t *testing.T) {
+	useReportLocales(t, "en")
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	card := uniqueReportCard(f)
+	actions := reportedCard(t, f)
+	expireReports(t, f.chat.Id, f.reporter.Id)
+	if rows := storedReports(t, f.chat.Id); len(rows) != 0 {
+		t.Fatalf("stored reports = %+v, want the expired report swept", rows)
+	}
+
+	if err := pressCard(t, f, reportCardChannel, card, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for an expired report", got)
+	}
+	answeredWith(t, f, "reports_expired")
+}
+
+// The card's buttons carry its oldest open report. When that report expires
+// while newer ones on the card are still open, the buttons act on those.
+func TestCardActsAfterItsOldestReportExpires(t *testing.T) {
+	useReportLocales(t, "en")
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	card := uniqueReportCard(f)
+	actions := reportedCard(t, f)
+	second := gotgbot.User{Id: 44, FirstName: "Second"}
+	f.report(t, second, "/report scam")
+	if got := cardActions(t, lastCardMarkup(t, f, card))["ban"]; got != actions["ban"] {
+		t.Fatalf("card ban button = %q, want it still on the oldest report %q", got, actions["ban"])
+	}
+	expireReports(t, f.chat.Id, f.reporter.Id)
+	left := requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
+	if len(left) != 1 || left[0].ReporterId != second.Id {
+		t.Fatalf("stored reports = %+v, want the second report left open", left)
+	}
+
+	if err := pressCard(t, f, reportCardChannel, card, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	bans := f.client.callsFor("banChatMember")
+	if len(bans) != 1 || fmt.Sprint(bans[0].Params["chat_id"]) != fmt.Sprint(f.chat.Id) ||
+		fmt.Sprint(bans[0].Params["user_id"]) != fmt.Sprint(f.target.Id) {
+		t.Fatalf("banChatMember calls = %v, want one ban of %d in %d", bans, f.target.Id, f.chat.Id)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+	answeredWith(t, f, "reports_success_ban")
+}
+
+// A press whose report id matches no stored report acts only on the open
+// reports of the card it was pressed on: on a card with none, it does
+// nothing.
+func TestCardPressWithUnknownIdActsOnlyOnPressedCard(t *testing.T) {
+	useReportLocales(t, "en")
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	uniqueReportCard(f)
+	reportedCard(t, f)
+	empty := uniqueReportCard(f)
+
+	if err := pressCard(t, f, reportCardChannel, empty, admin, cardActionData("ban", math.MaxInt64)); err != ext.EndGroups {
+		t.Fatalf("ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 0 {
+		t.Fatalf("banChatMember calls = %d, want none from a card with no reports", got)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
+	answeredWith(t, f, "reports_expired")
+}
+
 func TestRepeatReportAfterDecisionIsIgnored(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}

@@ -1512,6 +1512,7 @@ reports_button_dismiss: "✔️ खारिज करें"
 reports_success_mute: "✅ सफलतापूर्वक म्यूट किया गया"
 reports_already_handled: "इस रिपोर्ट पर पहले ही कार्रवाई हो चुकी है।"
 reports_already_reviewed: "एडमिन इस संदेश पर आपकी रिपोर्ट की समीक्षा पहले ही कर चुके हैं।"
+reports_expired: "इस रिपोर्ट की समय-सीमा समाप्त हो गई है।"
 reports_action_failed: "यह कार्रवाई पूरी नहीं हो सकी। फिर से प्रयास करें।"
 reports_sent_to_admins: "एडमिन्स को रिपोर्ट कर दिया गया।"
 reports_extended_docs: |

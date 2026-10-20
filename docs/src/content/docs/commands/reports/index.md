@@ -50,7 +50,7 @@ In the log channel:
 
 Once admins have decided a member's report, that member reporting the same message again gets a reply that the admins already reviewed it, with no admin mentions or buttons, whether or not the group has a log channel.
 
-Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in `/export`.
+Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in `/export`. A card's buttons keep working while any report on it is still stored and open; once none is, pressing them answers that the report has expired.
 
 **Personal vs Group Settings:**
 - **In PM:** `/reports on/off` toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)

@@ -53,6 +53,19 @@ func GetByReporter(chatID, messageID, reporterID int64) (*models.Report, error) 
 	return &r, nil
 }
 
+// OpenForCard returns the open reports linked to report card adminMessageID
+// in adminChatID, oldest first.
+func OpenForCard(adminChatID, adminMessageID int64) ([]models.Report, error) {
+	var rows []models.Report
+	// 'open' is a literal so a prepared generic plan can scan only the open
+	// rows through their partial index; card columns have no index.
+	err := db.DB.
+		Where("status = 'open' AND admin_chat_id = ? AND admin_message_id = ?", adminChatID, adminMessageID).
+		Order("id").
+		Find(&rows).Error
+	return rows, err
+}
+
 func OpenForMessage(chatID, messageID int64) ([]models.Report, error) {
 	var rows []models.Report
 	err := db.DB.
