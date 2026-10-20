@@ -405,6 +405,22 @@ func TestRepeatReportAfterCloseSendsNoCard(t *testing.T) {
 	}
 }
 
+// When the member's stored report cannot be looked up, a repeat is not
+// treated as decided: the group gets the full report as before.
+func TestRepeatReportGoesOutWhenItsLookupFails(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.report(t, f.reporter, "/report spam")
+	if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	f.client.calls = nil
+	failReportQueries(t, "query")
+
+	f.report(t, f.reporter, "/report still spam")
+
+	assertFullGroupReply(t, f)
+}
+
 // A newer report of the message by another member does not reopen this
 // member's decided report: they are still told it was reviewed.
 func TestRepeatReportAfterCloseWithNewerOpenReport(t *testing.T) {
