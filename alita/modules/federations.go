@@ -772,6 +772,11 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 // retry_after before giving up on one chat.
 const fedWalkMaxFloodWait = 30 * time.Second
 
+// fedBanOnUpdateMaxFloodWait caps the flood wait of a ban made while handling
+// an update: the wait holds a dispatcher routine and must end well inside the
+// join claim's recentJoinProcessTTL.
+const fedBanOnUpdateMaxFloodWait = 3 * time.Second
+
 type fedWalkKey struct {
 	fedID  string
 	userID int64
@@ -817,13 +822,18 @@ func lockFedWalk(fedID string, userID int64) (unlock func()) {
 // retryAfterFlood runs call once more when Telegram answers 429, after the
 // retry_after it asks for, unless that wait exceeds fedWalkMaxFloodWait.
 func retryAfterFlood(call func() error) error {
+	return retryAfterFloodWithin(fedWalkMaxFloodWait, call)
+}
+
+// retryAfterFloodWithin is retryAfterFlood with its own cap on the wait.
+func retryAfterFloodWithin(maxWait time.Duration, call func() error) error {
 	err := call()
 	var tgErr *gotgbot.TelegramError
 	if !errors.As(err, &tgErr) || tgErr.Code != http.StatusTooManyRequests || tgErr.ResponseParams == nil {
 		return err
 	}
 	wait := time.Duration(tgErr.ResponseParams.RetryAfter) * time.Second
-	if wait > fedWalkMaxFloodWait {
+	if wait > maxWait {
 		return err
 	}
 	time.Sleep(wait)
@@ -1338,43 +1348,9 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	check := func(userID int64, name string) {
-		if !chat_status.IsValidUserId(userID) || userID == b.Id {
-			return
-		}
-		ban, sourceFed := federations.FindBanInFedTree(membership.FedID, userID)
-		if ban == nil {
-			return
-		}
-		if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
-			return
-		}
-		if _, err := b.BanChatMember(chat.Id, userID, nil); err != nil {
-			log.Debugf("[Federations] passive fban: %v", err)
-			return
-		}
-		// Take the join so greetings sends the banned user no captcha or welcome.
-		// Only a ban that went through does this; a failed one leaves the captcha.
-		claimRecentJoinProcessing(chat.Id, userID)
-		if membership.Quiet {
-			return
-		}
-		tr := ctxTr(ctx)
-		fedName := sourceFed
-		if fed := federations.GetFedContext(tracing.UpdateContext(ctx), sourceFed); fed != nil {
-			fedName = fed.Name
-		}
-		text, _ := tr.GetString("feds_passive_ban", i18n.TranslationParams{
-			"user":   formatting.MentionHtml(userID, name),
-			"name":   html.EscapeString(fedName),
-			"reason": html.EscapeString(ban.Reason),
-		})
-		_, _ = b.SendMessage(chat.Id, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
-	}
-
 	if len(msg.NewChatMembers) > 0 {
 		for _, member := range msg.NewChatMembers {
-			check(member.Id, member.FirstName)
+			fedBanMember(b, ctx, chat, membership, member.Id, member.FirstName, true)
 		}
 		return ext.ContinueGroups
 	}
@@ -1385,8 +1361,79 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveUser != nil && ctx.EffectiveUser.IsBot {
 		return ext.ContinueGroups
 	}
-	check(sender.Id(), sender.Name())
+	fedBanMember(b, ctx, chat, membership, sender.Id(), sender.Name(), false)
 	return ext.ContinueGroups
+}
+
+// enforceFedBanOnJoin bans a fbanned newcomer from the ChatMemberUpdated of
+// the join, which large groups send without a service message.
+func (moduleStruct) enforceFedBanOnJoin(b *gotgbot.Bot, ctx *ext.Context) error {
+	chat := ctx.EffectiveChat
+	if chat == nil || ctx.ChatMember == nil || chat_status.RequirePrivate(b, ctx, chat) {
+		return ext.ContinueGroups
+	}
+	membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chat.Id)
+	if membership == nil {
+		return ext.ContinueGroups
+	}
+	member := ctx.ChatMember.NewChatMember.GetUser()
+	fedBanMember(b, ctx, chat, membership, member.Id, member.FirstName, true)
+	return ext.ContinueGroups
+}
+
+// fedBanMember bans userID when the chat's federation tree has a ban for them
+// and posts the notice unless the federation is quiet.
+//
+// A join reaches the bot as a service message and a ChatMemberUpdated, in
+// either order and possibly at once. For a join the ban first takes the join
+// claim greetings uses, so only one of the two updates bans and posts, and the
+// claim keeps the banned newcomer from getting a captcha or welcome. A failed
+// ban gives the claim back, so greetings still challenges the newcomer. While
+// Redis is down the claim is this replica's, so the ban still happens.
+func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membership *models.FederationChat, userID int64, name string, join bool) {
+	if !chat_status.IsValidUserId(userID) || userID == b.Id {
+		return
+	}
+	ban, sourceFed := federations.FindBanInFedTree(membership.FedID, userID)
+	if ban == nil {
+		return
+	}
+	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
+		return
+	}
+	if join && !claimRecentJoinForBan(chat.Id, userID) {
+		return
+	}
+	// Antiraid leaves fbanned newcomers to this ban, so wait out a short flood.
+	if err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
+		_, err := b.BanChatMember(chat.Id, userID, nil)
+		return err
+	}); err != nil {
+		log.Debugf("[Federations] passive fban: %v", err)
+		if join {
+			clearRecentJoinProcessing(chat.Id, userID)
+		}
+		return
+	}
+	if !join {
+		// The sender may have joined unseen; keep greetings from challenging
+		// them if that join's update comes later.
+		claimRecentJoinProcessing(chat.Id, userID)
+	}
+	if membership.Quiet {
+		return
+	}
+	tr := ctxTr(ctx)
+	fedName := sourceFed
+	if fed := federations.GetFedContext(tracing.UpdateContext(ctx), sourceFed); fed != nil {
+		fedName = fed.Name
+	}
+	text, _ := tr.GetString("feds_passive_ban", i18n.TranslationParams{
+		"user":   formatting.MentionHtml(userID, name),
+		"name":   html.EscapeString(fedName),
+		"reason": html.EscapeString(ban.Reason),
+	})
+	_, _ = b.SendMessage(chat.Id, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 }
 
 func LoadFederations(dispatcher *ext.Dispatcher) {
@@ -1429,8 +1476,29 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 		handlers.NewMessage(message.All, federationsModule.enforceFedBan),
 		federationsModule.handlerGroup,
 	)
+	dispatcher.AddHandlerToGroup(
+		handlers.NewChatMember(
+			func(u *gotgbot.ChatMemberUpdated) bool {
+				wasMember, isMember := chat_status.ExtractJoinLeftStatusChange(u)
+				return !wasMember && isMember
+			},
+			federationsModule.enforceFedBanOnJoin,
+		),
+		federationsModule.handlerGroup,
+	)
 }
 
 func init() {
 	RegisterLegacyModule("Federations", 235, LoadFederations)
+}
+
+// fedBannedInChat reports whether the chat's federation tree has a ban for
+// userID, which fed-ban enforces on join before the other join guards run.
+func fedBannedInChat(ctx *ext.Context, chatID, userID int64) bool {
+	membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chatID)
+	if membership == nil {
+		return false
+	}
+	ban, _ := federations.FindBanInFedTree(membership.FedID, userID)
+	return ban != nil
 }

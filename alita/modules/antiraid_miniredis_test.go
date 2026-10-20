@@ -4,6 +4,7 @@ package modules
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	gocache "github.com/eko/gocache/lib/v4/cache"
@@ -32,6 +33,32 @@ func withMiniredis(t *testing.T) {
 		Addr: mr.Addr(),
 	})
 	t.Cleanup(func() { _ = client.Close() })
+
+	previousMarshal, previousManager, previousClient := cache.GetCacheState()
+	manager := gocache.New[any](gocache_store.NewRedis(client))
+	cache.SetCacheState(marshaler.New(manager), manager, client)
+	t.Cleanup(func() {
+		cache.SetCacheState(previousMarshal, previousManager, previousClient)
+	})
+}
+
+// withUnreachableRedis points the cache and the raw Redis client at a Redis
+// server that has gone away, so every Redis call fails with a network error.
+func withUnreachableRedis(t *testing.T) {
+	t.Helper()
+
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("miniredis.Run() error = %v", err)
+	}
+	client := redis.NewClient(&redis.Options{
+		Addr:               mr.Addr(),
+		MaxRetries:         -1,
+		DialerRetries:      1,
+		DialerRetryTimeout: time.Millisecond,
+	})
+	t.Cleanup(func() { _ = client.Close() })
+	mr.Close()
 
 	previousMarshal, previousManager, previousClient := cache.GetCacheState()
 	manager := gocache.New[any](gocache_store.NewRedis(client))

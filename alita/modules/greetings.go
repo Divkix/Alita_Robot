@@ -76,6 +76,30 @@ func recentJoinProcessingKey(chatID, userID int64) string {
 }
 
 func claimRecentJoinProcessing(chatID, userID int64) bool {
+	claimed, err := tryClaimRecentJoinProcessing(chatID, userID)
+	if err != nil {
+		// Genuine Redis error — fail closed to avoid double welcome/captcha in multi-instance.
+		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, failing closed: %v", recentJoinProcessingKey(chatID, userID), err)
+		return false
+	}
+	return claimed
+}
+
+// claimRecentJoinForBan is claimRecentJoinProcessing for a guard about to ban
+// the newcomer. A Redis error falls back to this replica's claim instead of
+// failing closed, so an outage does not let a banned user in.
+func claimRecentJoinForBan(chatID, userID int64) bool {
+	claimed, err := tryClaimRecentJoinProcessing(chatID, userID)
+	if err != nil {
+		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, using the local claim: %v", recentJoinProcessingKey(chatID, userID), err)
+		return claimRecentJoinLocally(recentJoinProcessingKey(chatID, userID))
+	}
+	return claimed
+}
+
+// tryClaimRecentJoinProcessing takes the join claim in Redis, or in this
+// replica without Redis. It returns the Redis error instead of a decision.
+func tryClaimRecentJoinProcessing(chatID, userID int64) (bool, error) {
 	key := recentJoinProcessingKey(chatID, userID)
 
 	if rdb := cache.GetRedisClient(); rdb != nil {
@@ -84,16 +108,17 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 			TTL:  recentJoinProcessTTL,
 		}).Result()
 		if err == nil {
-			return true
+			return true, nil
 		}
 		if errors.Is(err, redis.Nil) {
-			return false
+			return false, nil
 		}
-		// Genuine Redis error — fail closed to avoid double welcome/captcha in multi-instance.
-		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, failing closed: %v", key, err)
-		return false
+		return false, err
 	}
+	return claimRecentJoinLocally(key), nil
+}
 
+func claimRecentJoinLocally(key string) bool {
 	now := time.Now()
 	for {
 		newClaim := joinClaim{exp: now.Add(recentJoinProcessTTL)}
@@ -666,7 +691,11 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	clearRecentJoinProcessing(chat.Id, leftMember.Id)
+	// A ban keeps the join claim: a guard that banned the newcomer on one
+	// update of the join must not see the join again on the other.
+	if ctx.ChatMember.NewChatMember.GetStatus() != "kicked" {
+		clearRecentJoinProcessing(chat.Id, leftMember.Id)
+	}
 
 	captchaAttempt, err := captcha.GetCaptchaAttemptIncludingExpired(leftMember.Id, chat.Id)
 	if err != nil {

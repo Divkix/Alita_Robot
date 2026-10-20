@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -16,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -53,8 +55,8 @@ func TestJoinGuardsWelcomeNewcomerTheyDoNotBan(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		setup func(t *testing.T, client *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat, member gotgbot.User)
-		// guardTries is whether the guard still calls banChatMember from the
-		// service message; Telegram refuses a ban the bot has no right to make.
+		// guardTries is whether the guard still calls banChatMember; Telegram
+		// refuses a ban the bot has no right to make.
 		guardTries bool
 	}{
 		{name: "raid, approved newcomer", setup: func(t *testing.T, _ *moduleBotClient, _ *gotgbot.Bot, chat gotgbot.Chat, member gotgbot.User) {
@@ -120,7 +122,7 @@ func TestJoinGuardsWelcomeNewcomerTheyDoNotBan(t *testing.T) {
 				require.NoError(t, dispatcher.ProcessUpdate(bot, update, nil))
 
 				wantBans := 0
-				if tc.guardTries && path == "service message" {
+				if tc.guardTries {
 					wantBans = 1
 				}
 				if calls := client.callsFor("banChatMember"); len(calls) != wantBans {
@@ -308,5 +310,395 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 				require.False(t, welcomeSent(client), "banned newcomer was welcomed")
 			})
 		}
+	}
+}
+
+// With Redis down the shared join claim fails closed, but fed-ban must still
+// ban a fbanned newcomer on join, once per join on this replica.
+func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
+	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
+	require.NoError(t, err)
+	t.Cleanup(restore)
+
+	for _, order := range [][]string{
+		{"service message"},
+		{"chat member update"},
+		{"service message", "chat member update"},
+		{"chat member update", "service message"},
+	} {
+		t.Run(strings.Join(order, " then "), func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+			require.NoError(t, err)
+			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			clearRecentJoinProcessing(chat.Id, member.Id)
+			withUnreachableRedis(t)
+
+			updates := map[string]*gotgbot.Update{
+				"service message": {UpdateId: 1, Message: &gotgbot.Message{
+					MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+				}},
+				"chat member update": {UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+					Chat:          chat,
+					From:          member,
+					Date:          1,
+					OldChatMember: gotgbot.ChatMemberLeft{User: member},
+					NewChatMember: gotgbot.ChatMemberMember{User: member},
+				}},
+			}
+			for _, path := range order {
+				dispatchJoinGuards(t, bot, updates[path])
+			}
+
+			bans := client.callsFor("banChatMember")
+			require.Len(t, bans, 1, "a fbanned newcomer must be banned exactly once while Redis is down")
+			require.Equal(t, fmt.Sprint(member.Id), fmt.Sprint(bans[0].Params["user_id"]))
+			notices := 0
+			for _, call := range client.callsFor("sendMessage") {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), "is fbanned") {
+					notices++
+				}
+			}
+			require.Equal(t, 1, notices, "one fed-ban notice per join")
+			require.False(t, captchaSentTo(t, chat.Id, member.Id), "banned newcomer got a captcha")
+			require.False(t, welcomeSent(client), "banned newcomer was welcomed")
+		})
+	}
+}
+
+// A join reaches the bot as a service message, a ChatMemberUpdated, or both in
+// either order, and large groups may send no service message at all. Fed-ban
+// must ban a fbanned newcomer on whichever update comes, exactly once, with a
+// single notice, and leave everyone else alone.
+func TestFedBanEnforcedOnEveryJoinUpdateExactlyOnce(t *testing.T) {
+	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
+	require.NoError(t, err)
+	t.Cleanup(restore)
+
+	joinUpdates := func(chat gotgbot.Chat, member gotgbot.User) map[string]*gotgbot.Update {
+		return map[string]*gotgbot.Update{
+			"service message": {UpdateId: 1, Message: &gotgbot.Message{
+				MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+			}},
+			"chat member update": {UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat:          chat,
+				From:          member,
+				Date:          1,
+				OldChatMember: gotgbot.ChatMemberLeft{User: member},
+				NewChatMember: gotgbot.ChatMemberMember{User: member},
+			}},
+		}
+	}
+	notices := func(client *moduleBotClient) int {
+		n := 0
+		for _, call := range client.callsFor("sendMessage") {
+			if strings.Contains(fmt.Sprint(call.Params["text"]), "is fbanned") {
+				n++
+			}
+		}
+		return n
+	}
+
+	for _, redis := range []bool{false, true} {
+		for _, fbanned := range []bool{true, false} {
+			for _, order := range [][]string{
+				{"chat member update"},
+				{"chat member update", "service message"},
+				{"service message", "chat member update"},
+				{"concurrent"},
+			} {
+				name := fmt.Sprintf("redis=%v/fbanned=%v/%s", redis, fbanned, strings.Join(order, " then "))
+				t.Run(name, func(t *testing.T) {
+					if redis {
+						withMiniredis(t)
+					}
+					client := newModuleBotClient()
+					bot := newModuleTestBot(client)
+					chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+					member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+					require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
+					require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+					ownerID := uniquePositiveUserID()
+					fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+					require.NoError(t, err)
+					t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+					require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+					if fbanned {
+						_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+						require.NoError(t, err)
+					}
+					clearRecentJoinProcessing(chat.Id, member.Id)
+					updates := joinUpdates(chat, member)
+
+					if order[0] == "concurrent" {
+						var wg sync.WaitGroup
+						for _, update := range updates {
+							wg.Add(1)
+							go func(update *gotgbot.Update) {
+								defer wg.Done()
+								dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+								LoadFederations(dispatcher)
+								LoadAntiRaid(dispatcher)
+								LoadGreetings(dispatcher)
+								_ = dispatcher.ProcessUpdate(bot, update, nil)
+							}(update)
+						}
+						wg.Wait()
+					} else {
+						for _, path := range order {
+							dispatchJoinGuards(t, bot, updates[path])
+						}
+					}
+
+					if !fbanned {
+						require.Empty(t, client.callsFor("banChatMember"), "a newcomer nobody fbanned was banned")
+						require.Zero(t, notices(client))
+						require.True(t, captchaSentTo(t, chat.Id, member.Id), "a newcomer nobody fbanned must get the captcha")
+						return
+					}
+					bans := client.callsFor("banChatMember")
+					require.Len(t, bans, 1, "a fbanned newcomer must be banned exactly once")
+					require.Equal(t, fmt.Sprint(member.Id), fmt.Sprint(bans[0].Params["user_id"]))
+					require.Equal(t, 1, notices(client), "one fed-ban notice per join")
+					require.False(t, captchaSentTo(t, chat.Id, member.Id), "banned newcomer got a captcha")
+					require.False(t, welcomeSent(client), "banned newcomer was welcomed")
+				})
+			}
+		}
+	}
+}
+
+// The fed-ban on a join's ChatMemberUpdated makes Telegram send a second one,
+// member→kicked, which greetings handles as a leave. The join's service message
+// may still come after it; it must not ban again or post a second notice.
+func TestFedBanOnJoinPostsOneNoticeWhenServiceMessageFollowsTheKick(t *testing.T) {
+	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
+	require.NoError(t, err)
+	t.Cleanup(restore)
+
+	for _, redis := range []bool{false, true} {
+		t.Run(fmt.Sprintf("redis=%v", redis), func(t *testing.T) {
+			if redis {
+				withMiniredis(t)
+			}
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+			require.NoError(t, err)
+			clearRecentJoinProcessing(chat.Id, member.Id)
+
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat:          chat,
+				From:          member,
+				Date:          1,
+				OldChatMember: gotgbot.ChatMemberLeft{User: member},
+				NewChatMember: gotgbot.ChatMemberMember{User: member},
+			}})
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat:          chat,
+				From:          bot.User,
+				Date:          2,
+				OldChatMember: gotgbot.ChatMemberMember{User: member},
+				NewChatMember: gotgbot.ChatMemberBanned{User: member},
+			}})
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 3, Message: &gotgbot.Message{
+				MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+			}})
+
+			require.Len(t, client.callsFor("banChatMember"), 1, "a fbanned newcomer must be banned once per join")
+			notices := 0
+			for _, call := range client.callsFor("sendMessage") {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), "is fbanned") {
+					notices++
+				}
+			}
+			require.Equal(t, 1, notices, "one fed-ban notice per join")
+			require.False(t, captchaSentTo(t, chat.Id, member.Id), "banned newcomer got a captcha")
+			require.False(t, welcomeSent(client), "banned newcomer was welcomed")
+		})
+	}
+}
+
+// During a raid, fed-ban (group -6) bans a fbanned newcomer for good on
+// whichever join update comes first. Antiraid (group -5) must not ban them again
+// with an until_date, which could turn the permanent ban into a temporary one;
+// everyone else still gets the raid's temp-ban.
+func TestAntiRaidLeavesFedBannedNewcomerToFedBan(t *testing.T) {
+	for _, tc := range []struct {
+		fbanned bool
+		order   []string
+	}{
+		{fbanned: true, order: []string{"service message"}},
+		{fbanned: true, order: []string{"chat member update", "service message"}},
+		{fbanned: false, order: []string{"service message"}},
+	} {
+		t.Run(fmt.Sprintf("fbanned=%v/%s", tc.fbanned, strings.Join(tc.order, " then ")), func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			if tc.fbanned {
+				_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+				require.NoError(t, err)
+			}
+			enabled, err := antiRaidModule.enableRaid(chat.Id, 3600)
+			require.NoError(t, err)
+			require.True(t, enabled)
+			t.Cleanup(func() {
+				StopAntiRaidExpiryPoller()
+				_, _ = antiRaidModule.disableRaid(chat.Id)
+			})
+			clearRecentJoinProcessing(chat.Id, member.Id)
+
+			updates := map[string]*gotgbot.Update{
+				"service message": {UpdateId: 1, Message: &gotgbot.Message{
+					MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+				}},
+				"chat member update": {UpdateId: 2, ChatMember: &gotgbot.ChatMemberUpdated{
+					Chat:          chat,
+					From:          member,
+					Date:          1,
+					OldChatMember: gotgbot.ChatMemberLeft{User: member},
+					NewChatMember: gotgbot.ChatMemberMember{User: member},
+				}},
+			}
+			for _, path := range tc.order {
+				dispatchJoinGuards(t, bot, updates[path])
+			}
+
+			bans := client.callsFor("banChatMember")
+			require.Len(t, bans, 1)
+			require.Equal(t, fmt.Sprint(member.Id), fmt.Sprint(bans[0].Params["user_id"]))
+			_, temporary := bans[0].Params["until_date"]
+			require.Equal(t, !tc.fbanned, temporary, "fed-ban bans for good, antiraid for the raid action time")
+		})
+	}
+}
+
+// A fbanned newcomer's join still counts towards the auto-antiraid threshold:
+// a join wave is a raid whoever is in it.
+func TestFedBannedJoinCountsTowardsAutoAntiRaid(t *testing.T) {
+	withMiniredis(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+	fbanned := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Fbanned"}
+	newcomer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+	ownerID := uniquePositiveUserID()
+	fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+	_, _, err = federations.Fban(fed.FedID, fbanned.Id, ownerID, "spam")
+	require.NoError(t, err)
+	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 2))
+	t.Cleanup(func() {
+		StopAntiRaidExpiryPoller()
+		_, _ = antiRaidModule.disableRaid(chat.Id)
+	})
+
+	for i, member := range []gotgbot.User{fbanned, newcomer} {
+		clearRecentJoinProcessing(chat.Id, member.Id)
+		dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: int64(i + 1), Message: &gotgbot.Message{
+			MessageId: int64(11 + i), Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+		}})
+	}
+
+	require.True(t, antiRaidModule.isRaidActive(chat.Id), "the second join must switch the raid on")
+	bans := client.callsFor("banChatMember")
+	require.Len(t, bans, 2)
+	require.Equal(t, fmt.Sprint(newcomer.Id), fmt.Sprint(bans[1].Params["user_id"]))
+	_, temporary := bans[1].Params["until_date"]
+	require.True(t, temporary, "the newcomer gets the raid's temp-ban")
+}
+
+// Antiraid leaves a fbanned newcomer to fed-ban, so fed-ban waits out a short
+// flood wait and bans again instead of giving up on the first 429. A wait that
+// would outlast the join claim is not waited out: the newcomer gets the captcha.
+func TestFedBanOnJoinRetriesAShortFloodWait(t *testing.T) {
+	for _, tc := range []struct {
+		retryAfter int64
+		banned     bool
+	}{
+		{retryAfter: 1, banned: true},
+		{retryAfter: 4, banned: false},
+	} {
+		t.Run(fmt.Sprintf("retry_after=%d", tc.retryAfter), func(t *testing.T) {
+			restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
+			require.NoError(t, err)
+			t.Cleanup(restore)
+			client := &floodOnceBotClient{moduleBotClient: newModuleBotClient(), method: "banChatMember", retryAfter: tc.retryAfter}
+			bot := newModuleTestBot(client.moduleBotClient)
+			bot.BotClient = client
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			ownerID := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
+			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
+			require.NoError(t, err)
+			enabled, err := antiRaidModule.enableRaid(chat.Id, 3600)
+			require.NoError(t, err)
+			require.True(t, enabled)
+			t.Cleanup(func() {
+				StopAntiRaidExpiryPoller()
+				_, _ = antiRaidModule.disableRaid(chat.Id)
+			})
+			clearRecentJoinProcessing(chat.Id, member.Id)
+
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
+				MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
+			}})
+
+			bans := client.callsFor("banChatMember")
+			wantCalls := 1
+			if tc.banned {
+				wantCalls = 2
+			}
+			require.Len(t, bans, wantCalls, "one retry for a short flood wait, none for a long one")
+			for _, call := range bans {
+				_, temporary := call.Params["until_date"]
+				require.False(t, temporary, "only fed-ban bans a fbanned newcomer, and for good")
+			}
+			notices := 0
+			for _, call := range client.callsFor("sendMessage") {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), "is fbanned") {
+					notices++
+				}
+			}
+			if tc.banned {
+				require.Equal(t, 1, notices)
+				require.False(t, captchaSentTo(t, chat.Id, member.Id), "banned newcomer got a captcha")
+			} else {
+				require.Zero(t, notices)
+				require.True(t, captchaSentTo(t, chat.Id, member.Id), "a ban that failed must not skip the captcha")
+			}
+		})
 	}
 }

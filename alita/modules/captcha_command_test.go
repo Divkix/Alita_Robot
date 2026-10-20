@@ -4,6 +4,7 @@ package modules
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -1439,6 +1440,54 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 			t.Fatalf("sendMessage calls = %d, want none for identity mismatch", len(calls))
 		}
 	})
+}
+
+// A newcomer banned by another guard (spamdb, antiraid, fed-ban) while the
+// captcha was pending must stay banned: the kick is an unbanChatMember call,
+// which lifts an existing ban.
+func TestHandleCaptchaTimeoutLeavesAnExistingBanInPlace(t *testing.T) {
+	for _, action := range []string{"kick", "ban", "mute"} {
+		t.Run(action, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.membersByUser = map[string]json.RawMessage{
+				"42": json.RawMessage(`{"status":"kicked","until_date":0,"user":{"id":42,"is_bot":false,"first_name":"Member"}}`),
+			}
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
+			if err != nil {
+				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+			}
+			if err := captcha.CreateMutedUser(42, chat.Id, time.Now()); err != nil {
+				t.Fatalf("CreateMutedUser() error = %v", err)
+			}
+
+			claimed, applied := handleCaptchaTimeout(bot, chat.Id, 42, attempt.ID, 456, action)
+			if !claimed || applied {
+				t.Fatalf("handleCaptchaTimeout() = (%v, %v), want claimed, not applied", claimed, applied)
+			}
+			for _, method := range []string{"unbanChatMember", "banChatMember", "restrictChatMember", "sendMessage"} {
+				if calls := client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %d, want none for an already banned member", method, len(calls))
+				}
+			}
+			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+				t.Fatalf("deleteMessage calls = %d, want captcha message cleanup", len(calls))
+			}
+			if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current != nil {
+				t.Fatalf("attempt after timeout = %#v, %v; want released", current, err)
+			}
+			users, err := captcha.GetUsersToUnmute()
+			if err != nil {
+				t.Fatalf("GetUsersToUnmute() error = %v", err)
+			}
+			for _, u := range users {
+				if u.UserID == 42 && u.ChatID == chat.Id {
+					t.Fatal("captcha_muted_users row kept: the unmute poller would restrict a banned member")
+				}
+			}
+		})
+	}
 }
 
 func TestExpireCaptchaAttemptReleasesWhenCaptchaWasDisabled(t *testing.T) {
