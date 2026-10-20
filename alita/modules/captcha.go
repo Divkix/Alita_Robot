@@ -1264,6 +1264,17 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		userName = "User"
 	}
 
+	// Another guard (spamdb, antiraid, fed-ban) banned the newcomer while the
+	// captcha was pending. The kick is unbanChatMember, which would lift that
+	// ban, so leave the member as it is and drop any pending unmute.
+	if err == nil && member.GetStatus() == "kicked" {
+		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
+			log.Errorf("[Captcha] Failed to clear fallback unmute for banned user %d: %v", userID, err)
+		}
+		log.Infof("[Captcha] User %d is already banned in chat %d; skipping %s", userID, chatID, action)
+		return true, false
+	}
+
 	if err := executeCaptchaFailureAction(bot, chatID, userID, action); err != nil {
 		log.Errorf("[Captcha] Failed to apply %s to user %d in chat %d: %v", action, userID, chatID, err)
 		if action == "kick" {
