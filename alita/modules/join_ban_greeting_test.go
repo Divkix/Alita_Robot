@@ -313,10 +313,6 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 	}
 }
 
-// A join reaches the bot as a service message, a ChatMemberUpdated, or both in
-// either order, and large groups may send no service message at all. Fed-ban
-// must ban a fbanned newcomer on whichever update comes, exactly once, with a
-// single notice, and leave everyone else alone.
 // With Redis down the shared join claim fails closed, but fed-ban must still
 // ban a fbanned newcomer on join, once per join on this replica.
 func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
@@ -342,6 +338,8 @@ func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
 			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
 			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
 			require.NoError(t, err)
+			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
 			clearRecentJoinProcessing(chat.Id, member.Id)
 			withUnreachableRedis(t)
 
@@ -371,10 +369,16 @@ func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
 				}
 			}
 			require.Equal(t, 1, notices, "one fed-ban notice per join")
+			require.False(t, captchaSentTo(t, chat.Id, member.Id), "banned newcomer got a captcha")
+			require.False(t, welcomeSent(client), "banned newcomer was welcomed")
 		})
 	}
 }
 
+// A join reaches the bot as a service message, a ChatMemberUpdated, or both in
+// either order, and large groups may send no service message at all. Fed-ban
+// must ban a fbanned newcomer on whichever update comes, exactly once, with a
+// single notice, and leave everyone else alone.
 func TestFedBanEnforcedOnEveryJoinUpdateExactlyOnce(t *testing.T) {
 	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
 	require.NoError(t, err)
