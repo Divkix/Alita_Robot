@@ -772,6 +772,11 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 // retry_after before giving up on one chat.
 const fedWalkMaxFloodWait = 30 * time.Second
 
+// fedBanOnUpdateMaxFloodWait caps the flood wait of a ban made while handling
+// an update: the wait holds a dispatcher routine and must end well inside the
+// join claim's recentJoinProcessTTL.
+const fedBanOnUpdateMaxFloodWait = 3 * time.Second
+
 type fedWalkKey struct {
 	fedID  string
 	userID int64
@@ -817,13 +822,18 @@ func lockFedWalk(fedID string, userID int64) (unlock func()) {
 // retryAfterFlood runs call once more when Telegram answers 429, after the
 // retry_after it asks for, unless that wait exceeds fedWalkMaxFloodWait.
 func retryAfterFlood(call func() error) error {
+	return retryAfterFloodWithin(fedWalkMaxFloodWait, call)
+}
+
+// retryAfterFloodWithin is retryAfterFlood with its own cap on the wait.
+func retryAfterFloodWithin(maxWait time.Duration, call func() error) error {
 	err := call()
 	var tgErr *gotgbot.TelegramError
 	if !errors.As(err, &tgErr) || tgErr.Code != http.StatusTooManyRequests || tgErr.ResponseParams == nil {
 		return err
 	}
 	wait := time.Duration(tgErr.ResponseParams.RetryAfter) * time.Second
-	if wait > fedWalkMaxFloodWait {
+	if wait > maxWait {
 		return err
 	}
 	time.Sleep(wait)
@@ -1394,7 +1404,11 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	if join && !claimRecentJoinForBan(chat.Id, userID) {
 		return
 	}
-	if _, err := b.BanChatMember(chat.Id, userID, nil); err != nil {
+	// Antiraid leaves fbanned newcomers to this ban, so wait out a short flood.
+	if err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
+		_, err := b.BanChatMember(chat.Id, userID, nil)
+		return err
+	}); err != nil {
 		log.Debugf("[Federations] passive fban: %v", err)
 		if join {
 			clearRecentJoinProcessing(chat.Id, userID)
