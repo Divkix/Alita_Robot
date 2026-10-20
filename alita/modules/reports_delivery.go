@@ -35,8 +35,9 @@ const reportExcerptRunes = 300
 //
 // When the report could not be stored (stored is false), the card is posted
 // on its own: the open reports cannot be counted or linked to it, so it has
-// no buttons. A repeat of a stored report (created is false) leaves an
-// existing card alone.
+// no buttons; a card the stored reports could not be linked to loses them.
+// A repeat of a stored report (created is false) leaves an existing card
+// alone.
 func deliverReport(
 	b *gotgbot.Bot,
 	tr *i18n.Translator,
@@ -100,7 +101,7 @@ func deliverReport(
 			// report updates its count.
 			log.Warnf("[Reports] failed to update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
 		}
-		recordReportCard(chat.Id, reported.MessageId, channelID, *row.AdminMessageId)
+		recordReportCard(b, tr, chat, reported.MessageId, channelID, *row.AdminMessageId)
 		return true
 	}
 
@@ -108,7 +109,7 @@ func deliverReport(
 	if cardID == 0 {
 		return false
 	}
-	recordReportCard(chat.Id, reported.MessageId, channelID, cardID)
+	recordReportCard(b, tr, chat, reported.MessageId, channelID, cardID)
 	return true
 }
 
@@ -159,9 +160,24 @@ func sendReportCard(
 	return card.MessageId
 }
 
-func recordReportCard(chatID, messageID, channelID, cardID int64) {
-	if err := reports.SetAdminMessage(chatID, messageID, channelID, cardID); err != nil {
-		log.Errorf("[Reports] failed to record report card for chat %d message %d: %v", chatID, messageID, err)
+// recordReportCard links the open reports of a message to card. A card they
+// could not be linked to would answer "Invalid action" to every press, so it
+// loses its action buttons and keeps the link to the message.
+func recordReportCard(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, messageID, channelID, cardID int64) {
+	if err := reports.SetAdminMessage(chat.Id, messageID, channelID, cardID); err != nil {
+		log.Errorf("[Reports] failed to record report card for chat %d message %d: %v", chat.Id, messageID, err)
+		removeReportCardActions(b, tr, chat, messageID, channelID, cardID)
+	}
+}
+
+func removeReportCardActions(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, messageID, channelID, cardID int64) {
+	_, _, err := b.EditMessageReplyMarkup(&gotgbot.EditMessageReplyMarkupOpts{
+		ChatId:      channelID,
+		MessageId:   cardID,
+		ReplyMarkup: reportCardMarkup(tr, chat, messageID, 0),
+	})
+	if err != nil {
+		log.Warnf("[Reports] failed to remove the actions of report card %d in %d: %v", cardID, channelID, err)
 	}
 }
 

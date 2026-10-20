@@ -147,6 +147,20 @@ func (f reportCardFixture) hook(method string, chatID int64, before func(method 
 	return hooked
 }
 
+// cardButtonsRemoved reports whether card in the log channel was edited to
+// keep no action buttons.
+func cardButtonsRemoved(t *testing.T, f reportCardFixture, card int64) bool {
+	t.Helper()
+	for _, method := range []string{"editMessageReplyMarkup", "editMessageText"} {
+		for _, edit := range callsToChat(f.client, method, reportCardChannelID) {
+			if fmt.Sprint(edit.Params["message_id"]) == fmt.Sprint(card) && len(cardActions(t, edit.Params["reply_markup"])) == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func TestReportCardSentToLogChannel(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	f.report(t, f.reporter, "/report spam <b>now</b> & later")
@@ -626,4 +640,32 @@ func TestReportsCategoryDisabledSkipsCard(t *testing.T) {
 		t.Fatalf("log channel sendMessage calls = %d, want 0", got)
 	}
 	assertFullGroupReply(t, f)
+}
+
+// A card whose reports could not be linked to it cannot act: every press
+// would answer "Invalid action". It loses its action buttons and keeps the
+// link to the message; the group still gets the full report.
+func TestCardLosesButtonsWhenNotRecorded(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.hook("sendMessage", reportCardChannelID, func(string) {
+		// The card is posted, but storing where fails.
+		if err := db.DB.Migrator().DropColumn(&models.Report{}, "admin_message_id"); err != nil {
+			t.Fatalf("drop admin_message_id: %v", err)
+		}
+	})
+	t.Cleanup(func() {
+		if err := db.DB.AutoMigrate(&models.Report{}); err != nil {
+			t.Fatalf("restore reports table: %v", err)
+		}
+	})
+	f.report(t, f.reporter, "/report spam")
+
+	assertFullGroupReply(t, f)
+	if !cardButtonsRemoved(t, f, 9001) {
+		t.Fatalf("card 9001 edits = %v, want its action buttons removed", callsToChat(f.client, "editMessageReplyMarkup", reportCardChannelID))
+	}
+	edit := callsToChat(f.client, "editMessageReplyMarkup", reportCardChannelID)[0]
+	if !strings.Contains(fmt.Sprint(edit.Params["reply_markup"]), "t.me/") {
+		t.Fatalf("stripped card markup = %v, want the link to the message kept", edit.Params["reply_markup"])
+	}
 }
