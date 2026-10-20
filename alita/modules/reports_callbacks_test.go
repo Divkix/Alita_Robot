@@ -407,32 +407,81 @@ func TestCardAnswersInSourceGroupLanguage(t *testing.T) {
 }
 
 func TestCardGranularPermissions(t *testing.T) {
-	f := newReportCardFixture(t, true)
-	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Delete Admin"}
-	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
-		Status: "administrator", User: admin, CanDeleteMessages: true,
-	})
-	actions := reportedCard(t, f)
+	t.Run("admin without restrict rights", func(t *testing.T) {
+		f := newReportCardFixture(t, true)
+		admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Delete Admin"}
+		seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+			Status: "administrator", User: admin, CanDeleteMessages: true,
+		})
+		actions := reportedCard(t, f)
 
-	for _, action := range []string{"ban", "mute"} {
-		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions[action]); err != ext.EndGroups {
-			t.Fatalf("%s press error = %v, want EndGroups", action, err)
+		for _, action := range []string{"ban", "mute"} {
+			if err := pressCard(t, f, reportCardChannel, 9001, admin, actions[action]); err != ext.EndGroups {
+				t.Fatalf("%s press error = %v, want EndGroups", action, err)
+			}
 		}
-	}
-	if got := len(f.client.callsFor("banChatMember")) + len(f.client.callsFor("restrictChatMember")); got != 0 {
-		t.Fatalf("restrict calls = %d, want 0 for an admin without ban rights", got)
-	}
-	requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
+		if got := len(f.client.callsFor("banChatMember")) + len(f.client.callsFor("restrictChatMember")); got != 0 {
+			t.Fatalf("restrict calls = %d, want 0 for an admin without ban rights", got)
+		}
+		requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
 
-	if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["delete"]); err != ext.EndGroups {
-		t.Fatalf("delete press error = %v, want EndGroups", err)
-	}
-	deletes := f.client.callsFor("deleteMessage")
-	if len(deletes) != 1 || fmt.Sprint(deletes[0].Params["chat_id"]) != fmt.Sprint(f.chat.Id) ||
-		fmt.Sprint(deletes[0].Params["message_id"]) != "505" {
-		t.Fatalf("deleteMessage calls = %v, want message 505 deleted in the reported group", deletes)
-	}
-	requireReportStatus(t, f.chat.Id, models.ReportStatusDeleted)
+		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["delete"]); err != ext.EndGroups {
+			t.Fatalf("delete press error = %v, want EndGroups", err)
+		}
+		deletes := f.client.callsFor("deleteMessage")
+		if len(deletes) != 1 || fmt.Sprint(deletes[0].Params["chat_id"]) != fmt.Sprint(f.chat.Id) ||
+			fmt.Sprint(deletes[0].Params["message_id"]) != "505" {
+			t.Fatalf("deleteMessage calls = %v, want message 505 deleted in the reported group", deletes)
+		}
+		requireReportStatus(t, f.chat.Id, models.ReportStatusDeleted)
+	})
+
+	t.Run("bot without restrict and delete rights", func(t *testing.T) {
+		f := newReportCardFixture(t, true)
+		admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+		seedCallbackAdmins(t, f.chat.Id,
+			gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: 999, IsBot: true}},
+			gotgbot.MergedChatMember{
+				Status: "administrator", User: admin, CanRestrictMembers: true, CanDeleteMessages: true,
+			},
+		)
+		actions := reportedCard(t, f)
+
+		for _, action := range []string{"ban", "mute", "delete"} {
+			if err := pressCard(t, f, reportCardChannel, 9001, admin, actions[action]); err != ext.EndGroups {
+				t.Fatalf("%s press error = %v, want EndGroups", action, err)
+			}
+		}
+		for _, method := range []string{"banChatMember", "restrictChatMember", "deleteMessage"} {
+			if got := len(f.client.callsFor(method)); got != 0 {
+				t.Fatalf("%s calls = %d, want 0 while the bot lacks the right", method, got)
+			}
+		}
+		if got := len(f.client.callsFor("answerCallbackQuery")); got != 3 {
+			t.Fatalf("answerCallbackQuery calls = %d, want every press refused", got)
+		}
+		requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
+	})
+
+	t.Run("admin without delete rights", func(t *testing.T) {
+		f := newReportCardFixture(t, true)
+		admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Ban Admin"}
+		seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+			Status: "administrator", User: admin, CanRestrictMembers: true,
+		})
+		actions := reportedCard(t, f)
+
+		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["delete"]); err != ext.EndGroups {
+			t.Fatalf("delete press error = %v, want EndGroups", err)
+		}
+		if got := len(f.client.callsFor("deleteMessage")); got != 0 {
+			t.Fatalf("deleteMessage calls = %d, want 0 for an admin without delete rights", got)
+		}
+		if got := len(f.client.callsFor("answerCallbackQuery")); got != 1 {
+			t.Fatalf("answerCallbackQuery calls = %d, want the press refused", got)
+		}
+		requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
+	})
 }
 
 func TestCardActionFailureReopensReports(t *testing.T) {
@@ -495,7 +544,7 @@ func TestCardStoreFailureAnswersPress(t *testing.T) {
 }
 
 func TestCardIgnoresReportClosedInGroup(t *testing.T) {
-	groupAdmin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	groupAdmin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
 	for action, status := range map[string]string{
 		"kick":     models.ReportStatusKicked,
 		"ban":      models.ReportStatusBanned,
