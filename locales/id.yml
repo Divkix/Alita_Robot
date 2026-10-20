@@ -1576,6 +1576,7 @@ reports_button_mute: "🔇 Bisukan"
 reports_button_dismiss: "✔️ Abaikan"
 reports_success_mute: "✅ Berhasil membisukan"
 reports_already_handled: "Laporan ini sudah ditangani."
+reports_already_reviewed: "Admin sudah meninjau laporan Anda atas pesan ini."
 reports_action_failed: "Tindakan tidak dapat diselesaikan. Coba lagi."
 reports_sent_to_admins: "Dilaporkan ke admin."
 

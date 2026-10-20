@@ -1642,6 +1642,7 @@ reports_button_mute: "🔇 Silenciar"
 reports_button_dismiss: "✔️ Descartar"
 reports_success_mute: "✅ Silenciado correctamente"
 reports_already_handled: "Este reporte ya fue atendido."
+reports_already_reviewed: "Los administradores ya revisaron tu reporte de este mensaje."
 reports_action_failed: "No se pudo completar la acción. Inténtalo de nuevo."
 reports_sent_to_admins: "Reportado a los administradores."
 

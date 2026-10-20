@@ -1380,6 +1380,7 @@ reports_button_mute: "🔇 Rendre muet"
 reports_button_dismiss: "✔️ Ignorer"
 reports_success_mute: "✅ Rendu muet avec succès"
 reports_already_handled: "Ce signalement a déjà été traité."
+reports_already_reviewed: "Les admins ont déjà examiné votre signalement de ce message."
 reports_action_failed: "Impossible d’effectuer cette action. Réessayez."
 reports_sent_to_admins: "Signalé aux administrateurs."
 

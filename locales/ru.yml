@@ -1419,6 +1419,7 @@ reports_button_mute: "🔇 Заглушить"
 reports_button_dismiss: "✔️ Отклонить"
 reports_success_mute: "✅ Успешно заглушён"
 reports_already_handled: "Эта жалоба уже обработана."
+reports_already_reviewed: "Администраторы уже рассмотрели вашу жалобу на это сообщение."
 reports_action_failed: "Не удалось выполнить действие. Попробуйте ещё раз."
 reports_sent_to_admins: "Жалоба отправлена админам."
 

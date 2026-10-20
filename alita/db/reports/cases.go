@@ -41,6 +41,18 @@ func GetByID(id int64) (*models.Report, error) {
 	return &r, nil
 }
 
+// GetByReporter returns a member's report of a message, or
+// gorm.ErrRecordNotFound when they have none.
+func GetByReporter(chatID, messageID, reporterID int64) (*models.Report, error) {
+	var r models.Report
+	if err := db.DB.
+		Where("chat_id = ? AND reported_message_id = ? AND reporter_id = ?", chatID, messageID, reporterID).
+		Take(&r).Error; err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
 func OpenForMessage(chatID, messageID int64) ([]models.Report, error) {
 	var rows []models.Report
 	err := db.DB.

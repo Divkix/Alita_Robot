@@ -48,6 +48,8 @@ In the log channel:
 - Buttons to **Ban** or **Mute** the reported user, **Delete** the message, or **Dismiss** the report. Only admins of the reported group can use them, with the same rights as in the group; the first decision closes the report and is written on the card.
 - Once a report is closed, the same member reporting that message again does not reopen it or post a new card.
 
+Once admins have decided a member's report, that member reporting the same message again gets a reply that the admins already reviewed it, with no admin mentions or buttons, whether or not the group has a log channel.
+
 Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in `/export`.
 
 **Personal vs Group Settings:**
