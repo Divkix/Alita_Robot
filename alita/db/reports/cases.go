@@ -50,6 +50,20 @@ func OpenForMessage(chatID, messageID int64) ([]models.Report, error) {
 	return rows, err
 }
 
+// HasReports reports whether a message has any stored report, open or
+// decided.
+func HasReports(chatID, messageID int64) (bool, error) {
+	var ids []int64
+	err := db.DB.Model(&models.Report{}).
+		Where("chat_id = ? AND reported_message_id = ?", chatID, messageID).
+		Limit(1).
+		Pluck("id", &ids).Error
+	if err != nil {
+		return false, fmt.Errorf("check reports of message: %w", err)
+	}
+	return len(ids) > 0, nil
+}
+
 // DeleteExpiredBefore removes closed reports resolved before cutoff and open
 // reports made before it, and returns how many it removed.
 func DeleteExpiredBefore(cutoff time.Time) (int64, error) {

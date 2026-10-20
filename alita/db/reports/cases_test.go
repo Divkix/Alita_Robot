@@ -314,6 +314,20 @@ func TestResolveCardIgnoresClosedReport(t *testing.T) {
 	}
 }
 
+func TestHasReportsCountsDecidedReports(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	if _, err := Resolve(chatID, 505, models.ReportStatusDismissed, 7); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	for msgID, want := range map[int64]bool{505: true, 606: false} {
+		got, err := HasReports(chatID, msgID)
+		if err != nil || got != want {
+			t.Fatalf("HasReports(%d) = %v, %v; want %v", msgID, got, err, want)
+		}
+	}
+}
+
 func TestReopenRestoresOnlyTheFailedDecision(t *testing.T) {
 	chatID := newReportCaseChat(t)
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})

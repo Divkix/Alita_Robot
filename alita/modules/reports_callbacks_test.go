@@ -650,6 +650,69 @@ func TestCardPressLeavesReportArrivingDuringChecks(t *testing.T) {
 	answeredWith(t, f, "reports_already_handled")
 }
 
+// A decision on the card is final: a button of the in-group report pressed
+// afterwards must not act again, or its kick would lift the card's ban.
+func TestGroupButtonAfterCardDecisionDoesNotAct(t *testing.T) {
+	useReportLocales(t, "en")
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{Status: "creator", User: admin})
+	actions := reportedCard(t, f)
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("card ban press error = %v, want EndGroups", err)
+	}
+
+	for _, action := range []string{"kick", "ban", "delete", "resolved"} {
+		data := encodeCallbackData("report", map[string]string{"a": action, "u": "43", "m": "505"})
+		before := len(f.client.callsFor("answerCallbackQuery"))
+		if err := reportsModule.markResolvedButtonHandler(f.bot, newModuleCallbackContext(f.bot, f.chat, admin, data)); err != ext.EndGroups {
+			t.Fatalf("group %s error = %v, want EndGroups", action, err)
+		}
+		if got := len(f.client.callsFor("answerCallbackQuery")); got != before+1 {
+			t.Fatalf("group %s answers = %d, want %d", action, got, before+1)
+		}
+		answeredWith(t, f, "reports_already_handled")
+	}
+	if got := len(f.client.callsFor("unbanChatMember")); got != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want 0: a kick would lift the ban", got)
+	}
+	if got := len(f.client.callsFor("banChatMember")) + len(f.client.callsFor("deleteMessage")); got != 1 {
+		t.Fatalf("ban and delete calls = %d, want only the card's ban", got)
+	}
+	if got := len(callsToChat(f.client, "editMessageText", f.chat.Id)); got != 0 {
+		t.Fatalf("group report edits = %d, want the in-group report untouched", got)
+	}
+	rows := requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+	if *rows[0].ResolvedBy != admin.Id {
+		t.Fatalf("resolved_by = %d, want %d", *rows[0].ResolvedBy, admin.Id)
+	}
+}
+
+// A group button closes the stored reports before acting, and opens them
+// again when the action fails, so the card or the button can retry.
+func TestGroupButtonFailureReopensReports(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{Status: "creator", User: admin})
+	actions := reportedCard(t, f)
+
+	f.client.errors["banChatMember"] = errors.New("Bad Request: not enough rights")
+	data := encodeCallbackData("report", map[string]string{"a": "ban", "u": "43", "m": "505"})
+	if err := reportsModule.markResolvedButtonHandler(f.bot, newModuleCallbackContext(f.bot, f.chat, admin, data)); err == nil || err == ext.EndGroups {
+		t.Fatalf("group ban error = %v, want the ban failure", err)
+	}
+	rows := requireReportStatus(t, f.chat.Id, models.ReportStatusOpen)
+	if rows[0].ResolvedBy != nil || rows[0].ResolvedAt != nil {
+		t.Fatalf("reopened report = %+v, want no resolver", rows[0])
+	}
+
+	delete(f.client.errors, "banChatMember")
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["ban"]); err != ext.EndGroups {
+		t.Fatalf("card retry error = %v, want EndGroups", err)
+	}
+	requireReportStatus(t, f.chat.Id, models.ReportStatusBanned)
+}
+
 // Guard: a decision on a message is final for its reporters.
 func TestRepeatReportAfterDecisionIsIgnored(t *testing.T) {
 	f := newReportCardFixture(t, true)
