@@ -148,7 +148,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 ## Toolchain
 
 - Production builds use `CGO_ENABLED=0`; tests need `CGO_ENABLED=1` (go-sqlite3). Do not unify them.
-- Go 1.26.0 with no `toolchain` directive. Keep dependencies on the latest upstream versions that pass required
+- Go 1.27.0 with no `toolchain` directive. Keep dependencies on the latest upstream versions that pass required
   checks. Any intentional pin must document its compatibility reason and recheck trigger.
 - Version strings are shape-locked (`BotVersion:` with two spaces in `alita/config/config.go`, `version =` in
   `main.go`). Run `make bump-version` on a PR branch, merge, then tag. Tags match `^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$`.
