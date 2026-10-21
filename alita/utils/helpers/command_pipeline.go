@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"errors"
-	"sync/atomic"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -75,12 +74,13 @@ const (
 // itself; the command must not run then.
 type PMGroupResolver func(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg PMGroupArg) bool
 
-var pmGroupResolver atomic.Value
+var pmGroupResolver PMGroupResolver
 
 // SetPMGroupResolver sets the resolver WrapCommand runs for commands with a
-// PMGroupArg. Without one they run on the saved connection only.
+// PMGroupArg. Without one they run on the saved connection only. Call it from
+// init() only: the resolver is read without a lock.
 func SetPMGroupResolver(r PMGroupResolver) {
-	pmGroupResolver.Store(r)
+	pmGroupResolver = r
 }
 
 func WrapCommand(
@@ -93,8 +93,8 @@ func WrapCommand(
 		// Runs before the recover above, so a panic after a swap ends groups too.
 		defer func() { result = endGroupsAfterChatSwap(ctx, result) }()
 		if desc.PMGroupArg != PMGroupArgOff {
-			if resolve, ok := pmGroupResolver.Load().(PMGroupResolver); ok && resolve != nil {
-				if !resolve(b, ctx, desc.Name, desc.PMGroupArg) {
+			if pmGroupResolver != nil {
+				if !pmGroupResolver(b, ctx, desc.Name, desc.PMGroupArg) {
 					return ext.EndGroups
 				}
 				if chat_status.OneOffGroup(ctx) != nil {
