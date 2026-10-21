@@ -62,7 +62,7 @@ This module can be accessed using the following aliases:
 | `/delfed` | Delete your federation (confirm). | ❌ |
 | `/fban` | Ban a user across the federation (in a fed group; the owner can also use it in PM). | ❌ |
 | `/fbanlist` | Export fbans. | ❌ |
-| `/fbanstat` | Check a user's fbans (yours by default); with a fed_id, show that ban's reason. | ❌ |
+| `/fbanstat` | Check a user's fbans (yours by default); with a fed_id, show that ban's reason. (Aliases: `fedstat, fbanstat`) | ❌ |
 | `/fedadmins` | List a federation's admins. | ✅ |
 | `/feddemote` | Promote or demote a federation admin (reply, ID or @username). | ❌ |
 | `/feddemoteme` | Step down as a federation admin. | ❌ |
@@ -70,7 +70,7 @@ This module can be accessed using the following aliases:
 | `/fednotif` | PM the owner on fbans. | ❌ |
 | `/fedpromote` | Promote or demote a federation admin (reply, ID or @username). | ❌ |
 | `/fedreason` | Require a reason for fbans. | ❌ |
-| `/fedstat` | Check a user's fbans (yours by default); with a fed_id, show that ban's reason. | ✅ |
+| `/fedstat` | Check a user's fbans (yours by default); with a fed_id, show that ban's reason. (Aliases: `fedstat, fbanstat`) | ✅ |
 | `/fedsubs` | List the federations yours subscribes to. | ✅ |
 | `/funban` | Lift a federation ban. (Aliases: `unfban, funban`) | ❌ |
 | `/importfbans` | Import from a replied CSV/JSON file. | ❌ |

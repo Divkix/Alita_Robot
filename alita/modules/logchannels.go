@@ -235,9 +235,9 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.ContinueGroups
 	}
 	from := chat_status.RequireUser(b, ctx)
-	// 777000 is Telegram's own account, which the admin checks count as an
-	// admin; it must not stand in for a group admin binding the channel.
-	if from == nil || from.Id == 777000 {
+	// Telegram's own account is counted as an admin; it must not stand in for
+	// a group admin binding the channel.
+	if from == nil || from.Id == chat_status.TelegramUserID {
 		return ext.ContinueGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {

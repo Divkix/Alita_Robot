@@ -260,12 +260,12 @@ func TestCallbackQueryFromContext(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := callbackQueryFromContext(tc.ctx)
+			got, ok := CallbackQueryFromContext(tc.ctx)
 			if ok != tc.ok {
-				t.Fatalf("callbackQueryFromContext() ok = %v, want %v", ok, tc.ok)
+				t.Fatalf("CallbackQueryFromContext() ok = %v, want %v", ok, tc.ok)
 			}
 			if got != tc.want {
-				t.Fatalf("callbackQueryFromContext() query = %p, want %p", got, tc.want)
+				t.Fatalf("CallbackQueryFromContext() query = %p, want %p", got, tc.want)
 			}
 		})
 	}
@@ -466,7 +466,7 @@ func TestCheckDisabledCmdAllowsTelegramServiceAdmins(t *testing.T) {
 		MessageId: 502,
 		Date:      1,
 		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
-		From:      &gotgbot.User{Id: tgUserId, FirstName: "Telegram"},
+		From:      &gotgbot.User{Id: TelegramUserID, FirstName: "Telegram"},
 		Text:      "/kick 100",
 	}
 	t.Cleanup(func() {

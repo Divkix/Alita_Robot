@@ -716,6 +716,25 @@ func TestExtractUserAndTextFromGotgbotMessageShapes(t *testing.T) {
 			t.Fatalf("ExtractUserAndText(text mention) = (%d, %q), want mention id and suffix", gotID, gotText)
 		}
 	})
+
+	t.Run("non-ascii text mention keeps the full suffix", func(t *testing.T) {
+		// Telegram counts entity offsets and lengths in UTF-16 units; the
+		// parsed entity exposes them in bytes, so the two must not be mixed.
+		ctx := newExtractionContext(bot, "/ban Иван entity reason")
+		ctx.EffectiveMessage.Entities = []gotgbot.MessageEntity{
+			{
+				Type:   "text_mention",
+				Offset: 5,
+				Length: 4,
+				User:   &gotgbot.User{Id: 889000, FirstName: "Иван"},
+			},
+		}
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 889000 || gotText != " entity reason" {
+			t.Fatalf("ExtractUserAndText(non-ascii text mention) = (%d, %q), want mention id and full suffix", gotID, gotText)
+		}
+	})
 }
 
 func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {

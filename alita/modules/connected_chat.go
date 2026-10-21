@@ -2,6 +2,7 @@ package modules
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -10,6 +11,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // resolveAdminChat returns the chat an admin command acts on: the current
@@ -27,6 +29,36 @@ func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *g
 	}
 	ctx.EffectiveChat = chat
 	return chat
+}
+
+// parseChatInfoFromDeepLink resolves the chat named by a "<prefix>_<chatID>"
+// deep-link payload, replying and returning ext.EndGroups when it is malformed
+// or the chat cannot be fetched.
+func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (*gotgbot.ChatFullInfo, error) {
+	nArgs := strings.SplitN(arg, "_", 3)
+	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+
+	if len(nArgs) < 2 {
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return nil, ext.EndGroups
+	}
+
+	chatID, err := strconv.ParseInt(nArgs[1], 10, 64)
+	if err != nil {
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return nil, ext.EndGroups
+	}
+
+	chatinfo, err := b.GetChat(chatID, nil)
+	if err != nil || chatinfo == nil {
+		text, _ := tr.GetString("helpers_chat_not_found")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return nil, ext.EndGroups
+	}
+	return chatinfo, nil
 }
 
 // connectedChatGuardGroup runs right after the group-0 command handlers.

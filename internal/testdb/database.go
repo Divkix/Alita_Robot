@@ -40,6 +40,9 @@ func Run(m *testing.M, tables ...any) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	// SQLite serialises writers; one connection avoids lock contention between
+	// test goroutines.
+	sqlDB.SetMaxOpenConns(1)
 	defer func() {
 		if err := sqlDB.Close(); err != nil {
 			fmt.Fprintln(os.Stderr, err)

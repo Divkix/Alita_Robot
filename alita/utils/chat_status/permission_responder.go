@@ -70,7 +70,7 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 	}
 
 	if btnKey != "" {
-		query, _ := callbackQueryFromContext(ctx)
+		query, _ := CallbackQueryFromContext(ctx)
 		if query != nil {
 			text, _ := tr.GetString(btnKey)
 			_, err := query.Answer(r.bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})

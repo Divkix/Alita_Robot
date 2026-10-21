@@ -20,7 +20,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -128,20 +127,26 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if user.Id == 1087968824 || user.Id == 777000 || user.Id == 136817688 {
+	if chat_status.IsSystemUser(user.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_expose_yourself")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
-	if msg.ReplyToMessage.From.Id == 1087968824 || msg.ReplyToMessage.From.Id == 777000 || msg.ReplyToMessage.From.Id == 136817688 {
+	if chat_status.IsSystemUser(msg.ReplyToMessage.From.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_special_account")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
-	if chat_status.IsUserAdmin(b, chat.Id, user.Id) {
+	admins, _ := loadAdminCache(b, chat.Id)
+	for i := range admins.UserInfo {
+		admin := &admins.UserInfo[i]
+		adminArray = append(adminArray, admin.User.Id)
+	}
+	if slices.Contains(adminArray, user.Id) ||
+		(len(adminArray) == 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id)) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_admin_report")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -150,16 +155,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		return ext.EndGroups
-	}
-
-	adminsAvail, admins := cache.GetAdminCacheList(chat.Id)
-	if !adminsAvail {
-		admins = cache.LoadAdminCache(b, chat.Id)
-	}
-
-	for i := range admins.UserInfo {
-		admin := &admins.UserInfo[i]
-		adminArray = append(adminArray, admin.User.Id)
 	}
 
 	reportedUser := msg.ReplyToMessage.From
@@ -213,14 +208,26 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		formatting.MentionHtml(user.Id, user.FirstName),
 		formatting.MentionHtml(reportedUser.Id, reportedUser.FirstName),
 	)
+	reportStatuses := reports.GetUserReportStatuses(adminArray)
 	var sb strings.Builder
 	for _, adminUserId := range adminArray {
-		if !reports.GetUserReportSettings(adminUserId).Status {
+		if !reportStatuses[adminUserId] {
 			continue
 		}
 		sb.WriteString(formatting.MentionHtml(adminUserId, "\u2063"))
 	}
 	reported += sb.String()
+
+	actionButton := func(labelKey, action string) gotgbot.InlineKeyboardButton {
+		return gotgbot.InlineKeyboardButton{
+			Text: trS(ctxTr(ctx), labelKey),
+			CallbackData: encodeCallbackData("report", map[string]string{
+				"a": action,
+				"u": fmt.Sprint(reportedUser.Id),
+				"m": fmt.Sprint(reportedMsgId),
+			}),
+		}
+	}
 
 	_, err = msg.Reply(b,
 		reported,
@@ -234,68 +241,16 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
-							Text: func() string {
-								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-								t, _ := tr.GetString("reports_button_message")
-								return t
-							}(),
-							Url: chat_status.GetMessageLinkFromMessageId(chat, reportedMsgId),
+							Text: trS(ctxTr(ctx), "reports_button_message"),
+							Url:  chat_status.GetMessageLinkFromMessageId(chat, reportedMsgId),
 						},
 					},
 					{
-						{
-							Text: func() string {
-								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-								t, _ := tr.GetString("reports_button_kick")
-								return t
-							}(),
-							CallbackData: encodeCallbackData("report", map[string]string{
-								"a": "kick",
-								"u": fmt.Sprint(reportedUser.Id),
-								"m": fmt.Sprint(reportedMsgId),
-							}),
-						},
-						{
-							Text: func() string {
-								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-								t, _ := tr.GetString("reports_button_ban")
-								return t
-							}(),
-							CallbackData: encodeCallbackData("report", map[string]string{
-								"a": "ban",
-								"u": fmt.Sprint(reportedUser.Id),
-								"m": fmt.Sprint(reportedMsgId),
-							}),
-						},
+						actionButton("reports_button_kick", "kick"),
+						actionButton("reports_button_ban", "ban"),
 					},
-					{
-						{
-							Text: func() string {
-								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-								t, _ := tr.GetString("reports_button_delete")
-								return t
-							}(),
-							CallbackData: encodeCallbackData("report", map[string]string{
-								"a": "delete",
-								"u": fmt.Sprint(reportedUser.Id),
-								"m": fmt.Sprint(reportedMsgId),
-							}),
-						},
-					},
-					{
-						{
-							Text: func() string {
-								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-								t, _ := tr.GetString("reports_button_resolved")
-								return t
-							}(),
-							CallbackData: encodeCallbackData("report", map[string]string{
-								"a": "resolved",
-								"u": fmt.Sprint(reportedUser.Id),
-								"m": fmt.Sprint(reportedMsgId),
-							}),
-						},
-					},
+					{actionButton("reports_button_delete", "delete")},
+					{actionButton("reports_button_resolved", "resolved")},
 				},
 			},
 		},
@@ -665,8 +620,10 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 			log.Errorf("[Reports] failed to close reports of message %d in %d after %s: %v", msgId, chat.Id, action, err)
 		}
 	}
-	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ChatId: chat.Id,
-		ParseMode: formatting.HTML})
+	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{
+		Text: replyText, ChatId: chat.Id,
+		ParseMode: formatting.HTML,
+	})
 	if err != nil {
 		log.Error(err)
 		return err

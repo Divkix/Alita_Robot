@@ -583,9 +583,11 @@ func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 		}
 	}
 	return []string{
+		cacheKey("admin", chatID),
 		cacheKey("antiflood", chatID),
 		cacheKey("captcha_settings", chatID),
 		cacheKey("blacklist", chatID),
+		cacheKey("connection_chat", chatID),
 	}, nil
 }
 
@@ -692,7 +694,10 @@ func importConnections(tx *gorm.DB, chatID int64, payload interface{}) ([]string
 	if data.Settings != nil {
 		data.Settings.ChatId = chatID
 	}
-	return nil, replaceChatSetting(tx, chatID, data.Settings)
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("connection_chat", chatID)}, nil
 }
 
 func importDisabling(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
@@ -810,7 +815,10 @@ func importPins(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error
 	if data.Settings != nil {
 		data.Settings.ChatId = chatID
 	}
-	return nil, replaceChatSetting(tx, chatID, data.Settings)
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("pins", chatID)}, nil
 }
 
 func importReactions(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -839,7 +847,10 @@ func importReports(tx *gorm.DB, chatID int64, payload interface{}) ([]string, er
 		data.Settings.ChatId = chatID
 		data.Settings.Status = data.Settings.Enabled
 	}
-	return nil, replaceChatSetting(tx, chatID, data.Settings)
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("report_settings", chatID)}, nil
 }
 
 func importRules(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -850,7 +861,10 @@ func importRules(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	if data.Settings != nil {
 		data.Settings.ChatId = chatID
 	}
-	return nil, replaceChatSetting(tx, chatID, data.Settings)
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("rules", chatID)}, nil
 }
 
 func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyOmissions bool) ([]string, error) {
@@ -1052,9 +1066,11 @@ func clearAdmin(tx *gorm.DB, chatID int64) ([]string, error) {
 		return nil, err
 	}
 	return []string{
+		cacheKey("admin", chatID),
 		cacheKey("antiflood", chatID),
 		cacheKey("captcha_settings", chatID),
 		cacheKey("blacklist", chatID),
+		cacheKey("connection_chat", chatID),
 	}, nil
 }
 
@@ -1093,7 +1109,7 @@ func clearCaptcha(tx *gorm.DB, chatID int64) ([]string, error) {
 }
 
 func clearConnections(tx *gorm.DB, chatID int64) ([]string, error) {
-	return nil, replaceChatSetting(tx, chatID, &models.ConnectionChatSettings{ChatId: chatID})
+	return []string{cacheKey("connection_chat", chatID)}, replaceChatSetting(tx, chatID, &models.ConnectionChatSettings{ChatId: chatID})
 }
 
 func clearDisabling(tx *gorm.DB, chatID int64) ([]string, error) {
@@ -1142,7 +1158,7 @@ func clearNotes(tx *gorm.DB, chatID int64) ([]string, error) {
 }
 
 func clearPins(tx *gorm.DB, chatID int64) ([]string, error) {
-	return nil, replaceChatSetting(tx, chatID, &models.PinSettings{ChatId: chatID})
+	return []string{cacheKey("pins", chatID)}, replaceChatSetting(tx, chatID, &models.PinSettings{ChatId: chatID})
 }
 
 func clearReactions(tx *gorm.DB, chatID int64) ([]string, error) {
@@ -1156,11 +1172,11 @@ func clearReports(tx *gorm.DB, chatID int64) ([]string, error) {
 		Status:      true,
 		BlockedList: models.Int64Array{},
 	}
-	return nil, replaceChatSetting(tx, chatID, settings)
+	return []string{cacheKey("report_settings", chatID)}, replaceChatSetting(tx, chatID, settings)
 }
 
 func clearRules(tx *gorm.DB, chatID int64) ([]string, error) {
-	return nil, replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
+	return []string{cacheKey("rules", chatID)}, replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
 }
 
 // lockWarnsChat takes the chat-row lock every warn write in alita/db/warns

@@ -21,6 +21,16 @@ func GetLangFormat(langCode string) string {
 	return langName + " " + langFlag
 }
 
+// UnrestrictButton builds the callback button that lifts a mute or ban.
+func UnrestrictButton(tr *i18n.Translator, labelKey, action string, userID int64) gotgbot.InlineKeyboardButton {
+	label, _ := tr.GetString(labelKey)
+	data, _ := callbackcodec.Encode("unrestrict", map[string]string{
+		"a": action,
+		"u": strconv.FormatInt(userID, 10),
+	})
+	return gotgbot.InlineKeyboardButton{Text: label, CallbackData: data}
+}
+
 func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
 	keyb := make([][]gotgbot.InlineKeyboardButton, 0)
 	for _, btn := range buttons {

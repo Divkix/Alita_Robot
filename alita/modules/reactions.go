@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -101,7 +102,8 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	backText, _ := tr.GetString("common_back")
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML,
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{
+		Text: helpText, ParseMode: formatting.HTML,
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 				{
@@ -111,7 +113,8 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 					},
 				},
 			},
-		}})
+		},
+	})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -127,11 +130,7 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 }
 
 func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Reactions][addReaction] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("addReaction", "Reactions")
 
 	msg := ctx.EffectiveMessage
 	user := chat_status.RequireUser(b, ctx)
@@ -195,11 +194,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Reactions][removeReaction] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("removeReaction", "Reactions")
 
 	msg := ctx.EffectiveMessage
 	user := chat_status.RequireUser(b, ctx)
@@ -260,11 +255,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Reactions][listReactions] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("listReactions", "Reactions")
 
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -299,11 +290,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Reactions][resetReactions] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("resetReactions", "Reactions")
 
 	msg := ctx.EffectiveMessage
 	user := chat_status.RequireUser(b, ctx)
@@ -339,11 +326,7 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[Reactions][checkReactions] Recovered from panic: %v", r)
-		}
-	}()
+	defer error_handling.RecoverFromPanic("checkReactions", "Reactions")
 
 	msg := ctx.EffectiveMessage
 	if msg == nil || msg.Text == "" {

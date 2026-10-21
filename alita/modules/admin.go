@@ -22,21 +22,26 @@ import (
 
 var adminModule = moduleStruct{moduleName: "Admin"}
 
+// loadAdminCache returns the chat's admin list, loading it from Telegram on a
+// cache miss. cached reports whether the list came from the cache.
+func loadAdminCache(b *gotgbot.Bot, chatID int64) (admins cache.AdminCache, cached bool) {
+	cached, admins = cache.GetAdminCacheList(chatID)
+	if !cached {
+		admins = cache.LoadAdminCache(b, chatID)
+	}
+	return admins, cached
+}
+
 func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
-	cached := true
 
 	tr := c.Tr
 
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_adminlist")
 	text := fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 
-	adminsAvail, admins := cache.GetAdminCacheList(chat.Id)
-	if !adminsAvail {
-		admins = cache.LoadAdminCache(c.Bot, chat.Id)
-		cached = false
-	}
+	admins, cached := loadAdminCache(c.Bot, chat.Id)
 
 	var sb strings.Builder
 	for i := range admins.UserInfo {
@@ -74,10 +79,7 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 }
 
 func (m moduleStruct) loadAdminCacheOrFail(c *helpers.CommandContext) *cache.AdminCache {
-	adminsAvail, admins := cache.GetAdminCacheList(c.Chat.Id)
-	if !adminsAvail {
-		admins = cache.LoadAdminCache(c.Bot, c.Chat.Id)
-	}
+	admins, _ := loadAdminCache(c.Bot, c.Chat.Id)
 	if len(admins.UserInfo) == 0 {
 		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
 		_, err := c.Msg.Reply(c.Bot, text, nil)
@@ -182,10 +184,7 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 
 	mem := userMember.MergeChatMember().User
 	_, err = c.Msg.Reply(c.Bot,
-		func() string {
-			temp, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_success_demote")
-			return fmt.Sprintf(temp, formatting.MentionHtml(mem.Id, mem.FirstName))
-		}(),
+		trSprintf(c.Tr, strings.ToLower(m.moduleName)+"_demote_success_demote", formatting.MentionHtml(mem.Id, mem.FirstName)),
 		formatting.Shtml(),
 	)
 	if err != nil {
@@ -314,10 +313,7 @@ func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId i
 
 	mem := userMember.MergeChatMember().User
 	_, err := msg.Reply(c.Bot,
-		func() string {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_success_promote")
-			return fmt.Sprintf(temp, formatting.MentionHtml(mem.Id, mem.FirstName))
-		}()+extraText,
+		trSprintf(tr, strings.ToLower(m.moduleName)+"_promote_success_promote", formatting.MentionHtml(mem.Id, mem.FirstName))+extraText,
 		formatting.Shtml(),
 	)
 	if err != nil {
@@ -567,10 +563,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	mem := userMember.MergeChatMember()
 
 	_, err = msg.Reply(c.Bot,
-		func() string {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_success_set")
-			return fmt.Sprintf(temp, formatting.HtmlEscape(mem.User.FirstName), formatting.HtmlEscape(mem.CustomTitle))
-		}()+extraText,
+		trSprintf(tr, strings.ToLower(m.moduleName)+"_title_success_set", formatting.HtmlEscape(mem.User.FirstName), formatting.HtmlEscape(mem.CustomTitle))+extraText,
 		formatting.Shtml(),
 	)
 	if err != nil {
@@ -679,9 +672,10 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	}
 	mem := userMember.MergeChatMember()
 	// Check the live status, not the admin cache this command refreshes.
-	// 1087968824 (GroupAnonymousBot) and 777000 (Telegram) count as admins, as
-	// in chat_status's tgAdminList.
-	if mem.Status != "administrator" && mem.Status != "creator" && user.Id != 1087968824 && user.Id != 777000 {
+	// GroupAnonymousBot and Telegram count as admins, as in chat_status's
+	// tgAdminList.
+	if mem.Status != "administrator" && mem.Status != "creator" &&
+		user.Id != chat_status.GroupAnonymousBotID && user.Id != chat_status.TelegramUserID {
 		errorText, _ := c.Tr.GetString("admin_need_admin")
 		_, err = msg.Reply(b, errorText, nil)
 		if err != nil {
@@ -849,54 +843,6 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) promoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
-	c, err := helpers.BuildCommandContext(b, ctx)
-	if err != nil {
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotPromote(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
-		return ext.EndGroups
-	}
-	return m.promote(c)
-}
-
-func (m moduleStruct) demoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
-	c, err := helpers.BuildCommandContext(b, ctx)
-	if err != nil {
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotPromote(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
-		return ext.EndGroups
-	}
-	return m.demote(c)
-}
-
-func (m moduleStruct) setTitleAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
-	c, err := helpers.BuildCommandContext(b, ctx)
-	if err != nil {
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotPromote(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
-		return ext.EndGroups
-	}
-	return m.setTitle(c)
-}
-
 // anonCommandContextHandler is the post-proof anonymous-admin entry point for
 // pipeline commands whose handlers take a CommandContext. It re-runs the
 // descriptor's checks as the admin who pressed the confirm button.
@@ -915,9 +861,9 @@ func anonCommandContextHandler(desc helpers.CommandDescriptor, h func(*helpers.C
 
 func init() {
 	RegisterLegacyModule("Admin", 30, LoadAdmin)
-	RegisterAnonymousAdminHandler("promote", adminModule.promoteAnonAdmin)
-	RegisterAnonymousAdminHandler("demote", adminModule.demoteAnonAdmin)
-	RegisterAnonymousAdminHandler("title", adminModule.setTitleAnonAdmin)
+	RegisterAnonymousAdminHandler("promote", anonCommandContextHandler(promoteDesc, adminModule.promote))
+	RegisterAnonymousAdminHandler("demote", anonCommandContextHandler(demoteDesc, adminModule.demote))
+	RegisterAnonymousAdminHandler("title", anonCommandContextHandler(setTitleDesc, adminModule.setTitle))
 	// The router matches the command as typed, so register every alias too.
 	for _, d := range []struct {
 		desc helpers.CommandDescriptor

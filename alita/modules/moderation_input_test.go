@@ -7,6 +7,8 @@ import (
 	"unicode/utf16"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 )
 
 func TestBuildModerationMatchTextNilMessage(t *testing.T) {
@@ -228,9 +230,9 @@ func TestExtractEntityText(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := extractEntityText(tc.source, tc.offset, tc.length)
+			got := extraction.ExtractEntityText(tc.source, tc.offset, tc.length)
 			if got != tc.want {
-				t.Fatalf("extractEntityText(%q, %d, %d) = %q, want %q", tc.source, tc.offset, tc.length, got, tc.want)
+				t.Fatalf("extraction.ExtractEntityText(%q, %d, %d) = %q, want %q", tc.source, tc.offset, tc.length, got, tc.want)
 			}
 		})
 	}
@@ -280,9 +282,9 @@ func TestExtractEntityTextMatchesUTF16RoundTrip(t *testing.T) {
 		for offset := int64(-2); offset <= units+2; offset++ {
 			for length := int64(-1); length <= units+2; length++ {
 				want := reference(source, offset, length)
-				got := extractEntityText(source, offset, length)
+				got := extraction.ExtractEntityText(source, offset, length)
 				if got != want {
-					t.Fatalf("extractEntityText(%q, %d, %d) = %q, want %q", source, offset, length, got, want)
+					t.Fatalf("extraction.ExtractEntityText(%q, %d, %d) = %q, want %q", source, offset, length, got, want)
 				}
 			}
 		}

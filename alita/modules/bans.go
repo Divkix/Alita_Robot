@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -147,12 +148,7 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         trS(c.Tr, "bans_unban_button"),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(t.userID)}),
-						},
-					},
+					{keyboard.UnrestrictButton(c.Tr, "bans_unban_button", "unban", t.userID)},
 				},
 			},
 		},
@@ -666,21 +662,13 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	text, _ := tr.GetString("bans_unrestrict_question")
-	unbanText, _ := tr.GetString("button_unban")
-	unmuteText, _ := tr.GetString("button_unmute")
 	_, err := msg.Reply(b, text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{
-							Text:         unbanText,
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}),
-						},
-						{
-							Text:         unmuteText,
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}),
-						},
+						keyboard.UnrestrictButton(tr, "button_unban", "unban", userId),
+						keyboard.UnrestrictButton(tr, "button_unmute", "unmute", userId),
 					},
 				},
 			},

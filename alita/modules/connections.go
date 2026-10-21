@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
@@ -160,12 +159,8 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
-							Text: func() string {
-								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-								t, _ := tr.GetString("connections_button_connect")
-								return t
-							}(),
-							Url: fmt.Sprintf("https://t.me/%s?start=connect_%d", b.Username, chat.Id),
+							Text: trS(ctxTr(ctx), "connections_button_connect"),
+							Url:  fmt.Sprintf("https://t.me/%s?start=connect_%d", b.Username, chat.Id),
 						},
 					},
 				},
@@ -251,8 +246,10 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		replyKb = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 	}
 
-	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ReplyMarkup: replyKb,
-		ParseMode: formatting.HTML})
+	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{
+		Text: replyText, ReplyMarkup: replyKb,
+		ParseMode: formatting.HTML,
+	})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -390,28 +387,9 @@ func init() {
 func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
 	msg := ctx.EffectiveMessage
 
-	parts := strings.Split(arg, "_")
-	if len(parts) < 2 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	chatID, err := strconv.ParseInt(parts[1], 10, 64)
+	cochat, err := parseChatInfoFromDeepLink(b, ctx, arg)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	cochat, err := b.GetChat(chatID, nil)
-	if err != nil || cochat == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_chat_not_found")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
+		return err
 	}
 
 	if allowed, denyKey := canUserConnectToChat(b, cochat.Id, user.Id); !allowed {

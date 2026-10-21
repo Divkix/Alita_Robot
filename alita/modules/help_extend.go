@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html"
 	"strings"
-	"unicode/utf16"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -14,13 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
-
-// telegramMessageLimit is Telegram's text limit, counted in UTF-16 code units.
-const telegramMessageLimit = 4096
-
-func utf16Len(s string) int {
-	return len(utf16.Encode([]rune(s)))
-}
 
 // buildExtendMessages renders every help-menu module's one-line command summary
 // (`<module>_extend_msg`) in help order and packs the blocks into as few messages
@@ -39,7 +31,7 @@ func buildExtendMessages(tr *i18n.Translator, modules []string) []string {
 		blocks = append(blocks, "<b>"+html.EscapeString(module)+"</b>\n"+summary)
 	}
 
-	return packExtendBlocks(strings.TrimSpace(header), blocks, telegramMessageLimit)
+	return packExtendBlocks(strings.TrimSpace(header), blocks, formatting.MaxMessageLength)
 }
 
 func packExtendBlocks(header string, blocks []string, limit int) []string {
@@ -56,7 +48,7 @@ func packExtendBlocks(header string, blocks []string, limit int) []string {
 			current = part
 			return
 		}
-		if utf16Len(current)+utf16Len("\n\n")+utf16Len(part) > limit {
+		if formatting.UTF16Len(current)+formatting.UTF16Len("\n\n")+formatting.UTF16Len(part) > limit {
 			flush()
 			current = part
 			return
@@ -65,24 +57,24 @@ func packExtendBlocks(header string, blocks []string, limit int) []string {
 	}
 
 	for _, block := range blocks {
-		if utf16Len(block) <= limit {
+		if formatting.UTF16Len(block) <= limit {
 			appendPart(block)
 			continue
 		}
 		// Oversized module: fall back to line-level packing.
 		flush()
 		for line := range strings.SplitSeq(block, "\n") {
-			if utf16Len(line) > limit {
+			if formatting.UTF16Len(line) > limit {
 				// A single line over the limit: cut it hard, whole runes only.
 				flush()
-				pieces := splitByUTF16Limit(line, limit)
+				pieces := formatting.SplitByUTF16Limit(line, limit)
 				for _, piece := range pieces[:len(pieces)-1] {
 					current = piece
 					flush()
 				}
 				line = pieces[len(pieces)-1]
 			}
-			if current != "" && utf16Len(current)+1+utf16Len(line) > limit {
+			if current != "" && formatting.UTF16Len(current)+1+formatting.UTF16Len(line) > limit {
 				flush()
 			}
 			if current == "" {
@@ -94,22 +86,6 @@ func packExtendBlocks(header string, blocks []string, limit int) []string {
 	}
 	flush()
 	return messages
-}
-
-// splitByUTF16Limit cuts s into pieces of at most limit UTF-16 units. It cuts
-// between runes, so a surrogate pair is never split. limit must be at least 2.
-func splitByUTF16Limit(s string, limit int) []string {
-	var pieces []string
-	start, units := 0, 0
-	for i, r := range s {
-		w := utf16Len(string(r))
-		if units+w > limit {
-			pieces = append(pieces, s[start:i])
-			start, units = i, 0
-		}
-		units += w
-	}
-	return append(pieces, s[start:])
 }
 
 func sendExtendList(b *gotgbot.Bot, ctx *ext.Context) error {

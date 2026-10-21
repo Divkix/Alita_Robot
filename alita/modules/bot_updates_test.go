@@ -351,7 +351,7 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 			Chat:      chat,
 			Text:      "/unknown",
 		}
-		key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
+		key := chat_status.AnonAdminCacheKey(chat.Id, cached.MessageId)
 		if err := m.Set(cache.Context, key, cached); err != nil {
 			t.Fatalf("cache set: %v", err)
 		}
@@ -392,7 +392,7 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 		},
 		Text: "/unknown",
 	}
-	key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
+	key := chat_status.AnonAdminCacheKey(chat.Id, cached.MessageId)
 	if err := m.Set(cache.Context, key, cached); err != nil {
 		t.Fatalf("cache set: %v", err)
 	}
@@ -504,7 +504,7 @@ func runAnonymousAdminBan(t *testing.T, chat gotgbot.Chat, promptChat *gotgbot.C
 		t.Fatal("anonymous admin confirmation button was not sent")
 	}
 	t.Cleanup(func() {
-		_ = cache.GetMarshal().Delete(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, command.MessageId))
+		_ = cache.GetMarshal().Delete(cache.Context, chat_status.AnonAdminCacheKey(chat.Id, command.MessageId))
 	})
 
 	if promptChat == nil {

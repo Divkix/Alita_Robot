@@ -3,7 +3,6 @@ package modules
 import (
 	"fmt"
 	"html"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -317,12 +316,8 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("setrules", rulesModule.setRules))
 	helpers.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
 	dispatcher.AddHandler(handlers.NewCommand("privaterules", rulesModule.privaterules))
-	dispatcher.AddHandler(handlers.NewCommand("rulesbutton", rulesModule.rulesBtn))
-	dispatcher.AddHandler(handlers.NewCommand("rulesbtn", rulesModule.rulesBtn))
-	dispatcher.AddHandler(handlers.NewCommand("clearrulesbutton", rulesModule.resetRulesBtn))
-	dispatcher.AddHandler(handlers.NewCommand("clearrulesbtn", rulesModule.resetRulesBtn))
-	dispatcher.AddHandler(handlers.NewCommand("resetrulesbutton", rulesModule.resetRulesBtn))
-	dispatcher.AddHandler(handlers.NewCommand("resetrulesbtn", rulesModule.resetRulesBtn))
+	helpers.MultiCommand(dispatcher, []string{"rulesbutton", "rulesbtn"}, rulesModule.rulesBtn)
+	helpers.MultiCommand(dispatcher, []string{"clearrulesbutton", "clearrulesbtn", "resetrulesbutton", "resetrulesbtn"}, rulesModule.resetRulesBtn)
 }
 
 func init() {
@@ -333,29 +328,11 @@ func init() {
 func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
 	msg := ctx.EffectiveMessage
 
-	parts := strings.Split(arg, "_")
-	if len(parts) < 2 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	chatID, err := strconv.ParseInt(parts[1], 10, 64)
+	chatinfo, err := parseChatInfoFromDeepLink(b, ctx, arg)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
+		return err
 	}
-
-	chatinfo, err := b.GetChat(chatID, nil)
-	if err != nil || chatinfo == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_chat_not_found")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
+	chatID := chatinfo.Id
 
 	_chat := chatinfo.ToChat()
 	if !chat_status.IsUserInChat(b, &_chat, user.Id) {

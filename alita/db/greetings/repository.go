@@ -1,6 +1,7 @@
 package greetings
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -14,119 +15,87 @@ import (
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
-func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) {
-	greetingSrc = &models.GreetingSettings{}
-	err := db.GetRecord(greetingSrc, map[string]any{"chat_id": chatID})
-
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if !db.ChatExists(chatID) {
-			log.Debugf("[Database][checkGreetingSettings]: Chat %d doesn't exist, returning default settings", chatID)
-			return &models.GreetingSettings{
-				ChatID:             chatID,
-				ShouldCleanService: false,
-				WelcomeSettings: &models.WelcomeSettings{
-					LastMsgId:     0,
-					CleanWelcome:  false,
-					ShouldWelcome: true,
-					WelcomeText:   db.DefaultWelcome,
-					WelcomeType:   db.TEXT,
-					Button:        models.ButtonArray{},
-				},
-				GoodbyeSettings: &models.GoodbyeSettings{
-					LastMsgId:     0,
-					CleanGoodbye:  false,
-					ShouldGoodbye: false,
-					GoodbyeText:   db.DefaultGoodbye,
-					GoodbyeType:   db.TEXT,
-					Button:        models.ButtonArray{},
-				},
-			}
-		}
-
-		greetingSrc = &models.GreetingSettings{
-			ChatID:             chatID,
-			ShouldCleanService: false,
-			WelcomeSettings: &models.WelcomeSettings{
-				LastMsgId:     0,
-				CleanWelcome:  false,
-				ShouldWelcome: true,
-				WelcomeText:   db.DefaultWelcome,
-				WelcomeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-			GoodbyeSettings: &models.GoodbyeSettings{
-				LastMsgId:     0,
-				CleanGoodbye:  false,
-				ShouldGoodbye: false,
-				GoodbyeText:   db.DefaultGoodbye,
-				GoodbyeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-		}
-
-		err := db.CreateRecord(greetingSrc)
-		if err != nil {
-			log.Errorf("[Database][checkGreetingSettings]: %v ", err)
-		}
-	} else if err != nil {
-		log.Errorf("[Database][checkGreetingSettings]: %v", err)
-		greetingSrc = &models.GreetingSettings{
-			ChatID:             chatID,
-			ShouldCleanService: false,
-			WelcomeSettings: &models.WelcomeSettings{
-				LastMsgId:     0,
-				CleanWelcome:  false,
-				ShouldWelcome: true,
-				WelcomeText:   db.DefaultWelcome,
-				WelcomeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-			GoodbyeSettings: &models.GoodbyeSettings{
-				LastMsgId:     0,
-				CleanGoodbye:  false,
-				ShouldGoodbye: false,
-				GoodbyeText:   db.DefaultGoodbye,
-				GoodbyeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-		}
-	}
-
-	if greetingSrc.WelcomeSettings == nil {
-		greetingSrc.WelcomeSettings = &models.WelcomeSettings{
+func defaultGreetingSettings(chatID int64) *models.GreetingSettings {
+	return &models.GreetingSettings{
+		ChatID:             chatID,
+		ShouldCleanService: false,
+		WelcomeSettings: &models.WelcomeSettings{
 			LastMsgId:     0,
 			CleanWelcome:  false,
 			ShouldWelcome: true,
 			WelcomeText:   db.DefaultWelcome,
 			WelcomeType:   db.TEXT,
 			Button:        models.ButtonArray{},
-		}
-	} else if greetingSrc.WelcomeSettings.WelcomeText == "" {
-		greetingSrc.WelcomeSettings.WelcomeText = db.DefaultWelcome
-	}
-
-	if greetingSrc.GoodbyeSettings == nil {
-		greetingSrc.GoodbyeSettings = &models.GoodbyeSettings{
+		},
+		GoodbyeSettings: &models.GoodbyeSettings{
 			LastMsgId:     0,
 			CleanGoodbye:  false,
 			ShouldGoodbye: false,
 			GoodbyeText:   db.DefaultGoodbye,
 			GoodbyeType:   db.TEXT,
 			Button:        models.ButtonArray{},
+		},
+	}
+}
+
+func checkGreetingSettings(chatID int64) (*models.GreetingSettings, error) {
+	greetingSrc := &models.GreetingSettings{}
+	err := db.GetRecord(greetingSrc, map[string]any{"chat_id": chatID})
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		var chat models.Chat
+		chatErr := db.GetRecord(&chat, models.Chat{ChatId: chatID})
+		if errors.Is(chatErr, gorm.ErrRecordNotFound) {
+			log.Debugf("[Database][checkGreetingSettings]: Chat %d doesn't exist, returning default settings", chatID)
+			return defaultGreetingSettings(chatID), nil
 		}
+		if chatErr != nil {
+			log.Errorf("[Database][checkGreetingSettings]: chat %d: %v", chatID, chatErr)
+			return defaultGreetingSettings(chatID), chatErr
+		}
+
+		greetingSrc = defaultGreetingSettings(chatID)
+		if err := db.CreateRecord(greetingSrc); err != nil {
+			log.Errorf("[Database][checkGreetingSettings]: %v ", err)
+			return defaultGreetingSettings(chatID), err
+		}
+	} else if err != nil {
+		log.Errorf("[Database][checkGreetingSettings]: %v", err)
+		return defaultGreetingSettings(chatID), err
+	}
+
+	if greetingSrc.WelcomeSettings == nil {
+		greetingSrc.WelcomeSettings = defaultGreetingSettings(chatID).WelcomeSettings
+	} else if greetingSrc.WelcomeSettings.WelcomeText == "" {
+		greetingSrc.WelcomeSettings.WelcomeText = db.DefaultWelcome
+	}
+
+	if greetingSrc.GoodbyeSettings == nil {
+		greetingSrc.GoodbyeSettings = defaultGreetingSettings(chatID).GoodbyeSettings
 	} else if greetingSrc.GoodbyeSettings.GoodbyeText == "" {
 		greetingSrc.GoodbyeSettings.GoodbyeText = db.DefaultGoodbye
 	}
 
-	return greetingSrc
+	return greetingSrc, nil
 }
 
 func GetGreetingSettings(chatID int64) *models.GreetingSettings {
-	return checkGreetingSettings(chatID)
+	settings, err := cache.GetFromCacheOrLoad(
+		context.Background(),
+		cache.CacheKey("greetings", chatID),
+		cache.CacheTTLGreetings,
+		func(context.Context) (*models.GreetingSettings, error) {
+			return checkGreetingSettings(chatID)
+		},
+	)
+	if err != nil || settings == nil {
+		settings, _ = checkGreetingSettings(chatID)
+	}
+	return settings
 }
 
 func GetWelcomeButtons(chatId int64) []models.Button {
-	greetingSettings := checkGreetingSettings(chatId)
+	greetingSettings := GetGreetingSettings(chatId)
 	if greetingSettings.WelcomeSettings != nil {
 		return []models.Button(greetingSettings.WelcomeSettings.Button)
 	}
@@ -134,7 +103,7 @@ func GetWelcomeButtons(chatId int64) []models.Button {
 }
 
 func GetGoodbyeButtons(chatId int64) []models.Button {
-	greetingSettings := checkGreetingSettings(chatId)
+	greetingSettings := GetGreetingSettings(chatId)
 	if greetingSettings.GoodbyeSettings != nil {
 		return []models.Button(greetingSettings.GoodbyeSettings.Button)
 	}

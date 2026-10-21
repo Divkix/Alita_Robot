@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -207,10 +206,6 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// groupAnonymousBotID is the user Telegram puts in From for messages an
-// anonymous admin sends on behalf of the group.
-const groupAnonymousBotID = 1087968824
-
 // warnIssuer reports who issues a warn from ctx. An anonymous admin arrives
 // either directly, when the chat allows anonymous admins and the sender is the
 // group itself, or replayed after the confirmation button: the confirming
@@ -224,28 +219,28 @@ func warnIssuer(ctx *ext.Context) models.WarnEntry {
 	if ctx.EffectiveSender != nil && ctx.EffectiveSender.IsAnonymousAdmin() {
 		issuer.Anonymous = true
 	}
-	if msg := ctx.EffectiveMessage; msg != nil && msg.From != nil && msg.From.Id == groupAnonymousBotID {
+	if msg := ctx.EffectiveMessage; msg != nil && msg.From != nil && msg.From.Id == chat_status.GroupAnonymousBotID {
 		issuer.Anonymous = true
 	}
 	return issuer
 }
 
-// maxShownReasonLen caps a reason as shown, after escaping, in runes. With the
-// issuer and time its line stays under Telegram's message length, so
+// maxShownReasonLen caps a reason as shown, after escaping, in UTF-16 units.
+// With the issuer and time its line stays under Telegram's message length, so
 // SplitMessage breaks only between lines, never inside an entity or a tag.
 const maxShownReasonLen = 3000
 
 // shownReason escapes reason and shortens it, at a whole escaped character,
-// to at most maxShownReasonLen runes, ending with "…" when shortened.
+// to at most maxShownReasonLen UTF-16 units, ending with "…" when shortened.
 func shownReason(reason string, escape func(string) string) string {
-	if out := escape(reason); utf8.RuneCountInString(out) <= maxShownReasonLen {
+	if out := escape(reason); formatting.UTF16Len(out) <= maxShownReasonLen {
 		return out
 	}
 	var sb strings.Builder
 	n := 0
 	for _, r := range reason {
 		part := escape(string(r))
-		k := utf8.RuneCountInString(part)
+		k := formatting.UTF16Len(part)
 		if n+k > maxShownReasonLen-1 {
 			break
 		}

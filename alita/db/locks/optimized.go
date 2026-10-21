@@ -12,10 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
-	return GetChatLocksOptimizedContext(context.Background(), chatID)
-}
-
 func GetChatLocksOptimizedContext(ctx context.Context, chatID int64) (map[string]bool, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")

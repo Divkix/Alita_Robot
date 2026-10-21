@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
 
@@ -97,6 +98,50 @@ func ExtractUser(b *gotgbot.Bot, ctx *ext.Context) int64 {
 	return userId
 }
 
+// ExtractEntityText returns the UTF-16 code-unit range [offset, offset+length)
+// of source. The walk is single pass: encoding the whole source per entity is
+// wasteful for messages with many links. Boundary handling matches
+// utf16.Encode/Decode round tripping, including code units that split a
+// surrogate pair (those decode to U+FFFD).
+func ExtractEntityText(source string, offset, length int64) string {
+	if source == "" || offset < 0 || length <= 0 {
+		return ""
+	}
+
+	end := offset + length
+	var (
+		unit int64
+		b    strings.Builder
+	)
+	// Code units never outnumber source bytes, so this stays bounded.
+	b.Grow(int(min(length, int64(len(source)))))
+	for _, r := range source {
+		if unit >= end {
+			return b.String()
+		}
+
+		width := int64(1)
+		if r > 0xFFFF {
+			width = 2
+		}
+
+		covered := min(unit+width, end) - max(unit, offset)
+		switch {
+		case covered == width:
+			b.WriteRune(r)
+		case covered > 0:
+			b.WriteRune(utf8.RuneError)
+		}
+		unit += width
+	}
+
+	// Whole source walked: apply the same range check utf16.Encode would have.
+	if offset >= unit || length > unit-offset {
+		return ""
+	}
+	return b.String()
+}
+
 func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
@@ -134,6 +179,8 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	if entities != nil && ent != nil && int(ent.Offset) == (len(msg.Text)-len(textToParse)) {
 		ent = &entities[0]
 		userId = ent.User.Id
+		// ParseEntityTypes normalises entity offsets to UTF-8 bytes, so the
+		// suffix is a byte slice, not a UTF-16 range.
 		text = msg.Text[ent.Offset+ent.Length:]
 	} else if hasArgs && args[1][0] == '@' {
 		user := args[1]

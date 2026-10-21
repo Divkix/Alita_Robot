@@ -150,25 +150,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId)
 
 		if purge {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			var Text string
-			if len(args) >= 1 {
-				temp, _ := tr.GetString("purges_purged_with_reason")
-				Text = fmt.Sprintf(temp, totalMsgs, escapeLegacyMarkdown(strings.Join(args, " ")))
-			} else {
-				temp, _ := tr.GetString("purges_purged_messages")
-				Text = fmt.Sprintf(temp, totalMsgs)
-			}
-			pMsg, err := bot.SendMessage(chat.Id, Text, formatting.Smarkdown())
-			if err != nil {
-				log.Error(err)
-			} else {
-				go func(msgToDelete *gotgbot.Message) {
-					defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
-					time.Sleep(3 * time.Second)
-					_, _ = msgToDelete.Delete(bot, nil)
-				}(pMsg)
-			}
+			announcePurge(bot, ctx, chat, args, totalMsgs)
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -338,25 +320,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 		}
 		if purge {
-			var Text string
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if len(args) >= 1 {
-				temp, _ := tr.GetString("purges_purged_with_reason")
-				Text = fmt.Sprintf(temp, totalMsgs, escapeLegacyMarkdown(strings.Join(args, " ")))
-			} else {
-				temp, _ := tr.GetString("purges_purged_messages")
-				Text = fmt.Sprintf(temp, totalMsgs)
-			}
-			pMsg, err := bot.SendMessage(chat.Id, Text, formatting.Smarkdown())
-			if err != nil {
-				log.Error(err)
-			} else {
-				go func(msgToDelete *gotgbot.Message) {
-					defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
-					time.Sleep(3 * time.Second)
-					_, _ = msgToDelete.Delete(bot, nil)
-				}(pMsg)
-			}
+			announcePurge(bot, ctx, chat, args, totalMsgs)
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -368,6 +332,29 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	return ext.EndGroups
+}
+
+// announcePurge posts the purge summary and deletes it after a short delay.
+func announcePurge(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, args []string, totalMsgs int64) {
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	var text string
+	if len(args) >= 1 {
+		temp, _ := tr.GetString("purges_purged_with_reason")
+		text = fmt.Sprintf(temp, totalMsgs, escapeLegacyMarkdown(strings.Join(args, " ")))
+	} else {
+		temp, _ := tr.GetString("purges_purged_messages")
+		text = fmt.Sprintf(temp, totalMsgs)
+	}
+	pMsg, err := bot.SendMessage(chat.Id, text, formatting.Smarkdown())
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	go func(msgToDelete *gotgbot.Message) {
+		defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
+		time.Sleep(3 * time.Second)
+		_, _ = msgToDelete.Delete(bot, nil)
+	}(pMsg)
 }
 
 // legacyMarkdownEscaper escapes the characters legacy Markdown treats as

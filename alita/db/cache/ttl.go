@@ -13,6 +13,11 @@ const (
 	CacheTTLFilterList      = DefaultCacheTTL
 	CacheTTLBlacklist       = DefaultCacheTTL
 	CacheTTLGreetings       = DefaultCacheTTL
+	CacheTTLRules           = DefaultCacheTTL
+	CacheTTLReportSettings  = DefaultCacheTTL
+	CacheTTLPins            = DefaultCacheTTL
+	CacheTTLAdminSettings   = DefaultCacheTTL
+	CacheTTLConnections     = DefaultCacheTTL
 	CacheTTLNotesList       = DefaultCacheTTL
 	CacheTTLNotesSettings   = DefaultCacheTTL
 	CacheTTLWarnSettings    = DefaultCacheTTL
