@@ -281,6 +281,26 @@ func TestResetConfirmationFromPMChecksPresser(t *testing.T) {
 				t.Fatalf("a /%s confirmation naming a group the presser does not own reset it", tc.cmd)
 			}
 		})
+		// Pressed in a group the presser owns, a button naming another group
+		// is checked against the group it names, not the one it is in.
+		t.Run(tc.cmd+"/other group pressed in own group", func(t *testing.T) {
+			f, other := pmResetFixture(t, tc)
+			f.makeOwner()
+			f.setMemberStatus(other, f.admin.Id, "member")
+			data := encodeCallbackData(tc.ns, map[string]string{"a": "yes", "c": strconv.FormatInt(other, 10)})
+
+			update := newModuleCallbackContext(f.bot, f.chat, f.admin, data).Update
+			if err := pmResetDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(callback %q) error = %v", data, err)
+			}
+
+			if !tc.intact(f, other) {
+				t.Fatalf("a /%s confirmation pressed in the presser's own group reset another group it names", tc.cmd)
+			}
+			if !tc.intact(f, f.chat.Id) {
+				t.Fatalf("a /%s confirmation naming another group reset the group it was pressed in", tc.cmd)
+			}
+		})
 	}
 }
 
