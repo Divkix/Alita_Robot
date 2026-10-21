@@ -247,21 +247,36 @@ func TestLockInPMOnConnectionKeepsBareWord(t *testing.T) {
 	}
 }
 
-// A member who is not an admin cannot lock the group named from PM, and the
-// refusal keeps their connection.
-func TestLockInPMWithGroupRefusesNonAdmin(t *testing.T) {
-	f, connected := pmSettingsFixture(t)
-	if err := connections.ConnectId(f.member.Id, connected); err != nil {
-		t.Fatalf("ConnectId() error = %v", err)
-	}
-	t.Cleanup(func() { _ = connections.DisconnectId(f.member.Id) })
+// A member who is not an admin cannot change the group named from PM, though
+// the group lets members connect, and the refusal keeps their connection.
+// /setflood checks the admin only through resolveAdminChat; /lock checks it
+// again in its handler.
+func TestSettingsCommandsInPMWithGroupRefuseNonAdmin(t *testing.T) {
+	for _, tc := range []struct {
+		text    string
+		changed func(chatID int64) bool
+	}{
+		{"/lock @fixturegroup sticker", func(id int64) bool { return locks.IsPermLocked(id, "sticker") }},
+		{"/setflood @fixturegroup 7", func(id int64) bool { return antiflood.GetFlood(id).Limit == 7 }},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			f, connected := pmSettingsFixture(t)
+			if err := connections.ToggleAllowConnect(f.chat.Id, true); err != nil {
+				t.Fatalf("ToggleAllowConnect() error = %v", err)
+			}
+			if err := connections.ConnectId(f.member.Id, connected); err != nil {
+				t.Fatalf("ConnectId() error = %v", err)
+			}
+			t.Cleanup(func() { _ = connections.DisconnectId(f.member.Id) })
 
-	processPM(t, pmSettingsDispatcher(), f, f.member.Id, "/lock @fixturegroup sticker")
+			processPM(t, pmSettingsDispatcher(), f, f.member.Id, tc.text)
 
-	if locks.IsPermLocked(f.chat.Id, "sticker") {
-		t.Fatal("a member who is not an admin locked the named group")
-	}
-	if conn := connections.Connection(f.member.Id); !conn.Connected || conn.ChatId != connected {
-		t.Fatalf("member connection = %+v, want it kept on %d", conn, connected)
+			if tc.changed(f.chat.Id) {
+				t.Fatalf("%s: a member who is not an admin changed the named group; sent:\n%s", tc.text, sentText(f.client))
+			}
+			if conn := connections.Connection(f.member.Id); !conn.Connected || conn.ChatId != connected {
+				t.Fatalf("member connection = %+v, want it kept on %d", conn, connected)
+			}
+		})
 	}
 }
