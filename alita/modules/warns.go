@@ -804,12 +804,15 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	yesText, _ := tr.GetString("common_yes")
 	noText, _ := tr.GetString("common_no")
 
+	chat := groupOnlyChat(b, ctx)
+	if chat == nil {
+		return ext.EndGroups
+	}
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -835,11 +838,11 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}),
+								CallbackData: confirmData("rmAllChatWarns", "yes", chat),
 							},
 							{
 								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "no"}),
+								CallbackData: confirmData("rmAllChatWarns", "no", chat),
 							},
 						},
 					},
@@ -860,18 +863,15 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !ok {
 		return ext.EndGroups
 	}
-	user := query.From
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+	decoded, _ := decodeCallbackData(query.Data, "rmAllChatWarns")
+	chat := ownerConfirmChat(b, ctx, query, decoded)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
-	response := ""
-	if decoded, ok := decodeCallbackData(query.Data, "rmAllChatWarns"); ok {
-		response, _ = decoded.Field("a")
-	}
+	response, _ := decoded.Field("a")
 	if response == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
@@ -880,14 +880,8 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var replyText string
 
-	chat := ctx.EffectiveChat
 	switch response {
 	case "yes":
-		if chat == nil {
-			helpText, _ = tr.GetString("error_generic")
-			replyText = helpText
-			break
-		}
 		if err := warns.ResetAllChatWarns(chat.Id); err == nil {
 			helpText, _ = tr.GetString("warns_reset_all_success")
 			replyText, _ = tr.GetString("warns_reset_all_final")
@@ -1020,8 +1014,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		{"setwarnlimit", pmArgsOwn, warnsModule.setWarnLimit},
 		{"setwarnmode", pmArgsOwn, warnsModule.setWarnMode},
 		{"setwarntime", pmArgsOwn, warnsModule.setWarnTime},
-		// Works in the group only, where no group is named.
-		{"resetallwarns", helpers.PMGroupArgOff, warnsModule.resetAllWarns},
+		{"resetallwarns", pmArgsNone, warnsModule.resetAllWarns},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,

@@ -291,9 +291,12 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		return ext.EndGroups
+	}
+	chat := groupOnlyChat(b, ctx)
+	if chat == nil {
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
@@ -437,7 +440,10 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
+	chat := groupOnlyChat(b, ctx)
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
@@ -474,11 +480,11 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"}),
+								CallbackData: confirmData("rmAllNotes", "yes", chat),
 							},
 							{
 								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
+								CallbackData: confirmData("rmAllNotes", "no", chat),
 							},
 						},
 					},
@@ -624,17 +630,13 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !ok {
 		return ext.EndGroups
 	}
-	user := query.From
-
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+	decoded, _ := decodeCallbackData(query.Data, "rmAllNotes")
+	chat := ownerConfirmChat(b, ctx, query, decoded)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
-	response := ""
-	if decoded, ok := decodeCallbackData(query.Data, "rmAllNotes"); ok {
-		response, _ = decoded.Field("a")
-	}
+	response, _ := decoded.Field("a")
 	if response == "" {
 		log.Warnf("[Notes] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
@@ -642,13 +644,8 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var helpText string
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := ctx.EffectiveChat
 	switch response {
 	case "yes":
-		if chat == nil {
-			helpText, _ = tr.GetString("error_generic")
-			break
-		}
 		if err := notes.RemoveAllNotes(chat.Id); err != nil {
 			log.Errorf("[Notes] Failed to remove all notes: %v", err)
 			helpText, _ = tr.GetString("error_generic")
@@ -963,7 +960,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		dispatcher.AddHandler(handlers.NewCommand(cmd, withPMGroupArg(cmd, pmArgsNone, notesModule.notesList)))
 	}
 	helpers.AddCmdToDisableable("notes")
-	dispatcher.AddHandler(handlers.NewCommand("clearall", notesModule.rmAllNotes))
+	dispatcher.AddHandler(handlers.NewCommand("clearall", withPMGroupArg("clearall", pmArgsNone, notesModule.rmAllNotes)))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes"), notesModule.notesButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite"), notesModule.noteOverWriteHandler))
 	dispatcher.AddHandler(
@@ -974,7 +971,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 			notesModule.notesWatcher,
 		),
 	)
-	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
+	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, withPMGroupArg("privnote", pmArgsOwn, notesModule.privNote))
 	dispatcher.AddHandler(handlers.NewCommand("get", notesModule.getNotes))
 	helpers.AddCmdToDisableable("get")
 }

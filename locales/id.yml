@@ -351,6 +351,8 @@ connections_help_msg:
 
   Saat terhubung, admin juga dapat menjalankan /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect dan /lang group dari obrolan pribadi.
 
+  Dari obrolan pribadi, pemilik grup juga dapat menjalankan /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns dan /unbanall, dan adminnya /privnote: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Konfirmasi berlaku untuk grup itu dan hanya pemiliknya yang dapat menekannya.
+
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
   jika id negatif; semua grup super memiliki id negatif."

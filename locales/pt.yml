@@ -342,6 +342,8 @@ connections_help_msg:
 
   Enquanto conectados, administradores também podem usar /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect e /lang group no privado.
 
+  No privado, o dono de um grupo também pode usar /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns e /unbanall, e seus administradores /privnote: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. A confirmação age nesse grupo e só o dono pode apertá-la.
+
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
   se o id for negativo; todos os supergrupos têm ids negativos."

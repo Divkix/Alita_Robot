@@ -277,6 +277,8 @@ connections_help_msg: "यह मॉड्यूल आपको चैट क�
 
   जुड़े रहने पर एडमिन निजी चैट से /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect और /lang group भी चला सकते हैं।
 
+  निजी चैट से समूह का मालिक /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns और /unbanall भी चला सकता है, और उसके एडमिन /privnote: पहले समूह का नाम दें (उसका शीर्षक, @username या ID) या उससे जुड़ें। पुष्टि उसी समूह पर लागू होती है और उसे केवल उसका मालिक दबा सकता है।
+
 
   आप अपनी चैट में /id कमांड का उपयोग करके चैट id प्राप्त कर सकते हैं। यदि id नकारात्मक है तो आश्चर्यचकित न हों; सभी सुपर ग्रुप्स में नकारात्मक id होती है।"
 

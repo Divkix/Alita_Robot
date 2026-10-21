@@ -882,6 +882,8 @@ connections_help_msg:
 
   Une fois connectés, les administrateurs peuvent aussi utiliser /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect et /lang group en privé.
 
+  En privé, le propriétaire d'un groupe peut aussi utiliser /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns et /unbanall, et ses administrateurs /privnote : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. La confirmation agit sur ce groupe et seul son propriétaire peut l'utiliser.
+
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
   si l'id est négatif ; tous les super groupes ont des ids négatifs."

@@ -19,6 +19,8 @@ This module allows you to connect to a chat's database, and add things to it wit
 × /allowconnect <yes/no>: Allow users to connect to chats or not.
 While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
+From PM, the owner of a group can also run /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns and /unbanall, and its admins /privnote: name the group first (its title, @username or ID) or connect to it. The confirmation acts on that group and only its owner can press it.
+
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
 ## Module Aliases

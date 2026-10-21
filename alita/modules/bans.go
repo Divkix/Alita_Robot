@@ -885,8 +885,8 @@ func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 				{
-					{Text: yesText, CallbackData: encodeCallbackData("unbanall", map[string]string{"a": "yes"})},
-					{Text: noText, CallbackData: encodeCallbackData("unbanall", map[string]string{"a": "no"})},
+					{Text: yesText, CallbackData: confirmData("unbanall", "yes", ctx.EffectiveChat)},
+					{Text: noText, CallbackData: confirmData("unbanall", "no", ctx.EffectiveChat)},
 				},
 			},
 		},
@@ -903,16 +903,13 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !ok {
 		return ext.EndGroups
 	}
-	user := query.From
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+	decoded, _ := decodeCallbackData(query.Data, "unbanall")
+	chat := ownerConfirmChat(b, ctx, query, decoded)
+	if chat == nil {
 		return ext.EndGroups
 	}
-	action := ""
-	if decoded, ok := decodeCallbackData(query.Data, "unbanall"); ok {
-		action, _ = decoded.Field("a")
-	}
+	action, _ := decoded.Field("a")
 	if action == "" {
 		return answerInvalidCallback(b, ctx, query)
 	}
@@ -925,7 +922,7 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	var helpText string
 	switch action {
 	case "yes":
-		chatID := query.Message.GetChat().Id
+		chatID := chat.Id
 		users, err := chats.GetChatUsersCachedContext(tracing.UpdateContext(ctx), chatID)
 		if err != nil {
 			log.Debugf("[Bans] unbanall GetChatUsersCached %d: %v", chatID, err)
@@ -985,7 +982,7 @@ var (
 	dbanDesc       = helpers.CommandDescriptor{Name: "dban"}
 	unbanDesc      = helpers.CommandDescriptor{Name: "unban"}
 	banmeDesc      = helpers.CommandDescriptor{Name: "banme", Disableable: true}
-	unbanAllDesc   = helpers.CommandDescriptor{Name: "unbanall"}
+	unbanAllDesc   = helpers.CommandDescriptor{Name: "unbanall", PMGroupArg: helpers.PMGroupArgNone}
 	kickDesc       = helpers.CommandDescriptor{Name: "kick"}
 	dkickDesc      = helpers.CommandDescriptor{Name: "dkick"}
 	skickDesc      = helpers.CommandDescriptor{Name: "skick"}
@@ -1001,7 +998,7 @@ func initBanDescs() {
 	dbanDesc.RequiredChecks = deleteRestrictChecks("dban")
 	unbanDesc.RequiredChecks = restrictChecks("unban")
 	banmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("banme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
-	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unbanall"), helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
+	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unbanall"), groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
 	kickDesc.RequiredChecks = restrictChecks("kick")
 	dkickDesc.RequiredChecks = deleteRestrictChecks("dkick")
 	skickDesc.RequiredChecks = deleteRestrictChecks("skick")
