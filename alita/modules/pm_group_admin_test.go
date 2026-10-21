@@ -303,6 +303,23 @@ func TestAdminCommandsInPMWithGroupAnswerAsGroupWhenBotLacksRight(t *testing.T) 
 	}
 }
 
+// From PM, /admincache checks the caller live in the named group, not in the
+// PM: an admin the group's cache still lists, but Telegram no longer does,
+// gets the group's refusal and the cache stays as it was.
+func TestAdminCacheInPMWithGroupRefusesRemovedAdmin(t *testing.T) {
+	f, _ := pmAdminFixture(t)
+	f.setMemberStatus(f.chat.Id, f.admin.Id, "member")
+
+	processPM(t, adminPMDispatcher(), f, f.admin.Id, "/admincache @fixturegroup")
+
+	if !repliedIn(f, f.admin.Id, translated(t, "admin_need_admin")) {
+		t.Fatalf("/admincache from a removed admin: want admin_need_admin; sent:\n%s", sentText(f.client))
+	}
+	if calledFor(f, "getChatAdministrators", f.chat.Id) {
+		t.Fatal("/admincache from a removed admin reloaded the group's admin cache")
+	}
+}
+
 // Every admin command sent from PM without a group and without a connection
 // answers with its help, its example and the user's groups.
 func TestAdminCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
