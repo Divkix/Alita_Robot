@@ -465,9 +465,10 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 
 	if oneOff := OneOffGroup(ctx); msg.Chat.Type == "private" && oneOff != nil {
-		// The group named in the command passed the /connect checks, membership
-		// included, before it was set; only the chatAdmin and botAdmin checks
-		// below remain, and a failed one leaves the saved connection alone.
+		// The group named in the command passed the /connect checks and one
+		// live membership lookup before it was set; only the chatAdmin and
+		// botAdmin checks below remain, and a failed one leaves the saved
+		// connection alone.
 		chat = oneOff
 	} else if msg.Chat.Type == "private" {
 		conn := connections.Connection(user.Id)
