@@ -320,6 +320,24 @@ func TestAdminCacheInPMWithGroupRefusesRemovedAdmin(t *testing.T) {
 	}
 }
 
+// From PM, /admincache lets in an admin promoted after the group's admin list
+// was cached, as it does in the group: the live check decides, not the cache
+// the command is there to reload.
+func TestAdminCacheInPMWithGroupAcceptsNewlyPromotedAdmin(t *testing.T) {
+	f, _ := pmAdminFixture(t)
+	seedAdminCache(t, f.chat.Id, adminMember(999, true))
+	f.setMemberStatus(f.chat.Id, f.admin.Id, "administrator")
+
+	processPM(t, adminPMDispatcher(), f, f.admin.Id, "/admincache @fixturegroup")
+
+	if !repliedIn(f, f.admin.Id, translated(t, "commonstrings_admin_cache_cache_reloaded")) {
+		t.Fatalf("/admincache from a newly promoted admin: want commonstrings_admin_cache_cache_reloaded; sent:\n%s", sentText(f.client))
+	}
+	if !calledFor(f, "getChatAdministrators", f.chat.Id) {
+		t.Fatal("/admincache from a newly promoted admin did not reload the group's admin cache")
+	}
+}
+
 // Every admin command sent from PM without a group and without a connection
 // answers with its help, its example and the user's groups.
 func TestAdminCommandsInPMWithoutGroupReplyHelp(t *testing.T) {

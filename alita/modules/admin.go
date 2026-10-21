@@ -657,7 +657,7 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	var err error
 
-	chat := groupOnlyChat(b, c.Ctx)
+	chat := groupOnlyMemberChat(b, c.Ctx)
 	if chat == nil {
 		return ext.EndGroups
 	}
