@@ -740,6 +740,13 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return ext.EndGroups
 	}
 
+	// A failed unrestrict still answers the query, or the button keeps spinning.
+	failAction := func(err error) error {
+		log.Error(err)
+		_, _ = query.Answer(b, nil)
+		return err
+	}
+
 	var helpText string
 
 	switch action {
@@ -747,8 +754,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 
 		c, err := b.GetChat(chat.Id, nil)
 		if err != nil {
-			log.Error(err)
-			return err
+			return failAction(err)
 		}
 		unmutePermissions := resolveUnmutePermissions(c)
 
@@ -757,8 +763,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			nil,
 		)
 		if err != nil {
-			log.Error(err)
-			return err
+			return failAction(err)
 		}
 
 		temp, _ := tr.GetString("bans_unrestrict_unmuted")
@@ -770,8 +775,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			// channel IDs and leaves the channel permanently banned).
 			_, err := chat.UnbanSenderChat(b, userId, nil)
 			if err != nil {
-				log.Error(err)
-				return err
+				return failAction(err)
 			}
 		} else {
 			_, err := chat.Unban(b,
@@ -781,8 +785,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 				},
 			)
 			if err != nil {
-				log.Error(err)
-				return err
+				return failAction(err)
 			}
 		}
 
