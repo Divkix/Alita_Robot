@@ -60,7 +60,7 @@ In PM, name the group first: its ID, its @username, or the title of a group wher
 - `/nolog "My Group" settings` - turn off a category
 - `/logchannel @mygroup` - show the log channel
 - `/unsetlog @mygroup` - remove it
-You must be an admin of both the group and the channel, and the bot an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: `/setlog @mychannel`. The group passes the same checks as /connect, and the connection stays as it is.
+You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: `/setlog @mychannel`. The group passes the same checks as /connect, and the connection stays as it is.
 
 **Choose what gets logged:**
 - `/logcategories` - list the categories
@@ -73,7 +73,7 @@ You must be an admin of both the group and the channel, and the bot an admin of 
 **User Permissions:**
 - `/setlog` is sent in the channel itself, where only channel admins can post.
 - Only group admins can bind the channel by forwarding that message, and only they can use `/unsetlog`, `/log` and `/nolog`.
-- `/setlog` in PM binds the channel only for a user who is an admin of both the group and the channel.
+- `/setlog` in PM binds the channel only for an admin of the group who owns the channel or is its admin with permission to post messages.
 - Anyone can use `/logchannel` and `/logcategories`; in PM, `/logchannel` works for a group you could connect to with `/connect`.
 
 **Bot Permissions:**

@@ -2580,7 +2580,7 @@ logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
 logs_pm_need_channel: "Name the channel after the group: <code>/setlog @mygroup @mychannel</code>, or the channel's ID. Make me an admin of the channel that can post messages first."
 logs_pm_not_channel: "<code>{channel}</code> is not a channel I can see. Make me an admin of the channel that can post messages, then name it by its @username or ID."
-logs_pm_user_not_channel_admin: "You need to be an admin of the channel to make it the log channel."
+logs_pm_user_not_channel_admin: "To make the channel the log channel, you need to own it or be its admin with permission to post messages."
 logs_pm_bot_cannot_post: "I need to be an admin of the channel with permission to post messages."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
@@ -2770,7 +2770,7 @@ logchannels_examples_docs: |
   • <code>/nolog "My Group" settings</code> - turn off a category
   • <code>/logchannel @mygroup</code> - show the log channel
   • <code>/unsetlog @mygroup</code> - remove it
-  You must be an admin of both the group and the channel, and the bot an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>. The group passes the same checks as /connect, and the connection stays as it is.
+  You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>. The group passes the same checks as /connect, and the connection stays as it is.
 
   <b>Choose what gets logged:</b>
   • <code>/logcategories</code> - list the categories
@@ -2800,7 +2800,7 @@ logchannels_permissions_docs: |
   <b>User Permissions:</b>
   • <code>/setlog</code> is sent in the channel itself, where only channel admins can post.
   • Only group admins can bind the channel by forwarding that message, and only they can use <code>/unsetlog</code>, <code>/log</code> and <code>/nolog</code>.
-  • <code>/setlog</code> in PM binds the channel only for a user who is an admin of both the group and the channel.
+  • <code>/setlog</code> in PM binds the channel only for an admin of the group who owns the channel or is its admin with permission to post messages.
   • Anyone can use <code>/logchannel</code> and <code>/logcategories</code>; in PM, <code>/logchannel</code> works for a group you could connect to with <code>/connect</code>.
 
   <b>Bot Permissions:</b>

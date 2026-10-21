@@ -102,18 +102,24 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 		return ext.EndGroups
 	}
 	channel, err := chat_status.GetChat(b, args[0])
+	if err != nil {
+		log.WithFields(log.Fields{"channel": args[0], "error": err}).Debug("[LogChannels] channel lookup failed")
+	}
 	if err != nil || channel.Type != "channel" {
 		text, _ := tr.GetString("logs_pm_not_channel", i18n.TranslationParams{"channel": html.EscapeString(args[0])})
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if member, err := b.GetChatMember(channel.Id, from.Id, nil); err != nil || !isAdminStatus(member.GetStatus()) {
-		text, _ := tr.GetString("logs_pm_user_not_channel_admin")
+	// The bot first: Telegram answers getChatMember in a channel only to an
+	// admin bot, so without that the user lookup below would fail too.
+	if !canPostInChannel(b, channel.Id, b.Id) {
+		text, _ := tr.GetString("logs_pm_bot_cannot_post")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if member, err := b.GetChatMember(channel.Id, b.Id, nil); err != nil || member.GetStatus() != "administrator" || !member.MergeChatMember().CanPostMessages {
-		text, _ := tr.GetString("logs_pm_bot_cannot_post")
+	// As with a /setlog post in the channel, the user must be able to post there.
+	if !canPostInChannel(b, channel.Id, from.Id) {
+		text, _ := tr.GetString("logs_pm_user_not_channel_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -129,8 +135,21 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 	return ext.EndGroups
 }
 
-func isAdminStatus(status string) bool {
-	return status == "creator" || status == "administrator"
+// canPostInChannel reports whether userID owns the channel or is an admin of
+// it that can post messages.
+func canPostInChannel(b *gotgbot.Bot, channelID, userID int64) bool {
+	member, err := b.GetChatMember(channelID, userID, nil)
+	if err != nil {
+		log.WithFields(log.Fields{"channelId": channelID, "userId": userID, "error": err}).Warn("[LogChannels] channel member lookup failed")
+		return false
+	}
+	switch member.GetStatus() {
+	case "creator":
+		return true
+	case "administrator":
+		return member.MergeChatMember().CanPostMessages
+	}
+	return false
 }
 
 // logsChat returns the group a log-channel command acts on: the chat it was

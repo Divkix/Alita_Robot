@@ -4,6 +4,7 @@ package modules
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -148,6 +149,34 @@ func TestSetLogInPMRefusesWhenUserNotChannelAdmin(t *testing.T) {
 
 	f.requireNotBound(t)
 	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_pm_user_not_channel_admin"))
+}
+
+// The old flow needed a /setlog post in the channel, so a channel admin
+// without the right to post could not bind it; from PM they cannot either.
+func TestSetLogInPMRefusesChannelAdminWhoCannotPost(t *testing.T) {
+	f := newLogChannelPMFixture(t)
+	f.setMember(f.channel.Id, f.admin.Id, `"status":"administrator","can_post_messages":false`)
+
+	f.sendPM(t, f.admin, "/setlog @fixturegroup @logchan")
+
+	f.requireNotBound(t)
+	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_pm_user_not_channel_admin"))
+}
+
+// Telegram answers getChatMember in a channel only to an admin bot, so when
+// the bot is not one, every lookup there fails. The user hears about the
+// bot's rights, the thing to fix, not about their own.
+func TestSetLogInPMWhenBotIsNotChannelAdminAnswersAboutBot(t *testing.T) {
+	f := newLogChannelPMFixture(t)
+	f.setMember(f.channel.Id, f.admin.Id, `"status":"creator"`)
+	f.client.errorsByChat = map[string]error{
+		"getChatMember|" + fmt.Sprint(f.channel.Id): errors.New("Bad Request: member list is inaccessible"),
+	}
+
+	f.sendPM(t, f.admin, "/setlog @fixturegroup @logchan")
+
+	f.requireNotBound(t)
+	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_pm_bot_cannot_post"))
 }
 
 func TestSetLogInPMRefusesWhenBotCannotPost(t *testing.T) {
