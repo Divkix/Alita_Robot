@@ -313,9 +313,18 @@ func TestPMGroupArgOwnArgsTakesTitleWithoutConnection(t *testing.T) {
 
 // With a connection a command with arguments of its own keeps a word that is
 // not an @username or ID and no group's title: it is the command's argument.
+// The user's groups are scanned once and none is checked with Telegram, so
+// the argument costs one query.
 func TestPMGroupArgOwnArgsKeepsTitleWithConnection(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
+	alpha, beta := uniqueModuleChatID(), uniqueModuleChatID()
+	f.addGroup(t, alpha, "Alpha", true)
+	f.addGroup(t, beta, "Beta", true)
+	scans := setPMGroupCandidates(t,
+		models.Chat{ChatId: f.chat.Id, ChatName: "My Group"},
+		models.Chat{ChatId: alpha, ChatName: "Alpha"},
+		models.Chat{ChatId: beta, ChatName: "Beta"},
+	)
 	f.connectAdmin(t)
 	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, "/cmd mygroup on")
 	var args []string
@@ -328,7 +337,14 @@ func TestPMGroupArgOwnArgsKeepsTitleWithConnection(t *testing.T) {
 		t.Fatalf("handler error = %v, want ext.EndGroups", err)
 	}
 
-	if fmt.Sprint(args) != "[/cmd mygroup on]" {
-		t.Fatalf("handler saw args %q, want [/cmd mygroup on]", args)
+	if fmt.Sprint(args) != "[/cmd mygroup on]" || scans.Load() != 1 {
+		t.Fatalf("handler saw args %q after %d scans, want [/cmd mygroup on] and one", args, scans.Load())
+	}
+	for _, method := range []string{"getChatAdministrators", "getChatMember"} {
+		for _, call := range f.client.callsFor(method) {
+			if id := fmt.Sprint(call.Params["chat_id"]); id == fmt.Sprint(alpha) || id == fmt.Sprint(beta) {
+				t.Fatalf("%s for group %s, whose title does not match", method, id)
+			}
+		}
 	}
 }

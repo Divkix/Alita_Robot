@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -15,6 +16,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -332,11 +334,11 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 // ownGroupsTitled returns the groups titled title, ignoring case, that the
 // user administers among those the /settings picker lists: the connected
 // group and the groups the user has posted in. Only groups with that title
-// are checked, so an argument that is no title costs one query and leaves the
-// picker's pause alone.
+// are checked, so an argument that is no title costs at most one query and
+// leaves the picker's pause alone.
 func (c pmGroupCall) ownGroupsTitled(title string, connected int64) []settingsPickerEntry {
 	userID := c.ctx.EffectiveUser.Id
-	candidates, err := settingsCandidateChats(tracing.UpdateContext(c.ctx), userID, settingsCandidateLimit)
+	candidates, err := pmGroupCandidates(tracing.UpdateContext(c.ctx), userID)
 	if err != nil {
 		log.WithFields(log.Fields{"userId": userID, "error": err}).Debug("[PMGroupArg] candidate chats failed")
 	}
@@ -344,9 +346,7 @@ func (c pmGroupCall) ownGroupsTitled(title string, connected int64) []settingsPi
 	if info, err := chats.GetChatBasicInfoCached(connected); err == nil && info != nil {
 		entries = append(entries, settingsPickerEntry{ChatID: connected, Title: info.ChatName})
 	}
-	for _, candidate := range candidates {
-		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
-	}
+	entries = append(entries, candidates...)
 
 	var matches []settingsPickerEntry
 	seen := map[int64]bool{}
@@ -357,6 +357,30 @@ func (c pmGroupCall) ownGroupsTitled(title string, connected int64) []settingsPi
 		seen[entry.ChatID] = true
 	}
 	return matches
+}
+
+// pmGroupCandidates lists the groups userID has posted in, as IDs and titles,
+// for the title check of a command with arguments of its own. Every such
+// command on a connection asks for them, and the query scans the chats table,
+// so the list is kept in the cache for the picker's pause: one scan per user
+// per pause, shared by concurrent commands. Admin rights are not kept; a
+// failed query is not kept either.
+func pmGroupCandidates(ctx context.Context, userID int64) ([]settingsPickerEntry, error) {
+	load := func(ctx context.Context) ([]settingsPickerEntry, error) {
+		candidates, err := settingsCandidateChats(ctx, userID, settingsCandidateLimit)
+		if err != nil {
+			return nil, err
+		}
+		entries := make([]settingsPickerEntry, 0, len(candidates))
+		for _, candidate := range candidates {
+			entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
+		}
+		return entries, nil
+	}
+	if settingsPickerCooldown <= 0 {
+		return load(ctx)
+	}
+	return dbcache.GetFromCacheOrLoad(ctx, dbcache.CacheKey("pm_group_candidates", userID), settingsPickerCooldown, load)
 }
 
 // runWithGroup checks the group like /connect, then runs h with it in place of

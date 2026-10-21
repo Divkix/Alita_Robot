@@ -42,6 +42,9 @@ var (
 	beforeLocalSetHook func(key string)
 
 	captchaPendingPrefix = CacheKey("captcha_pending") + ":"
+	// pmGroupCandidatesPrefix is the user's groups kept by alita/modules for
+	// the settings picker's pause; a local copy would outlive the pause.
+	pmGroupCandidatesPrefix = CacheKey("pm_group_candidates") + ":"
 )
 
 // skipLocal reports whether key must never be served from process memory.
@@ -52,7 +55,7 @@ var (
 func skipLocal(key string) bool {
 	// Captcha pending flag gates whether a new member's messages are held;
 	// a replica must see a flag set elsewhere immediately.
-	return strings.HasPrefix(key, captchaPendingPrefix)
+	return strings.HasPrefix(key, captchaPendingPrefix) || strings.HasPrefix(key, pmGroupCandidatesPrefix)
 }
 
 func localSettings() (ttl, size int) {
