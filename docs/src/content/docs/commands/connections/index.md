@@ -19,6 +19,8 @@ This module allows you to connect to a chat's database, and add things to it wit
 × /allowconnect <yes/no>: Allow users to connect to chats or not.
 While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
+In PM, /rules, /notes and /filters take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
+
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
 ## Module Aliases
@@ -66,7 +68,7 @@ For detailed command usage, refer to the commands table above.
 
 ## A Group as the First Argument in PM
 
-Some commands take the group as their first argument in PM, so they work without `/connect`: `/rules`, `/notes`, `/saved` and `/filters`. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"`. The group passes the same checks as `/connect`, and the saved connection stays as it is. Looking a group up by title shares the `/settings` picker's pause and time budget; an ID or @username is looked up directly.
+Some commands take the group as their first argument in PM, so they work without `/connect`: `/rules`, `/notes`, `/saved` and `/filters`. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"`. The group passes the same checks as `/connect`, and the saved connection stays as it is. A title is looked up among the connected group and the 50 most recently active groups where you have written, and only the groups with that title are checked for admin rights, so it does not depend on the `/settings` picker's list; any other group is named by its ID or @username, which are looked up directly.
 
 `/connect` without an argument in PM answers with its help, an example and the groups where you are an admin, with their IDs.
 

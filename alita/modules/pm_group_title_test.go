@@ -123,6 +123,28 @@ func TestFiltersInPMByBareTitle(t *testing.T) {
 	sendPMCommand(t, filtersDispatcher(), f.bot, f.client, f.admin, "/filters mygroup", "<code>hello</code>")
 }
 
+// A title is looked up among all the groups the user posted in, not only those
+// the /settings picker has room and time to check: the target is the 25th of
+// 25 admin groups with no cached admin list, and no live checks are allowed.
+func TestNotesInPMByTitleBeyondPickerCap(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	var groups []models.Chat
+	for i := 1; i <= 25; i++ {
+		group := models.Chat{ChatId: uniqueModuleChatID(), ChatName: fmt.Sprintf("Group %d", i)}
+		f.addGroup(t, group.ChatId, group.ChatName, true)
+		groups = append(groups, group)
+	}
+	target := groups[24]
+	setPMGroupCandidates(t, groups...)
+	original := settingsPickerLiveBudget
+	settingsPickerLiveBudget = 0
+	t.Cleanup(func() { settingsPickerLiveBudget = original })
+	addTestNote(t, target.ChatId, "far-note")
+
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "group 25"`, "far-note")
+}
+
 // A title names a group only where the user is an admin: a group they merely
 // posted in is not found by its title.
 func TestPMGroupTitleIgnoresGroupsWhereUserIsNotAdmin(t *testing.T) {
@@ -258,45 +280,36 @@ func TestConnectWithoutArgInPMRepliesHelp(t *testing.T) {
 	assertPMGroupHelp(t, fmt.Sprint(call.Params["text"]), "connect", f.chat)
 }
 
-// A second lookup inside the picker pause reuses the list the first one
-// built instead of scanning the user's groups again.
-func TestPMGroupTitleResolutionRespectsPickerPause(t *testing.T) {
+// The title lookup checks only the groups with that title, so it does not
+// wait for the /settings picker's pause.
+func TestPMGroupTitleDuringPickerPauseFindsGroup(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
 	settingsPickerCooldown = 5 * time.Second
-	addTestNote(t, f.chat.Id, "pause-note")
-	dispatcher := notesDispatcher()
-
-	sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
-	resetCalls(f.client)
-	sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
-
-	if n := scans.Load(); n != 1 {
-		t.Fatalf("candidate scans = %d, want 1: the second lookup ignored the pause", n)
+	if _, wait := settingsPickerWait(i18n.MustNewTranslator("en"), f.admin.Id); wait {
+		t.Fatal("settingsPickerWait() paused a fresh user")
 	}
+	addTestNote(t, f.chat.Id, "pause-note")
+
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
 }
 
-// Inside a pause with no list kept, the bot asks the user to wait instead of
-// scanning again.
-func TestPMGroupTitleDuringPauseWithoutListWaits(t *testing.T) {
+// A title that names no group lists the user's groups, and that list shares
+// the picker's pause: with no list kept the reply asks the user to wait.
+func TestPMGroupTitleNotFoundDuringPauseWithoutListWaits(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
 	settingsPickerCooldown = 5 * time.Second
 	if _, wait := settingsPickerWait(i18n.MustNewTranslator("en"), f.admin.Id); wait {
 		t.Fatal("settingsPickerWait() paused a fresh user")
 	}
 
 	update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
-		MessageId: 101, Date: 1, Chat: privateChatOf(f.admin), From: &f.admin, Text: `/notes "my group"`,
+		MessageId: 101, Date: 1, Chat: privateChatOf(f.admin), From: &f.admin, Text: `/notes "no such group"`,
 	}}
 	if err := notesDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
 		t.Fatalf("ProcessUpdate() error = %v", err)
 	}
 
 	assertWaitNotice(t, sentText(f.client))
-	if n := scans.Load(); n != 0 {
-		t.Fatalf("candidate scans during the pause = %d, want 0", n)
-	}
 }
 
 // Without a connection a command with arguments of its own still takes the
