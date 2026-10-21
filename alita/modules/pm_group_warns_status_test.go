@@ -11,6 +11,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
+	"github.com/divkix/Alita_Robot/alita/db"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
@@ -68,6 +70,39 @@ func TestWarnsInPMWithGroupShowsWarnsInThatGroup(t *testing.T) {
 			}
 			requireNothingSentTo(t, f, f.chat.Id)
 			requireConnectedTo(t, f.admin.Id, connected)
+		})
+	}
+}
+
+// From PM, /warns names the group also when the user has no warns there, and
+// when their warns there have no reasons.
+func TestWarnsInPMWithGroupNamesGroupWithoutWarnsOrReasons(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		seed int
+		want func(t *testing.T) string
+	}{
+		{"no warns", 0, func(t *testing.T) string { return translated(t, "warns_user_no_warnings") }},
+		{"no reasons", 2, func(t *testing.T) string { return fmt.Sprintf(translated(t, "warns_user_warnings_no_reasons"), 2, 3) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, _ := pmWarnsFixture(t, 0)
+			if tc.seed > 0 {
+				// A row from before warn reasons were kept: warns, no reasons.
+				if err := db.DB.Create(&models.Warns{UserId: victimID, ChatId: f.chat.Id, NumWarns: tc.seed}).Error; err != nil {
+					t.Fatalf("create warns without reasons: %v", err)
+				}
+				dbcache.ResetLocalForTest()
+			}
+
+			processPM(t, warnsPMDispatcher(), f, f.admin.Id, "/warns @fixturegroup @victim")
+
+			if !repliedIn(f, f.admin.Id, tc.want(t)) {
+				t.Fatalf("/warns from PM with %s: want %q; sent:\n%s", tc.name, tc.want(t), sentText(f.client))
+			}
+			if want := groupLine(t, chatTitleOf(f, f.chat.Id), f.chat.Id); !repliedIn(f, f.admin.Id, want) {
+				t.Fatalf("/warns from PM with %s did not name the group %q; sent:\n%s", tc.name, want, sentText(f.client))
+			}
 		})
 	}
 }
