@@ -15,12 +15,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -148,7 +148,7 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{keyboard.UnrestrictButton(c.Tr, "bans_unban_button", "unban", t.userID)},
+					{unrestrictButton(c.Tr, c.Msg, c.Chat, "bans_unban_button", "unban", t.userID)},
 				},
 			},
 		},
@@ -277,13 +277,18 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			if err != nil {
+			if err != nil || c.sentInPM() {
 				return err
 			}
 			_, err = c.Msg.Delete(c.Bot, nil)
 			return err
 		},
-		reply:     nil,
+		reply: func(c *moderationCtx, t *target) error {
+			if c.sentInPM() {
+				return banReplyWithButton(c, t)
+			}
+			return nil
+		},
 		logAction: "sban",
 	}
 }
@@ -482,16 +487,16 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         trS(tr, "button_ban"),
-							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(userId)}),
+							CallbackData: moderationButtonData("restrict", msg, chat, map[string]string{"a": "ban", "u": fmt.Sprint(userId)}),
 						},
 						{
 							Text:         trS(tr, "button_kick"),
-							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "kick", "u": fmt.Sprint(userId)}),
+							CallbackData: moderationButtonData("restrict", msg, chat, map[string]string{"a": "kick", "u": fmt.Sprint(userId)}),
 						},
 					},
 					{{
 						Text:         trS(tr, "button_mute"),
-						CallbackData: encodeCallbackData("restrict", map[string]string{"a": "mute", "u": fmt.Sprint(userId)}),
+						CallbackData: moderationButtonData("restrict", msg, chat, map[string]string{"a": "mute", "u": fmt.Sprint(userId)}),
 					}},
 				},
 			},
@@ -513,25 +518,26 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	if query.Message == nil {
 		return answerInvalidCallback(b, ctx, query)
 	}
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+	decoded, decodedOK := decodeCallbackData(query.Data, "restrict")
+	chat, chatOK := moderationButtonChat(ctx, decoded)
+	if chatOK && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
 
 	action := ""
 	userIDRaw := ""
-	if decoded, ok := decodeCallbackData(query.Data, "restrict"); ok {
+	if decodedOK {
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
 	}
-	if action == "" || userIDRaw == "" {
+	if !chatOK || action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed restrict callback data")
 		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -667,8 +673,8 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						keyboard.UnrestrictButton(tr, "button_unban", "unban", userId),
-						keyboard.UnrestrictButton(tr, "button_unmute", "unmute", userId),
+						unrestrictButton(tr, msg, ctx.EffectiveChat, "button_unban", "unban", userId),
+						unrestrictButton(tr, msg, ctx.EffectiveChat, "button_unmute", "unmute", userId),
 					},
 				},
 			},
@@ -687,7 +693,6 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	if !ok {
 		return ext.EndGroups
 	}
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
@@ -698,18 +703,20 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return answerInvalidCallback(b, ctx, query)
 	}
 
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+	decoded, decodedOK := decodeCallbackData(query.Data, "unrestrict")
+	chat, chatOK := moderationButtonChat(ctx, decoded)
+	if chatOK && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
 
 	action := ""
 	userIDRaw := ""
-	if decoded, ok := decodeCallbackData(query.Data, "unrestrict"); ok {
+	if decodedOK {
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
 	}
-	if action == "" || userIDRaw == "" {
+	if !chatOK || action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed unrestrict callback data")
 		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -820,13 +827,18 @@ func moderationSkick(m *moduleStruct) *moderationCommand {
 		extract:  extractUserOnly,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			if err := kickMember(c.Bot, c.Chat.Id, t.userID); err != nil {
+			if err := kickMember(c.Bot, c.Chat.Id, t.userID); err != nil || c.sentInPM() {
 				return err
 			}
 			_, err := c.Msg.Delete(c.Bot, nil)
 			return err
 		},
-		reply:     nil,
+		reply: func(c *moderationCtx, t *target) error {
+			if c.sentInPM() {
+				return kickReply(c, t)
+			}
+			return nil
+		},
 		logAction: "skick",
 	}
 }
@@ -961,51 +973,108 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func restrictChecks(cmd string) []helpers.CheckFunc {
-	return []helpers.CheckFunc{
-		helpers.CheckDisabled(cmd),
+// restrictChecks are the checks of a command that restricts a user; chat
+// checks (pmTargetChatCheck) run before the group's.
+func restrictChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
+	return append(append([]helpers.CheckFunc{helpers.CheckDisabled(cmd)}, chat...),
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
 		helpers.RequireBotAdmin(),
 		helpers.CanUserRestrict(),
 		helpers.CanBotRestrict(),
+	)
+}
+
+func deleteRestrictChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
+	return append(restrictChecks(cmd, chat...), helpers.CanBotDelete(), helpers.CanUserDelete())
+}
+
+// pmTargetChatCheck is groupOnlyChatCheck for a command that acts on a user.
+// From PM a reply is to a PM message, the bot's or the caller's own, so it
+// names no target: the command reads its user from the arguments after the
+// group only.
+func pmTargetChatCheck(c *helpers.CommandContext) bool {
+	if !groupOnlyChatCheck(c) {
+		return false
+	}
+	if msg := c.Ctx.EffectiveMessage; msg != nil && msg.Chat.Type == "private" && msg.ReplyToMessage != nil {
+		noReply := *msg
+		noReply.ReplyToMessage = nil
+		c.Ctx.EffectiveMessage = &noReply
+		c.Msg = &noReply
+	}
+	return true
+}
+
+// moderationButtonData is the callback data of a button a bans command sends
+// in reply to msg. Sent in PM, whose chat names no group, it names chat, the
+// group it acts on, in its "c" field.
+func moderationButtonData(namespace string, msg *gotgbot.Message, chat *gotgbot.Chat, fields map[string]string) string {
+	if msg.Chat.Type == "private" {
+		fields["c"] = strconv.FormatInt(chat.Id, 10)
+	}
+	return encodeCallbackData(namespace, fields)
+}
+
+// unrestrictButton is keyboard.UnrestrictButton for a button sent in reply to
+// msg, naming chat when sent in PM (moderationButtonData).
+func unrestrictButton(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, labelKey, action string, userID int64) gotgbot.InlineKeyboardButton {
+	return gotgbot.InlineKeyboardButton{
+		Text:         trS(tr, labelKey),
+		CallbackData: moderationButtonData("unrestrict", msg, chat, map[string]string{"a": action, "u": strconv.FormatInt(userID, 10)}),
 	}
 }
 
-func deleteRestrictChecks(cmd string) []helpers.CheckFunc {
-	return append(restrictChecks(cmd), helpers.CanBotDelete(), helpers.CanUserDelete())
+// moderationButtonChat returns the group a bans button acts on: the one its
+// "c" field names or, on a button without one, the chat the button is in. ok
+// is false when "c" is malformed.
+func moderationButtonChat(ctx *ext.Context, decoded *callbackcodec.Decoded) (chat *gotgbot.Chat, ok bool) {
+	if decoded != nil {
+		if raw, named := decoded.Field("c"); named {
+			chatID, err := strconv.ParseInt(raw, 10, 64)
+			if err != nil {
+				return nil, false
+			}
+			return &gotgbot.Chat{Id: chatID}, true
+		}
+	}
+	return ctx.EffectiveChat, true
 }
 
+// From PM, the commands that act on a user named after the group take the
+// group as their first argument (or from the connection), and their checks
+// see that group. /dban and /dkick need a reply to a group message, and
+// /banme and /kickme act on the caller in the group, so they stay group-only.
 var (
-	banDesc        = helpers.CommandDescriptor{Name: "ban", RequiredChecks: []helpers.CheckFunc(nil)}
-	sbanDesc       = helpers.CommandDescriptor{Name: "sban"}
-	tbanDesc       = helpers.CommandDescriptor{Name: "tban"}
+	banDesc        = helpers.CommandDescriptor{Name: "ban", PMGroupArg: helpers.PMGroupArgOwn}
+	sbanDesc       = helpers.CommandDescriptor{Name: "sban", PMGroupArg: helpers.PMGroupArgOwn}
+	tbanDesc       = helpers.CommandDescriptor{Name: "tban", PMGroupArg: helpers.PMGroupArgOwn}
 	dbanDesc       = helpers.CommandDescriptor{Name: "dban"}
-	unbanDesc      = helpers.CommandDescriptor{Name: "unban"}
+	unbanDesc      = helpers.CommandDescriptor{Name: "unban", PMGroupArg: helpers.PMGroupArgOwn}
 	banmeDesc      = helpers.CommandDescriptor{Name: "banme", Disableable: true}
 	unbanAllDesc   = helpers.CommandDescriptor{Name: "unbanall", PMGroupArg: helpers.PMGroupArgNone}
-	kickDesc       = helpers.CommandDescriptor{Name: "kick"}
+	kickDesc       = helpers.CommandDescriptor{Name: "kick", PMGroupArg: helpers.PMGroupArgOwn}
 	dkickDesc      = helpers.CommandDescriptor{Name: "dkick"}
-	skickDesc      = helpers.CommandDescriptor{Name: "skick"}
+	skickDesc      = helpers.CommandDescriptor{Name: "skick", PMGroupArg: helpers.PMGroupArgOwn}
 	kickmeDesc     = helpers.CommandDescriptor{Name: "kickme", Disableable: true}
-	restrictDesc   = helpers.CommandDescriptor{Name: "restrict"}
-	unrestrictDesc = helpers.CommandDescriptor{Name: "unrestrict"}
+	restrictDesc   = helpers.CommandDescriptor{Name: "restrict", PMGroupArg: helpers.PMGroupArgOwn}
+	unrestrictDesc = helpers.CommandDescriptor{Name: "unrestrict", PMGroupArg: helpers.PMGroupArgOwn}
 )
 
 func initBanDescs() {
-	banDesc.RequiredChecks = restrictChecks("ban")
-	sbanDesc.RequiredChecks = deleteRestrictChecks("sban")
-	tbanDesc.RequiredChecks = restrictChecks("tban")
+	banDesc.RequiredChecks = restrictChecks("ban", pmTargetChatCheck)
+	sbanDesc.RequiredChecks = deleteRestrictChecks("sban", pmTargetChatCheck)
+	tbanDesc.RequiredChecks = restrictChecks("tban", pmTargetChatCheck)
 	dbanDesc.RequiredChecks = deleteRestrictChecks("dban")
-	unbanDesc.RequiredChecks = restrictChecks("unban")
+	unbanDesc.RequiredChecks = restrictChecks("unban", pmTargetChatCheck)
 	banmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("banme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
 	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unbanall"), groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
-	kickDesc.RequiredChecks = restrictChecks("kick")
+	kickDesc.RequiredChecks = restrictChecks("kick", pmTargetChatCheck)
 	dkickDesc.RequiredChecks = deleteRestrictChecks("dkick")
-	skickDesc.RequiredChecks = deleteRestrictChecks("skick")
+	skickDesc.RequiredChecks = deleteRestrictChecks("skick", pmTargetChatCheck)
 	kickmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("kickme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
-	restrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("restrict"), helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
-	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unrestrict"), helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	restrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("restrict"), pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unrestrict"), pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 }
 
 func LoadBans(dispatcher *ext.Dispatcher) {
