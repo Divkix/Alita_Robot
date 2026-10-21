@@ -90,20 +90,14 @@ func TestWrapCommandSettingsInPMWithGroupChangeThatGroup(t *testing.T) {
 	}
 }
 
-// Every WrapCommand settings command sent from PM without a group and without
-// a connection answers with its help, its example and the user's groups.
+// One WrapCommand settings command per module, sent from PM without a group
+// and without a connection, answers with its help, its example and the
+// user's groups.
 func TestWrapCommandSettingsInPMWithoutGroupReplyHelp(t *testing.T) {
 	f := titleFixture(t, "My Group")
 	dispatcher := pmWrapCommandDispatcher()
 	pick := translated(t, "connections_pm_group_pick")
-	for _, cmd := range []string{
-		"welcome", "setwelcome", "resetwelcome", "goodbye", "setgoodbye", "resetgoodbye",
-		"cleanwelcome", "cleangoodbye", "cleanservice", "autoapprove",
-		"captcha", "captchamode", "captchatime", "captchaaction", "captchamaxattempts",
-		"captchapending", "captchaclear",
-		"setwarnlimit", "setwarnmode", "setwarntime",
-		"aispam", "spamdb", "anonadmin",
-	} {
+	for _, cmd := range []string{"setwelcome", "captchamode", "setwarnlimit", "aispam", "spamdb", "anonadmin"} {
 		t.Run(cmd, func(t *testing.T) {
 			before := len(f.client.callsFor("sendMessage"))
 

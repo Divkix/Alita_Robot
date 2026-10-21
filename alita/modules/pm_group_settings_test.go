@@ -151,23 +151,19 @@ func TestSettingsCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
 	}
 }
 
-// pmGroupCommands returns the commands the modules register through
-// withPMGroupArg, read from a dispatcher with every module loaded. Inlined
-// copies of the wrapper's closure keep its function name, which tells it apart.
-func pmGroupCommands(t *testing.T) []handlers.Command {
+// dispatcherCommands returns the commands registered in dispatcher, which
+// gotgbot keeps unexported.
+func dispatcherCommands(t *testing.T, dispatcher *ext.Dispatcher) []handlers.Command {
 	t.Helper()
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadAllModules(dispatcher)
 	field := reflect.ValueOf(dispatcher).Elem().FieldByName("handlers").FieldByName("handlers")
 	if field.Kind() != reflect.Map {
 		t.Fatal("ext.Dispatcher no longer keeps its handlers in handlers.handlers")
 	}
 	groups := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(map[int][]ext.Handler)
-	wrapper := funcName(withPMGroupArg("", helpers.PMGroupArgNone, nil))
 	var cmds []handlers.Command
 	for _, group := range groups {
 		for _, h := range group {
-			if cmd, ok := h.(handlers.Command); ok && funcName(cmd.Response) == wrapper {
+			if cmd, ok := h.(handlers.Command); ok {
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -175,21 +171,30 @@ func pmGroupCommands(t *testing.T) []handlers.Command {
 	return cmds
 }
 
-func funcName(f handlers.Response) string {
+// funcName returns the name of function f. The closures a function returns are
+// named after it with a suffix, inlined copies too.
+func funcName(f any) string {
 	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 }
 
 // Every command that takes its group from PM answers a call without a group
 // with the help entry and example of a command in commandHelpModules, so a
-// new command or alias without an entry fails here.
+// new command or alias without an entry fails here. Every withPMGroupArg
+// command must ask for the group; a WrapCommand command asks only when its
+// descriptor sets PMGroupArg.
 func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	cmds := pmGroupCommands(t)
-	if !slices.ContainsFunc(cmds, func(cmd handlers.Command) bool { return cmd.Command == "lock" }) {
-		t.Fatalf("found %d commands wrapped by withPMGroupArg, /lock not among them", len(cmds))
-	}
+	legacy, pipeline := funcName(withPMGroupArg)+".", funcName(helpers.WrapCommand)+"."
+	all := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAllModules(all)
 	pick := translated(t, "connections_pm_group_pick")
-	for _, cmd := range cmds {
+	var asked []string
+	for _, cmd := range dispatcherCommands(t, all) {
+		name := funcName(cmd.Response)
+		isLegacy := strings.HasPrefix(name, legacy)
+		if !isLegacy && !strings.HasPrefix(name, pipeline) {
+			continue
+		}
 		dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 		dispatcher.AddHandler(cmd)
 		before := len(f.client.callsFor("sendMessage"))
@@ -198,15 +203,23 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 
 		replies := f.client.callsFor("sendMessage")[before:]
 		if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), pick) {
-			t.Errorf("/%s from PM replied %+v, want one reply asking for the group", cmd.Command, replies)
+			if isLegacy {
+				t.Errorf("/%s from PM replied %+v, want one reply asking for the group", cmd.Command, replies)
+			}
 			continue
 		}
+		asked = append(asked, cmd.Command)
 		text := fmt.Sprint(replies[0].Params["text"])
 		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules)), func(help string) bool {
 			example := commandExample(help)
 			return example != "" && strings.Contains(text, html.EscapeString(example))
 		}) {
 			t.Errorf("/%s from PM answers without a help entry; add its command to commandHelpModules", cmd.Command)
+		}
+	}
+	for _, want := range []string{"lock", "setwelcome"} {
+		if !slices.Contains(asked, want) {
+			t.Fatalf("/%s is not among the %d commands that asked for the group: %v", want, len(asked), asked)
 		}
 	}
 }
