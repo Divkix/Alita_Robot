@@ -465,24 +465,9 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 
 	if oneOff := OneOffGroup(ctx); msg.Chat.Type == "private" && oneOff != nil {
-		// A group named in the command is checked like a connection, but a
-		// failed check leaves the saved connection alone.
-		if chatAdmin && IsUserAdmin(b, oneOff.Id, user.Id) {
-			userAdminVerified = true
-		} else if isMember, err := IsUserInChatWithError(b, oneOff, user.Id); err != nil || !isMember {
-			key := "connections_connect_not_member"
-			if err != nil {
-				log.WithFields(log.Fields{
-					"userId": user.Id,
-					"chatId": oneOff.Id,
-					"error":  err,
-				}).Warn("One-off group membership check failed")
-				key = "error_generic"
-			}
-			text, _ := tr.GetString(key)
-			respond(text)
-			return nil
-		}
+		// The group named in the command passed the /connect checks, membership
+		// included, before it was set; only the chatAdmin and botAdmin checks
+		// below remain, and a failed one leaves the saved connection alone.
 		chat = oneOff
 	} else if msg.Chat.Type == "private" {
 		conn := connections.Connection(user.Id)
