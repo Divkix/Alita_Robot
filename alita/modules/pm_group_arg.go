@@ -15,12 +15,14 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // pmGroupToken is the first argument of a PM command, which may name a group.
@@ -295,12 +297,7 @@ func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmG
 // groupByTitle returns the one group the user administers titled tok.Raw, or
 // nil after answering why there is none.
 func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Chat {
-	entries, wait := adminGroupsForUser(c.b, c.ctx, c.tr, c.ctx.EffectiveUser.Id)
-	if wait != "" {
-		_ = c.reply(wait)
-		return nil
-	}
-	switch matches := pmGroupsTitled(entries, tok.Raw); len(matches) {
+	switch matches := c.adminGroupsTitled(tok.Raw); len(matches) {
 	case 0:
 	case 1:
 		if group := lookupPMGroup(c.b, strconv.FormatInt(matches[0].ChatID, 10)); group != nil {
@@ -311,8 +308,39 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 		_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)) + "\n" + pmGroupList(matches))
 		return nil
 	}
-	_ = c.reply(pmGroupHelpText(c.tr, c.cmd, notFound, entries, ""))
+	c.replyHelp(notFound)
 	return nil
+}
+
+// adminGroupsTitled returns the groups titled title, ignoring case, that the
+// user administers among the connected group and the settingsCandidateLimit
+// groups they posted in most recently. Only groups with that title are checked,
+// so the /settings picker's button cap and live budget do not hide a group.
+func (c pmGroupCall) adminGroupsTitled(title string) []settingsPickerEntry {
+	userID := c.ctx.EffectiveUser.Id
+	var entries []settingsPickerEntry
+	if conn := connections.Connection(userID); conn.Connected && conn.ChatId != 0 {
+		if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {
+			entries = append(entries, settingsPickerEntry{ChatID: conn.ChatId, Title: info.ChatName})
+		}
+	}
+	candidates, err := settingsCandidateChats(tracing.UpdateContext(c.ctx), userID, settingsCandidateLimit)
+	if err != nil {
+		log.WithFields(log.Fields{"userId": userID, "error": err}).Warn("[PMGroupArg] candidate chats failed")
+	}
+	for _, candidate := range candidates {
+		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
+	}
+
+	var matches []settingsPickerEntry
+	seen := map[int64]bool{}
+	for _, entry := range pmGroupsTitled(entries, title) {
+		if !seen[entry.ChatID] && chat_status.IsUserAdmin(c.b, entry.ChatID, userID) {
+			matches = append(matches, entry)
+		}
+		seen[entry.ChatID] = true
+	}
+	return matches
 }
 
 // runWithGroup checks the group like /connect, then runs h with it in place of

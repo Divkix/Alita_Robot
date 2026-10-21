@@ -342,6 +342,8 @@ connections_help_msg:
 
   Enquanto conectados, administradores também podem usar /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect e /lang group no privado.
 
+  No privado, /rules, /notes e /filters aceitam o grupo como primeiro argumento: o ID, o @username ou o título de um grupo onde você é administrador. Títulos são procurados só entre o grupo conectado e os 50 grupos com atividade mais recente onde você escreveu; indique qualquer outro grupo pelo @username ou ID.
+
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
   se o id for negativo; todos os supergrupos têm ids negativos."
