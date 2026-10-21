@@ -388,9 +388,6 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	if !ok {
 		return ext.EndGroups
 	}
-	if ctx.EffectiveChat == nil {
-		return ext.EndGroups
-	}
 
 	decoded, _ := decodeCallbackData(query.Data, "rmAllFilters")
 	chat := ownerConfirmChat(b, ctx, query, decoded)
