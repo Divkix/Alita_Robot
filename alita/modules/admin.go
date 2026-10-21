@@ -649,7 +649,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 
 func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	b := c.Bot
-	chat := c.Chat
 	msg := c.Msg
 	user := c.User
 	if user == nil {
@@ -658,6 +657,10 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	var err error
 
+	chat := groupOnlyChat(b, c.Ctx)
+	if chat == nil {
+		return ext.EndGroups
+	}
 	if !chat_status.RequireGroup(b, c.Ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -701,11 +704,15 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 }
 
 var (
+	// From PM, the group-only commands below take their group as the first
+	// argument (or from the connection), and their checks see that group.
 	adminlistDesc = helpers.CommandDescriptor{
 		Name:        "adminlist",
 		Disableable: true,
+		PMGroupArg:  helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.CheckDisabled("adminlist"),
+			groupOnlyChatCheck,
 			helpers.RequireBotAdmin(),
 			helpers.RequireGroup(),
 		},
@@ -741,16 +748,20 @@ var (
 		},
 	}
 	getinvitelinkDesc = helpers.CommandDescriptor{
-		Name: "invitelink",
+		Name:       "invitelink",
+		PMGroupArg: helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.CheckFunc{
+			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.CanInvite(),
 		},
 	}
 	clearAdminCacheDesc = helpers.CommandDescriptor{
-		Name: "clearadmincache",
+		Name:       "clearadmincache",
+		PMGroupArg: helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.CheckFunc{
+			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserAdmin(),
@@ -760,9 +771,11 @@ var (
 	// also works from PM through a connection or with the group named.
 	anonAdminDesc = helpers.CommandDescriptor{Name: "anonadmin", PMGroupArg: helpers.PMGroupArgOwn}
 	setGTitleDesc = helpers.CommandDescriptor{
-		Name:    "setgtitle",
-		Aliases: []string{"setgrouptitle"},
+		Name:       "setgtitle",
+		Aliases:    []string{"setgrouptitle"},
+		PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{
+			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserAdmin(),
@@ -782,9 +795,11 @@ var (
 		},
 	}
 	setGDescDesc = helpers.CommandDescriptor{
-		Name:    "setgdesc",
-		Aliases: []string{"setgroupdesc", "setdescription"},
+		Name:       "setgdesc",
+		Aliases:    []string{"setgroupdesc", "setdescription"},
+		PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{
+			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserAdmin(),
@@ -808,14 +823,14 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, setGPicDesc, adminModule.setGPic)
 	helpers.WrapCommand(dispatcher, setGDescDesc, adminModule.setGDesc)
 
-	dispatcher.AddHandler(handlers.NewCommand("admincache", func(b *gotgbot.Bot, ctx *ext.Context) error {
+	dispatcher.AddHandler(handlers.NewCommand("admincache", withPMGroupArg("admincache", helpers.PMGroupArgNone, func(b *gotgbot.Bot, ctx *ext.Context) error {
 		defer error_handling.RecoverFromPanic("admincache", "admin")
 		c, err := helpers.BuildCommandContext(b, ctx)
 		if err != nil {
 			return ext.EndGroups
 		}
 		return adminModule.adminCache(c)
-	}))
+	})))
 }
 
 func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {

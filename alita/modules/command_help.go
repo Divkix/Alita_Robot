@@ -108,6 +108,13 @@ var commandHelpModules = map[string]string{
 	"unapproveall":  "approvals",
 	"resetallwarns": "warns",
 	"unbanall":      "bans",
+	// Group-only admin commands, with the group from PM.
+	"adminlist":       "admin",
+	"invitelink":      "admin",
+	"setgtitle":       "admin",
+	"setgdesc":        "admin",
+	"admincache":      "admin",
+	"clearadmincache": "admin",
 }
 
 // helpCommandLine matches a help line that defines commands: an optional

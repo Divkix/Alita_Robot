@@ -886,6 +886,8 @@ connections_help_msg:
 
   En privé, le propriétaire d'un groupe peut aussi utiliser /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns et /unbanall, et ses administrateurs /privnote : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. La confirmation agit sur ce groupe et seul son propriétaire peut l'utiliser.
 
+  En privé, les administrateurs d'un groupe peuvent aussi utiliser /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache et /clearadmincache : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. Il faut les mêmes droits que dans le groupe, et la réponse arrive en privé.
+
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
   si l'id est négatif ; tous les super groupes ont des ids négatifs."

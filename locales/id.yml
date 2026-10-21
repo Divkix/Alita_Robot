@@ -355,6 +355,8 @@ connections_help_msg:
 
   Dari obrolan pribadi, pemilik grup juga dapat menjalankan /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns dan /unbanall, dan adminnya /privnote: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Konfirmasi berlaku untuk grup itu dan hanya pemiliknya yang dapat menekannya.
 
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
+
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
   jika id negatif; semua grup super memiliki id negatif."
