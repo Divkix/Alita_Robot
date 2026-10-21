@@ -48,6 +48,14 @@ Individual notes can override this behavior:
 Admins can see a note's raw content without formatting (for editing):
 `/get notename noformat` or `#notename noformat`
 
+**Notes of a group from PM:**
+In PM, `/notes` and `/saved` take the group as the first argument: its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces):
+`/notes -1001234567890`
+`/notes @mygroup`
+`/notes "My Group"`
+
+This works without `/connect` and, when you are connected, lists the named group's notes instead of the connected one's; the connection stays as it is. The group passes the same checks as `/connect`. When two of your groups share a title, the bot lists both with their IDs and asks for the @username or ID. Without an argument and without a connection, the bot answers with the command's help, an example and the groups where you are an admin. In a group the argument is ignored.
+
 
 ## Module Aliases
 

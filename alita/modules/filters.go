@@ -689,7 +689,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("stop", filtersModule.rmFilter))
 	dispatcher.AddHandler(handlers.NewCommand("rmfilter", filtersModule.rmFilter))
 	dispatcher.AddHandler(handlers.NewCommand("removefilter", filtersModule.rmFilter))
-	dispatcher.AddHandler(handlers.NewCommand("filters", filtersModule.filtersList))
+	dispatcher.AddHandler(handlers.NewCommand("filters", withPMGroupArg("filters", pmArgsNone, filtersModule.filtersList)))
 	helpers.AddCmdToDisableable("filters")
 	dispatcher.AddHandler(handlers.NewCommand("stopall", filtersModule.rmAllFilters))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters"), filtersModule.filtersButtonHandler))

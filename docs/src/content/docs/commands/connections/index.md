@@ -64,6 +64,12 @@ For detailed command usage, refer to the commands table above.
   (admins always allowed; non-admins need `allow_connect` enabled and must
   be current members, not kicked/left).
 
+## A Group as the First Argument in PM
+
+Some commands take the group as their first argument in PM, so they work without `/connect`: `/rules`, `/notes`, `/saved` and `/filters`. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"`. The group passes the same checks as `/connect`, and the saved connection stays as it is. Looking a group up by title shares the `/settings` picker's pause and time budget; an ID or @username is looked up directly.
+
+`/connect` without an argument in PM answers with its help, an example and the groups where you are an admin, with their IDs.
+
 ## Settings Summary
 
 `/settings` in PM lists up to 20 groups where you are an admin: the
