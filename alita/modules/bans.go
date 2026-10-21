@@ -795,19 +795,21 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		updatedText = ctx.EffectiveMessage.Text
 	}
 	if updatedText != "" {
-		updatedText = "<s>" + updatedText + "</s>\n\n"
+		updatedText = "<s>" + html.EscapeString(updatedText) + "</s>\n\n"
 	}
 
-	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: updatedText + helpText, ParseMode: formatting.HTML})
-	if err != nil {
+	// Answer even when the edit fails, or the button keeps spinning.
+	_, _, editErr := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: updatedText + helpText, ParseMode: formatting.HTML})
+	if editErr != nil {
+		log.Error(editErr)
+	}
+
+	if _, err = query.Answer(b, nil); err != nil {
 		log.Error(err)
 		return err
 	}
-
-	_, err = query.Answer(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
+	if editErr != nil {
+		return editErr
 	}
 
 	return ext.EndGroups

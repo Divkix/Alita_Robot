@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -1290,5 +1291,45 @@ func TestBanByAnonymousAdminSendsOnlyTheProofKeyboard(t *testing.T) {
 	}
 	if calls[0].Params["reply_markup"] == nil {
 		t.Fatalf("sendMessage = %#v, want the proof keyboard", calls[0].Params)
+	}
+}
+
+func TestUnrestrictCallbackEscapesTheStruckThroughMessage(t *testing.T) {
+	const source = "Tom & <Jerry>: How can I unrestrict this user?"
+	for _, action := range []string{"unmute", "unban"} {
+		t.Run(action, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+
+			data := encodeCallbackData("unrestrict", map[string]string{"a": action, "u": "42"})
+			ctx := newModuleCallbackContext(bot, chat, admin, data)
+			ctx.EffectiveMessage.Text = source
+			if err := bansModule.unrestrictButtonHandler(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("unrestrictButtonHandler(%s) error = %v, want EndGroups", action, err)
+			}
+
+			edit := client.onlyCall(t, "editMessageText")
+			text, _ := edit.Params["text"].(string)
+			if want := "<s>Tom &amp; &lt;Jerry&gt;: How can I unrestrict this user?</s>\n\n"; !strings.HasPrefix(text, want) {
+				t.Fatalf("edited text = %q, want it to start with %q", text, want)
+			}
+		})
+	}
+}
+
+func TestUnrestrictCallbackAnswersWhenTheEditFails(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	requestErr := errors.New("can't parse entities")
+	client.errors["editMessageText"] = requestErr
+
+	data := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "42"})
+	ctx := newModuleCallbackContext(bot, chat, admin, data)
+	if err := bansModule.unrestrictButtonHandler(bot, ctx); err != nil && !errors.Is(err, requestErr) {
+		t.Fatalf("unrestrictButtonHandler(edit failure) error = %v, want nil or the edit error", err)
+	}
+
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1 so the button stops spinning", len(calls))
 	}
 }
