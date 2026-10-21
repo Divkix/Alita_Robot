@@ -26,40 +26,40 @@ log_example: "/log @mygroup admin"
 nolog_example: "/nolog @mygroup settings"
 locks_example: '/locks "My Group"'
 locktypes_example: '/locktypes "My Group"'
-lock_example: '/lock "My Group" sticker'
-unlock_example: '/unlock "My Group" sticker'
+lock_example: "/lock @mygroup sticker"
+unlock_example: "/unlock @mygroup sticker"
 flood_example: '/flood "My Group"'
-setflood_example: '/setflood "My Group" 10'
-setfloodmode_example: '/setfloodmode "My Group" mute'
-delflood_example: '/delflood "My Group" on'
+setflood_example: "/setflood @mygroup 10"
+setfloodmode_example: "/setfloodmode @mygroup mute"
+delflood_example: "/delflood @mygroup on"
 disabled_example: '/disabled "My Group"'
-disable_example: '/disable "My Group" rules'
-enable_example: '/enable "My Group" rules'
-disabledel_example: '/disabledel "My Group" on'
+disable_example: "/disable @mygroup rules"
+enable_example: "/enable @mygroup rules"
+disabledel_example: "/disabledel @mygroup on"
 reactions_example: '/reactions "My Group"'
-addreaction_example: '/addreaction "My Group" hello 👍'
-removereaction_example: '/removereaction "My Group" hello'
+addreaction_example: "/addreaction @mygroup hello 👍"
+removereaction_example: "/removereaction @mygroup hello"
 resetreactions_example: '/resetreactions "My Group"'
-antiraid_example: '/antiraid "My Group" on'
-raidtime_example: '/raidtime "My Group" 6h'
-raidactiontime_example: '/raidactiontime "My Group" 1h'
-autoantiraid_example: '/autoantiraid "My Group" 10'
-antichannelpin_example: '/antichannelpin "My Group" on'
-cleanlinked_example: '/cleanlinked "My Group" on'
-allowconnect_example: '/allowconnect "My Group" on'
-setrules_example: '/setrules "My Group" Be kind to each other.'
+antiraid_example: "/antiraid @mygroup on"
+raidtime_example: "/raidtime @mygroup 6h"
+raidactiontime_example: "/raidactiontime @mygroup 1h"
+autoantiraid_example: "/autoantiraid @mygroup 10"
+antichannelpin_example: "/antichannelpin @mygroup on"
+cleanlinked_example: "/cleanlinked @mygroup on"
+allowconnect_example: "/allowconnect @mygroup on"
+setrules_example: "/setrules @mygroup Be kind to each other."
 resetrules_example: '/resetrules "My Group"'
-privaterules_example: '/privaterules "My Group" on'
-rulesbtn_example: '/rulesbtn "My Group" Read the rules'
+privaterules_example: "/privaterules @mygroup on"
+rulesbtn_example: "/rulesbtn @mygroup Read the rules"
 resetrulesbutton_example: '/resetrulesbutton "My Group"'
 blacklists_example: '/blacklists "My Group"'
-addblacklist_example: '/addblacklist "My Group" spamword'
-rmblacklist_example: '/rmblacklist "My Group" spamword'
-blaction_example: '/blaction "My Group" mute'
+addblacklist_example: "/addblacklist @mygroup spamword"
+rmblacklist_example: "/rmblacklist @mygroup spamword"
+blaction_example: "/blaction @mygroup mute"
 approved_example: '/approved "My Group"'
-approve_example: '/approve "My Group" @username'
-unapprove_example: '/unapprove "My Group" @username'
-approval_example: '/approval "My Group" @username'
+approve_example: "/approve -1001234567890 @username"
+unapprove_example: "/unapprove -1001234567890 @username"
+approval_example: "/approval -1001234567890 @username"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]

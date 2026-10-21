@@ -208,3 +208,48 @@ func TestLockInPMWithGroupRefusesNonAdmin(t *testing.T) {
 		t.Fatalf("member connection = %+v, want it kept on %d", conn, connected)
 	}
 }
+
+// On a connection to another group, a command with arguments of its own
+// called with the title of the user's group, as the help examples once
+// showed, changes neither group.
+func TestSettingsCommandsInPMOnConnectionWithGroupTitleChangeNothing(t *testing.T) {
+	for _, tc := range []struct {
+		text  string
+		state func(id int64) any
+	}{
+		{`/setrules "My Group" Be kind to each other.`, func(id int64) any { return rules.GetChatRulesInfo(id).Rules }},
+		{`/addblacklist "My Group" spamword`, func(id int64) any { return fmt.Sprint(blacklists.GetBlacklistSettings(id).Triggers()) }},
+		{`/rmblacklist "My Group" spamword`, func(id int64) any { return fmt.Sprint(blacklists.GetBlacklistSettings(id).Triggers()) }},
+		{`/disable "My Group" rules`, func(id int64) any { return disabling.IsCommandDisabled(id, "rules") }},
+		{`/lock "My Group" sticker`, func(id int64) any { return locks.IsPermLocked(id, "sticker") }},
+		{`/rulesbtn "My Group" Read the rules`, func(id int64) any { return rules.GetChatRulesInfo(id).RulesBtn }},
+		{`/addreaction "My Group" hello 👍`, func(id int64) any { return fmt.Sprint(reactions.GetReactions(id)) }},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			f := titleFixture(t, "My Group")
+			other := uniqueModuleChatID()
+			f.addGroup(t, other, "Other", true)
+			for _, id := range []int64{f.chat.Id, other} {
+				if err := blacklists.AddBlacklist(id, "spamword"); err != nil {
+					t.Fatalf("AddBlacklist() error = %v", err)
+				}
+			}
+			if err := rules.SetChatRules(other, "B rules"); err != nil {
+				t.Fatalf("SetChatRules() error = %v", err)
+			}
+			if err := connections.ConnectId(f.admin.Id, other); err != nil {
+				t.Fatalf("ConnectId() error = %v", err)
+			}
+			t.Cleanup(func() { _ = connections.DisconnectId(f.admin.Id) })
+			beforeA, beforeB := tc.state(f.chat.Id), tc.state(other)
+
+			processPM(t, pmSettingsDispatcher(), f, f.admin.Id, tc.text)
+
+			if afterA, afterB := tc.state(f.chat.Id), tc.state(other); afterA != beforeA || afterB != beforeB {
+				t.Fatalf("%s: named group %v -> %v, connected group %v -> %v, want both unchanged; sent:\n%s",
+					tc.text, beforeA, afterA, beforeB, afterB, sentText(f.client))
+			}
+			requireTitleRefused(t, f, "My Group", other)
+		})
+	}
+}
