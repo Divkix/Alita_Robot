@@ -22,7 +22,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 var (
@@ -180,9 +179,9 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	if entities != nil && ent != nil && int(ent.Offset) == (len(msg.Text)-len(textToParse)) {
 		ent = &entities[0]
 		userId = ent.User.Id
-		mentionEnd := ent.Offset + ent.Length
-		// Entity ranges count UTF-16 units: take everything after the mention.
-		text = ExtractEntityText(msg.Text, mentionEnd, int64(formatting.UTF16Len(msg.Text))-mentionEnd)
+		// ParseEntityTypes normalises entity offsets to UTF-8 bytes, so the
+		// suffix is a byte slice, not a UTF-16 range.
+		text = msg.Text[ent.Offset+ent.Length:]
 	} else if hasArgs && args[1][0] == '@' {
 		user := args[1]
 		userId = GetUserId(b, user)
