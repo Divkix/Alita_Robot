@@ -238,6 +238,26 @@ func TestRulesInPMAllowConnectOffRefusesMember(t *testing.T) {
 	}
 }
 
+// The /connect checks that admit a member to the named group already looked
+// the member up, so the command does not ask Telegram again.
+func TestPMGroupArgChecksMembershipOnce(t *testing.T) {
+	f := oneOffFixture(t)
+	f.client.membersByUser[fmt.Sprint(f.member.Id)] = json.RawMessage(fmt.Sprintf(
+		`{"status":"member","user":{"id":%d,"is_bot":false,"first_name":"Member"}}`, f.member.Id))
+
+	sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.member, "/rules @fixturegroup", "Be kind to each other")
+
+	var lookups int
+	for _, call := range callsToChat(f.client, "getChatMember", f.chat.Id) {
+		if fmt.Sprint(call.Params["user_id"]) == fmt.Sprint(f.member.Id) {
+			lookups++
+		}
+	}
+	if lookups != 1 {
+		t.Fatalf("getChatMember calls for the member in the group = %d, want 1", lookups)
+	}
+}
+
 // sendRichPMRules sends /rules followed by args as a rich message in the
 // admin's PM.
 func sendRichPMRules(t *testing.T, f adminChatFixture, args string) {
@@ -389,18 +409,19 @@ func TestIsUserConnectedPrefersOneOffGroup(t *testing.T) {
 // Failing a check on the one-off group leaves the saved connection alone:
 // the user asked about another group, not about the connected one.
 func TestOneOffGroupRefusalKeepsConnection(t *testing.T) {
-	f := newAdminChatFixture(t)
+	f := oneOffFixture(t)
 	left := gotgbot.User{Id: 13, FirstName: "Left User"}
 	other := uniqueModuleChatID()
 	if err := connections.ConnectId(left.Id, other); err != nil {
 		t.Fatalf("ConnectId() error = %v", err)
 	}
 	t.Cleanup(func() { _ = connections.DisconnectId(left.Id) })
-	ctx := newModuleMessageContext(f.bot, privateChatOf(left), left, "/rules")
-	chat_status.SetOneOffGroup(ctx, &f.chat)
 
-	if got := chat_status.IsUserConnected(f.bot, ctx, false, false); got != nil {
-		t.Fatalf("IsUserConnected() = %+v, want a refusal for a user who left", got)
+	refusal := translated(t, "connections_connect_not_member")
+	sendPMCommand(t, rulesDispatcher(), f.bot, f.client, left, "/rules @fixturegroup", strings.TrimSpace(refusal))
+
+	if strings.Contains(sentText(f.client), "Be kind to each other") {
+		t.Fatalf("sent rules to a user who left: %s", sentText(f.client))
 	}
 	if conn := connections.Connection(left.Id); !conn.Connected || conn.ChatId != other {
 		t.Fatalf("connection = %+v, want it kept on %d", conn, other)

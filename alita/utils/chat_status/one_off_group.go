@@ -11,6 +11,8 @@ import (
 const OneOffGroupDataKey = "pmOneOffGroup"
 
 // SetOneOffGroup makes chat the group IsUserConnected returns for this update.
+// The caller must have checked the user against chat as /connect does:
+// IsUserConnected checks only admin rights on it, not membership.
 func SetOneOffGroup(ctx *ext.Context, chat *gotgbot.Chat) {
 	if ctx.Data == nil {
 		ctx.Data = make(map[string]any)
