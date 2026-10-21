@@ -16,44 +16,48 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
-func checkChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) {
-	reportsrc = &models.ReportChatSettings{}
+func checkChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
+	reportsrc := &models.ReportChatSettings{}
 	err := db.GetRecord(reportsrc, models.ReportChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 			log.Errorf("[Database] GetChatReportSettings: Failed to ensure chat exists for %d: %v", chatID, err)
-			return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
+			return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, err
 		}
 
 		reportsrc = &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
-		err := db.CreateRecord(reportsrc)
-		if err != nil {
+		if err := db.CreateRecord(reportsrc); err != nil {
 			log.Error(err)
+			return reportsrc, err
 		}
-	} else if err != nil {
-		reportsrc = &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
-		log.Error(err)
+		return reportsrc, nil
 	}
-	return
+	if err != nil {
+		log.Error(err)
+		return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, err
+	}
+	return reportsrc, nil
 }
 
-func GetChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) {
+func GetChatReportSettings(chatID int64) *models.ReportChatSettings {
 	reportsrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
 		cache.CacheKey("report_settings", chatID),
 		cache.CacheTTLReportSettings,
 		func(context.Context) (*models.ReportChatSettings, error) {
-			return checkChatReportSettings(chatID), nil
+			return checkChatReportSettings(chatID)
 		},
 	)
 	if err != nil || reportsrc == nil {
-		return checkChatReportSettings(chatID)
+		reportsrc, _ = checkChatReportSettings(chatID)
 	}
 	return reportsrc
 }
 
 func SetChatReportStatus(chatID int64, pref bool) error {
-	GetChatReportSettings(chatID)
+	if _, err := checkChatReportSettings(chatID); err != nil {
+		log.Errorf("[Database] SetChatReportStatus: ensure settings for %d: %v", chatID, err)
+	}
 	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatID}, map[string]any{
 		"enabled": pref,
 		"status":  pref,
@@ -83,7 +87,9 @@ func UnblockReportUser(chatId, userId int64) error {
 }
 
 func updateReportBlockList(chatId, userId int64, block bool) error {
-	GetChatReportSettings(chatId)
+	if _, err := checkChatReportSettings(chatId); err != nil {
+		log.Errorf("[Database] updateReportBlockList: ensure settings for %d: %v", chatId, err)
+	}
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var chat models.Chat

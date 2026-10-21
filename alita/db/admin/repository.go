@@ -17,35 +17,36 @@ func GetAdminSettings(chatID int64) *models.AdminSettings {
 		cache.CacheKey("admin", chatID),
 		cache.CacheTTLAdminSettings,
 		func(context.Context) (*models.AdminSettings, error) {
-			return checkAdminSetting(chatID), nil
+			return checkAdminSetting(chatID)
 		},
 	)
 	if err != nil || settings == nil {
-		return checkAdminSetting(chatID)
+		settings, _ = checkAdminSetting(chatID)
 	}
 	return settings
 }
 
-func checkAdminSetting(chatID int64) (adminSrc *models.AdminSettings) {
-	adminSrc = &models.AdminSettings{}
+func checkAdminSetting(chatID int64) (*models.AdminSettings, error) {
+	adminSrc := &models.AdminSettings{}
 
 	err := db.GetRecord(adminSrc, models.AdminSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		adminSrc = &models.AdminSettings{ChatId: chatID, AnonAdmin: false}
-		err := db.CreateRecord(adminSrc)
-		if err != nil {
+		if err := db.CreateRecord(adminSrc); err != nil {
 			log.Errorf("[Database][checkAdminSetting]: %v ", err)
+			return adminSrc, err
 		}
 	} else if err != nil {
-		adminSrc = &models.AdminSettings{ChatId: chatID, AnonAdmin: false}
 		log.Errorf("[Database][checkAdminSetting]: %v ", err)
+		return &models.AdminSettings{ChatId: chatID, AnonAdmin: false}, err
 	}
-	return adminSrc
+	return adminSrc, nil
 }
 
 func SetAnonAdminMode(chatID int64, val bool) error {
-	adminSrc := checkAdminSetting(chatID)
-	adminSrc.AnonAdmin = val
+	if _, err := checkAdminSetting(chatID); err != nil {
+		log.Errorf("[Database] SetAnonAdminMode: ensure settings for %d: %v", chatID, err)
+	}
 
 	err := db.UpdateRecordWithZeroValues(&models.AdminSettings{}, models.AdminSettings{ChatId: chatID}, map[string]any{"anon_admin": val})
 	if err != nil {
