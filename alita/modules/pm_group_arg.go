@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"errors"
 	"fmt"
 	"html"
 	"strconv"
@@ -221,10 +220,7 @@ func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) han
 			return h(b, ctx)
 		}
 		// Later handler groups must not see the cut message.
-		if err := h(b, ctx); err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
-			helpers.LogHandlerError(ctx, err)
-		}
-		return ext.EndGroups
+		return helpers.EndGroupsLogging(ctx, h(b, ctx))
 	}
 }
 

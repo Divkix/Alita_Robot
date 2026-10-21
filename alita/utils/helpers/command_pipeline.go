@@ -99,7 +99,7 @@ func WrapCommand(
 				}
 				if chat_status.OneOffGroup(ctx) != nil {
 					// Later handler groups must not see the cut message.
-					defer func() { result = endGroupsLogging(ctx, result) }()
+					defer func() { result = EndGroupsLogging(ctx, result) }()
 				}
 			}
 		}
@@ -130,12 +130,12 @@ func endGroupsAfterChatSwap(ctx *ext.Context, err error) error {
 		ctx.EffectiveChat.Id == ctx.EffectiveMessage.Chat.Id {
 		return err
 	}
-	return endGroupsLogging(ctx, err)
+	return EndGroupsLogging(ctx, err)
 }
 
-// endGroupsLogging returns ext.EndGroups in place of err, logging a real
+// EndGroupsLogging returns ext.EndGroups in place of err, logging a real
 // error as the dispatcher's error handler would.
-func endGroupsLogging(ctx *ext.Context, err error) error {
+func EndGroupsLogging(ctx *ext.Context, err error) error {
 	if err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
 		LogHandlerError(ctx, err)
 	}

@@ -53,32 +53,48 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 	}
 }
 
-// Once a WrapCommand command has run on a group named from PM, later handler
-// groups do not see the message with the group cut out, even when the command
-// leaves ctx.EffectiveChat alone and lets groups continue.
+// Once a command has run on a group named from PM, later handler groups do
+// not see the message with the group cut out, even when the command leaves
+// ctx.EffectiveChat alone and lets groups continue: through WrapCommand and
+// through withPMGroupArg alike.
 func TestWrapCommandWithPMGroupEndsGroups(t *testing.T) {
-	f, _ := pmSettingsFixture(t)
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	var ran []string
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name:       "pmgrouptest",
-		PMGroupArg: helpers.PMGroupArgOwn,
-	}, func(c *helpers.CommandContext) error {
-		ran = c.Ctx.Args()
-		return nil
-	})
-	var later []string
-	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, func(_ *gotgbot.Bot, ctx *ext.Context) error {
-		later = append(later, ctx.EffectiveMessage.GetText())
-		return ext.ContinueGroups
-	}), 1)
+	for name, register := range map[string]func(d *ext.Dispatcher, ran *[]string){
+		"WrapCommand": func(d *ext.Dispatcher, ran *[]string) {
+			helpers.WrapCommand(d, helpers.CommandDescriptor{
+				Name:       "pmgrouptest",
+				PMGroupArg: helpers.PMGroupArgOwn,
+			}, func(c *helpers.CommandContext) error {
+				*ran = c.Ctx.Args()
+				return nil
+			})
+		},
+		"withPMGroupArg": func(d *ext.Dispatcher, ran *[]string) {
+			d.AddHandler(handlers.NewCommand("pmgrouptest", withPMGroupArg("pmgrouptest", helpers.PMGroupArgOwn,
+				func(_ *gotgbot.Bot, ctx *ext.Context) error {
+					*ran = ctx.Args()
+					return nil
+				})))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f, _ := pmSettingsFixture(t)
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			var ran []string
+			register(dispatcher, &ran)
+			var later []string
+			dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+				later = append(later, ctx.EffectiveMessage.GetText())
+				return ext.ContinueGroups
+			}), 1)
 
-	processPM(t, dispatcher, f, f.admin.Id, "/pmgrouptest @fixturegroup 5")
+			processPM(t, dispatcher, f, f.admin.Id, "/pmgrouptest @fixturegroup 5")
 
-	if strings.Join(ran, " ") != "/pmgrouptest 5" {
-		t.Fatalf("command ran with args %q, want [/pmgrouptest 5]; sent:\n%s", ran, sentText(f.client))
-	}
-	if len(later) != 0 {
-		t.Fatalf("a later handler group saw %q, want iteration ended", later)
+			if strings.Join(ran, " ") != "/pmgrouptest 5" {
+				t.Fatalf("command ran with args %q, want [/pmgrouptest 5]; sent:\n%s", ran, sentText(f.client))
+			}
+			if len(later) != 0 {
+				t.Fatalf("a later handler group saw %q, want iteration ended", later)
+			}
+		})
 	}
 }
