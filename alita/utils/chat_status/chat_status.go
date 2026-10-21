@@ -594,7 +594,7 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 		return true
 	}
 
-	return IsUserAdmin(b, ctx.EffectiveChat.Id, userId) || slices.Contains(tgAdminList, userId)
+	return IsUserAdmin(b, chat.Id, userId) || slices.Contains(tgAdminList, userId)
 }
 
 // AnonAdminCacheKey is the operational Redis key holding the message behind an

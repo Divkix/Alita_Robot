@@ -908,3 +908,58 @@ func TestIsChannelId(t *testing.T) {
 		t.Fatal("IsChannelId(1) should be false")
 	}
 }
+
+// perChatAdminsClient answers getChatAdministrators with a list that depends on
+// the chat asked about, so a check that reads the wrong chat gets another answer.
+type perChatAdminsClient struct {
+	adminsByChat map[string]int64
+}
+
+func (c perChatAdminsClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	chatID := fmt.Sprint(params["chat_id"])
+	switch method {
+	case "getChat":
+		return json.RawMessage(fmt.Sprintf(`{"id":%s,"type":"supergroup","title":"Chat"}`, chatID)), nil
+	case "getChatMember":
+		return json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"},"can_restrict_members":true}`), nil
+	case "getChatAdministrators":
+		return json.RawMessage(fmt.Sprintf(`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"}},{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}]`, c.adminsByChat[chatID])), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (perChatAdminsClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (perChatAdminsClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+func TestIsUserBanProtectedChecksTheGivenChat(t *testing.T) {
+	const (
+		adminOfA = int64(2101)
+		adminOfB = int64(2102)
+	)
+	chatA := &gotgbot.Chat{Id: -100210001, Type: "supergroup", Title: "A"}
+	chatB := &gotgbot.Chat{Id: -100210002, Type: "supergroup", Title: "B"}
+	bot := &gotgbot.Bot{
+		Token: "999:test",
+		BotClient: perChatAdminsClient{adminsByChat: map[string]int64{
+			fmt.Sprint(chatA.Id): adminOfA,
+			fmt.Sprint(chatB.Id): adminOfB,
+		}},
+		User: gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	// The context sits on B, as after a PM command swapped to another group.
+	ctx := makeCtxWithMessage("supergroup")
+	ctx.EffectiveChat = chatB
+
+	if !IsUserBanProtected(bot, ctx, chatA, adminOfA) {
+		t.Fatal("admin of the given chat A is not protected, want protected")
+	}
+	if IsUserBanProtected(bot, ctx, chatA, adminOfB) {
+		t.Fatal("admin of the context chat B only is protected in A, want not protected")
+	}
+}
