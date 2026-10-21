@@ -114,18 +114,6 @@ func utf16Len(s string) int64 {
 	return int64(len(utf16.Encode([]rune(s))))
 }
 
-// pmArgShape says whether a command takes arguments of its own after the group.
-type pmArgShape int
-
-const (
-	// pmArgsNone: the command takes no arguments, so with a connection any
-	// argument that names no group is a mistake.
-	pmArgsNone pmArgShape = iota
-	// pmArgsOwn: the command has arguments of its own, so with a connection an
-	// argument that names no group belongs to the command.
-	pmArgsOwn
-)
-
 // isPMGroupRef reports whether tok names a chat directly, by a negative chat
 // ID or an @username, rather than by a group's title.
 func isPMGroupRef(tok pmGroupToken) bool {
@@ -209,7 +197,7 @@ func replyPMGroupHelp(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cmd
 // of the saved connection and with the group cut from its message. A call
 // with no usable group gets the command's help and the user's groups. Outside
 // PM the command runs unchanged.
-func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.Response {
+func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) handlers.Response {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
 		if msg == nil || user == nil || msg.Chat.Type != "private" {
@@ -226,7 +214,7 @@ func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.
 			return h(b, ctx)
 		}
 
-		group, tok, runAsIs := c.group(shape)
+		group, tok, runAsIs := c.group(arg)
 		if runAsIs {
 			return h(b, ctx)
 		}
@@ -261,7 +249,7 @@ func (c pmGroupCall) replyHelp(errText string) {
 // group finds the group the call names. runAsIs is true when the command runs
 // as it came, on the saved connection; a nil group otherwise means the call
 // has been answered.
-func (c pmGroupCall) group(shape pmArgShape) (group *gotgbot.Chat, tok pmGroupToken, runAsIs bool) {
+func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmGroupToken, runAsIs bool) {
 	conn := connections.Connection(c.ctx.EffectiveUser.Id)
 	connected := conn.Connected && conn.ChatId != 0
 
@@ -281,7 +269,7 @@ func (c pmGroupCall) group(shape pmArgShape) (group *gotgbot.Chat, tok pmGroupTo
 	if group != nil {
 		return group, tok, false
 	}
-	if connected && shape == pmArgsOwn {
+	if connected && arg == helpers.PMGroupArgOwn {
 		// The argument is the command's own: with a connection only an
 		// @username or ID picks another group.
 		return nil, tok, true

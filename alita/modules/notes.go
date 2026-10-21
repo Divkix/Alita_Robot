@@ -960,7 +960,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	helpers.MultiCommand(dispatcher, []string{"save", "addnote"}, notesModule.addNote)
 	helpers.MultiCommand(dispatcher, []string{"clear", "rmnote"}, notesModule.rmNote)
 	for _, cmd := range []string{"notes", "saved"} {
-		dispatcher.AddHandler(handlers.NewCommand(cmd, withPMGroupArg(cmd, pmArgsNone, notesModule.notesList)))
+		dispatcher.AddHandler(handlers.NewCommand(cmd, withPMGroupArg(cmd, helpers.PMGroupArgNone, notesModule.notesList)))
 	}
 	helpers.AddCmdToDisableable("notes")
 	dispatcher.AddHandler(handlers.NewCommand("clearall", notesModule.rmAllNotes))

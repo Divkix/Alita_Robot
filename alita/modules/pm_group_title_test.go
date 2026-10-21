@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // setPMGroupCandidates makes groups the user's recently active groups, turns
@@ -297,7 +298,7 @@ func TestPMGroupArgOwnArgsTakesTitleWithoutConnection(t *testing.T) {
 	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, `/cmd "My Group" on`)
 	var args []string
 	var group *gotgbot.Chat
-	handler := withPMGroupArg("cmd", pmArgsOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
 		args, group = ctx.Args(), chat_status.OneOffGroup(ctx)
 		return ext.EndGroups
 	})
@@ -320,7 +321,7 @@ func TestPMGroupArgOwnArgsKeepsTitleWithConnection(t *testing.T) {
 	f.connectAdmin(t)
 	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, "/cmd mygroup on")
 	var args []string
-	handler := withPMGroupArg("cmd", pmArgsOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
 		args = ctx.Args()
 		return ext.EndGroups
 	})

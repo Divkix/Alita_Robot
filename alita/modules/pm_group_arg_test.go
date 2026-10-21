@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 func TestStripPMGroupTokenShiftsEntities(t *testing.T) {
@@ -289,7 +290,7 @@ func TestPMGroupArgHandlerSeesArgumentsWithoutGroup(t *testing.T) {
 	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, fmt.Sprintf("/cmd %d on now", f.chat.Id))
 	var args []string
 	var text string
-	handler := withPMGroupArg("cmd", pmArgsOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
 		args, text = ctx.Args(), ctx.EffectiveMessage.Text
 		return ext.EndGroups
 	})

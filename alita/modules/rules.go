@@ -311,7 +311,7 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 func LoadRules(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(rulesModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("rules", withPMGroupArg("rules", pmArgsNone, rulesModule.sendRules)))
+	dispatcher.AddHandler(handlers.NewCommand("rules", withPMGroupArg("rules", helpers.PMGroupArgNone, rulesModule.sendRules)))
 	helpers.AddCmdToDisableable("rules")
 	dispatcher.AddHandler(handlers.NewCommand("setrules", rulesModule.setRules))
 	helpers.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)

@@ -50,6 +50,21 @@ type CommandDescriptor struct {
 	Disableable    bool
 }
 
+// PMGroupArg says whether a command takes its group as the first argument in
+// PM, and whether it has arguments of its own after the group.
+type PMGroupArg int
+
+const (
+	// PMGroupArgOff: the command does not take a group from PM.
+	PMGroupArgOff PMGroupArg = iota
+	// PMGroupArgNone: the command takes no arguments, so with a connection
+	// any argument that names no group is a mistake.
+	PMGroupArgNone
+	// PMGroupArgOwn: the command has arguments of its own, so with a
+	// connection an argument that names no group belongs to the command.
+	PMGroupArgOwn
+)
+
 func WrapCommand(
 	dispatcher *ext.Dispatcher,
 	desc CommandDescriptor,
