@@ -398,7 +398,7 @@ connections_help_msg:
 
   From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
 
-  From PM, a group's admins can also run /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute and /unmute: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
+  From PM, a group's admins can also run /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
 
 
   You can retrieve the chat id by using the /id command in your chat. Don't be surprised
@@ -977,7 +977,7 @@ warns_help_msg:
 
   - /rmwarn: Remove a user's latest warning.
 
-  - /resetwarn: Reset all of a user's warnings to 0.
+  - /resetwarns: Reset all of a user's warnings to 0.
 
   - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 
@@ -2881,7 +2881,7 @@ warns_extend_msg: |
   /dwarn — warn and delete the replied message
   /warns — show a user's warnings
   /rmwarn — remove a user's last warning
-  /resetwarn — reset a user's warnings
+  /resetwarns — reset a user's warnings
   /resetallwarns — reset all warnings in the chat
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment

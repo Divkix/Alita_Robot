@@ -28,6 +28,14 @@ mute_pm_example: "/mute @mygroup @username flooding"
 smute_pm_example: "/smute -1001234567890 @username"
 tmute_pm_example: '/tmute "My Group" @username 30m'
 unmute_pm_example: "/unmute @mygroup @username"
+warn_example: "/warn @username spam"
+swarn_example: "/swarn @username spam"
+rmwarn_example: "/rmwarn @username"
+resetwarns_example: "/resetwarns @username"
+warn_pm_example: "/warn @mygroup @username spam"
+swarn_pm_example: "/swarn -1001234567890 @username"
+rmwarn_pm_example: '/rmwarn "My Group" @username'
+resetwarns_pm_example: "/resetwarns @mygroup @username"
 rules_example: '/rules "My Group"'
 notes_example: '/notes "My Group"'
 saved_example: '/saved "My Group"'
