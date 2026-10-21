@@ -144,7 +144,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   7 locales, with no `"` or unknown HTML tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`;
   `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Each such command also needs a `<cmd>_example` in
   `locales/config.yml` starting with `/<cmd> `, except reply-only commands (`replyOnlyCommands`: /dban, /dkick,
-  /dmute), which must have none; `TestEveryHelpCommandHasAnExample` enforces it.
+  /dmute), which must have none; `TestEveryHelpCommandHasAnExample` enforces it. Help sent to PM shows the optional
+  `<cmd>_pm_example` (the group first) in place of `<cmd>_example` when the command has one.
 
 ## Go rules
 

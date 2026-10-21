@@ -217,8 +217,13 @@ func commandHelpTextWith(tr *i18n.Translator, cmd, errText, example string) stri
 }
 
 // replyCommandHelp answers a call that cmd cannot run as given with errText
-// (HTML) and the help that shows how to call it.
+// (HTML) and the help that shows how to call it: from PM, with the PM example
+// (commandPMExample).
 func replyCommandHelp(b *gotgbot.Bot, msg *gotgbot.Message, tr *i18n.Translator, cmd, errText string) error {
-	_, err := msg.Reply(b, commandHelpText(tr, cmd, errText), formatting.Shtml())
+	example := commandExample(cmd)
+	if msg.Chat.Type == "private" {
+		example = commandPMExample(cmd)
+	}
+	_, err := msg.Reply(b, commandHelpTextWith(tr, cmd, errText, example), formatting.Shtml())
 	return err
 }
