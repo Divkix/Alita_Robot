@@ -321,6 +321,16 @@ func confirmationText(t *testing.T, f adminChatFixture, from int) string {
 	return texts[0]
 }
 
+// confirmQuestionKeys are the locale keys of the reset confirmations.
+var confirmQuestionKeys = map[string]string{
+	"clearall":      "notes_clear_all_confirm",
+	"stopall":       "filters_clear_all_confirm",
+	"remallbl":      "blacklists_rm_all_bl_ask",
+	"unapproveall":  "approvals_unapproveall_ask",
+	"resetallwarns": "warns_reset_all_confirm",
+	"unbanall":      "bans_unbanall_ask",
+}
+
 // A confirmation asked in PM names the group it resets, whether the group was
 // named or connected; asked in the group, it does not.
 func TestResetConfirmationInPMNamesGroup(t *testing.T) {
@@ -352,8 +362,8 @@ func TestResetConfirmationInPMNamesGroup(t *testing.T) {
 			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
 				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
 			}
-			if got := confirmationText(t, f, before); strings.Contains(got, fmt.Sprint(f.chat.Id)) {
-				t.Fatalf("/%s in the group asked %q, want the question without the group", tc.cmd, got)
+			if got, want := confirmationText(t, f, before), translated(t, confirmQuestionKeys[tc.cmd]); got != want {
+				t.Fatalf("/%s in the group asked %q, want the question as it was: %q", tc.cmd, got, want)
 			}
 		})
 	}
