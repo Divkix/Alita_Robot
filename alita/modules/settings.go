@@ -118,27 +118,58 @@ func settingsPickerListKey(userID int64) string {
 // while settingsPickerLiveBudget lasts. The list is kept for the pause.
 func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID int64) (string, gotgbot.InlineKeyboardMarkup) {
 	entries := settingsPickerEntries(b, ctx, userID)
+	storeSettingsPickerEntries(userID, entries)
+	return settingsPickerView(tr, userID, entries)
+}
+
+// adminGroupsForUser lists the groups userID administers for a PM command
+// that needs a group, as text rather than buttons. It shares the picker's
+// pause and budget: during the pause it returns the list the last build kept,
+// or, when there is none, the notice to show instead (wait is not empty).
+func adminGroupsForUser(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID int64) (entries []settingsPickerEntry, wait string) {
+	if notice, paused := settingsPickerWait(tr, userID); paused {
+		if stored, ok := storedSettingsPickerEntries(userID); ok {
+			return stored, ""
+		}
+		return nil, notice
+	}
+	entries = settingsPickerEntries(b, ctx, userID)
+	storeSettingsPickerEntries(userID, entries)
+	return entries, ""
+}
+
+// storeSettingsPickerEntries keeps a user's list for the pause.
+func storeSettingsPickerEntries(userID int64, entries []settingsPickerEntry) {
 	if m := cache.GetMarshal(); m != nil && settingsPickerCooldown > 0 {
 		if err := m.Set(cache.Context, settingsPickerListKey(userID), entries, store.WithExpiration(settingsPickerCooldown)); err != nil {
 			log.Debugf("[Settings] store picker for user %d: %v", userID, err)
 		}
 	}
-	return settingsPickerView(tr, userID, entries)
+}
+
+// storedSettingsPickerEntries returns the list kept for userID during the
+// pause; ok is false when there is none.
+func storedSettingsPickerEntries(userID int64) ([]settingsPickerEntry, bool) {
+	m := cache.GetMarshal()
+	if m == nil {
+		return nil, false
+	}
+	stored, err := m.Get(cache.Context, settingsPickerListKey(userID), new([]settingsPickerEntry))
+	entries, isList := stored.(*[]settingsPickerEntry)
+	if err != nil || !isList || entries == nil {
+		return nil, false
+	}
+	return *entries, true
 }
 
 // storedSettingsPicker renders the list settingsPicker kept for userID during
 // the pause; ok is false when there is none.
 func storedSettingsPicker(tr *i18n.Translator, userID int64) (text string, kb gotgbot.InlineKeyboardMarkup, ok bool) {
-	m := cache.GetMarshal()
-	if m == nil {
+	entries, ok := storedSettingsPickerEntries(userID)
+	if !ok {
 		return "", kb, false
 	}
-	stored, err := m.Get(cache.Context, settingsPickerListKey(userID), new([]settingsPickerEntry))
-	entries, isList := stored.(*[]settingsPickerEntry)
-	if err != nil || !isList || entries == nil {
-		return "", kb, false
-	}
-	text, kb = settingsPickerView(tr, userID, *entries)
+	text, kb = settingsPickerView(tr, userID, entries)
 	return text, kb, true
 }
 

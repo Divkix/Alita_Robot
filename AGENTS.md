@@ -36,9 +36,11 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   group `0`; a swapping handler registered outside `WrapCommand` in a higher group must return `ext.EndGroups` on
   every path. Keep group `1` for the guard alone: a handler there that matches first would skip it.
 - `withPMGroupArg` (`alita/modules/pm_group_arg.go`) lets a legacy PM command take its group as the first argument
-  (`-100…` ID or a group's @username). It checks the group like `/connect`, stores it with
-  `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved connection, and whose failed checks
-  never disconnect), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
+  (`-100…` ID, a group's @username, or the title of a group the user administers; titles come from
+  `adminGroupsForUser`, which shares the `/settings` picker's pause and budget, and a call without a group gets the
+  command's help and that list, so the command needs a `commandHelpModules` entry). It checks the group like
+  `/connect`, stores it with `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved
+  connection, and whose failed checks never disconnect), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
   ends iteration. `ctx.Message` stays the original: read command text only through `ctx.EffectiveMessage` or
   `ctx.Args()`. Enable it per command at registration; outside PM it does nothing, and a rich message with
   arguments gets `connections_pm_group_need` (blocks cannot be cut).

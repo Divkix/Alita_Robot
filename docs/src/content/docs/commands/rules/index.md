@@ -37,11 +37,12 @@ Or reply to a message:
 `/setrules`
 
 **Rules of a group from PM:**
-In PM, name the group as the first argument, by its ID or its @username:
+In PM, name the group as the first argument, by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces):
 `/rules -1001234567890`
 `/rules @mygroup`
+`/rules "My Group"`
 
-This works without `/connect` and, when you are connected, shows the named group instead of the connected one; the connection stays as it is. The group passes the same checks as `/connect`: admins always may, other members only while `/allowconnect` is on. A user's or channel's @username is not a group. Without an argument, `/rules` in PM shows the connected group, and asks for a group when there is no connection. In a group the argument is ignored.
+This works without `/connect` and, when you are connected, shows the named group instead of the connected one; the connection stays as it is. The group passes the same checks as `/connect`: admins always may, other members only while `/allowconnect` is on. Titles are looked up only among groups where you are an admin, so a member names the group by its @username or ID. A user's or channel's @username is not a group. When two of your groups share a title, the bot lists both with their IDs and asks for the @username or ID. Without an argument, `/rules` in PM shows the connected group; with no connection it answers with the command's help, an example and the groups where you are an admin. In a group the argument is ignored.
 
 **Required Permissions:**
 - `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it needs the group as its first argument or a group connected with `/connect`

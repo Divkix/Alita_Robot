@@ -29,6 +29,11 @@ var commandHelpModules = map[string]string{
 	"tmute":      "mutes",
 	"dmute":      "mutes",
 	"unmute":     "mutes",
+	"rules":      "rules",
+	"notes":      "notes",
+	"saved":      "notes",
+	"filters":    "filters",
+	"connect":    "connections",
 }
 
 // helpCommandLine matches a help line that defines commands: an optional

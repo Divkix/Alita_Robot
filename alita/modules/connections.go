@@ -136,6 +136,14 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyMarkup gotgbot.ReplyMarkup
 
 	if ctx.Message.Chat.Type == "private" {
+		if len(ctx.Args()) < 2 {
+			text, _ = tr.GetString("extraction_need_chat_id")
+			if err := replyPMGroupHelp(b, ctx, tr, "connect", formatting.HtmlEscape(text)); err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
 		chat := extraction.ExtractChat(b, ctx)
 		if chat == nil {
 			return ext.EndGroups
