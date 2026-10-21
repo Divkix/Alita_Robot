@@ -10,6 +10,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
@@ -188,5 +189,28 @@ func TestSetWarnLimitInPMOnConnectionKeepsNumber(t *testing.T) {
 
 	if got := warnLimit(f.chat.Id); got != 5 {
 		t.Fatalf("/setwarnlimit 5 set the connected group's limit to %v, want 5; sent:\n%s", got, sentText(f.client))
+	}
+}
+
+// /captchapending and /captchaclear take the pending user as their argument,
+// so on a connection a user ID after them names that user in the connected
+// group, not a group.
+func TestCaptchaClearInPMOnConnectionKeepsUserArgument(t *testing.T) {
+	f := oneOffFixture(t)
+	f.connectAdmin(t)
+	const userID = 4243
+	attempt, err := captcha.CreateCaptchaAttemptPreMessage(userID, f.chat.Id, "7", 5)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	if err := captcha.StoreMessageForCaptcha(userID, f.chat.Id, attempt.ID, db.TEXT, "pending", "", ""); err != nil {
+		t.Fatalf("StoreMessageForCaptcha() error = %v", err)
+	}
+
+	processPM(t, pmWrapCommandDispatcher(), f, f.admin.Id, fmt.Sprintf("/captchaclear %d", userID))
+
+	if messages, err := captcha.GetStoredMessagesForUser(userID, f.chat.Id); err != nil || len(messages) != 0 {
+		t.Fatalf("stored messages after /captchaclear %d on a connection = %d, %v; want none; sent:\n%s",
+			userID, len(messages), err, sentText(f.client))
 	}
 }
