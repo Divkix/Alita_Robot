@@ -155,6 +155,37 @@ func TestPMGroupDuplicateTitlesListsChoices(t *testing.T) {
 	}
 }
 
+// Group titles are user text: the help list and the duplicate list show them
+// escaped, and the help list leaves out groups the user does not administer.
+func TestPMGroupListsEscapeTitles(t *testing.T) {
+	const title = "A & <b>"
+	escaped := html.EscapeString(title)
+	f := titleFixture(t, title)
+	twin, notMine := uniqueModuleChatID(), uniqueModuleChatID()
+	f.addGroup(t, twin, title, true)
+	f.addGroup(t, notMine, "Not Mine", false)
+	setPMGroupCandidates(t,
+		models.Chat{ChatId: f.chat.Id, ChatName: title},
+		models.Chat{ChatId: twin, ChatName: title},
+		models.Chat{ChatId: notMine, ChatName: "Not Mine"},
+	)
+	dispatcher := notesDispatcher()
+
+	help := fmt.Sprint(sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, "/notes", translated(t, "connections_pm_group_pick")).Params["text"])
+	if !strings.Contains(help, escaped) || strings.Contains(help, title) {
+		t.Fatalf("help list %q, want the title escaped as %q", help, escaped)
+	}
+	if strings.Contains(help, "Not Mine") || strings.Contains(help, fmt.Sprint(notMine)) {
+		t.Fatalf("help list %q includes a group the user does not administer", help)
+	}
+
+	resetCalls(f.client)
+	duplicates := fmt.Sprint(sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, `/notes "a & <b>"`, fmt.Sprint(twin)).Params["text"])
+	if !strings.Contains(duplicates, escaped) || strings.Contains(duplicates, title) {
+		t.Fatalf("duplicate list %q, want the title escaped as %q", duplicates, escaped)
+	}
+}
+
 // assertPMGroupHelp checks a reply to cmd sent from PM without a group: the
 // command's help entry, its example and the user's groups.
 func assertPMGroupHelp(t *testing.T, text, cmd string, groups ...gotgbot.Chat) {
