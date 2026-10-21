@@ -185,7 +185,7 @@ func pmGroupList(entries []settingsPickerEntry) string {
 // pmGroupHelpText puts errText (HTML) above cmd's help and the groups the user
 // administers, or the picker's wait notice in place of the list.
 func pmGroupHelpText(tr *i18n.Translator, cmd, errText string, entries []settingsPickerEntry, wait string) string {
-	text := commandHelpText(tr, cmd, errText)
+	text := commandHelpTextWith(tr, cmd, errText, commandPMExample(cmd))
 	switch {
 	case wait != "":
 		return text + "\n\n" + wait
