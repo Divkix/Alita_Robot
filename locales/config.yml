@@ -14,6 +14,11 @@ mute_example: "/mute @username"
 smute_example: "/smute @username"
 tmute_example: "/tmute @username 30m"
 unmute_example: "/unmute @username"
+rules_example: '/rules "My Group"'
+notes_example: '/notes "My Group"'
+saved_example: '/saved "My Group"'
+filters_example: '/filters "My Group"'
+connect_example: "/connect -1001234567890"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]

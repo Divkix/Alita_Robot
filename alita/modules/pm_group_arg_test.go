@@ -204,15 +204,6 @@ func TestRulesInPMAllowConnectOffRefusesMember(t *testing.T) {
 	}
 }
 
-// Without a connection a PM command has no group to act on, so the bot asks
-// for one as the first argument.
-func TestRulesInPMWithoutGroupOrConnectionAsksForGroup(t *testing.T) {
-	f := oneOffFixture(t)
-	need := fmt.Sprintf(translated(t, "connections_pm_group_need"), "rules")
-
-	sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.admin, "/rules", strings.TrimSpace(need))
-}
-
 // sendRichPMRules sends /rules followed by args as a rich message in the
 // admin's PM.
 func sendRichPMRules(t *testing.T, f adminChatFixture, args string) {

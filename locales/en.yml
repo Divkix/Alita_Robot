@@ -404,7 +404,10 @@ connections_is_user_connected_need_group:
 connections_is_user_connected_user_not_admin: You need to be an admin to do this.
 connections_not_connected: You aren't connected to any chats.
 connections_pm_group_need: "From PM, name the group first: <code>/%s @groupname</code> or its ID (send /id in the group). Or connect to a group with /connect."
-connections_pm_group_not_found: "I couldn't find the group <code>%s</code>. Name it by its @username or ID (send /id in the group)."
+connections_pm_group_duplicate: "Several of your groups are called <code>%s</code>. Name the one you mean by its @username or ID:"
+connections_pm_group_not_found: "I couldn't find the group <code>%s</code>. Name it by the title of a group where you are an admin, its @username or its ID (send /id in the group)."
+connections_pm_group_pick: "From PM, name the group first: the title of a group where you are an admin (in quotes if it has spaces), its @username or its ID."
+connections_pm_group_your_groups: "Your groups:"
 connections_stale_connection: "Your connection is stale - I can no longer access this chat. Please use /connect to reconnect to a valid chat."
 connections_reconnect_need_pm: You need to be in a PM with me to reconnect to a chat!
 connections_reconnect_no_last_chat: You have no last chat to reconnect!

@@ -126,20 +126,24 @@ const (
 	pmArgsOwn
 )
 
-// resolvePMGroup finds the group a token names: a negative chat ID or a
-// group's @username. A user or channel @username is not a group.
-func resolvePMGroup(b *gotgbot.Bot, tok pmGroupToken) *gotgbot.Chat {
+// isPMGroupRef reports whether tok names a chat directly, by a negative chat
+// ID or an @username, rather than by a group's title.
+func isPMGroupRef(tok pmGroupToken) bool {
 	if tok.Quoted {
-		return nil
+		return false
 	}
-	if id, err := strconv.ParseInt(tok.Raw, 10, 64); err != nil || id >= 0 {
-		if !strings.HasPrefix(tok.Raw, "@") || len(tok.Raw) < 2 {
-			return nil
-		}
+	if id, err := strconv.ParseInt(tok.Raw, 10, 64); err == nil && id < 0 {
+		return true
 	}
-	chat, err := chat_status.GetChat(b, tok.Raw)
+	return strings.HasPrefix(tok.Raw, "@") && len(tok.Raw) > 1
+}
+
+// lookupPMGroup returns the group ref (a chat ID or @username) names. A user
+// or channel is not a group.
+func lookupPMGroup(b *gotgbot.Bot, ref string) *gotgbot.Chat {
+	chat, err := chat_status.GetChat(b, ref)
 	if err != nil {
-		log.WithFields(log.Fields{"token": tok.Raw, "error": err}).Debug("[PMGroupArg] group lookup failed")
+		log.WithFields(log.Fields{"token": ref, "error": err}).Debug("[PMGroupArg] group lookup failed")
 		return nil
 	}
 	if chat.Type != "group" && chat.Type != "supergroup" {
@@ -148,11 +152,63 @@ func resolvePMGroup(b *gotgbot.Bot, tok pmGroupToken) *gotgbot.Chat {
 	return chat
 }
 
+// pmGroupsTitled returns the entries titled title, ignoring case.
+func pmGroupsTitled(entries []settingsPickerEntry, title string) []settingsPickerEntry {
+	var matches []settingsPickerEntry
+	for _, entry := range entries {
+		if strings.EqualFold(strings.TrimSpace(entry.Title), strings.TrimSpace(title)) {
+			matches = append(matches, entry)
+		}
+	}
+	return matches
+}
+
+// pmGroupList renders entries as text lines, title and ID, so a user can name
+// any of them by either.
+func pmGroupList(entries []settingsPickerEntry) string {
+	lines := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		id := fmt.Sprintf("<code>%d</code>", entry.ChatID)
+		if title := strings.TrimSpace(entry.Title); title != "" {
+			lines = append(lines, "• "+html.EscapeString(title)+" — "+id)
+			continue
+		}
+		lines = append(lines, "• "+id)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// pmGroupHelpText puts errText (HTML) above cmd's help and the groups the user
+// administers, or the picker's wait notice in place of the list.
+func pmGroupHelpText(tr *i18n.Translator, cmd, errText string, entries []settingsPickerEntry, wait string) string {
+	text := commandHelpText(tr, cmd, errText)
+	switch {
+	case wait != "":
+		return text + "\n\n" + wait
+	case len(entries) == 0:
+		empty, _ := tr.GetString("settings_picker_empty")
+		return text + "\n\n" + empty
+	default:
+		header, _ := tr.GetString("connections_pm_group_your_groups")
+		return text + "\n\n" + header + "\n" + pmGroupList(entries)
+	}
+}
+
+// replyPMGroupHelp answers a PM command that names no usable group with
+// errText (HTML), the command's help and the groups the user administers.
+func replyPMGroupHelp(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cmd, errText string) error {
+	entries, wait := adminGroupsForUser(b, ctx, tr, ctx.EffectiveUser.Id)
+	_, err := ctx.EffectiveMessage.Reply(b, pmGroupHelpText(tr, cmd, errText, entries, wait), formatting.Shtml())
+	return err
+}
+
 // withPMGroupArg lets a PM command name its group as the first argument:
-// "/cmd -1001234567890 args" or "/cmd @group args". The group passes the same
-// checks as /connect, then the command runs with it in place of the saved
-// connection and with the group cut from its message. Outside PM the command
-// runs unchanged.
+// "/cmd -1001234567890 args", "/cmd @group args", or the title of a group the
+// user administers ("/cmd mygroup args", "/cmd \"My Group\" args"). The group
+// passes the same checks as /connect, then the command runs with it in place
+// of the saved connection and with the group cut from its message. A call
+// with no usable group gets the command's help and the user's groups. Outside
+// PM the command runs unchanged.
 func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.Response {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
@@ -178,22 +234,52 @@ func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.
 		conn := connections.Connection(user.Id)
 		connected := conn.Connected && conn.ChatId != 0
 
+		replyHelp := func(errText string) error {
+			if err := replyPMGroupHelp(b, ctx, tr, cmd, errText); err != nil {
+				log.Error(err)
+			}
+			return ext.EndGroups
+		}
+
 		tok, ok := parsePMGroupToken(msg.GetText())
 		if !ok {
 			if connected {
 				return h(b, ctx)
 			}
-			text, _ := tr.GetString("connections_pm_group_need")
-			return reply(fmt.Sprintf(text, cmd))
+			text, _ := tr.GetString("connections_pm_group_pick")
+			return replyHelp(text)
 		}
 
-		group := resolvePMGroup(b, tok)
+		var group *gotgbot.Chat
+		if isPMGroupRef(tok) {
+			group = lookupPMGroup(b, tok.Raw)
+		}
+		if group == nil && connected && shape == pmArgsOwn {
+			// The argument is the command's own: with a connection only an
+			// @username or ID picks another group.
+			return h(b, ctx)
+		}
+		notFoundText, _ := tr.GetString("connections_pm_group_not_found")
+		notFound := fmt.Sprintf(notFoundText, html.EscapeString(tok.Raw))
+		if group == nil && isPMGroupRef(tok) {
+			return replyHelp(notFound)
+		}
 		if group == nil {
-			if connected && shape == pmArgsOwn {
-				return h(b, ctx)
+			entries, wait := adminGroupsForUser(b, ctx, tr, user.Id)
+			if wait != "" {
+				return reply(wait)
 			}
-			text, _ := tr.GetString("connections_pm_group_not_found")
-			return reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)))
+			switch matches := pmGroupsTitled(entries, tok.Raw); len(matches) {
+			case 0:
+				return reply(pmGroupHelpText(tr, cmd, notFound, entries, ""))
+			case 1:
+				if group = lookupPMGroup(b, strconv.FormatInt(matches[0].ChatID, 10)); group == nil {
+					return reply(pmGroupHelpText(tr, cmd, notFound, entries, ""))
+				}
+			default:
+				text, _ := tr.GetString("connections_pm_group_duplicate")
+				return reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)) + "\n" + pmGroupList(matches))
+			}
 		}
 		if allowed, key := canUserConnectToChat(b, group.Id, user.Id); !allowed {
 			text, _ := tr.GetString(key)
