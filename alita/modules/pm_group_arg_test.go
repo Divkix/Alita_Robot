@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -69,6 +70,38 @@ func TestStripPMGroupTokenShiftsEntitiesPastQuotedEmojiTitle(t *testing.T) {
 	}
 	if len(got.Entities) != 2 || got.Entities[1].Offset != 11 || got.Entities[1].Length != 4 {
 		t.Fatalf("entities = %+v, want bold at 11 length 4", got.Entities)
+	}
+}
+
+// iOS Smart Punctuation turns typed quotes into curly ones.
+func TestParsePMGroupTokenAcceptsCurlyQuotes(t *testing.T) {
+	tok, ok := parsePMGroupToken("/notes “My Group” x")
+	if !ok || tok.Raw != "My Group" || !tok.Quoted {
+		t.Fatalf("parsePMGroupToken() = %+v, %v; want quoted My Group", tok, ok)
+	}
+}
+
+// “ and ” are three bytes in UTF-8 but one UTF-16 unit each.
+func TestStripPMGroupTokenShiftsEntitiesPastCurlyQuotedTitle(t *testing.T) {
+	msg := &gotgbot.Message{
+		Text: "/save “My Group” note bold",
+		Entities: []gotgbot.MessageEntity{
+			{Type: "bot_command", Offset: 0, Length: 5},
+			{Type: "bold", Offset: 22, Length: 4},
+		},
+	}
+	tok, ok := parsePMGroupToken(msg.GetText())
+	if !ok || tok.Raw != "My Group" || !tok.Quoted {
+		t.Fatalf("parsePMGroupToken() = %+v, %v; want quoted My Group", tok, ok)
+	}
+
+	got := stripPMGroupToken(msg, tok)
+
+	if got.Text != "/save note bold" {
+		t.Fatalf("text = %q, want %q", got.Text, "/save note bold")
+	}
+	if len(got.Entities) != 2 || extraction.ExtractEntityText(got.Text, got.Entities[1].Offset, got.Entities[1].Length) != "bold" {
+		t.Fatalf("entities = %+v, want bold to keep its text", got.Entities)
 	}
 }
 
