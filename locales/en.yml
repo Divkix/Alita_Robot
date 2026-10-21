@@ -394,7 +394,7 @@ connections_help_msg:
 
   While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
-  In PM, /rules, /notes and /filters take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
+  In PM, /rules, /notes, /filters and many settings commands, such as /lock, /setflood, /setwelcome and /setwarnlimit, take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
 
 
   You can retrieve the chat id by using the /id command in your chat. Don't be surprised

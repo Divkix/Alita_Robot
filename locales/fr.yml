@@ -882,7 +882,7 @@ connections_help_msg:
 
   Une fois connectés, les administrateurs peuvent aussi utiliser /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect et /lang group en privé.
 
-  En privé, /rules, /notes et /filters prennent le groupe comme premier argument : son ID, son @username ou le titre d'un groupe où vous êtes administrateur. Les titres ne sont cherchés que parmi le groupe connecté et les 50 groupes les plus récemment actifs où vous avez écrit ; désignez tout autre groupe par son @username ou son ID.
+  En privé, /rules, /notes, /filters et de nombreuses commandes de réglages, comme /lock, /setflood, /setwelcome et /setwarnlimit, prennent le groupe comme premier argument : son ID, son @username ou le titre d'un groupe où vous êtes administrateur. Les titres ne sont cherchés que parmi le groupe connecté et les 50 groupes les plus récemment actifs où vous avez écrit ; désignez tout autre groupe par son @username ou son ID.
 
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris

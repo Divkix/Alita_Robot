@@ -351,7 +351,7 @@ connections_help_msg:
 
   Saat terhubung, admin juga dapat menjalankan /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect dan /lang group dari obrolan pribadi.
 
-  Di obrolan pribadi, /rules, /notes dan /filters menerima grup sebagai argumen pertama: ID-nya, @username-nya, atau judul grup tempat Anda menjadi admin. Judul hanya dicari di antara grup yang terhubung dan 50 grup yang paling baru aktif tempat Anda pernah menulis; sebut grup lain dengan @username atau ID-nya.
+  Di obrolan pribadi, /rules, /notes, /filters, dan banyak perintah pengaturan, seperti /lock, /setflood, /setwelcome, dan /setwarnlimit, menerima grup sebagai argumen pertama: ID-nya, @username-nya, atau judul grup tempat Anda menjadi admin. Judul hanya dicari di antara grup yang terhubung dan 50 grup yang paling baru aktif tempat Anda pernah menulis; sebut grup lain dengan @username atau ID-nya.
 
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut

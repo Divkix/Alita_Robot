@@ -19,7 +19,7 @@ This module allows you to connect to a chat's database, and add things to it wit
 × /allowconnect <yes/no>: Allow users to connect to chats or not.
 While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
-In PM, /rules, /notes and /filters take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
+In PM, /rules, /notes, /filters and many settings commands, such as /lock, /setflood, /setwelcome and /setwarnlimit, take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
 
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
@@ -70,8 +70,8 @@ For detailed command usage, refer to the commands table above.
 
 Some commands take the group as their first argument in PM, so they work without `/connect`:
 
-- without arguments of their own: `/rules`, `/notes`, `/saved`, `/filters`, `/locks`, `/locktypes`, `/flood`, `/disabled`, `/reactions`, `/resetreactions`, `/resetrules`, `/resetrulesbutton`, `/blacklists`, `/approved`, `/unsetlog`, `/logchannel`;
-- with arguments of their own: `/lock`, `/unlock`, `/setflood`, `/setfloodmode`, `/delflood`, `/disable`, `/enable`, `/disabledel`, `/addreaction`, `/removereaction`, `/antiraid`, `/raidtime`, `/raidactiontime`, `/autoantiraid`, `/antichannelpin`, `/cleanlinked`, `/allowconnect`, `/setrules`, `/privaterules`, `/rulesbtn`, `/addblacklist`, `/rmblacklist`, `/blaction`, `/approve`, `/unapprove`, `/approval`, `/setlog`, `/log`, `/nolog`.
+- without arguments of their own: `/rules`, `/notes`, `/saved`, `/filters`, `/locks`, `/locktypes`, `/flood`, `/disabled`, `/reactions`, `/resetreactions`, `/resetrules`, `/resetrulesbutton`, `/blacklists`, `/approved`, `/unsetlog`, `/logchannel`, `/resetwelcome`, `/resetgoodbye`;
+- with arguments of their own: `/lock`, `/unlock`, `/setflood`, `/setfloodmode`, `/delflood`, `/disable`, `/enable`, `/disabledel`, `/addreaction`, `/removereaction`, `/antiraid`, `/raidtime`, `/raidactiontime`, `/autoantiraid`, `/antichannelpin`, `/cleanlinked`, `/allowconnect`, `/setrules`, `/privaterules`, `/rulesbtn`, `/addblacklist`, `/rmblacklist`, `/blaction`, `/approve`, `/unapprove`, `/approval`, `/setlog`, `/log`, `/nolog`, `/welcome`, `/setwelcome`, `/goodbye`, `/setgoodbye`, `/cleanwelcome`, `/cleangoodbye`, `/cleanservice`, `/autoapprove`, `/captcha`, `/captchamode`, `/captchatime`, `/captchaaction`, `/captchamaxattempts`, `/captchapending`, `/captchaclear`, `/setwarnlimit`, `/setwarnmode`, `/setwarntime`, `/aispam`, `/spamdb`, `/anonadmin`.
 
 Aliases of these commands work the same way. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"` or `/lock @mygroup sticker`. The group passes the same checks as `/connect`, the command checks your rights in it as it does on a connection, and the saved connection stays as it is. A title is looked up among the connected group and the 50 most recently active groups where you have written, and only the groups with that title are checked for admin rights, so it does not depend on the `/settings` picker's list; any other group is named by its ID or @username, which are looked up directly.
 
