@@ -587,3 +587,35 @@ func TestBanCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
 		})
 	}
 }
+
+// Buttons a bans command sends in the group carry no group, as before PM
+// support: the chat they are pressed in is the group.
+func TestBanButtonsInGroupNameNoGroup(t *testing.T) {
+	for _, tc := range []struct {
+		cmd, ns string
+	}{
+		{"ban", "unrestrict"},
+		{"restrict", "restrict"},
+		{"unrestrict", "unrestrict"},
+	} {
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, _ := pmBansFixture(t)
+
+			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd+" @victim").Update
+			if err := bansPMDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
+			}
+
+			buttons := moderationButtons(f, 0, tc.ns)
+			if len(buttons) == 0 {
+				t.Fatalf("/%s in the group sent no %s button; sent:\n%s", tc.cmd, tc.ns, sentText(f.client))
+			}
+			for _, data := range buttons {
+				decoded, _ := decodeCallbackData(data)
+				if c, named := decoded.Field("c"); named {
+					t.Fatalf("/%s in the group sent a button naming group %q: %s", tc.cmd, c, data)
+				}
+			}
+		})
+	}
+}
