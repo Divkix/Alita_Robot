@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
@@ -186,6 +188,53 @@ func TestPMGroupCandidatesConcurrentCallsScanOnce(t *testing.T) {
 		if errs[i] != nil || fmt.Sprint(results[i]) != "[{-1001 Alpha}]" {
 			t.Fatalf("call %d = %v, %v; want [{-1001 Alpha}]", i, results[i], errs[i])
 		}
+	}
+}
+
+// On a connection, a usual argument of a settings command costs one scan of
+// the user's groups and no Telegram lookups for them; inside the pause the
+// title of one of them is still refused without another scan.
+func TestSetRulesInPMOnConnectionUsualArgumentCostsOneScan(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	other := connectToOtherGroup(t, f)
+	if err := rules.SetChatRules(other, "B rules"); err != nil {
+		t.Fatalf("SetChatRules() error = %v", err)
+	}
+	alpha, beta := uniqueModuleChatID(), uniqueModuleChatID()
+	f.addGroup(t, alpha, "Alpha", true)
+	f.addGroup(t, beta, "Beta", true)
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: alpha, ChatName: "Alpha"}, models.Chat{ChatId: beta, ChatName: "Beta"})
+	candidatesRedis(t)
+
+	processPM(t, pmSettingsDispatcher(), f, f.admin.Id, `/setrules "hello world" text`)
+
+	if got := rules.GetChatRulesInfo(other).Rules; got != `&#34;hello world&#34; text` && got != `"hello world" text` {
+		t.Fatalf("connected rules = %q, want the quoted argument kept; sent:\n%s", got, sentText(f.client))
+	}
+	if n := scans.Load(); n != 1 {
+		t.Fatalf("candidate scans = %d, want 1", n)
+	}
+	for _, method := range []string{"getChatAdministrators", "getChatMember"} {
+		for _, call := range f.client.callsFor(method) {
+			if id := fmt.Sprint(call.Params["chat_id"]); id == fmt.Sprint(alpha) || id == fmt.Sprint(beta) {
+				t.Fatalf("%s for group %s, whose title does not match", method, id)
+			}
+		}
+	}
+
+	resetCalls(f.client)
+	before := rules.GetChatRulesInfo(other).Rules
+	processPM(t, pmSettingsDispatcher(), f, f.admin.Id, "/setrules Alpha text")
+
+	want := fmt.Sprintf(translated(t, "connections_pm_group_title_on_connection"), "Alpha", other)
+	if sent := sentText(f.client); !strings.Contains(sent, want) || !strings.Contains(sent, fmt.Sprint(alpha)) {
+		t.Fatalf("title Alpha not refused with group %d listed; sent:\n%s", alpha, sent)
+	}
+	if got := rules.GetChatRulesInfo(other).Rules; got != before {
+		t.Fatalf("connected rules = %q after the refused title, want %q", got, before)
+	}
+	if n := scans.Load(); n != 1 {
+		t.Fatalf("candidate scans inside the pause = %d, want 1", n)
 	}
 }
 
