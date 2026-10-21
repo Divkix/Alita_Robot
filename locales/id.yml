@@ -2457,16 +2457,18 @@ logchannels_help_msg: |
   3. Teruskan pesan itu ke grup.
 
   *Perintah admin:*
-  × /setlog: Atur kanal log (kirim di kanal, lalu teruskan pesannya ke grup).
+  × /setlog: Atur kanal log (kirim di kanal, lalu teruskan pesannya ke grup). Di chat pribadi, sebutkan grup lalu kanalnya, jika kamu admin di keduanya dan bot bisa memposting di kanal.
   × /unsetlog: Hapus kanal log.
   × /log <category>: Aktifkan kategori.
   × /nolog <category>: Nonaktifkan kategori.
 
   *Siapa saja:*
-  × /logchannel: Tampilkan kanal log saat ini (hanya di grup).
+  × /logchannel: Tampilkan kanal log saat ini.
   × /logcategories: Daftar kategori.
 
   Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated, other. Belum ada yang dicatat di automated atau other.
+
+  Di chat pribadi, sebutkan grup lebih dulu pada /setlog, /unsetlog, /log, /nolog dan /logchannel: judulnya, @username, atau ID-nya.
 feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."
 feds_group_only: "Perintah ini hanya bisa digunakan di grup."
 feds_need_name: "Beri nama federasi Anda."
@@ -2557,6 +2559,10 @@ logs_disabled: "Pencatatan dinonaktifkan untuk: {cats}"
 logs_unknown_category: "Kategori tidak dikenal. Lihat /logcategories."
 logs_usage: "Penggunaan: /log &lt;kategori&gt; atau /nolog &lt;kategori&gt;"
 logs_group_only: "Perintah ini hanya bisa digunakan di grup."
+logs_pm_need_channel: "Sebutkan kanal setelah grup: <code>/setlog @grupku @kanalku</code>, atau ID kanal. Jadikan aku admin kanal yang bisa memposting pesan terlebih dahulu."
+logs_pm_not_channel: "<code>{channel}</code> bukan kanal yang bisa kulihat. Jadikan aku admin kanal yang bisa memposting pesan, lalu sebutkan kanalnya dengan @username atau ID."
+logs_pm_user_not_channel_admin: "Untuk menjadikan kanal ini kanal log, kamu harus pemiliknya atau admin dengan izin memposting pesan."
+logs_pm_bot_cannot_post: "Aku harus menjadi admin kanal dengan izin memposting pesan."
 bans_banme_is_admin: "Admin tidak dapat memblokir diri sendiri. Mundur dulu."
 bans_banme_ok: "Sesuai keinginan Anda. Anda diblokir."
 bans_unbanall_ask: "Buka blokir semua pengguna yang dikenal di obrolan ini? Ini tidak mudah dibatalkan."

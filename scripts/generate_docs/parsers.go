@@ -148,8 +148,9 @@ func parseCommands(modulesPath string) ([]Command, error) {
 	var commands []Command
 
 	// Regex patterns for command extraction
-	// Matches handlers.NewCommand("cmd", module.handler) or handlers.NewCommand("cmd", func(...) {...})
-	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(?:(\w+)(?:\(\))?\.(\w+)|func\b)`)
+	// Matches handlers.NewCommand("cmd", module.handler) or handlers.NewCommand("cmd", func(...) {...}),
+	// with the handler optionally wrapped as withPMGroupArg("cmd", shape, module.handler).
+	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(?:withPMGroupArg\s*\(\s*"[^"]+"\s*,\s*[\w.]+\s*,\s*)?(?:(\w+)(?:\(\))?\.(\w+)|func\b)`)
 	disableablePattern := regexp.MustCompile(`(?:misc|helpers)\.AddCmdToDisableable\s*\(\s*"([^"]+)"\s*\)`)
 	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
 

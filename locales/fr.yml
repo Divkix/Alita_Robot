@@ -2377,16 +2377,18 @@ logchannels_help_msg: |
   3. Transférez ce message dans le groupe.
 
   *Commandes admin :*
-  × /setlog: Définir le canal de journal (envoyez-le dans le canal, puis transférez le message dans le groupe).
+  × /setlog: Définir le canal de journal (envoyez-le dans le canal, puis transférez le message dans le groupe). En privé, indiquez le groupe puis le canal, si vous êtes administrateur des deux et que le bot peut publier dans le canal.
   × /unsetlog: Retirer le canal de journal.
   × /log <category>: Activer une catégorie.
   × /nolog <category>: Désactiver une catégorie.
 
   *Tout le monde :*
-  × /logchannel: Afficher le canal de journal actuel (groupes uniquement).
+  × /logchannel: Afficher le canal de journal actuel.
   × /logcategories: Lister les catégories.
 
   Catégories : settings (modifications des réglages du canal de journal), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated, other. Rien n'est encore journalisé dans automated ni dans other.
+
+  En privé, indiquez d'abord le groupe dans /setlog, /unsetlog, /log, /nolog et /logchannel : son titre, son @nom d'utilisateur ou son ID.
 feds_pm_only: "Cette commande ne peut être utilisée qu'en discussion privée avec moi."
 feds_group_only: "Cette commande ne peut être utilisée que dans les groupes."
 feds_need_name: "Donnez un nom à votre fédération."
@@ -2477,6 +2479,10 @@ logs_disabled: "Journalisation désactivée pour : {cats}"
 logs_unknown_category: "Catégorie inconnue. Voir /logcategories."
 logs_usage: "Utilisation : /log &lt;catégorie&gt; ou /nolog &lt;catégorie&gt;"
 logs_group_only: "Cette commande ne peut être utilisée que dans les groupes."
+logs_pm_need_channel: "Indiquez le canal après le groupe : <code>/setlog @mongroupe @moncanal</code>, ou l'ID du canal. Faites-moi d'abord administrateur du canal avec le droit de publier des messages."
+logs_pm_not_channel: "<code>{channel}</code> n'est pas un canal que je peux voir. Faites-moi administrateur du canal avec le droit de publier des messages, puis indiquez-le par son @nom d'utilisateur ou son ID."
+logs_pm_user_not_channel_admin: "Pour faire du canal le canal de journal, vous devez en être le propriétaire ou un administrateur avec le droit de publier des messages."
+logs_pm_bot_cannot_post: "Je dois être administrateur du canal avec le droit de publier des messages."
 bans_banme_is_admin: "Les administrateurs ne peuvent pas se bannir eux-mêmes. Démissionnez d'abord."
 bans_banme_ok: "Comme vous voulez. Vous êtes banni."
 bans_unbanall_ask: "Débannir tous les utilisateurs connus de ce chat ? Cette action est difficile à annuler."

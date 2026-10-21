@@ -34,6 +34,11 @@ var commandHelpModules = map[string]string{
 	"saved":      "notes",
 	"filters":    "filters",
 	"connect":    "connections",
+	"setlog":     "logchannels",
+	"unsetlog":   "logchannels",
+	"logchannel": "logchannels",
+	"log":        "logchannels",
+	"nolog":      "logchannels",
 }
 
 // helpCommandLine matches a help line that defines commands: an optional
