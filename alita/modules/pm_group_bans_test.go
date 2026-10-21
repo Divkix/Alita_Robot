@@ -665,3 +665,30 @@ func TestBanCommandsInPMNameGroupInReply(t *testing.T) {
 		})
 	}
 }
+
+// The group line is HTML-escaped, so the menus of /restrict and /unrestrict
+// sent from PM are HTML too: the title shows as typed, not as entities.
+func TestRestrictMenusInPMAreSentAsHTML(t *testing.T) {
+	for _, cmd := range []string{"restrict", "unrestrict"} {
+		t.Run(cmd, func(t *testing.T) {
+			f, _ := pmBansFixture(t)
+			named := `Tom & <Jerry>`
+			for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
+				f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
+			}
+
+			processPM(t, bansPMDispatcher(), f, f.admin.Id, "/"+cmd+" @fixturegroup @victim")
+
+			want := groupLine(t, named, f.chat.Id)
+			for _, call := range f.client.callsFor("sendMessage") {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), want) {
+					if got := fmt.Sprint(call.Params["parse_mode"]); got != gotgbot.ParseModeHTML {
+						t.Fatalf("/%s menu from PM has parse_mode %q, want %q; text %q", cmd, got, gotgbot.ParseModeHTML, call.Params["text"])
+					}
+					return
+				}
+			}
+			t.Fatalf("/%s from PM sent no menu naming the group %q; sent:\n%s", cmd, want, sentText(f.client))
+		})
+	}
+}

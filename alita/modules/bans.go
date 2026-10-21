@@ -482,6 +482,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("bans_restrict_question")
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text),
 		&gotgbot.SendMessageOpts{
+			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
@@ -670,6 +671,7 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("bans_unrestrict_question")
 	_, err := msg.Reply(b, withGroupLine(tr, msg, ctx.EffectiveChat, text),
 		&gotgbot.SendMessageOpts{
+			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
