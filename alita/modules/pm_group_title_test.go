@@ -181,7 +181,7 @@ func TestPMGroupListsEscapeTitles(t *testing.T) {
 
 	resetCalls(f.client)
 	duplicates := fmt.Sprint(sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, `/notes "a & <b>"`, fmt.Sprint(twin)).Params["text"])
-	if !strings.Contains(duplicates, escaped) || strings.Contains(duplicates, title) {
+	if !strings.Contains(duplicates, escaped) || strings.Contains(duplicates, title) || strings.Contains(duplicates, "a & <b>") {
 		t.Fatalf("duplicate list %q, want the title escaped as %q", duplicates, escaped)
 	}
 }
