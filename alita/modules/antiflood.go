@@ -612,10 +612,11 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(antifloodModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
-	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))
-	helpers.MultiCommand(dispatcher, []string{"delflood", "clearflood"}, antifloodModule.setFloodDeleter)
-	dispatcher.AddHandler(handlers.NewCommand("flood", antifloodModule.flood))
+	dispatcher.AddHandler(handlers.NewCommand("setflood", withPMGroupArg("setflood", helpers.PMGroupArgOwn, antifloodModule.setFlood)))
+	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", withPMGroupArg("setfloodmode", helpers.PMGroupArgOwn, antifloodModule.setFloodMode)))
+	dispatcher.AddHandler(handlers.NewCommand("delflood", withPMGroupArg("delflood", helpers.PMGroupArgOwn, antifloodModule.setFloodDeleter)))
+	dispatcher.AddHandler(handlers.NewCommand("clearflood", withPMGroupArg("delflood", helpers.PMGroupArgOwn, antifloodModule.setFloodDeleter)))
+	dispatcher.AddHandler(handlers.NewCommand("flood", withPMGroupArg("flood", helpers.PMGroupArgNone, antifloodModule.flood)))
 	helpers.AddCmdToDisableable("flood")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 }

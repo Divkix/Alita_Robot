@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -38,10 +39,10 @@ var supportedReactionEmoji = []string{
 }
 
 func LoadReactions(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("addreaction", reactionsModule.addReaction))
-	dispatcher.AddHandler(handlers.NewCommand("removereaction", reactionsModule.removeReaction))
-	dispatcher.AddHandler(handlers.NewCommand("reactions", reactionsModule.listReactions))
-	dispatcher.AddHandler(handlers.NewCommand("resetreactions", reactionsModule.resetReactions))
+	dispatcher.AddHandler(handlers.NewCommand("addreaction", withPMGroupArg("addreaction", helpers.PMGroupArgOwn, reactionsModule.addReaction)))
+	dispatcher.AddHandler(handlers.NewCommand("removereaction", withPMGroupArg("removereaction", helpers.PMGroupArgOwn, reactionsModule.removeReaction)))
+	dispatcher.AddHandler(handlers.NewCommand("reactions", withPMGroupArg("reactions", helpers.PMGroupArgNone, reactionsModule.listReactions)))
+	dispatcher.AddHandler(handlers.NewCommand("resetreactions", withPMGroupArg("resetreactions", helpers.PMGroupArgNone, reactionsModule.resetReactions)))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("reactions_help"), reactionsModule.reactionsHelpHandler))
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)

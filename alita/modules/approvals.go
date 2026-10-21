@@ -516,10 +516,10 @@ func extractDisplayName(userID int64) string {
 func LoadApprovals(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(approvalsModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("approve", approvalsModule.approveUser))
-	dispatcher.AddHandler(handlers.NewCommand("unapprove", approvalsModule.unapproveUser))
-	dispatcher.AddHandler(handlers.NewCommand("approval", approvalsModule.checkApprovalStatus))
-	dispatcher.AddHandler(handlers.NewCommand("approved", approvalsModule.listApprovedUsers))
+	dispatcher.AddHandler(handlers.NewCommand("approve", withPMGroupArg("approve", helpers.PMGroupArgOwn, approvalsModule.approveUser)))
+	dispatcher.AddHandler(handlers.NewCommand("unapprove", withPMGroupArg("unapprove", helpers.PMGroupArgOwn, approvalsModule.unapproveUser)))
+	dispatcher.AddHandler(handlers.NewCommand("approval", withPMGroupArg("approval", helpers.PMGroupArgOwn, approvalsModule.checkApprovalStatus)))
+	dispatcher.AddHandler(handlers.NewCommand("approved", withPMGroupArg("approved", helpers.PMGroupArgNone, approvalsModule.listApprovedUsers)))
 	dispatcher.AddHandler(handlers.NewCommand("unapproveall", approvalsModule.unapproveAllHandler))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))

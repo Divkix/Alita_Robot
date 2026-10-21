@@ -911,10 +911,10 @@ func formatDuration(seconds int) string {
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(antiRaidModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("antiraid", antiRaidModule.antiraid))
-	dispatcher.AddHandler(handlers.NewCommand("raidtime", antiRaidModule.raidTime))
-	dispatcher.AddHandler(handlers.NewCommand("raidactiontime", antiRaidModule.raidActionTime))
-	dispatcher.AddHandler(handlers.NewCommand("autoantiraid", antiRaidModule.autoAntiRaid))
+	dispatcher.AddHandler(handlers.NewCommand("antiraid", withPMGroupArg("antiraid", helpers.PMGroupArgOwn, antiRaidModule.antiraid)))
+	dispatcher.AddHandler(handlers.NewCommand("raidtime", withPMGroupArg("raidtime", helpers.PMGroupArgOwn, antiRaidModule.raidTime)))
+	dispatcher.AddHandler(handlers.NewCommand("raidactiontime", withPMGroupArg("raidactiontime", helpers.PMGroupArgOwn, antiRaidModule.raidActionTime)))
+	dispatcher.AddHandler(handlers.NewCommand("autoantiraid", withPMGroupArg("autoantiraid", helpers.PMGroupArgOwn, antiRaidModule.autoAntiRaid)))
 
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(

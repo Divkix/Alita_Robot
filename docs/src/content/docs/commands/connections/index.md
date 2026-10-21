@@ -58,7 +58,7 @@ For detailed command usage, refer to the commands table above.
 ## Required Permissions
 
 - `/allowconnect` — Requires **Admin** (`IsUserAdmin`) in the target group.
-  From PM it acts on the connected group.
+  From PM it acts on the connected group or the group named first.
 - `/settings` — Lists and connects only groups where you are an **Admin**;
   rights are checked again when you tap a group.
 - `/connect`, `/disconnect`, `/connection`, `/reconnect` — Available to all
@@ -68,7 +68,14 @@ For detailed command usage, refer to the commands table above.
 
 ## A Group as the First Argument in PM
 
-Some commands take the group as their first argument in PM, so they work without `/connect`: `/rules`, `/notes`, `/saved` and `/filters`. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"`. The group passes the same checks as `/connect`, and the saved connection stays as it is. A title is looked up among the connected group and the 50 most recently active groups where you have written, and only the groups with that title are checked for admin rights, so it does not depend on the `/settings` picker's list; any other group is named by its ID or @username, which are looked up directly.
+Some commands take the group as their first argument in PM, so they work without `/connect`:
+
+- without arguments of their own: `/rules`, `/notes`, `/saved`, `/filters`, `/locks`, `/locktypes`, `/flood`, `/disabled`, `/reactions`, `/resetreactions`, `/resetrules`, `/resetrulesbutton`, `/blacklists`, `/approved`, `/unsetlog`, `/logchannel`;
+- with arguments of their own: `/lock`, `/unlock`, `/setflood`, `/setfloodmode`, `/delflood`, `/disable`, `/enable`, `/disabledel`, `/addreaction`, `/removereaction`, `/antiraid`, `/raidtime`, `/raidactiontime`, `/autoantiraid`, `/antichannelpin`, `/cleanlinked`, `/allowconnect`, `/setrules`, `/privaterules`, `/rulesbtn`, `/addblacklist`, `/rmblacklist`, `/blaction`, `/approve`, `/unapprove`, `/approval`, `/setlog`, `/log`, `/nolog`.
+
+Aliases of these commands work the same way. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"` or `/lock @mygroup sticker`. The group passes the same checks as `/connect`, the command checks your rights in it as it does on a connection, and the saved connection stays as it is. A title is looked up among the connected group and the 50 most recently active groups where you have written, and only the groups with that title are checked for admin rights, so it does not depend on the `/settings` picker's list; any other group is named by its ID or @username, which are looked up directly.
+
+When you are connected, a command with arguments of its own takes another group only by its ID or @username: any other first word is its own argument, so `/lock sticker` locks stickers in the connected group. A user's @username or ID stays the command's argument: on a connection `/approve @someone` approves that user in the connected group. Without a group and without a connection, these commands answer with their help, an example and the groups where you are an admin.
 
 `/connect` without an argument in PM answers with its help, an example and the groups where you are an admin, with their IDs.
 

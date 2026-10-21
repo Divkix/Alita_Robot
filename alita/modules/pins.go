@@ -687,8 +687,8 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, permaPinDesc, pinsModule.permaPin)
 	helpers.WrapCommand(dispatcher, pinnedDesc, pinsModule.pinned)
 
-	dispatcher.AddHandler(handlers.NewCommand("antichannelpin", pinsModule.antichannelpin))
-	dispatcher.AddHandler(handlers.NewCommand("cleanlinked", pinsModule.cleanlinked))
+	dispatcher.AddHandler(handlers.NewCommand("antichannelpin", withPMGroupArg("antichannelpin", helpers.PMGroupArgOwn, pinsModule.antichannelpin)))
+	dispatcher.AddHandler(handlers.NewCommand("cleanlinked", withPMGroupArg("cleanlinked", helpers.PMGroupArgOwn, pinsModule.cleanlinked)))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unpinallbtn"), pinsModule.unpinallCallback))
 	dispatcher.AddHandlerToGroup(

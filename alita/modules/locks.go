@@ -534,11 +534,11 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadLocks(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(locksModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("lock", locksModule.lockPerm))
-	dispatcher.AddHandler(handlers.NewCommand("unlock", locksModule.unlockPerm))
-	dispatcher.AddHandler(handlers.NewCommand("locktypes", locksModule.locktypes))
+	dispatcher.AddHandler(handlers.NewCommand("lock", withPMGroupArg("lock", helpers.PMGroupArgOwn, locksModule.lockPerm)))
+	dispatcher.AddHandler(handlers.NewCommand("unlock", withPMGroupArg("unlock", helpers.PMGroupArgOwn, locksModule.unlockPerm)))
+	dispatcher.AddHandler(handlers.NewCommand("locktypes", withPMGroupArg("locktypes", helpers.PMGroupArgNone, locksModule.locktypes)))
 	helpers.AddCmdToDisableable("locktypes")
-	dispatcher.AddHandler(handlers.NewCommand("locks", locksModule.locks))
+	dispatcher.AddHandler(handlers.NewCommand("locks", withPMGroupArg("locks", helpers.PMGroupArgNone, locksModule.locks)))
 	helpers.AddCmdToDisableable("locks")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)
