@@ -105,6 +105,14 @@ func TestNotesInPMByQuotedTitle(t *testing.T) {
 	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "welcome-pack")
 }
 
+// A title in curly quotes, as iOS sends typed ones, names the group too.
+func TestNotesInPMByCurlyQuotedTitle(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	addTestNote(t, f.chat.Id, "welcome-pack")
+
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, "/notes “My Group”", "welcome-pack")
+}
+
 // A one-word title needs no quotes.
 func TestFiltersInPMByBareTitle(t *testing.T) {
 	f := titleFixture(t, "MyGroup")

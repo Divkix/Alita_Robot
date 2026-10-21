@@ -33,6 +33,10 @@ type pmGroupToken struct {
 	start, end int
 }
 
+// pmGroupQuotes pairs each opening quote with its closing one. Curly quotes
+// are what iOS Smart Punctuation sends for typed straight ones.
+var pmGroupQuotes = [][2]string{{`"`, `"`}, {"“", "”"}}
+
 // parsePMGroupToken returns the first argument after the command. A quoted
 // argument runs to the closing quote and may contain spaces.
 func parsePMGroupToken(text string) (pmGroupToken, bool) {
@@ -46,9 +50,13 @@ func parsePMGroupToken(text string) (pmGroupToken, bool) {
 	}
 	tokStart := len(text) - len(rest)
 
-	if strings.HasPrefix(rest, `"`) {
-		if closing := closingQuote(rest); closing > 1 {
-			return pmGroupToken{Raw: rest[1:closing], Quoted: true, start: cmdEnd, end: tokStart + closing + 1}, true
+	for _, quotes := range pmGroupQuotes {
+		open, end := quotes[0], quotes[1]
+		if !strings.HasPrefix(rest, open) {
+			continue
+		}
+		if closing := closingQuote(rest, len(open), end); closing > len(open) {
+			return pmGroupToken{Raw: rest[len(open):closing], Quoted: true, start: cmdEnd, end: tokStart + closing + len(end)}, true
 		}
 	}
 	tokLen := strings.IndexFunc(rest, unicode.IsSpace)
@@ -58,14 +66,15 @@ func parsePMGroupToken(text string) (pmGroupToken, bool) {
 	return pmGroupToken{Raw: rest[:tokLen], start: cmdEnd, end: tokStart + tokLen}, true
 }
 
-// closingQuote returns the index in s of the quote that closes the one at
-// s[0]: the first quote followed by whitespace or the end of s, or -1.
-func closingQuote(s string) int {
-	for i := 1; i < len(s); i++ {
-		if s[i] != '"' {
+// closingQuote returns the index in s of the quote that closes the one ending
+// at s[from]: the first quote followed by whitespace or the end of s, or -1.
+func closingQuote(s string, from int, quote string) int {
+	for i := from; i < len(s); i++ {
+		if !strings.HasPrefix(s[i:], quote) {
 			continue
 		}
-		if next, _ := utf8.DecodeRuneInString(s[i+1:]); i+1 == len(s) || unicode.IsSpace(next) {
+		after := i + len(quote)
+		if next, _ := utf8.DecodeRuneInString(s[after:]); after == len(s) || unicode.IsSpace(next) {
 			return i
 		}
 	}
