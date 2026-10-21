@@ -29,8 +29,8 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 		Name:       "setwarnlimit",
 		PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
-			if chat := chat_status.IsUserConnected(c.Bot, c.Ctx, true, true); chat != nil {
-				checked = chat.Id
+			if group := chat_status.OneOffGroup(c.Ctx); group != nil {
+				checked = group.Id
 			}
 			return checked == f.chat.Id
 		}},
