@@ -15,6 +15,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -336,18 +337,60 @@ func TestMuteButtonsFromPMActOnNamedGroup(t *testing.T) {
 		}
 	})
 	t.Run("in the group", func(t *testing.T) {
-		f, _ := pmBansFixture(t)
+		for _, cmd := range []string{"mute", "dmute"} {
+			t.Run(cmd, func(t *testing.T) {
+				f, _ := pmBansFixture(t)
 
-		update := newModuleMessageContext(f.bot, f.chat, f.admin, "/mute @victim").Update
-		if err := mutesPMDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
-			t.Fatalf("ProcessUpdate(/mute) error = %v", err)
-		}
+				// /dmute needs a reply to a group message; the others take @victim.
+				update := newModuleMessageContext(f.bot, f.chat, f.admin, "/mute @victim").Update
+				if cmd == "dmute" {
+					update = newBanReplyContext(f.bot, f.chat, f.admin, gotgbot.User{Id: victimID, FirstName: "Victim"}, "/dmute").Update
+				}
+				if err := mutesPMDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+					t.Fatalf("ProcessUpdate(/%s) error = %v", cmd, err)
+				}
 
-		decoded, _ := decodeCallbackData(buttonFor(t, f, 0, "unrestrict", "unmute"))
-		if c, named := decoded.Field("c"); named {
-			t.Fatalf("/mute in the group sent an unmute button naming group %q", c)
+				decoded, _ := decodeCallbackData(buttonFor(t, f, 0, "unrestrict", "unmute"))
+				if c, named := decoded.Field("c"); named {
+					t.Fatalf("/%s in the group sent an unmute button naming group %q", cmd, c)
+				}
+			})
 		}
 	})
+}
+
+// A mute command sent from PM logs to the log channel of the named group, as
+// the same command does in that group, and not to the one of the connected
+// group.
+func TestMuteCommandsInPMWithGroupLogToNamedGroup(t *testing.T) {
+	const namedLog, connectedLog int64 = -100771, -100772
+	for _, tc := range pmMuteCases {
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, connected := pmBansFixture(t)
+			if err := logchannels.Set(f.chat.Id, f.chat.Title, namedLog); err != nil {
+				t.Fatalf("logchannels.Set(named) error = %v", err)
+			}
+			if err := logchannels.Set(connected, "Group B", connectedLog); err != nil {
+				t.Fatalf("logchannels.Set(connected) error = %v", err)
+			}
+			t.Cleanup(func() {
+				_ = logchannels.Unset(f.chat.Id)
+				_ = logchannels.Unset(connected)
+			})
+
+			processPM(t, mutesPMDispatcher(), f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
+
+			if !tc.acted(t, f, f.chat.Id, victimID) {
+				t.Fatalf("/%s from PM did not act on @victim in the named group; sent:\n%s", tc.cmd, sentText(f.client))
+			}
+			if n := logChannelMessages(f.client, namedLog); n != 1 {
+				t.Fatalf("/%s from PM: the named group's log channel got %d messages, want 1; sent:\n%s", tc.cmd, n, sentText(f.client))
+			}
+			if n := logChannelMessages(f.client, connectedLog); n != 0 {
+				t.Fatalf("/%s from PM: the connected group's log channel got %d messages, want none", tc.cmd, n)
+			}
+		})
+	}
 }
 
 // The help a mute command gives from PM shows a call with a group, both
