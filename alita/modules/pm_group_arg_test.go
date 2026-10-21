@@ -357,6 +357,32 @@ func TestPMGroupArgHandlerSeesArgumentsWithoutGroup(t *testing.T) {
 	}
 }
 
+// With a connection, a command with arguments of its own still takes another
+// group named by @username; only a title stays the command's argument.
+func TestPMGroupArgOwnArgsTakesUsernameWithConnection(t *testing.T) {
+	f := oneOffFixture(t)
+	other := uniqueModuleChatID()
+	if err := connections.ConnectId(f.admin.Id, other); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	t.Cleanup(func() { _ = connections.DisconnectId(f.admin.Id) })
+	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, "/cmd @fixturegroup on")
+	var args []string
+	var group *gotgbot.Chat
+	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+		args, group = ctx.Args(), chat_status.OneOffGroup(ctx)
+		return ext.EndGroups
+	})
+
+	if err := handler(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("handler error = %v, want ext.EndGroups", err)
+	}
+
+	if group == nil || group.Id != f.chat.Id || fmt.Sprint(args) != "[/cmd on]" {
+		t.Fatalf("handler saw group %+v args %q, want group %d and [/cmd on]", group, args, f.chat.Id)
+	}
+}
+
 // With chatAdmin the one-off group needs the user to be its admin, not only
 // a member.
 func TestIsUserConnectedOneOffGroupChatAdminRefusesMember(t *testing.T) {
