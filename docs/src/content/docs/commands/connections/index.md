@@ -21,6 +21,8 @@ While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /
 
 From PM, the owner of a group can also run /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns and /unbanall, and its admins /privnote: name the group first (its title, @username or ID) or connect to it. The confirmation acts on that group and only its owner can press it.
 
+From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
+
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
 ## Module Aliases

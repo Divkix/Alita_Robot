@@ -358,6 +358,8 @@ connections_help_msg:
 
   Desde el privado, el propietario de un grupo también puede usar /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns y /unbanall, y sus administradores /privnote: nombra primero el grupo (su título, @username o ID) o conéctate a él. La confirmación actúa sobre ese grupo y solo su propietario puede pulsarla.
 
+  Desde el privado, los administradores de un grupo también pueden usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache y /clearadmincache: nombra primero el grupo (su título, @username o ID) o conéctate a él. Necesitan los mismos permisos que en el grupo, y la respuesta llega al privado.
+
 
   Puedes obtener el id del chat usando el comando /id en tu chat. No te sorprendas
   si el id es negativo; todos los supergrupos tienen ids negativos."

@@ -344,6 +344,8 @@ connections_help_msg:
 
   No privado, o dono de um grupo também pode usar /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns e /unbanall, e seus administradores /privnote: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. A confirmação age nesse grupo e só o dono pode apertá-la.
 
+  No privado, os administradores de um grupo também podem usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache e /clearadmincache: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. É preciso ter as mesmas permissões que no grupo, e a resposta chega no privado.
+
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
   se o id for negativo; todos os supergrupos têm ids negativos."

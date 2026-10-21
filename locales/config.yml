@@ -90,6 +90,12 @@ remallbl_example: "/remallbl @mygroup"
 unapproveall_example: "/unapproveall -1001234567890"
 resetallwarns_example: "/resetallwarns @mygroup"
 unbanall_example: '/unbanall "My Group"'
+adminlist_example: "/adminlist @mygroup"
+invitelink_example: '/invitelink "My Group"'
+setgtitle_example: "/setgtitle @mygroup New title"
+setgdesc_example: "/setgdesc -1001234567890 Group rules are pinned"
+admincache_example: "/admincache @mygroup"
+clearadmincache_example: "/clearadmincache @mygroup"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]
