@@ -205,25 +205,25 @@ func TestResetCommandsInPMWithGroupResetThatGroup(t *testing.T) {
 // From PM, an admin who does not own the named group gets no confirmation
 // for an owner-only reset, though Telegram calls them the owner of every
 // other chat (the connected group, the PM), and a member who is no admin
-// changes nothing either.
+// changes nothing either. /privnote is for any admin, so only the member
+// case applies to it.
 func TestResetCommandsInPMWithGroupRefuseWithoutRights(t *testing.T) {
 	for _, tc := range pmResetCases {
-		t.Run(tc.cmd+"/admin", func(t *testing.T) {
-			if tc.cmd == "privnote" {
-				t.Skip("/privnote is for any admin")
-			}
-			f, connected := pmResetFixture(t, tc)
-			f.makeOwner()
-			f.setMemberStatus(f.chat.Id, f.admin.Id, "administrator")
+		if tc.cmd != "privnote" {
+			t.Run(tc.cmd+"/admin", func(t *testing.T) {
+				f, connected := pmResetFixture(t, tc)
+				f.makeOwner()
+				f.setMemberStatus(f.chat.Id, f.admin.Id, "administrator")
 
-			if buttons := runResetInPM(t, pmResetDispatcher(), f, f.admin, tc); len(buttons) != 0 {
-				t.Fatalf("an admin who does not own the group got the /%s confirmation", tc.cmd)
-			}
-			if !tc.intact(f, f.chat.Id) || !tc.intact(f, connected) {
-				t.Fatalf("/%s from an admin who does not own the group changed a group; sent:\n%s", tc.cmd, sentText(f.client))
-			}
-			requireConnectedTo(t, f.admin.Id, connected)
-		})
+				if buttons := runResetInPM(t, pmResetDispatcher(), f, f.admin, tc); len(buttons) != 0 {
+					t.Fatalf("an admin who does not own the group got the /%s confirmation", tc.cmd)
+				}
+				if !tc.intact(f, f.chat.Id) || !tc.intact(f, connected) {
+					t.Fatalf("/%s from an admin who does not own the group changed a group; sent:\n%s", tc.cmd, sentText(f.client))
+				}
+				requireConnectedTo(t, f.admin.Id, connected)
+			})
+		}
 		t.Run(tc.cmd+"/member", func(t *testing.T) {
 			f, connected := pmResetFixture(t, tc)
 			if err := connections.ToggleAllowConnect(f.chat.Id, true); err != nil {
