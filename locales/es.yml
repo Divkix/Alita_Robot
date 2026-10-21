@@ -2464,16 +2464,18 @@ logchannels_help_msg: |
   3. Reenvía ese mensaje al grupo.
 
   *Comandos de administrador:*
-  × /setlog: Establece el canal de registro (envíalo en el canal y luego reenvía el mensaje al grupo).
+  × /setlog: Establece el canal de registro (envíalo en el canal y luego reenvía el mensaje al grupo). En privado, indica el grupo y luego el canal, si eres administrador de ambos y el bot puede publicar en el canal.
   × /unsetlog: Quita el canal de registro.
   × /log <category>: Activa una categoría.
   × /nolog <category>: Desactiva una categoría.
 
   *Cualquiera:*
-  × /logchannel: Muestra el canal de registro actual (solo grupos).
+  × /logchannel: Muestra el canal de registro actual.
   × /logcategories: Lista las categorías.
 
   Categorías: settings (cambios en la configuración del canal de registro), admin (baneos, expulsiones, silencios, desbaneos y quitar silencios), user (/kickme y /banme), reports (reportes de usuarios), automated, other. Todavía no se registra nada en automated ni en other.
+
+  Desde el chat privado, indica primero el grupo en /setlog, /unsetlog, /log, /nolog y /logchannel: su título, @usuario o ID.
 feds_pm_only: "Este comando solo se puede usar en un chat privado conmigo."
 feds_group_only: "Este comando solo se puede usar en grupos."
 feds_need_name: "Dale un nombre a tu federación."
@@ -2564,6 +2566,10 @@ logs_disabled: "Registro desactivado para: {cats}"
 logs_unknown_category: "Categoría desconocida. Consulta /logcategories."
 logs_usage: "Uso: /log &lt;categoría&gt; o /nolog &lt;categoría&gt;"
 logs_group_only: "Este comando solo se puede usar en grupos."
+logs_pm_need_channel: "Indica el canal después del grupo: <code>/setlog @migrupo @micanal</code>, o el ID del canal. Antes, hazme administrador del canal con permiso para publicar mensajes."
+logs_pm_not_channel: "<code>{channel}</code> no es un canal que yo pueda ver. Hazme administrador del canal con permiso para publicar mensajes e indícalo por su @usuario o ID."
+logs_pm_user_not_channel_admin: "Debes ser administrador del canal para convertirlo en el canal de registro."
+logs_pm_bot_cannot_post: "Necesito ser administrador del canal con permiso para publicar mensajes."
 bans_banme_is_admin: "Los administradores no pueden banearse a sí mismos. Renuncia primero."
 bans_banme_ok: "Como quieras. Estás baneado."
 bans_unbanall_ask: "¿Desbanear a todos los usuarios conocidos de este chat? Esto no se puede deshacer fácilmente."

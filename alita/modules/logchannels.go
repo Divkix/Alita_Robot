@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +64,9 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
+	if chat.Type == "private" {
+		return setLogFromPM(b, ctx, tr)
+	}
 	// A forwarded /setlog post is the bind step; let the group-11 watcher
 	// (captureSetLogForward) handle it instead of answering logs_need_channel.
 	if msg.ForwardOrigin != nil {
@@ -76,17 +80,91 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// setLogFromPM binds the channel named after the group: "/setlog <group>
+// <channel>", with the group already cut by withPMGroupArg or left out on a
+// connection. No post in the channel proves who runs it, so Telegram must:
+// the user is an admin of the group and of the channel, and the bot may post
+// there.
+func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
+	msg := ctx.EffectiveMessage
+	from := chat_status.RequireUser(b, ctx)
+	if from == nil {
+		return ext.EndGroups
+	}
+	group := resolveAdminChat(b, ctx, false)
+	if group == nil {
+		return ext.EndGroups
+	}
+	args := ctx.Args()[1:]
+	if len(args) != 1 {
+		text, _ := tr.GetString("logs_pm_need_channel")
+		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	channel, err := chat_status.GetChat(b, args[0])
+	if err != nil || channel.Type != "channel" {
+		text, _ := tr.GetString("logs_pm_not_channel", i18n.TranslationParams{"channel": html.EscapeString(args[0])})
+		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	if member, err := b.GetChatMember(channel.Id, from.Id, nil); err != nil || !isAdminStatus(member.GetStatus()) {
+		text, _ := tr.GetString("logs_pm_user_not_channel_admin")
+		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	if member, err := b.GetChatMember(channel.Id, b.Id, nil); err != nil || member.GetStatus() != "administrator" || !member.MergeChatMember().CanPostMessages {
+		text, _ := tr.GetString("logs_pm_bot_cannot_post")
+		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	if err := logchannels.Set(group.Id, group.Title, channel.Id); err != nil {
+		log.Errorf("[LogChannels] Set: %v", err)
+		text, _ := tr.GetString("common_settings_save_failed")
+		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	text, _ := tr.GetString("logs_set_ok")
+	replyHTML(b, msg, text)
+	actionlog.Settings(b, group, from, "set log channel")
+	return ext.EndGroups
+}
+
+func isAdminStatus(status string) bool {
+	return status == "creator" || status == "administrator"
+}
+
+// logsChat returns the group a log-channel command acts on: the chat it was
+// sent in or, in PM, the group withPMGroupArg named or the connected one. In
+// PM admin requires the user to be its admin; IsUserConnected answers any
+// refusal. nil means the call has been answered.
+func logsChat(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, admin bool) *gotgbot.Chat {
+	chat := ctx.EffectiveChat
+	if chat == nil {
+		text, _ := tr.GetString("logs_group_only")
+		replyHTML(b, ctx.EffectiveMessage, text)
+		return nil
+	}
+	if chat.Type != "private" {
+		return chat
+	}
+	if admin {
+		return resolveAdminChat(b, ctx, false)
+	}
+	if chat = chat_status.IsUserConnected(b, ctx, false, false); chat != nil {
+		ctx.EffectiveChat = chat
+	}
+	return chat
+}
+
 func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	from := chat_status.RequireUser(b, ctx)
 	if from == nil {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	if chat == nil || chat.Type == "private" {
-		text, _ := tr.GetString("logs_group_only")
-		replyHTML(b, msg, text)
+	chat := logsChat(b, ctx, tr, true)
+	if chat == nil {
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
@@ -109,14 +187,12 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	if chat_status.RequireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	if chat == nil || chat.Type == "private" {
-		text, _ := tr.GetString("logs_group_only")
-		replyHTML(b, msg, text)
+	chat := logsChat(b, ctx, tr, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 	settings := logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id)
@@ -153,15 +229,13 @@ func (m moduleStruct) disableLog(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bool) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	from := chat_status.RequireUser(b, ctx)
 	if from == nil {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	if chat == nil || chat.Type == "private" {
-		text, _ := tr.GetString("logs_group_only")
-		replyHTML(b, msg, text)
+	chat := logsChat(b, ctx, tr, true)
+	if chat == nil {
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
@@ -278,12 +352,13 @@ func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(logChannelsModule.moduleName, true)
 
 	// Channel posts must reach /setlog: posting it in the channel starts the bind.
-	dispatcher.AddHandler(handlers.NewCommand("setlog", logChannelsModule.setLog).SetAllowChannel(true))
-	dispatcher.AddHandler(handlers.NewCommand("unsetlog", logChannelsModule.unsetLog))
-	dispatcher.AddHandler(handlers.NewCommand("logchannel", logChannelsModule.logChannel))
+	// From PM each command but /logcategories takes the group first.
+	dispatcher.AddHandler(handlers.NewCommand("setlog", withPMGroupArg("setlog", pmArgsOwn, logChannelsModule.setLog)).SetAllowChannel(true))
+	dispatcher.AddHandler(handlers.NewCommand("unsetlog", withPMGroupArg("unsetlog", pmArgsNone, logChannelsModule.unsetLog)))
+	dispatcher.AddHandler(handlers.NewCommand("logchannel", withPMGroupArg("logchannel", pmArgsNone, logChannelsModule.logChannel)))
 	dispatcher.AddHandler(handlers.NewCommand("logcategories", logChannelsModule.logCategories))
-	dispatcher.AddHandler(handlers.NewCommand("log", logChannelsModule.enableLog))
-	dispatcher.AddHandler(handlers.NewCommand("nolog", logChannelsModule.disableLog))
+	dispatcher.AddHandler(handlers.NewCommand("log", withPMGroupArg("log", pmArgsOwn, logChannelsModule.enableLog)))
+	dispatcher.AddHandler(handlers.NewCommand("nolog", withPMGroupArg("nolog", pmArgsOwn, logChannelsModule.disableLog)))
 
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(message.All, logChannelsModule.captureSetLogForward),

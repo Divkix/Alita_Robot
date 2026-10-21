@@ -2476,16 +2476,18 @@ logchannels_help_msg: |
   3. Forward that message to the group.
 
   *Admin commands:*
-  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
+  × /setlog: Set the log channel (send it in the channel, then forward the message to the group). In PM, name the group and then the channel, if you are an admin of both and the bot can post in the channel.
   × /unsetlog: Remove the log channel.
   × /log <category>: Enable a category.
   × /nolog <category>: Disable a category.
 
   *Anyone:*
-  × /logchannel: Show the current log channel (groups only).
+  × /logchannel: Show the current log channel.
   × /logcategories: List categories.
 
   Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated, other. Nothing is logged under automated or other yet.
+
+  From PM, name the group first in /setlog, /unsetlog, /log, /nolog and /logchannel: its title, @username or ID.
 feds_pm_only: "This command can only be used in private chat with me."
 feds_group_only: "This command can only be used in groups."
 feds_need_name: "Give your federation a name."
@@ -2576,6 +2578,10 @@ logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
 logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
+logs_pm_need_channel: "Name the channel after the group: <code>/setlog @mygroup @mychannel</code>, or the channel's ID. Make me an admin of the channel that can post messages first."
+logs_pm_not_channel: "<code>{channel}</code> is not a channel I can see. Make me an admin of the channel that can post messages, then name it by its @username or ID."
+logs_pm_user_not_channel_admin: "You need to be an admin of the channel to make it the log channel."
+logs_pm_bot_cannot_post: "I need to be an admin of the channel with permission to post messages."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
 bans_unbanall_ask: "Unban every known user in this chat? This cannot be undone easily."
@@ -2756,6 +2762,16 @@ logchannels_examples_docs: |
   2. Send <code>/setlog</code> in the channel.
   3. Within an hour, forward that /setlog message to your group.
 
+  <b>Set up and manage it from PM:</b>
+  In PM, name the group first: its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces). Nothing is posted in the group, and the channel gets only the usual settings entry.
+  • <code>/setlog "My Group" @mychannel</code> - bind a channel by its @username
+  • <code>/setlog -1001234567890 -1009876543210</code> - bind it by IDs
+  • <code>/log @mygroup admin</code> - turn on a category
+  • <code>/nolog "My Group" settings</code> - turn off a category
+  • <code>/logchannel @mygroup</code> - show the log channel
+  • <code>/unsetlog @mygroup</code> - remove it
+  You must be an admin of both the group and the channel, and the bot an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>. The group passes the same checks as /connect, and the connection stays as it is.
+
   <b>Choose what gets logged:</b>
   • <code>/logcategories</code> - list the categories
   • <code>/log admin user</code> - turn on two categories
@@ -2784,7 +2800,8 @@ logchannels_permissions_docs: |
   <b>User Permissions:</b>
   • <code>/setlog</code> is sent in the channel itself, where only channel admins can post.
   • Only group admins can bind the channel by forwarding that message, and only they can use <code>/unsetlog</code>, <code>/log</code> and <code>/nolog</code>.
-  • Anyone can use <code>/logchannel</code> (groups only) and <code>/logcategories</code>.
+  • <code>/setlog</code> in PM binds the channel only for a user who is an admin of both the group and the channel.
+  • Anyone can use <code>/logchannel</code> and <code>/logcategories</code>; in PM, <code>/logchannel</code> works for a group you could connect to with <code>/connect</code>.
 
   <b>Bot Permissions:</b>
   • The bot must be an admin of the log channel with permission to post messages, both to see <code>/setlog</code> and to send log entries. Entries it cannot send are dropped without an error.

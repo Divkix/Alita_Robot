@@ -52,6 +52,9 @@ type moduleBotClient struct {
 	adminsByChat map[string]json.RawMessage
 	// membersByUser overrides getChatMember per user_id.
 	membersByUser map[string]json.RawMessage
+	// membersByChat overrides getChatMember for one member of one chat, keyed
+	// "chat_id|user_id"; it wins over every other getChatMember answer.
+	membersByChat map[string]json.RawMessage
 	// chatsByID overrides getChat per chat_id.
 	chatsByID map[string]json.RawMessage
 }
@@ -129,6 +132,11 @@ func (c *moduleBotClient) RequestWithContext(_ context.Context, _ string, method
 	}
 	if err := c.errorsByChat[method+"|"+fmt.Sprint(params["chat_id"])]; err != nil {
 		return nil, err
+	}
+	if method == "getChatMember" {
+		if response, ok := c.membersByChat[fmt.Sprint(params["chat_id"])+"|"+fmt.Sprint(params["user_id"])]; ok {
+			return response, nil
+		}
 	}
 	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "999" {
 		return json.RawMessage(
