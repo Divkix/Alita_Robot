@@ -5,10 +5,17 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
+	"html"
+	"maps"
+	"reflect"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
@@ -21,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // pmSettingsDispatcher loads every module whose settings commands take a
@@ -110,47 +118,96 @@ func TestSettingsCommandsInPMWithGroupChangeThatGroup(t *testing.T) {
 	}
 }
 
-// Every settings command sent from PM without a group and without a
-// connection answers with its help, its example and the user's groups. An
+// One settings command per module, sent from PM without a group and without
+// a connection, answers with its help, its example and the user's groups. An
 // alias answers with the help of the command it stands for.
 func TestSettingsCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
 	f := titleFixture(t, "My Group")
 	dispatcher := pmSettingsDispatcher()
 	pick := translated(t, "connections_pm_group_pick")
-	for sent, help := range map[string]string{
-		"locks": "locks", "locktypes": "locktypes", "lock": "lock", "unlock": "unlock",
-		"flood": "flood", "setflood": "setflood", "setfloodmode": "setfloodmode",
-		"delflood": "delflood", "clearflood": "delflood",
-		"disabled": "disabled", "disable": "disable", "enable": "enable", "disabledel": "disabledel",
-		"reactions": "reactions", "addreaction": "addreaction", "removereaction": "removereaction",
-		"resetreactions": "resetreactions",
-		"antiraid":       "antiraid", "raidtime": "raidtime", "raidactiontime": "raidactiontime",
-		"autoantiraid":   "autoantiraid",
-		"antichannelpin": "antichannelpin", "cleanlinked": "cleanlinked",
-		"allowconnect": "allowconnect",
-		"privaterules": "privaterules", "setrules": "setrules",
-		"resetrules": "resetrules", "clearrules": "resetrules",
-		"rulesbtn": "rulesbtn", "rulesbutton": "rulesbtn",
-		"resetrulesbutton": "resetrulesbutton", "resetrulesbtn": "resetrulesbutton",
-		"clearrulesbutton": "resetrulesbutton", "clearrulesbtn": "resetrulesbutton",
-		"blacklists": "blacklists", "blocklists": "blacklists",
-		"addblacklist": "addblacklist", "blacklist": "addblacklist", "addblocklist": "addblacklist",
-		"blocklist":   "addblacklist",
-		"rmblacklist": "rmblacklist", "rmblocklist": "rmblacklist", "unblacklist": "rmblacklist",
-		"blaction": "blaction", "blacklistaction": "blaction",
-		"approved": "approved", "approve": "approve", "unapprove": "unapprove", "approval": "approval",
+	for _, tc := range []struct{ sent, help string }{
+		{"lock", "lock"},
+		{"setflood", "setflood"},
+		{"disabled", "disabled"},
+		{"addreaction", "addreaction"},
+		{"antiraid", "antiraid"},
+		{"cleanlinked", "cleanlinked"},
+		{"allowconnect", "allowconnect"},
+		{"clearrules", "resetrules"},
+		{"blocklist", "addblacklist"},
+		{"approve", "approve"},
 	} {
-		t.Run(sent, func(t *testing.T) {
+		t.Run(tc.sent, func(t *testing.T) {
 			before := len(f.client.callsFor("sendMessage"))
 
-			processPM(t, dispatcher, f, f.admin.Id, "/"+sent)
+			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.sent)
 
 			replies := f.client.callsFor("sendMessage")[before:]
 			if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), pick) {
-				t.Fatalf("/%s from PM replied %+v, want one reply asking for the group", sent, replies)
+				t.Fatalf("/%s from PM replied %+v, want one reply asking for the group", tc.sent, replies)
 			}
-			assertPMGroupHelp(t, fmt.Sprint(replies[0].Params["text"]), help, f.chat)
+			assertPMGroupHelp(t, fmt.Sprint(replies[0].Params["text"]), tc.help, f.chat)
 		})
+	}
+}
+
+// pmGroupCommands returns the commands the modules register through
+// withPMGroupArg, read from a dispatcher with every module loaded. Inlined
+// copies of the wrapper's closure keep its function name, which tells it apart.
+func pmGroupCommands(t *testing.T) []handlers.Command {
+	t.Helper()
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAllModules(dispatcher)
+	field := reflect.ValueOf(dispatcher).Elem().FieldByName("handlers").FieldByName("handlers")
+	if field.Kind() != reflect.Map {
+		t.Fatal("ext.Dispatcher no longer keeps its handlers in handlers.handlers")
+	}
+	groups := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(map[int][]ext.Handler)
+	wrapper := funcName(withPMGroupArg("", helpers.PMGroupArgNone, nil))
+	var cmds []handlers.Command
+	for _, group := range groups {
+		for _, h := range group {
+			if cmd, ok := h.(handlers.Command); ok && funcName(cmd.Response) == wrapper {
+				cmds = append(cmds, cmd)
+			}
+		}
+	}
+	return cmds
+}
+
+func funcName(f handlers.Response) string {
+	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+}
+
+// Every command that takes its group from PM answers a call without a group
+// with the help entry and example of a command in commandHelpModules, so a
+// new command or alias without an entry fails here.
+func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	cmds := pmGroupCommands(t)
+	if !slices.ContainsFunc(cmds, func(cmd handlers.Command) bool { return cmd.Command == "lock" }) {
+		t.Fatalf("found %d commands wrapped by withPMGroupArg, /lock not among them", len(cmds))
+	}
+	pick := translated(t, "connections_pm_group_pick")
+	for _, cmd := range cmds {
+		dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+		dispatcher.AddHandler(cmd)
+		before := len(f.client.callsFor("sendMessage"))
+
+		processPM(t, dispatcher, f, f.admin.Id, "/"+cmd.Command)
+
+		replies := f.client.callsFor("sendMessage")[before:]
+		if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), pick) {
+			t.Errorf("/%s from PM replied %+v, want one reply asking for the group", cmd.Command, replies)
+			continue
+		}
+		text := fmt.Sprint(replies[0].Params["text"])
+		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules)), func(help string) bool {
+			example := commandExample(help)
+			return example != "" && strings.Contains(text, html.EscapeString(example))
+		}) {
+			t.Errorf("/%s from PM answers without a help entry; add its command to commandHelpModules", cmd.Command)
+		}
 	}
 }
 
