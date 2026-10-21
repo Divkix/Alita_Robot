@@ -125,6 +125,10 @@ func utf16Len(s string) int64 {
 	return int64(len(utf16.Encode([]rune(s))))
 }
 
+func init() {
+	helpers.SetPMGroupResolver(resolvePMGroupArg)
+}
+
 // isPMGroupRef reports whether tok names a chat directly, by a negative chat
 // ID or an @username, rather than by a group's title.
 func isPMGroupRef(tok pmGroupToken) bool {
@@ -210,30 +214,50 @@ func replyPMGroupHelp(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cmd
 // PM the command runs unchanged.
 func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) handlers.Response {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
-		msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
-		if msg == nil || user == nil || msg.Chat.Type != "private" {
-			return h(b, ctx)
-		}
-		c := pmGroupCall{b: b, ctx: ctx, tr: i18n.MustNewTranslator(lang.GetLanguage(ctx)), cmd: cmd}
-		// A rich message keeps its text in blocks, so a group in it cannot be
-		// cut out; ask for a plain message rather than ignore the group.
-		if msg.RichMessage != nil {
-			if len(strings.Fields(msg.RichMessage.PlainText())) > 1 {
-				text, _ := c.tr.GetString("connections_pm_group_need")
-				return c.reply(fmt.Sprintf(text, cmd))
-			}
-			return h(b, ctx)
-		}
-
-		group, tok, runAsIs := c.group(arg)
-		if runAsIs {
-			return h(b, ctx)
-		}
-		if group == nil {
+		if !resolvePMGroupArg(b, ctx, cmd, arg) {
 			return ext.EndGroups
 		}
-		return c.runWithGroup(h, group, tok)
+		if chat_status.OneOffGroup(ctx) == nil {
+			return h(b, ctx)
+		}
+		// Later handler groups must not see the cut message.
+		if err := h(b, ctx); err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+			helpers.LogHandlerError(ctx, err)
+		}
+		return ext.EndGroups
 	}
+}
+
+// resolvePMGroupArg is withPMGroupArg's part that finds the group, also run by
+// helpers.WrapCommand for commands with a PMGroupArg. When the call names a
+// group that passes the /connect checks, it stores the group with
+// chat_status.SetOneOffGroup and cuts it from ctx.EffectiveMessage. It
+// returns false when it has answered the call itself.
+func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers.PMGroupArg) bool {
+	msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
+	if msg == nil || user == nil || msg.Chat.Type != "private" {
+		return true
+	}
+	c := pmGroupCall{b: b, ctx: ctx, tr: i18n.MustNewTranslator(lang.GetLanguage(ctx)), cmd: cmd}
+	// A rich message keeps its text in blocks, so a group in it cannot be
+	// cut out; ask for a plain message rather than ignore the group.
+	if msg.RichMessage != nil {
+		if len(strings.Fields(msg.RichMessage.PlainText())) > 1 {
+			text, _ := c.tr.GetString("connections_pm_group_need")
+			_ = c.reply(fmt.Sprintf(text, cmd))
+			return false
+		}
+		return true
+	}
+
+	group, tok, runAsIs := c.group(arg)
+	if runAsIs {
+		return true
+	}
+	if group == nil {
+		return false
+	}
+	return c.useGroup(group, tok)
 }
 
 // pmGroupCall is one PM call of a command wrapped by withPMGroupArg.
@@ -343,9 +367,10 @@ func (c pmGroupCall) adminGroupsTitled(title string) []settingsPickerEntry {
 	return matches
 }
 
-// runWithGroup checks the group like /connect, then runs h with it in place of
-// the saved connection and with tok cut from the message.
-func (c pmGroupCall) runWithGroup(h handlers.Response, group *gotgbot.Chat, tok pmGroupToken) error {
+// useGroup checks the group like /connect, then puts it in place of the saved
+// connection for this update and cuts tok from the message. It returns false
+// after refusing the group.
+func (c pmGroupCall) useGroup(group *gotgbot.Chat, tok pmGroupToken) bool {
 	userID := c.ctx.EffectiveUser.Id
 	allowed, key, memberChecked := checkUserConnectToChat(c.b, group.Id, userID)
 	// An admin is let in from the cached admin list, which outlives a lost
@@ -360,14 +385,11 @@ func (c pmGroupCall) runWithGroup(h handlers.Response, group *gotgbot.Chat, tok 
 	}
 	if !allowed {
 		text, _ := c.tr.GetString(key)
-		return c.reply(text)
+		_ = c.reply(text)
+		return false
 	}
 
 	chat_status.SetOneOffGroup(c.ctx, group)
 	c.ctx.EffectiveMessage = stripPMGroupToken(c.ctx.EffectiveMessage, tok)
-	// Later handler groups must not see the cut message.
-	if err := h(c.b, c.ctx); err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
-		helpers.LogHandlerError(c.ctx, err)
-	}
-	return ext.EndGroups
+	return true
 }

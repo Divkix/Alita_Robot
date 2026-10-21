@@ -757,8 +757,8 @@ var (
 		},
 	}
 	// anonadmin resolves its chat (and checks bot admin) in the handler so it
-	// also works from PM through a connection.
-	anonAdminDesc = helpers.CommandDescriptor{Name: "anonadmin"}
+	// also works from PM through a connection or with the group named.
+	anonAdminDesc = helpers.CommandDescriptor{Name: "anonadmin", PMGroupArg: helpers.PMGroupArgOwn}
 	setGTitleDesc = helpers.CommandDescriptor{
 		Name:    "setgtitle",
 		Aliases: []string{"setgrouptitle"},

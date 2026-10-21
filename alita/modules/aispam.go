@@ -105,6 +105,7 @@ var aispamDesc = helpers.CommandDescriptor{
 	RequiredChecks: []helpers.CheckFunc{
 		helpers.CheckDisabled("aispam"),
 	},
+	PMGroupArg: helpers.PMGroupArgOwn,
 }
 
 // aispamTask carries the cheap facts gathered on the update path. Everything

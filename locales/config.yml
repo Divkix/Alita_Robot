@@ -60,6 +60,29 @@ approved_example: '/approved "My Group"'
 approve_example: "/approve -1001234567890 @username"
 unapprove_example: "/unapprove -1001234567890 @username"
 approval_example: "/approval -1001234567890 @username"
+welcome_example: "/welcome @mygroup on"
+setwelcome_example: "/setwelcome @mygroup Hello {first}!"
+resetwelcome_example: '/resetwelcome "My Group"'
+goodbye_example: "/goodbye @mygroup on"
+setgoodbye_example: "/setgoodbye @mygroup Bye {first}!"
+resetgoodbye_example: '/resetgoodbye "My Group"'
+cleanwelcome_example: "/cleanwelcome @mygroup on"
+cleangoodbye_example: "/cleangoodbye @mygroup on"
+cleanservice_example: "/cleanservice @mygroup on"
+autoapprove_example: "/autoapprove @mygroup on"
+captcha_example: "/captcha @mygroup on"
+captchamode_example: "/captchamode @mygroup text"
+captchatime_example: "/captchatime @mygroup 5"
+captchaaction_example: "/captchaaction @mygroup mute"
+captchamaxattempts_example: "/captchamaxattempts @mygroup 3"
+captchapending_example: "/captchapending -1001234567890 @username"
+captchaclear_example: "/captchaclear -1001234567890 @username"
+setwarnlimit_example: "/setwarnlimit @mygroup 5"
+setwarnmode_example: "/setwarnmode @mygroup mute"
+setwarntime_example: "/setwarntime @mygroup 30d"
+aispam_example: "/aispam @mygroup on"
+spamdb_example: "/spamdb @mygroup action mute"
+anonadmin_example: "/anonadmin @mygroup on"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]
