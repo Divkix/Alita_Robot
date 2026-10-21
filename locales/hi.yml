@@ -279,6 +279,8 @@ connections_help_msg: "यह मॉड्यूल आपको चैट क�
 
   निजी चैट में /rules, /notes, /filters और कई सेटिंग कमांड, जैसे /lock, /setflood, /setwelcome और /setwarnlimit, ग्रुप को पहले आर्गुमेंट के रूप में लेते हैं: उसकी ID, उसका @username, या उस ग्रुप का नाम जहाँ आप एडमिन हैं। नाम केवल जुड़े हुए ग्रुप और उन 50 सबसे हाल में सक्रिय ग्रुप्स में खोजे जाते हैं जहाँ आपने लिखा है; किसी अन्य ग्रुप को उसके @username या ID से बताएँ।
 
+  निजी चैट से समूह का मालिक /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns और /unbanall भी चला सकता है, और उसके एडमिन /privnote: पहले समूह का नाम दें (उसका शीर्षक, @username या ID) या उससे जुड़ें। पुष्टि उसी समूह पर लागू होती है और उसे केवल उसका मालिक दबा सकता है।
+
 
   आप अपनी चैट में /id कमांड का उपयोग करके चैट id प्राप्त कर सकते हैं। यदि id नकारात्मक है तो आश्चर्यचकित न हों; सभी सुपर ग्रुप्स में नकारात्मक id होती है।"
 
@@ -996,6 +998,7 @@ connections_pm_group_duplicate: "आपके कई ग्रुप का न�
 connections_pm_group_not_found: "ग्रुप <code>%s</code> नहीं मिला। उस ग्रुप का नाम बताएं जहाँ आप एडमिन हैं, या उसका @username या ID (ग्रुप में /id भेजें)।"
 connections_pm_group_pick: "PM में पहले ग्रुप बताएं: उस ग्रुप का नाम जहाँ आप एडमिन हैं (नाम में स्पेस हों तो कोट्स में), या उसका @username या ID।"
 connections_pm_group_your_groups: "आपके ग्रुप:"
+connections_pm_group_confirm_target: "ग्रुप: {title} ({id})"
 connections_stale_connection: "आपका कनेक्शन पुराना हो गया है - मैं अब इस चैट तक नहीं पहुंच सकता। कृपया किसी वैध चैट से फिर से कनेक्ट करने के लिए /connect का उपयोग करें।"
 connections_reconnect_need_pm: आपको किसी चैट से फिर से कनेक्ट करने के लिए मेरे साथ PM में होना चाहिए!
 connections_reconnect_no_last_chat: आपके पास फिर से कनेक्ट करने के लिए कोई पिछली चैट नहीं है!

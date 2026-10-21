@@ -884,6 +884,8 @@ connections_help_msg:
 
   En privé, /rules, /notes, /filters et de nombreuses commandes de réglages, comme /lock, /setflood, /setwelcome et /setwarnlimit, prennent le groupe comme premier argument : son ID, son @username ou le titre d'un groupe où vous êtes administrateur. Les titres ne sont cherchés que parmi le groupe connecté et les 50 groupes les plus récemment actifs où vous avez écrit ; désignez tout autre groupe par son @username ou son ID.
 
+  En privé, le propriétaire d'un groupe peut aussi utiliser /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns et /unbanall, et ses administrateurs /privnote : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. La confirmation agit sur ce groupe et seul son propriétaire peut l'utiliser.
+
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
   si l'id est négatif ; tous les super groupes ont des ids négatifs."
@@ -898,6 +900,7 @@ connections_pm_group_duplicate: "Plusieurs de vos groupes s'appellent <code>%s</
 connections_pm_group_not_found: "Je n'ai pas trouvé le groupe <code>%s</code>. Indiquez le titre d'un groupe dont vous êtes admin, son @username ou son ID (envoyez /id dans le groupe)."
 connections_pm_group_pick: "En privé, indiquez d'abord le groupe : le titre d'un groupe dont vous êtes admin (entre guillemets s'il contient des espaces), son @username ou son ID."
 connections_pm_group_your_groups: "Vos groupes :"
+connections_pm_group_confirm_target: "Groupe : {title} ({id})"
 connections_stale_connection: "Votre connexion est obsolète - je ne peux plus accéder à ce chat. Veuillez utiliser /connect pour vous reconnecter à un chat valide."
 connections_reconnect_need_pm: Vous devez être en MP avec moi pour vous reconnecter à un chat !
 connections_reconnect_no_last_chat: Vous n'avez pas de dernier chat auquel vous reconnecter !

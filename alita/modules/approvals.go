@@ -380,7 +380,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 //nolint:dupl // Similar to other rmAll handlers with distinct callback data and messages
 func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
@@ -388,6 +387,10 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
+	chat := groupOnlyChat(b, ctx)
+	if chat == nil {
+		return ext.EndGroups
+	}
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -398,6 +401,7 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_ask")
+	text = confirmText(ctx, tr, text, chat)
 	yesText, _ := tr.GetString("button_yes")
 	noText, _ := tr.GetString("button_no")
 	_, err := msg.Reply(b, text,
@@ -407,11 +411,11 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 					{
 						{
 							Text:         yesText,
-							CallbackData: encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}),
+							CallbackData: confirmData("rmAllApprovals", "yes", chat),
 						},
 						{
 							Text:         noText,
-							CallbackData: encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}),
+							CallbackData: confirmData("rmAllApprovals", "no", chat),
 						},
 					},
 				},
@@ -431,18 +435,15 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 	if !ok {
 		return ext.EndGroups
 	}
-	user := query.From
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+	decoded, _ := decodeCallbackData(query.Data, "rmAllApprovals")
+	chat := ownerConfirmChat(b, ctx, query, decoded)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
-	action := ""
-	if decoded, ok := decodeCallbackData(query.Data, "rmAllApprovals"); ok {
-		action, _ = decoded.Field("a")
-	}
+	action, _ := decoded.Field("a")
 	if action == "" {
 		log.Warnf("[Approvals] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
@@ -458,9 +459,9 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 			return ext.EndGroups
 		}
 		defer error_handling.RecoverFromPanic("rmAllApprovals", "approvals")
-		if err := approvals.RemoveAllApprovedUsers(query.Message.GetChat().Id); err != nil {
+		if err := approvals.RemoveAllApprovedUsers(chat.Id); err != nil {
 			log.WithFields(log.Fields{
-				"chatId": query.Message.GetChat().Id,
+				"chatId": chat.Id,
 				"error":  err,
 			}).Error("Failed to remove all approved users")
 			helpText, _ = tr.GetString(strings.ToLower(m.moduleName)+"_unapproveall_error", i18n.TranslationParams{"error": err.Error()})
@@ -520,7 +521,7 @@ func LoadApprovals(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("unapprove", withPMGroupArg("unapprove", helpers.PMGroupArgOwn, approvalsModule.unapproveUser)))
 	dispatcher.AddHandler(handlers.NewCommand("approval", withPMGroupArg("approval", helpers.PMGroupArgOwn, approvalsModule.checkApprovalStatus)))
 	dispatcher.AddHandler(handlers.NewCommand("approved", withPMGroupArg("approved", helpers.PMGroupArgNone, approvalsModule.listApprovedUsers)))
-	dispatcher.AddHandler(handlers.NewCommand("unapproveall", approvalsModule.unapproveAllHandler))
+	dispatcher.AddHandler(handlers.NewCommand("unapproveall", withPMGroupArg("unapproveall", helpers.PMGroupArgNone, approvalsModule.unapproveAllHandler)))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))
 }

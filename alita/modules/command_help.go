@@ -100,6 +100,14 @@ var commandHelpModules = map[string]string{
 	"aispam":             "aispam",
 	"spamdb":             "spamdb",
 	"anonadmin":          "admin",
+	// Group resets, with the group from PM.
+	"privnote":      "notes",
+	"clearall":      "notes",
+	"stopall":       "filters",
+	"remallbl":      "blacklists",
+	"unapproveall":  "approvals",
+	"resetallwarns": "warns",
+	"unbanall":      "bans",
 }
 
 // helpCommandLine matches a help line that defines commands: an optional

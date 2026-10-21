@@ -21,6 +21,8 @@ While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /
 
 In PM, /rules, /notes, /filters and many settings commands, such as /lock, /setflood, /setwelcome and /setwarnlimit, take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
 
+From PM, the owner of a group can also run /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns and /unbanall, and its admins /privnote: name the group first (its title, @username or ID) or connect to it. The confirmation acts on that group and only its owner can press it.
+
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
 ## Module Aliases
