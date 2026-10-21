@@ -541,6 +541,32 @@ func TestBanCommandsHelpShowsExampleWithGroupInPMOnly(t *testing.T) {
 	}
 }
 
+// From PM with the group named but no user, a bans command's help shows a
+// call with a group: the group's call would act on the connected group, or
+// get the help again without one.
+func TestBanCommandsNoUserHelpInPMShowsExampleWithGroup(t *testing.T) {
+	for _, tc := range pmBanCases {
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, _ := pmBansFixture(t)
+			useRealLocales(t)
+			pmExample, _ := i18n.MustNewTranslator("config").GetString(tc.cmd + "_pm_example")
+			groupExample := commandExample(tc.cmd)
+
+			processPM(t, bansPMDispatcher(), f, f.admin.Id, "/"+tc.cmd+" @fixturegroup")
+
+			replies := f.client.callsFor("sendMessage")
+			if len(replies) != 1 {
+				t.Fatalf("/%s from PM without a user sent %d replies, want one; sent:\n%s", tc.cmd, len(replies), sentText(f.client))
+			}
+			text := fmt.Sprint(replies[0].Params["text"])
+			if !strings.Contains(text, translated(t, "common_no_user_specified")) ||
+				pmExample == "" || !strings.Contains(text, html.EscapeString(pmExample)) || strings.Contains(text, html.EscapeString(groupExample)) {
+				t.Fatalf("/%s from PM without a user replied %q, want no-user help with the example %q only", tc.cmd, text, pmExample)
+			}
+		})
+	}
+}
+
 // Every bans command sent from PM without a group and without a connection
 // answers with its help, its example and the user's groups.
 func TestBanCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
