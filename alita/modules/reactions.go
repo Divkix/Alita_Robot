@@ -38,10 +38,10 @@ var supportedReactionEmoji = []string{
 }
 
 func LoadReactions(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("addreaction", reactionsModule.addReaction))
-	dispatcher.AddHandler(handlers.NewCommand("removereaction", reactionsModule.removeReaction))
-	dispatcher.AddHandler(handlers.NewCommand("reactions", reactionsModule.listReactions))
-	dispatcher.AddHandler(handlers.NewCommand("resetreactions", reactionsModule.resetReactions))
+	dispatcher.AddHandler(handlers.NewCommand("addreaction", withPMGroupArg("addreaction", pmArgsOwn, reactionsModule.addReaction)))
+	dispatcher.AddHandler(handlers.NewCommand("removereaction", withPMGroupArg("removereaction", pmArgsOwn, reactionsModule.removeReaction)))
+	dispatcher.AddHandler(handlers.NewCommand("reactions", withPMGroupArg("reactions", pmArgsNone, reactionsModule.listReactions)))
+	dispatcher.AddHandler(handlers.NewCommand("resetreactions", withPMGroupArg("resetreactions", pmArgsNone, reactionsModule.resetReactions)))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("reactions_help"), reactionsModule.reactionsHelpHandler))
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)

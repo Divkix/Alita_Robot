@@ -24,6 +24,28 @@ unsetlog_example: '/unsetlog "My Group"'
 logchannel_example: '/logchannel "My Group"'
 log_example: "/log @mygroup admin"
 nolog_example: "/nolog @mygroup settings"
+locks_example: '/locks "My Group"'
+locktypes_example: '/locktypes "My Group"'
+lock_example: '/lock "My Group" sticker'
+unlock_example: '/unlock "My Group" sticker'
+flood_example: '/flood "My Group"'
+setflood_example: '/setflood "My Group" 10'
+setfloodmode_example: '/setfloodmode "My Group" mute'
+delflood_example: '/delflood "My Group" on'
+disabled_example: '/disabled "My Group"'
+disable_example: '/disable "My Group" rules'
+enable_example: '/enable "My Group" rules'
+disabledel_example: '/disabledel "My Group" on'
+reactions_example: '/reactions "My Group"'
+addreaction_example: '/addreaction "My Group" hello 👍'
+removereaction_example: '/removereaction "My Group" hello'
+resetreactions_example: '/resetreactions "My Group"'
+antiraid_example: '/antiraid "My Group" on'
+raidtime_example: '/raidtime "My Group" 6h'
+raidactiontime_example: '/raidactiontime "My Group" 1h'
+autoantiraid_example: '/autoantiraid "My Group" 10'
+antichannelpin_example: '/antichannelpin "My Group" on'
+cleanlinked_example: '/cleanlinked "My Group" on'
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]
