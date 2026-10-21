@@ -215,83 +215,122 @@ func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.
 		if msg == nil || user == nil || msg.Chat.Type != "private" {
 			return h(b, ctx)
 		}
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		reply := func(text string) error {
-			if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-				log.Error(err)
-			}
-			return ext.EndGroups
-		}
+		c := pmGroupCall{b: b, ctx: ctx, tr: i18n.MustNewTranslator(lang.GetLanguage(ctx)), cmd: cmd}
 		// A rich message keeps its text in blocks, so a group in it cannot be
 		// cut out; ask for a plain message rather than ignore the group.
 		if msg.RichMessage != nil {
 			if len(strings.Fields(msg.RichMessage.PlainText())) > 1 {
-				text, _ := tr.GetString("connections_pm_group_need")
-				return reply(fmt.Sprintf(text, cmd))
+				text, _ := c.tr.GetString("connections_pm_group_need")
+				return c.reply(fmt.Sprintf(text, cmd))
 			}
 			return h(b, ctx)
 		}
-		conn := connections.Connection(user.Id)
-		connected := conn.Connected && conn.ChatId != 0
 
-		replyHelp := func(errText string) error {
-			if err := replyPMGroupHelp(b, ctx, tr, cmd, errText); err != nil {
-				log.Error(err)
-			}
-			return ext.EndGroups
-		}
-
-		tok, ok := parsePMGroupToken(msg.GetText())
-		if !ok {
-			if connected {
-				return h(b, ctx)
-			}
-			text, _ := tr.GetString("connections_pm_group_pick")
-			return replyHelp(text)
-		}
-
-		var group *gotgbot.Chat
-		if isPMGroupRef(tok) {
-			group = lookupPMGroup(b, tok.Raw)
-		}
-		if group == nil && connected && shape == pmArgsOwn {
-			// The argument is the command's own: with a connection only an
-			// @username or ID picks another group.
+		group, tok, runAsIs := c.group(shape)
+		if runAsIs {
 			return h(b, ctx)
-		}
-		notFoundText, _ := tr.GetString("connections_pm_group_not_found")
-		notFound := fmt.Sprintf(notFoundText, html.EscapeString(tok.Raw))
-		if group == nil && isPMGroupRef(tok) {
-			return replyHelp(notFound)
 		}
 		if group == nil {
-			entries, wait := adminGroupsForUser(b, ctx, tr, user.Id)
-			if wait != "" {
-				return reply(wait)
-			}
-			switch matches := pmGroupsTitled(entries, tok.Raw); len(matches) {
-			case 0:
-				return reply(pmGroupHelpText(tr, cmd, notFound, entries, ""))
-			case 1:
-				if group = lookupPMGroup(b, strconv.FormatInt(matches[0].ChatID, 10)); group == nil {
-					return reply(pmGroupHelpText(tr, cmd, notFound, entries, ""))
-				}
-			default:
-				text, _ := tr.GetString("connections_pm_group_duplicate")
-				return reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)) + "\n" + pmGroupList(matches))
-			}
+			return ext.EndGroups
 		}
-		if allowed, key := canUserConnectToChat(b, group.Id, user.Id); !allowed {
-			text, _ := tr.GetString(key)
-			return reply(text)
-		}
-
-		chat_status.SetOneOffGroup(ctx, group)
-		ctx.EffectiveMessage = stripPMGroupToken(msg, tok)
-		// Later handler groups must not see the cut message.
-		if err := h(b, ctx); err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
-			helpers.LogHandlerError(ctx, err)
-		}
-		return ext.EndGroups
+		return c.runWithGroup(h, group, tok)
 	}
+}
+
+// pmGroupCall is one PM call of a command wrapped by withPMGroupArg.
+type pmGroupCall struct {
+	b   *gotgbot.Bot
+	ctx *ext.Context
+	tr  *i18n.Translator
+	cmd string
+}
+
+func (c pmGroupCall) reply(text string) error {
+	if _, err := c.ctx.EffectiveMessage.Reply(c.b, text, formatting.Shtml()); err != nil {
+		log.Error(err)
+	}
+	return ext.EndGroups
+}
+
+func (c pmGroupCall) replyHelp(errText string) {
+	if err := replyPMGroupHelp(c.b, c.ctx, c.tr, c.cmd, errText); err != nil {
+		log.Error(err)
+	}
+}
+
+// group finds the group the call names. runAsIs is true when the command runs
+// as it came, on the saved connection; a nil group otherwise means the call
+// has been answered.
+func (c pmGroupCall) group(shape pmArgShape) (group *gotgbot.Chat, tok pmGroupToken, runAsIs bool) {
+	conn := connections.Connection(c.ctx.EffectiveUser.Id)
+	connected := conn.Connected && conn.ChatId != 0
+
+	tok, ok := parsePMGroupToken(c.ctx.EffectiveMessage.GetText())
+	if !ok {
+		if connected {
+			return nil, tok, true
+		}
+		text, _ := c.tr.GetString("connections_pm_group_pick")
+		c.replyHelp(text)
+		return nil, tok, false
+	}
+
+	if isPMGroupRef(tok) {
+		group = lookupPMGroup(c.b, tok.Raw)
+	}
+	if group != nil {
+		return group, tok, false
+	}
+	if connected && shape == pmArgsOwn {
+		// The argument is the command's own: with a connection only an
+		// @username or ID picks another group.
+		return nil, tok, true
+	}
+	notFoundText, _ := c.tr.GetString("connections_pm_group_not_found")
+	notFound := fmt.Sprintf(notFoundText, html.EscapeString(tok.Raw))
+	if isPMGroupRef(tok) {
+		c.replyHelp(notFound)
+		return nil, tok, false
+	}
+	return c.groupByTitle(tok, notFound), tok, false
+}
+
+// groupByTitle returns the one group the user administers titled tok.Raw, or
+// nil after answering why there is none.
+func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Chat {
+	entries, wait := adminGroupsForUser(c.b, c.ctx, c.tr, c.ctx.EffectiveUser.Id)
+	if wait != "" {
+		_ = c.reply(wait)
+		return nil
+	}
+	switch matches := pmGroupsTitled(entries, tok.Raw); len(matches) {
+	case 0:
+	case 1:
+		if group := lookupPMGroup(c.b, strconv.FormatInt(matches[0].ChatID, 10)); group != nil {
+			return group
+		}
+	default:
+		text, _ := c.tr.GetString("connections_pm_group_duplicate")
+		_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)) + "\n" + pmGroupList(matches))
+		return nil
+	}
+	_ = c.reply(pmGroupHelpText(c.tr, c.cmd, notFound, entries, ""))
+	return nil
+}
+
+// runWithGroup checks the group like /connect, then runs h with it in place of
+// the saved connection and with tok cut from the message.
+func (c pmGroupCall) runWithGroup(h handlers.Response, group *gotgbot.Chat, tok pmGroupToken) error {
+	if allowed, key := canUserConnectToChat(c.b, group.Id, c.ctx.EffectiveUser.Id); !allowed {
+		text, _ := c.tr.GetString(key)
+		return c.reply(text)
+	}
+
+	chat_status.SetOneOffGroup(c.ctx, group)
+	c.ctx.EffectiveMessage = stripPMGroupToken(c.ctx.EffectiveMessage, tok)
+	// Later handler groups must not see the cut message.
+	if err := h(c.b, c.ctx); err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+		helpers.LogHandlerError(c.ctx, err)
+	}
+	return ext.EndGroups
 }
