@@ -5,6 +5,7 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func bansPMDispatcher() *ext.Dispatcher {
@@ -500,6 +502,40 @@ func TestBanCommandsInPMOnConnectionActOnConnectedGroup(t *testing.T) {
 			}
 			if tc.acted(t, f, f.chat.Id, victimID) {
 				t.Fatalf("/%s from PM on a connection acted on another group", tc.cmd)
+			}
+		})
+	}
+}
+
+// The help a bans command gives from PM without a group shows a call with a
+// group; the help it gives in the group for a wrong call shows the group's
+// call, as before.
+func TestBanCommandsHelpShowsExampleWithGroupInPMOnly(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	dispatcher := bansPMDispatcher()
+	for _, tc := range pmBanCases {
+		t.Run(tc.cmd, func(t *testing.T) {
+			pmExample, _ := i18n.MustNewTranslator("config").GetString(tc.cmd + "_pm_example")
+			groupExample := commandExample(tc.cmd)
+			if !strings.HasPrefix(pmExample, "/"+tc.cmd+" ") || pmExample == groupExample {
+				t.Fatalf("%s_pm_example = %q, want a call of /%s with a group", tc.cmd, pmExample, tc.cmd)
+			}
+
+			before := len(f.client.callsFor("sendMessage"))
+			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd)
+			inPM := fmt.Sprint(f.client.callsFor("sendMessage")[before].Params["text"])
+			if !strings.Contains(inPM, html.EscapeString(pmExample)) || strings.Contains(inPM, html.EscapeString(groupExample)) {
+				t.Fatalf("/%s help from PM %q, want the example %q only", tc.cmd, inPM, pmExample)
+			}
+
+			before = len(f.client.callsFor("sendMessage"))
+			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd).Update
+			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
+			}
+			inGroup := fmt.Sprint(f.client.callsFor("sendMessage")[before].Params["text"])
+			if !strings.Contains(inGroup, html.EscapeString(groupExample)) || strings.Contains(inGroup, html.EscapeString(pmExample)) {
+				t.Fatalf("/%s help in the group %q, want the example %q only", tc.cmd, inGroup, groupExample)
 			}
 		})
 	}
