@@ -409,6 +409,85 @@ func TestRmWarnButtonFromPMChecksPresserInNamedGroup(t *testing.T) {
 	})
 }
 
+// From PM, a user who is no member of the named group is not warned there,
+// though they are a member of the connected group and of the PM.
+func TestWarnCommandsInPMWithGroupIgnoreNonMember(t *testing.T) {
+	for _, tc := range pmWarnCases[:2] {
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, connected := pmWarnsFixture(t, 0)
+			f.setMemberStatus(f.chat.Id, victimID, "left")
+			f.setMemberStatus(f.admin.Id, victimID, "member")
+
+			processPM(t, warnsPMDispatcher(), f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
+
+			if warnsOf(victimID, f.chat.Id) != 0 || warnsOf(victimID, connected) != 0 {
+				t.Fatalf("/%s from PM warned a user who is no member of the named group: %d in it, %d in the connected one",
+					tc.cmd, warnsOf(victimID, f.chat.Id), warnsOf(victimID, connected))
+			}
+		})
+	}
+}
+
+// The rmWarn button from PM needs the bot to be an admin of the group it
+// names, not of the PM it is pressed in.
+func TestRmWarnButtonFromPMRefusedWhenBotIsNoAdminOfNamedGroup(t *testing.T) {
+	f, _ := pmWarnsFixture(t, 1)
+	seedAdminCache(t, f.chat.Id, adminMember(f.admin.Id, false))
+	f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)] = json.RawMessage(
+		`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+	data := encodeCallbackData("rmWarn", map[string]string{"c": fmt.Sprint(f.chat.Id), "u": fmt.Sprint(victimID)})
+
+	pressConfirmInPM(t, warnsPMDispatcher(), f, f.admin, data)
+
+	if warnsOf(victimID, f.chat.Id) != 1 {
+		t.Fatalf("the rmWarn button from PM removed a warn in a group where the bot is no admin")
+	}
+	if !repliedIn(f, f.admin.Id, translated(t, "chat_status_bot_not_admin")) {
+		t.Fatalf("the rmWarn button from PM with the bot no admin: want chat_status_bot_not_admin; sent:\n%s", sentText(f.client))
+	}
+}
+
+// An rmWarn button whose group is not a chat ID is answered as invalid and
+// removes no warn, neither in a group nor in the chat it is pressed in: the
+// PM, or a group where the presser is an admin.
+func TestRmWarnButtonWithMalformedGroupIsInvalid(t *testing.T) {
+	for _, where := range []struct {
+		name string
+		chat func(f adminChatFixture) gotgbot.Chat
+	}{
+		{"in the PM", func(f adminChatFixture) gotgbot.Chat { return privateChatOf(f.admin) }},
+		{"in a group", func(f adminChatFixture) gotgbot.Chat { return f.chat }},
+	} {
+		t.Run(where.name, func(t *testing.T) {
+			f, connected := pmWarnsFixture(t, 1)
+			ensureWarnParents(t, f.admin.Id, victimID)
+			if _, _, err := warns.WarnUser(victimID, f.admin.Id, models.WarnEntry{Reason: "seed"}); err != nil {
+				t.Fatalf("WarnUser() error = %v", err)
+			}
+			data := encodeCallbackData("rmWarn", map[string]string{"c": "abc", "u": fmt.Sprint(victimID)})
+
+			update := newModuleCallbackContext(f.bot, where.chat(f), f.admin, data).Update
+			if err := warnsPMDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(callback %q) error = %v", data, err)
+			}
+
+			for _, chatID := range []int64{f.chat.Id, connected, f.admin.Id} {
+				if got := warnsOf(victimID, chatID); got != 1 {
+					t.Fatalf("an rmWarn button with a malformed group pressed %s left %d warns in chat %d, want 1", where.name, got, chatID)
+				}
+			}
+			want := translated(t, "common_callback_invalid_request")
+			answered := false
+			for _, call := range f.client.callsFor("answerCallbackQuery") {
+				answered = answered || fmt.Sprint(call.Params["text"]) == want
+			}
+			if !answered {
+				t.Fatalf("an rmWarn button with a malformed group pressed %s was not answered %q", where.name, want)
+			}
+		})
+	}
+}
+
 // The group line in a warns reply from PM is HTML-escaped; sent in the
 // group, the reply names no group.
 func TestWarnCommandsInPMNameGroupInReply(t *testing.T) {
