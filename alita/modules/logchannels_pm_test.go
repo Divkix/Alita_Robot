@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"strings"
 	"testing"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // logChannelPMFixture is oneOffFixture's group (@fixturegroup) and a channel
@@ -105,7 +108,10 @@ func TestSetLogInPMBindsChannel(t *testing.T) {
 	}
 	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_set_ok"))
 	// The change is logged to the new channel, under the group.
-	f.requireReplyTo(t, f.channel.Id, "set log channel")
+	f.requireReplyTo(t, f.channel.Id, fmt.Sprintf(
+		"<b>%s</b> (<code>%d</code>)\n#SETTINGS\nAdmin: %s\nset log channel",
+		html.EscapeString(f.chat.Title), f.chat.Id, formatting.MentionHtml(f.admin.Id, f.admin.FirstName),
+	))
 }
 
 func TestSetLogInPMBindsChannelByIDs(t *testing.T) {
@@ -199,7 +205,7 @@ func TestSetLogInPMRefusesNonChannel(t *testing.T) {
 	f.sendPM(t, f.admin, fmt.Sprintf("/setlog @fixturegroup %d", f.chat.Id))
 
 	f.requireNotBound(t)
-	f.requireReplyTo(t, f.admin.Id, "is not a channel")
+	f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_pm_not_channel", i18n.TranslationParams{"channel": fmt.Sprint(f.chat.Id)}))
 }
 
 // Binding from PM needs the same group rights as forwarding the post in the
@@ -226,7 +232,7 @@ func TestLogInPMWithGroupTogglesCategory(t *testing.T) {
 	if got := logchannels.Get(f.chat.Id); got == nil || got.CatAdmin {
 		t.Fatalf("after /nolog: %+v, want admin category off", got)
 	}
-	f.requireReplyTo(t, f.admin.Id, "Disabled logging for: admin")
+	f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_disabled", i18n.TranslationParams{"cats": "admin"}))
 
 	f.sendPM(t, f.admin, "/log @fixturegroup admin")
 

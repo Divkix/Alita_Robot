@@ -67,6 +67,16 @@ func translated(t *testing.T, key string) string {
 	return text
 }
 
+// translatedWith is translated for a key with {named} parameters.
+func translatedWith(t *testing.T, key string, params i18n.TranslationParams) string {
+	t.Helper()
+	text, err := i18n.MustNewTranslator("en").GetString(key, params)
+	if err != nil || text == "" {
+		t.Fatalf("locale key %s: %q, %v", key, text, err)
+	}
+	return text
+}
+
 func setUserName(t *testing.T, userID int64, name string) {
 	t.Helper()
 	if err := user.UpdateUser(userID, "", name); err != nil {
