@@ -313,11 +313,16 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandler(handlers.NewCommand("rules", withPMGroupArg("rules", pmArgsNone, rulesModule.sendRules)))
 	helpers.AddCmdToDisableable("rules")
-	dispatcher.AddHandler(handlers.NewCommand("setrules", rulesModule.setRules))
-	helpers.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
-	dispatcher.AddHandler(handlers.NewCommand("privaterules", rulesModule.privaterules))
-	helpers.MultiCommand(dispatcher, []string{"rulesbutton", "rulesbtn"}, rulesModule.rulesBtn)
-	helpers.MultiCommand(dispatcher, []string{"clearrulesbutton", "clearrulesbtn", "resetrulesbutton", "resetrulesbtn"}, rulesModule.resetRulesBtn)
+	dispatcher.AddHandler(handlers.NewCommand("setrules", withPMGroupArg("setrules", pmArgsOwn, rulesModule.setRules)))
+	dispatcher.AddHandler(handlers.NewCommand("resetrules", withPMGroupArg("resetrules", pmArgsNone, rulesModule.clearRules)))
+	dispatcher.AddHandler(handlers.NewCommand("clearrules", withPMGroupArg("resetrules", pmArgsNone, rulesModule.clearRules)))
+	dispatcher.AddHandler(handlers.NewCommand("privaterules", withPMGroupArg("privaterules", pmArgsOwn, rulesModule.privaterules)))
+	dispatcher.AddHandler(handlers.NewCommand("rulesbutton", withPMGroupArg("rulesbtn", pmArgsOwn, rulesModule.rulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("rulesbtn", withPMGroupArg("rulesbtn", pmArgsOwn, rulesModule.rulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("clearrulesbutton", withPMGroupArg("resetrulesbutton", pmArgsNone, rulesModule.resetRulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("clearrulesbtn", withPMGroupArg("resetrulesbutton", pmArgsNone, rulesModule.resetRulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("resetrulesbutton", withPMGroupArg("resetrulesbutton", pmArgsNone, rulesModule.resetRulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("resetrulesbtn", withPMGroupArg("resetrulesbutton", pmArgsNone, rulesModule.resetRulesBtn)))
 }
 
 func init() {

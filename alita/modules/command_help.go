@@ -62,6 +62,20 @@ var commandHelpModules = map[string]string{
 	"autoantiraid":     "antiraid",
 	"antichannelpin":   "pins",
 	"cleanlinked":      "pins",
+	"allowconnect":     "connections",
+	"setrules":         "rules",
+	"resetrules":       "rules",
+	"privaterules":     "rules",
+	"rulesbtn":         "rules",
+	"resetrulesbutton": "rules",
+	"blacklists":       "blacklists",
+	"addblacklist":     "blacklists",
+	"rmblacklist":      "blacklists",
+	"blaction":         "blacklists",
+	"approved":         "approvals",
+	"approve":          "approvals",
+	"unapprove":        "approvals",
+	"approval":         "approvals",
 }
 
 // helpCommandLine matches a help line that defines commands: an optional

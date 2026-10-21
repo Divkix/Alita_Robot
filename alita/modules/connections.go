@@ -379,7 +379,7 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("disconnect", ConnectionsModule.disconnect))
 	dispatcher.AddHandler(handlers.NewCommand("connection", ConnectionsModule.connection))
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
-	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
+	dispatcher.AddHandler(handlers.NewCommand("allowconnect", withPMGroupArg("allowconnect", pmArgsOwn, ConnectionsModule.allowConnect)))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "settings"}, pipelineHandler(ConnectionsModule.settings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))

@@ -609,12 +609,19 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(blacklistsModule.moduleName, true)
 
-	helpers.MultiCommand(dispatcher, []string{"blacklists", "blocklists"}, blacklistsModule.listBlacklists)
+	dispatcher.AddHandler(handlers.NewCommand("blacklists", withPMGroupArg("blacklists", pmArgsNone, blacklistsModule.listBlacklists)))
+	dispatcher.AddHandler(handlers.NewCommand("blocklists", withPMGroupArg("blacklists", pmArgsNone, blacklistsModule.listBlacklists)))
 	helpers.AddCmdToDisableable("blacklists")
 	helpers.AddCmdToDisableable("blocklists")
-	helpers.MultiCommand(dispatcher, []string{"addblacklist", "blacklist", "addblocklist", "blocklist"}, blacklistsModule.addBlacklist)
-	helpers.MultiCommand(dispatcher, []string{"rmblacklist", "rmblocklist", "unblacklist"}, blacklistsModule.removeBlacklist)
-	helpers.MultiCommand(dispatcher, []string{"blaction", "blacklistaction"}, blacklistsModule.setBlacklistAction)
+	dispatcher.AddHandler(handlers.NewCommand("addblacklist", withPMGroupArg("addblacklist", pmArgsOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("blacklist", withPMGroupArg("addblacklist", pmArgsOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("addblocklist", withPMGroupArg("addblacklist", pmArgsOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("blocklist", withPMGroupArg("addblacklist", pmArgsOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("rmblacklist", withPMGroupArg("rmblacklist", pmArgsOwn, blacklistsModule.removeBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("rmblocklist", withPMGroupArg("rmblacklist", pmArgsOwn, blacklistsModule.removeBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("unblacklist", withPMGroupArg("rmblacklist", pmArgsOwn, blacklistsModule.removeBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("blaction", withPMGroupArg("blaction", pmArgsOwn, blacklistsModule.setBlacklistAction)))
+	dispatcher.AddHandler(handlers.NewCommand("blacklistaction", withPMGroupArg("blaction", pmArgsOwn, blacklistsModule.setBlacklistAction)))
 	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl", "rmblocklistall", "rmallblocklist"}, blacklistsModule.rmAllBlacklists)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist"), blacklistsModule.buttonHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
