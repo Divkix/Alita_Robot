@@ -360,6 +360,8 @@ connections_is_user_connected_need_group:
   obrolan, bukan di PM!"
 connections_is_user_connected_user_not_admin: Anda perlu menjadi admin untuk melakukan ini.
 connections_not_connected: Anda tidak terhubung ke obrolan mana pun.
+connections_pm_group_need: "Dari PM, sebutkan grup terlebih dahulu: <code>/%s @namagrup</code> atau ID-nya (kirim /id di grup). Atau hubungkan ke grup dengan /connect."
+connections_pm_group_not_found: "Saya tidak menemukan grup <code>%s</code>. Sebutkan @username atau ID-nya (kirim /id di grup)."
 connections_stale_connection: "Koneksi Anda sudah tidak valid - saya tidak dapat lagi mengakses obrolan ini. Silakan gunakan /connect untuk terhubung kembali ke obrolan yang valid."
 connections_reconnect_need_pm: Anda perlu berada di PM dengan saya untuk menghubungkan kembali ke obrolan!
 connections_reconnect_no_last_chat: Anda tidak memiliki obrolan terakhir untuk dihubungkan kembali!

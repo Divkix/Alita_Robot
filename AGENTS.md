@@ -35,6 +35,11 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   panic included). Legacy `dispatcher.AddHandler` commands rely on the group-`1` guard, which only sees swaps made in
   group `0`; a swapping handler registered outside `WrapCommand` in a higher group must return `ext.EndGroups` on
   every path. Keep group `1` for the guard alone: a handler there that matches first would skip it.
+- `withPMGroupArg` (`alita/modules/pm_group_arg.go`) lets a legacy PM command take its group as the first argument
+  (`-100…` ID or a group's @username). It checks the group like `/connect`, stores it with
+  `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved connection, and whose failed checks
+  never disconnect), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
+  ends iteration. Enable it per command at registration; outside PM and for rich messages it does nothing.
 - gotgbot stops a group at the first matching handler. Watchers return `ext.ContinueGroups`; commands return
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` via `RegisterLegacyModule(name, priority, load)`. Use a unique name; duplicates are
