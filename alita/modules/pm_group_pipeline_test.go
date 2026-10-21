@@ -1,0 +1,78 @@
+//go:build testtools
+
+package modules
+
+import (
+	"testing"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+)
+
+func warnLimit(chatID int64) any { return warns.GetWarnSetting(chatID).WarnLimit }
+
+// A WrapCommand command that takes its group from PM resolves the group
+// before its RequiredChecks, so they check the named group as they would a
+// connected one, and the command then changes that group.
+func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
+	f, connected := pmSettingsFixture(t)
+	var checked int64
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:       "setwarnlimit",
+		PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
+			if chat := chat_status.IsUserConnected(c.Bot, c.Ctx, true, true); chat != nil {
+				checked = chat.Id
+			}
+			return checked == f.chat.Id
+		}},
+	}, pipelineHandler(warnsModule.setWarnLimit))
+	before := warnLimit(connected)
+
+	processPM(t, dispatcher, f, f.admin.Id, "/setwarnlimit @fixturegroup 5")
+
+	if checked != f.chat.Id {
+		t.Fatalf("RequiredChecks saw group %d, want the named group %d", checked, f.chat.Id)
+	}
+	if got := warnLimit(f.chat.Id); got != 5 {
+		t.Fatalf("named group warn limit = %v, want 5; sent:\n%s", got, sentText(f.client))
+	}
+	if got := warnLimit(connected); got != before {
+		t.Fatalf("connected group warn limit = %v, want it unchanged (%v)", got, before)
+	}
+	if conn := connections.Connection(f.admin.Id); !conn.Connected || conn.ChatId != connected {
+		t.Fatalf("connection = %+v, want it kept on %d", conn, connected)
+	}
+}
+
+// Once a WrapCommand command has run on a group named from PM, later handler
+// groups do not see the message with the group cut out.
+func TestWrapCommandWithPMGroupEndsGroups(t *testing.T) {
+	f, _ := pmSettingsFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:       "setwarnlimit",
+		PMGroupArg: helpers.PMGroupArgOwn,
+	}, pipelineHandler(warnsModule.setWarnLimit))
+	var later []string
+	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+		later = append(later, ctx.EffectiveMessage.GetText())
+		return ext.ContinueGroups
+	}), 1)
+
+	processPM(t, dispatcher, f, f.admin.Id, "/setwarnlimit @fixturegroup 5")
+
+	if got := warnLimit(f.chat.Id); got != 5 {
+		t.Fatalf("named group warn limit = %v, want 5; sent:\n%s", got, sentText(f.client))
+	}
+	if len(later) != 0 {
+		t.Fatalf("a later handler group saw %q, want iteration ended", later)
+	}
+}

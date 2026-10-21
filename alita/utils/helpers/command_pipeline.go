@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"errors"
+	"sync/atomic"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -48,6 +49,38 @@ type CommandDescriptor struct {
 	Group          int
 	RequiredChecks []CheckFunc
 	Disableable    bool
+	// PMGroupArg lets the command name its group as the first argument in
+	// PM. The group is resolved before RequiredChecks.
+	PMGroupArg PMGroupArg
+}
+
+// PMGroupArg says whether a command takes its group as the first argument in
+// PM, and whether it has arguments of its own after the group.
+type PMGroupArg int
+
+const (
+	// PMGroupArgOff: the command does not take a group from PM.
+	PMGroupArgOff PMGroupArg = iota
+	// PMGroupArgNone: the command takes no arguments, so with a connection
+	// any argument that names no group is a mistake.
+	PMGroupArgNone
+	// PMGroupArgOwn: the command has arguments of its own, so with a
+	// connection an argument that names no group belongs to the command.
+	PMGroupArgOwn
+)
+
+// PMGroupResolver finds the group a PM command names as its first argument,
+// stores it with chat_status.SetOneOffGroup and cuts it from
+// ctx.EffectiveMessage. It returns false when it has answered the call
+// itself; the command must not run then.
+type PMGroupResolver func(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg PMGroupArg) bool
+
+var pmGroupResolver atomic.Value
+
+// SetPMGroupResolver sets the resolver WrapCommand runs for commands with a
+// PMGroupArg. Without one they run on the saved connection only.
+func SetPMGroupResolver(r PMGroupResolver) {
+	pmGroupResolver.Store(r)
 }
 
 func WrapCommand(
@@ -59,6 +92,17 @@ func WrapCommand(
 		defer error_handling.RecoverFromPanic("command_pipeline", "WrapCommand")
 		// Runs before the recover above, so a panic after a swap ends groups too.
 		defer func() { result = endGroupsAfterChatSwap(ctx, result) }()
+		if desc.PMGroupArg != PMGroupArgOff {
+			if resolve, ok := pmGroupResolver.Load().(PMGroupResolver); ok && resolve != nil {
+				if !resolve(b, ctx, desc.Name, desc.PMGroupArg) {
+					return ext.EndGroups
+				}
+				if chat_status.OneOffGroup(ctx) != nil {
+					// Later handler groups must not see the cut message.
+					defer func() { result = endGroupsLogging(ctx, result) }()
+				}
+			}
+		}
 		c, err := BuildCommandContext(b, ctx)
 		if err != nil {
 			return ext.EndGroups
@@ -86,6 +130,12 @@ func endGroupsAfterChatSwap(ctx *ext.Context, err error) error {
 		ctx.EffectiveChat.Id == ctx.EffectiveMessage.Chat.Id {
 		return err
 	}
+	return endGroupsLogging(ctx, err)
+}
+
+// endGroupsLogging returns ext.EndGroups in place of err, logging a real
+// error as the dispatcher's error handler would.
+func endGroupsLogging(ctx *ext.Context, err error) error {
 	if err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
 		LogHandlerError(ctx, err)
 	}
