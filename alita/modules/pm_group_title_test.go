@@ -312,11 +312,10 @@ func TestPMGroupArgOwnArgsTakesTitleWithoutConnection(t *testing.T) {
 }
 
 // With a connection a command with arguments of its own keeps a word that is
-// not an @username or ID: it is the command's argument, and no groups are
-// scanned for it.
+// not an @username or ID and no group's title: it is the command's argument.
 func TestPMGroupArgOwnArgsKeepsTitleWithConnection(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
+	setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
 	f.connectAdmin(t)
 	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, "/cmd mygroup on")
 	var args []string
@@ -329,7 +328,7 @@ func TestPMGroupArgOwnArgsKeepsTitleWithConnection(t *testing.T) {
 		t.Fatalf("handler error = %v, want ext.EndGroups", err)
 	}
 
-	if fmt.Sprint(args) != "[/cmd mygroup on]" || scans.Load() != 0 {
-		t.Fatalf("handler saw args %q after %d scans, want [/cmd mygroup on] and none", args, scans.Load())
+	if fmt.Sprint(args) != "[/cmd mygroup on]" {
+		t.Fatalf("handler saw args %q, want [/cmd mygroup on]", args)
 	}
 }

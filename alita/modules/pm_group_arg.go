@@ -15,12 +15,14 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // pmGroupToken is the first argument of a PM command, which may name a group.
@@ -283,7 +285,16 @@ func (c pmGroupCall) group(shape pmArgShape) (group *gotgbot.Chat, tok pmGroupTo
 	}
 	if connected && shape == pmArgsOwn {
 		// The argument is the command's own: with a connection only an
-		// @username or ID picks another group.
+		// @username or ID picks another group. The title of one of the user's
+		// groups is refused rather than passed on, or the command would act on
+		// the connected group with the title as its argument.
+		if !isPMGroupRef(tok) {
+			if matches := c.ownGroupsTitled(tok.Raw, conn.ChatId); len(matches) > 0 {
+				text, _ := c.tr.GetString("connections_pm_group_title_on_connection")
+				_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw), conn.ChatId) + "\n" + pmGroupList(matches))
+				return nil, tok, false
+			}
+		}
 		return nil, tok, true
 	}
 	notFoundText, _ := c.tr.GetString("connections_pm_group_not_found")
@@ -316,6 +327,36 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 	}
 	_ = c.reply(pmGroupHelpText(c.tr, c.cmd, notFound, entries, ""))
 	return nil
+}
+
+// ownGroupsTitled returns the groups titled title, ignoring case, that the
+// user administers among those the /settings picker lists: the connected
+// group and the groups the user has posted in. Only groups with that title
+// are checked, so an argument that is no title costs one query and leaves the
+// picker's pause alone.
+func (c pmGroupCall) ownGroupsTitled(title string, connected int64) []settingsPickerEntry {
+	userID := c.ctx.EffectiveUser.Id
+	candidates, err := settingsCandidateChats(tracing.UpdateContext(c.ctx), userID, settingsCandidateLimit)
+	if err != nil {
+		log.WithFields(log.Fields{"userId": userID, "error": err}).Debug("[PMGroupArg] candidate chats failed")
+	}
+	entries := make([]settingsPickerEntry, 0, len(candidates)+1)
+	if info, err := chats.GetChatBasicInfoCached(connected); err == nil && info != nil {
+		entries = append(entries, settingsPickerEntry{ChatID: connected, Title: info.ChatName})
+	}
+	for _, candidate := range candidates {
+		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
+	}
+
+	var matches []settingsPickerEntry
+	seen := map[int64]bool{}
+	for _, entry := range pmGroupsTitled(entries, title) {
+		if !seen[entry.ChatID] && chat_status.IsUserAdmin(c.b, entry.ChatID, userID) {
+			matches = append(matches, entry)
+		}
+		seen[entry.ChatID] = true
+	}
+	return matches
 }
 
 // runWithGroup checks the group like /connect, then runs h with it in place of

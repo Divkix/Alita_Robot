@@ -994,6 +994,7 @@ connections_pm_group_duplicate: "आपके कई ग्रुप का न�
 connections_pm_group_not_found: "ग्रुप <code>%s</code> नहीं मिला। उस ग्रुप का नाम बताएं जहाँ आप एडमिन हैं, या उसका @username या ID (ग्रुप में /id भेजें)।"
 connections_pm_group_pick: "PM में पहले ग्रुप बताएं: उस ग्रुप का नाम जहाँ आप एडमिन हैं (नाम में स्पेस हों तो कोट्स में), या उसका @username या ID।"
 connections_pm_group_your_groups: "आपके ग्रुप:"
+connections_pm_group_title_on_connection: "<code>%s</code> आपके एक ग्रुप का नाम है, इसलिए मैंने कुछ नहीं बदला: कनेक्ट रहते हुए यह कमांड ग्रुप को सिर्फ़ उसके @username या ID से लेता है। पहले उस ग्रुप का @username या ID लिखें (नीचे), या कनेक्ट किए गए ग्रुप के लिए <code>%d</code>।"
 connections_stale_connection: "आपका कनेक्शन पुराना हो गया है - मैं अब इस चैट तक नहीं पहुंच सकता। कृपया किसी वैध चैट से फिर से कनेक्ट करने के लिए /connect का उपयोग करें।"
 connections_reconnect_need_pm: आपको किसी चैट से फिर से कनेक्ट करने के लिए मेरे साथ PM में होना चाहिए!
 connections_reconnect_no_last_chat: आपके पास फिर से कनेक्ट करने के लिए कोई पिछली चैट नहीं है!

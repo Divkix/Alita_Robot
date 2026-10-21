@@ -19,11 +19,11 @@ notes_example: '/notes "My Group"'
 saved_example: '/saved "My Group"'
 filters_example: '/filters "My Group"'
 connect_example: "/connect -1001234567890"
-setlog_example: '/setlog "My Group" @mychannel'
+setlog_example: "/setlog @mygroup @mychannel"
 unsetlog_example: '/unsetlog "My Group"'
 logchannel_example: '/logchannel "My Group"'
-log_example: '/log "My Group" admin'
-nolog_example: '/nolog "My Group" settings'
+log_example: "/log @mygroup admin"
+nolog_example: "/nolog @mygroup settings"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]

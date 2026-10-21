@@ -896,6 +896,7 @@ connections_pm_group_duplicate: "Plusieurs de vos groupes s'appellent <code>%s</
 connections_pm_group_not_found: "Je n'ai pas trouvé le groupe <code>%s</code>. Indiquez le titre d'un groupe dont vous êtes admin, son @username ou son ID (envoyez /id dans le groupe)."
 connections_pm_group_pick: "En privé, indiquez d'abord le groupe : le titre d'un groupe dont vous êtes admin (entre guillemets s'il contient des espaces), son @username ou son ID."
 connections_pm_group_your_groups: "Vos groupes :"
+connections_pm_group_title_on_connection: "<code>%s</code> est le titre d’un groupe où vous êtes admin, donc je n’ai rien changé : tant que vous êtes connecté, cette commande n’accepte un groupe que par son @username ou son ID. Indiquez d’abord le @username ou l’ID de ce groupe (ci-dessous), ou <code>%d</code> pour le groupe connecté."
 connections_stale_connection: "Votre connexion est obsolète - je ne peux plus accéder à ce chat. Veuillez utiliser /connect pour vous reconnecter à un chat valide."
 connections_reconnect_need_pm: Vous devez être en MP avec moi pour vous reconnecter à un chat !
 connections_reconnect_no_last_chat: Vous n'avez pas de dernier chat auquel vous reconnecter !

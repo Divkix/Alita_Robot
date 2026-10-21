@@ -54,13 +54,13 @@ This module can be accessed using the following aliases:
 
 **Set up and manage it from PM:**
 In PM, name the group first: its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces). Nothing is posted in the group, and the channel gets only the usual settings entry.
-- `/setlog "My Group" @mychannel` - bind a channel by its @username
+- `/setlog @mygroup @mychannel` - bind a channel by its @username
 - `/setlog -1001234567890 -1009876543210` - bind it by IDs
 - `/log @mygroup admin` - turn on a category
-- `/nolog "My Group" settings` - turn off a category
+- `/nolog -1001234567890 settings` - turn off a category
 - `/logchannel @mygroup` - show the log channel
 - `/unsetlog @mygroup` - remove it
-You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: `/setlog @mychannel`. The group passes the same checks as /connect, and the connection stays as it is.
+You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: `/setlog @mychannel`; to name another group then, use its @username or ID, as /setlog, /log and /nolog take a title only without a connection (a title of your group gets a hint and changes nothing). The group passes the same checks as /connect, and the connection stays as it is.
 
 **Choose what gets logged:**
 - `/logcategories` - list the categories

@@ -408,6 +408,7 @@ connections_pm_group_duplicate: "Several of your groups are called <code>%s</cod
 connections_pm_group_not_found: "I couldn't find the group <code>%s</code>. Name it by the title of a group where you are an admin, its @username or its ID (send /id in the group)."
 connections_pm_group_pick: "From PM, name the group first: the title of a group where you are an admin (in quotes if it has spaces), its @username or its ID."
 connections_pm_group_your_groups: "Your groups:"
+connections_pm_group_title_on_connection: "<code>%s</code> is the title of a group where you are an admin, so I changed nothing: while you are connected, this command takes a group only by its @username or ID. Put that group's @username or ID first (listed below), or <code>%d</code> for the connected group."
 connections_stale_connection: "Your connection is stale - I can no longer access this chat. Please use /connect to reconnect to a valid chat."
 connections_reconnect_need_pm: You need to be in a PM with me to reconnect to a chat!
 connections_reconnect_no_last_chat: You have no last chat to reconnect!
@@ -2764,13 +2765,13 @@ logchannels_examples_docs: |
 
   <b>Set up and manage it from PM:</b>
   In PM, name the group first: its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces). Nothing is posted in the group, and the channel gets only the usual settings entry.
-  • <code>/setlog "My Group" @mychannel</code> - bind a channel by its @username
+  • <code>/setlog @mygroup @mychannel</code> - bind a channel by its @username
   • <code>/setlog -1001234567890 -1009876543210</code> - bind it by IDs
   • <code>/log @mygroup admin</code> - turn on a category
-  • <code>/nolog "My Group" settings</code> - turn off a category
+  • <code>/nolog -1001234567890 settings</code> - turn off a category
   • <code>/logchannel @mygroup</code> - show the log channel
   • <code>/unsetlog @mygroup</code> - remove it
-  You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>. The group passes the same checks as /connect, and the connection stays as it is.
+  You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>; to name another group then, use its @username or ID, as /setlog, /log and /nolog take a title only without a connection (a title of your group gets a hint and changes nothing). The group passes the same checks as /connect, and the connection stays as it is.
 
   <b>Choose what gets logged:</b>
   • <code>/logcategories</code> - list the categories

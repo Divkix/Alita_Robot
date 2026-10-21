@@ -269,6 +269,7 @@ connections_pm_group_duplicate: "Так называются несколько 
 connections_pm_group_not_found: "Не нашёл группу <code>%s</code>. Укажите название группы, где вы админ, её @username или ID (команда /id в группе)."
 connections_pm_group_pick: "В ЛС сначала укажите группу: название группы, где вы админ (в кавычках, если в нём есть пробелы), её @username или ID."
 connections_pm_group_your_groups: "Ваши группы:"
+connections_pm_group_title_on_connection: "<code>%s</code> — название вашей группы, поэтому я ничего не изменил: при подключении эта команда принимает группу только по @username или ID. Укажите первым @username или ID этой группы (ниже) или <code>%d</code> для подключённой группы."
 connections_stale_connection: "Ваше подключение устарело — я больше не имею доступа к этому чату. Пожалуйста, используйте /connect для повторного подключения к действующему чату."
 connections_reconnect_need_pm: Вам нужно быть в ЛС со мной, чтобы подключиться к чату!
 connections_reconnect_no_last_chat: У вас нет последнего чата для повторного подключения!
