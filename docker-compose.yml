@@ -44,7 +44,9 @@ services:
           cpus: "0.25"
 
   postgres:
-    image: postgres:17-alpine
+    # Major-version upgrades need pg_upgrade or a fresh volume; existing
+    # postgres_data volumes from pg17 will not start on pg18.
+    image: postgres:18-alpine
     container_name: alita-postgres
     restart: always
     environment:
@@ -66,7 +68,7 @@ services:
           cpus: "0.5"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: alita-redis
     restart: always
     command: redis-server --requirepass redis

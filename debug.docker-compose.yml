@@ -21,8 +21,8 @@ services:
         condition: service_started
 
   postgres:
-    # Existing postgres_debug_data volumes from pg15 must be removed (docker compose -f debug.docker-compose.yml down -v) before pg17 starts
-    image: postgres:17-alpine
+    # Existing postgres_debug_data volumes from pg15/pg17 must be removed (docker compose -f debug.docker-compose.yml down -v) before pg18 starts
+    image: postgres:18-alpine
     container_name: alita-postgres-debug
     restart: always
     env_file:

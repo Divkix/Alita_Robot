@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/static-debian12
+FROM gcr.io/distroless/static-debian13
 ARG TARGETPLATFORM
 WORKDIR /app
 COPY $TARGETPLATFORM/alita_robot /app/
