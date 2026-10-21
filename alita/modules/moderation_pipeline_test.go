@@ -22,7 +22,7 @@ func TestMigratedDescriptorsHaveChecks(t *testing.T) {
 			t.Fatalf("%s descriptor has no checks", name)
 		}
 	}
-	if len(warnsStatusDesc.RequiredChecks) != 1 {
-		t.Fatalf("warns status checks = %d, want 1 (disabled only)", len(warnsStatusDesc.RequiredChecks))
+	if len(warnsStatusDesc.RequiredChecks) != 2 {
+		t.Fatalf("warns status checks = %d, want 2 (disabled, then the group from PM; no admin check)", len(warnsStatusDesc.RequiredChecks))
 	}
 }

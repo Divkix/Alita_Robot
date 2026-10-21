@@ -999,13 +999,19 @@ func pmTargetChatCheck(c *helpers.CommandContext) bool {
 	if !groupOnlyChatCheck(c) {
 		return false
 	}
+	dropPMReply(c)
+	return true
+}
+
+// dropPMReply drops the reply from a command sent in PM, where the message
+// replied to is no group member's.
+func dropPMReply(c *helpers.CommandContext) {
 	if msg := c.Ctx.EffectiveMessage; msg != nil && msg.Chat.Type == "private" && msg.ReplyToMessage != nil {
 		noReply := *msg
 		noReply.ReplyToMessage = nil
 		c.Ctx.EffectiveMessage = &noReply
 		c.Msg = &noReply
 	}
-	return true
 }
 
 // withGroupLine adds the group chat to the HTML reply text of a bans command

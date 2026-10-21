@@ -37,8 +37,9 @@ func groupOnlyChatCheck(c *helpers.CommandContext) bool {
 }
 
 // confirmText adds the group a reset acts on to its confirmation question
-// when the question is asked in PM, where "this chat" names no group. The
-// question is sent as plain text, so the title is not escaped.
+// (or the group /warns reads to its answer) when sent in PM, where "this
+// chat" names no group. The text is sent as plain text, so the title is not
+// escaped.
 func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *gotgbot.Chat) string {
 	if msg := ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
 		return question

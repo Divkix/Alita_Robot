@@ -33,6 +33,8 @@ var commandHelpModules = map[string]string{
 	"swarn":      "warns",
 	"rmwarn":     "warns",
 	"resetwarns": "warns",
+	"warns":      "warns",
+	"warnings":   "warns",
 	"rules":      "rules",
 	"notes":      "notes",
 	"saved":      "notes",

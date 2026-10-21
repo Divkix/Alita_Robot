@@ -36,6 +36,9 @@ warn_pm_example: "/warn @mygroup @username spam"
 swarn_pm_example: "/swarn -1001234567890 @username"
 rmwarn_pm_example: '/rmwarn "My Group" @username'
 resetwarns_pm_example: "/resetwarns @mygroup @username"
+warns_example: "/warns @username"
+warns_pm_example: "/warns @mygroup @username"
+warnings_example: "/warnings @mygroup"
 rules_example: '/rules "My Group"'
 notes_example: '/notes "My Group"'
 saved_example: '/saved "My Group"'
