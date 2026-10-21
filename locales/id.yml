@@ -355,7 +355,7 @@ connections_help_msg:
 
   Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
 
-  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict dan /unrestrict: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute dan /unmute: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
 
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut

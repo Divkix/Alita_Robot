@@ -360,7 +360,7 @@ connections_help_msg:
 
   Desde el privado, los administradores de un grupo también pueden usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache y /clearadmincache: nombra primero el grupo (su título, @username o ID) o conéctate a él. Necesitan los mismos permisos que en el grupo, y la respuesta llega al privado.
 
-  Desde el privado, los administradores de un grupo también pueden usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict y /unrestrict: nombra primero el grupo (su título, @username o ID) y luego al usuario (@username, ID o mención), o conéctate al grupo. Con una conexión, solo un @username o ID elige otro grupo. Necesitan los mismos permisos que en el grupo; responder a un mensaje en el privado no indica al usuario, y la respuesta y los botones llegan al privado.
+  Desde el privado, los administradores de un grupo también pueden usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute y /unmute: nombra primero el grupo (su título, @username o ID) y luego al usuario (@username, ID o mención), o conéctate al grupo. Con una conexión, solo un @username o ID elige otro grupo. Necesitan los mismos permisos que en el grupo; responder a un mensaje en el privado no indica al usuario, y la respuesta y los botones llegan al privado.
 
 
   Puedes obtener el id del chat usando el comando /id en tu chat. No te sorprendas
