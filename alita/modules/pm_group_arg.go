@@ -1,12 +1,14 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -45,8 +47,8 @@ func parsePMGroupToken(text string) (pmGroupToken, bool) {
 	tokStart := len(text) - len(rest)
 
 	if strings.HasPrefix(rest, `"`) {
-		if closing := strings.Index(rest[1:], `"`); closing > 0 {
-			return pmGroupToken{Raw: rest[1 : closing+1], Quoted: true, start: cmdEnd, end: tokStart + closing + 2}, true
+		if closing := closingQuote(rest); closing > 1 {
+			return pmGroupToken{Raw: rest[1:closing], Quoted: true, start: cmdEnd, end: tokStart + closing + 1}, true
 		}
 	}
 	tokLen := strings.IndexFunc(rest, unicode.IsSpace)
@@ -56,10 +58,25 @@ func parsePMGroupToken(text string) (pmGroupToken, bool) {
 	return pmGroupToken{Raw: rest[:tokLen], start: cmdEnd, end: tokStart + tokLen}, true
 }
 
+// closingQuote returns the index in s of the quote that closes the one at
+// s[0]: the first quote followed by whitespace or the end of s, or -1.
+func closingQuote(s string) int {
+	for i := 1; i < len(s); i++ {
+		if s[i] != '"' {
+			continue
+		}
+		if next, _ := utf8.DecodeRuneInString(s[i+1:]); i+1 == len(s) || unicode.IsSpace(next) {
+			return i
+		}
+	}
+	return -1
+}
+
 // stripPMGroupToken returns a copy of msg without tok, cut from the caption
 // when the message has one (as GetText reads it) and from the text otherwise.
 // Entities after the cut move back by its UTF-16 length; entities inside it
-// are dropped. msg is not changed.
+// are dropped, and entities that cross it keep their part outside it. msg is
+// not changed.
 func stripPMGroupToken(msg *gotgbot.Message, tok pmGroupToken) *gotgbot.Message {
 	stripped := *msg
 	if msg.Caption != "" {
@@ -77,13 +94,18 @@ func cutPMGroupToken(text string, entities []gotgbot.MessageEntity, tok pmGroupT
 
 	var kept []gotgbot.MessageEntity
 	for _, entity := range entities {
-		switch {
-		case entity.Offset+entity.Length <= cutStart:
-			kept = append(kept, entity)
-		case entity.Offset >= cutEnd:
-			entity.Offset -= cutLen
-			kept = append(kept, entity)
+		start, end := entity.Offset, entity.Offset+entity.Length
+		overlap := max(0, min(end, cutEnd)-max(start, cutStart))
+		if entity.Length -= overlap; entity.Length <= 0 {
+			continue
 		}
+		switch {
+		case start >= cutEnd:
+			entity.Offset -= cutLen
+		case start > cutStart:
+			entity.Offset = cutStart
+		}
+		kept = append(kept, entity)
 	}
 	return text[:tok.start] + text[tok.end:], kept
 }
@@ -134,8 +156,7 @@ func resolvePMGroup(b *gotgbot.Bot, tok pmGroupToken) *gotgbot.Chat {
 func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.Response {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
-		// A rich message keeps its text in blocks, so there is nothing to cut.
-		if msg == nil || user == nil || msg.Chat.Type != "private" || msg.RichMessage != nil {
+		if msg == nil || user == nil || msg.Chat.Type != "private" {
 			return h(b, ctx)
 		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -144,6 +165,15 @@ func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.
 				log.Error(err)
 			}
 			return ext.EndGroups
+		}
+		// A rich message keeps its text in blocks, so a group in it cannot be
+		// cut out; ask for a plain message rather than ignore the group.
+		if msg.RichMessage != nil {
+			if len(strings.Fields(msg.RichMessage.PlainText())) > 1 {
+				text, _ := tr.GetString("connections_pm_group_need")
+				return reply(fmt.Sprintf(text, cmd))
+			}
+			return h(b, ctx)
 		}
 		conn := connections.Connection(user.Id)
 		connected := conn.Connected && conn.ChatId != 0
@@ -173,7 +203,7 @@ func withPMGroupArg(cmd string, shape pmArgShape, h handlers.Response) handlers.
 		chat_status.SetOneOffGroup(ctx, group)
 		ctx.EffectiveMessage = stripPMGroupToken(msg, tok)
 		// Later handler groups must not see the cut message.
-		if err := h(b, ctx); err != nil && err != ext.EndGroups && err != ext.ContinueGroups {
+		if err := h(b, ctx); err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
 			helpers.LogHandlerError(ctx, err)
 		}
 		return ext.EndGroups

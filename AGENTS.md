@@ -39,7 +39,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (`-100…` ID or a group's @username). It checks the group like `/connect`, stores it with
   `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved connection, and whose failed checks
   never disconnect), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
-  ends iteration. Enable it per command at registration; outside PM and for rich messages it does nothing.
+  ends iteration. `ctx.Message` stays the original: read command text only through `ctx.EffectiveMessage` or
+  `ctx.Args()`. Enable it per command at registration; outside PM it does nothing, and a rich message with
+  arguments gets `connections_pm_group_need` (blocks cannot be cut).
 - gotgbot stops a group at the first matching handler. Watchers return `ext.ContinueGroups`; commands return
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` via `RegisterLegacyModule(name, priority, load)`. Use a unique name; duplicates are

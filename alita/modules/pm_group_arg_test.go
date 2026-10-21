@@ -213,27 +213,118 @@ func TestRulesInPMWithoutGroupOrConnectionAsksForGroup(t *testing.T) {
 	sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.admin, "/rules", strings.TrimSpace(need))
 }
 
-// A rich message carries its text in blocks, not in Text and entities, so
-// there is nothing to cut: the command runs on the message as it came.
-func TestRulesInPMRichMessageIsLeftAlone(t *testing.T) {
-	f := oneOffFixture(t)
+// sendRichPMRules sends /rules followed by args as a rich message in the
+// admin's PM.
+func sendRichPMRules(t *testing.T, f adminChatFixture, args string) {
+	t.Helper()
+	text := gotgbot.RichTextArray{gotgbot.RichTextBotCommand{Text: gotgbot.RichTextString("/rules"), BotCommand: "rules"}}
+	if args != "" {
+		text = append(text, gotgbot.RichTextString(" "+args))
+	}
 	update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
 		MessageId: 101, Date: 1, Chat: privateChatOf(f.admin), From: &f.admin,
-		RichMessage: &gotgbot.RichMessage{Blocks: []gotgbot.RichBlock{
-			gotgbot.RichBlockParagraph{Text: gotgbot.RichTextArray{
-				gotgbot.RichTextBotCommand{Text: gotgbot.RichTextString("/rules"), BotCommand: "rules"},
-				gotgbot.RichTextString(fmt.Sprintf(" %d", f.chat.Id)),
-			}},
-		}},
+		RichMessage: &gotgbot.RichMessage{Blocks: []gotgbot.RichBlock{gotgbot.RichBlockParagraph{Text: text}}},
 	}}
-
 	if err := rulesDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
 		t.Fatalf("ProcessUpdate() error = %v", err)
 	}
+}
 
-	needGroup := strings.TrimSpace(translated(t, "connections_is_user_connected_need_group"))
-	if got := sentText(f.client); !strings.Contains(got, needGroup) || strings.Contains(got, "Be kind to each other") {
-		t.Fatalf("rich /rules from PM sent %q, want today's %q", got, needGroup)
+// A rich message carries its text in blocks, not in Text and entities, so a
+// group in it cannot be cut out. Rather than ignore the group and answer for
+// the connected one, the bot asks for the group in a plain message.
+func TestRulesInPMRichMessageWithArgumentAsksForGroup(t *testing.T) {
+	f := oneOffFixture(t)
+	f.connectAdmin(t)
+
+	sendRichPMRules(t, f, fmt.Sprint(uniqueModuleChatID()))
+
+	need := strings.TrimSpace(fmt.Sprintf(translated(t, "connections_pm_group_need"), "rules"))
+	if got := sentText(f.client); !strings.Contains(got, need) || strings.Contains(got, "Be kind to each other") {
+		t.Fatalf("rich /rules <group> from PM sent %q, want %q", got, need)
+	}
+}
+
+// A rich message without arguments runs the command as it came.
+func TestRulesInPMRichMessageWithoutArgumentRunsCommand(t *testing.T) {
+	f := oneOffFixture(t)
+	f.connectAdmin(t)
+
+	sendRichPMRules(t, f, "")
+
+	if got := sentText(f.client); !strings.Contains(got, "Be kind to each other") {
+		t.Fatalf("rich /rules from PM sent %q, want the connected group's rules", got)
+	}
+}
+
+// Entities that cross the cut keep their part outside it.
+func TestStripPMGroupTokenClipsEntityAcrossCut(t *testing.T) {
+	msg := &gotgbot.Message{
+		Text: "/setrules -1001 Be kind",
+		Entities: []gotgbot.MessageEntity{
+			{Type: "bot_command", Offset: 0, Length: 9},
+			{Type: "bold", Offset: 10, Length: 13},
+		},
+	}
+	tok, _ := parsePMGroupToken(msg.GetText())
+
+	got := stripPMGroupToken(msg, tok)
+
+	want := []gotgbot.MessageEntity{
+		{Type: "bot_command", Offset: 0, Length: 9},
+		{Type: "bold", Offset: 9, Length: 8},
+	}
+	if got.Text != "/setrules Be kind" || fmt.Sprint(got.Entities) != fmt.Sprint(want) {
+		t.Fatalf("got %q %+v, want %q %+v", got.Text, got.Entities, "/setrules Be kind", want)
+	}
+}
+
+// A quote ends a quoted group only before whitespace or the end of the text.
+func TestParsePMGroupTokenQuoteInsideWord(t *testing.T) {
+	msg := &gotgbot.Message{Text: `/x "a"b c`}
+	tok, ok := parsePMGroupToken(msg.GetText())
+	if !ok || tok.Quoted || tok.Raw != `"a"b` {
+		t.Fatalf("parsePMGroupToken() = %+v, %v; want the bare token \"a\"b", tok, ok)
+	}
+
+	if got := stripPMGroupToken(msg, tok).Text; got != "/x c" {
+		t.Fatalf("text = %q, want %q", got, "/x c")
+	}
+}
+
+// The wrapped handler reads its own arguments, without the group.
+func TestPMGroupArgHandlerSeesArgumentsWithoutGroup(t *testing.T) {
+	f := oneOffFixture(t)
+	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, fmt.Sprintf("/cmd %d on now", f.chat.Id))
+	var args []string
+	var text string
+	handler := withPMGroupArg("cmd", pmArgsOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+		args, text = ctx.Args(), ctx.EffectiveMessage.Text
+		return ext.EndGroups
+	})
+
+	if err := handler(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("handler error = %v, want ext.EndGroups", err)
+	}
+
+	if fmt.Sprint(args) != "[/cmd on now]" || text != "/cmd on now" {
+		t.Fatalf("handler saw args %q text %q, want [/cmd on now] and %q", args, text, "/cmd on now")
+	}
+}
+
+// With chatAdmin the one-off group needs the user to be its admin, not only
+// a member.
+func TestIsUserConnectedOneOffGroupChatAdminRefusesMember(t *testing.T) {
+	useEnglishLocale(t)
+	f := newAdminChatFixture(t)
+	ctx := newModuleMessageContext(f.bot, privateChatOf(f.member), f.member, "/setrules Be kind")
+	chat_status.SetOneOffGroup(ctx, &f.chat)
+
+	if got := chat_status.IsUserConnected(f.bot, ctx, true, false); got != nil {
+		t.Fatalf("IsUserConnected(chatAdmin) = %+v, want a refusal for a member", got)
+	}
+	if notAdmin := translated(t, "connections_is_user_connected_user_not_admin"); !strings.Contains(sentText(f.client), notAdmin) {
+		t.Fatalf("sent %q, want %q", sentText(f.client), notAdmin)
 	}
 }
 
