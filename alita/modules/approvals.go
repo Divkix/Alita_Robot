@@ -401,6 +401,7 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_ask")
+	text = confirmText(ctx, tr, text, chat)
 	yesText, _ := tr.GetString("button_yes")
 	noText, _ := tr.GetString("button_no")
 	_, err := msg.Reply(b, text,

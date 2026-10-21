@@ -831,6 +831,7 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
 		text, _ := tr.GetString("warns_reset_all_confirm")
+		text = confirmText(ctx, tr, text, chat)
 		_, err := msg.Reply(b, text,
 			&gotgbot.SendMessageOpts{
 				ReplyMarkup: gotgbot.InlineKeyboardMarkup{

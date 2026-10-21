@@ -358,6 +358,7 @@ connections_pm_group_duplicate: "Vários dos seus grupos se chamam <code>%s</cod
 connections_pm_group_not_found: "Não encontrei o grupo <code>%s</code>. Informe o título de um grupo em que você é admin, o @username ou o ID dele (envie /id no grupo)."
 connections_pm_group_pick: "No privado, informe primeiro o grupo: o título de um grupo em que você é admin (entre aspas se tiver espaços), o @username ou o ID dele."
 connections_pm_group_your_groups: "Seus grupos:"
+connections_pm_group_confirm_target: "Grupo: {title} ({id})"
 connections_pm_group_title_on_connection: "<code>%s</code> é o título de um grupo onde você é admin, então não mudei nada: enquanto você está conectado, este comando só aceita um grupo pelo @username ou ID. Coloque primeiro o @username ou ID desse grupo (abaixo) ou <code>%d</code> para o grupo conectado."
 connections_stale_connection: "Sua conexão está obsoleta - não consigo mais acessar este chat. Por favor use /connect para reconectar a um chat válido."
 connections_reconnect_need_pm: Você precisa estar em um PM comigo para reconectar a um chat!

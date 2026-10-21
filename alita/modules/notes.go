@@ -471,6 +471,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if mem.MergeChatMember().Status == "creator" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		clearAllText, _ := tr.GetString("notes_clear_all_confirm")
+		clearAllText = confirmText(ctx, tr, clearAllText, chat)
 		yesText, _ := tr.GetString("button_yes")
 		noText, _ := tr.GetString("button_no")
 		_, err := msg.Reply(b, clearAllText,

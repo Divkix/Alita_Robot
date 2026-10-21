@@ -354,10 +354,10 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	confirmText, _ := tr.GetString("filters_clear_all_confirm")
+	question, _ := tr.GetString("filters_clear_all_confirm")
 	yesText, _ := tr.GetString("common_yes")
 	noText, _ := tr.GetString("common_no")
-	_, err := msg.Reply(b, confirmText,
+	_, err := msg.Reply(b, confirmText(ctx, tr, question, chat),
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{

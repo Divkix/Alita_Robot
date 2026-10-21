@@ -304,3 +304,57 @@ func TestResetCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
 		})
 	}
 }
+
+// confirmationText returns the text of the one confirmation sent since call
+// number from.
+func confirmationText(t *testing.T, f adminChatFixture, from int) string {
+	t.Helper()
+	var texts []string
+	for _, call := range f.client.callsFor("sendMessage")[from:] {
+		if _, ok := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup); ok {
+			texts = append(texts, fmt.Sprint(call.Params["text"]))
+		}
+	}
+	if len(texts) != 1 {
+		t.Fatalf("sent %d confirmations, want one; sent:\n%s", len(texts), sentText(f.client))
+	}
+	return texts[0]
+}
+
+// A confirmation asked in PM names the group it resets, whether the group was
+// named or connected; asked in the group, it does not.
+func TestResetConfirmationInPMNamesGroup(t *testing.T) {
+	for _, tc := range pmResetCases {
+		if tc.cmd == "privnote" {
+			continue
+		}
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, _ := pmResetFixture(t, tc)
+			f.makeOwner()
+			dispatcher := pmResetDispatcher()
+			target := translated(t, "connections_pm_group_confirm_target")
+			target = strings.NewReplacer("{title}", f.chat.Title, "{id}", fmt.Sprint(f.chat.Id)).Replace(target)
+
+			for _, text := range []string{"/" + tc.cmd + " @fixturegroup", "connected:/" + tc.cmd} {
+				if cmd, ok := strings.CutPrefix(text, "connected:"); ok {
+					f.connectAdmin(t)
+					text = cmd
+				}
+				before := len(f.client.callsFor("sendMessage"))
+				processPM(t, dispatcher, f, f.admin.Id, text)
+				if got := confirmationText(t, f, before); !strings.Contains(got, target) {
+					t.Fatalf("%s from PM asked %q, want it to name the group: %q", text, got, target)
+				}
+			}
+
+			before := len(f.client.callsFor("sendMessage"))
+			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd).Update
+			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
+			}
+			if got := confirmationText(t, f, before); strings.Contains(got, fmt.Sprint(f.chat.Id)) {
+				t.Fatalf("/%s in the group asked %q, want the question without the group", tc.cmd, got)
+			}
+		})
+	}
+}

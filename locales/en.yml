@@ -410,6 +410,7 @@ connections_pm_group_duplicate: "Several of your groups are called <code>%s</cod
 connections_pm_group_not_found: "I couldn't find the group <code>%s</code>. Name it by the title of a group where you are an admin, its @username or its ID (send /id in the group)."
 connections_pm_group_pick: "From PM, name the group first: the title of a group where you are an admin (in quotes if it has spaces), its @username or its ID."
 connections_pm_group_your_groups: "Your groups:"
+connections_pm_group_confirm_target: "Group: {title} ({id})"
 connections_pm_group_title_on_connection: "<code>%s</code> is the title of a group where you are an admin, so I changed nothing: while you are connected, this command takes a group only by its @username or ID. Put that group's @username or ID first (listed below), or <code>%d</code> for the connected group."
 connections_stale_connection: "Your connection is stale - I can no longer access this chat. Please use /connect to reconnect to a valid chat."
 connections_reconnect_need_pm: You need to be in a PM with me to reconnect to a chat!

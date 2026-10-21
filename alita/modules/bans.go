@@ -879,6 +879,7 @@ func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("bans_unbanall_ask")
+	text = confirmText(ctx, tr, text, ctx.EffectiveChat)
 	yesText, _ := tr.GetString("button_yes")
 	noText, _ := tr.GetString("button_no")
 	_, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{

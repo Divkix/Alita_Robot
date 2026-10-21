@@ -367,6 +367,7 @@ connections_pm_group_duplicate: "Beberapa grup Anda bernama <code>%s</code>. Seb
 connections_pm_group_not_found: "Saya tidak menemukan grup <code>%s</code>. Sebutkan judul grup tempat Anda admin, @username, atau ID-nya (kirim /id di grup)."
 connections_pm_group_pick: "Dari PM, sebutkan grup terlebih dahulu: judul grup tempat Anda admin (dalam tanda kutip jika ada spasi), @username, atau ID-nya."
 connections_pm_group_your_groups: "Grup Anda:"
+connections_pm_group_confirm_target: "Grup: {title} ({id})"
 connections_pm_group_title_on_connection: "<code>%s</code> adalah judul grup tempat Anda menjadi admin, jadi saya tidak mengubah apa pun: selama terhubung, perintah ini hanya menerima grup lewat @username atau ID-nya. Tulis dulu @username atau ID grup itu (di bawah), atau <code>%d</code> untuk grup yang terhubung."
 connections_stale_connection: "Koneksi Anda sudah tidak valid - saya tidak dapat lagi mengakses obrolan ini. Silakan gunakan /connect untuk terhubung kembali ke obrolan yang valid."
 connections_reconnect_need_pm: Anda perlu berada di PM dengan saya untuk menghubungkan kembali ke obrolan!

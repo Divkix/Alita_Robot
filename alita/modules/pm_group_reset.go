@@ -6,6 +6,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -33,6 +34,17 @@ func groupOnlyChatCheck(c *helpers.CommandContext) bool {
 	}
 	c.Chat = chat
 	return true
+}
+
+// confirmText adds the group a reset acts on to its confirmation question
+// when the question is asked in PM, where "this chat" names no group. The
+// question is sent as plain text, so the title is not escaped.
+func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *gotgbot.Chat) string {
+	if msg := ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
+		return question
+	}
+	target, _ := tr.GetString("connections_pm_group_confirm_target", i18n.TranslationParams{"title": chat.Title, "id": chat.Id})
+	return question + "\n\n" + target
 }
 
 // confirmData is the callback data of a reset confirmation for chat. "c"
