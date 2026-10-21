@@ -133,6 +133,24 @@ func TestPMGroupOwnArgCandidateErrorNotKept(t *testing.T) {
 	}
 }
 
+// One user's kept groups are never served to another user inside the pause.
+func TestPMGroupCandidatesKeptPerUser(t *testing.T) {
+	candidatesRedis(t)
+	alice, bob := uniquePositiveUserID(), uniquePositiveUserID()
+	original := settingsCandidateChats
+	settingsCandidateChats = func(_ context.Context, userID int64, _ int) ([]models.Chat, error) {
+		return []models.Chat{{ChatId: -userID, ChatName: fmt.Sprintf("G%d", userID)}}, nil
+	}
+	t.Cleanup(func() { settingsCandidateChats = original })
+
+	for _, user := range []int64{alice, bob, alice, bob} {
+		got, err := pmGroupCandidates(context.Background(), user)
+		if want := fmt.Sprintf("[{%d G%d}]", -user, user); err != nil || fmt.Sprint(got) != want {
+			t.Fatalf("pmGroupCandidates(%d) = %v, %v; want %s", user, got, err, want)
+		}
+	}
+}
+
 // Concurrent commands of one user inside the pause share one scan.
 func TestPMGroupCandidatesConcurrentCallsScanOnce(t *testing.T) {
 	candidatesRedis(t)
