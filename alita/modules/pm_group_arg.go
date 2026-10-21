@@ -346,7 +346,19 @@ func (c pmGroupCall) adminGroupsTitled(title string) []settingsPickerEntry {
 // runWithGroup checks the group like /connect, then runs h with it in place of
 // the saved connection and with tok cut from the message.
 func (c pmGroupCall) runWithGroup(h handlers.Response, group *gotgbot.Chat, tok pmGroupToken) error {
-	if allowed, key := canUserConnectToChat(c.b, group.Id, c.ctx.EffectiveUser.Id); !allowed {
+	userID := c.ctx.EffectiveUser.Id
+	allowed, key, memberChecked := checkUserConnectToChat(c.b, group.Id, userID)
+	// An admin is let in from the cached admin list, which outlives a lost
+	// chat_member update, so look them up in the group once here.
+	if allowed && !memberChecked {
+		if isMember, err := chat_status.IsUserInChatWithError(c.b, group, userID); err != nil {
+			log.WithFields(log.Fields{"userId": userID, "chatId": group.Id, "error": err}).Warn("[PMGroupArg] membership check failed")
+			allowed, key = false, "error_generic"
+		} else if !isMember {
+			allowed, key = false, "connections_connect_not_member"
+		}
+	}
+	if !allowed {
 		text, _ := c.tr.GetString(key)
 		return c.reply(text)
 	}

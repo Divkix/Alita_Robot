@@ -247,14 +247,51 @@ func TestPMGroupArgChecksMembershipOnce(t *testing.T) {
 
 	sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.member, "/rules @fixturegroup", "Be kind to each other")
 
-	var lookups int
-	for _, call := range callsToChat(f.client, "getChatMember", f.chat.Id) {
-		if fmt.Sprint(call.Params["user_id"]) == fmt.Sprint(f.member.Id) {
-			lookups++
+	if lookups := memberLookups(f.client, f.chat.Id, f.member.Id); lookups != 1 {
+		t.Fatalf("getChatMember calls for the member in the group = %d, want 1", lookups)
+	}
+}
+
+// memberLookups counts the getChatMember calls for user in chat.
+func memberLookups(client *moduleBotClient, chatID, userID int64) int {
+	var n int
+	for _, call := range callsToChat(client, "getChatMember", chatID) {
+		if fmt.Sprint(call.Params["user_id"]) == fmt.Sprint(userID) {
+			n++
 		}
 	}
-	if lookups != 1 {
-		t.Fatalf("getChatMember calls for the member in the group = %d, want 1", lookups)
+	return n
+}
+
+// The cached admin list outlives a lost chat_member update, so an admin who
+// left or was banned is still listed there; the group is refused all the
+// same, because the user is looked up in it live.
+func TestPMGroupArgRefusesCachedAdminWhoLeft(t *testing.T) {
+	for _, status := range []string{"left", "kicked"} {
+		t.Run(status, func(t *testing.T) {
+			f := oneOffFixture(t)
+			f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(fmt.Sprintf(
+				`{"status":%q,"user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, status, f.admin.Id))
+
+			refusal := translated(t, "connections_connect_not_member")
+			sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.admin, "/rules @fixturegroup", strings.TrimSpace(refusal))
+
+			if strings.Contains(sentText(f.client), "Be kind to each other") {
+				t.Fatalf("sent rules to an admin who is %s: %s", status, sentText(f.client))
+			}
+		})
+	}
+}
+
+// An admin from the cached admin list is looked up in the group once, and
+// the command runs.
+func TestPMGroupArgChecksCachedAdminMembershipOnce(t *testing.T) {
+	f := oneOffFixture(t)
+
+	sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.admin, "/rules @fixturegroup", "Be kind to each other")
+
+	if n := memberLookups(f.client, f.chat.Id, f.admin.Id); n != 1 {
+		t.Fatalf("getChatMember calls for the admin in the group = %d, want 1", n)
 	}
 }
 

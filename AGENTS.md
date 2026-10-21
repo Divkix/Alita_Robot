@@ -44,7 +44,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   the picker's pause and budget), so the command needs a `commandHelpModules` entry. It checks the group like
   `/connect`, stores it with `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved
   connection and checks only for `chatAdmin`/`botAdmin`, not membership, and whose failed checks never disconnect;
-  any new caller must run `canUserConnectToChat` first), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
+  any new caller must run `checkUserConnectToChat` first and, when it reports no live member check (an admin from the
+  cached list, which outlives a lost `chat_member` update), look the user up once itself), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
   ends iteration. `ctx.Message` stays the original: read command text only through `ctx.EffectiveMessage` or
   `ctx.Args()`. Enable it per command at registration; outside PM it does nothing, and a rich message with
   arguments gets `connections_pm_group_need` (blocks cannot be cut).
