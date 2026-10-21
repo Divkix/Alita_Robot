@@ -157,13 +157,8 @@ func canPostInChannel(b *gotgbot.Bot, channelID, userID int64) bool {
 // sent in or, in PM, the group withPMGroupArg named or the connected one. In
 // PM admin requires the user to be its admin; IsUserConnected answers any
 // refusal. nil means the call has been answered.
-func logsChat(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, admin bool) *gotgbot.Chat {
+func logsChat(b *gotgbot.Bot, ctx *ext.Context, admin bool) *gotgbot.Chat {
 	chat := ctx.EffectiveChat
-	if chat == nil {
-		text, _ := tr.GetString("logs_group_only")
-		replyHTML(b, ctx.EffectiveMessage, text)
-		return nil
-	}
 	if chat.Type != "private" {
 		return chat
 	}
@@ -183,7 +178,7 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, tr, true)
+	chat := logsChat(b, ctx, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
@@ -211,7 +206,7 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, tr, false)
+	chat := logsChat(b, ctx, false)
 	if chat == nil {
 		return ext.EndGroups
 	}
@@ -254,7 +249,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, tr, true)
+	chat := logsChat(b, ctx, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
