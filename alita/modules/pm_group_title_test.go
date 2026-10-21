@@ -32,8 +32,11 @@ func setPMGroupCandidates(t *testing.T, groups ...models.Chat) *atomic.Int32 {
 	t.Helper()
 	original, originalCooldown := settingsCandidateChats, settingsPickerCooldown
 	var scans atomic.Int32
-	settingsCandidateChats = func(context.Context, int64, int) ([]models.Chat, error) {
+	settingsCandidateChats = func(_ context.Context, _ int64, limit int) ([]models.Chat, error) {
 		scans.Add(1)
+		if limit != settingsCandidateLimit {
+			t.Errorf("candidate chats asked with limit %d, want settingsCandidateLimit (%d)", limit, settingsCandidateLimit)
+		}
 		return groups, nil
 	}
 	settingsPickerCooldown = 0
@@ -143,6 +146,21 @@ func TestNotesInPMByTitleBeyondPickerCap(t *testing.T) {
 	addTestNote(t, target.ChatId, "far-note")
 
 	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "group 25"`, "far-note")
+}
+
+// The connected group is also among the groups the user posted in; named by
+// its title it is one group, not two groups with that title.
+func TestNotesInPMByTitleOfConnectedGroupListedOnce(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	f.connectAdmin(t)
+	addTestNote(t, f.chat.Id, "connected-note")
+
+	call := sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "connected-note")
+
+	duplicate := fmt.Sprintf(translated(t, "connections_pm_group_duplicate"), "my group")
+	if strings.Contains(fmt.Sprint(call.Params["text"]), strings.TrimSpace(duplicate)) {
+		t.Fatalf("connected group listed twice for its title: %s", sentText(f.client))
+	}
 }
 
 // A title names a group only where the user is an admin: a group they merely
