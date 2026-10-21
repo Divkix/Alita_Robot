@@ -56,7 +56,7 @@ func kickReply(c *moderationCtx, t *target) error {
 		}
 	}
 
-	_, err = c.Msg.Reply(c.Bot, text, formatting.Shtml())
+	_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -118,7 +118,7 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 				}
 			}
 
-			_, err = c.Msg.Reply(c.Bot, baseStr, formatting.Shtml())
+			_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -143,7 +143,7 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
 
-	_, err = c.Msg.Reply(c.Bot, text,
+	_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -390,7 +390,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_unban_unbanned_user")
 				text = fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName))
 			}
-			_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+			_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -480,7 +480,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	text, _ := tr.GetString("bans_restrict_question")
-	_, err := msg.Reply(b, text,
+	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text),
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -668,7 +668,7 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	text, _ := tr.GetString("bans_unrestrict_question")
-	_, err := msg.Reply(b, text,
+	_, err := msg.Reply(b, withGroupLine(tr, msg, ctx.EffectiveChat, text),
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -1004,6 +1004,16 @@ func pmTargetChatCheck(c *helpers.CommandContext) bool {
 		c.Msg = &noReply
 	}
 	return true
+}
+
+// withGroupLine adds the group chat to the HTML reply text of a bans command
+// sent in reply to msg when msg came from PM, where the reply names no group.
+func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, text string) string {
+	if msg.Chat.Type != "private" {
+		return text
+	}
+	line, _ := tr.GetString("connections_pm_group_confirm_target", i18n.TranslationParams{"title": html.EscapeString(chat.Title), "id": chat.Id})
+	return text + "\n\n" + line
 }
 
 // moderationButtonData is the callback data of a button a bans command sends
