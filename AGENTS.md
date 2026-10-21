@@ -3,6 +3,15 @@
 Alita Robot: Telegram group-management bot. Go module `github.com/divkix/Alita_Robot`; PostgreSQL (GORM) + Redis.
 Update this file in the same commit as any change that invalidates a rule below.
 
+## Product
+
+- Additive by default: a new feature must not change what an existing command, setting or default does.
+- New behaviour that changes what a chat sees (spam checks, captcha, auto-actions) is off by default and enabled per
+  chat.
+- Change an existing default or command meaning only to fix a bug; the commit is `fix:` with the old and new behaviour
+  in the body.
+- Group-only and connection-based usage keep working unchanged when a PM or shortcut form is added.
+
 ## Commands
 
 ```bash
