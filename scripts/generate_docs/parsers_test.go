@@ -48,6 +48,42 @@ func LoadBlacklists(dispatcher) {
 	}
 }
 
+// A command wrapped by withPMGroupArg is still registered under its own
+// handler and module.
+func TestParseCommands_PMGroupArgWrapper(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	goFile := filepath.Join(tmpDir, "logchannels.go")
+	content := `package modules
+
+var logChannelsModule = moduleStruct{moduleName: "LogChannels"}
+
+func LoadLogChannels(dispatcher) {
+	dispatcher.AddHandler(handlers.NewCommand("setlog", withPMGroupArg("setlog", pmArgsOwn, logChannelsModule.setLog)).SetAllowChannel(true))
+	dispatcher.AddHandler(handlers.NewCommand("unsetlog", withPMGroupArg("unsetlog", pmArgsNone, logChannelsModule.unsetLog)))
+}
+`
+	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
+	commands, err := parseCommands(tmpDir)
+	if err != nil {
+		t.Fatalf("parseCommands returned error: %v", err)
+	}
+
+	handlers := map[string]string{}
+	for _, cmd := range commands {
+		if cmd.Module != "logchannels" {
+			t.Errorf("command %q has module %q, want logchannels", cmd.Name, cmd.Module)
+		}
+		handlers[cmd.Name] = cmd.Handler
+	}
+	if handlers["setlog"] != "setLog" || handlers["unsetlog"] != "unsetLog" {
+		t.Fatalf("handlers = %v, want setlog→setLog and unsetlog→unsetLog", handlers)
+	}
+}
+
 func TestParseMessageWatchers_Basic(t *testing.T) {
 	tmpDir := t.TempDir()
 
