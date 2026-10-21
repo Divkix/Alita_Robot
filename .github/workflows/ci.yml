@@ -99,7 +99,7 @@ jobs:
       - name: Run linting
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.14.0
+          version: v2.15.0
           install-mode: binary
           args: --timeout 10m
           # Only report new issues to allow gradual improvement of existing codebase
@@ -146,7 +146,7 @@ jobs:
       - name: Run duplicate code detection
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.14.0
+          version: v2.15.0
           install-mode: binary
           # Only run dupl linter, disable all other linters
           args: --default=none --enable dupl --timeout 10m
@@ -248,7 +248,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -261,7 +261,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7
+        image: redis:8
         ports:
           - 6379:6379
         options: >-

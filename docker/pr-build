@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o alita_robot .
 
 # Stage 2: Minimal runtime image
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 WORKDIR /app
 COPY --from=builder /app/alita_robot .
 COPY migrations /app/migrations

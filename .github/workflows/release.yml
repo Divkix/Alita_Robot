@@ -74,7 +74,7 @@ jobs:
       - name: Pre-build release binaries
         uses: goreleaser/goreleaser-action@v7
         with:
-          version: v2.13.0
+          version: v2.18.3
           args: build --clean
 
       # The tag must sit on a main commit, and CI on main runs a superset of the
@@ -148,7 +148,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
-          version: v2.13.0
+          version: v2.18.3
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

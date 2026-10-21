@@ -14,14 +14,11 @@ export default defineConfig({
 	content: { root: "src/content/docs" },
 
 	// Static output keeps the existing Cloudflare Workers deployment as-is.
-	deployment: {
-		output: "static",
-		site: "https://alita-docs.divkix.me",
-	},
+	deployment: { site: "https://alita-docs.divkix.me" },
 
 	// Built-in AI artifacts (on by default): llms.txt, llms-full.txt, and a
 	// raw .md/.mdx mirror of every page. No API key needed for these.
-	ai: { llmsTxt: true },
+	agents: { llmsTxt: true },
 
 	seo: {
 		og: { enabled: true },
