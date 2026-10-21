@@ -36,8 +36,15 @@ You can set rules by providing text directly or by replying to a message:
 Or reply to a message:
 `/setrules`
 
+**Rules of a group from PM:**
+In PM, name the group as the first argument, by its ID or its @username:
+`/rules -1001234567890`
+`/rules @mygroup`
+
+This works without `/connect` and, when you are connected, shows the named group instead of the connected one; the connection stays as it is. The group passes the same checks as `/connect`: admins always may, other members only while `/allowconnect` is on. A user's or channel's @username is not a group. Without an argument, `/rules` in PM shows the connected group, and asks for a group when there is no connection. In a group the argument is ignored.
+
 **Required Permissions:**
-- `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it works only for a group connected with `/connect`
+- `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it needs the group as its first argument or a group connected with `/connect`
 - All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Require admin permissions in the connected chat via `IsUserConnected`
 
 
@@ -81,7 +88,7 @@ For detailed command usage, refer to the commands table above.
 
 | Command | Permissions |
 |---------|-------------|
-| `/rules` | Any user (disableable) — **bot must be admin**; in PM needs a `/connect`ed group |
+| `/rules` | Any user (disableable) — **bot must be admin**; in PM needs the group as the first argument (`/rules @group` or `/rules -100…`) or a `/connect`ed group |
 | `/setrules` | Admin only — requires `IsUserConnected` (bot admin + user admin) |
 | `/resetrules`, `/clearrules` | Admin only — requires `IsUserConnected` |
 | `/privaterules` | Admin only — requires `IsUserConnected`, user must be admin in connected chat |
