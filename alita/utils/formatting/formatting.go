@@ -168,7 +168,7 @@ func SplitMessage(msg string) []string {
 
 		flush()
 
-		if lineUnits <= MaxMessageLength {
+		if lineUnits < MaxMessageLength {
 			smallMsg = line + "\n"
 			smallMsgUnits = lineUnits + 1
 			continue

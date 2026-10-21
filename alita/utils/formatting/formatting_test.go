@@ -256,6 +256,11 @@ func TestSplitMessage(t *testing.T) {
 			input: firstLine + "\n" + secondLine,
 			want:  []string{firstLine + "\n", secondLine + "\n"},
 		},
+		{
+			name:  "exact-limit line is not padded with a newline",
+			input: strings.Repeat("x", MaxMessageLength) + "\ny",
+			want:  []string{strings.Repeat("x", MaxMessageLength), "y\n"},
+		},
 	}
 
 	for _, tc := range tests {
