@@ -140,7 +140,7 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 func canPostInChannel(b *gotgbot.Bot, channelID, userID int64) bool {
 	member, err := b.GetChatMember(channelID, userID, nil)
 	if err != nil {
-		log.WithFields(log.Fields{"channelId": channelID, "userId": userID, "error": err}).Warn("[LogChannels] channel member lookup failed")
+		log.WithFields(log.Fields{"channelId": channelID, "userId": userID, "error": err}).Debug("[LogChannels] channel member lookup failed")
 		return false
 	}
 	switch member.GetStatus() {
