@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -53,24 +54,29 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 }
 
 // Once a WrapCommand command has run on a group named from PM, later handler
-// groups do not see the message with the group cut out.
+// groups do not see the message with the group cut out, even when the command
+// leaves ctx.EffectiveChat alone and lets groups continue.
 func TestWrapCommandWithPMGroupEndsGroups(t *testing.T) {
 	f, _ := pmSettingsFixture(t)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	var ran []string
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name:       "setwarnlimit",
+		Name:       "pmgrouptest",
 		PMGroupArg: helpers.PMGroupArgOwn,
-	}, pipelineHandler(warnsModule.setWarnLimit))
+	}, func(c *helpers.CommandContext) error {
+		ran = c.Ctx.Args()
+		return nil
+	})
 	var later []string
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, func(_ *gotgbot.Bot, ctx *ext.Context) error {
 		later = append(later, ctx.EffectiveMessage.GetText())
 		return ext.ContinueGroups
 	}), 1)
 
-	processPM(t, dispatcher, f, f.admin.Id, "/setwarnlimit @fixturegroup 5")
+	processPM(t, dispatcher, f, f.admin.Id, "/pmgrouptest @fixturegroup 5")
 
-	if got := warnLimit(f.chat.Id); got != 5 {
-		t.Fatalf("named group warn limit = %v, want 5; sent:\n%s", got, sentText(f.client))
+	if strings.Join(ran, " ") != "/pmgrouptest 5" {
+		t.Fatalf("command ran with args %q, want [/pmgrouptest 5]; sent:\n%s", ran, sentText(f.client))
 	}
 	if len(later) != 0 {
 		t.Fatalf("a later handler group saw %q, want iteration ended", later)

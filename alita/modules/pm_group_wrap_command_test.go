@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 )
 
 // pmWrapCommandDispatcher loads every module whose WrapCommand settings
@@ -135,6 +137,45 @@ func TestSetWarnLimitInPMWithGroupRefusesNonAdmin(t *testing.T) {
 	}
 	if conn := connections.Connection(f.member.Id); !conn.Connected || conn.ChatId != connected {
 		t.Fatalf("member connection = %+v, want it kept on %d", conn, connected)
+	}
+}
+
+// With a connection, a command with arguments of its own gets an argument
+// that names no group, as before.
+func TestWrapCommandSettingsInPMOnConnectionKeepOwnArguments(t *testing.T) {
+	for _, tc := range []struct {
+		text  string
+		state func(chatID int64) any
+		want  any
+	}{
+		{"/setwelcome Hi {first}", func(id int64) any {
+			return strings.HasPrefix(greetings.GetGreetingSettings(id).WelcomeSettings.WelcomeText, "Hi ")
+		}, true},
+		{"/setgoodbye Bye {first}", func(id int64) any {
+			return strings.HasPrefix(greetings.GetGreetingSettings(id).GoodbyeSettings.GoodbyeText, "Bye ")
+		}, true},
+		{"/cleanservice on", func(id int64) any { return greetings.GetGreetingSettings(id).ShouldCleanService }, true},
+		{"/captchatime 5", func(id int64) any {
+			settings, _ := captcha.GetCaptchaSettings(id)
+			return settings.Timeout
+		}, 5},
+		{"/setwarnmode mute", func(id int64) any { return warns.GetWarnSetting(id).WarnMode }, "mute"},
+		{"/setwarntime 30d", func(id int64) any { return warns.GetWarnSetting(id).WarnExpiry > 0 }, true},
+		{"/spamdb action mute", func(id int64) any {
+			settings, _ := spamdbsettings.GetSpamDBSettingsContext(context.Background(), id)
+			return settings.Action
+		}, "mute"},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			f := oneOffFixture(t)
+			f.connectAdmin(t)
+
+			processPM(t, pmWrapCommandDispatcher(), f, f.admin.Id, tc.text)
+
+			if got := tc.state(f.chat.Id); got != tc.want {
+				t.Fatalf("%s: connected group state = %v, want %v; sent:\n%s", tc.text, got, tc.want, sentText(f.client))
+			}
+		})
 	}
 }
 
