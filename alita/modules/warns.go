@@ -1014,16 +1014,19 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, warnsStatusDesc, pipelineHandler(warnsModule.warns))
 	for _, cfg := range []struct {
 		name    string
+		arg     helpers.PMGroupArg
 		handler func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{"setwarnlimit", warnsModule.setWarnLimit},
-		{"setwarnmode", warnsModule.setWarnMode},
-		{"setwarntime", warnsModule.setWarnTime},
-		{"resetallwarns", warnsModule.resetAllWarns},
+		{"setwarnlimit", pmArgsOwn, warnsModule.setWarnLimit},
+		{"setwarnmode", pmArgsOwn, warnsModule.setWarnMode},
+		{"setwarntime", pmArgsOwn, warnsModule.setWarnTime},
+		// Works in the group only, where no group is named.
+		{"resetallwarns", helpers.PMGroupArgOff, warnsModule.resetAllWarns},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,
 			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+			PMGroupArg:     cfg.arg,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}

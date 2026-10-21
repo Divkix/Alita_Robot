@@ -40,6 +40,7 @@ var spamDBDesc = helpers.CommandDescriptor{
 	RequiredChecks: []helpers.CheckFunc{
 		helpers.CheckDisabled("spamdb"),
 	},
+	PMGroupArg: helpers.PMGroupArgOwn,
 }
 
 // spamDBChecker answers the database lookups. LoadSpamDB builds it from the
