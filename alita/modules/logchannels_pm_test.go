@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
@@ -382,6 +383,40 @@ func TestLogChannelCommandsInGroupRefuseMember(t *testing.T) {
 				t.Fatalf("settings changed by a member: %+v, want %+v", got, before)
 			}
 			f.requireReplyTo(t, f.chat.Id, translated(t, "chat_status_user_admin_cmd_error"))
+		})
+	}
+}
+
+// With a connection, /log and /nolog take another group only by its
+// @username or ID, so a category named like the connected group's title is
+// still a category: it is toggled in the connected group.
+func TestLogInPMOnConnectionToGroupTitledLikeCategoryTogglesIt(t *testing.T) {
+	for _, category := range []string{"admin", "settings"} {
+		t.Run(category, func(t *testing.T) {
+			f := newLogChannelPMFixture(t)
+			f.chat.Title = category
+			f.addGroup(t, f.chat.Id, category, true)
+			setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: category})
+			f.bindChannel(t)
+			f.connectAdmin(t)
+			enabled := func() bool {
+				got := logchannels.Get(f.chat.Id)
+				if got == nil {
+					t.Fatal("log channel unbound")
+				}
+				return map[string]bool{"admin": got.CatAdmin, "settings": got.CatSettings}[category]
+			}
+
+			f.sendPM(t, f.admin, "/nolog "+category)
+			if enabled() {
+				t.Fatalf("/nolog %s left the category on; sent:\n%s", category, sentText(f.client))
+			}
+			f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_disabled", i18n.TranslationParams{"cats": category}))
+
+			f.sendPM(t, f.admin, "/log "+category)
+			if !enabled() {
+				t.Fatalf("/log %s left the category off; sent:\n%s", category, sentText(f.client))
+			}
 		})
 	}
 }
