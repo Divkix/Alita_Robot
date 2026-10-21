@@ -154,15 +154,20 @@ func canPostInChannel(b *gotgbot.Bot, channelID, userID int64) bool {
 }
 
 // logsChat returns the group a log-channel command acts on: the chat it was
-// sent in or, in PM, the group withPMGroupArg named or the connected one. In
-// PM admin requires the user to be its admin; IsUserConnected answers any
-// refusal. nil means the call has been answered.
-func logsChat(b *gotgbot.Bot, ctx *ext.Context, admin bool) *gotgbot.Chat {
+// sent in or, in PM, the group withPMGroupArg named or the connected one. A
+// non-nil admin must be an admin of that group, checked once: in PM by
+// IsUserConnected, which answers any refusal. nil means the call has been
+// answered.
+func logsChat(b *gotgbot.Bot, ctx *ext.Context, admin *gotgbot.User) *gotgbot.Chat {
 	chat := ctx.EffectiveChat
 	if chat.Type != "private" {
+		if admin != nil && !chat_status.RequireUserAdmin(b, ctx, chat, admin.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+			return nil
+		}
 		return chat
 	}
-	if admin {
+	if admin != nil {
 		return resolveAdminChat(b, ctx, false)
 	}
 	if chat = chat_status.IsUserConnected(b, ctx, false, false); chat != nil {
@@ -178,12 +183,8 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, true)
+	chat := logsChat(b, ctx, from)
 	if chat == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 	// Read the settings first: Unset deletes them, and the change is logged
@@ -206,7 +207,7 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, false)
+	chat := logsChat(b, ctx, nil)
 	if chat == nil {
 		return ext.EndGroups
 	}
@@ -249,12 +250,8 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, true)
+	chat := logsChat(b, ctx, from)
 	if chat == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 	if logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id) == nil {

@@ -302,3 +302,86 @@ func TestSetLogInGroupStillAsksForChannelPost(t *testing.T) {
 	f.requireNotBound(t)
 	f.requireReplyTo(t, f.chat.Id, translated(t, "logs_need_channel"))
 }
+
+// In PM an admin-only log command checks the user's admin rights in the
+// group once, on top of resolving the group as /logchannel does. An admin
+// list stored without admins turns every admin check into a getChatMember.
+func TestLogChannelCommandsInPMCheckAdminOnce(t *testing.T) {
+	lookups := func(t *testing.T, text string) int {
+		t.Helper()
+		f := newLogChannelPMFixture(t)
+		f.bindChannel(t)
+		f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(`[]`)
+		f.sendPM(t, f.admin, text)
+		if len(callsToChat(f.client, "sendMessage", f.admin.Id)) == 0 {
+			t.Fatalf("%s got no reply", text)
+		}
+		return memberLookups(f.client, f.chat.Id, f.admin.Id)
+	}
+	resolve := lookups(t, "/logchannel @fixturegroup")
+	for _, text := range []string{"/unsetlog @fixturegroup", "/nolog @fixturegroup admin", "/log @fixturegroup admin"} {
+		t.Run(text, func(t *testing.T) {
+			if got := lookups(t, text); got != resolve+1 {
+				t.Fatalf("getChatMember calls for the admin in the group = %d, want %d (%d to resolve it, 1 admin check)", got, resolve+1, resolve)
+			}
+		})
+	}
+}
+
+// A user connected from PM who is no longer the group's admin may not change
+// the log channel's settings through the connection.
+func TestLogChannelCommandsInPMRefuseConnectedNonAdmin(t *testing.T) {
+	for _, text := range []string{"/unsetlog", "/nolog admin", "/log admin"} {
+		t.Run(text, func(t *testing.T) {
+			f := newLogChannelPMFixture(t)
+			f.bindChannel(t)
+			if err := logchannels.SetCategory(f.chat.Id, "admin", text == "/log admin"); err != nil {
+				t.Fatalf("SetCategory() error = %v", err)
+			}
+			before := logchannels.Get(f.chat.Id)
+			if err := connections.ConnectId(f.member.Id, f.chat.Id); err != nil {
+				t.Fatalf("ConnectId() error = %v", err)
+			}
+			t.Cleanup(func() {
+				if err := connections.DisconnectId(f.member.Id); err != nil {
+					t.Errorf("DisconnectId() error = %v", err)
+				}
+			})
+
+			f.sendPM(t, f.member, text)
+
+			if got := logchannels.Get(f.chat.Id); got == nil || got.LogChannelID != before.LogChannelID || got.CatAdmin != before.CatAdmin {
+				t.Fatalf("settings changed by a non-admin: %+v, want %+v", got, before)
+			}
+			f.requireReplyTo(t, f.member.Id, translated(t, "connections_is_user_connected_user_not_admin"))
+		})
+	}
+}
+
+// In the group itself a member who is not an admin still may not change the
+// log channel's settings.
+func TestLogChannelCommandsInGroupRefuseMember(t *testing.T) {
+	for _, text := range []string{"/unsetlog", "/nolog admin", "/log admin"} {
+		t.Run(text, func(t *testing.T) {
+			f := newLogChannelPMFixture(t)
+			f.bindChannel(t)
+			if err := logchannels.SetCategory(f.chat.Id, "admin", text == "/log admin"); err != nil {
+				t.Fatalf("SetCategory() error = %v", err)
+			}
+			before := logchannels.Get(f.chat.Id)
+			cmd := strings.Fields(text)[0]
+			update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
+				MessageId: 101, Date: 1, Chat: f.chat, From: &f.member, Text: text,
+				Entities: []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: int64(len(cmd))}},
+			}}
+			if err := logChannelsDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate() error = %v", err)
+			}
+
+			if got := logchannels.Get(f.chat.Id); got == nil || got.LogChannelID != before.LogChannelID || got.CatAdmin != before.CatAdmin {
+				t.Fatalf("settings changed by a member: %+v, want %+v", got, before)
+			}
+			f.requireReplyTo(t, f.chat.Id, translated(t, "chat_status_user_admin_cmd_error"))
+		})
+	}
+}
