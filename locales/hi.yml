@@ -2584,3 +2584,7 @@ settings_open_in_pm: "इस समूह की सेटिंग्स नि
 settings_open_in_pm_button: "निजी चैट में सेटिंग्स खोलें"
 settings_btn_refresh: "🔄 रीफ़्रेश"
 settings_btn_other_group: "↩️ दूसरा समूह"
+
+# Admin panel (Telegram Mini App) PM deep link
+panel_open_message: "इस समूह का एडमिन पैनल खोलने के लिए नीचे दिए गए बटन को दबाएँ।"
+panel_open_button: "एडमिन पैनल खोलें"
