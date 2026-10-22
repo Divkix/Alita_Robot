@@ -2016,6 +2016,18 @@ reports_extended_docs: |
   • <b>❎ Eliminar Mensaje</b> - Elimina el mensaje reportado
   • <b>✔️ Marcar Resuelto</b> - Marca el reporte como resuelto sin acción
 
+  <b>Tarjeta en el canal de registro:</b>
+  Si el grupo tiene un canal de registro (<code>/setlog</code>) con la categoría <code>reports</code> activada, cada mensaje reportado también recibe allí una tarjeta, con sus propios botones <b>Banear</b>, <b>Silenciar</b>, <b>Eliminar</b> y <b>Descartar</b>. Solo los administradores del grupo reportado pueden usarlos, con los mismos permisos que tienen en el grupo. El grupo sigue recibiendo el reporte completo con las menciones a los administradores y los botones descritos arriba.
+
+  En el canal de registro:
+  • Una copia del mensaje reportado, para que la prueba se conserve si se elimina el original. Los mensajes que no se pueden copiar se citan como texto.
+  • Una tarjeta que responde a esa copia con el usuario reportado, el número de miembros que reportaron el mensaje, quién lo reportó por última vez y su motivo, y un enlace al mensaje original.
+  • Los nuevos reportes del mismo mensaje actualizan la misma tarjeta; si un miembro reporta el mismo mensaje dos veces, cuenta una sola vez.
+  • Cuando los administradores ya han decidido sobre el reporte de un miembro, si ese miembro vuelve a reportar el mismo mensaje recibe una respuesta de que los administradores ya lo revisaron, sin menciones a administradores ni botones.
+  • Los botones de una tarjeta siguen funcionando mientras quede algún reporte abierto en ella; cuando no queda ninguno, al pulsarlos se responde que el reporte ha caducado.
+
+  Cada reporte también se guarda en la base de datos con quién lo hizo, a quién reporta, el ID del mensaje, los primeros 100 caracteres del texto del mensaje y su estado, que registran los botones de arriba; el mensaje completo solo queda en el canal de registro. Los reportes cerrados se eliminan 90 días después de cerrarse, y los que nadie cerró se eliminan 90 días después de hacerse. Los reportes no se incluyen en <code>/export</code>.
+
   <b>Configuración personal vs de grupo:</b>
   • <b>En PM:</b> <code>/reports on/off</code> alterna si TÚ recibes notificaciones (requiere una conexión activa con /connect a un grupo donde tanto tú como el bot sean administradores)
   • <b>En grupo:</b> <code>/reports on/off</code> alterna si los reportes están habilitados en ese grupo
@@ -2817,6 +2829,16 @@ logchannels_examples_docs: |
   2. Envía <code>/setlog</code> en el canal.
   3. Dentro de la siguiente hora, reenvía ese mensaje /setlog a tu grupo.
 
+  <b>Configurarlo y gestionarlo desde el chat privado:</b>
+  En privado, indica primero el grupo: su ID, su @username o el título de un grupo donde seas administrador (no distingue mayúsculas de minúsculas; pon entre comillas un título con espacios). No se publica nada en el grupo, y el canal solo recibe la entrada de configuración habitual.
+  • <code>/setlog @mygroup @mychannel</code> - vincula un canal por su @username
+  • <code>/setlog -1001234567890 -1009876543210</code> - lo vincula por sus IDs
+  • <code>/log @mygroup admin</code> - activa una categoría
+  • <code>/nolog -1001234567890 settings</code> - desactiva una categoría
+  • <code>/logchannel @mygroup</code> - muestra el canal de registro
+  • <code>/unsetlog @mygroup</code> - lo quita
+  Debes ser administrador del grupo y, además, ser dueño del canal o administrador del canal con permiso para publicar mensajes, igual que para publicar /setlog en él; el bot debe ser administrador del canal con permiso para publicar mensajes. Si estás conectado con /connect, puedes omitir el grupo: <code>/setlog @mychannel</code>. Mientras estés conectado, /setlog, /log y /nolog no buscan por título: indica otro grupo por su @username o su ID. El grupo pasa las mismas comprobaciones que con /connect, y la conexión se mantiene como está.
+
   <b>Elegir qué se registra:</b>
   • <code>/logcategories</code> - lista las categorías
   • <code>/log admin user</code> - activa dos categorías
@@ -2845,7 +2867,8 @@ logchannels_permissions_docs: |
   <b>Permisos de usuario:</b>
   • <code>/setlog</code> se envía en el propio canal, donde solo los administradores del canal pueden publicar.
   • Solo los administradores del grupo pueden vincular el canal reenviando ese mensaje, y solo ellos pueden usar <code>/unsetlog</code>, <code>/log</code> y <code>/nolog</code>.
-  • Cualquiera puede usar <code>/logchannel</code> (solo grupos) y <code>/logcategories</code>.
+  • <code>/setlog</code> en privado vincula el canal solo para un administrador del grupo que sea dueño del canal o administrador del canal con permiso para publicar mensajes.
+  • Cualquiera puede usar <code>/logchannel</code> y <code>/logcategories</code>; en privado, <code>/logchannel</code> funciona para un grupo al que podrías conectarte con <code>/connect</code>.
 
   <b>Permisos del bot:</b>
   • El bot debe ser administrador del canal de registro con permiso para publicar mensajes, tanto para ver <code>/setlog</code> como para enviar los registros. Los registros que no puede enviar se descartan sin mostrar ningún error.
