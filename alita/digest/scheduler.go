@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // Scheduler sends each opted-in chat the previous week's digest once.
@@ -25,7 +26,9 @@ import (
 // conditional update on digest_settings.last_sent_at, and sends only when the
 // claim won. Because the claim is the database row, two replicas ticking at
 // the same minute send one message, not two, with no Redis involved. A failed
-// send restores the claim and the next tick retries it.
+// send restores the claim and the next tick retries it, unless the failure is
+// permanent (the bot was removed, the chat is gone or the bot may not send
+// there): then the week counts as done and the failure is logged once.
 type Scheduler struct {
 	bot      *gotgbot.Bot
 	interval time.Duration
@@ -121,6 +124,13 @@ func (s *Scheduler) send(settings *models.DigestSettings, boundary time.Time) {
 	}
 
 	if err := s.deliver(settings, boundary.AddDate(0, 0, -7), boundary); err != nil {
+		// A permanent failure cannot be fixed by retrying: keep the claim so
+		// the week counts as done and the next week starts clean.
+		if helpers.IsPermanentSendError(err) {
+			log.WithFields(log.Fields{"chat_id": settings.ChatID, "error": err}).
+				Warn("[Digest] week's digest is undeliverable; not retrying")
+			return
+		}
 		log.WithFields(log.Fields{"chat_id": settings.ChatID, "error": err}).
 			Error("[Digest] could not send the weekly digest")
 		if restoreErr := digestsettings.Restore(settings.ChatID, claimedAt, settings.LastSentAt); restoreErr != nil {

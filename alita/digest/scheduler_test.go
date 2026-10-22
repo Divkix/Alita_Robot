@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	log "github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -144,6 +146,9 @@ type digestBotClient struct {
 	mu        sync.Mutex
 	calls     []digestBotCall
 	failSends int
+	// sendErr is what a failed send returns; nil means a transient network
+	// failure.
+	sendErr error
 }
 
 func (c *digestBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
@@ -159,6 +164,9 @@ func (c *digestBotClient) RequestWithContext(_ context.Context, _ string, method
 	if method == "sendMessage" {
 		if c.failSends > 0 {
 			c.failSends--
+			if c.sendErr != nil {
+				return nil, c.sendErr
+			}
 			return nil, errors.New("telegram is unreachable")
 		}
 		return json.RawMessage(`{"message_id":1,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test"}}`), nil
@@ -333,6 +341,70 @@ func TestSchedulerRetriesAFailedSend(t *testing.T) {
 	settings := digestSettingsOf(t, chatID)
 	if settings.LastSentAt == nil || !settings.LastSentAt.Equal(next) {
 		t.Fatalf("last_sent_at = %v, want the retry claim %v", settings.LastSentAt, next)
+	}
+}
+
+// A permanent send failure (bot removed, chat gone, no send rights) cannot be
+// fixed by retrying: the claim stays, the failure is logged once at warn, and
+// the next tick sends nothing for that week.
+func TestSchedulerDoesNotRetryAPermanentSendFailure(t *testing.T) {
+	permanent := map[string]error{
+		"bot removed":    errors.New("Forbidden: bot was kicked from the group chat"),
+		"bot not member": errors.New("Forbidden: bot is not a member of the supergroup chat"),
+		"chat not found": errors.New("Bad Request: chat not found"),
+		"deactivated":    errors.New("Forbidden: group chat was deactivated"),
+		"upgraded":       errors.New("Bad Request: group chat was upgraded to a supergroup chat"),
+		"no send rights": errors.New("Bad Request: not enough rights to send text messages to the chat"),
+	}
+	for name, sendErr := range permanent {
+		t.Run(name, func(t *testing.T) {
+			useDigestLocales(t)
+			withDigestConfig(t, true, false)
+			hook := logrustest.NewGlobal()
+			t.Cleanup(hook.Reset)
+
+			chatID := newDigestTestChat(t)
+			weekStart := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+			now := weekStart.Add(12 * time.Hour)
+			seedWeek(t, chatID, weekStart.AddDate(0, 0, -7), Stats{Messages: 4})
+			enableDigest(t, chatID, digestsettings.DestinationGroup)
+
+			client := &digestBotClient{failSends: 10, sendErr: sendErr}
+			scheduler := NewScheduler(newDigestTestBot(client))
+			scheduler.now = func() time.Time { return now }
+			scheduler.runDue(now)
+
+			if got := len(client.sends()); got != 1 {
+				t.Fatalf("sendMessage attempts = %d, want 1", got)
+			}
+			settings := digestSettingsOf(t, chatID)
+			if settings.LastSentAt == nil || !settings.LastSentAt.Equal(now) {
+				t.Fatalf("last_sent_at = %v after a permanent failure, want the claim %v kept", settings.LastSentAt, now)
+			}
+
+			warns := 0
+			for _, entry := range hook.AllEntries() {
+				if !strings.Contains(entry.Message, "[Digest]") {
+					continue
+				}
+				if entry.Level == log.ErrorLevel {
+					t.Errorf("permanent failure logged at error: %q", entry.Message)
+				}
+				if entry.Level == log.WarnLevel {
+					warns++
+				}
+			}
+			if warns != 1 {
+				t.Fatalf("digest warnings = %d, want the one permanent-failure warning", warns)
+			}
+
+			next := now.Add(time.Hour)
+			scheduler.now = func() time.Time { return next }
+			scheduler.runDue(next)
+			if got := len(client.sends()); got != 1 {
+				t.Fatalf("sendMessage attempts after the next tick = %d, want no retry", got)
+			}
+		})
 	}
 }
 
