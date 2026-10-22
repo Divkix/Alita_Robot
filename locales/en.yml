@@ -219,6 +219,8 @@ bans_help_msg:
 
   × /baninfo <userhandle>: shows the ban I recorded for a user: who banned them, when, why, what caused it and until when. (via handle, or reply)
 
+  × /banlist [search]: lists the bans I recorded that are still in force, newest first, 10 per page. A search keeps the users whose ID, username or name matches it.
+
 
   *Restrict Commands:* (Admin only)
 
@@ -402,7 +404,7 @@ connections_help_msg:
 
   From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
 
-  From PM, a group's admins can also run /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
+  From PM, a group's admins can also run /ban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
 
   From PM, a group's members can also see a user's warns there with /warns if the group allows members to connect (/allowconnect; otherwise only its admins can), and its admins the group's warn settings with /warnings: name the group first (its @username or ID; its admins may also use its title), then for /warns the user, or connect to the group. The answer comes to PM.
 
@@ -1916,7 +1918,7 @@ admin_extended_docs: |
 
   <b>Supported Commands:</b>
   Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
+  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
   Purges: /purge, /del, /purgefrom, /purgeto
@@ -2687,6 +2689,15 @@ bans_baninfo_none: "I have no ban record for {user} here. I record only the bans
 bans_record_by_bot: "me, automatically"
 bans_record_by_anonymous: "an anonymous admin"
 bans_record_read_failed: "I couldn't read the ban records right now. Try again later."
+bans_banlist_header: "<b>Open bans: {count}</b> (page {page} of {pages})"
+bans_banlist_header_search: "<b>Open bans matching</b> <code>{query}</code><b>: {count}</b> (page {page} of {pages})"
+bans_banlist_entry: "{n}. {user} (<code>{id}</code>) · {source} · {date}"
+bans_banlist_entry_until: "{n}. {user} (<code>{id}</code>) · {source} · {date} · until {until}"
+bans_banlist_empty: "No ban I recorded here is in force. I record only the bans I make."
+bans_banlist_no_match: "No open ban I recorded here matches <code>{query}</code>."
+bans_banlist_expired: "This list has expired. Send /banlist again."
+bans_banlist_prev: "« Previous"
+bans_banlist_next: "Next »"
 admin_setgtitle_need_title: "Give me a new group title."
 admin_setgtitle_ok: "Group title updated."
 admin_setgtitle_failed: "I couldn't change the group title. Make sure I can change group info."
@@ -2805,6 +2816,7 @@ bans_extend_msg: |
   /unrestrict — pick unmute or unban from buttons
   /unbanall — unban all known users (owner only)
   /baninfo — show a user's ban record
+  /banlist — list the open bans
 blacklists_extend_msg: |
   /blacklists — list blacklisted words
   /addblacklist — blacklist a word

@@ -41,6 +41,7 @@ func banRecordChecks(cmd string) []helpers.CheckFunc {
 
 func initBanRecordDescs() {
 	banInfoDesc.RequiredChecks = banRecordChecks("baninfo")
+	banListDesc.RequiredChecks = banRecordChecks("banlist")
 }
 
 // banRecordUser is the HTML label of a user or channel a record names: a

@@ -119,6 +119,7 @@ var commandHelpModules = map[string]string{
 	"resetallwarns": "warns",
 	"unbanall":      "bans",
 	"baninfo":       "bans",
+	"banlist":       "bans",
 	// Group-only admin commands, with the group from PM.
 	"adminlist":       "admin",
 	"invitelink":      "admin",
@@ -190,6 +191,7 @@ var menuCommands = map[string]menuCommand{
 	"unrestrict": {Module: "bans", AdminOnly: true},
 	"unbanall":   {Module: "bans", AdminOnly: true},
 	"baninfo":    {Module: "bans", AdminOnly: true},
+	"banlist":    {Module: "bans", AdminOnly: true},
 
 	"blacklists":      {Module: "blacklists"},
 	"addblacklist":    {Module: "blacklists", AdminOnly: true},

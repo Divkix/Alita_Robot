@@ -1127,6 +1127,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, banmeDesc, pipelineHandler(bansModule.banme))
 	helpers.WrapCommand(dispatcher, unbanAllDesc, pipelineHandler(bansModule.unbanAllHandler))
 	helpers.WrapCommand(dispatcher, banInfoDesc, pipelineHandler(bansModule.banInfo))
+	helpers.WrapCommand(dispatcher, banListDesc, pipelineHandler(bansModule.banList))
 
 	helpers.WrapCommand(dispatcher, kickDesc, pipelineHandler(bansModule.kick))
 	helpers.WrapCommand(dispatcher, dkickDesc, pipelineHandler(bansModule.dkick))
@@ -1138,6 +1139,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, unrestrictDesc, pipelineHandler(bansModule.unrestrict))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansModule.unbanAllCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banListNamespace+"|"), bansModule.banListCallback))
 }
 
 func init() {
@@ -1149,6 +1151,7 @@ func init() {
 	RegisterAnonymousAdminHandler("tban", anonPipelineHandler(tbanDesc, bansModule.tBan))
 	RegisterAnonymousAdminHandler("unban", anonPipelineHandler(unbanDesc, bansModule.unban))
 	RegisterAnonymousAdminHandler("baninfo", anonPipelineHandler(banInfoDesc, bansModule.banInfo))
+	RegisterAnonymousAdminHandler("banlist", anonPipelineHandler(banListDesc, bansModule.banList))
 	RegisterAnonymousAdminHandler("kick", anonPipelineHandler(kickDesc, bansModule.kick))
 	RegisterAnonymousAdminHandler("dkick", anonPipelineHandler(dkickDesc, bansModule.dkick))
 	RegisterAnonymousAdminHandler("skick", anonPipelineHandler(skickDesc, bansModule.sKick))
