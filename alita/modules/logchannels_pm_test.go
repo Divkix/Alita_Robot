@@ -227,6 +227,21 @@ func TestSetLogInPMRefusesNonChannel(t *testing.T) {
 	f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_pm_not_channel", i18n.TranslationParams{"channel": fmt.Sprint(f.chat.Id)}))
 }
 
+// The channel is user text: a refusal shows it escaped, so it can neither
+// break the reply's HTML nor add markup of its own.
+func TestSetLogInPMRefusalEscapesChannel(t *testing.T) {
+	f := newLogChannelPMFixture(t)
+	const channel = "<b>&chan"
+
+	f.sendPM(t, f.admin, "/setlog @fixturegroup "+channel)
+
+	f.requireNotBound(t)
+	f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_pm_not_channel", i18n.TranslationParams{"channel": html.EscapeString(channel)}))
+	if got := sentText(f.client); strings.Contains(got, channel) {
+		t.Fatalf("refusal shows the channel unescaped: %s", got)
+	}
+}
+
 // Binding from PM needs the same group rights as forwarding the post in the
 // group: an admin. A member who may connect and owns the channel is refused.
 func TestSetLogInPMRefusesGroupMemberWhoIsNotAdmin(t *testing.T) {
