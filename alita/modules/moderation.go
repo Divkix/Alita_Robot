@@ -71,17 +71,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 		return target{}, fmt.Errorf("extraction failed")
 	}
 	if chat_status.IsChannelId(uid) {
-		anonKey := "bans_anonymous_ban_only_error"
-		text, _ := c.Tr.GetString(anonKey)
-		if text == "" {
-			text, _ = c.Tr.GetString("common_anonymous_user_error")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return target{}, err
-		}
-		return target{}, fmt.Errorf("anonymous user")
+		return target{}, replyAnonymousTarget(c)
 	}
 	if uid == 0 {
 		text, _ := c.Tr.GetString("common_no_user_specified")
@@ -94,13 +84,20 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 	return target{userID: uid, reason: reason}, nil
 }
 
+// replyAnonymousTarget refuses a channel or anonymous admin as the target.
+func replyAnonymousTarget(c *moderationCtx) error {
+	text, _ := c.Tr.GetString("bans_anonymous_ban_only_error")
+	if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
+		log.Error(err)
+		return err
+	}
+	return fmt.Errorf("anonymous user")
+}
+
 // extractFromReply resolves the target from the replied-to message.
 func extractFromReply(c *moderationCtx) (target, error) {
 	if c.Msg.ReplyToMessage == nil {
 		text, _ := c.Tr.GetString("bans_dkick_no_reply")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_no_reply_to_message")
-		}
 		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
@@ -118,17 +115,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 	}
 	uid := c.Msg.ReplyToMessage.From.Id
 	if chat_status.IsChannelId(uid) {
-		anonKey := "bans_anonymous_ban_only_error"
-		text, _ := c.Tr.GetString(anonKey)
-		if text == "" {
-			text, _ = c.Tr.GetString("common_anonymous_user_error")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return target{}, err
-		}
-		return target{}, fmt.Errorf("anonymous user")
+		return target{}, replyAnonymousTarget(c)
 	}
 	if uid == 0 {
 		noUserKey := "common_no_user_specified"
