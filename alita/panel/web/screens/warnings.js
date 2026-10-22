@@ -2,7 +2,7 @@
 // ones labelled, and a remove button that runs the same repository call as
 // /unwarn. Server data reaches the DOM only through textContent.
 import { api } from "../api.js";
-import { textElement, userLabel } from "../ui.js";
+import { relativeTime, textElement, userLabel } from "../ui.js";
 
 const PAGE_SIZE = 50;
 
@@ -94,8 +94,14 @@ export async function renderWarnings(root, chatID, chat) {
 			const row = document.createElement("li");
 			row.className = entry.expired ? "warn-entry expired" : "warn-entry";
 			row.append(textElement("span", entry.reason || "(no reason)", "warn-reason"));
-			const meta = [issuerLabel(entry, names), formatTime(entry.warned_at), entry.expired ? "expired" : "active"];
-			row.append(textElement("span", meta.join(" · "), "muted"));
+			const when = entry.warned_at ? relativeTime(entry.warned_at) || formatTime(entry.warned_at) : formatTime(entry.warned_at);
+			const meta = [issuerLabel(entry, names), when];
+			if (entry.expired) {
+				meta.push("expired");
+			}
+			const line = textElement("span", meta.join(" · "), "muted");
+			line.title = formatTime(entry.warned_at);
+			row.append(line);
 			entries.append(row);
 		}
 		item.append(entries);

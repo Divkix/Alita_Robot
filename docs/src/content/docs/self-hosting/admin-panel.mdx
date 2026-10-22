@@ -181,9 +181,12 @@ a real client and cannot run in CI):
 1. Open `PANEL_PUBLIC_URL` in a browser outside Telegram: the shell renders and
    reports the missing `initData` instead of crashing.
 2. Open it from a group's dashboard button inside Telegram: that chat opens
-   directly, and `← All chats` leads to the chat list.
+   directly, and Telegram's own Back button in the header leads to the chat
+   list (a client older than Bot API 6.1 shows an in-page `‹ All chats` link
+   instead).
 3. Switch the Telegram theme between light and dark while the panel is open:
-   backgrounds and text follow the `--tg-theme-*` colours.
+   backgrounds, cards and text follow the `--tg-theme-*` colours, and the
+   Telegram header matches the page background.
 4. Open it for a user with no groups: the empty state explains how to add the
    bot, with no browser console error.
 5. Throttle the network to slow 3G and reload: the loading state appears first,
