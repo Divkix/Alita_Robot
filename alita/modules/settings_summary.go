@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
@@ -131,7 +132,7 @@ func collectChatSettings(ctx context.Context, chatID int64) []settingsSection {
 		{Title: "AI Spam", Rows: []settingsRow{boolRow("/aispam", aispam.IsAISpamEnabled(chatID), false)}},
 		probationSettingsSection(ctx, chatID),
 		warnsSettingsSection(ctx, chatID),
-		locksSettingsSection(chatID),
+		locksSettingsSection(ctx, chatID),
 		blacklistSettingsSection(chatID),
 		greetingsSettingsSection(ctx, chatID),
 		reportsSettingsSection(ctx, chatID),
@@ -242,14 +243,24 @@ func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	}}
 }
 
-func locksSettingsSection(chatID int64) settingsSection {
+func locksSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	var locked []string
 	for perm, on := range locks.GetChatLocks(chatID) {
 		if on {
 			locked = append(locked, perm)
 		}
 	}
-	return settingsSection{Title: "Locks", Rows: []settingsRow{listRow("/locks", locked)}}
+	night := "off"
+	if n, err := nightmode.GetContext(ctx, chatID); err != nil {
+		log.Warnf("[Settings] read night mode for chat %d: %v", chatID, err)
+	} else if n.Enabled {
+		start, end, types := nightWindowLabel(n)
+		night = start + "-" + end + " " + types
+	}
+	return settingsSection{Title: "Locks", Rows: []settingsRow{
+		listRow("/locks", locked),
+		stringRow("/nightmode", night, "off"),
+	}}
 }
 
 func blacklistSettingsSection(chatID int64) settingsSection {

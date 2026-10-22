@@ -57,6 +57,8 @@ locks_example: '/locks "My Group"'
 locktypes_example: '/locktypes "My Group"'
 lock_example: "/lock @mygroup sticker"
 unlock_example: "/unlock @mygroup sticker"
+nightmode_example: "/nightmode 23:00 07:00 media,url"
+nightmode_pm_example: "/nightmode @mygroup 23:00 07:00 media,url"
 flood_example: '/flood "My Group"'
 setflood_example: "/setflood @mygroup 10"
 setfloodmode_example: "/setfloodmode @mygroup mute"
@@ -144,7 +146,7 @@ alt_names:
   Filters: [filter]
   Formatting: [markdownhelp, mdhelp]
   Greetings: [welcome, goodbye, greeting]
-  Locks: [lock, unlock]
+  Locks: [lock, unlock, nightmode]
   Languages: [language, lang]
   Misc: [extra, extras, stickerid, github, wiki, ud, runs, zombies]
   Mutes: [mute, unmute, tmute, smute, dmute]

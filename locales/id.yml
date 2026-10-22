@@ -727,6 +727,8 @@ locks_help_msg: "*Admin saja*:
 
   × /locks: Lihat Izin Obrolan.
 
+  × /nightmode `<mulai> <selesai> <tipe|all>`: Terapkan juga tipe kunci ini setiap hari dari mulai sampai selesai (HH:MM 24 jam, dalam zona waktu obrolan, lihat /timezone; rentangnya boleh melewati tengah malam). `/nightmode off` mematikannya; /nightmode saja menampilkannya.
+
 
   *Perintah Pengguna:*
 
@@ -1181,6 +1183,15 @@ locks_current_locks_header: "Ini adalah kunci di obrolan ini:"
 locks_bot_lock_no_permission: Saya melihat bot, dan saya diminta untuk menghentikan mereka bergabung... tetapi saya bukan admin!
 locks_bot_lock_no_ban_permission: Saya melihat bot, dan saya diminta untuk menghentikan mereka bergabung... tetapi saya tidak punya izin untuk melarang mereka!
 locks_bot_only_admins: Hanya admin dan pengguna yang disetujui yang diizinkan untuk menambahkan bot ke obrolan ini!
+nightmode_status_on: "Mode malam aktif: setiap hari dari <b>{start}</b> sampai <b>{end}</b> (waktu {timezone}), kunci ini juga berlaku: <code>{types}</code>."
+nightmode_now_active: "Sekarang pukul {time} di sana, jadi mode malam sedang berlaku."
+nightmode_now_inactive: "Sekarang pukul {time} di sana, jadi mode malam sedang tidak berlaku."
+nightmode_status_off: "Mode malam mati. Nyalakan dengan <code>/nightmode 23:00 07:00 media,url</code>; jamnya mengikuti zona waktu obrolan ini (lihat /timezone)."
+nightmode_disabled: "Mode malam dimatikan. Kunci yang dipasang dengan /lock tetap seperti semula."
+nightmode_invalid_time: "<code>{input}</code> bukan jam yang valid. Gunakan format 24 jam HH:MM, misalnya <code>23:00</code>."
+nightmode_same_times: "Jam mulai dan jam selesai harus berbeda."
+nightmode_no_types: "Sebutkan jam mulai, jam selesai, dan tipe kunci untuk malam hari, misalnya <code>media,url</code> atau <code>all</code> (lihat /locktypes)."
+nightmode_invalid_type: "<code>{type}</code> bukan tipe kunci yang bisa diterapkan mode malam. Lihat /locktypes; <code>bots</code> tidak bisa dikunci pada malam hari."
 
 # Pins module strings
 pins_unpinned_message: Melepas pin pesan ini.
@@ -2977,6 +2988,7 @@ locks_extend_msg: |
   /unlock — buka kunci jenis pesan
   /locks — lihat kunci saat ini
   /locktypes — daftar jenis yang bisa dikunci
+  /nightmode — kunci malam dengan jadwal harian
 logchannels_extend_msg: |
   /setlog — atur kanal log (kirim di kanal)
   /unsetlog — hapus kanal log

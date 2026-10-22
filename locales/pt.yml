@@ -699,6 +699,8 @@ locks_help_msg: "*Apenas Admin*:
 
   × /locks: Visualiza Permissão de Chat.
 
+  × /nightmode `<início> <fim> <tipos|all>`: Aplica também estes tipos de bloqueio todos os dias do início ao fim (HH:MM em 24 horas, no fuso horário do chat, veja /timezone; o intervalo pode passar da meia-noite). `/nightmode off` desativa; /nightmode sozinho mostra a configuração.
+
 
   *Comandos de Usuário:*
 
@@ -1153,6 +1155,15 @@ locks_current_locks_header: "Estes são os bloqueios neste chat:"
 locks_bot_lock_no_permission: Eu vejo um bot, e fui instruída para impedi-los de entrar... mas não sou admin!
 locks_bot_lock_no_ban_permission: Eu vejo um bot, e fui instruída para impedi-los de entrar... mas não tenho permissão para banir!
 locks_bot_only_admins: Apenas admins e usuários aprovados podem adicionar bots a este chat!
+nightmode_status_on: "O modo noturno está ativado: todos os dias das <b>{start}</b> às <b>{end}</b> (horário de {timezone}), estes bloqueios também valem: <code>{types}</code>."
+nightmode_now_active: "Agora são {time} lá, então o modo noturno está em vigor."
+nightmode_now_inactive: "Agora são {time} lá, então o modo noturno não está em vigor."
+nightmode_status_off: "O modo noturno está desativado. Ative com <code>/nightmode 23:00 07:00 media,url</code>; os horários seguem o fuso horário deste chat (veja /timezone)."
+nightmode_disabled: "Modo noturno desativado. Os bloqueios feitos com /lock continuam como estavam."
+nightmode_invalid_time: "<code>{input}</code> não é um horário. Use o formato de 24 horas HH:MM, como <code>23:00</code>."
+nightmode_same_times: "Os horários de início e de fim precisam ser diferentes."
+nightmode_no_types: "Informe um horário de início, um de fim e os tipos de bloqueio para a noite, como <code>media,url</code> ou <code>all</code> (veja /locktypes)."
+nightmode_invalid_type: "<code>{type}</code> não é um tipo de bloqueio que o modo noturno possa aplicar. Veja /locktypes; <code>bots</code> não pode ser bloqueado à noite."
 
 # Pins module strings
 pins_unpinned_message: Desfixei esta mensagem.
@@ -2950,6 +2961,7 @@ locks_extend_msg: |
   /unlock — desbloquear um tipo de mensagem
   /locks — ver os bloqueios atuais
   /locktypes — lista de tipos bloqueáveis
+  /nightmode — bloqueios noturnos num horário diário
 logchannels_extend_msg: |
   /setlog — definir um canal de log (envie no canal)
   /unsetlog — remover o canal de log

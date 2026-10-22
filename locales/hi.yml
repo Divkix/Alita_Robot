@@ -448,6 +448,8 @@ locks_help_msg: "*केवल एडमिन*:
 
   × /locks: चैट अनुमति देखें।
 
+  × /nightmode `<start> <end> <types|all>`: हर दिन शुरुआती समय से अंतिम समय तक ये लॉक प्रकार भी लागू करें (24 घंटे वाला HH:MM, चैट के /timezone में; समय आधी रात पार कर सकता है)। `/nightmode off` इसे बंद करता है; सिर्फ़ /nightmode इसे दिखाता है।
+
 
   *उपयोगकर्ता कमांड:*
 
@@ -1434,6 +1436,15 @@ locks_current_locks_header: "इस चैट में ये लॉक है�
 locks_bot_lock_no_permission: मैंने एक बॉट देखा, और मुझे उन्हें शामिल होने से रोकने के लिए कहा गया है... लेकिन मैं एडमिन नहीं हूं!
 locks_bot_lock_no_ban_permission: मैंने एक बॉट देखा, और मुझे उन्हें शामिल होने से रोकने के लिए कहा गया है... लेकिन मेरे पास उन्हें बैन करने की अनुमति नहीं है!
 locks_bot_only_admins: केवल एडमिन और स्वीकृत उपयोगकर्ताओं को इस चैट में बॉट जोड़ने की अनुमति है!
+nightmode_status_on: "नाइट मोड चालू है: हर दिन <b>{start}</b> से <b>{end}</b> तक ({timezone} समय) ये लॉक भी लागू होते हैं: <code>{types}</code>।"
+nightmode_now_active: "वहाँ अभी {time} बजे हैं, इसलिए नाइट मोड लागू है।"
+nightmode_now_inactive: "वहाँ अभी {time} बजे हैं, इसलिए नाइट मोड लागू नहीं है।"
+nightmode_status_off: "नाइट मोड बंद है। इसे <code>/nightmode 23:00 07:00 media,url</code> से चालू करें; समय इस चैट के टाइमज़ोन में हैं (/timezone देखें)।"
+nightmode_disabled: "नाइट मोड बंद कर दिया गया। /lock से लगाए गए लॉक जैसे थे वैसे ही रहेंगे।"
+nightmode_invalid_time: "<code>{input}</code> सही समय नहीं है। 24 घंटे वाला HH:MM लिखें, जैसे <code>23:00</code>।"
+nightmode_same_times: "शुरू और खत्म होने का समय अलग-अलग होना चाहिए।"
+nightmode_no_types: "शुरू का समय, खत्म का समय और रात में लागू होने वाले लॉक प्रकार बताएँ, जैसे <code>media,url</code> या <code>all</code> (/locktypes देखें)।"
+nightmode_invalid_type: "<code>{type}</code> ऐसा लॉक प्रकार नहीं है जिसे नाइट मोड लागू कर सके। /locktypes देखें; <code>bots</code> रात में लॉक नहीं हो सकता।"
 locks_notes_docs: |
   <b>तकनीकी नोट्स</b>
   • लॉक प्रवर्तन वास्तविक समय में होता है
@@ -2699,6 +2710,7 @@ locks_extend_msg: |
   /unlock — संदेश प्रकार अनलॉक करें
   /locks — मौजूदा लॉक देखें
   /locktypes — लॉक होने वाले प्रकारों की सूची
+  /nightmode — रोज़ तय समय पर रात के लॉक
 logchannels_extend_msg: |
   /setlog — लॉग चैनल सेट करें (चैनल में भेजें)
   /unsetlog — लॉग चैनल हटाएँ

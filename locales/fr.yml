@@ -1004,6 +1004,8 @@ locks_help_msg: "*Admin uniquement* :
 
   × /locks : Voir les permissions du chat.
 
+  × /nightmode `<début> <fin> <types|all>` : Applique aussi ces types de verrou chaque jour du début à la fin (HH:MM sur 24 heures, dans le fuseau horaire du chat, voir /timezone ; la plage peut passer minuit). `/nightmode off` le désactive ; /nightmode seul l'affiche.
+
 
   *Commandes Utilisateur :*
 
@@ -1033,6 +1035,15 @@ locks_current_locks_header: "Voici les verrous dans ce chat :"
 locks_bot_lock_no_permission: Je vois un bot, et on m'a dit de l'empêcher de rejoindre... mais je ne suis pas admin !
 locks_bot_lock_no_ban_permission: Je vois un bot, et on m'a dit de l'empêcher de rejoindre... mais je n'ai pas la permission de le bannir !
 locks_bot_only_admins: Seuls les admins et les utilisateurs approuvés sont autorisés à ajouter des bots à ce chat !
+nightmode_status_on: "Le mode nuit est activé : chaque jour de <b>{start}</b> à <b>{end}</b> (heure de {timezone}), ces verrous s'appliquent aussi : <code>{types}</code>."
+nightmode_now_active: "Il est {time} là-bas, le mode nuit est donc en vigueur."
+nightmode_now_inactive: "Il est {time} là-bas, le mode nuit n'est donc pas en vigueur."
+nightmode_status_off: "Le mode nuit est désactivé. Activez-le avec <code>/nightmode 23:00 07:00 media,url</code> ; les heures suivent le fuseau horaire de ce chat (voir /timezone)."
+nightmode_disabled: "Mode nuit désactivé. Les verrous posés avec /lock restent inchangés."
+nightmode_invalid_time: "<code>{input}</code> n'est pas une heure. Utilisez le format 24 heures HH:MM, par exemple <code>23:00</code>."
+nightmode_same_times: "L'heure de début et l'heure de fin doivent être différentes."
+nightmode_no_types: "Indiquez une heure de début, une heure de fin et les types de verrou à appliquer la nuit, par exemple <code>media,url</code> ou <code>all</code> (voir /locktypes)."
+nightmode_invalid_type: "<code>{type}</code> n'est pas un type de verrou que le mode nuit peut appliquer. Voir /locktypes ; <code>bots</code> ne peut pas être verrouillé la nuit."
 
 # Utils chat status strings
 
@@ -2895,6 +2906,7 @@ locks_extend_msg: |
   /unlock — déverrouiller un type de message
   /locks — afficher les verrous actuels
   /locktypes — liste des types verrouillables
+  /nightmode — verrous de nuit selon un horaire quotidien
 logchannels_extend_msg: |
   /setlog — définir un canal de journal (à envoyer dans le canal)
   /unsetlog — retirer le canal de journal

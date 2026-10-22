@@ -55,6 +55,7 @@ var commandHelpModules = map[string]string{
 	"locktypes":        "locks",
 	"lock":             "locks",
 	"unlock":           "locks",
+	"nightmode":        "locks",
 	"flood":            "antiflood",
 	"setflood":         "antiflood",
 	"setfloodmode":     "antiflood",
@@ -282,6 +283,7 @@ var menuCommands = map[string]menuCommand{
 	"unlock":    {Module: "locks", AdminOnly: true},
 	"locks":     {Module: "locks", AdminOnly: true},
 	"locktypes": {Module: "locks"},
+	"nightmode": {Module: "locks", AdminOnly: true},
 
 	"setlog":        {Module: "logchannels", AdminOnly: true},
 	"unsetlog":      {Module: "logchannels", AdminOnly: true},

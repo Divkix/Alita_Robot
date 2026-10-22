@@ -10,6 +10,7 @@ description: Complete guide to Locks module commands and features
 × /lock `<type> [type ...]`: Lock one or more lock types (see /locktypes).
 × /unlock `<type> [type ...]`: Unlock one or more lock types.
 × /locks: View Chat permission.
+× /nightmode `<start> <end> <types|all>`: Also apply these lock types every day from start to end (24-hour HH:MM in the chat's /timezone; the window may cross midnight). `/nightmode off` turns it off; /nightmode alone shows it.
 
 *User Commands:*
 × /locktypes: Check available lock types!
@@ -29,6 +30,7 @@ This module can be accessed using the following aliases:
 
 - `lock`
 - `unlock`
+- `nightmode`
 
 ## Available Commands
 
@@ -37,6 +39,7 @@ This module can be accessed using the following aliases:
 | `/lock` | Lock one or more lock types in the group | ❌ |
 | `/locks` | Show current lock settings | ✅ |
 | `/locktypes` | List all available lock types | ✅ |
+| `/nightmode` | Apply extra lock types every day between two times in the chat's timezone | ❌ |
 | `/unlock` | Unlock one or more lock types in the group | ❌ |
 
 ## Usage Examples
@@ -47,6 +50,8 @@ This module can be accessed using the following aliases:
 /lock
 /locks
 /locktypes
+/nightmode 23:00 07:00 media,url
+/nightmode off
 ```
 
 For detailed command usage, refer to the commands table above.
@@ -68,4 +73,5 @@ Most commands in this module require **admin permissions** in the group.
 - Lock enforcement is real-time
 - Admins and approved users are exempt from all locks
 - Locks persist across bot restarts
+- Night mode adds its lock types to the day locks only inside its window, in the chat's timezone (`/timezone`, default UTC); it never changes the locks set with `/lock`. It cannot apply `bots`. A window crossing midnight runs past it; a start or end skipped by a daylight-saving jump takes effect at the next minute that exists
 - Cache invalidated on updates

@@ -466,6 +466,7 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 	helpers.AddCmdToDisableable("locktypes")
 	dispatcher.AddHandler(handlers.NewCommand("locks", withPMGroupArg("locks", helpers.PMGroupArgNone, locksModule.locks)))
 	helpers.AddCmdToDisableable("locks")
+	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)
 	dispatcher.AddHandler(
