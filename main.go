@@ -447,6 +447,8 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	}
 	log.Info("Custom bot commands set for private chats")
 
+	setPanelMenuButton(b)
+
 	_, err = b.SendMessage(config.AppConfig.MessageDump,
 		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, alita.ListModules()),
 		&gotgbot.SendMessageOpts{
@@ -462,6 +464,28 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 		log.Infof("[Bot] Bot has been started in %s mode...", mode)
 	} else {
 		log.Infof("[Bot] %s has been started in %s mode...", username, mode)
+	}
+}
+
+// setPanelMenuButton points the default menu button of every private chat at
+// the panel, so users reach it without a command. It is a no-op while the panel
+// is disabled, which leaves the button untouched. Repeating the same value on
+// every start is harmless, and a refusal only warns: the group buttons and the
+// /start panel_<chatID> deep link still open the panel.
+func setPanelMenuButton(b *gotgbot.Bot) {
+	if !config.AppConfig.PanelEnabled {
+		return
+	}
+	tr := i18n.MustNewTranslator("en")
+	text, _ := tr.GetString("panel_open_button")
+	_, err := b.SetChatMenuButton(&gotgbot.SetChatMenuButtonOpts{
+		MenuButton: gotgbot.MenuButtonWebApp{
+			Text:   text,
+			WebApp: gotgbot.WebAppInfo{Url: config.AppConfig.PanelPublicURL},
+		},
+	})
+	if err != nil {
+		log.Warnf("[Panel] Could not set the menu button: %v", err)
 	}
 }
 

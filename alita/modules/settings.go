@@ -14,11 +14,13 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -90,10 +92,18 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	text, _ := tr.GetString("settings_open_in_pm")
 	button, _ := tr.GetString("settings_open_in_pm_button")
-	kb := gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{
+	rows := [][]gotgbot.InlineKeyboardButton{{{
 		Text: button,
 		Url:  fmt.Sprintf("https://t.me/%s?start=settings_%d", b.Username, chat.Id),
-	}}}}
+	}}}
+	if config.AppConfig.PanelEnabled {
+		panelButton, _ := tr.GetString("panel_open_button")
+		rows = append(rows, []gotgbot.InlineKeyboardButton{{
+			Text: panelButton,
+			Url:  panel.EntryURL(b.Username, config.AppConfig.PanelMiniAppShortName, chat.Id),
+		}})
+	}
+	kb := gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows}
 	if _, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
 		log.Error(err)
 		return err

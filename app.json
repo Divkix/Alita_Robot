@@ -26,6 +26,18 @@
     "REDIS_TLS_INSECURE_SKIP_VERIFY": {
       "description": "Skip TLS certificate verification for REDIS_URL. Heroku Redis uses a self-signed certificate, so the bot cannot connect without this.",
       "value": "true"
+    },
+    "PANEL_ENABLED": {
+      "description": "Serve the optional Telegram Mini App admin panel under /panel and add its buttons to the bot.",
+      "value": "false"
+    },
+    "PANEL_PUBLIC_URL": {
+      "description": "Public HTTPS URL Telegram opens for the panel, e.g. https://your-app.herokuapp.com/panel. Required when PANEL_ENABLED is true.",
+      "required": false
+    },
+    "PANEL_MINIAPP_SHORTNAME": {
+      "description": "Optional BotFather Mini App short name; when set, group buttons open the panel directly.",
+      "required": false
     }
   },
   "buildpacks": [
