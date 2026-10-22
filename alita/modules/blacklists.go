@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -510,6 +511,14 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return err
 	}
+	// logAction posts the action to the log channel. The matched trigger is a
+	// field of its own, so leaving it out takes one line.
+	logAction := func(action string) {
+		actionlog.Automated(b, chat, "BLACKLIST", user.Id(), user.Name(),
+			actionlog.Field{Name: "Action", Value: action},
+			actionlog.Field{Name: "Trigger", Value: i},
+		)
+	}
 
 	var err error
 	switch matched.Action {
@@ -523,6 +532,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+		logAction(matched.Action)
 		if err = notify("_bl_watcher_muted_user"); err != nil {
 			return err
 		}
@@ -536,6 +546,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+		logAction(matched.Action)
 		if err = notify("_bl_watcher_banned_user"); err != nil {
 			return err
 		}
@@ -548,6 +559,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+		logAction(matched.Action)
 		if err = notify("_bl_watcher_kicked_user"); err != nil {
 			return err
 		}
@@ -570,6 +582,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+		logAction(matched.Action + " " + formatDuration(blacklistTimedActionTime))
 		if err = notify(key, formatDuration(blacklistTimedActionTime)); err != nil {
 			return err
 		}
