@@ -260,12 +260,12 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadDisabling(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(disablingModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("disable", disablingModule.disable))
+	dispatcher.AddHandler(handlers.NewCommand("disable", withPMGroupArg("disable", helpers.PMGroupArgOwn, disablingModule.disable)))
 	dispatcher.AddHandler(handlers.NewCommand("disableable", disablingModule.disableable))
-	dispatcher.AddHandler(handlers.NewCommand("disabled", disablingModule.disabled))
+	dispatcher.AddHandler(handlers.NewCommand("disabled", withPMGroupArg("disabled", helpers.PMGroupArgNone, disablingModule.disabled)))
 	helpers.AddCmdToDisableable("disabled")
-	dispatcher.AddHandler(handlers.NewCommand("disabledel", disablingModule.disabledel))
-	dispatcher.AddHandler(handlers.NewCommand("enable", disablingModule.enable))
+	dispatcher.AddHandler(handlers.NewCommand("disabledel", withPMGroupArg("disabledel", helpers.PMGroupArgOwn, disablingModule.disabledel)))
+	dispatcher.AddHandler(handlers.NewCommand("enable", withPMGroupArg("enable", helpers.PMGroupArgOwn, disablingModule.enable)))
 }
 
 func init() {

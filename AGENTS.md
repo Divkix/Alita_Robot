@@ -10,7 +10,16 @@ Update this file in the same commit as any change that invalidates a rule below.
   chat.
 - Change an existing default or command meaning only to fix a bug; the commit is `fix:` with the old and new behaviour
   in the body.
-- Group-only and connection-based usage keep working unchanged when a PM or shortcut form is added.
+- Group-only and connection-based usage keep working unchanged when a PM or shortcut form is added, except where the
+  PM rule below decides.
+- In PM a group the user names wins: a command whose first argument names a group (@username or ID, or a title the
+  lookup resolves; `withPMGroupArg`) runs in that group even when the user is connected to another. A command without
+  arguments of its own (`PMGroupArgNone`) whose first word does not name exactly one group refuses: with its help when
+  the word names no group, with the groups so titled when a title names several (`connections_pm_group_too_many` past
+  `pmGroupTitleCheckLimit`), or with `settings_picker_wait` when the picker's pause leaves nothing to look it up in; it
+  never falls back to the connected group (`/rules foo` does not show the connected group's rules). Reason: the
+  connection is not visible when the message is sent and is easy to forget; acting in a group other than the one named
+  is a worse error than a refusal, which costs one retry. Keep this rule when adding PM forms.
 
 ## Commands
 
@@ -44,6 +53,42 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   panic included). Legacy `dispatcher.AddHandler` commands rely on the group-`1` guard, which only sees swaps made in
   group `0`; a swapping handler registered outside `WrapCommand` in a higher group must return `ext.EndGroups` on
   every path. Keep group `1` for the guard alone: a handler there that matches first would skip it.
+- `withPMGroupArg` (`alita/modules/pm_group_arg.go`) lets a legacy PM command take its group as the first argument
+  (`-100…` ID, a group's @username, or the title of a group the user administers). A title is matched against the
+  connected group and the `settingsCandidateLimit` (50) most recently active groups the user posted in
+  (`settingsCandidateChats`, uncached), and admin rights are checked only on the matches (none when more than
+  `pmGroupTitleCheckLimit` (3) share the title: the call gets `connections_pm_group_too_many`), outside the `/settings`
+  picker's button cap and budget; a group outside those 50 is named by @username or ID only. The lookup takes the
+  picker's pause before it scans, so one user scans `chats` at most once per pause: every scan keeps its groups for
+  the pause (`settingsScanKey`), and inside the pause a title is matched against them, never against the picker's
+  list, which holds only the groups that passed its checks; with no scan kept the call gets `settings_picker_wait`. A
+  title that names none there gets the help with the list the last picker build kept, or with the wait notice when
+  the pause built none.
+  With a saved connection a call without a first word runs on the connection, and so does a `PMGroupArgOwn` call
+  whose first word is not a group's @username or ID: that word is the command's own argument and is never looked up
+  as a title. The command's help and the picker's list (for a title, built from the lookup's scan) answer a call
+  without a first word and without a connection, and a first word looked up as a group that names none (an ID or
+  @username of no group, or a title that matches none), so the command needs a `commandHelpModules` entry. It checks
+  the group like `/connect`, stores it with `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved
+  connection and checks only for `chatAdmin`/`botAdmin`, not membership, and whose failed checks never disconnect;
+  any new caller must run `checkUserConnectToChat` first and, when it reports no live member check (an admin from the
+  cached list, which outlives a lost `chat_member` update), look the user up once itself), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
+  ends iteration. `ctx.Message` stays the original: read command text only through `ctx.EffectiveMessage` or
+  `ctx.Args()`. Enable it per command at registration; outside PM it does nothing, and a rich message with
+  arguments gets `connections_pm_group_plain_text` (blocks cannot be cut). A `WrapCommand` command enables the same through
+  `CommandDescriptor.PMGroupArg`: the group is resolved before `RequiredChecks`, so they see it as they would a
+  connected group, by the resolver `alita/modules` sets with `helpers.SetPMGroupResolver` in `init()`.
+- A group-only command taken to PM gets its group from `groupOnlyChat` (`alita/modules/pm_group_reset.go`; a
+  `WrapCommand` command whose checks need the group puts `groupOnlyChatCheck` before them), so its checks see that
+  group. A command that checks the user's admin status live itself (`/admincache`) uses `groupOnlyMemberChat`
+  instead, which skips the cached admin check. A confirmation button it sends carries the group in its `c` field
+  (`confirmData`), and the press acts only through `ownerConfirmChat`, which reads the group with `buttonChat` and
+  checks the presser against it: never the PM it was pressed in. A bans button sent from PM carries the group the
+  same way: `moderationButtonData` adds it, and an unban or unmute button gets it as `keyboard.UnrestrictButton`'s
+  chat ID (`pmButtonChatID`). Its handler reads it with `buttonChat` and checks the presser's right there. A bans or
+  unrestrict button sent in a group has no `c` field (`moderationButtonData` adds none, and `UnrestrictButton` gets
+  chat ID 0), nor does one sent before PM support; for those `buttonChat` returns the chat the button is in.
+  Confirmation buttons always have it (`confirmData` writes `c` wherever they are sent).
 - gotgbot stops a group at the first matching handler. Watchers return `ext.ContinueGroups`; commands return
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` via `RegisterLegacyModule(name, priority, load)`. Use a unique name; duplicates are
@@ -133,12 +178,15 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Warn expiry (`warns_settings.warn_expiry`): the live count is `num_warns` minus the expired entries; an entry with a
   NULL `warned_at` never expires. Reads filter expired entries after the cache and never prune them; only `WarnUser`
   and `RemoveWarn` delete expired entries, under their row locks.
-- A command in `commandHelpModules` answers a call it cannot run with its own entry cut from `<module>_help_msg`, so
-  that help keeps one entry per command (`× /cmd …`, continuation lines up to a blank line or the next entry) in all
-  7 locales, with no `"` or unknown HTML tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`;
-  `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Each such command also needs a `<cmd>_example` in
-  `locales/config.yml` starting with `/<cmd> `, except reply-only commands (`replyOnlyCommands`: /dban, /dkick,
-  /dmute), which must have none; `TestEveryHelpCommandHasAnExample` enforces it.
+- A command in `commandHelpModules` answers a call it cannot run with its own entry cut from `<module>_help_msg`; the
+  warn commands (/warn, /swarn, /rmwarn, /resetwarns, /warns) do so only from PM, and in a group answer a call without
+  a user with `common_no_user_specified` alone, as before PM support. That help keeps one entry per command
+  (`× /cmd …`, continuation lines up to a blank line or the next entry) in all 7 locales, with no `"` or unknown HTML
+  tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`; `TestEveryHelpCommandHasItsLineInEveryLocale`
+  enforces it. Each such command also needs a `<cmd>_example` in `locales/config.yml` starting with `/<cmd> `, except
+  reply-only commands (`replyOnlyCommands`: /dban, /dkick, /dmute), which must have none;
+  `TestEveryHelpCommandHasAnExample` enforces it. Help sent to PM shows the optional `<cmd>_pm_example` (the group
+  first) in place of `<cmd>_example` when the command has one.
 - `moderation_events` gets one row per successful human moderation action, written only by `recordModerationEvent`
   (`alita/modules/moderation.go`) from commands and inline moderation buttons. Never record automated actions
   (spamdb, captcha, antiraid, locks, blacklists, warn limits): the shared-reputation join check reads this table, and a

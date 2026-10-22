@@ -37,12 +37,12 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 	}
 
 	_, err = c.Msg.Reply(c.Bot,
-		text,
+		withGroupLine(c.Tr, c.Msg, c.Chat, text),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{keyboard.UnrestrictButton(c.Tr, "mutes_unmute_button", "unmute", t.userID)},
+					{keyboard.UnrestrictButton(c.Tr, "mutes_unmute_button", "unmute", t.userID, pmButtonChatID(c.Msg, c.Chat))},
 				},
 			},
 		},
@@ -109,7 +109,7 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 				baseStr += fmt.Sprintf(temp, html.EscapeString(t.reason))
 			}
 
-			_, err = c.Msg.Reply(c.Bot, baseStr, formatting.Shtml())
+			_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -148,6 +148,9 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 			return err
 		},
 		reply: func(c *moderationCtx, t *target) error {
+			if c.sentInPM() {
+				return muteReplyWithButton(c, t)
+			}
 			_ = helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Msg.MessageId)
 			return nil
 		},
@@ -238,7 +241,7 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 
 			temp, _ := c.Tr.GetString("mutes_unmute_message")
 			_, err = c.Msg.Reply(c.Bot,
-				fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
+				withGroupLine(c.Tr, c.Msg, c.Chat, fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName))),
 				formatting.Shtml(),
 			)
 			if err != nil {
@@ -271,20 +274,23 @@ func (m moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationUnmute(&m).run(b, ctx)
 }
 
+// From PM, the mute commands take the group as their first argument (or from
+// the connection), as the bans commands do. /dmute needs a reply to a group
+// message, so it stays group-only.
 var (
-	muteDesc   = helpers.CommandDescriptor{Name: "mute"}
-	smuteDesc  = helpers.CommandDescriptor{Name: "smute"}
-	tmuteDesc  = helpers.CommandDescriptor{Name: "tmute"}
+	muteDesc   = helpers.CommandDescriptor{Name: "mute", PMGroupArg: helpers.PMGroupArgOwn}
+	smuteDesc  = helpers.CommandDescriptor{Name: "smute", PMGroupArg: helpers.PMGroupArgOwn}
+	tmuteDesc  = helpers.CommandDescriptor{Name: "tmute", PMGroupArg: helpers.PMGroupArgOwn}
 	dmuteDesc  = helpers.CommandDescriptor{Name: "dmute"}
-	unmuteDesc = helpers.CommandDescriptor{Name: "unmute"}
+	unmuteDesc = helpers.CommandDescriptor{Name: "unmute", PMGroupArg: helpers.PMGroupArgOwn}
 )
 
 func initMuteDescs() {
-	muteDesc.RequiredChecks = restrictChecks("mute")
-	smuteDesc.RequiredChecks = deleteRestrictChecks("smute")
-	tmuteDesc.RequiredChecks = restrictChecks("tmute")
+	muteDesc.RequiredChecks = restrictChecks("mute", pmTargetChatCheck)
+	smuteDesc.RequiredChecks = deleteRestrictChecks("smute", pmTargetChatCheck)
+	tmuteDesc.RequiredChecks = restrictChecks("tmute", pmTargetChatCheck)
 	dmuteDesc.RequiredChecks = deleteRestrictChecks("dmute")
-	unmuteDesc.RequiredChecks = restrictChecks("unmute")
+	unmuteDesc.RequiredChecks = restrictChecks("unmute", pmTargetChatCheck)
 }
 
 func LoadMutes(dispatcher *ext.Dispatcher) {

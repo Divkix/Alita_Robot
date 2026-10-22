@@ -345,7 +345,6 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 }
 
 func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
@@ -353,6 +352,10 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
+	chat := groupOnlyChat(b, ctx)
+	if chat == nil {
+		return ext.EndGroups
+	}
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -363,6 +366,7 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_ask")
+	text = confirmText(ctx, tr, text, chat)
 	yesText, _ := tr.GetString("button_yes")
 	noText, _ := tr.GetString("button_no")
 	_, err := msg.Reply(b, text,
@@ -372,11 +376,11 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         yesText,
-							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"}),
+							CallbackData: confirmData("rmAllBlacklist", "yes", chat),
 						},
 						{
 							Text:         noText,
-							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "no"}),
+							CallbackData: confirmData("rmAllBlacklist", "no", chat),
 						},
 					},
 				},
@@ -396,7 +400,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !ok {
 		return ext.EndGroups
 	}
-	user := query.From
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if query.Message == nil {
 		text, _ := tr.GetString("common_callback_message_unavailable")
@@ -404,15 +407,13 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+	decoded, _ := decodeCallbackData(query.Data, "rmAllBlacklist")
+	chat := ownerConfirmChat(b, ctx, query, decoded)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
-	creatorAction := ""
-	if decoded, ok := decodeCallbackData(query.Data, "rmAllBlacklist"); ok {
-		creatorAction, _ = decoded.Field("a")
-	}
+	creatorAction, _ := decoded.Field("a")
 	if creatorAction == "" {
 		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
@@ -421,7 +422,7 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch creatorAction {
 	case "yes":
-		chatID := query.Message.GetChat().Id
+		chatID := chat.Id
 		if err := blacklists.RemoveAllBlacklist(chatID); err != nil {
 			log.WithFields(log.Fields{
 				"chatId": chatID,
@@ -609,13 +610,20 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(blacklistsModule.moduleName, true)
 
-	helpers.MultiCommand(dispatcher, []string{"blacklists", "blocklists"}, blacklistsModule.listBlacklists)
+	dispatcher.AddHandler(handlers.NewCommand("blacklists", withPMGroupArg("blacklists", helpers.PMGroupArgNone, blacklistsModule.listBlacklists)))
+	dispatcher.AddHandler(handlers.NewCommand("blocklists", withPMGroupArg("blacklists", helpers.PMGroupArgNone, blacklistsModule.listBlacklists)))
 	helpers.AddCmdToDisableable("blacklists")
 	helpers.AddCmdToDisableable("blocklists")
-	helpers.MultiCommand(dispatcher, []string{"addblacklist", "blacklist", "addblocklist", "blocklist"}, blacklistsModule.addBlacklist)
-	helpers.MultiCommand(dispatcher, []string{"rmblacklist", "rmblocklist", "unblacklist"}, blacklistsModule.removeBlacklist)
-	helpers.MultiCommand(dispatcher, []string{"blaction", "blacklistaction"}, blacklistsModule.setBlacklistAction)
-	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl", "rmblocklistall", "rmallblocklist"}, blacklistsModule.rmAllBlacklists)
+	dispatcher.AddHandler(handlers.NewCommand("addblacklist", withPMGroupArg("addblacklist", helpers.PMGroupArgOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("blacklist", withPMGroupArg("addblacklist", helpers.PMGroupArgOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("addblocklist", withPMGroupArg("addblacklist", helpers.PMGroupArgOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("blocklist", withPMGroupArg("addblacklist", helpers.PMGroupArgOwn, blacklistsModule.addBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("rmblacklist", withPMGroupArg("rmblacklist", helpers.PMGroupArgOwn, blacklistsModule.removeBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("rmblocklist", withPMGroupArg("rmblacklist", helpers.PMGroupArgOwn, blacklistsModule.removeBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("unblacklist", withPMGroupArg("rmblacklist", helpers.PMGroupArgOwn, blacklistsModule.removeBlacklist)))
+	dispatcher.AddHandler(handlers.NewCommand("blaction", withPMGroupArg("blaction", helpers.PMGroupArgOwn, blacklistsModule.setBlacklistAction)))
+	dispatcher.AddHandler(handlers.NewCommand("blacklistaction", withPMGroupArg("blaction", helpers.PMGroupArgOwn, blacklistsModule.setBlacklistAction)))
+	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl", "rmblocklistall", "rmallblocklist"}, withPMGroupArg("remallbl", helpers.PMGroupArgNone, blacklistsModule.rmAllBlacklists))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist"), blacklistsModule.buttonHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""

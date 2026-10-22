@@ -283,7 +283,7 @@ warns_help_msg:
 
   - /rmwarn : Supprimer le dernier avertissement d'un utilisateur.
 
-  - /resetwarn : Remettre à zéro tous les avertissements d'un utilisateur.
+  - /resetwarns : Remettre à zéro tous les avertissements d'un utilisateur.
 
   - /resetallwarns : Supprimer tous les avertissements du chat. Tous les utilisateurs reviennent à 0 avertissement. (créateur uniquement)
 
@@ -291,7 +291,7 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time] : Définir le mode d'avertissement du chat.
 
-  - /setwarntime <time/off> : Définir combien de temps un avertissement compte, ex. 30d ; off les garde pour toujours. Les avertissements donnés avant que le bot n'enregistre leur heure n'expirent jamais ; /resetwarn les supprime.
+  - /setwarntime <time/off> : Définir combien de temps un avertissement compte, ex. 30d ; off les garde pour toujours. Les avertissements donnés avant que le bot n'enregistre leur heure n'expirent jamais ; /resetwarns les supprime.
 
   - /setwarnlimit <nombre> : Définir le nombre d'avertissements avant sanction.
 
@@ -882,6 +882,16 @@ connections_help_msg:
 
   Une fois connectés, les administrateurs peuvent aussi utiliser /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect et /lang group en privé.
 
+  En privé, /rules, /notes, /filters et de nombreuses commandes de réglages, comme /lock, /setflood, /setwelcome et /setwarnlimit, prennent le groupe comme premier argument : son ID, son @username ou le titre d'un groupe où vous êtes administrateur. Les titres ne sont cherchés que parmi le groupe connecté et les 50 groupes les plus récemment actifs où vous avez écrit ; désignez tout autre groupe par son @username ou son ID.
+
+  En privé, le propriétaire d'un groupe peut aussi utiliser /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns et /unbanall, et ses administrateurs /privnote : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. La confirmation agit sur ce groupe et seul son propriétaire peut l'utiliser.
+
+  En privé, les administrateurs d'un groupe peuvent aussi utiliser /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache et /clearadmincache : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. Il faut les mêmes droits que dans le groupe, et la réponse arrive en privé.
+
+  En privé, les administrateurs d'un groupe peuvent aussi utiliser /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn et /resetwarns : nommez d'abord le groupe (son titre, son @username ou son ID), puis l'utilisateur (@username, ID ou mention), ou connectez-vous au groupe. Une fois connecté, seul un @username ou un ID choisit un autre groupe. Il faut les mêmes droits que dans le groupe ; répondre à un message en privé ne désigne pas l'utilisateur, et la réponse et les boutons arrivent en privé.
+
+  En privé, les membres d'un groupe peuvent aussi voir les avertissements d'un utilisateur dans ce groupe avec /warns si le groupe autorise ses membres à s'y connecter (/allowconnect ; sinon, seuls ses administrateurs le peuvent), et ses administrateurs les réglages d'avertissement du groupe avec /warnings : nommez d'abord le groupe (son @username ou son ID ; ses administrateurs peuvent aussi utiliser son titre), puis, pour /warns, l'utilisateur, ou connectez-vous au groupe. La réponse arrive en privé.
+
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
   si l'id est négatif ; tous les super groupes ont des ids négatifs."
@@ -891,6 +901,13 @@ connections_is_user_connected_need_group:
   pas en MP !"
 connections_is_user_connected_user_not_admin: Vous devez être admin pour faire cela.
 connections_not_connected: Vous n'êtes connecté à aucun chat.
+connections_pm_group_plain_text: "Je ne peux pas lire un groupe dans un message mis en forme. Envoyez <code>/%s</code> avec le groupe en texte brut."
+connections_pm_group_duplicate: "Plusieurs de vos groupes s'appellent <code>%s</code>. Indiquez celui que vous voulez par son @username ou son ID :"
+connections_pm_group_too_many: "Trop de groupes s'appellent <code>%s</code> pour les vérifier tous. Indiquez celui que vous voulez par son @username ou son ID (envoyez /id dans le groupe)."
+connections_pm_group_not_found: "Je n'ai pas trouvé le groupe <code>%s</code>. Indiquez le titre d'un groupe dont vous êtes admin, son @username ou son ID (envoyez /id dans le groupe)."
+connections_pm_group_pick: "En privé, indiquez d'abord le groupe : le titre d'un groupe dont vous êtes admin (entre guillemets s'il contient des espaces), son @username ou son ID."
+connections_pm_group_your_groups: "Vos groupes :"
+connections_pm_group_confirm_target: "Groupe : {title} ({id})"
 connections_stale_connection: "Votre connexion est obsolète - je ne peux plus accéder à ce chat. Veuillez utiliser /connect pour vous reconnecter à un chat valide."
 connections_reconnect_need_pm: Vous devez être en MP avec moi pour vous reconnecter à un chat !
 connections_reconnect_no_last_chat: Vous n'avez pas de dernier chat auquel vous reconnecter !
@@ -2424,16 +2441,18 @@ logchannels_help_msg: |
   3. Transférez ce message dans le groupe.
 
   *Commandes admin :*
-  × /setlog: Définir le canal de journal (envoyez-le dans le canal, puis transférez le message dans le groupe).
+  × /setlog: Définir le canal de journal (envoyez-le dans le canal, puis transférez le message dans le groupe). En privé, indiquez le groupe puis le canal, si vous êtes administrateur des deux et que le bot peut publier dans le canal.
   × /unsetlog: Retirer le canal de journal.
   × /log <category>: Activer une catégorie.
   × /nolog <category>: Désactiver une catégorie.
 
   *Tout le monde :*
-  × /logchannel: Afficher le canal de journal actuel (groupes uniquement).
+  × /logchannel: Afficher le canal de journal actuel.
   × /logcategories: Lister les catégories.
 
   Catégories : settings (modifications des réglages du canal de journal), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated, other. Rien n'est encore journalisé dans automated ni dans other.
+
+  En privé, indiquez d'abord le groupe dans /setlog, /unsetlog, /log, /nolog et /logchannel : son titre, son @nom d'utilisateur ou son ID.
 feds_pm_only: "Cette commande ne peut être utilisée qu'en discussion privée avec moi."
 feds_group_only: "Cette commande ne peut être utilisée que dans les groupes."
 feds_need_name: "Donnez un nom à votre fédération."
@@ -2515,6 +2534,7 @@ feds_callback_stale: "Ce bouton n'est plus valide."
 logs_need_channel: "Utilisez /setlog dans un canal, puis transférez ce message dans le groupe."
 logs_forward_to_group: "Transférez maintenant votre message /setlog (pas cette réponse) dans le groupe à journaliser, dans l'heure qui suit."
 logs_set_ok: "Canal de journal défini. Les actions d'administration de ce chat y seront envoyées."
+logs_pm_set_ok: "Canal de journal défini. Les actions d'administration de <b>{group}</b> y seront envoyées."
 logs_unset_ok: "Canal de journal retiré."
 logs_not_set: "Aucun canal de journal n'est défini pour ce chat."
 logs_current: "Canal de journal : <code>{id}</code>"
@@ -2523,7 +2543,11 @@ logs_enabled: "Journalisation activée pour : {cats}"
 logs_disabled: "Journalisation désactivée pour : {cats}"
 logs_unknown_category: "Catégorie inconnue. Voir /logcategories."
 logs_usage: "Utilisation : /log &lt;catégorie&gt; ou /nolog &lt;catégorie&gt;"
-logs_group_only: "Cette commande ne peut être utilisée que dans les groupes."
+logs_pm_need_channel: "Indiquez le canal après le groupe : <code>/setlog @mongroupe @moncanal</code>, ou l'ID du canal. Faites-moi d'abord administrateur du canal avec le droit de publier des messages."
+logs_pm_setlog_usage: "Indiquez le groupe, puis un seul canal. Tant que vous êtes connecté, indiquez un autre groupe par son @username ou son ID : son titre n'est pas recherché."
+logs_pm_not_channel: "<code>{channel}</code> n'est pas un canal que je peux voir. Faites-moi administrateur du canal avec le droit de publier des messages, puis indiquez-le par son @nom d'utilisateur ou son ID."
+logs_pm_user_not_channel_admin: "Pour faire du canal le canal de journal, vous devez en être le propriétaire ou un administrateur avec le droit de publier des messages."
+logs_pm_bot_cannot_post: "Je dois être administrateur du canal avec le droit de publier des messages."
 bans_banme_is_admin: "Les administrateurs ne peuvent pas se bannir eux-mêmes. Démissionnez d'abord."
 bans_banme_ok: "Comme vous voulez. Vous êtes banni."
 bans_unbanall_ask: "Débannir tous les utilisateurs connus de ce chat ? Cette action est difficile à annuler."
@@ -2806,7 +2830,7 @@ warns_extend_msg: |
   /dwarn — avertir et supprimer le message cité
   /warns — afficher les avertissements d'un utilisateur
   /rmwarn — retirer le dernier avertissement d'un utilisateur
-  /resetwarn — réinitialiser les avertissements d'un utilisateur
+  /resetwarns — réinitialiser les avertissements d'un utilisateur
   /resetallwarns — réinitialiser tous les avertissements du chat
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction

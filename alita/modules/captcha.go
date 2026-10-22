@@ -2070,7 +2070,11 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 		{"captchapending", captchaModule.viewPendingMessages},
 		{"captchaclear", captchaModule.clearPendingMessages},
 	} {
-		desc := helpers.CommandDescriptor{Name: cfg.name, RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)}}
+		desc := helpers.CommandDescriptor{
+			Name:           cfg.name,
+			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+			PMGroupArg:     helpers.PMGroupArgOwn,
+		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
 

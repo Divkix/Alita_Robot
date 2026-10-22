@@ -342,6 +342,16 @@ connections_help_msg:
 
   Enquanto conectados, administradores também podem usar /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect e /lang group no privado.
 
+  No privado, /rules, /notes, /filters e muitos comandos de configuração, como /lock, /setflood, /setwelcome e /setwarnlimit, aceitam o grupo como primeiro argumento: o ID, o @username ou o título de um grupo onde você é administrador. Títulos são procurados só entre o grupo conectado e os 50 grupos com atividade mais recente onde você escreveu; indique qualquer outro grupo pelo @username ou ID.
+
+  No privado, o dono de um grupo também pode usar /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns e /unbanall, e seus administradores /privnote: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. A confirmação age nesse grupo e só o dono pode apertá-la.
+
+  No privado, os administradores de um grupo também podem usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache e /clearadmincache: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. É preciso ter as mesmas permissões que no grupo, e a resposta chega no privado.
+
+  No privado, os administradores de um grupo também podem usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn e /resetwarns: nomeie primeiro o grupo (título, @username ou ID) e depois o usuário (@username, ID ou menção), ou conecte-se ao grupo. Com uma conexão, só um @username ou ID escolhe outro grupo. É preciso ter as mesmas permissões que no grupo; responder a uma mensagem no privado não indica o usuário, e a resposta e os botões chegam no privado.
+
+  No privado, os membros de um grupo também podem ver as advertências de um usuário nele com /warns se o grupo permitir que membros se conectem (/allowconnect; caso contrário, só os administradores), e os administradores as configurações de advertência do grupo com /warnings: nomeie primeiro o grupo (@username ou ID; os administradores também podem usar o título), depois, para /warns, o usuário, ou conecte-se ao grupo. A resposta chega no privado.
+
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
   se o id for negativo; todos os supergrupos têm ids negativos."
@@ -351,6 +361,13 @@ connections_is_user_connected_need_group:
   não em PM!
 connections_is_user_connected_user_not_admin: Você precisa ser administrador para fazer isso.
 connections_not_connected: Você não está conectado a nenhum chat.
+connections_pm_group_plain_text: "Não consigo ler um grupo numa mensagem formatada. Envie <code>/%s</code> com o grupo como mensagem de texto simples."
+connections_pm_group_duplicate: "Vários dos seus grupos se chamam <code>%s</code>. Informe o que você quer pelo @username ou pelo ID:"
+connections_pm_group_too_many: "Há grupos demais chamados <code>%s</code> para verificar todos. Informe o que você quer pelo @username ou pelo ID (envie /id no grupo)."
+connections_pm_group_not_found: "Não encontrei o grupo <code>%s</code>. Informe o título de um grupo em que você é admin, o @username ou o ID dele (envie /id no grupo)."
+connections_pm_group_pick: "No privado, informe primeiro o grupo: o título de um grupo em que você é admin (entre aspas se tiver espaços), o @username ou o ID dele."
+connections_pm_group_your_groups: "Seus grupos:"
+connections_pm_group_confirm_target: "Grupo: {title} ({id})"
 connections_stale_connection: "Sua conexão está obsoleta - não consigo mais acessar este chat. Por favor use /connect para reconectar a um chat válido."
 connections_reconnect_need_pm: Você precisa estar em um PM comigo para reconectar a um chat!
 connections_reconnect_no_last_chat: Você não tem último chat para reconectar!
@@ -889,7 +906,7 @@ warns_help_msg:
 
   - /rmwarn: Remove o aviso mais recente de um usuário.
 
-  - /resetwarn: Reseta todos os avisos de um usuário para 0.
+  - /resetwarns: Reseta todos os avisos de um usuário para 0.
 
   - /resetallwarns: Deleta todos os avisos em um chat. Todos os usuários retornam a 0 avisos. (apenas criador)
 
@@ -897,7 +914,7 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Define o modo de aviso do chat.
 
-  - /setwarntime <time/off>: Define por quanto tempo um aviso conta, ex. 30d; off os mantém para sempre. Avisos dados antes de o bot registrar o horário nunca expiram; /resetwarn os remove.
+  - /setwarntime <time/off>: Define por quanto tempo um aviso conta, ex. 30d; off os mantém para sempre. Avisos dados antes de o bot registrar o horário nunca expiram; /resetwarns os remove.
 
   - /setwarnlimit <número>: Define o número de avisos antes de usuários serem punidos.
 
@@ -2477,16 +2494,18 @@ logchannels_help_msg: |
   3. Encaminhe essa mensagem para o grupo.
 
   *Comandos de administrador:*
-  × /setlog: Define o canal de log (envie no canal e depois encaminhe a mensagem para o grupo).
+  × /setlog: Define o canal de log (envie no canal e depois encaminhe a mensagem para o grupo). No privado, indique o grupo e depois o canal, se você for administrador dos dois e o bot puder publicar no canal.
   × /unsetlog: Remove o canal de log.
   × /log <category>: Ativa uma categoria.
   × /nolog <category>: Desativa uma categoria.
 
   *Qualquer pessoa:*
-  × /logchannel: Mostra o canal de log atual (somente grupos).
+  × /logchannel: Mostra o canal de log atual.
   × /logcategories: Lista as categorias.
 
   Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated, other. Nada é registrado em automated ou other ainda.
+
+  No privado, indique primeiro o grupo em /setlog, /unsetlog, /log, /nolog e /logchannel: o título, @usuário ou ID.
 feds_pm_only: "Este comando só pode ser usado no meu chat privado."
 feds_group_only: "Este comando só pode ser usado em grupos."
 feds_need_name: "Dê um nome à sua federação."
@@ -2568,6 +2587,7 @@ feds_callback_stale: "Este botão não é mais válido."
 logs_need_channel: "Use /setlog em um canal e depois encaminhe essa mensagem para o grupo."
 logs_forward_to_group: "Agora encaminhe sua mensagem /setlog (não esta resposta) para o grupo que você quer registrar, dentro da próxima hora."
 logs_set_ok: "Canal de log definido. As ações de administração deste chat serão enviadas para lá."
+logs_pm_set_ok: "Canal de log definido. As ações de administração de <b>{group}</b> serão enviadas para lá."
 logs_unset_ok: "Canal de log removido."
 logs_not_set: "Nenhum canal de log está definido para este chat."
 logs_current: "Canal de log: <code>{id}</code>"
@@ -2576,7 +2596,11 @@ logs_enabled: "Log ativado para: {cats}"
 logs_disabled: "Log desativado para: {cats}"
 logs_unknown_category: "Categoria desconhecida. Veja /logcategories."
 logs_usage: "Uso: /log &lt;categoria&gt; ou /nolog &lt;categoria&gt;"
-logs_group_only: "Este comando só pode ser usado em grupos."
+logs_pm_need_channel: "Indique o canal depois do grupo: <code>/setlog @meugrupo @meucanal</code>, ou o ID do canal. Antes, me torne administrador do canal com permissão para publicar mensagens."
+logs_pm_setlog_usage: "Informe o grupo e depois um canal. Enquanto estiver conectado, informe outro grupo pelo @username ou pelo ID: o título não é procurado."
+logs_pm_not_channel: "<code>{channel}</code> não é um canal que eu consiga ver. Me torne administrador do canal com permissão para publicar mensagens e indique-o pelo @usuário ou ID."
+logs_pm_user_not_channel_admin: "Para tornar o canal o canal de log, você precisa ser o dono ou um administrador com permissão para publicar mensagens."
+logs_pm_bot_cannot_post: "Preciso ser administrador do canal com permissão para publicar mensagens."
 bans_banme_is_admin: "Administradores não podem banir a si mesmos. Renuncie primeiro."
 bans_banme_ok: "Como quiser. Você está banido."
 bans_unbanall_ask: "Desbanir todos os usuários conhecidos deste chat? Isso não pode ser desfeito facilmente."
@@ -2859,7 +2883,7 @@ warns_extend_msg: |
   /dwarn — advertir e apagar a mensagem respondida
   /warns — ver as advertências de um usuário
   /rmwarn — remover a última advertência de um usuário
-  /resetwarn — zerar as advertências de um usuário
+  /resetwarns — zerar as advertências de um usuário
   /resetallwarns — zerar todas as advertências do chat
   /warnings — ver as configurações de advertência
   /setwarnlimit — advertências antes da punição

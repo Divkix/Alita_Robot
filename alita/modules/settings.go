@@ -128,27 +128,88 @@ func settingsPickerListKey(userID int64) string {
 // while settingsPickerLiveBudget lasts. The list is kept for the pause.
 func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID int64) (string, gotgbot.InlineKeyboardMarkup) {
 	entries := settingsPickerEntries(b, ctx, userID)
+	storeSettingsPickerEntries(userID, entries)
+	return settingsPickerView(tr, userID, entries)
+}
+
+// adminGroupsForUser lists the groups userID administers for a PM command
+// that needs a group, as text rather than buttons. It shares the picker's
+// pause and budget: during the pause it returns the list the last build kept,
+// or, when there is none, the notice to show instead (wait is not empty).
+func adminGroupsForUser(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID int64) (entries []settingsPickerEntry, wait string) {
+	if notice, paused := settingsPickerWait(tr, userID); paused {
+		if stored, ok := storedSettingsPickerEntries(userID); ok {
+			return stored, ""
+		}
+		return nil, notice
+	}
+	entries = settingsPickerEntries(b, ctx, userID)
+	storeSettingsPickerEntries(userID, entries)
+	return entries, ""
+}
+
+// storeSettingsPickerEntries keeps a user's list for the pause.
+func storeSettingsPickerEntries(userID int64, entries []settingsPickerEntry) {
+	storeForSettingsPause(settingsPickerListKey(userID), entries)
+}
+
+// storedSettingsPickerEntries returns the list kept for userID during the
+// pause; ok is false when there is none.
+func storedSettingsPickerEntries(userID int64) ([]settingsPickerEntry, bool) {
+	return storedForSettingsPause(settingsPickerListKey(userID))
+}
+
+// settingsScanKey keeps the groups the scan that took a user's pause found,
+// so a title named inside the pause is looked up among all of them: the
+// picker's list keeps only those that passed its checks.
+func settingsScanKey(userID int64) string {
+	return fmt.Sprintf("%ssettings_scan:%d", cache.DataCachePrefix, userID)
+}
+
+// storedSettingsScan returns the groups the scan that took userID's pause
+// found; ok is false when it kept none.
+func storedSettingsScan(userID int64) ([]settingsPickerEntry, bool) {
+	return storedForSettingsPause(settingsScanKey(userID))
+}
+
+// settingsScanEntries is candidates by ID and title.
+func settingsScanEntries(candidates []models.Chat) []settingsPickerEntry {
+	entries := make([]settingsPickerEntry, 0, len(candidates))
+	for _, candidate := range candidates {
+		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
+	}
+	return entries
+}
+
+func storeForSettingsPause(key string, entries []settingsPickerEntry) {
 	if m := cache.GetMarshal(); m != nil && settingsPickerCooldown > 0 {
-		if err := m.Set(cache.Context, settingsPickerListKey(userID), entries, store.WithExpiration(settingsPickerCooldown)); err != nil {
-			log.Debugf("[Settings] store picker for user %d: %v", userID, err)
+		if err := m.Set(cache.Context, key, entries, store.WithExpiration(settingsPickerCooldown)); err != nil {
+			log.Debugf("[Settings] store %s: %v", key, err)
 		}
 	}
-	return settingsPickerView(tr, userID, entries)
+}
+
+func storedForSettingsPause(key string) ([]settingsPickerEntry, bool) {
+	m := cache.GetMarshal()
+	if m == nil {
+		return nil, false
+	}
+	stored, err := m.Get(cache.Context, key, new([]settingsPickerEntry))
+	entries, isList := stored.(*[]settingsPickerEntry)
+	if err != nil || !isList || entries == nil {
+		return nil, false
+	}
+	return *entries, true
 }
 
 // storedSettingsPicker renders the list settingsPicker kept for userID during
 // the pause; ok is false when there is none.
 func storedSettingsPicker(tr *i18n.Translator, userID int64) (text string, kb gotgbot.InlineKeyboardMarkup, ok bool) {
-	m := cache.GetMarshal()
-	if m == nil {
+	entries, ok := storedSettingsPickerEntries(userID)
+	if !ok {
 		return "", kb, false
 	}
-	stored, err := m.Get(cache.Context, settingsPickerListKey(userID), new([]settingsPickerEntry))
-	entries, isList := stored.(*[]settingsPickerEntry)
-	if err != nil || !isList || entries == nil {
-		return "", kb, false
-	}
-	text, kb = settingsPickerView(tr, userID, *entries)
+	text, kb = settingsPickerView(tr, userID, entries)
 	return text, kb, true
 }
 
@@ -185,6 +246,25 @@ func settingsPickerView(tr *i18n.Translator, userID int64, entries []settingsPic
 }
 
 func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []settingsPickerEntry {
+	return settingsPickerEntriesFrom(b, ctx, userID, settingsCandidates(ctx, userID))
+}
+
+// settingsCandidates scans for the groups userID posted in most recently and
+// keeps them for the pause. Callers hold the picker's pause, which bounds the
+// scans to one per user per pause.
+func settingsCandidates(ctx *ext.Context, userID int64) []models.Chat {
+	candidates, err := settingsCandidateChats(tracing.UpdateContext(ctx), userID, settingsCandidateLimit)
+	if err != nil {
+		log.Warnf("[Settings] candidate chats for user %d: %v", userID, err)
+		return candidates
+	}
+	storeForSettingsPause(settingsScanKey(userID), settingsScanEntries(candidates))
+	return candidates
+}
+
+// settingsPickerEntriesFrom builds the picker's list from candidates, the
+// groups settingsCandidates found.
+func settingsPickerEntriesFrom(b *gotgbot.Bot, ctx *ext.Context, userID int64, candidates []models.Chat) []settingsPickerEntry {
 	deadline := settingsPickerNow().Add(settingsPickerLiveBudget)
 	// The deadline also bounds each check's Telegram calls and its wait for a
 	// shared admin-list load, so one hung group cannot hold the picker past it.
@@ -213,10 +293,6 @@ func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []set
 		}
 	}
 
-	candidates, err := settingsCandidateChats(tracing.UpdateContext(ctx), userID, settingsCandidateLimit)
-	if err != nil {
-		log.Warnf("[Settings] candidate chats for user %d: %v", userID, err)
-	}
 	// Cached admin lists answer without Telegram, so they go first.
 	var cold []models.Chat
 	for _, candidate := range candidates {

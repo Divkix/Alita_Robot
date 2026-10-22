@@ -356,7 +356,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 		keyboard = [][]gotgbot.InlineKeyboardButton{
-			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id())},
+			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id(), 0)},
 		}
 
 		_, err := chat.RestrictMember(b, userId,
@@ -385,7 +385,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", user.Id())},
+				{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", user.Id(), 0)},
 			}
 			_, err := chat.BanSenderChat(b, userId, nil)
 			if err != nil {
@@ -406,7 +406,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
 		} else {
 			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id())},
+				{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id(), 0)},
 			}
 			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 		}
@@ -612,10 +612,11 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(antifloodModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
-	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))
-	helpers.MultiCommand(dispatcher, []string{"delflood", "clearflood"}, antifloodModule.setFloodDeleter)
-	dispatcher.AddHandler(handlers.NewCommand("flood", antifloodModule.flood))
+	dispatcher.AddHandler(handlers.NewCommand("setflood", withPMGroupArg("setflood", helpers.PMGroupArgOwn, antifloodModule.setFlood)))
+	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", withPMGroupArg("setfloodmode", helpers.PMGroupArgOwn, antifloodModule.setFloodMode)))
+	dispatcher.AddHandler(handlers.NewCommand("delflood", withPMGroupArg("delflood", helpers.PMGroupArgOwn, antifloodModule.setFloodDeleter)))
+	dispatcher.AddHandler(handlers.NewCommand("clearflood", withPMGroupArg("delflood", helpers.PMGroupArgOwn, antifloodModule.setFloodDeleter)))
+	dispatcher.AddHandler(handlers.NewCommand("flood", withPMGroupArg("flood", helpers.PMGroupArgNone, antifloodModule.flood)))
 	helpers.AddCmdToDisableable("flood")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 }

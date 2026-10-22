@@ -374,9 +374,9 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
-| `/setlog` | Set the log channel (send it in the channel, then forward that message to the group) | Channel admin + Admin | ❌ | — |
+| `/setlog` | Set the log channel (send it in the channel, then forward that message to the group; or in PM, name the group and then the channel) | Channel admin + Admin | ❌ | — |
 | `/unsetlog` | Remove the log channel | Admin | ❌ | — |
-| `/logchannel` | Show the current log channel (groups only) | Everyone | ❌ | — |
+| `/logchannel` | Show the current log channel (in PM, name the group first) | Everyone | ❌ | — |
 | `/logcategories` | List log categories | Everyone | ❌ | — |
 | `/log` | Enable one or more log categories | Admin | ❌ | — |
 | `/nolog` | Disable one or more log categories | Admin | ❌ | — |

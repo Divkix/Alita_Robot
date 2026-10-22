@@ -10,10 +10,117 @@ kick_example: "/kick @username"
 skick_example: "/skick @username"
 restrict_example: "/restrict @username"
 unrestrict_example: "/unrestrict @username"
+# <cmd>_pm_example: the sample call shown in PM help without a group, for
+# commands whose example above is the group's call.
+ban_pm_example: "/ban @mygroup @username spam"
+sban_pm_example: "/sban @mygroup @username"
+tban_pm_example: '/tban "My Group" @username 1d spam'
+unban_pm_example: "/unban @mygroup @username"
+kick_pm_example: "/kick -1001234567890 @username"
+skick_pm_example: "/skick @mygroup @username"
+restrict_pm_example: "/restrict @mygroup @username"
+unrestrict_pm_example: "/unrestrict @mygroup @username"
 mute_example: "/mute @username"
 smute_example: "/smute @username"
 tmute_example: "/tmute @username 30m"
 unmute_example: "/unmute @username"
+mute_pm_example: "/mute @mygroup @username flooding"
+smute_pm_example: "/smute -1001234567890 @username"
+tmute_pm_example: '/tmute "My Group" @username 30m'
+unmute_pm_example: "/unmute @mygroup @username"
+warn_example: "/warn @username spam"
+swarn_example: "/swarn @username spam"
+rmwarn_example: "/rmwarn @username"
+resetwarns_example: "/resetwarns @username"
+warn_pm_example: "/warn @mygroup @username spam"
+swarn_pm_example: "/swarn -1001234567890 @username"
+rmwarn_pm_example: '/rmwarn "My Group" @username'
+resetwarns_pm_example: "/resetwarns @mygroup @username"
+warns_example: "/warns @username"
+warns_pm_example: "/warns @mygroup @username"
+warnings_example: "/warnings @mygroup"
+rules_example: '/rules "My Group"'
+notes_example: '/notes "My Group"'
+saved_example: '/saved "My Group"'
+filters_example: '/filters "My Group"'
+connect_example: "/connect -1001234567890"
+setlog_example: "/setlog @mygroup @mychannel"
+unsetlog_example: '/unsetlog "My Group"'
+logchannel_example: '/logchannel "My Group"'
+log_example: "/log @mygroup admin"
+nolog_example: "/nolog @mygroup settings"
+locks_example: '/locks "My Group"'
+locktypes_example: '/locktypes "My Group"'
+lock_example: "/lock @mygroup sticker"
+unlock_example: "/unlock @mygroup sticker"
+flood_example: '/flood "My Group"'
+setflood_example: "/setflood @mygroup 10"
+setfloodmode_example: "/setfloodmode @mygroup mute"
+delflood_example: "/delflood @mygroup on"
+disabled_example: '/disabled "My Group"'
+disable_example: "/disable @mygroup rules"
+enable_example: "/enable @mygroup rules"
+disabledel_example: "/disabledel @mygroup on"
+reactions_example: '/reactions "My Group"'
+addreaction_example: "/addreaction @mygroup hello 👍"
+removereaction_example: "/removereaction @mygroup hello"
+resetreactions_example: '/resetreactions "My Group"'
+antiraid_example: "/antiraid @mygroup on"
+raidtime_example: "/raidtime @mygroup 6h"
+raidactiontime_example: "/raidactiontime @mygroup 1h"
+autoantiraid_example: "/autoantiraid @mygroup 10"
+antichannelpin_example: "/antichannelpin @mygroup on"
+cleanlinked_example: "/cleanlinked @mygroup on"
+allowconnect_example: "/allowconnect @mygroup on"
+setrules_example: "/setrules @mygroup Be kind to each other."
+resetrules_example: '/resetrules "My Group"'
+privaterules_example: "/privaterules @mygroup on"
+rulesbtn_example: "/rulesbtn @mygroup Read the rules"
+resetrulesbutton_example: '/resetrulesbutton "My Group"'
+blacklists_example: '/blacklists "My Group"'
+addblacklist_example: "/addblacklist @mygroup spamword"
+rmblacklist_example: "/rmblacklist @mygroup spamword"
+blaction_example: "/blaction @mygroup mute"
+approved_example: '/approved "My Group"'
+approve_example: "/approve -1001234567890 @username"
+unapprove_example: "/unapprove -1001234567890 @username"
+approval_example: "/approval -1001234567890 @username"
+welcome_example: "/welcome @mygroup on"
+setwelcome_example: "/setwelcome @mygroup Hello {first}!"
+resetwelcome_example: '/resetwelcome "My Group"'
+goodbye_example: "/goodbye @mygroup on"
+setgoodbye_example: "/setgoodbye @mygroup Bye {first}!"
+resetgoodbye_example: '/resetgoodbye "My Group"'
+cleanwelcome_example: "/cleanwelcome @mygroup on"
+cleangoodbye_example: "/cleangoodbye @mygroup on"
+cleanservice_example: "/cleanservice @mygroup on"
+autoapprove_example: "/autoapprove @mygroup on"
+captcha_example: "/captcha @mygroup on"
+captchamode_example: "/captchamode @mygroup text"
+captchatime_example: "/captchatime @mygroup 5"
+captchaaction_example: "/captchaaction @mygroup mute"
+captchamaxattempts_example: "/captchamaxattempts @mygroup 3"
+captchapending_example: "/captchapending -1001234567890 @username"
+captchaclear_example: "/captchaclear -1001234567890 @username"
+setwarnlimit_example: "/setwarnlimit @mygroup 5"
+setwarnmode_example: "/setwarnmode @mygroup mute"
+setwarntime_example: "/setwarntime @mygroup 30d"
+aispam_example: "/aispam @mygroup on"
+spamdb_example: "/spamdb @mygroup action mute"
+anonadmin_example: "/anonadmin @mygroup on"
+privnote_example: "/privnote @mygroup on"
+clearall_example: '/clearall "My Group"'
+stopall_example: "/stopall @mygroup"
+remallbl_example: "/remallbl @mygroup"
+unapproveall_example: "/unapproveall -1001234567890"
+resetallwarns_example: "/resetallwarns @mygroup"
+unbanall_example: '/unbanall "My Group"'
+adminlist_example: "/adminlist @mygroup"
+invitelink_example: '/invitelink "My Group"'
+setgtitle_example: "/setgtitle @mygroup New title"
+setgdesc_example: "/setgdesc -1001234567890 Group rules are pinned"
+admincache_example: "/admincache @mygroup"
+clearadmincache_example: "/clearadmincache @mygroup"
 digest_example: "/digest now"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]

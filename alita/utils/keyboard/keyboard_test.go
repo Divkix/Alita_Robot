@@ -11,6 +11,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 )
 
 type keyboardBotClient struct{}
@@ -96,5 +97,29 @@ func TestInitButtonsReflectsAdminStatus(t *testing.T) {
 	userKb := InitButtons(bot, i18n.MustNewTranslator("en"), -1001, 42)
 	if len(userKb.InlineKeyboard) != 1 {
 		t.Fatalf("InitButtons(user) rows = %d, want only user row", len(userKb.InlineKeyboard))
+	}
+}
+
+func TestUnrestrictButtonNamesChatOnlyWhenGiven(t *testing.T) {
+	tr := i18n.MustNewTranslator("en")
+	for _, tc := range []struct {
+		chatID int64
+		want   string
+		named  bool
+	}{
+		{0, "", false},
+		{-1001, "-1001", true},
+	} {
+		button := UnrestrictButton(tr, "button_unban", "unban", 42, tc.chatID)
+		decoded, err := callbackcodec.Decode(button.CallbackData)
+		if err != nil || decoded.Namespace != "unrestrict" {
+			t.Fatalf("UnrestrictButton(chat %d) data %q: %v, want an unrestrict callback", tc.chatID, button.CallbackData, err)
+		}
+		a, _ := decoded.Field("a")
+		u, _ := decoded.Field("u")
+		c, named := decoded.Field("c")
+		if a != "unban" || u != "42" || named != tc.named || c != tc.want {
+			t.Fatalf("UnrestrictButton(chat %d) = a %q, u %q, c %q (%v); want unban, 42, %q (%v)", tc.chatID, a, u, c, named, tc.want, tc.named)
+		}
 	}
 }

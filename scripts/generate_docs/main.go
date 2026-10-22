@@ -47,6 +47,9 @@ type Command struct {
 	Module      string
 	Disableable bool
 	Aliases     []string
+	// Pattern is how the parser saw the command registered; empty when the
+	// form does not say, and registrationPattern decides from the aliases.
+	Pattern string
 }
 
 // Callback represents a callback query handler registration
@@ -305,16 +308,12 @@ func generateInventory(projectRoot string) error {
 		}
 
 		for _, cmd := range modCmds {
-			regPattern := "NewCommand"
-			if len(cmd.Aliases) > 0 {
-				regPattern = "MultiCommand"
-			}
 			invCmd := InventoryCommand{
 				Command:             cmd.Name,
 				Aliases:             cmd.Aliases,
 				HandlerGroup:        0, // Default group for commands
 				Disableable:         cmd.Disableable,
-				RegistrationPattern: regPattern,
+				RegistrationPattern: registrationPattern(cmd),
 			}
 			invMod.Commands = append(invMod.Commands, invCmd)
 		}
@@ -661,4 +660,15 @@ func countLocksByCategory(locks []LockType, category string) int {
 		}
 	}
 	return count
+}
+
+// registrationPattern names how cmd is registered in the inventory.
+func registrationPattern(cmd Command) string {
+	if cmd.Pattern != "" {
+		return cmd.Pattern
+	}
+	if len(cmd.Aliases) > 0 {
+		return "MultiCommand"
+	}
+	return "NewCommand"
 }

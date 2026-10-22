@@ -311,13 +311,18 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 func LoadRules(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(rulesModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("rules", rulesModule.sendRules))
+	dispatcher.AddHandler(handlers.NewCommand("rules", withPMGroupArg("rules", helpers.PMGroupArgNone, rulesModule.sendRules)))
 	helpers.AddCmdToDisableable("rules")
-	dispatcher.AddHandler(handlers.NewCommand("setrules", rulesModule.setRules))
-	helpers.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
-	dispatcher.AddHandler(handlers.NewCommand("privaterules", rulesModule.privaterules))
-	helpers.MultiCommand(dispatcher, []string{"rulesbutton", "rulesbtn"}, rulesModule.rulesBtn)
-	helpers.MultiCommand(dispatcher, []string{"clearrulesbutton", "clearrulesbtn", "resetrulesbutton", "resetrulesbtn"}, rulesModule.resetRulesBtn)
+	dispatcher.AddHandler(handlers.NewCommand("setrules", withPMGroupArg("setrules", helpers.PMGroupArgOwn, rulesModule.setRules)))
+	dispatcher.AddHandler(handlers.NewCommand("resetrules", withPMGroupArg("resetrules", helpers.PMGroupArgNone, rulesModule.clearRules)))
+	dispatcher.AddHandler(handlers.NewCommand("clearrules", withPMGroupArg("resetrules", helpers.PMGroupArgNone, rulesModule.clearRules)))
+	dispatcher.AddHandler(handlers.NewCommand("privaterules", withPMGroupArg("privaterules", helpers.PMGroupArgOwn, rulesModule.privaterules)))
+	dispatcher.AddHandler(handlers.NewCommand("rulesbutton", withPMGroupArg("rulesbtn", helpers.PMGroupArgOwn, rulesModule.rulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("rulesbtn", withPMGroupArg("rulesbtn", helpers.PMGroupArgOwn, rulesModule.rulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("clearrulesbutton", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("clearrulesbtn", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("resetrulesbutton", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
+	dispatcher.AddHandler(handlers.NewCommand("resetrulesbtn", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
 }
 
 func init() {

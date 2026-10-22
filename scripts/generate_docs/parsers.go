@@ -148,8 +148,9 @@ func parseCommands(modulesPath string) ([]Command, error) {
 	var commands []Command
 
 	// Regex patterns for command extraction
-	// Matches handlers.NewCommand("cmd", module.handler) or handlers.NewCommand("cmd", func(...) {...})
-	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(?:(\w+)(?:\(\))?\.(\w+)|func\b)`)
+	// Matches handlers.NewCommand("cmd", module.handler) or handlers.NewCommand("cmd", func(...) {...}),
+	// with the handler optionally wrapped as withPMGroupArg("cmd", shape, module.handler).
+	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(?:withPMGroupArg\s*\(\s*"([^"]+)"\s*,\s*[\w.]+\s*,\s*)?(?:(\w+)(?:\(\))?\.(\w+)|func\b)`)
 	disableablePattern := regexp.MustCompile(`(?:misc|helpers)\.AddCmdToDisableable\s*\(\s*"([^"]+)"\s*\)`)
 	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
 
@@ -196,13 +197,26 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			}
 		}
 
-		// Find command registrations
+		// Find command registrations. Commands wrapped with the same
+		// withPMGroupArg name and handler are aliases of that command, one
+		// NewCommand each.
 		cmdMatches := newCommandPattern.FindAllStringSubmatch(content, -1)
+		aliasGroups := map[[2]string][]string{}
+		for _, match := range cmdMatches {
+			if match[2] != "" {
+				key := [2]string{match[2], match[4]}
+				aliasGroups[key] = append(aliasGroups[key], match[1])
+			}
+		}
 		for _, match := range cmdMatches {
 			if len(match) >= 2 {
 				cmdName := match[1]
-				moduleVar := match[2]
-				handler := match[3]
+				moduleVar := match[3]
+				handler := match[4]
+				var aliases []string
+				if group := aliasGroups[[2]string{match[2], handler}]; match[2] != "" && len(group) > 1 {
+					aliases = group
+				}
 				if handler == "" {
 					handler = "anonymous"
 				}
@@ -218,48 +232,50 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					Handler:     handler,
 					Module:      modName,
 					Disableable: disableableCmds[cmdName],
+					Aliases:     aliases,
+					Pattern:     "NewCommand",
 				})
 			}
 		}
 
 		// Extract MultiCommand registrations (helpers.MultiCommand(dispatcher, []string{...}, handler))
-		multiCommandPattern := regexp.MustCompile(
-			`helpers\.MultiCommand\s*\(\s*\w+\s*,\s*\[\]string\s*\{([^}]+)\}\s*,\s*(\w+)\.(\w+)\s*\)`,
-		)
-		multiMatches := multiCommandPattern.FindAllStringSubmatch(content, -1)
-		for _, match := range multiMatches {
-			if len(match) >= 4 {
-				aliasesRaw := match[1] // e.g., `"remallbl", "rmallbl"`
-				moduleVar := match[2]  // e.g., "blacklistsModule"
-				handler := match[3]    // e.g., "rmAllBlacklists"
+		// and loops that register each name of a []string with handlers.NewCommand(name, ...):
+		// every name is a command, with all the names as its aliases.
+		addNames := func(aliasesRaw, moduleVar, handler, pattern string) {
+			var aliases []string
+			for _, a := range quotedStringPattern.FindAllStringSubmatch(aliasesRaw, -1) {
+				aliases = append(aliases, a[1])
+			}
 
-				// Parse individual alias strings from the slice literal
-				aliasPattern := regexp.MustCompile(`"([^"]+)"`)
-				aliasMatches := aliasPattern.FindAllStringSubmatch(aliasesRaw, -1)
+			// Resolve module name from the module variable
+			modName := moduleName
+			if name, ok := moduleNames[moduleVar]; ok {
+				modName = strings.ToLower(name)
+			}
 
-				var aliases []string
-				for _, a := range aliasMatches {
-					if len(a) > 1 {
-						aliases = append(aliases, a[1])
-					}
-				}
-
-				// Resolve module name from the module variable
-				modName := moduleName
-				if name, ok := moduleNames[moduleVar]; ok {
-					modName = strings.ToLower(name)
-				}
-
-				// Register each alias as a command
-				for _, alias := range aliases {
-					commands = append(commands, Command{
-						Name:        alias,
-						Handler:     handler,
-						Module:      modName,
-						Disableable: disableableCmds[alias],
-						Aliases:     aliases,
-					})
-				}
+			for _, alias := range aliases {
+				commands = append(commands, Command{
+					Name:        alias,
+					Handler:     handler,
+					Module:      modName,
+					Disableable: disableableCmds[alias],
+					Aliases:     aliases,
+					Pattern:     pattern,
+				})
+			}
+		}
+		for _, match := range multiCommandPattern.FindAllStringSubmatch(content, -1) {
+			addNames(match[1], match[2], match[3], "MultiCommand")
+		}
+		for _, loc := range loopRangePattern.FindAllStringSubmatchIndex(content, -1) {
+			nameVar, aliasesRaw := content[loc[2]:loc[3]], content[loc[4]:loc[5]]
+			bodyEnd := matchingBrace(content, loc[1]-1)
+			if bodyEnd < 0 {
+				continue
+			}
+			loopCommand := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*` + regexp.QuoteMeta(nameVar) + `\s*,\s*` + pmGroupArgPrefix + `(\w+)(?:\(\))?\.(\w+)`)
+			if match := loopCommand.FindStringSubmatch(content[loc[1]:bodyEnd]); match != nil {
+				addNames(aliasesRaw, match[1], match[2], "NewCommand")
 			}
 		}
 
@@ -291,12 +307,19 @@ var (
 	wrapDescAliasPattern   = regexp.MustCompile(`\bAliases:\s*\[\]string\s*\{([^}]*)\}`)
 	wrapDescDisablePattern = regexp.MustCompile(`\bDisableable:\s*true\b`)
 	quotedStringPattern    = regexp.MustCompile(`"([^"]+)"`)
-	wrapNamedDescPattern   = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)\s*\)?\s*\)`)
-	wrapInlineDescPattern  = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*helpers\.CommandDescriptor\s*\{`)
-	wrapHandlerAfterDesc   = regexp.MustCompile(`^\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)`)
-	wrapLoopDescPattern    = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)\s*,`)
-	loopStructPattern      = regexp.MustCompile(`\[\]struct\s*\{`)
-	loopTuplePattern       = regexp.MustCompile(`\{\s*"([a-z_]+)"\s*,\s*(\w+)\.(\w+)`)
+	// pmGroupArgPrefix matches withPMGroupArg(name, shape, ahead of the handler
+	// it wraps; name is a literal or, in a loop, the loop variable.
+	pmGroupArgPrefix    = `(?:withPMGroupArg\s*\(\s*(?:"[^"]+"|\w+)\s*,\s*[\w.]+\s*,\s*)?`
+	multiCommandPattern = regexp.MustCompile(
+		`helpers\.MultiCommand\s*\(\s*\w+\s*,\s*\[\]string\s*\{([^}]+)\}\s*,\s*` + pmGroupArgPrefix + `(\w+)\.(\w+)\s*\)`,
+	)
+	loopRangePattern      = regexp.MustCompile(`for\s+_\s*,\s*(\w+)\s*:=\s*range\s*\[\]string\s*\{([^}]*)\}\s*\{`)
+	wrapNamedDescPattern  = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)\s*\)?\s*\)`)
+	wrapInlineDescPattern = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*helpers\.CommandDescriptor\s*\{`)
+	wrapHandlerAfterDesc  = regexp.MustCompile(`^\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)`)
+	wrapLoopDescPattern   = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)\s*,`)
+	loopStructPattern     = regexp.MustCompile(`\[\]struct\s*\{`)
+	loopTuplePattern      = regexp.MustCompile(`\{\s*"([a-z_]+)"\s*,\s*(\w+)\.(\w+)`)
 )
 
 // matchingBrace returns the index of the '}' closing the '{' at open, skipping

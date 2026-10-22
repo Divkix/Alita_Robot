@@ -1142,22 +1142,24 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 
 	for _, cfg := range []struct {
 		name    string
+		arg     helpers.PMGroupArg
 		handler func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{"welcome", greetingsModule.welcome},
-		{"setwelcome", greetingsModule.setWelcome},
-		{"resetwelcome", greetingsModule.resetWelcome},
-		{"goodbye", greetingsModule.goodbye},
-		{"setgoodbye", greetingsModule.setGoodbye},
-		{"resetgoodbye", greetingsModule.resetGoodbye},
-		{"cleanwelcome", greetingsModule.cleanWelcome},
-		{"cleangoodbye", greetingsModule.cleanGoodbye},
-		{"cleanservice", greetingsModule.delJoined},
-		{"autoapprove", greetingsModule.autoApprove},
+		{"welcome", helpers.PMGroupArgOwn, greetingsModule.welcome},
+		{"setwelcome", helpers.PMGroupArgOwn, greetingsModule.setWelcome},
+		{"resetwelcome", helpers.PMGroupArgNone, greetingsModule.resetWelcome},
+		{"goodbye", helpers.PMGroupArgOwn, greetingsModule.goodbye},
+		{"setgoodbye", helpers.PMGroupArgOwn, greetingsModule.setGoodbye},
+		{"resetgoodbye", helpers.PMGroupArgNone, greetingsModule.resetGoodbye},
+		{"cleanwelcome", helpers.PMGroupArgOwn, greetingsModule.cleanWelcome},
+		{"cleangoodbye", helpers.PMGroupArgOwn, greetingsModule.cleanGoodbye},
+		{"cleanservice", helpers.PMGroupArgOwn, greetingsModule.delJoined},
+		{"autoapprove", helpers.PMGroupArgOwn, greetingsModule.autoApprove},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,
 			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+			PMGroupArg:     cfg.arg,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}

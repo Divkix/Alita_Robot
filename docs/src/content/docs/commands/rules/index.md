@@ -36,9 +36,17 @@ You can set rules by providing text directly or by replying to a message:
 Or reply to a message:
 `/setrules`
 
+**Rules of a group from PM:**
+In PM, name the group as the first argument, by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces):
+`/rules -1001234567890`
+`/rules @mygroup`
+`/rules "My Group"`
+
+This works without `/connect` and, when you are connected, shows the named group instead of the connected one; the connection stays as it is. The group passes the same checks as `/connect`: admins always may, other members only while `/allowconnect` is on. Titles are looked up only among groups where you are an admin, and only among the connected group and the 50 most recently active groups where you have written, so a member, or anyone naming another group, names it by its @username or ID. A user's or channel's @username is not a group. When two of your groups share a title, the bot lists both with their IDs and asks for the @username or ID. Without an argument, `/rules` in PM shows the connected group; with no connection it answers with the command's help, an example and the groups where you are an admin. In a group the argument is ignored.
+
 **Required Permissions:**
-- `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it works only for a group connected with `/connect`
-- All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Require admin permissions in the connected chat via `IsUserConnected`
+- `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it needs the group as its first argument or a group connected with `/connect`
+- All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Require admin permissions in the group they act on via `IsUserConnected`: in PM the group named as the first argument, or else the connected group
 
 
 ## Module Aliases
@@ -81,9 +89,9 @@ For detailed command usage, refer to the commands table above.
 
 | Command | Permissions |
 |---------|-------------|
-| `/rules` | Any user (disableable) — **bot must be admin**; in PM needs a `/connect`ed group |
+| `/rules` | Any user (disableable) — **bot must be admin**; in PM needs the group as the first argument (`/rules @group` or `/rules -100…`) or a `/connect`ed group |
 | `/setrules` | Admin only — requires `IsUserConnected` (bot admin + user admin) |
 | `/resetrules`, `/clearrules` | Admin only — requires `IsUserConnected` |
-| `/privaterules` | Admin only — requires `IsUserConnected`, user must be admin in connected chat |
-| `/rulesbtn`, `/rulesbutton` | Admin only — requires `IsUserConnected`, user must be admin in connected chat |
+| `/privaterules` | Admin only — requires `IsUserConnected`, user must be admin in the named or connected group |
+| `/rulesbtn`, `/rulesbutton` | Admin only — requires `IsUserConnected`, user must be admin in the named or connected group |
 | `/resetrulesbtn`, `/resetrulesbutton`, `/clearrulesbtn`, `/clearrulesbutton` | Admin only — requires `IsUserConnected` |

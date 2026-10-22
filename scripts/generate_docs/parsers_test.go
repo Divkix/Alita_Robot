@@ -48,6 +48,111 @@ func LoadBlacklists(dispatcher) {
 	}
 }
 
+// A command wrapped by withPMGroupArg is still registered under its own
+// handler and module.
+func TestParseCommands_PMGroupArgWrapper(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	goFile := filepath.Join(tmpDir, "logchannels.go")
+	content := `package modules
+
+var logChannelsModule = moduleStruct{moduleName: "LogChannels"}
+
+func LoadLogChannels(dispatcher) {
+	dispatcher.AddHandler(handlers.NewCommand("setlog", withPMGroupArg("setlog", helpers.PMGroupArgOwn, logChannelsModule.setLog)).SetAllowChannel(true))
+	dispatcher.AddHandler(handlers.NewCommand("unsetlog", withPMGroupArg("unsetlog", helpers.PMGroupArgNone, logChannelsModule.unsetLog)))
+}
+`
+	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
+	commands, err := parseCommands(tmpDir)
+	if err != nil {
+		t.Fatalf("parseCommands returned error: %v", err)
+	}
+
+	handlers := map[string]string{}
+	for _, cmd := range commands {
+		if cmd.Module != "logchannels" {
+			t.Errorf("command %q has module %q, want logchannels", cmd.Name, cmd.Module)
+		}
+		handlers[cmd.Name] = cmd.Handler
+	}
+	if handlers["setlog"] != "setLog" || handlers["unsetlog"] != "unsetLog" {
+		t.Fatalf("handlers = %v, want setlog→setLog and unsetlog→unsetLog", handlers)
+	}
+}
+
+// The other forms that register withPMGroupArg commands: the wrapper inside
+// helpers.MultiCommand, a loop over names, each registered with
+// handlers.NewCommand(cmd, ...), and one handlers.NewCommand per alias, each
+// wrapped with the name of the command it stands for. Every name is a command
+// of the module, with the names registered with it as aliases.
+func TestParseCommands_PMGroupArgMultiAndLoop(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	goFile := filepath.Join(tmpDir, "notes.go")
+	content := `package modules
+
+var notesModule = moduleStruct{moduleName: "Notes"}
+
+func LoadNotes(dispatcher) {
+	for _, cmd := range []string{"notes", "saved"} {
+		dispatcher.AddHandler(handlers.NewCommand(cmd, withPMGroupArg(cmd, helpers.PMGroupArgNone, notesModule.notesList)))
+	}
+	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, withPMGroupArg("privnote", helpers.PMGroupArgOwn, notesModule.privNote))
+	dispatcher.AddHandler(handlers.NewCommand("clearall", withPMGroupArg("clearall", helpers.PMGroupArgNone, notesModule.rmAllNotes)))
+	dispatcher.AddHandler(handlers.NewCommand("resetnotes", withPMGroupArg("clearall", helpers.PMGroupArgNone, notesModule.rmAllNotes)))
+	dispatcher.AddHandler(handlers.NewCommand("get", withPMGroupArg("get", helpers.PMGroupArgNone, notesModule.rmAllNotes)))
+}
+`
+	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
+	commands, err := parseCommands(tmpDir)
+	if err != nil {
+		t.Fatalf("parseCommands returned error: %v", err)
+	}
+
+	got := map[string]Command{}
+	for _, cmd := range commands {
+		got[cmd.Name] = cmd
+	}
+	// Only helpers.MultiCommand registers with MultiCommand; the loop and the
+	// aliases are one handlers.NewCommand each.
+	for name, want := range map[string]struct {
+		handler string
+		aliases []string
+		pattern string
+	}{
+		"notes":        {"notesList", []string{"notes", "saved"}, "NewCommand"},
+		"saved":        {"notesList", []string{"notes", "saved"}, "NewCommand"},
+		"privnote":     {"privNote", []string{"privnote", "privatenotes"}, "MultiCommand"},
+		"privatenotes": {"privNote", []string{"privnote", "privatenotes"}, "MultiCommand"},
+		"clearall":     {"rmAllNotes", []string{"clearall", "resetnotes"}, "NewCommand"},
+		"resetnotes":   {"rmAllNotes", []string{"clearall", "resetnotes"}, "NewCommand"},
+		// Another command on the same handler is not an alias.
+		"get": {"rmAllNotes", nil, "NewCommand"},
+	} {
+		cmd, ok := got[name]
+		if !ok {
+			t.Errorf("command %q not found; parsed %v", name, commands)
+			continue
+		}
+		if cmd.Module != "notes" || cmd.Handler != want.handler || !slices.Equal(cmd.Aliases, want.aliases) {
+			t.Errorf("command %q = %+v, want module notes, handler %s, aliases %v", name, cmd, want.handler, want.aliases)
+		}
+		if got := registrationPattern(cmd); got != want.pattern {
+			t.Errorf("command %q registration pattern = %s, want %s", name, got, want.pattern)
+		}
+	}
+	if len(commands) != 7 {
+		t.Errorf("parsed %d commands, want 7: %v", len(commands), commands)
+	}
+}
+
 func TestParseMessageWatchers_Basic(t *testing.T) {
 	tmpDir := t.TempDir()
 

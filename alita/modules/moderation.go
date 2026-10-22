@@ -41,6 +41,18 @@ func (c *moderationCtx) replyCommandHelp(errText string) error {
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, c.Command, errText)
 }
 
+// inPM reports whether msg was sent in a private chat with the bot.
+func inPM(msg *gotgbot.Message) bool {
+	return msg != nil && msg.Chat.Type == "private"
+}
+
+// sentInPM reports whether the command came from PM. A silent command sent
+// there has no message in the group to delete, so it answers like its plain
+// form.
+func (c *moderationCtx) sentInPM() bool {
+	return inPM(c.Msg)
+}
+
 // target holds the resolved target user and optional reason text.
 type target struct {
 	userID    int64

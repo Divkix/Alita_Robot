@@ -3,8 +3,18 @@
 package modules
 
 import (
+	"reflect"
+	"runtime"
 	"testing"
+
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
+
+// checkName names a check by its function: a closure by the function that
+// builds it, so helpers.CheckDisabled("x") names as helpers.CheckDisabled.
+func checkName(check helpers.CheckFunc) string {
+	return runtime.FuncForPC(reflect.ValueOf(check).Pointer()).Name()
+}
 
 func TestMigratedDescriptorsHaveChecks(t *testing.T) {
 	initBanDescs()
@@ -22,7 +32,14 @@ func TestMigratedDescriptorsHaveChecks(t *testing.T) {
 			t.Fatalf("%s descriptor has no checks", name)
 		}
 	}
-	if len(warnsStatusDesc.RequiredChecks) != 1 {
-		t.Fatalf("warns status checks = %d, want 1 (disabled only)", len(warnsStatusDesc.RequiredChecks))
+	// Disabled, then the group from PM; no admin check, since any member may
+	// run /warns.
+	var got []string
+	for _, check := range warnsStatusDesc.RequiredChecks {
+		got = append(got, checkName(check))
+	}
+	want := []string{checkName(helpers.CheckDisabled("warns")), checkName(warnsChatCheck)}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("warns status checks = %v, want %v", got, want)
 	}
 }

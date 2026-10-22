@@ -19,6 +19,16 @@ This module allows you to connect to a chat's database, and add things to it wit
 × /allowconnect <yes/no>: Allow users to connect to chats or not.
 While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
+In PM, /rules, /notes, /filters and many settings commands, such as /lock, /setflood, /setwelcome and /setwarnlimit, take the group as their first argument: its ID, its @username, or the title of a group where you are an admin. Titles are looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID.
+
+From PM, the owner of a group can also run /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns and /unbanall, and its admins /privnote: name the group first (its title, @username or ID) or connect to it. The confirmation acts on that group and only its owner can press it.
+
+From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
+
+From PM, a group's admins can also run /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
+
+From PM, a group's members can also see a user's warns there with /warns if the group allows members to connect (/allowconnect; otherwise only its admins can), and its admins the group's warn settings with /warnings: name the group first (its @username or ID; its admins may also use its title), then for /warns the user, or connect to the group. The answer comes to PM.
+
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
 ## Module Aliases
@@ -56,13 +66,26 @@ For detailed command usage, refer to the commands table above.
 ## Required Permissions
 
 - `/allowconnect` — Requires **Admin** (`IsUserAdmin`) in the target group.
-  From PM it acts on the connected group.
+  From PM it acts on the connected group or the group named first.
 - `/settings` — Lists and connects only groups where you are an **Admin**;
   rights are checked again when you tap a group.
 - `/connect`, `/disconnect`, `/connection`, `/reconnect` — Available to all
   users, but connection authorization depends on the target chat's settings
   (admins always allowed; non-admins need `allow_connect` enabled and must
   be current members, not kicked/left).
+
+## A Group as the First Argument in PM
+
+Some commands take the group as their first argument in PM, so they work without `/connect`:
+
+- without arguments of their own: `/rules`, `/notes`, `/saved`, `/filters`, `/locks`, `/locktypes`, `/flood`, `/disabled`, `/reactions`, `/resetreactions`, `/resetrules`, `/resetrulesbutton`, `/blacklists`, `/approved`, `/unsetlog`, `/logchannel`, `/resetwelcome`, `/resetgoodbye`;
+- with arguments of their own: `/lock`, `/unlock`, `/setflood`, `/setfloodmode`, `/delflood`, `/disable`, `/enable`, `/disabledel`, `/addreaction`, `/removereaction`, `/antiraid`, `/raidtime`, `/raidactiontime`, `/autoantiraid`, `/antichannelpin`, `/cleanlinked`, `/allowconnect`, `/setrules`, `/privaterules`, `/rulesbtn`, `/addblacklist`, `/rmblacklist`, `/blaction`, `/approve`, `/unapprove`, `/approval`, `/setlog`, `/log`, `/nolog`, `/welcome`, `/setwelcome`, `/goodbye`, `/setgoodbye`, `/cleanwelcome`, `/cleangoodbye`, `/cleanservice`, `/autoapprove`, `/captcha`, `/captchamode`, `/captchatime`, `/captchaaction`, `/captchamaxattempts`, `/captchapending`, `/captchaclear`, `/setwarnlimit`, `/setwarnmode`, `/setwarntime`, `/aispam`, `/spamdb`, `/anonadmin`.
+
+Aliases of these commands work the same way. Name the group by its ID, its @username, or the title of a group where you are an admin (case does not matter; quote a title with spaces), for example `/notes "My Group"` or `/lock @mygroup sticker`. The group passes the same checks as `/connect`, the command checks your rights in it as it does on a connection, and the saved connection stays as it is. A title is looked up among the connected group and the 50 most recently active groups where you have written, and only the groups with that title are checked for admin rights (when more than 3 of them share it, name the group by its ID or @username), so it does not depend on the `/settings` picker's list; any other group is named by its ID or @username, which are looked up directly. A title lookup shares the `/settings` list's 5-second pause: within it a title is looked up in the last list shown, and if there is none the bot only says how long to wait.
+
+When you are connected, a command with arguments of its own takes another group only by its ID or @username: any other first word is its own argument, so `/lock sticker` locks stickers in the connected group. A user's @username or ID stays the command's argument: on a connection `/approve @someone` approves that user in the connected group. Without a group and without a connection, these commands answer with their help, an example and the groups where you are an admin.
+
+`/connect` without an argument in PM answers with its help, an example and the groups where you are an admin, with their IDs.
 
 ## Settings Summary
 

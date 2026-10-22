@@ -601,13 +601,16 @@ func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	rmAllCtx := newModuleCallbackContext(
-		bot,
-		chat,
-		admin,
-		encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
-	)
-	rmAllCtx.EffectiveChat = nil
+	// A press without its message (and without "c") has no chat in gotgbot.
+	rmAllCtx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 2, CallbackQuery: &gotgbot.CallbackQuery{
+		Id:           "callback-1",
+		From:         admin,
+		Data:         encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
+		ChatInstance: "test-chat-instance",
+	}}, nil)
+	if rmAllCtx.EffectiveChat != nil {
+		t.Fatalf("press without a message has chat %d", rmAllCtx.EffectiveChat.Id)
+	}
 	if err := filtersModule.filtersButtonHandler(bot, rmAllCtx); err != ext.EndGroups {
 		t.Fatalf("filtersButtonHandler(no chat) error = %v, want EndGroups", err)
 	}

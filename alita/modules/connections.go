@@ -136,6 +136,14 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyMarkup gotgbot.ReplyMarkup
 
 	if ctx.Message.Chat.Type == "private" {
+		if len(ctx.Args()) < 2 {
+			text, _ = tr.GetString("extraction_need_chat_id")
+			if err := replyPMGroupHelp(b, ctx, tr, "connect", formatting.HtmlEscape(text)); err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
 		chat := extraction.ExtractChat(b, ctx)
 		if chat == nil {
 			return ext.EndGroups
@@ -371,7 +379,7 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("disconnect", ConnectionsModule.disconnect))
 	dispatcher.AddHandler(handlers.NewCommand("connection", ConnectionsModule.connection))
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
-	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
+	dispatcher.AddHandler(handlers.NewCommand("allowconnect", withPMGroupArg("allowconnect", helpers.PMGroupArgOwn, ConnectionsModule.allowConnect)))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "settings"}, pipelineHandler(ConnectionsModule.settings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))

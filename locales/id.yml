@@ -351,6 +351,16 @@ connections_help_msg:
 
   Saat terhubung, admin juga dapat menjalankan /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect dan /lang group dari obrolan pribadi.
 
+  Di obrolan pribadi, /rules, /notes, /filters, dan banyak perintah pengaturan, seperti /lock, /setflood, /setwelcome, dan /setwarnlimit, menerima grup sebagai argumen pertama: ID-nya, @username-nya, atau judul grup tempat Anda menjadi admin. Judul hanya dicari di antara grup yang terhubung dan 50 grup yang paling baru aktif tempat Anda pernah menulis; sebut grup lain dengan @username atau ID-nya.
+
+  Dari obrolan pribadi, pemilik grup juga dapat menjalankan /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns dan /unbanall, dan adminnya /privnote: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Konfirmasi berlaku untuk grup itu dan hanya pemiliknya yang dapat menekannya.
+
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
+
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
+
+  Dari obrolan pribadi, anggota grup juga dapat melihat peringatan seorang pengguna di grup itu dengan /warns jika grup mengizinkan anggota terhubung (/allowconnect; jika tidak, hanya adminnya), dan adminnya melihat pengaturan peringatan grup dengan /warnings: sebutkan grupnya dulu (@username atau ID-nya; adminnya juga dapat memakai judulnya), lalu untuk /warns penggunanya, atau hubungkan ke grup itu. Jawabannya dikirim ke obrolan pribadi.
+
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
   jika id negatif; semua grup super memiliki id negatif."
@@ -360,6 +370,13 @@ connections_is_user_connected_need_group:
   obrolan, bukan di PM!"
 connections_is_user_connected_user_not_admin: Anda perlu menjadi admin untuk melakukan ini.
 connections_not_connected: Anda tidak terhubung ke obrolan mana pun.
+connections_pm_group_plain_text: "Saya tidak bisa membaca grup dari pesan berformat. Kirim <code>/%s</code> beserta grupnya sebagai pesan teks biasa."
+connections_pm_group_duplicate: "Beberapa grup Anda bernama <code>%s</code>. Sebutkan yang Anda maksud dengan @username atau ID-nya:"
+connections_pm_group_too_many: "Terlalu banyak grup bernama <code>%s</code> untuk diperiksa semuanya. Sebutkan yang Anda maksud dengan @username atau ID-nya (kirim /id di grup)."
+connections_pm_group_not_found: "Saya tidak menemukan grup <code>%s</code>. Sebutkan judul grup tempat Anda admin, @username, atau ID-nya (kirim /id di grup)."
+connections_pm_group_pick: "Dari PM, sebutkan grup terlebih dahulu: judul grup tempat Anda admin (dalam tanda kutip jika ada spasi), @username, atau ID-nya."
+connections_pm_group_your_groups: "Grup Anda:"
+connections_pm_group_confirm_target: "Grup: {title} ({id})"
 connections_stale_connection: "Koneksi Anda sudah tidak valid - saya tidak dapat lagi mengakses obrolan ini. Silakan gunakan /connect untuk terhubung kembali ke obrolan yang valid."
 connections_reconnect_need_pm: Anda perlu berada di PM dengan saya untuk menghubungkan kembali ke obrolan!
 connections_reconnect_no_last_chat: Anda tidak memiliki obrolan terakhir untuk dihubungkan kembali!
@@ -917,7 +934,7 @@ warns_help_msg:
 
   - /rmwarn: Hapus peringatan terbaru pengguna.
 
-  - /resetwarn: Atur ulang semua peringatan pengguna ke 0.
+  - /resetwarns: Atur ulang semua peringatan pengguna ke 0.
 
   - /resetallwarns: Hapus semua peringatan di obrolan. Semua pengguna kembali ke 0 peringatan. (hanya pembuat)
 
@@ -925,7 +942,7 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Atur mode peringatan obrolan.
 
-  - /setwarntime <time/off>: Atur berapa lama peringatan dihitung, mis. 30d; off menyimpannya selamanya. Peringatan yang diberikan sebelum bot mencatat waktunya tidak pernah kedaluwarsa; /resetwarn menghapusnya.
+  - /setwarntime <time/off>: Atur berapa lama peringatan dihitung, mis. 30d; off menyimpannya selamanya. Peringatan yang diberikan sebelum bot mencatat waktunya tidak pernah kedaluwarsa; /resetwarns menghapusnya.
 
   - /setwarnlimit <number>: Atur jumlah peringatan sebelum pengguna dihukum.
 
@@ -2504,16 +2521,18 @@ logchannels_help_msg: |
   3. Teruskan pesan itu ke grup.
 
   *Perintah admin:*
-  × /setlog: Atur kanal log (kirim di kanal, lalu teruskan pesannya ke grup).
+  × /setlog: Atur kanal log (kirim di kanal, lalu teruskan pesannya ke grup). Di chat pribadi, sebutkan grup lalu kanalnya, jika kamu admin di keduanya dan bot bisa memposting di kanal.
   × /unsetlog: Hapus kanal log.
   × /log <category>: Aktifkan kategori.
   × /nolog <category>: Nonaktifkan kategori.
 
   *Siapa saja:*
-  × /logchannel: Tampilkan kanal log saat ini (hanya di grup).
+  × /logchannel: Tampilkan kanal log saat ini.
   × /logcategories: Daftar kategori.
 
   Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated, other. Belum ada yang dicatat di automated atau other.
+
+  Di chat pribadi, sebutkan grup lebih dulu pada /setlog, /unsetlog, /log, /nolog dan /logchannel: judulnya, @username, atau ID-nya.
 feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."
 feds_group_only: "Perintah ini hanya bisa digunakan di grup."
 feds_need_name: "Beri nama federasi Anda."
@@ -2595,6 +2614,7 @@ feds_callback_stale: "Tombol ini sudah tidak berlaku."
 logs_need_channel: "Gunakan /setlog di kanal, lalu teruskan pesan itu ke grup."
 logs_forward_to_group: "Sekarang teruskan pesan /setlog Anda (bukan balasan ini) ke grup yang ingin Anda catat, dalam satu jam ke depan."
 logs_set_ok: "Kanal log diatur. Tindakan admin dari obrolan ini akan dikirim ke sana."
+logs_pm_set_ok: "Kanal log diatur. Tindakan admin dari <b>{group}</b> akan dikirim ke sana."
 logs_unset_ok: "Kanal log dihapus."
 logs_not_set: "Belum ada kanal log untuk obrolan ini."
 logs_current: "Kanal log: <code>{id}</code>"
@@ -2603,7 +2623,11 @@ logs_enabled: "Pencatatan diaktifkan untuk: {cats}"
 logs_disabled: "Pencatatan dinonaktifkan untuk: {cats}"
 logs_unknown_category: "Kategori tidak dikenal. Lihat /logcategories."
 logs_usage: "Penggunaan: /log &lt;kategori&gt; atau /nolog &lt;kategori&gt;"
-logs_group_only: "Perintah ini hanya bisa digunakan di grup."
+logs_pm_need_channel: "Sebutkan kanal setelah grup: <code>/setlog @grupku @kanalku</code>, atau ID kanal. Jadikan aku admin kanal yang bisa memposting pesan terlebih dahulu."
+logs_pm_setlog_usage: "Sebutkan grupnya, lalu satu channel. Selama terhubung, sebutkan grup lain dengan @username atau ID-nya: judulnya tidak dicari."
+logs_pm_not_channel: "<code>{channel}</code> bukan kanal yang bisa kulihat. Jadikan aku admin kanal yang bisa memposting pesan, lalu sebutkan kanalnya dengan @username atau ID."
+logs_pm_user_not_channel_admin: "Untuk menjadikan kanal ini kanal log, kamu harus pemiliknya atau admin dengan izin memposting pesan."
+logs_pm_bot_cannot_post: "Aku harus menjadi admin kanal dengan izin memposting pesan."
 bans_banme_is_admin: "Admin tidak dapat memblokir diri sendiri. Mundur dulu."
 bans_banme_ok: "Sesuai keinginan Anda. Anda diblokir."
 bans_unbanall_ask: "Buka blokir semua pengguna yang dikenal di obrolan ini? Ini tidak mudah dibatalkan."
@@ -2886,7 +2910,7 @@ warns_extend_msg: |
   /dwarn — beri peringatan dan hapus pesan yang dibalas
   /warns — lihat peringatan pengguna
   /rmwarn — hapus peringatan terakhir pengguna
-  /resetwarn — reset peringatan pengguna
+  /resetwarns — reset peringatan pengguna
   /resetallwarns — reset semua peringatan di obrolan
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman

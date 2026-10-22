@@ -325,12 +325,15 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 //nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
+	chat := groupOnlyChat(b, ctx)
+	if chat == nil {
+		return ext.EndGroups
+	}
 	filterKeys := db_filters.GetFiltersList(chat.Id)
 
 	if len(filterKeys) == 0 {
@@ -351,21 +354,21 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	confirmText, _ := tr.GetString("filters_clear_all_confirm")
+	question, _ := tr.GetString("filters_clear_all_confirm")
 	yesText, _ := tr.GetString("common_yes")
 	noText, _ := tr.GetString("common_no")
-	_, err := msg.Reply(b, confirmText,
+	_, err := msg.Reply(b, confirmText(ctx, tr, question, chat),
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
 							Text:         yesText,
-							CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
+							CallbackData: confirmData("rmAllFilters", "yes", chat),
 						},
 						{
 							Text:         noText,
-							CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
+							CallbackData: confirmData("rmAllFilters", "no", chat),
 						},
 					},
 				},
@@ -385,22 +388,15 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	if !ok {
 		return ext.EndGroups
 	}
-	user := query.From
-	chat := ctx.EffectiveChat
+
+	decoded, _ := decodeCallbackData(query.Data, "rmAllFilters")
+	chat := ownerConfirmChat(b, ctx, query, decoded)
 	if chat == nil {
 		return ext.EndGroups
 	}
 
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	response := ""
-	if decoded, ok := decodeCallbackData(query.Data, "rmAllFilters"); ok {
-		response, _ = decoded.Field("a")
-	}
+	response, _ := decoded.Field("a")
 	if response == "" {
 		log.Warnf("[Filters] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
@@ -689,9 +685,9 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("stop", filtersModule.rmFilter))
 	dispatcher.AddHandler(handlers.NewCommand("rmfilter", filtersModule.rmFilter))
 	dispatcher.AddHandler(handlers.NewCommand("removefilter", filtersModule.rmFilter))
-	dispatcher.AddHandler(handlers.NewCommand("filters", filtersModule.filtersList))
+	dispatcher.AddHandler(handlers.NewCommand("filters", withPMGroupArg("filters", helpers.PMGroupArgNone, filtersModule.filtersList)))
 	helpers.AddCmdToDisableable("filters")
-	dispatcher.AddHandler(handlers.NewCommand("stopall", filtersModule.rmAllFilters))
+	dispatcher.AddHandler(handlers.NewCommand("stopall", withPMGroupArg("stopall", helpers.PMGroupArgNone, filtersModule.rmAllFilters)))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters"), filtersModule.filtersButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("filters_overwrite"), filtersModule.filterOverWriteHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
