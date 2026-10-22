@@ -525,6 +525,7 @@ func TestMain(m *testing.M) {
 		&models.ChatTimezone{},
 		&models.ProbationSettings{},
 		&models.ProbationMember{},
+		&models.RecurringMessage{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

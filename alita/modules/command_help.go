@@ -33,6 +33,7 @@ var commandHelpModules = map[string]string{
 	"dmute":      "mutes",
 	"unmute":     "mutes",
 	"digest":     "digest",
+	"recurring":  "recurring",
 	"warn":       "warns",
 	"swarn":      "warns",
 	"rmwarn":     "warns",
@@ -219,6 +220,8 @@ var menuCommands = map[string]menuCommand{
 	"allowconnect": {Module: "connections", AdminOnly: true},
 
 	"digest": {Module: "digest", AdminOnly: true},
+
+	"recurring": {Module: "recurring", AdminOnly: true},
 
 	"disable":     {Module: "disabling", AdminOnly: true},
 	"enable":      {Module: "disabling", AdminOnly: true},

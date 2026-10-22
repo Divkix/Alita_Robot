@@ -364,6 +364,14 @@ func generatePermissionsSection(module Module) string {
 		return content.String()
 	}
 
+	if module.Name == "recurring" {
+		content.WriteString("Every `/recurring` form requires **admin permissions** with the right to change group info, the same right `/save` and `/setwelcome` need.\n\n")
+		content.WriteString("**Bot Permissions Required:**\n\n")
+		content.WriteString("- Send messages (and send media, for media content)\n")
+		content.WriteString("- Delete messages (only for `delete=on` when the previous post is older than 48 hours)\n")
+		return content.String()
+	}
+
 	if adminModules[module.Name] {
 		content.WriteString("Most commands in this module require **admin permissions** in the group.\n\n")
 		content.WriteString("**Bot Permissions Required:**\n\n")

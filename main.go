@@ -31,6 +31,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/membersnapshot"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/panel"
+	"github.com/divkix/Alita_Robot/alita/recurring"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -168,6 +169,7 @@ func main() {
 
 	digestScheduler := digest.NewScheduler(b)
 	memberSnapshotter := membersnapshot.New(b)
+	recurringScheduler := recurring.NewScheduler(b)
 
 	registerShutdownDrains(shutdownManager,
 		func() error {
@@ -188,9 +190,15 @@ func main() {
 			memberSnapshotter.Stop()
 			return nil
 		},
+		func() error {
+			log.Info("[Shutdown] Stopping recurring messages scheduler...")
+			recurringScheduler.Stop()
+			return nil
+		},
 	)
 	digestScheduler.Start()
 	memberSnapshotter.Start()
+	recurringScheduler.Start()
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")

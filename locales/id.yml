@@ -1903,6 +1903,38 @@ digest_change_same: "tidak berubah dari minggu sebelumnya"
 digest_change_new: "baru"
 digest_change_none: "—"
 digest_dashboard_button: "📊 Buka dasbor"
+# Recurring messages strings
+recurring_help_msg: |
+  <b>🔁 Pesan berulang</b>
+
+  Admin dapat membuat bot memposting pesan di obrolan ini berulang kali, misalnya pengingat aturan setiap hari. Isinya bekerja seperti catatan: teks dengan format, tombol, dan isian seperti nama obrolan, atau pesan yang dibalas, termasuk media. Waktu dalam UTC. Satu obrolan dapat memiliki hingga 5 pesan berulang, dan interval terpendek adalah 1 jam.
+
+  *Perintah admin:*
+
+  × /recurring add `<interval>` `<balasan/teks>`: Memposting teks, atau pesan yang dibalas, setiap interval (misalnya 6h, 1d, atau 1w) di topik tempat perintah dikirim.
+  Opsi diletakkan di antara interval dan teks: `start=HH:MM` memposting pertama kali pada jam ini (UTC), lalu setiap interval; `end=YYYY-MM-DD` berhenti setelah tanggal itu (`end=YYYY-MM-DDTHH:MM` pada waktu itu); `delete=on` menghapus posting sebelumnya saat posting berikutnya terkirim; `topic=ID` memposting di topik itu.
+  × /recurring list: Menampilkan pesan berulang obrolan ini beserta ID-nya.
+  × /recurring rm `<id>`: Menghapus pesan berulang.
+
+  Pesan yang tidak dapat lagi diposting bot (bot dikeluarkan atau topiknya sudah tidak ada) dihentikan dan tetap ada di daftar sampai dihapus. Jika bot tidak boleh menulis di obrolan, posting dilewati sampai bot boleh menulis lagi.
+recurring_usage: "Gunakan <code>/recurring add &lt;interval&gt; &lt;teks&gt;</code>, <code>/recurring list</code> atau <code>/recurring rm &lt;id&gt;</code>."
+recurring_interval_too_short: "❌ Interval minimal 1 jam."
+recurring_invalid_option: "❌ Saya tidak dapat membaca opsi <code>{option}</code>. Gunakan <code>start=HH:MM</code>, <code>end=YYYY-MM-DD</code>, <code>delete=on</code> atau <code>topic=ID</code>."
+recurring_need_content: "❌ Beri saya sesuatu untuk diposting: teks setelah interval, atau balas sebuah pesan."
+recurring_end_before_start: "❌ Waktu berakhir lebih awal dari posting pertama."
+recurring_limit_reached: "❌ Obrolan ini sudah memiliki {max} pesan berulang, jumlah maksimum. Hapus satu dulu dengan <code>/recurring rm &lt;id&gt;</code>."
+recurring_added: "✅ Pesan berulang <b>#{id}</b> disimpan."
+recurring_list_title: "<b>🔁 Pesan berulang</b> ({count}/{max})"
+recurring_list_item: "<b>#{id}</b> · setiap {interval} · berikutnya {next} UTC"
+recurring_list_item_until: "sampai {end} UTC"
+recurring_list_item_topic: "topik {topic}"
+recurring_list_item_delete_previous: "menggantikan posting sebelumnya"
+recurring_list_item_stopped: "⏸ dihentikan"
+recurring_list_media: "📎 berkas media"
+recurring_list_empty: "Obrolan ini tidak memiliki pesan berulang. Tambahkan dengan <code>/recurring add &lt;interval&gt; &lt;teks&gt;</code>."
+recurring_list_hint: "Hapus satu dengan <code>/recurring rm &lt;id&gt;</code>."
+recurring_not_found: "❌ Obrolan ini tidak memiliki pesan berulang #{id}."
+recurring_removed: "✅ Pesan berulang #{id} dihapus."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2792,6 +2824,7 @@ blacklists_section_desc: "Tindak kata yang ada di daftar hitam"
 captcha_section_desc: "Minta anggota baru menyelesaikan captcha"
 connections_section_desc: "Kelola grup dari PM"
 digest_section_desc: "Ringkasan mingguan aktivitas grup"
+recurring_section_desc: "Pesan yang diposting bot sesuai jadwal"
 disabling_section_desc: "Nonaktifkan perintah untuk anggota"
 federations_section_desc: "Bagikan ban ke banyak grup"
 filters_section_desc: "Balasan otomatis untuk kata pemicu"
@@ -3066,6 +3099,8 @@ probation_extend_msg: |
   /probation — tampilkan atau ubah masa percobaan anggota baru, atau atur waktu, pesan, panjang, konten yang diblokir, dan pemberitahuannya
 digest_extend_msg: |
   /digest — tampilkan status ringkasan mingguan, aktifkan atau nonaktifkan, pilih tujuannya, atau lihat pratinjaunya
+recurring_extend_msg: |
+  /recurring — tambah, lihat, atau hapus pesan yang diposting bot sesuai jadwal
 warns_extend_msg: |
   /warn — beri peringatan pengguna
   /swarn — beri peringatan dan hapus perintahmu

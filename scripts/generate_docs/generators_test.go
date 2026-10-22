@@ -99,6 +99,16 @@ func TestGeneratePermissionsSection_DigestIsAdminOnly(t *testing.T) {
 	}
 }
 
+func TestGeneratePermissionsSection_RecurringIsAdminOnly(t *testing.T) {
+	got := generatePermissionsSection(Module{Name: "recurring"})
+	if strings.Contains(got, "available to all users") {
+		t.Fatalf("recurring permissions = %q, want no all-users claim", got)
+	}
+	if !strings.Contains(got, "admin permissions") {
+		t.Fatalf("recurring permissions = %q, want the admin requirement", got)
+	}
+}
+
 func TestExtractCommandDescription_FalsePositivePrefix(t *testing.T) {
 	helpText := "• /banall is a command, or use /ban - Ban a user"
 	got := extractCommandDescription("ban", helpText)

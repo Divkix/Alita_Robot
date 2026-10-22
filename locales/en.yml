@@ -1952,6 +1952,38 @@ digest_change_same: "no change from the week before"
 digest_change_new: "new"
 digest_change_none: "—"
 digest_dashboard_button: "📊 Open the dashboard"
+# Recurring messages strings
+recurring_help_msg: |
+  <b>🔁 Recurring messages</b>
+
+  Admins can have the bot post a message in this chat again and again, for example a reminder of the rules every day. The content works like a note: text with formatting, buttons and fillings such as the chat name, or the replied message, media included. Times are in UTC. A chat can have up to 5 recurring messages, and the shortest interval is 1 hour.
+
+  *Admin commands:*
+
+  × /recurring add `<interval>` `<reply/text>`: Post the text, or the replied message, every interval (for example 6h, 1d or 1w) in the topic the command is sent in.
+  Options go between the interval and the text: `start=HH:MM` posts first at this time (UTC), then every interval; `end=YYYY-MM-DD` stops after that day (`end=YYYY-MM-DDTHH:MM` at that time); `delete=on` deletes the previous post when the next one goes out; `topic=ID` posts in that topic instead.
+  × /recurring list: List this chat's recurring messages with their IDs.
+  × /recurring rm `<id>`: Remove a recurring message.
+
+  A message the bot can no longer post (it was removed or the topic is gone) is stopped and stays in the list until it is removed. If the bot may not write in the chat, it skips the posts until it may again.
+recurring_usage: "Use <code>/recurring add &lt;interval&gt; &lt;text&gt;</code>, <code>/recurring list</code> or <code>/recurring rm &lt;id&gt;</code>."
+recurring_interval_too_short: "❌ The interval must be at least 1 hour."
+recurring_invalid_option: "❌ I could not read the option <code>{option}</code>. Use <code>start=HH:MM</code>, <code>end=YYYY-MM-DD</code>, <code>delete=on</code> or <code>topic=ID</code>."
+recurring_need_content: "❌ Give me something to post: text after the interval, or reply to a message."
+recurring_end_before_start: "❌ The end time is before the first post."
+recurring_limit_reached: "❌ This chat already has {max} recurring messages, the most allowed. Remove one first with <code>/recurring rm &lt;id&gt;</code>."
+recurring_added: "✅ Recurring message <b>#{id}</b> saved."
+recurring_list_title: "<b>🔁 Recurring messages</b> ({count}/{max})"
+recurring_list_item: "<b>#{id}</b> · every {interval} · next {next} UTC"
+recurring_list_item_until: "until {end} UTC"
+recurring_list_item_topic: "topic {topic}"
+recurring_list_item_delete_previous: "replaces the previous post"
+recurring_list_item_stopped: "⏸ stopped"
+recurring_list_media: "📎 media"
+recurring_list_empty: "This chat has no recurring messages. Add one with <code>/recurring add &lt;interval&gt; &lt;text&gt;</code>."
+recurring_list_hint: "Remove one with <code>/recurring rm &lt;id&gt;</code>."
+recurring_not_found: "❌ This chat has no recurring message #{id}."
+recurring_removed: "✅ Recurring message #{id} removed."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2810,6 +2842,7 @@ blacklists_section_desc: "Act on blacklisted words"
 captcha_section_desc: "Make new members solve a captcha"
 connections_section_desc: "Manage a group from PM"
 digest_section_desc: "A weekly summary of the group's activity"
+recurring_section_desc: "Messages the bot posts on a schedule"
 disabling_section_desc: "Turn commands off for members"
 federations_section_desc: "Share bans across groups"
 filters_section_desc: "Automatic replies to trigger words"
@@ -3084,6 +3117,8 @@ probation_extend_msg: |
   /probation — show or toggle new-member probation, or set its time, messages, length, blocked content and notice
 digest_extend_msg: |
   /digest — show the weekly digest state, turn it on or off, choose its destination, or preview it
+recurring_extend_msg: |
+  /recurring — add, list or remove messages the bot posts on a schedule
 warns_extend_msg: |
   /warn — warn a user
   /swarn — warn and delete your command

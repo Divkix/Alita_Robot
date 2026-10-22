@@ -859,6 +859,38 @@ digest_change_same: "पिछले सप्ताह से कोई बद�
 digest_change_new: "नया"
 digest_change_none: "—"
 digest_dashboard_button: "📊 डैशबोर्ड खोलें"
+# Recurring messages strings
+recurring_help_msg: |
+  <b>🔁 दोहराए जाने वाले संदेश</b>
+
+  एडमिन बॉट से इस चैट में कोई संदेश बार-बार पोस्ट करवा सकते हैं, जैसे हर दिन नियमों की याद दिलाना। सामग्री नोट की तरह काम करती है: फ़ॉर्मेटिंग, बटन और चैट के नाम जैसे फ़िलिंग वाला टेक्स्ट, या वह संदेश जिसका आप जवाब दे रहे हैं, मीडिया सहित। समय UTC में है। एक चैट में अधिकतम 5 दोहराए जाने वाले संदेश हो सकते हैं, और सबसे छोटा अंतराल 1 घंटा है।
+
+  *एडमिन कमांड:*
+
+  × /recurring add `<अंतराल>` `<जवाब/टेक्स्ट>`: टेक्स्ट, या जिस संदेश का जवाब दिया गया है, उसे हर अंतराल पर (जैसे 6h, 1d या 1w) उसी टॉपिक में पोस्ट करें जिसमें कमांड भेजी गई है।
+  विकल्प अंतराल और टेक्स्ट के बीच आते हैं: `start=HH:MM` पहली पोस्ट इस समय (UTC) करता है, फिर हर अंतराल पर; `end=YYYY-MM-DD` उस दिन के बाद रोक देता है (`end=YYYY-MM-DDTHH:MM` उस समय); `delete=on` अगली पोस्ट जाने पर पिछली पोस्ट हटाता है; `topic=ID` उस टॉपिक में पोस्ट करता है।
+  × /recurring list: इस चैट के दोहराए जाने वाले संदेश उनकी ID के साथ दिखाएँ।
+  × /recurring rm `<id>`: एक दोहराया जाने वाला संदेश हटाएँ।
+
+  जो संदेश बॉट अब पोस्ट नहीं कर सकता (बॉट हटा दिया गया या टॉपिक मौजूद नहीं है) वह रोक दिया जाता है और हटाए जाने तक सूची में रहता है। अगर बॉट को चैट में लिखने की अनुमति नहीं है, तो वह अनुमति वापस मिलने तक पोस्ट छोड़ देता है।
+recurring_usage: "<code>/recurring add &lt;अंतराल&gt; &lt;टेक्स्ट&gt;</code>, <code>/recurring list</code> या <code>/recurring rm &lt;id&gt;</code> का उपयोग करें।"
+recurring_interval_too_short: "❌ अंतराल कम से कम 1 घंटा होना चाहिए।"
+recurring_invalid_option: "❌ मैं विकल्प <code>{option}</code> नहीं पढ़ सका। <code>start=HH:MM</code>, <code>end=YYYY-MM-DD</code>, <code>delete=on</code> या <code>topic=ID</code> का उपयोग करें।"
+recurring_need_content: "❌ पोस्ट करने के लिए कुछ दें: अंतराल के बाद टेक्स्ट, या किसी संदेश का जवाब दें।"
+recurring_end_before_start: "❌ समाप्ति का समय पहली पोस्ट से पहले है।"
+recurring_limit_reached: "❌ इस चैट में पहले से {max} दोहराए जाने वाले संदेश हैं, जो अधिकतम सीमा है। पहले <code>/recurring rm &lt;id&gt;</code> से एक हटाएँ।"
+recurring_added: "✅ दोहराया जाने वाला संदेश <b>#{id}</b> सहेजा गया।"
+recurring_list_title: "<b>🔁 दोहराए जाने वाले संदेश</b> ({count}/{max})"
+recurring_list_item: "<b>#{id}</b> · हर {interval} · अगला {next} UTC"
+recurring_list_item_until: "{end} UTC तक"
+recurring_list_item_topic: "टॉपिक {topic}"
+recurring_list_item_delete_previous: "पिछली पोस्ट की जगह लेता है"
+recurring_list_item_stopped: "⏸ रुका हुआ"
+recurring_list_media: "📎 मीडिया"
+recurring_list_empty: "इस चैट में कोई दोहराया जाने वाला संदेश नहीं है। <code>/recurring add &lt;अंतराल&gt; &lt;टेक्स्ट&gt;</code> से एक जोड़ें।"
+recurring_list_hint: "<code>/recurring rm &lt;id&gt;</code> से एक हटाएँ।"
+recurring_not_found: "❌ इस चैट में दोहराया जाने वाला संदेश #{id} नहीं है।"
+recurring_removed: "✅ दोहराया जाने वाला संदेश #{id} हटाया गया।"
 
 # Antiflood module strings
 antiflood_checkflood_perform_action: "हाँ, मुझे आपकी फ़्लडिंग पसंद नहीं है। %s को %s कर दिया गया है!"
@@ -2514,6 +2546,7 @@ blacklists_section_desc: "ब्लैकलिस्ट किए गए शब
 captcha_section_desc: "नए सदस्यों से कैप्चा हल करवाएँ"
 connections_section_desc: "PM से ग्रुप मैनेज करें"
 digest_section_desc: "ग्रुप की गतिविधि का साप्ताहिक सारांश"
+recurring_section_desc: "संदेश जो बॉट तय समय पर पोस्ट करता है"
 disabling_section_desc: "सदस्यों के लिए कमांड बंद करें"
 federations_section_desc: "कई ग्रुप में एक साथ बैन लागू करें"
 filters_section_desc: "ट्रिगर शब्दों पर अपने-आप जवाब"
@@ -2788,6 +2821,8 @@ probation_extend_msg: |
   /probation — नए सदस्यों की परिवीक्षा दिखाएँ या बदलें, या उसका समय, संदेश, लंबाई, रोकी गई सामग्री और सूचना तय करें
 digest_extend_msg: |
   /digest — साप्ताहिक सारांश की स्थिति दिखाएँ, उसे चालू या बंद करें, उसका गंतव्य चुनें, या उसका पूर्वावलोकन देखें
+recurring_extend_msg: |
+  /recurring — तय समय पर बॉट द्वारा पोस्ट किए जाने वाले संदेश जोड़ें, देखें या हटाएँ
 warns_extend_msg: |
   /warn — यूज़र को चेतावनी दें
   /swarn — चेतावनी दें और अपनी कमांड हटाएँ
