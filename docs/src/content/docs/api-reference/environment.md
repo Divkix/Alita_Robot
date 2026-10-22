@@ -466,9 +466,11 @@ Enable the admin panel. Requires `PANEL_PUBLIC_URL`.
 
 ### `PANEL_PUBLIC_URL`
 
-Public HTTPS origin the panel is served from, for example
-`https://bot.example.com`. Must be `https://`; `http://` is accepted only when
-`DEBUG=true`. A trailing slash is trimmed. Required when `PANEL_ENABLED=true`.
+Public HTTPS URL Telegram opens for the panel, for example
+`https://bot.example.com/panel`. The bot serves the panel under `/panel` and the
+shell calls `/panel/api/v1/*`, so the path must reach the bot unchanged. Must be
+`https://`; `http://` is accepted only when `DEBUG=true`. A trailing slash is
+trimmed. Required when `PANEL_ENABLED=true`.
 
 | Property | Value |
 |----------|-------|
@@ -756,7 +758,7 @@ OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
 OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
 PANEL_ENABLED=# enable the Telegram Mini App admin panel (default: false)
 PANEL_MINIAPP_SHORTNAME=# optional BotFather Mini App short name for direct group links
-PANEL_PUBLIC_URL=# HTTPS origin serving /panel; required when PANEL_ENABLED=true
+PANEL_PUBLIC_URL=# public HTTPS URL Telegram opens for the panel, e.g. https://host/panel; required when PANEL_ENABLED=true
 PANEL_SESSION_MAX_AGE=# maximum initData age, Go duration (default: 24h)
 REDIS_DB=# Redis database number (default: 1 with REDIS_ADDRESS; REDIS_URL uses its path, else 0)
 REDIS_PASSWORD=# Redis password

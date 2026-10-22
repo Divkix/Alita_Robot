@@ -1,0 +1,188 @@
+---
+title: Admin Panel (Mini App)
+description: Enable and operate Alita Robot's optional Telegram Mini App dashboard — environment variables, HTTPS, reverse proxy, entry points and failure modes.
+---
+
+The admin panel is an optional Telegram Mini App dashboard served by the bot's
+own HTTP server under `/panel`. It is off by default: with `PANEL_ENABLED` unset
+or `false`, `/panel` and `/panel/api/v1/*` return 404 and the bot behaves
+exactly as before — no dashboard buttons, no menu button change, nothing new to
+secure.
+
+There is no second process, database or frontend build to deploy: the panel
+lives in the same binary and is served on the same port as `/health`,
+`/metrics` and `/webhook`.
+
+## Enable it
+
+1. Pick the public HTTPS host the bot will answer on — the same host as
+   `WEBHOOK_DOMAIN` is the usual choice.
+2. Point a reverse proxy at the bot's `HTTP_PORT` (default `8080`) and forward
+   `/panel` and `/panel/api/*`, plus `/webhook` if you use webhooks.
+3. Link that host to the bot in BotFather: send `/setdomain`, pick the bot and
+   enter the domain (for example `bot.example.com`). Telegram refuses to open a
+   `web_app` button for a domain the bot has not linked; creating the Mini App
+   described below links it as well.
+4. Set the variables below and restart the bot.
+5. Send `/start panel_<chat_id>` to the bot in a private chat to check it.
+
+```bash
+PANEL_ENABLED=true
+PANEL_PUBLIC_URL=https://bot.example.com/panel
+```
+
+The bot serves the panel under `/panel` on its own port, and the shell calls
+`/panel/api/v1/*` with root-relative URLs. `PANEL_PUBLIC_URL` is the URL
+Telegram opens, so it must end with `/panel` unless your proxy rewrites the host
+root to the panel.
+
+With the repository's `docker-compose.yml`, only the variables listed under
+`services.alita.environment` reach the container: add `PANEL_ENABLED` and
+`PANEL_PUBLIC_URL` there (the same goes for any other optional variable).
+
+## Environment variables
+
+| Variable | Required | Default | Meaning |
+|----------|----------|---------|---------|
+| `PANEL_ENABLED` | No | `false` | Serves the panel and turns on the dashboard buttons. |
+| `PANEL_PUBLIC_URL` | When enabled | — | Public HTTPS URL Telegram opens for the panel, for example `https://bot.example.com/panel`. A trailing slash is trimmed. The bot fails to start without it when the panel is enabled. |
+| `PANEL_MINIAPP_SHORTNAME` | No | — | BotFather Mini App short name. When set, group buttons open `https://t.me/<bot>/<short_name>?startapp=chat_<chat_id>` directly instead of hopping through the bot's private chat. |
+| `PANEL_SESSION_MAX_AGE` | No | `24h` | How old a Mini App `initData` payload may be before the panel rejects it. Go duration syntax (`30m`, `24h`); a value that does not parse fails startup. |
+
+`PANEL_PUBLIC_URL` must be `https://`; `http://` is accepted only when
+`DEBUG=true`, because Telegram refuses to open a Mini App from an insecure
+origin.
+
+## HTTPS and the reverse proxy
+
+Telegram only opens Mini Apps from an HTTPS origin. The bot itself speaks plain
+HTTP on `HTTP_PORT`, so the certificate belongs to whatever sits in front of
+it — Caddy, nginx, Traefik, Cloudflare Tunnel, or your platform's load
+balancer.
+
+With Caddy in front of the same container:
+
+```caddyfile
+bot.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+With nginx:
+
+```nginx
+server {
+	listen 443 ssl;
+	server_name bot.example.com;
+	# ssl_certificate / ssl_certificate_key ...
+
+	location /panel {
+		proxy_pass http://127.0.0.1:8080;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-Proto $scheme;
+	}
+
+	location /webhook {
+		proxy_pass http://127.0.0.1:8080;
+	}
+}
+```
+
+`PANEL_PUBLIC_URL` is what the buttons open, so it must be the proxied panel
+URL (for example `https://bot.example.com/panel`), not `http://localhost:8080`.
+Both proxy snippets above pass the path through unchanged, which is what the
+panel expects. If the proxy serves the panel on a different host than the
+webhook, that is fine — both are just paths on the one server.
+
+## Optional: the direct Mini App link
+
+By default a group button opens the bot's private chat with a
+`/start panel_<chat_id>` deep link; the bot then replies with a `web_app`
+button that launches the panel. Once the domain is linked (step 3) that works as
+is. Creating a Mini App in BotFather also gives you a short name, so the button
+can skip the hop:
+
+1. In [@BotFather](https://t.me/BotFather), send `/newapp`, pick the bot and
+   follow the prompts — or use `/mybots` → your bot → **Bot Settings** →
+   **Configure Mini App** → **Enable Mini App**.
+2. Give it a title and the panel URL: the same value as `PANEL_PUBLIC_URL`.
+3. Note the short name BotFather shows for the Mini App.
+4. Set `PANEL_MINIAPP_SHORTNAME` to that short name and restart.
+
+Group buttons then point straight at
+`https://t.me/<bot>/<short_name>?startapp=chat_<chat_id>`, which opens the panel
+without a message in between. If the short name is wrong or the Mini App is not
+enabled in BotFather, Telegram opens an empty page — remove the variable to fall
+back to the deep link.
+
+## Entry points
+
+With the panel enabled the bot adds these, and nothing else changes:
+
+| Where | What |
+|-------|------|
+| Private chat, menu button | The default menu button becomes a Mini App button labelled "Open admin panel" (in English) that launches `PANEL_PUBLIC_URL`. It is set once per start, so a restart is harmless. |
+| Group `/settings` | Below the existing "Open settings in PM" button, a second row opens the panel for that group. |
+| Group `/help` | Below the existing help button, a second row opens the panel for that group. |
+| Private chat, `/start panel_<chat_id>` | Replies with the same `web_app` button, for links copied by hand. |
+
+With the panel disabled both group keyboards are exactly what they were before:
+one button each, no dashboard row, and the menu button is never touched.
+
+## What admins see
+
+The panel authenticates every request with Telegram `initData`; there are no
+passwords, cookies or server-side sessions to manage, and the signature is
+checked against the bot token on arrival.
+
+- The **chat list** shows the groups where the bot has seen you, ordered by
+  last activity and capped at 50. When the panel is opened from a group's
+  button or Mini App link, it opens that chat directly. The session itself makes
+  no Telegram calls: opening a chat is what verifies your role there.
+- Opening a chat shows its details: **your role** (Admin or Read-only) and
+  whether the **bot is an admin** there, followed by the dashboard screens
+  registered for that chat.
+- Only **members** of a group can open it. **Non-admin members** see the chat
+  read-only; anyone else is refused (`403 not_member`), and private chats and
+  channels are not served. **When the bot is not an admin** in the chat, values
+  are still shown but every change is refused, because the bot could not carry
+  it out.
+- A user with no groups sees an empty state explaining how to add the bot or how
+  to `/connect` a group.
+
+## Failure modes
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `/panel` returns 404 | The panel is disabled, or no proxy forwards the path | Set `PANEL_ENABLED=true` and forward `/panel`; the bot logs `Admin panel enabled at …` on startup. |
+| No dashboard buttons in group `/settings` or `/help` | Same as above: a disabled panel adds no buttons and does not change the menu button | Enable the panel. |
+| The button opens a blank page or Telegram says the app is unavailable | `PANEL_PUBLIC_URL` is not HTTPS, is missing the `/panel` path, or the BotFather Mini App points elsewhere | Use the public HTTPS panel URL in `PANEL_PUBLIC_URL` and in the BotFather Mini App. |
+| The panel loads but the chat is missing or empty | The bot is not in the chat, or you are no longer an admin there | Add the bot, or reopen the panel from the group. |
+| Telegram answers "bot domain invalid" when the button is tapped | The panel's domain is not linked to the bot in BotFather | Send `/setdomain` to @BotFather and enter the panel's domain. |
+| Values show but every change is refused | The bot is not an admin in that chat | Promote the bot with the rights it asks for in the add-to-group link. |
+| The menu button still opens the command list | Telegram refused `setChatMenuButton`; startup logs a warning and carries on | Check the bot token and the URL; the group buttons and the `/start panel_` link still work. |
+| The menu button still opens the panel after `PANEL_ENABLED=false` | The default menu button is bot-wide state, and the bot only writes it while the panel is enabled | Reset it with `/setmenubutton` in BotFather, or re-enable the panel. |
+| You have no certificate yet | A Mini App cannot run over plain HTTP | Keep the panel disabled; everything else works without it. |
+
+## Manual smoke checklist
+
+Run this once after enabling the panel on a deployment (the Telegram items need
+a real client and cannot run in CI):
+
+1. Open `PANEL_PUBLIC_URL` in a browser outside Telegram: the shell renders and
+   reports the missing `initData` instead of crashing.
+2. Open it from a group's dashboard button inside Telegram: that chat opens
+   directly, and `← All chats` leads to the chat list.
+3. Switch the Telegram theme between light and dark while the panel is open:
+   backgrounds and text follow the `--tg-theme-*` colours.
+4. Open it for a user with no groups: the empty state explains how to add the
+   bot, with no browser console error.
+5. Throttle the network to slow 3G and reload: the loading state appears first,
+   then the list, with no layout shift or blank screen.
+6. Open it for a user with many groups (the list is capped at 50): the list
+   scrolls smoothly and every title is selectable.
+7. Open the same URL inside `web.telegram.org`: the Mini App loads in the iframe
+   with no `frame-ancestors` violation in the console, and the same URL also
+   works standalone in the mobile Telegram app.
+8. In a group, `/settings` shows two buttons and the panel button opens the
+   panel for that group; with `PANEL_ENABLED=false` the second row is gone.
