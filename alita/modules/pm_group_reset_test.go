@@ -5,6 +5,7 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"testing"
@@ -349,6 +350,45 @@ var confirmQuestionKeys = map[string]string{
 	"unapproveall":  "approvals_unapproveall_ask",
 	"resetallwarns": "warns_reset_all_confirm",
 	"unbanall":      "bans_unbanall_ask",
+}
+
+// From PM, the group line names a title with HTML characters escaped exactly
+// once in an HTML reply (/ban) and as typed in a plain-text confirmation
+// (/stopall), so both show it as typed.
+func TestPMGroupLineEscapesOnlyHTMLReplies(t *testing.T) {
+	f, _ := pmBansFixture(t)
+	f.makeOwner()
+	named := `Tom & <Jerry>`
+	for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
+		f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
+	}
+	if err := filters.AddFilter(f.chat.Id, "hello", "Hi there", "", nil, db.TEXT); err != nil {
+		t.Fatalf("AddFilter() error = %v", err)
+	}
+	dispatcher := pmResetDispatcher()
+	line := strings.NewReplacer("{id}", fmt.Sprint(f.chat.Id)).Replace(translated(t, "connections_pm_group_confirm_target"))
+
+	for _, tc := range []struct {
+		text, parseMode, title string
+	}{
+		{"/ban @fixturegroup @victim", gotgbot.ParseModeHTML, html.EscapeString(named)},
+		{"/stopall @fixturegroup", "", named},
+	} {
+		before := len(f.client.callsFor("sendMessage"))
+		processPM(t, dispatcher, f, f.admin.Id, tc.text)
+
+		replies := f.client.callsFor("sendMessage")[before:]
+		if len(replies) != 1 {
+			t.Fatalf("%s from PM sent %d replies, want one; sent:\n%s", tc.text, len(replies), sentText(f.client))
+		}
+		text, mode := fmt.Sprint(replies[0].Params["text"]), replies[0].Params["parse_mode"]
+		if mode == nil {
+			mode = ""
+		}
+		if want := strings.ReplaceAll(line, "{title}", tc.title); !strings.Contains(text, want) || fmt.Sprint(mode) != tc.parseMode {
+			t.Fatalf("%s from PM replied %q with parse_mode %q, want %q with parse_mode %q", tc.text, text, mode, want, tc.parseMode)
+		}
+	}
 }
 
 // A confirmation asked in PM names the group it resets, whether the group was

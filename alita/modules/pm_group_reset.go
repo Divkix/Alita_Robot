@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"html"
 	"strconv"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -51,15 +52,26 @@ func groupOnlyChatCheck(c *helpers.CommandContext) bool {
 	return true
 }
 
-// confirmText adds the group a reset acts on to its confirmation question
-// when the question is asked in PM, where "this chat" names no group. The
-// question is sent as plain text, so the title is not escaped.
-func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *gotgbot.Chat) string {
-	if msg := ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
-		return question
+// pmGroupLine is what a reply to msg adds to name chat, the group it acts on,
+// when msg came from PM, where the reply names no group: a line after a blank
+// one, with the title HTML-escaped when escape is set. Elsewhere it is "".
+func pmGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, escape bool) string {
+	if msg == nil || msg.Chat.Type != "private" {
+		return ""
 	}
-	target, _ := tr.GetString("connections_pm_group_confirm_target", i18n.TranslationParams{"title": chat.Title, "id": chat.Id})
-	return question + "\n\n" + target
+	title := chat.Title
+	if escape {
+		title = html.EscapeString(title)
+	}
+	line, _ := tr.GetString("connections_pm_group_confirm_target", i18n.TranslationParams{"title": title, "id": chat.Id})
+	return "\n\n" + line
+}
+
+// confirmText adds the group a reset acts on to its confirmation question
+// (pmGroupLine). The question is sent as plain text, so the title is not
+// escaped.
+func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *gotgbot.Chat) string {
+	return question + pmGroupLine(tr, ctx.EffectiveMessage, chat, false)
 }
 
 // confirmData is the callback data of a reset confirmation for chat. "c"
