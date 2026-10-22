@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -15,10 +16,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/panel"
 )
 
 var (
@@ -60,6 +63,12 @@ func getBotUsername(b *gotgbot.Bot) string {
 
 func getAboutText(tr *i18n.Translator) string {
 	text, _ := tr.GetString("help_info_about_header")
+	if config.AppConfig.PanelEnabled {
+		// The menu button of a private chat is the panel while it is enabled,
+		// so the hint can point at it without a URL of its own.
+		hint, _ := tr.GetString("help_about_panel_hint")
+		text += hint
+	}
 	return text
 }
 
@@ -76,8 +85,11 @@ func getMainHelp(tr *i18n.Translator, firstName string) string {
 	return text1 + text2 + text3
 }
 
-func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
+func getAboutKb(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
 	aboutMeText, _ := tr.GetString("help_button_about_me")
+	addToChatText, _ := tr.GetString("help_button_add_to_chat")
+	shareText, _ := tr.GetString("help_button_share")
+	shareSummary, _ := tr.GetString("help_share_text")
 	newsChannelText, _ := tr.GetString("help_button_news_channel")
 	supportGroupText, _ := tr.GetString("help_button_support_group")
 	configurationText, _ := tr.GetString("help_button_configuration")
@@ -85,6 +97,16 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text: addToChatText,
+					Url:  helpers.AddToGroupURL(botUsername),
+				},
+				{
+					Text: shareText,
+					Url:  shareBotURL(botUsername, shareSummary),
+				},
+			},
 			{
 				{
 					Text:         aboutMeText,
@@ -117,14 +139,14 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 	}
 }
 
-// botAdminRights are the admin rights the bot checks before acting
-// (chat_status.CanBot*). Requesting them in the add-to-group link makes Telegram
-// add the bot as an admin; without `admin=` it joins as a plain member and every
-// admin-only command fails until someone promotes it by hand.
-const botAdminRights = "change_info+delete_messages+restrict_members+invite_users+pin_messages+promote_members"
-
-func addToChatURL(botUsername string) string {
-	return fmt.Sprintf("https://t.me/%s?startgroup=botstart&admin=%s", botUsername, botAdminRights)
+// shareBotURL opens Telegram's share sheet on the bot's t.me link. The pitch is
+// localized; the link stays a t.me link because the bot cannot know its own
+// deployment URL.
+func shareBotURL(botUsername, text string) string {
+	params := url.Values{}
+	params.Set("url", "https://t.me/"+botUsername)
+	params.Set("text", text)
+	return "https://t.me/share/url?" + params.Encode()
 }
 
 func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
@@ -134,7 +156,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	commandsHelpText, _ := tr.GetString("help_button_commands_help")
 	languageText, _ := tr.GetString("help_button_language")
 
-	addToChatUrl := addToChatURL(botUsername)
+	addToChatUrl := helpers.AddToGroupURL(botUsername)
 
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -197,7 +219,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch response {
 		case "main":
 			currText = getAboutText(tr)
-			currKb = getAboutKb(tr)
+			currKb = getAboutKb(tr, b.Username)
 		case "me":
 			temp, _ := tr.GetString("help_about")
 			currText = fmt.Sprintf(temp, b.Username, config.AppConfig.BotVersion)
@@ -235,7 +257,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		if ctx.Message.Chat.Type == "private" {
 			currText = getAboutText(tr)
-			currKb = getAboutKb(tr)
+			currKb = getAboutKb(tr, b.Username)
 		} else {
 			clickButtonText, _ := tr.GetString("help_click_button_info")
 			aboutButtonText, _ := tr.GetString("help_button_about")
@@ -471,7 +493,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text: addAlitaText,
-					Url:  addToChatURL(b.Username),
+					Url:  helpers.AddToGroupURL(b.Username),
 				},
 			},
 			{
@@ -597,6 +619,15 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyMsgId = msg.ReplyToMessage.MessageId
 		}
 
+		rows := [][]gotgbot.InlineKeyboardButton{{{Text: pmMeKbText, Url: pmMeKbUri}}}
+		if config.AppConfig.PanelEnabled {
+			panelText, _ := tr.GetString("panel_open_button")
+			rows = append(rows, []gotgbot.InlineKeyboardButton{{
+				Text: panelText,
+				Url:  panel.EntryURL(b.Username, config.AppConfig.PanelMiniAppShortName, chat.Id),
+			}})
+		}
+
 		_, err := msg.Reply(b,
 			moduleHelpString,
 			&gotgbot.SendMessageOpts{
@@ -605,13 +636,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-						{
-							{Text: pmMeKbText, Url: pmMeKbUri},
-						},
-					},
-				},
+				ReplyMarkup: gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows},
 			},
 		)
 		if err != nil {
@@ -659,7 +684,7 @@ func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 func aboutDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	aboutText := getAboutText(tr)
-	aboutKb := getAboutKb(tr)
+	aboutKb := getAboutKb(tr, b.Username)
 	_, err := b.SendMessage(ctx.EffectiveChat.Id,
 		aboutText,
 		&gotgbot.SendMessageOpts{

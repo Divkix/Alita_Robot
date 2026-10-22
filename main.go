@@ -21,9 +21,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	dbmonitoring "github.com/divkix/Alita_Robot/alita/db/monitoring"
+	"github.com/divkix/Alita_Robot/alita/digest"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
+	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -31,6 +34,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
+	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -156,10 +160,27 @@ func main() {
 
 	shutdownManager := shutdown.NewManager()
 
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Closing database connections...")
-		return closeDBConnections()
-	})
+	stats.StartFlusher()
+
+	digestScheduler := digest.NewScheduler(b)
+
+	registerShutdownDrains(shutdownManager,
+		func() error {
+			log.Info("[Shutdown] Closing database connections...")
+			return closeDBConnections()
+		},
+		func() error {
+			log.Info("[Shutdown] Flushing daily stats counters...")
+			return stats.StopFlusher()
+		},
+		func() error {
+			log.Info("[Shutdown] Stopping digest scheduler...")
+			digestScheduler.Stop()
+			return nil
+		},
+	)
+	digestScheduler.Start()
+
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")
 		modules.DrainUsersAsyncWrites()
@@ -214,6 +235,15 @@ func main() {
 	httpServer.SetMetricsAuthToken(config.AppConfig.MetricsAuthToken)
 	httpServer.RegisterMetrics()
 	httpServer.RegisterDBMetrics()
+
+	if config.AppConfig.PanelEnabled {
+		httpServer.RegisterPanel(panel.New(b, panel.Deps{
+			SessionMaxAge:  config.AppConfig.PanelSessionMaxAge,
+			LookupChats:    chats.ListChatsWithUser,
+			DisableCaptcha: modules.DisableCaptchaForChat,
+		}))
+		log.Infof("[Main] Admin panel enabled at %s", config.AppConfig.PanelPublicURL)
+	}
 
 	if config.AppConfig.EnablePPROF {
 		httpServer.RegisterPPROF()
@@ -417,6 +447,8 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	}
 	log.Info("Custom bot commands set for private chats")
 
+	setPanelMenuButton(b)
+
 	_, err = b.SendMessage(config.AppConfig.MessageDump,
 		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, alita.ListModules()),
 		&gotgbot.SendMessageOpts{
@@ -432,6 +464,38 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 		log.Infof("[Bot] Bot has been started in %s mode...", mode)
 	} else {
 		log.Infof("[Bot] %s has been started in %s mode...", username, mode)
+	}
+}
+
+// setPanelMenuButton points the default menu button of every private chat at
+// the panel, so users reach it without a command. It is a no-op while the panel
+// is disabled, which leaves the button untouched. Repeating the same value on
+// every start is harmless, and a refusal only warns: the group buttons and the
+// /start panel_<chatID> deep link still open the panel.
+func setPanelMenuButton(b *gotgbot.Bot) {
+	if !config.AppConfig.PanelEnabled {
+		return
+	}
+	tr := i18n.MustNewTranslator("en")
+	text, _ := tr.GetString("panel_open_button")
+	_, err := b.SetChatMenuButton(&gotgbot.SetChatMenuButtonOpts{
+		MenuButton: gotgbot.MenuButtonWebApp{
+			Text:   text,
+			WebApp: gotgbot.WebAppInfo{Url: config.AppConfig.PanelPublicURL},
+		},
+	})
+	if err != nil {
+		log.Warnf("[Panel] Could not set the menu button: %v", err)
+	}
+}
+
+// registerShutdownDrains registers the database-close handler and the drains
+// that must finish before it. Shutdown executes handlers in reverse
+// registration order, so the close handler registered first runs last.
+func registerShutdownDrains(m *shutdown.Manager, closeDB func() error, drains ...func() error) {
+	m.RegisterHandler(closeDB)
+	for _, drain := range drains {
+		m.RegisterHandler(drain)
 	}
 }
 

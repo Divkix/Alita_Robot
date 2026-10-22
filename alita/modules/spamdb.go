@@ -51,7 +51,8 @@ var spamDBChecker *spamdb.Checker
 type spamDBEntry struct {
 	name   string
 	source spamdb.Source
-	// service is where the user IDs go, as /spamdb names it.
+	// service is where the user IDs go, as /spamdb names it. Shared sends
+	// nothing anywhere, so it has none.
 	service string
 }
 
@@ -59,18 +60,23 @@ type spamDBEntry struct {
 var spamDBDatabases = []spamDBEntry{
 	{spamdbsettings.DatabaseCAS, spamdb.SourceCAS, "cas.chat"},
 	{spamdbsettings.DatabaseLols, spamdb.SourceLols, "lols.bot"},
+	{spamdbsettings.DatabaseShared, spamdb.SourceShared, ""},
 }
 
-// spamDBSources lists the databases the chat checks, CAS first. The table
-// never holds a row with both off, so that reading comes from a cache entry
-// written before chats could choose; it means CAS, not nothing.
+// spamDBSources lists the databases the chat checks, CAS first, then lols.bot
+// and the shared network. The table never holds a row with all three off, so
+// that reading comes from a cache entry written before chats could choose; it
+// means CAS, not nothing.
 func spamDBSources(settings *models.SpamDBSettings) []spamdb.Source {
 	var sources []spamdb.Source
-	if settings.CheckCAS || !settings.CheckLols {
+	if settings.CheckCAS || (!settings.CheckLols && !settings.CheckShared) {
 		sources = append(sources, spamdb.SourceCAS)
 	}
 	if settings.CheckLols {
 		sources = append(sources, spamdb.SourceLols)
+	}
+	if settings.CheckShared {
+		sources = append(sources, spamdb.SourceShared)
 	}
 	return sources
 }
@@ -149,9 +155,10 @@ func applySpamDBAction(b *gotgbot.Bot, chatID, userID int64, action string) erro
 }
 
 // spamdb is the /spamdb command: a bare call reports the settings, on/off
-// toggles the check, "db cas|lols on|off" picks the databases and
+// toggles the check, "db cas|lols|shared on|off" picks the databases and
 // "action ban|mute|log" picks what happens to a listed member. Enabling
-// refuses when the operator has switched the feature off.
+// refuses when the operator has switched the feature off, and the shared
+// database refuses when the operator has not enabled the network.
 func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	// Admin check runs here, against the connected group when used from PM.
 	chat := resolveAdminChat(c.Bot, c.Ctx, false)
@@ -200,9 +207,10 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	return spamDBReplyKey(c, "spamdb_disabled_success", nil)
 }
 
-// spamDBDatabase is "/spamdb db <cas|lols> <on|off>". The last database left
-// cannot be switched off, so a chat with the check on always asks one.
-// Switching lols.bot on warns about its false positives.
+// spamDBDatabase is "/spamdb db <cas|lols|shared> <on|off>". The last database
+// left cannot be switched off, so a chat with the check on always asks one.
+// Switching lols.bot on warns about its false positives; switching the shared
+// network on refuses while the operator has it disabled.
 func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	if len(args) < 2 {
 		return spamDBReplyKey(c, "spamdb_db_usage", nil)
@@ -215,6 +223,10 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	}
 	database := spamDBDatabases[idx]
 	params := i18n.TranslationParams{"database": database.source.Name()}
+
+	if want && database.name == spamdbsettings.DatabaseShared && !spamDBReputationEnabled() {
+		return spamDBReplyKey(c, "spamdb_db_shared_disabled", params)
+	}
 
 	err := spamdbsettings.SetSpamDBDatabase(c.Chat.Id, database.name, want)
 	if errors.Is(err, spamdbsettings.ErrLastDatabase) {
@@ -255,6 +267,12 @@ func spamDBCheckRuns(c *helpers.CommandContext) bool {
 	return settings.Enabled
 }
 
+// spamDBReputationEnabled reports whether the operator lets chats use the
+// shared reputation network.
+func spamDBReputationEnabled() bool {
+	return config.AppConfig != nil && config.AppConfig.EnableReputation
+}
+
 func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) string {
 	lineKey := "spamdb_status_disabled"
 	if settings.Enabled {
@@ -263,22 +281,39 @@ func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) stri
 	line, _ := tr.GetString(lineKey, i18n.TranslationParams{"action": settings.Action})
 
 	sources := spamDBSources(settings)
-	var names, services []string
+	var entries, services []string
 	for _, d := range spamDBDatabases {
-		if slices.Contains(sources, d.source) {
-			names = append(names, d.source.Name())
-			services = append(services, d.service)
+		on := slices.Contains(sources, d.source)
+		stateKey := "spamdb_status_db_off"
+		if on {
+			stateKey = "spamdb_status_db_on"
+			// Shared bans is selected but does nothing while the operator's
+			// switch is off, so the line must not read as a running lookup.
+			if d.source == spamdb.SourceShared && !spamDBReputationEnabled() {
+				stateKey = "spamdb_status_db_on_inactive"
+			}
+			if d.service != "" {
+				services = append(services, d.service)
+			}
 		}
+		entry, _ := tr.GetString(stateKey, i18n.TranslationParams{"database": d.source.Name()})
+		entries = append(entries, entry)
 	}
-	databases, _ := tr.GetString("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(names, ", ")})
+	databases, _ := tr.GetString("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(entries, ", ")})
 
 	parts := []string{line, databases}
 	if !config.AppConfig.EnableSpamDB {
 		warning, _ := tr.GetString("spamdb_status_globally_disabled")
 		parts = append(parts, warning)
 	}
-	notice, _ := tr.GetString("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
-	parts = append(parts, notice)
+	if settings.CheckShared {
+		sharedNotice, _ := tr.GetString("spamdb_shared_data_notice")
+		parts = append(parts, sharedNotice)
+	}
+	if len(services) > 0 {
+		notice, _ := tr.GetString("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
+		parts = append(parts, notice)
+	}
 
 	return strings.Join(parts, "\n\n")
 }

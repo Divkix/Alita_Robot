@@ -12,22 +12,30 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-// AddBlacklist stores a new word with the chat's current action. /blaction
-// writes the action into every word row, so a new word copies it from the
-// oldest existing row; a chat without words starts at "warn".
-func AddBlacklist(chatId int64, trigger string) error {
+// chatBlacklistAction returns the action a new word inherits: /blaction
+// writes the action into every word row, so it is copied from the oldest
+// existing row; a chat without words starts at "warn".
+func chatBlacklistAction(chatId int64) (string, error) {
 	var actions []string
 	if err := db.DB.Model(&models.BlacklistSettings{}).
 		Where("chat_id = ?", chatId).
 		Order("id").
 		Limit(1).
 		Pluck("action", &actions).Error; err != nil {
-		log.Errorf("[Database] AddBlacklist: read chat action: %v - %d", err, chatId)
-		return err
+		log.Errorf("[Database] chatBlacklistAction: %v - %d", err, chatId)
+		return "", err
 	}
-	action := "warn"
 	if len(actions) > 0 && actions[0] != "" {
-		action = actions[0]
+		return actions[0], nil
+	}
+	return "warn", nil
+}
+
+// AddBlacklist stores a new word with the chat's current action.
+func AddBlacklist(chatId int64, trigger string) error {
+	action, err := chatBlacklistAction(chatId)
+	if err != nil {
+		return err
 	}
 
 	blacklist := &models.BlacklistSettings{
@@ -37,9 +45,69 @@ func AddBlacklist(chatId int64, trigger string) error {
 		Reason: models.DefaultBlacklistReason,
 	}
 
-	err := db.CreateRecord(blacklist)
+	err = db.CreateRecord(blacklist)
 	if err != nil {
 		log.Errorf("[Database] AddBlacklist: %v - %d", err, chatId)
+		return err
+	}
+
+	cache.DeleteCache(cache.CacheKey("blacklist", chatId))
+	return nil
+}
+
+// AddBlacklistBulk inserts every trigger the chat does not have yet in one
+// statement and invalidates the blacklist cache once. It keeps the single-word
+// semantics: words are lower-cased, copies of the chat's current action and
+// carry the default reason; words already present are skipped.
+func AddBlacklistBulk(chatId int64, triggers []string) error {
+	words := make([]string, 0, len(triggers))
+	seen := make(map[string]struct{}, len(triggers))
+	for _, trigger := range triggers {
+		word := strings.ToLower(trigger)
+		if _, ok := seen[word]; ok {
+			continue
+		}
+		seen[word] = struct{}{}
+		words = append(words, word)
+	}
+	if len(words) == 0 {
+		return nil
+	}
+
+	action, err := chatBlacklistAction(chatId)
+	if err != nil {
+		return err
+	}
+
+	var existing []string
+	if err := db.DB.Model(&models.BlacklistSettings{}).
+		Where("chat_id = ? AND word IN ?", chatId, words).
+		Pluck("word", &existing).Error; err != nil {
+		log.Errorf("[Database] AddBlacklistBulk: read existing words: %v - %d", err, chatId)
+		return err
+	}
+	present := make(map[string]struct{}, len(existing))
+	for _, word := range existing {
+		present[strings.ToLower(word)] = struct{}{}
+	}
+
+	rows := make([]models.BlacklistSettings, 0, len(words))
+	for _, word := range words {
+		if _, ok := present[word]; ok {
+			continue
+		}
+		rows = append(rows, models.BlacklistSettings{
+			ChatId: chatId,
+			Word:   word,
+			Action: action,
+			Reason: models.DefaultBlacklistReason,
+		})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	if err := db.CreateRecord(&rows); err != nil {
+		log.Errorf("[Database] AddBlacklistBulk: %v - %d", err, chatId)
 		return err
 	}
 

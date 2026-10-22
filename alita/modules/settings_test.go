@@ -71,6 +71,13 @@ func markupOf(t *testing.T, call moduleBotCall) gotgbot.InlineKeyboardMarkup {
 	switch markup := call.Params["reply_markup"].(type) {
 	case gotgbot.InlineKeyboardMarkup:
 		return markup
+	case *gotgbot.InlineKeyboardMarkup:
+		// SendMessageOpts takes the ReplyMarkup interface, so a reply that
+		// passes &kb records the pointer.
+		if markup == nil {
+			return gotgbot.InlineKeyboardMarkup{}
+		}
+		return *markup
 	case nil:
 		return gotgbot.InlineKeyboardMarkup{}
 	default:

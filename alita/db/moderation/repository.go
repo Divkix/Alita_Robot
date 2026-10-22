@@ -1,0 +1,213 @@
+package moderation
+
+import (
+	"errors"
+	"fmt"
+	"time"
+	"unicode/utf8"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+)
+
+// Record stores one event. A missing CreatedAt is stamped in UTC, so every row
+// carries the instant the action happened whatever the caller's clock zone.
+// The reason is cut to models.MaxModerationReasonRunes at a rune boundary; no
+// message text is ever passed here.
+func Record(ev models.ModerationEvent) error {
+	if ev.CreatedAt.IsZero() {
+		ev.CreatedAt = time.Now().UTC()
+	}
+	if utf8.RuneCountInString(ev.Reason) > models.MaxModerationReasonRunes {
+		ev.Reason = string([]rune(ev.Reason)[:models.MaxModerationReasonRunes])
+	}
+	// The chat foreign key needs its parent row, and a command can arrive
+	// before the users tracker creates it; evidence must not be dropped over
+	// that race (reports.Create ensures the same row for the same reason).
+	if err := chats.EnsureChatInDb(ev.ChatId, ""); err != nil {
+		return fmt.Errorf("record moderation event: %w", err)
+	}
+	if err := db.DB.Create(&ev).Error; err != nil {
+		return fmt.Errorf("record moderation event: %w", err)
+	}
+	return nil
+}
+
+// DeleteExpiredBefore removes events created before cutoff and returns how
+// many it removed. Time bounds are compared in UTC, the zone Record writes:
+// SQLite compares the stored text, so a local-zone bound would misorder.
+func DeleteExpiredBefore(cutoff time.Time) (int64, error) {
+	res := db.DB.Where("created_at < ?", cutoff.UTC()).Delete(&models.ModerationEvent{})
+	if res.Error != nil {
+		return 0, fmt.Errorf("delete expired moderation events: %w", res.Error)
+	}
+	return res.RowsAffected, nil
+}
+
+// ListForChat returns a chat's events from since on, newest first. A limit of
+// zero or less returns every match.
+func ListForChat(chatID int64, since time.Time, limit int) ([]models.ModerationEvent, error) {
+	query := db.DB.
+		Where("chat_id = ? AND created_at >= ?", chatID, since.UTC()).
+		Order("created_at DESC, id DESC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	var rows []models.ModerationEvent
+	if err := query.Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list moderation events for chat: %w", err)
+	}
+	return rows, nil
+}
+
+// ListForTarget returns a target's events from since on, newest first.
+func ListForTarget(userID int64, since time.Time) ([]models.ModerationEvent, error) {
+	var rows []models.ModerationEvent
+	err := db.DB.
+		Where("target_user_id = ? AND created_at >= ?", userID, since.UTC()).
+		Order("created_at DESC, id DESC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("list moderation events for target: %w", err)
+	}
+	return rows, nil
+}
+
+// ReputationSignal is the shared reputation aggregate for one user: how many
+// distinct chats banned or kicked them since (inclusive), and whether a human
+// unban in the same window reverses one of those removals. An unban counts
+// only when the same chat recorded a ban or kick of the same user earlier in
+// the window, so a no-op /unban in a chat that never removed the user clears
+// nothing; a removal and an unban stamped at the same instant count as a
+// reversal, since there is no finer order. Ten bans in one chat still count as
+// one chat; mutes never count, because only ban and kick events feed it.
+//
+// Both reads use the (target_user_id, created_at) index and compare the bound
+// in UTC like Record writes it: SQLite compares the stored text, so a
+// local-zone bound would misorder.
+func ReputationSignal(userID int64, since time.Time) (chats int, unbanned bool, err error) {
+	var chatCount int64
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Where("target_user_id = ? AND created_at >= ? AND action IN ?",
+			userID, since.UTC(), []string{models.ModerationActionBan, models.ModerationActionKick}).
+		Distinct("chat_id").
+		Count(&chatCount).Error
+	if err != nil {
+		return 0, false, fmt.Errorf("count chats that removed a target: %w", err)
+	}
+
+	// Only an unban that follows a removal in the same chat reverses the
+	// signal; an unban in a chat that never acted on the user is a no-op.
+	var reversingUnban int64
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Where("target_user_id = ? AND created_at >= ? AND action = ?",
+			userID, since.UTC(), models.ModerationActionUnban).
+		Where(`EXISTS (
+			SELECT 1 FROM moderation_events AS removal
+			WHERE removal.target_user_id = moderation_events.target_user_id
+				AND removal.chat_id = moderation_events.chat_id
+				AND removal.created_at >= ?
+				AND removal.created_at <= moderation_events.created_at
+				AND removal.action IN (?, ?)
+		)`, since.UTC(), models.ModerationActionBan, models.ModerationActionKick).
+		Count(&reversingUnban).Error
+	if err != nil {
+		return 0, false, fmt.Errorf("check for a target unban: %w", err)
+	}
+	return int(chatCount), reversingUnban > 0, nil
+}
+
+// CountForChat returns how many events the chat recorded in [from, to) and the
+// action that happened most often (one of the models.ModerationAction values,
+// or "" without events). Ties go to the alphabetically first action, so every
+// replica reports the same line. Time bounds are compared in UTC, the zone
+// Record writes.
+func CountForChat(chatID int64, from, to time.Time) (total int64, topAction string, err error) {
+	if db.DB == nil {
+		return 0, "", errors.New("database not initialized")
+	}
+
+	var byAction []struct {
+		Action string
+		Count  int64
+	}
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Select("action, COUNT(*) AS count").
+		Where("chat_id = ? AND created_at >= ? AND created_at < ?", chatID, from.UTC(), to.UTC()).
+		Group("action").
+		Order("count DESC, action ASC").
+		Scan(&byAction).Error
+	if err != nil {
+		return 0, "", fmt.Errorf("count moderation events for chat: %w", err)
+	}
+	for _, row := range byAction {
+		total += row.Count
+	}
+	if len(byAction) > 0 {
+		topAction = byAction[0].Action
+	}
+	return total, topAction, nil
+}
+
+// CountSince returns how many events the chat recorded from since on. It is the
+// window count the dashboard overview shows; the rows themselves come from
+// ListForChat. The bound is compared in UTC, the zone Record writes: SQLite
+// compares the stored text, so a local-zone bound would misorder.
+func CountSince(chatID int64, since time.Time) (int64, error) {
+	if db.DB == nil {
+		return 0, errors.New("database not initialized")
+	}
+
+	var total int64
+	err := db.DB.Model(&models.ModerationEvent{}).
+		Where("chat_id = ? AND created_at >= ?", chatID, since.UTC()).
+		Count(&total).Error
+	if err != nil {
+		return 0, fmt.Errorf("count moderation events for chat: %w", err)
+	}
+	return total, nil
+}
+
+// EventRetention is how long a moderation event is kept. The timeline stops
+// at this boundary, the same instant the retention sweep deletes past.
+const EventRetention = 180 * 24 * time.Hour
+
+// TimelineFilter selects one page of a chat's moderation timeline. Since is
+// the retention boundary and is inclusive. Before and BeforeID are the keyset
+// cursor of the previous page: only rows older than that (created_at, id) pair
+// are returned, so a row inserted between two pages never duplicates or skips
+// another. Action and ActorID filter when set.
+type TimelineFilter struct {
+	ChatID   int64
+	Since    time.Time
+	Action   string
+	ActorID  int64
+	Before   time.Time
+	BeforeID int64
+	Limit    int
+}
+
+// ListTimeline returns the chat's events newest first after the cursor. Time
+// bounds are compared in UTC, the zone Record writes.
+func ListTimeline(filter TimelineFilter) ([]models.ModerationEvent, error) {
+	query := db.DB.Where("chat_id = ? AND created_at >= ?", filter.ChatID, filter.Since.UTC())
+	if filter.Action != "" {
+		query = query.Where("action = ?", filter.Action)
+	}
+	if filter.ActorID != 0 {
+		query = query.Where("actor_id = ?", filter.ActorID)
+	}
+	if filter.BeforeID != 0 {
+		before := filter.Before.UTC()
+		query = query.Where("(created_at < ? OR (created_at = ? AND id < ?))", before, before, filter.BeforeID)
+	}
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+	var rows []models.ModerationEvent
+	if err := query.Order("created_at DESC, id DESC").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list moderation timeline: %w", err)
+	}
+	return rows, nil
+}

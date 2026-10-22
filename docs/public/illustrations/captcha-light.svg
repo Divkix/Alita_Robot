@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" fill="none">
+  <title>Illustration of Alita Robot's captcha welcome in light mode</title>
+  <rect width="1200" height="560" fill="#eef2f7"/>
+  <rect x="60" y="40" width="1080" height="480" rx="24" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <line x1="60" y1="112" x2="1140" y2="112" stroke="#e2e8f0" stroke-width="2"/>
+  <circle cx="100" cy="76" r="22" fill="#2563eb"/>
+  <text x="100" y="84" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">A</text>
+  <text x="136" y="71" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22" font-weight="600" fill="#0f172a">Alita Test Group</text>
+  <text x="136" y="97" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" fill="#64748b">128 members</text>
+  <rect x="84" y="128" width="880" height="352" rx="18" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="108" y="162" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#2563eb">Alita Robot</text>
+  <text x="224" y="162" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">bot</text>
+  <text x="108" y="198" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="26" fill="#0f172a">👋 Welcome Alice!</text>
+  <text x="108" y="238" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#0f172a">Please solve this math problem to verify you're human:</text>
+  <text x="108" y="286" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#0f172a">7 + 5 = ?</text>
+  <text x="108" y="326" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#0f172a">⏱ You have 2 minutes to answer.</text>
+  <rect x="108" y="348" width="420" height="36" rx="12" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="318" y="372" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20" fill="#1d4ed8">10</text>
+  <rect x="108" y="389" width="420" height="36" rx="12" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="318" y="413" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20" fill="#1d4ed8">12</text>
+  <rect x="108" y="430" width="420" height="36" rx="12" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="318" y="454" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20" fill="#1d4ed8">14</text>
+</svg>

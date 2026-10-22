@@ -49,6 +49,8 @@ help_button_configuration: "Config"
 common_back_arrow_alt: "Back"
 help_button_about: "About"
 help_button_add_to_chat: "Add"
+help_button_share: "Share"
+help_share_text: "Share the bot."
 help_button_commands_help: "Commands"
 help_button_language: "Language"
 `)
@@ -77,15 +79,21 @@ func TestHelpKeyboardsUseCallbackCodecAndBotUsername(t *testing.T) {
 	t.Parallel()
 
 	tr := helpTestTranslator(t)
-	aboutKb := getAboutKb(tr)
-	if len(aboutKb.InlineKeyboard) != 4 {
-		t.Fatalf("getAboutKb() rows = %d, want 4", len(aboutKb.InlineKeyboard))
+	aboutKb := getAboutKb(tr, "AlitaRobot")
+	if len(aboutKb.InlineKeyboard) != 5 {
+		t.Fatalf("getAboutKb() rows = %d, want 5", len(aboutKb.InlineKeyboard))
 	}
-	if aboutKb.InlineKeyboard[0][0].Text != "About me" {
-		t.Fatalf("about button text = %q", aboutKb.InlineKeyboard[0][0].Text)
+	if aboutKb.InlineKeyboard[0][0].Text != "Add" {
+		t.Fatalf("add-to-chat button text = %q", aboutKb.InlineKeyboard[0][0].Text)
 	}
-	if !strings.HasPrefix(aboutKb.InlineKeyboard[0][0].CallbackData, "about|v1|") {
-		t.Fatalf("about callback = %q, want encoded about callback", aboutKb.InlineKeyboard[0][0].CallbackData)
+	if aboutKb.InlineKeyboard[0][1].Text != "Share" {
+		t.Fatalf("share button text = %q", aboutKb.InlineKeyboard[0][1].Text)
+	}
+	if aboutKb.InlineKeyboard[1][0].Text != "About me" {
+		t.Fatalf("about button text = %q", aboutKb.InlineKeyboard[1][0].Text)
+	}
+	if !strings.HasPrefix(aboutKb.InlineKeyboard[1][0].CallbackData, "about|v1|") {
+		t.Fatalf("about callback = %q, want encoded about callback", aboutKb.InlineKeyboard[1][0].CallbackData)
 	}
 
 	startKb := getStartMarkup(tr, "AlitaRobot")

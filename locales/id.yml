@@ -1452,6 +1452,9 @@ help_button_configuration: "Konfigurasi ⚙️"
 help_button_about: "Tentang ✨"
 help_button_add_to_chat: "➕ Tambahkan saya ke obrolan!"
 help_button_add_alita: "➕ Tambahkan Alita ke obrolan!"
+help_button_share: "📤 Bagikan"
+help_share_text: "Alita Robot — bot manajemen grup Telegram yang gratis dan open source."
+help_about_panel_hint: "\n\n📊 Admin: buka dasbor kapan saja dari tombol menu di samping kotak pesan."
 help_button_commands_help: "📚 Perintah & Bantuan"
 help_button_language: "Bahasa 🌏"
 help_click_button_info: "Klik tombol di bawah untuk mendapatkan info tentang saya!"
@@ -1744,7 +1747,7 @@ aispam_breaker_notice: "⚠️ Pemeriksaan spam AI dijeda di chat ini selama beb
 spamdb_help_msg: |
   <b>🛡 Database Spam</b>
 
-  Pemeriksaan opsional yang mencari setiap anggota baru di database spam saat mereka bergabung, lalu menindak yang terdaftar. CAS (cas.chat) diperiksa secara bawaan; lols.bot bisa ditambahkan.
+  Pemeriksaan opsional yang mencari setiap anggota baru di database spam saat mereka bergabung, lalu menindak yang terdaftar. CAS (cas.chat) diperiksa secara bawaan; lols.bot dan jaringan Shared bans milik bot ini bisa ditambahkan.
 
   Admin, pengguna yang disetujui, dan bot tidak pernah diperiksa. Jika sebuah database tidak bisa dihubungi, anggota tetap masuk. Setiap tindakan hanya dilaporkan ke kanal log, tidak pernah di grup.
 
@@ -1755,30 +1758,81 @@ spamdb_help_msg: |
 
   × /spamdb `<on/off>`: Aktifkan atau nonaktifkan pemeriksaan di chat ini.
 
-  × /spamdb db `<cas/lols>` `<on/off>`: Pilih database. CAS aktif secara bawaan, dan minimal satu harus tetap aktif. lols.bot mendaftarkan akun lebih agresif, jadi lebih banyak positif palsu.
+  × /spamdb db `<cas/lols/shared>` `<on/off>`: Pilih database. CAS aktif secara bawaan, dan minimal satu harus tetap aktif. lols.bot mendaftarkan akun lebih agresif, jadi lebih banyak positif palsu. Shared bans nonaktif secara bawaan, membutuhkan jaringan reputasi bersama dari operator, dan mendaftarkan pengguna yang baru-baru ini dikeluarkan oleh beberapa chat.
 
   × /spamdb action `<ban/mute/log>`: Pilih tindakan untuk anggota yang terdaftar. Bawaannya ban; log hanya melaporkannya.
 
 
-  Pemeriksaan nonaktif di semua chat sampai admin mengaktifkannya. Jika aktif, ID Telegram setiap anggota baru dikirim ke setiap database yang dipilih (cas.chat, lols.bot).
+  Pemeriksaan nonaktif di semua chat sampai admin mengaktifkannya. Jika aktif, ID Telegram setiap anggota baru dikirim ke setiap database eksternal yang dipilih (cas.chat, lols.bot). Shared bans tetap di dalam bot dan tidak mengirim apa pun.
 spamdb_status_enabled: "Pemeriksaan database spam saat bergabung <b>aktif</b> di chat ini. Anggota yang terdaftar mendapat: <code>{action}</code>."
 spamdb_status_disabled: "Pemeriksaan database spam saat bergabung <b>nonaktif</b> di chat ini. Aktifkan dengan <code>/spamdb on</code>."
 spamdb_status_databases: "<b>Database:</b> {databases}. Ubah dengan <code>/spamdb db</code>."
+spamdb_status_db_on: "{database} (aktif)"
+spamdb_status_db_off: "{database} (nonaktif)"
+spamdb_status_db_on_inactive: "{database} (aktif, tetapi tidak berjalan: operator bot telah mematikan jaringan larangan bersama)"
 spamdb_status_globally_disabled: "⚠️ Tidak tersedia: operator bot telah mematikan pemeriksaan database spam, jadi tidak ada anggota yang diperiksa."
 spamdb_data_notice: "<b>Yang dikirim:</b> ID Telegram setiap anggota baru, ke {services}. Tidak ada yang lain keluar dari bot."
+spamdb_shared_data_notice: "<b>Shared bans</b> dihitung dari peristiwa moderasi bot ini sendiri; tidak ada informasi tentang chat ini atau anggotanya yang dikirim ke mana pun untuk itu."
 spamdb_enabled_success: "✅ Pemeriksaan database spam saat bergabung sekarang <b>aktif</b>. Anggota baru dicari di database yang dipilih saat bergabung."
 spamdb_disabled_success: "❌ Pemeriksaan database spam saat bergabung sekarang <b>nonaktif</b>."
 spamdb_globally_disabled: "❌ Saya tidak bisa mengaktifkan pemeriksaan database spam: operator bot telah mematikannya. Tidak ada yang berubah."
+spamdb_db_shared_disabled: "❌ Saya tidak bisa mengaktifkan Shared bans: operator bot belum mengaktifkan jaringan reputasi bersama. Tidak ada yang berubah."
 spamdb_invalid_option: "Saya hanya mengerti opsi dari: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>/<code>db</code>"
 spamdb_invalid_action: "Pilih tindakan dari: <code>ban</code>/<code>mute</code>/<code>log</code>. Contoh: <code>/spamdb action mute</code>"
 spamdb_action_success: "✅ Anggota yang terdaftar sekarang mendapat: <code>{action}</code>."
-spamdb_db_usage: "Pilih database dan <code>on</code>/<code>off</code>: <code>cas</code> (CAS, aktif secara bawaan) atau <code>lols</code> (lols.bot). Contoh: <code>/spamdb db lols on</code>"
+spamdb_db_usage: "Pilih database dan <code>on</code>/<code>off</code>: <code>cas</code> (CAS, aktif secara bawaan), <code>lols</code> (lols.bot) atau <code>shared</code> (Shared bans, nonaktif secara bawaan). Contoh: <code>/spamdb db lols on</code>"
 spamdb_db_enabled: "✅ Anggota baru sekarang akan dicari di {database}."
 spamdb_db_disabled: "❌ Anggota baru tidak akan lagi dicari di {database}."
-spamdb_db_last: "❌ {database} adalah satu-satunya database yang tersisa, jadi tetap aktif. Aktifkan yang lain dulu, atau matikan pemeriksaan dengan <code>/spamdb off</code>."
+spamdb_db_last: "❌ {database} adalah satu-satunya database yang tersisa, jadi tetap aktif. Aktifkan database lain dulu, atau matikan pemeriksaan dengan <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. ID Telegram setiap anggota baru sekarang dikirim ke lols.bot."
 spamdb_db_enabled_idle: "✅ {database} dipilih, tetapi tidak ada yang dicari selama pemeriksaan mati. Lihat statusnya dengan <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. Setelah pemeriksaan aktif, ID Telegram setiap anggota baru akan dikirim ke lols.bot."
+
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Ringkasan mingguan</b>
+
+  Bot menghitung pesan, bergabung, dan keluar di chat ini setiap hari dalam UTC dan menyimpan totalnya selama satu tahun. Admin dapat mengaktifkan ringkasan mingguan yang mengirim total minggu sebelumnya, dengan perubahan dari minggu sebelumnya, setiap Senin setelah 00:00 UTC. Ringkasan dikirim ke kanal log jika chat ini memilikinya, jika tidak ke grup.
+
+  *Perintah admin:*
+
+  × /digest: Tampilkan apakah ringkasan aktif dan ke mana dikirim.
+  × /digest on: Aktifkan ringkasan mingguan.
+  × /digest off: Nonaktifkan ringkasan mingguan.
+  × /digest here: Kirim ringkasan ke grup ini.
+  × /digest log: Kirim ringkasan ke kanal log (perlu kanal log).
+  × /digest now: Pratinjau minggu ini dengan tampilan yang sama seperti ringkasan.
+
+  Hitungan disimpan per chat dan tidak pernah menyertakan teks pesan.
+digest_globally_disabled: "❌ Operator bot menonaktifkan ringkasan."
+digest_usage: "Gunakan <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code>, atau <code>/digest now</code>."
+digest_status_title: "<b>📊 Ringkasan mingguan</b>"
+digest_status_enabled: "Status: <b>aktif</b>"
+digest_status_disabled: "Status: <b>nonaktif</b>"
+digest_destination_log: "kanal log"
+digest_destination_group: "grup ini"
+digest_status_destination_default: "Tujuan: <b>{destination}</b> (bawaan)"
+digest_status_destination_set: "Tujuan: <b>{destination}</b> (dipilih admin)"
+digest_status_hint: "Gunakan <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code>, atau <code>/digest now</code>."
+digest_log_unavailable: "❌ Chat ini tidak punya kanal log, jadi ringkasan tidak bisa dikirim ke sana. Atur kanal dengan <code>/setlog</code> atau gunakan <code>/digest here</code>."
+digest_message_title: "<b>📊 Ringkasan mingguan</b>"
+digest_message_period: "<b>Minggu {date}</b> (UTC)"
+digest_message_messages: "Pesan: <b>{count}</b> — {change}"
+digest_message_joins: "Bergabung: <b>{count}</b> — {change}"
+digest_message_leaves: "Keluar: <b>{count}</b> — {change}"
+digest_message_moderation: "Tindakan moderasi: <b>{count}</b> — {change}"
+digest_message_top_action: "Tindakan tersering: <b>{action}</b>"
+digest_message_empty: "😴 <b>Tidak ada aktivitas tercatat</b>\nTidak ada pesan, bergabung, keluar, atau tindakan moderasi pada periode ini."
+digest_action_ban: "blokir"
+digest_action_kick: "keluarkan"
+digest_action_mute: "bisu"
+digest_action_unban: "buka blokir"
+digest_change_up: "▲ {percent}% dari minggu sebelumnya"
+digest_change_down: "▼ {percent}% dari minggu sebelumnya"
+digest_change_same: "tidak berubah dari minggu sebelumnya"
+digest_change_new: "baru"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Buka dasbor"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2848,6 +2902,8 @@ rules_extend_msg: |
   /resetrulesbtn — sama dengan /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — tampilkan atau ubah pemeriksaan database spam, pilih database-nya, atau atur tindakannya
+digest_extend_msg: |
+  /digest — tampilkan status ringkasan mingguan, aktifkan atau nonaktifkan, pilih tujuannya, atau lihat pratinjaunya
 warns_extend_msg: |
   /warn — beri peringatan pengguna
   /swarn — beri peringatan dan hapus perintahmu
@@ -2868,3 +2924,7 @@ settings_open_in_pm: "Ketuk tombol untuk melihat pengaturan grup ini di obrolan 
 settings_open_in_pm_button: "Buka pengaturan di obrolan pribadi"
 settings_btn_refresh: "🔄 Segarkan"
 settings_btn_other_group: "↩️ Grup lain"
+
+# Admin panel (Telegram Mini App) PM deep link
+panel_open_message: "Ketuk tombol di bawah untuk membuka panel admin untuk grup ini."
+panel_open_button: "Buka panel admin"

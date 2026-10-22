@@ -1422,6 +1422,9 @@ help_button_configuration: "Configuração ⚙️"
 help_button_about: "Sobre ✨"
 help_button_add_to_chat: "➕ Me adicione ao chat!"
 help_button_add_alita: "➕ Adicione Alita ao chat!"
+help_button_share: "📤 Compartilhar"
+help_share_text: "Alita Robot — um bot gratuito e de código aberto para administrar grupos no Telegram."
+help_about_panel_hint: "\n\n📊 Admins: abram o painel a qualquer momento pelo botão de menu ao lado da caixa de mensagem."
 help_button_commands_help: "📚 Comandos & Ajuda"
 help_button_language: "Idioma 🌏"
 help_click_button_info: "Clique no botão abaixo para obter informações sobre mim!"
@@ -1716,7 +1719,7 @@ aispam_breaker_notice: "⚠️ As verificações de spam com IA estão pausadas 
 spamdb_help_msg: |
   <b>🛡 Base de spam</b>
 
-  Uma verificação opcional que procura cada novo membro em bases de spam ao entrar e age sobre os que estão listados. O CAS (cas.chat) é consultado por padrão; o lols.bot pode ser adicionado.
+  Uma verificação opcional que procura cada novo membro em bases de spam ao entrar e age sobre os que estão listados. O CAS (cas.chat) é consultado por padrão; o lols.bot e a rede Shared bans do próprio bot podem ser adicionados.
 
   Admins, usuários aprovados e bots nunca são verificados. Se uma base não responder, o membro entra. Cada ação é informada só no canal de logs, nunca no grupo.
 
@@ -1727,30 +1730,81 @@ spamdb_help_msg: |
 
   × /spamdb `<on/off>`: Ativa ou desativa a verificação neste chat.
 
-  × /spamdb db `<cas/lols>` `<on/off>`: Escolhe as bases. O CAS fica ativado por padrão, e pelo menos uma precisa continuar ativada. O lols.bot lista contas de forma mais agressiva, então haverá mais falsos positivos.
+  × /spamdb db `<cas/lols/shared>` `<on/off>`: Escolhe as bases. O CAS fica ativado por padrão, e pelo menos uma precisa continuar ativada. O lols.bot lista contas de forma mais agressiva, então haverá mais falsos positivos. O Shared bans fica desativado por padrão, exige a rede de reputação compartilhada do operador e lista usuários que vários chats removeram recentemente.
 
   × /spamdb action `<ban/mute/log>`: Escolhe o que acontece com um membro listado. O padrão é ban; log só informa.
 
 
-  A verificação fica desativada em todos os chats até um admin ativá-la. Ao ativá-la, o ID do Telegram de cada novo membro é enviado a cada base escolhida (cas.chat, lols.bot).
+  A verificação fica desativada em todos os chats até um admin ativá-la. Ao ativá-la, o ID do Telegram de cada novo membro é enviado a cada base externa escolhida (cas.chat, lols.bot). O Shared bans fica dentro do bot e não envia nada.
 spamdb_status_enabled: "A verificação de bases de spam na entrada está <b>ativada</b> neste chat. Membros listados recebem: <code>{action}</code>."
 spamdb_status_disabled: "A verificação de bases de spam na entrada está <b>desativada</b> neste chat. Ative com <code>/spamdb on</code>."
 spamdb_status_databases: "<b>Bases:</b> {databases}. Altere com <code>/spamdb db</code>."
+spamdb_status_db_on: "{database} (ativada)"
+spamdb_status_db_off: "{database} (desativada)"
+spamdb_status_db_on_inactive: "{database} (ativada, mas inativa: o operador do bot desativou a rede de banimentos compartilhados)"
 spamdb_status_globally_disabled: "⚠️ Indisponível: o operador do bot desativou a verificação da base de spam, então nenhum membro está sendo verificado."
 spamdb_data_notice: "<b>O que é enviado:</b> o ID do Telegram de cada novo membro, a {services}. Nada mais sai do bot."
+spamdb_shared_data_notice: "<b>Shared bans</b> é calculado a partir dos eventos de moderação deste bot; nada sobre este chat ou seus membros é enviado a lugar algum para isso."
 spamdb_enabled_success: "✅ A verificação de bases de spam na entrada agora está <b>ativada</b>. Novos membros são procurados nas bases escolhidas ao entrar."
 spamdb_disabled_success: "❌ A verificação de bases de spam na entrada agora está <b>desativada</b>."
 spamdb_globally_disabled: "❌ Não posso ativar a verificação de bases de spam: o operador do bot a desativou. Nada mudou."
+spamdb_db_shared_disabled: "❌ Não posso ativar o Shared bans: o operador do bot não habilitou a rede de reputação compartilhada. Nada mudou."
 spamdb_invalid_option: "Só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>/<code>db</code>"
 spamdb_invalid_action: "Escolha uma ação entre: <code>ban</code>/<code>mute</code>/<code>log</code>. Exemplo: <code>/spamdb action mute</code>"
 spamdb_action_success: "✅ Membros listados agora recebem: <code>{action}</code>."
-spamdb_db_usage: "Escolha uma base e <code>on</code>/<code>off</code>: <code>cas</code> (CAS, ativada por padrão) ou <code>lols</code> (lols.bot). Exemplo: <code>/spamdb db lols on</code>"
+spamdb_db_usage: "Escolha uma base e <code>on</code>/<code>off</code>: <code>cas</code> (CAS, ativada por padrão), <code>lols</code> (lols.bot) ou <code>shared</code> (Shared bans, desativada por padrão). Exemplo: <code>/spamdb db lols on</code>"
 spamdb_db_enabled: "✅ Novos membros agora serão procurados em {database}."
 spamdb_db_disabled: "❌ Novos membros não serão mais procurados em {database}."
-spamdb_db_last: "❌ {database} é a única base restante, então continua ativada. Ative a outra primeiro ou desative a verificação com <code>/spamdb off</code>."
+spamdb_db_last: "❌ {database} é a única base restante, então continua ativada. Ative outra primeiro ou desative a verificação com <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ O lols.bot lista contas de forma mais agressiva que o CAS, então haverá mais falsos positivos. Considere <code>/spamdb action log</code> até confiar nele. O ID do Telegram de cada novo membro agora é enviado ao lols.bot."
 spamdb_db_enabled_idle: "✅ {database} está selecionada, mas nada é procurado enquanto a verificação estiver desativada. Veja o estado dela com <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ O lols.bot lista contas de forma mais agressiva que o CAS, então haverá mais falsos positivos. Considere <code>/spamdb action log</code> até confiar nele. Quando a verificação estiver ativa, o ID do Telegram de cada novo membro será enviado ao lols.bot."
+
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Resumo semanal</b>
+
+  O bot conta as mensagens, entradas e saídas deste chat todos os dias, em UTC, e guarda os totais durante um ano. Os admins podem ativar um resumo semanal que publica os totais da semana anterior, com a variação em relação à semana anterior, toda segunda-feira após as 00:00 UTC. Ele vai para o canal de registro quando este chat tem um; caso contrário, para o grupo.
+
+  *Comandos de administrador:*
+
+  × /digest: Mostra se o resumo está ativo e para onde vai.
+  × /digest on: Ativa o resumo semanal.
+  × /digest off: Desativa o resumo semanal.
+  × /digest here: Envia o resumo para este grupo.
+  × /digest log: Envia o resumo para o canal de registro (precisa de um canal de registro).
+  × /digest now: Mostra uma prévia desta semana com o mesmo formato do resumo.
+
+  As contagens são guardadas por chat e nunca incluem o texto das mensagens.
+digest_globally_disabled: "❌ O operador do bot desativou o resumo."
+digest_usage: "Use <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> ou <code>/digest now</code>."
+digest_status_title: "<b>📊 Resumo semanal</b>"
+digest_status_enabled: "Estado: <b>ativado</b>"
+digest_status_disabled: "Estado: <b>desativado</b>"
+digest_destination_log: "o canal de registro"
+digest_destination_group: "este grupo"
+digest_status_destination_default: "Destino: <b>{destination}</b> (o padrão)"
+digest_status_destination_set: "Destino: <b>{destination}</b> (escolhido por um admin)"
+digest_status_hint: "Use <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> ou <code>/digest now</code>."
+digest_log_unavailable: "❌ Este chat não tem canal de registro, então o resumo não pode ir para lá. Configure um com <code>/setlog</code> ou use <code>/digest here</code>."
+digest_message_title: "<b>📊 Resumo semanal</b>"
+digest_message_period: "<b>Semana de {date}</b> (UTC)"
+digest_message_messages: "Mensagens: <b>{count}</b> — {change}"
+digest_message_joins: "Entradas: <b>{count}</b> — {change}"
+digest_message_leaves: "Saídas: <b>{count}</b> — {change}"
+digest_message_moderation: "Ações de moderação: <b>{count}</b> — {change}"
+digest_message_top_action: "Ação mais frequente: <b>{action}</b>"
+digest_message_empty: "😴 <b>Nenhuma atividade registrada</b>\nNenhuma mensagem, entrada, saída ou ação de moderação neste período."
+digest_action_ban: "banimentos"
+digest_action_kick: "expulsões"
+digest_action_mute: "silenciamentos"
+digest_action_unban: "desbanimentos"
+digest_change_up: "▲ {percent}% em relação à semana anterior"
+digest_change_down: "▼ {percent}% em relação à semana anterior"
+digest_change_same: "sem mudança em relação à semana anterior"
+digest_change_new: "novo"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Abrir o painel"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2821,6 +2875,8 @@ rules_extend_msg: |
   /resetrulesbtn — igual a /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — mostrar ou alternar a verificação de bases de spam, escolher as bases ou definir sua ação
+digest_extend_msg: |
+  /digest — mostra o estado do resumo semanal, ativa ou desativa, escolhe o destino ou mostra uma prévia
 warns_extend_msg: |
   /warn — advertir um usuário
   /swarn — advertir e apagar seu comando
@@ -2841,3 +2897,7 @@ settings_open_in_pm: "Toque no botão para ver as configurações deste grupo no
 settings_open_in_pm_button: "Abrir configurações no privado"
 settings_btn_refresh: "🔄 Atualizar"
 settings_btn_other_group: "↩️ Outro grupo"
+
+# Admin panel (Telegram Mini App) PM deep link
+panel_open_message: "Toque no botão abaixo para abrir o painel de administração deste grupo."
+panel_open_button: "Abrir painel de administração"

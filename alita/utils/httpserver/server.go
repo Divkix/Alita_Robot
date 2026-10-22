@@ -203,6 +203,17 @@ func (s *Server) RegisterPPROF() {
 	log.Info("[HTTPServer] Registered /debug/pprof/* endpoints")
 }
 
+// RegisterPanel mounts the admin panel handler at /panel and /panel/. It is
+// only called when the panel is enabled; without it both paths stay 404.
+func (s *Server) RegisterPanel(handler http.Handler) {
+	if handler == nil {
+		return
+	}
+	s.mux.Handle("/panel", handler)
+	s.mux.Handle("/panel/", handler)
+	log.Info("[HTTPServer] Registered /panel Mini App endpoints")
+}
+
 func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, secret, domain string) error {
 	s.bot = bot
 	s.dispatcher = dispatcher

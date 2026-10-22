@@ -27,11 +27,20 @@ type reportCardAction struct {
 	buttonKey  string
 	successKey string
 	status     string
+	// eventAction is the moderation_events action recorded when the decision
+	// succeeds; delete and dismiss record nothing.
+	eventAction string
 }
 
 var reportCardActions = map[string]reportCardAction{
-	"ban":     {buttonKey: "reports_button_ban", successKey: "reports_success_ban", status: models.ReportStatusBanned},
-	"mute":    {buttonKey: "reports_button_mute", successKey: "reports_success_mute", status: models.ReportStatusMuted},
+	"ban": {
+		buttonKey: "reports_button_ban", successKey: "reports_success_ban",
+		status: models.ReportStatusBanned, eventAction: models.ModerationActionBan,
+	},
+	"mute": {
+		buttonKey: "reports_button_mute", successKey: "reports_success_mute",
+		status: models.ReportStatusMuted, eventAction: models.ModerationActionMute,
+	},
 	"delete":  {buttonKey: "reports_button_delete", successKey: "reports_success_delete", status: models.ReportStatusDeleted},
 	"dismiss": {buttonKey: "reports_button_dismiss", successKey: "reports_resolved_success", status: models.ReportStatusDismissed},
 }
@@ -120,6 +129,9 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Errorf("[Reports] %s on report %d failed: %v", actionName, reportID, err)
 		_ = answer("reports_action_failed")
 		return err
+	}
+	if action.eventAction != "" {
+		recordModerationEvent(rep.ChatId, user.Id, rep.ReportedUserId, action.eventAction, "")
 	}
 
 	closeReportCard(b, card, action.status, user)

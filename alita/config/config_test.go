@@ -6,12 +6,14 @@ import (
 
 func validBaseConfig() *Config {
 	return &Config{
-		BotToken:     "test-token",
-		OwnerId:      1,
-		MessageDump:  1,
-		DatabaseURL:  "postgres://localhost/test",
-		RedisAddress: "localhost:6379",
-		HTTPPort:     8080,
+		BotToken:             "test-token",
+		OwnerId:              1,
+		MessageDump:          1,
+		DatabaseURL:          "postgres://localhost/test",
+		RedisAddress:         "localhost:6379",
+		HTTPPort:             8080,
+		ReputationMinChats:   DefaultReputationMinChats,
+		ReputationWindowDays: DefaultReputationWindowDays,
 	}
 }
 
@@ -192,6 +194,36 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name:    "DBConnMaxIdleTimeMin 61 returns error",
 			setup:   func(c *Config) { c.DBConnMaxIdleTimeMin = 61 },
+			wantErr: true,
+		},
+		{
+			name:    "ReputationMinChats 1 returns error",
+			setup:   func(c *Config) { c.ReputationMinChats = 1 },
+			wantErr: true,
+		},
+		{
+			name:    "ReputationMinChats 2 succeeds",
+			setup:   func(c *Config) { c.ReputationMinChats = 2 },
+			wantErr: false,
+		},
+		{
+			name:    "ReputationWindowDays 0 returns error",
+			setup:   func(c *Config) { c.ReputationWindowDays = 0 },
+			wantErr: true,
+		},
+		{
+			name:    "ReputationWindowDays 1 succeeds",
+			setup:   func(c *Config) { c.ReputationWindowDays = 1 },
+			wantErr: false,
+		},
+		{
+			name:    "ReputationWindowDays 180 succeeds",
+			setup:   func(c *Config) { c.ReputationWindowDays = MaxReputationWindowDays },
+			wantErr: false,
+		},
+		{
+			name:    "ReputationWindowDays 181 returns error",
+			setup:   func(c *Config) { c.ReputationWindowDays = MaxReputationWindowDays + 1 },
 			wantErr: true,
 		},
 	}

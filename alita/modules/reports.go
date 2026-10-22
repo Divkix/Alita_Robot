@@ -587,6 +587,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 			log.Error(err)
 			return err
 		}
+		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionKick, "")
 	case "ban":
 		replyQuery, _ = tr.GetString("reports_success_ban")
 		bannedText, _ := tr.GetString("reports_user_banned")
@@ -598,6 +599,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 			log.Error(err)
 			return err
 		}
+		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
 
 	case "delete":
 		replyQuery, _ = tr.GetString("reports_success_delete")

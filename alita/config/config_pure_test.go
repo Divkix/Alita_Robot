@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 // t.Parallel() because it mutates os.Args and must run sequentially.
@@ -266,6 +267,160 @@ func TestLoadConfig(t *testing.T) {
 					t.Fatalf("RedisTLSInsecureSkipVerify = %v, want %v", cfg.RedisTLSInsecureSkipVerify, want)
 				}
 			})
+		}
+	})
+
+	t.Run("ENABLE_DIGEST", func(t *testing.T) {
+		for _, tc := range []struct {
+			env  string
+			want bool
+		}{
+			{"", true},
+			{"true", true},
+			{"false", false},
+		} {
+			t.Run("env="+tc.env, func(t *testing.T) {
+				setRequiredEnv(t)
+				t.Setenv("ENABLE_DIGEST", tc.env)
+
+				cfg, err := LoadConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.EnableDigest != tc.want {
+					t.Fatalf("EnableDigest = %v, want %v", cfg.EnableDigest, tc.want)
+				}
+			})
+		}
+	})
+
+	t.Run("DIGEST_INTERVAL", func(t *testing.T) {
+		for _, tc := range []struct {
+			env  string
+			want time.Duration
+		}{
+			{"", time.Hour},
+			{"30m", 30 * time.Minute},
+			{"6h", 6 * time.Hour},
+		} {
+			t.Run("env="+tc.env, func(t *testing.T) {
+				setRequiredEnv(t)
+				t.Setenv("DIGEST_INTERVAL", tc.env)
+
+				cfg, err := LoadConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.DigestInterval != tc.want {
+					t.Fatalf("DigestInterval = %v, want %v", cfg.DigestInterval, tc.want)
+				}
+			})
+		}
+	})
+}
+
+// A digest cadence typo fails startup instead of silently running hourly.
+func TestDigestConfigRejectsInvalidInterval(t *testing.T) {
+	for _, raw := range []string{"soon", "0s", "-5m"} {
+		t.Run("env="+raw, func(t *testing.T) {
+			setRequiredEnv(t)
+			t.Setenv("DIGEST_INTERVAL", raw)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatalf("LoadConfig() accepted DIGEST_INTERVAL=%q", raw)
+			}
+		})
+	}
+}
+
+func setPanelTestRequiredEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("BOT_TOKEN", "tk")
+	t.Setenv("OWNER_ID", "1")
+	t.Setenv("MESSAGE_DUMP", "1")
+	t.Setenv("DATABASE_URL", "postgres://localhost/test")
+	t.Setenv("REDIS_ADDRESS", "redis:6379")
+	t.Setenv("REDIS_URL", "")
+	t.Setenv("HTTP_PORT", "8080")
+}
+
+func TestPanelConfigDefaultsDisabled(t *testing.T) {
+	setPanelTestRequiredEnv(t)
+	t.Setenv("PANEL_ENABLED", "")
+	t.Setenv("PANEL_PUBLIC_URL", "")
+	t.Setenv("PANEL_MINIAPP_SHORTNAME", "")
+	t.Setenv("PANEL_SESSION_MAX_AGE", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.PanelEnabled {
+		t.Fatal("PanelEnabled = true with no PANEL_ENABLED, want false")
+	}
+	if cfg.PanelPublicURL != "" {
+		t.Fatalf("PanelPublicURL = %q, want empty", cfg.PanelPublicURL)
+	}
+	if cfg.PanelSessionMaxAge != 24*time.Hour {
+		t.Fatalf("PanelSessionMaxAge = %v, want 24h", cfg.PanelSessionMaxAge)
+	}
+}
+
+func TestPanelConfigEnabled(t *testing.T) {
+	setPanelTestRequiredEnv(t)
+	t.Setenv("PANEL_ENABLED", "true")
+	t.Setenv("PANEL_PUBLIC_URL", "https://panel.example.com/")
+	t.Setenv("PANEL_MINIAPP_SHORTNAME", "@alita_panel")
+	t.Setenv("PANEL_SESSION_MAX_AGE", "12h")
+	t.Setenv("DEBUG", "false")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.PanelEnabled {
+		t.Fatal("PanelEnabled = false, want true")
+	}
+	if cfg.PanelPublicURL != "https://panel.example.com" {
+		t.Fatalf("PanelPublicURL = %q, want the trailing slash trimmed", cfg.PanelPublicURL)
+	}
+	if cfg.PanelMiniAppShortName != "alita_panel" {
+		t.Fatalf("PanelMiniAppShortName = %q, want the leading @ trimmed", cfg.PanelMiniAppShortName)
+	}
+	if cfg.PanelSessionMaxAge != 12*time.Hour {
+		t.Fatalf("PanelSessionMaxAge = %v, want 12h", cfg.PanelSessionMaxAge)
+	}
+}
+
+func TestPanelConfigValidation(t *testing.T) {
+	t.Run("public URL required when enabled", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("PANEL_ENABLED", "true")
+		t.Setenv("PANEL_PUBLIC_URL", "")
+		if _, err := LoadConfig(); err == nil {
+			t.Fatal("expected an error for PANEL_ENABLED without PANEL_PUBLIC_URL")
+		}
+	})
+
+	t.Run("http rejected unless debug", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("PANEL_ENABLED", "true")
+		t.Setenv("PANEL_PUBLIC_URL", "http://panel.example.com")
+		t.Setenv("DEBUG", "false")
+		if _, err := LoadConfig(); err == nil {
+			t.Fatal("expected an error for a non-HTTPS PANEL_PUBLIC_URL")
+		}
+
+		t.Setenv("DEBUG", "true")
+		if _, err := LoadConfig(); err != nil {
+			t.Fatalf("unexpected error with DEBUG=true: %v", err)
+		}
+	})
+
+	t.Run("invalid session age fails startup", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("PANEL_SESSION_MAX_AGE", "24 hours")
+		if _, err := LoadConfig(); err == nil {
+			t.Fatal("expected an error for a non-duration PANEL_SESSION_MAX_AGE")
 		}
 	})
 }

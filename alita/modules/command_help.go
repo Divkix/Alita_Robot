@@ -32,6 +32,7 @@ var commandHelpModules = map[string]string{
 	"tmute":      "mutes",
 	"dmute":      "mutes",
 	"unmute":     "mutes",
+	"digest":     "digest",
 	"warn":       "warns",
 	"swarn":      "warns",
 	"rmwarn":     "warns",

@@ -187,6 +187,22 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   reply-only commands (`replyOnlyCommands`: /dban, /dkick, /dmute), which must have none;
   `TestEveryHelpCommandHasAnExample` enforces it. Help sent to PM shows the optional `<cmd>_pm_example` (the group
   first) in place of `<cmd>_example` when the command has one.
+- `moderation_events` gets one row per successful human moderation action, written only by `recordModerationEvent`
+  (`alita/modules/moderation.go`) from commands and inline moderation buttons. Never record automated actions
+  (spamdb, captcha, antiraid, locks, blacklists, warn limits): the shared-reputation join check reads this table, and a
+  join it blocks must not feed the signal back. A reputation unban clears the signal only when the same chat removed
+  the user earlier in the window.
+- Daily activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats` every
+  60 s and on shutdown (before DB close). Never add a DB write per message; joins count after
+  `claimRecentJoinProcessing`, leaves in `leftMember`. Counts are approximate across a crash by design.
+- The weekly digest sends at most once per chat per week through the `digestsettings.Claim` compare-and-set on
+  `last_sent_at`. A transient send error `Restore`s the claim to retry; a permanent one
+  (`helpers.IsPermanentSendError`) keeps it.
+- The admin panel (`alita/panel`, off unless `PANEL_ENABLED`) authenticates only through `VerifyInitData`. Every
+  `/chats/{id}` endpoint starts with `chatRequest` (groups only, current members only; non-admins read-only). Gate
+  each write with `requirePermission` set to the Telegram right the equivalent command checks. Never call
+  `chat_status` `Can*` helpers from the panel: they reply into the chat. Render server data with DOM APIs, never
+  `innerHTML`.
 
 ## Go rules
 
@@ -215,9 +231,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Defaults that surprise: `REDIS_DB=1` (with `REDIS_URL` set and `REDIS_DB` unset, the URL path decides; no path
   means DB 0); `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and background stats default
   on only when `DEBUG=false` (an explicit `true` still enables them in debug); `HTTP_PORT` falls back to `PORT` then
-  8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB`, where a
-  non-integer or a value outside 0-15 fails startup. Integers that parse but are out of range (`DB_*`,
-  `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
+  8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB` (a
+  non-integer or a value outside 0-15 fails startup) and the shared-reputation settings `REPUTATION_MIN_CHATS` /
+  `REPUTATION_WINDOW_DAYS` (a non-integer or an out-of-range value fails startup). Integers that parse but are out of
+  range (`DB_*`, `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
 
 ## Testing
 

@@ -48,6 +48,37 @@ func IsChatPermissionError(err error, chatId int64) bool {
 	return true
 }
 
+// IsPermanentSendError reports whether err means a send can never succeed
+// until someone changes the chat's state: the bot was removed or is not a
+// member, the chat is gone or was deactivated, the group was upgraded, or the
+// bot may not send messages there. Retrying the same send cannot fix any of
+// them; a network error or a flood wait is not permanent.
+func IsPermanentSendError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+	if IsPermissionError(errStr) {
+		return true
+	}
+
+	permanentErrors := []string{
+		"bot was kicked",
+		"bot is not a member",
+		"chat not found",
+		"group chat was deactivated",
+		"group chat was upgraded to a supergroup",
+	}
+	for _, permanentErr := range permanentErrors {
+		if strings.Contains(errStr, permanentErr) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
 	restricted, restrictedFlagPresent := cache.IsChatRestrictedState(chatId)
 	if restricted {

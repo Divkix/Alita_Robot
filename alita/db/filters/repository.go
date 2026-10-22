@@ -3,6 +3,7 @@ package filters
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -51,6 +52,33 @@ func GetFiltersListContext(ctx context.Context, chatID int64) (allFilterWords []
 		return []string{}
 	}
 	return result
+}
+
+// ListFiltersContext returns the chat's filters ordered by lower-cased keyword
+// so pages stay stable. query matches the keyword or the reply
+// case-insensitively; limit<=0 means every matching row and offset skips
+// matching rows. The panel reads replies through this; the bot's matcher keeps
+// using the lighter cached keyword list.
+func ListFiltersContext(ctx context.Context, chatID int64, query string, limit, offset int) ([]models.ChatFilters, error) {
+	tx := db.DB.WithContext(ctx).Model(&models.ChatFilters{}).Where("chat_id = ?", chatID)
+	if query != "" {
+		pattern := "%" + strings.ToLower(query) + "%"
+		tx = tx.Where("(LOWER(keyword) LIKE ? OR LOWER(filter_reply) LIKE ?)", pattern, pattern)
+	}
+	tx = tx.Order("LOWER(keyword) ASC, keyword ASC")
+	if offset > 0 {
+		tx = tx.Offset(offset)
+	}
+	if limit > 0 {
+		tx = tx.Limit(limit)
+	}
+
+	rows := make([]models.ChatFilters, 0)
+	if err := tx.Find(&rows).Error; err != nil {
+		log.Errorf("[Database] ListFiltersContext: %v - %d", err, chatID)
+		return nil, err
+	}
+	return rows, nil
 }
 
 func DoesFilterExists(chatId int64, keyword string) bool {

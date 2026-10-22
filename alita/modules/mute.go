@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -115,7 +116,8 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 			}
 			return nil
 		},
-		logAction: "tmute",
+		logAction:   "tmute",
+		eventAction: models.ModerationActionMute,
 	}
 }
 
@@ -129,8 +131,9 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
 			return err
 		},
-		reply:     muteReplyWithButton,
-		logAction: "mute",
+		reply:       muteReplyWithButton,
+		logAction:   "mute",
+		eventAction: models.ModerationActionMute,
 	}
 }
 
@@ -151,7 +154,8 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 			_ = helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Msg.MessageId)
 			return nil
 		},
-		logAction: "smute",
+		logAction:   "smute",
+		eventAction: models.ModerationActionMute,
 	}
 }
 
@@ -183,8 +187,9 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 			_, err = c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
 			return err
 		},
-		reply:     muteReplyWithButton,
-		logAction: "dmute",
+		reply:       muteReplyWithButton,
+		logAction:   "dmute",
+		eventAction: models.ModerationActionMute,
 	}
 }
 

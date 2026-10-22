@@ -230,3 +230,17 @@ func TestCheckCachesVerdictsPerSource(t *testing.T) {
 		t.Fatalf("other replica hit CAS=%d lols=%d, want 1 each", cas.hits.Load(), lols.hits.Load())
 	}
 }
+
+// The name reaches the log-channel notice, so it is the admin-facing label.
+func TestSourceNames(t *testing.T) {
+	want := map[Source]string{
+		SourceCAS:    "CAS",
+		SourceLols:   "lols.bot",
+		SourceShared: "Shared bans",
+	}
+	for src, name := range want {
+		if got := src.Name(); got != name {
+			t.Errorf("%q.Name() = %q, want %q", src, got, name)
+		}
+	}
+}

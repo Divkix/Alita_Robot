@@ -100,6 +100,25 @@ make psql-migrate
   Database setup, migrations, connection pooling, and schema design.
 </Card>
 
+## Admin Panel (Mini App)
+
+An optional Telegram Mini App dashboard is served by the same HTTP server under
+`/panel`. It is off by default: with `PANEL_ENABLED` unset or `false`, `/panel`
+and `/panel/api/v1/*` return 404, group `/settings` and `/help` add no dashboard
+button, the menu button is left alone, and the bot behaves exactly as before.
+
+Enable it with its public HTTPS URL, forward `/panel` from the reverse proxy and
+restart:
+
+```bash
+PANEL_ENABLED=true
+PANEL_PUBLIC_URL=https://bot.example.com/panel   # the URL Telegram opens
+```
+
+<Card title="Admin Panel Guide" href="/self-hosting/admin-panel/" icon="settings">
+  Environment variables, the HTTPS and reverse-proxy setup, the optional BotFather Mini App link, every entry point and the failure modes.
+</Card>
+
 ## Monitoring
 
 Built-in observability endpoints:

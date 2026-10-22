@@ -502,7 +502,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			return err
 		}
-		if err = disableCaptchaForChat(bot, chat.Id); err != nil {
+		if err = DisableCaptchaForChat(bot, chat.Id); err != nil {
 			log.Errorf("[Captcha] Failed to clean up chat %d after disabling captcha: %v", chat.Id, err)
 			text, _ := tr.GetString("captcha_disable_failed")
 			_, _ = msg.Reply(bot, text, nil)
@@ -519,7 +519,9 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 }
 
-func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
+// DisableCaptchaForChat clears the chat's pending captcha attempts and unmutes
+// the users they held, after captcha has been turned off. The panel runs it too.
+func DisableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 	attempts, err := captcha.GetCaptchaAttemptsForChat(chatID)
 	if err != nil {
 		return err

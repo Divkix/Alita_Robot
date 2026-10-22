@@ -1,0 +1,139 @@
+---
+title: Add Alita Robot to your group
+description: What Alita Robot does for a Telegram group — moderation, anti-spam, onboarding, logs, notes and filters — with one tap to add it with the admin rights it uses.
+sidebar:
+  label: Add to your group
+seo:
+  image: /social/add-to-group.png
+---
+
+Alita Robot is a free, open-source Telegram group management bot. It removes
+spam, keeps the chat readable, and gates new members behind a check before they
+can post. Add it once, then enable only the checks you want for that group.
+
+<CardGroup cols={2}>
+  <Card title="Add Alita to your group" href="https://t.me/Alita_Robot?startgroup=botstart&admin=change_info+delete_messages+restrict_members+invite_users+pin_messages+promote_members" icon="plus">
+    Opens Telegram with the admin permissions Alita uses already selected. Pick
+    your group and confirm.
+  </Card>
+  <Card title="Message Alita first" href="https://t.me/Alita_Robot?start=about" icon="message-circle">
+    Want to look around before installing? Alita replies in a private chat with
+    what it can do.
+  </Card>
+</CardGroup>
+
+## What it does
+
+Grouped by the job you are hiring the bot for. Each section links to the commands
+that do the work, so you can check the details before enabling anything.
+
+### Moderation
+
+- Ban, kick, mute, warn, and temporarily restrict members: [bans](/commands/bans/), [mutes](/commands/mutes/), [warns](/commands/warns/).
+- Delete messages in bulk: [purges](/commands/purges/).
+- Let members bring a message to an admin's attention: [reports](/commands/reports/).
+
+### Anti-spam
+
+- Flood control that mutes, kicks, or bans after too many messages: [antiflood](/commands/antiflood/).
+- Word and phrase blacklists with a configurable action: [blacklists](/commands/blacklists/).
+- An optional join check against the CAS and lols.bot spam databases: [spamdb](/commands/spamdb/).
+- Locks for links, forwards, stickers, media, and other message types: [locks](/commands/locks/).
+- Anti-raid mode for mass joins: [antiraid](/commands/antiraid/).
+
+### Onboarding
+
+- A captcha challenge, math or text, before a new member can post: [captcha](/commands/captcha/).
+- Welcome and goodbye messages with placeholders: [greetings](/commands/greetings/).
+- Approved members who skip the flood, blacklist, and captcha checks: [approvals](/commands/approvals/).
+
+### Logs
+
+- Send admin actions to a dedicated log channel: [log channels](/commands/logchannels/).
+
+### Notes, filters, and rules
+
+- Save notes and recall them with a hashtag: [notes](/commands/notes/).
+- Keyword filters that answer automatically: [filters](/commands/filters/).
+- Set the group rules and show them on demand: [rules](/commands/rules/).
+- Pin and unpin messages: [pins](/commands/pins/).
+
+### Fit it to your group
+
+- Pick a language for the group or for yourself: English, Spanish, French, Hindi, Indonesian, Portuguese, or Russian — [languages](/commands/languages/).
+- Turn a single command off for one chat: [disabling](/commands/disabling/).
+- Everything else, command by command: [command reference](/commands/).
+
+## What it looks like
+
+These are illustrations of Alita's replies in the current release, not
+screenshots. The text is the bot's own message text.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="/illustrations/warn-dark.svg" />
+  <img src="/illustrations/warn-light.svg" alt="Illustration of Alita's reply to a warn command, showing the warning count, the reason, and a Remove warn button" width="1200" height="560" loading="lazy" decoding="async" />
+</picture>
+
+*Illustration: a warning adds the reason to the member's record and offers a one-tap “Remove warn”.*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="/illustrations/ban-dark.svg" />
+  <img src="/illustrations/ban-light.svg" alt="Illustration of Alita's reply after banning a member in a group chat" width="1200" height="560" loading="lazy" decoding="async" />
+</picture>
+
+*Illustration: a ban is confirmed in the group, and the action can be logged to a channel.*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="/illustrations/captcha-dark.svg" />
+  <img src="/illustrations/captcha-light.svg" alt="Illustration of Alita's captcha welcome message with a math question and answer buttons" width="1200" height="560" loading="lazy" decoding="async" />
+</picture>
+
+*Illustration: a new member answers a captcha before they can post.*
+
+## What you get
+
+<CardGroup cols={2}>
+  <Card title="Free and open source" href="https://github.com/divkix/Alita_Robot" icon="github">
+    MIT-licensed Go code, developed in the open. Free to use.
+  </Card>
+  <Card title="7 languages" href="/commands/languages/" icon="languages">
+    English, Spanish, French, Hindi, Indonesian, Portuguese, and Russian, chosen
+    per group or per user.
+  </Card>
+  <Card title="Self-hostable" href="/self-hosting/" icon="server">
+    Run your own instance with Docker, a prebuilt binary, or a source build.
+  </Card>
+  <Card title="Per-chat settings" icon="sliders">
+    Every switch, lock, and filter belongs to one chat. Changing one group never
+    touches another.
+  </Card>
+</CardGroup>
+
+## Get started
+
+<Steps>
+  <Step title="Add Alita and confirm the permissions">
+    Use the [add-to-group link](https://t.me/Alita_Robot?startgroup=botstart&admin=change_info+delete_messages+restrict_members+invite_users+pin_messages+promote_members) or the button above, pick the group, and accept the permissions Telegram shows. They are the rights Alita checks before it acts.
+  </Step>
+  <Step title="Set the rules and a welcome">
+    ```
+    /setrules Be kind. No spam, no unsolicited links.
+    /setwelcome Welcome {mention}! Please read /rules before chatting.
+    ```
+  </Step>
+  <Step title="Turn on the checks you want">
+    ```
+    /captcha on
+    /captchamode math
+    /setflood 5
+    /setfloodmode mute
+    ```
+  </Step>
+</Steps>
+
+:::tip[Need help?]
+Ask in the [support chat](https://t.me/DivideSupport), read the
+[quick start guide](/getting-started/quick-start/), or open an issue on
+[GitHub](https://github.com/divkix/Alita_Robot/issues). Every command is listed
+in the [command reference](/commands/).
+:::

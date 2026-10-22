@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -30,6 +31,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -689,6 +691,12 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	// A leave arrives only as this ChatMemberUpdated: cleanService matches the
+	// LeftChatMember service message but never processes it. Counting here is
+	// therefore exactly one increment per membership change, and delivering
+	// the service message too does not add another.
+	stats.RecordLeave(chat.Id)
+
 	// A ban keeps the join claim: a guard that banned the newcomer on one
 	// update of the join must not see the join again on the other.
 	if ctx.ChatMember.NewChatMember.GetStatus() != "kicked" {
@@ -998,13 +1006,15 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			}
 		}
 	case "ban":
-		if _, err = chat.BanMember(b, joinUser.Id, nil); err != nil {
-			if helpers.IsExpectedTelegramError(err) {
-				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+		if _, banErr := chat.BanMember(b, joinUser.Id, nil); banErr != nil {
+			if helpers.IsExpectedTelegramError(banErr) {
+				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUser.Id, chat.Id, banErr)
 			} else {
-				log.Error(err)
-				return err
+				log.Error(banErr)
+				return banErr
 			}
+		} else {
+			recordModerationEvent(chat.Id, user.Id, joinUser.Id, models.ModerationActionBan, "")
 		}
 		// The ban stands even when the request itself is already gone.
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil && !isJoinRequestGone(err) {
