@@ -350,6 +350,8 @@ connections_help_msg:
 
   No privado, os administradores de um grupo também podem usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn e /resetwarns: nomeie primeiro o grupo (título, @username ou ID) e depois o usuário (@username, ID ou menção), ou conecte-se ao grupo. Com uma conexão, só um @username ou ID escolhe outro grupo. É preciso ter as mesmas permissões que no grupo; responder a uma mensagem no privado não indica o usuário, e a resposta e os botões chegam no privado.
 
+  No privado, os membros de um grupo também podem ver as advertências de um usuário nele com /warns se o grupo permitir que membros se conectem (/allowconnect; caso contrário, só os administradores), e os administradores as configurações de advertência do grupo com /warnings: nomeie primeiro o grupo (@username ou ID; os administradores também podem usar o título), depois, para /warns, o usuário, ou conecte-se ao grupo. A resposta chega no privado.
+
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
   se o id for negativo; todos os supergrupos têm ids negativos."

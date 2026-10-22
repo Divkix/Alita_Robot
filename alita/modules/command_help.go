@@ -13,9 +13,9 @@ import (
 
 // commandHelpModules maps each command that answers a wrong call with its own
 // help to the module whose <module>_help_msg documents it. The warn commands
-// (/warn, /swarn, /rmwarn, /resetwarns) do so only from PM: in a group they
-// answer a call without a user with common_no_user_specified alone, as before
-// PM support.
+// (/warn, /swarn, /rmwarn, /resetwarns, /warns) do so only from PM: in a group
+// they answer a call without a user with common_no_user_specified alone, as
+// before PM support.
 var commandHelpModules = map[string]string{
 	"ban":        "bans",
 	"sban":       "bans",
@@ -36,6 +36,8 @@ var commandHelpModules = map[string]string{
 	"swarn":      "warns",
 	"rmwarn":     "warns",
 	"resetwarns": "warns",
+	"warns":      "warns",
+	"warnings":   "warns",
 	"rules":      "rules",
 	"notes":      "notes",
 	"saved":      "notes",

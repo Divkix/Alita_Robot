@@ -27,6 +27,8 @@ From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /set
 
 From PM, a group's admins can also run /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
 
+From PM, a group's members can also see a user's warns there with /warns if the group allows members to connect (/allowconnect; otherwise only its admins can), and its admins the group's warn settings with /warnings: name the group first (its @username or ID; its admins may also use its title), then for /warns the user, or connect to the group. The answer comes to PM.
+
 You can retrieve the chat id by using the /id command in your chat. Don't be surprised if the id is negative; all super groups have negative ids.
 
 ## Module Aliases

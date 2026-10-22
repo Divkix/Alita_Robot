@@ -159,14 +159,14 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   NULL `warned_at` never expires. Reads filter expired entries after the cache and never prune them; only `WarnUser`
   and `RemoveWarn` delete expired entries, under their row locks.
 - A command in `commandHelpModules` answers a call it cannot run with its own entry cut from `<module>_help_msg`; the
-  warn commands (/warn, /swarn, /rmwarn, /resetwarns) do so only from PM, and in a group answer a call without a user
-  with `common_no_user_specified` alone, as before PM support. That help keeps one entry per command (`× /cmd …`,
-  continuation lines up to a blank line or the next entry) in all 7 locales, with no `"` or unknown HTML tags in the
-  entry, and en.yml `<module>_extend_msg` lists `/cmd`; `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it.
-  Each such command also needs a `<cmd>_example` in `locales/config.yml` starting with `/<cmd> `, except reply-only
-  commands (`replyOnlyCommands`: /dban, /dkick, /dmute), which must have none; `TestEveryHelpCommandHasAnExample`
-  enforces it. Help sent to PM shows the optional `<cmd>_pm_example` (the group first) in place of `<cmd>_example`
-  when the command has one.
+  warn commands (/warn, /swarn, /rmwarn, /resetwarns, /warns) do so only from PM, and in a group answer a call without
+  a user with `common_no_user_specified` alone, as before PM support. That help keeps one entry per command
+  (`× /cmd …`, continuation lines up to a blank line or the next entry) in all 7 locales, with no `"` or unknown HTML
+  tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`; `TestEveryHelpCommandHasItsLineInEveryLocale`
+  enforces it. Each such command also needs a `<cmd>_example` in `locales/config.yml` starting with `/<cmd> `, except
+  reply-only commands (`replyOnlyCommands`: /dban, /dkick, /dmute), which must have none;
+  `TestEveryHelpCommandHasAnExample` enforces it. Help sent to PM shows the optional `<cmd>_pm_example` (the group
+  first) in place of `<cmd>_example` when the command has one.
 
 ## Go rules
 

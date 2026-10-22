@@ -15,6 +15,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -558,7 +559,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc), warnExpiryLabel(tr, warnrc))
-	_, err := msg.Reply(b, text, formatting.Shtml())
+	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -585,7 +586,13 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	} else if userId == 0 {
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+		var err error
+		if msg.Chat.Type == "private" {
+			// From PM, show how to name the group and the user.
+			err = replyCommandHelp(b, msg, tr, "warns", text)
+		} else {
+			_, err = msg.Reply(b, text, formatting.Shtml())
+		}
 		if err != nil {
 			log.Error(err)
 			return err
@@ -603,7 +610,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
 			// Plain-text reply: reasons and names are sent as they are.
 			text += warnEntryLines(b, tr, entries, func(s string) string { return s })
-			msgs := formatting.SplitMessage(text)
+			msgs := formatting.SplitMessage(confirmText(ctx, tr, text, chat))
 			for _, msgText := range msgs {
 				_, err := msg.Reply(b, msgText, nil)
 				if err != nil {
@@ -613,7 +620,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			temp, _ := tr.GetString("warns_user_warnings_no_reasons")
-			_, err := msg.Reply(b, fmt.Sprintf(temp, numWarns, warnrc.WarnLimit), nil)
+			_, err := msg.Reply(b, confirmText(ctx, tr, fmt.Sprintf(temp, numWarns, warnrc.WarnLimit), chat), nil)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -621,7 +628,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		text, _ := tr.GetString("warns_user_no_warnings")
-		_, err := msg.Reply(b, text, nil)
+		_, err := msg.Reply(b, confirmText(ctx, tr, text, chat), nil)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -998,8 +1005,31 @@ var (
 	dwarnDesc       = helpers.CommandDescriptor{Name: "dwarn"}
 	resetWarnsDesc  = helpers.CommandDescriptor{Name: "resetwarns", Aliases: []string{"resetwarn"}, PMGroupArg: helpers.PMGroupArgOwn}
 	removeWarnDesc  = helpers.CommandDescriptor{Name: "rmwarn", Aliases: []string{"unwarn"}, PMGroupArg: helpers.PMGroupArgOwn}
-	warnsStatusDesc = helpers.CommandDescriptor{Name: "warns", Disableable: true}
+	warnsStatusDesc = helpers.CommandDescriptor{Name: "warns", Disableable: true, PMGroupArg: helpers.PMGroupArgOwn}
+	warningsDesc    = helpers.CommandDescriptor{Name: "warnings", PMGroupArg: helpers.PMGroupArgNone}
 )
+
+// warnsChatCheck points a /warns sent from PM at the group named or
+// connected. Any member may run /warns in the group, so a member may from PM:
+// the group's admins are not required. A reply in PM names no user. Disabled
+// in that group, /warns answers a member who is no admin there as it does in
+// the group: with nothing.
+func warnsChatCheck(c *helpers.CommandContext) bool {
+	if msg := c.Ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
+		return true
+	}
+	chat := chat_status.IsUserConnected(c.Bot, c.Ctx, false, false)
+	if chat == nil {
+		return false
+	}
+	c.Ctx.EffectiveChat = chat
+	c.Chat = chat
+	if disabling.IsCommandDisabled(chat.Id, "warns") && !chat_status.IsUserAdmin(c.Bot, chat.Id, c.User.Id) {
+		return false
+	}
+	dropPMReply(c)
+	return true
+}
 
 // adminBotUserChecks are the checks of a command an admin runs with the bot
 // an admin; chat checks (pmTargetChatCheck) run before the group's.
@@ -1017,7 +1047,8 @@ func initWarnDescs() {
 	dwarnDesc.RequiredChecks = deleteRestrictChecks("dwarn")
 	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns", pmTargetChatCheck)
 	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn", pmTargetChatCheck)
-	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns")}
+	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns"), warnsChatCheck}
+	warningsDesc.RequiredChecks = adminBotUserChecks("warnings", groupOnlyChatCheck)
 }
 
 func LoadWarns(dispatcher *ext.Dispatcher) {
@@ -1048,15 +1079,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns"), warnsModule.warnsButtonHandler))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "warnings",
-		RequiredChecks: []helpers.CheckFunc{
-			helpers.CheckDisabled("warnings"),
-			helpers.RequireGroup(),
-			helpers.RequireBotAdmin(),
-			helpers.RequireUserAdmin(),
-		},
-	}, pipelineHandler(warnsModule.warnings))
+	helpers.WrapCommand(dispatcher, warningsDesc, pipelineHandler(warnsModule.warnings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmWarn"), warnsModule.rmWarnButton))
 }
 

@@ -67,9 +67,9 @@ func pmGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, 
 	return "\n\n" + line
 }
 
-// confirmText adds the group a reset acts on to its confirmation question
-// (pmGroupLine). The question is sent as plain text, so the title is not
-// escaped.
+// confirmText adds the group a reset acts on to its confirmation question, or
+// the group /warns reads to its answer (pmGroupLine). The text is sent as
+// plain text, so the title is not escaped.
 func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *gotgbot.Chat) string {
 	return question + pmGroupLine(tr, ctx.EffectiveMessage, chat, false)
 }
