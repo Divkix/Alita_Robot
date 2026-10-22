@@ -10,7 +10,11 @@ Update this file in the same commit as any change that invalidates a rule below.
   chat.
 - Change an existing default or command meaning only to fix a bug; the commit is `fix:` with the old and new behaviour
   in the body.
-- Group-only and connection-based usage keep working unchanged when a PM or shortcut form is added.
+- Group-only and connection-based usage keep working unchanged when a PM or shortcut form is added. Exception: in PM
+  a group named as the first argument (`withPMGroupArg`) wins over the saved connection, and a command without
+  arguments of its own (`PMGroupArgNone`) whose first word names no group answers with its help instead of running on
+  the connection (`/rules foo` no longer shows the connected group's rules). A command must not act silently on a
+  group other than the one the user named.
 
 ## Commands
 
