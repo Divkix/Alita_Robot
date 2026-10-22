@@ -127,6 +127,234 @@ var commandHelpModules = map[string]string{
 	"clearadmincache": "admin",
 }
 
+// menuCommand is one command of the help menu: the module whose
+// <module>_help_msg documents it, and whether only admins can use it.
+type menuCommand struct {
+	Module    string
+	AdminOnly bool
+}
+
+// menuCommands lists every command of every en.yml <module>_extend_msg, and
+// nothing else. A command is AdminOnly only when no form of it works for a
+// member: /warns without a user shows your own warns, /lang in PM sets your
+// own language, /invitelink answers a member in a public group, and the
+// federation commands are gated by federation roles, not group admin rights.
+// Dev commands have no help module, so they are not listed.
+var menuCommands = map[string]menuCommand{
+	"adminlist":       {Module: "admin"},
+	"promote":         {Module: "admin", AdminOnly: true},
+	"demote":          {Module: "admin", AdminOnly: true},
+	"title":           {Module: "admin", AdminOnly: true},
+	"invitelink":      {Module: "admin"},
+	"anonadmin":       {Module: "admin"},
+	"admincache":      {Module: "admin", AdminOnly: true},
+	"clearadmincache": {Module: "admin", AdminOnly: true},
+	"setgtitle":       {Module: "admin", AdminOnly: true},
+	"setgpic":         {Module: "admin", AdminOnly: true},
+	"setgdesc":        {Module: "admin", AdminOnly: true},
+
+	"aispam": {Module: "aispam", AdminOnly: true},
+
+	"flood":        {Module: "antiflood"},
+	"setflood":     {Module: "antiflood", AdminOnly: true},
+	"setfloodmode": {Module: "antiflood", AdminOnly: true},
+	"delflood":     {Module: "antiflood", AdminOnly: true},
+
+	"antiraid":       {Module: "antiraid", AdminOnly: true},
+	"raidtime":       {Module: "antiraid", AdminOnly: true},
+	"raidactiontime": {Module: "antiraid", AdminOnly: true},
+	"autoantiraid":   {Module: "antiraid", AdminOnly: true},
+
+	"approve":      {Module: "approvals", AdminOnly: true},
+	"unapprove":    {Module: "approvals", AdminOnly: true},
+	"approval":     {Module: "approvals", AdminOnly: true},
+	"approved":     {Module: "approvals", AdminOnly: true},
+	"unapproveall": {Module: "approvals", AdminOnly: true},
+
+	"export": {Module: "backup", AdminOnly: true},
+	"import": {Module: "backup", AdminOnly: true},
+	"reset":  {Module: "backup", AdminOnly: true},
+
+	"ban":        {Module: "bans", AdminOnly: true},
+	"sban":       {Module: "bans", AdminOnly: true},
+	"dban":       {Module: "bans", AdminOnly: true},
+	"tban":       {Module: "bans", AdminOnly: true},
+	"unban":      {Module: "bans", AdminOnly: true},
+	"kick":       {Module: "bans", AdminOnly: true},
+	"skick":      {Module: "bans", AdminOnly: true},
+	"dkick":      {Module: "bans", AdminOnly: true},
+	"kickme":     {Module: "bans"},
+	"banme":      {Module: "bans"},
+	"restrict":   {Module: "bans", AdminOnly: true},
+	"unrestrict": {Module: "bans", AdminOnly: true},
+	"unbanall":   {Module: "bans", AdminOnly: true},
+
+	"blacklists":      {Module: "blacklists"},
+	"addblacklist":    {Module: "blacklists", AdminOnly: true},
+	"rmblacklist":     {Module: "blacklists", AdminOnly: true},
+	"blaction":        {Module: "blacklists", AdminOnly: true},
+	"blacklistaction": {Module: "blacklists", AdminOnly: true},
+	"remallbl":        {Module: "blacklists", AdminOnly: true},
+
+	"captcha":            {Module: "captcha", AdminOnly: true},
+	"captchamode":        {Module: "captcha", AdminOnly: true},
+	"captchatime":        {Module: "captcha", AdminOnly: true},
+	"captchaaction":      {Module: "captcha", AdminOnly: true},
+	"captchamaxattempts": {Module: "captcha", AdminOnly: true},
+	"captchapending":     {Module: "captcha", AdminOnly: true},
+	"captchaclear":       {Module: "captcha", AdminOnly: true},
+
+	"connect":      {Module: "connections"},
+	"disconnect":   {Module: "connections"},
+	"reconnect":    {Module: "connections"},
+	"connection":   {Module: "connections"},
+	"settings":     {Module: "connections", AdminOnly: true},
+	"allowconnect": {Module: "connections", AdminOnly: true},
+
+	"digest": {Module: "digest", AdminOnly: true},
+
+	"disable":     {Module: "disabling", AdminOnly: true},
+	"enable":      {Module: "disabling", AdminOnly: true},
+	"disableable": {Module: "disabling"},
+	"disabled":    {Module: "disabling"},
+	"disabledel":  {Module: "disabling", AdminOnly: true},
+
+	"newfed":      {Module: "federations"},
+	"renamefed":   {Module: "federations"},
+	"delfed":      {Module: "federations"},
+	"fedinfo":     {Module: "federations"},
+	"fedadmins":   {Module: "federations"},
+	"fedpromote":  {Module: "federations"},
+	"feddemote":   {Module: "federations"},
+	"feddemoteme": {Module: "federations"},
+	"joinfed":     {Module: "federations", AdminOnly: true},
+	"leavefed":    {Module: "federations", AdminOnly: true},
+	"chatfed":     {Module: "federations"},
+	"myfeds":      {Module: "federations"},
+	"fban":        {Module: "federations"},
+	"unfban":      {Module: "federations"},
+	"funban":      {Module: "federations"},
+	"fedstat":     {Module: "federations"},
+	"fbanstat":    {Module: "federations"},
+	"fedreason":   {Module: "federations"},
+	"fednotif":    {Module: "federations"},
+	"quietfed":    {Module: "federations", AdminOnly: true},
+	"subfed":      {Module: "federations"},
+	"unsubfed":    {Module: "federations"},
+	"fedsubs":     {Module: "federations"},
+	"fbanlist":    {Module: "federations"},
+	"importfbans": {Module: "federations"},
+	"setfedlog":   {Module: "federations"},
+	"unsetfedlog": {Module: "federations"},
+
+	"filter":  {Module: "filters", AdminOnly: true},
+	"filters": {Module: "filters"},
+	"stop":    {Module: "filters", AdminOnly: true},
+	"stopall": {Module: "filters", AdminOnly: true},
+
+	"markdownhelp": {Module: "formatting"},
+	"formatting":   {Module: "formatting"},
+
+	"welcome":      {Module: "greetings", AdminOnly: true},
+	"setwelcome":   {Module: "greetings", AdminOnly: true},
+	"resetwelcome": {Module: "greetings", AdminOnly: true},
+	"goodbye":      {Module: "greetings", AdminOnly: true},
+	"setgoodbye":   {Module: "greetings", AdminOnly: true},
+	"resetgoodbye": {Module: "greetings", AdminOnly: true},
+	"cleanwelcome": {Module: "greetings", AdminOnly: true},
+	"cleangoodbye": {Module: "greetings", AdminOnly: true},
+	"cleanservice": {Module: "greetings", AdminOnly: true},
+	"autoapprove":  {Module: "greetings", AdminOnly: true},
+
+	"lang": {Module: "languages"},
+
+	"lock":      {Module: "locks", AdminOnly: true},
+	"unlock":    {Module: "locks", AdminOnly: true},
+	"locks":     {Module: "locks", AdminOnly: true},
+	"locktypes": {Module: "locks"},
+
+	"setlog":        {Module: "logchannels", AdminOnly: true},
+	"unsetlog":      {Module: "logchannels", AdminOnly: true},
+	"logchannel":    {Module: "logchannels"},
+	"logcategories": {Module: "logchannels"},
+	"log":           {Module: "logchannels", AdminOnly: true},
+	"nolog":         {Module: "logchannels", AdminOnly: true},
+
+	"info":              {Module: "misc"},
+	"id":                {Module: "misc"},
+	"ping":              {Module: "misc"},
+	"stat":              {Module: "misc"},
+	"tell":              {Module: "misc", AdminOnly: true},
+	"tr":                {Module: "misc"},
+	"removebotkeyboard": {Module: "misc"},
+	"stickerid":         {Module: "misc"},
+	"zombies":           {Module: "misc", AdminOnly: true},
+	"github":            {Module: "misc"},
+	"wiki":              {Module: "misc"},
+	"ud":                {Module: "misc"},
+	"runs":              {Module: "misc"},
+
+	"mute":   {Module: "mutes", AdminOnly: true},
+	"smute":  {Module: "mutes", AdminOnly: true},
+	"dmute":  {Module: "mutes", AdminOnly: true},
+	"tmute":  {Module: "mutes", AdminOnly: true},
+	"unmute": {Module: "mutes", AdminOnly: true},
+
+	"save":         {Module: "notes", AdminOnly: true},
+	"addnote":      {Module: "notes", AdminOnly: true},
+	"get":          {Module: "notes"},
+	"notes":        {Module: "notes"},
+	"saved":        {Module: "notes"},
+	"clear":        {Module: "notes", AdminOnly: true},
+	"rmnote":       {Module: "notes", AdminOnly: true},
+	"clearall":     {Module: "notes", AdminOnly: true},
+	"privatenotes": {Module: "notes", AdminOnly: true},
+	"privnote":     {Module: "notes", AdminOnly: true},
+
+	"pin":            {Module: "pins", AdminOnly: true},
+	"unpin":          {Module: "pins", AdminOnly: true},
+	"unpinall":       {Module: "pins", AdminOnly: true},
+	"pinned":         {Module: "pins"},
+	"permapin":       {Module: "pins", AdminOnly: true},
+	"antichannelpin": {Module: "pins", AdminOnly: true},
+	"cleanlinked":    {Module: "pins", AdminOnly: true},
+
+	"del":       {Module: "purges", AdminOnly: true},
+	"purge":     {Module: "purges", AdminOnly: true},
+	"purgefrom": {Module: "purges", AdminOnly: true},
+	"purgeto":   {Module: "purges", AdminOnly: true},
+
+	"addreaction":    {Module: "reactions", AdminOnly: true},
+	"removereaction": {Module: "reactions", AdminOnly: true},
+	"reactions":      {Module: "reactions"},
+	"resetreactions": {Module: "reactions", AdminOnly: true},
+
+	"report":  {Module: "reports"},
+	"reports": {Module: "reports", AdminOnly: true},
+
+	"rules":            {Module: "rules"},
+	"setrules":         {Module: "rules", AdminOnly: true},
+	"resetrules":       {Module: "rules", AdminOnly: true},
+	"privaterules":     {Module: "rules", AdminOnly: true},
+	"rulesbtn":         {Module: "rules", AdminOnly: true},
+	"resetrulesbutton": {Module: "rules", AdminOnly: true},
+	"resetrulesbtn":    {Module: "rules", AdminOnly: true},
+
+	"spamdb": {Module: "spamdb", AdminOnly: true},
+
+	"warn":          {Module: "warns", AdminOnly: true},
+	"swarn":         {Module: "warns", AdminOnly: true},
+	"dwarn":         {Module: "warns", AdminOnly: true},
+	"warns":         {Module: "warns"},
+	"rmwarn":        {Module: "warns", AdminOnly: true},
+	"resetwarns":    {Module: "warns", AdminOnly: true},
+	"resetallwarns": {Module: "warns", AdminOnly: true},
+	"warnings":      {Module: "warns", AdminOnly: true},
+	"setwarnlimit":  {Module: "warns", AdminOnly: true},
+	"setwarntime":   {Module: "warns", AdminOnly: true},
+	"setwarnmode":   {Module: "warns", AdminOnly: true},
+}
+
 // helpCommandLine matches a help line that defines commands: an optional
 // bullet followed by one or more /commands ("× /fban /unfban: ..."). Commands
 // mentioned inside prose ("use the /id command") are cross-references.

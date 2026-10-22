@@ -188,6 +188,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   reply-only commands (`replyOnlyCommands`: /dban, /dkick, /dmute), which must have none;
   `TestEveryHelpCommandHasAnExample` enforces it. Help sent to PM shows the optional `<cmd>_pm_example` (the group
   first) in place of `<cmd>_example` when the command has one.
+- `menuCommands` (`alita/modules/command_help.go`) lists exactly the commands of the en.yml `<module>_extend_msg`
+  texts, each with its module and `AdminOnly` (set only when no form of the command works for a member); a command
+  added to or removed from an extend list changes the map in the same commit (`TestMenuCommandsMatchExtendLists`).
+  Every module there has a one-line `<module>_section_desc` in all 7 locales.
 - `moderation_events` gets one row per successful human moderation action, written only by `recordModerationEvent`
   (`alita/modules/moderation.go`) from commands and inline moderation buttons. Never record automated actions
   (spamdb, captcha, antiraid, locks, blacklists, warn limits, report auto-mute): the shared-reputation join check
