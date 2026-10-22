@@ -967,10 +967,14 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	defer func() {
 		if r := recover(); r != nil {
 			if preAttempt != nil {
+				var rbErr error
 				if muted {
-					_ = rollbackCaptchaAttempt(bot, preAttempt)
+					rbErr = rollbackCaptchaAttempt(bot, preAttempt)
 				} else {
-					_, _ = captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, preAttempt.ChatID)
+					_, rbErr = captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, preAttempt.ChatID)
+				}
+				if rbErr != nil {
+					log.Errorf("[Captcha] Failed to roll back attempt %d after panic: %v", preAttempt.ID, rbErr)
 				}
 			}
 			err = fmt.Errorf("send captcha: %v", r)
@@ -1071,7 +1075,9 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	}
 
 	if _, err = chat.RestrictMember(bot, userID, MutedPermissions, nil); err != nil {
-		_, _ = captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, chat.Id)
+		if _, delErr := captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, chat.Id); delErr != nil {
+			log.Errorf("[Captcha] Failed to delete attempt %d after mute failure: %v", preAttempt.ID, delErr)
+		}
 		return fmt.Errorf("mute user for captcha: %w", err)
 	}
 	muted = true
