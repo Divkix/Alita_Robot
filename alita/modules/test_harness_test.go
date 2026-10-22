@@ -518,6 +518,7 @@ func TestMain(m *testing.M) {
 		&models.SpamDBSettings{},
 		&models.ChatDailyStat{},
 		&models.DigestSettings{},
+		&models.ChatTimezone{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

@@ -33,4 +33,5 @@ const (
 	CacheTTLAISpam          = DefaultCacheTTL
 	CacheTTLSpamDB          = DefaultCacheTTL
 	CacheTTLDigest          = DefaultCacheTTL
+	CacheTTLChatTimezone    = DefaultCacheTTL
 )
