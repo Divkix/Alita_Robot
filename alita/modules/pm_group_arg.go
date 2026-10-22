@@ -237,7 +237,7 @@ func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) han
 // returns false when it has answered the call itself.
 func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers.PMGroupArg) bool {
 	msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
-	if msg == nil || user == nil || msg.Chat.Type != "private" {
+	if user == nil || !inPM(msg) {
 		return true
 	}
 	c := pmGroupCall{b: b, ctx: ctx, tr: i18n.MustNewTranslator(lang.GetLanguage(ctx)), cmd: cmd}

@@ -19,7 +19,7 @@ import (
 // administer. In PM it points ctx.EffectiveChat at that group, so chat_status
 // checks given a nil chat check it. nil means the call has been answered.
 func groupOnlyChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
-	if msg := ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
+	if !inPM(ctx.EffectiveMessage) {
 		return ctx.EffectiveChat
 	}
 	return resolveAdminChat(b, ctx, false)
@@ -29,7 +29,7 @@ func groupOnlyChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 // admin status itself, live, such as /admincache: in PM it does not ask the
 // cached admin list, which may not list an admin promoted since.
 func groupOnlyMemberChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
-	if msg := ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
+	if !inPM(ctx.EffectiveMessage) {
 		return ctx.EffectiveChat
 	}
 	chat := chat_status.IsUserConnected(b, ctx, false, false)
