@@ -222,3 +222,51 @@ func TestRecordRejectsUnknownSource(t *testing.T) {
 		t.Fatal("Record() with an unknown source succeeded")
 	}
 }
+
+func TestLiftByIDClosesTheBanOnce(t *testing.T) {
+	chatID := newBanChat(t)
+	id := record(t, models.BanRecord{ChatId: chatID, UserId: 42, Source: models.BanSourceSpamDB})
+
+	if lifted, err := LiftByID(id, 8); err != nil || !lifted {
+		t.Fatalf("first LiftByID() = %v, %v; want true", lifted, err)
+	}
+	if lifted, err := LiftByID(id, 9); err != nil || lifted {
+		t.Fatalf("second LiftByID() = %v, %v; want false", lifted, err)
+	}
+	got, err := GetByID(id)
+	if err != nil || got == nil || got.LiftedBy == nil || *got.LiftedBy != 8 || got.LiftedAt == nil {
+		t.Fatalf("GetByID() = %+v, %v; want the row lifted by 8", got, err)
+	}
+}
+
+func TestLiftByIDLeavesAnExpiredTemporaryBan(t *testing.T) {
+	chatID := newBanChat(t)
+	ended := time.Now().Add(-time.Minute)
+	id := record(t, models.BanRecord{ChatId: chatID, UserId: 42, Source: models.BanSourceAntiflood, Until: &ended})
+
+	if lifted, err := LiftByID(id, 8); err != nil || lifted {
+		t.Fatalf("LiftByID() = %v, %v; want false for an expired ban", lifted, err)
+	}
+}
+
+func TestReopenUndoesTheLift(t *testing.T) {
+	chatID := newBanChat(t)
+	id := record(t, models.BanRecord{ChatId: chatID, UserId: 42, Source: models.BanSourceManual})
+	if lifted, err := LiftByID(id, 8); err != nil || !lifted {
+		t.Fatalf("LiftByID() = %v, %v; want true", lifted, err)
+	}
+
+	if err := Reopen(id, 8); err != nil {
+		t.Fatalf("Reopen() error = %v", err)
+	}
+	got, err := GetByID(id)
+	if err != nil || got == nil || !got.IsOpen(time.Now()) {
+		t.Fatalf("GetByID() = %+v, %v; want the ban open again", got, err)
+	}
+}
+
+func TestGetByIDWithoutRowIsNil(t *testing.T) {
+	if got, err := GetByID(-1); err != nil || got != nil {
+		t.Fatalf("GetByID(-1) = %+v, %v; want nil, nil", got, err)
+	}
+}
