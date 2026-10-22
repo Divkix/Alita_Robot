@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -62,6 +63,12 @@ func getBotUsername(b *gotgbot.Bot) string {
 
 func getAboutText(tr *i18n.Translator) string {
 	text, _ := tr.GetString("help_info_about_header")
+	if config.AppConfig.PanelEnabled {
+		// The menu button of a private chat is the panel while it is enabled,
+		// so the hint can point at it without a URL of its own.
+		hint, _ := tr.GetString("help_about_panel_hint")
+		text += hint
+	}
 	return text
 }
 
@@ -78,8 +85,11 @@ func getMainHelp(tr *i18n.Translator, firstName string) string {
 	return text1 + text2 + text3
 }
 
-func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
+func getAboutKb(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
 	aboutMeText, _ := tr.GetString("help_button_about_me")
+	addToChatText, _ := tr.GetString("help_button_add_to_chat")
+	shareText, _ := tr.GetString("help_button_share")
+	shareSummary, _ := tr.GetString("help_share_text")
 	newsChannelText, _ := tr.GetString("help_button_news_channel")
 	supportGroupText, _ := tr.GetString("help_button_support_group")
 	configurationText, _ := tr.GetString("help_button_configuration")
@@ -87,6 +97,16 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text: addToChatText,
+					Url:  helpers.AddToGroupURL(botUsername),
+				},
+				{
+					Text: shareText,
+					Url:  shareBotURL(botUsername, shareSummary),
+				},
+			},
 			{
 				{
 					Text:         aboutMeText,
@@ -117,6 +137,16 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 			},
 		},
 	}
+}
+
+// shareBotURL opens Telegram's share sheet on the bot's t.me link. The pitch is
+// localized; the link stays a t.me link because the bot cannot know its own
+// deployment URL.
+func shareBotURL(botUsername, text string) string {
+	params := url.Values{}
+	params.Set("url", "https://t.me/"+botUsername)
+	params.Set("text", text)
+	return "https://t.me/share/url?" + params.Encode()
 }
 
 func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
@@ -189,7 +219,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch response {
 		case "main":
 			currText = getAboutText(tr)
-			currKb = getAboutKb(tr)
+			currKb = getAboutKb(tr, b.Username)
 		case "me":
 			temp, _ := tr.GetString("help_about")
 			currText = fmt.Sprintf(temp, b.Username, config.AppConfig.BotVersion)
@@ -227,7 +257,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		if ctx.Message.Chat.Type == "private" {
 			currText = getAboutText(tr)
-			currKb = getAboutKb(tr)
+			currKb = getAboutKb(tr, b.Username)
 		} else {
 			clickButtonText, _ := tr.GetString("help_click_button_info")
 			aboutButtonText, _ := tr.GetString("help_button_about")
@@ -654,7 +684,7 @@ func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 func aboutDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	aboutText := getAboutText(tr)
-	aboutKb := getAboutKb(tr)
+	aboutKb := getAboutKb(tr, b.Username)
 	_, err := b.SendMessage(ctx.EffectiveChat.Id,
 		aboutText,
 		&gotgbot.SendMessageOpts{
