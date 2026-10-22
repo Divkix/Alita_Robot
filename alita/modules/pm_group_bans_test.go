@@ -291,38 +291,48 @@ func renderedText(htmlText string) string {
 	return html.UnescapeString(regexp.MustCompile(`<[^>]*>`).ReplaceAllString(htmlText, ""))
 }
 
-// The unban button of a /ban sent from PM for a group whose title has HTML
-// characters strikes the reply through with the title escaped exactly once,
-// so the edit goes through.
+// The unban button of a /ban and the unmute button of a /mute sent from PM
+// for a group whose title has HTML characters strike the reply through with
+// the title escaped exactly once, so the edit goes through.
 func TestUnrestrictButtonInPMWithMarkupInGroupTitleEscapes(t *testing.T) {
-	f, _ := pmModerationFixture(t)
-	named := `Tom & <Jerry>`
-	for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
-		f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
-	}
-	dispatcher := bansPMDispatcher()
-	processPM(t, dispatcher, f, f.admin.Id, "/ban @fixturegroup @victim")
-	data := buttonFor(t, f, 0, "unrestrict", "unban")
-	reply := renderedText(fmt.Sprint(f.client.callsFor("sendMessage")[0].Params["text"]))
-	if !strings.Contains(reply, named) {
-		t.Fatalf("/ban from PM shows %q, want the title %q", reply, named)
-	}
+	for _, tc := range []struct {
+		cmd, action string
+		dispatcher  func() *ext.Dispatcher
+	}{
+		{"ban", "unban", bansPMDispatcher},
+		{"mute", "unmute", mutesPMDispatcher},
+	} {
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, _ := pmModerationFixture(t)
+			named := `Tom & <Jerry>`
+			for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
+				f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
+			}
+			dispatcher := tc.dispatcher()
+			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim")
+			data := buttonFor(t, f, 0, "unrestrict", tc.action)
+			reply := renderedText(fmt.Sprint(f.client.callsFor("sendMessage")[0].Params["text"]))
+			if !strings.Contains(reply, named) {
+				t.Fatalf("/%s from PM shows %q, want the title %q", tc.cmd, reply, named)
+			}
 
-	update := newModuleCallbackContext(f.bot, privateChatOf(f.admin), f.admin, data).Update
-	shown := update.CallbackQuery.Message.(gotgbot.Message)
-	shown.Text = reply
-	update.CallbackQuery.Message = shown
-	if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
-		t.Fatalf("ProcessUpdate(callback %q) error = %v", data, err)
-	}
+			update := newModuleCallbackContext(f.bot, privateChatOf(f.admin), f.admin, data).Update
+			shown := update.CallbackQuery.Message.(gotgbot.Message)
+			shown.Text = reply
+			update.CallbackQuery.Message = shown
+			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(callback %q) error = %v", data, err)
+			}
 
-	edit := f.client.onlyCall(t, "editMessageText")
-	text := fmt.Sprint(edit.Params["text"])
-	if !strings.Contains(text, html.EscapeString(named)) || strings.Contains(text, named) || strings.Contains(text, "&amp;amp;") {
-		t.Fatalf("edited text = %q, want the title escaped once as %q", text, html.EscapeString(named))
-	}
-	if renderedText(text) == text || !strings.Contains(renderedText(text), reply) {
-		t.Fatalf("edited text = %q, want the reply %q struck through", text, reply)
+			edit := f.client.onlyCall(t, "editMessageText")
+			text := fmt.Sprint(edit.Params["text"])
+			if !strings.Contains(text, html.EscapeString(named)) || strings.Contains(text, named) || strings.Contains(text, "&amp;amp;") {
+				t.Fatalf("edited text = %q, want the title escaped once as %q", text, html.EscapeString(named))
+			}
+			if renderedText(text) == text || !strings.Contains(renderedText(text), reply) {
+				t.Fatalf("edited text = %q, want the reply %q struck through", text, reply)
+			}
+		})
 	}
 }
 
