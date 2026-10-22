@@ -14,7 +14,9 @@ type LogChannel struct {
 	CatOther     bool  `gorm:"column:cat_other;default:true" json:"cat_other"`
 	// CatWarns is off by default: a log channel gets warn entries only once an
 	// admin turns the category on.
-	CatWarns  bool      `gorm:"column:cat_warns;not null;default:false" json:"cat_warns"`
+	CatWarns bool `gorm:"column:cat_warns;not null;default:false" json:"cat_warns"`
+	// CatJoins is off by default too: it can be one entry per join.
+	CatJoins  bool      `gorm:"column:cat_joins;not null;default:false" json:"cat_joins"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }

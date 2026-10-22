@@ -1715,6 +1715,10 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			_, _ = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return err
 		}
+		// The correct answer counts as an attempt of its own.
+		actionlog.Join(bot, chat, "CAPTCHA_PASSED", targetUserID, user.FirstName,
+			actionlog.Field{Name: "Attempts", Value: fmt.Sprintf("%d/%d", attempt.Attempts+1, settings.MaxAttempts)},
+		)
 
 		if storedErr == nil && len(storedMessages) > 0 {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

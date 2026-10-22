@@ -99,6 +99,12 @@ func Warn(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, tag string, u
 	Log(b, chat, logchannels.CategoryWarns, entryText(tag, actor, userID, userName, fields))
 }
 
+// Join logs a member joining under the joins category: the tag, the member
+// and the given fields. Call it only after the join was let through.
+func Join(b *gotgbot.Bot, chat *gotgbot.Chat, tag string, userID int64, userName string, fields ...Field) {
+	Log(b, chat, logchannels.CategoryJoins, entryText(tag, nil, userID, userName, fields))
+}
+
 // SettingChange logs a chat setting an admin changed under the settings
 // category, with its own tag and the given fields. Call it only after the
 // change was made.
