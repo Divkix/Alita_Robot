@@ -283,7 +283,7 @@ warns_help_msg:
 
   - /rmwarn : Supprimer le dernier avertissement d'un utilisateur.
 
-  - /resetwarns :Remettre à zéro tous les avertissements d'un utilisateur.
+  - /resetwarns : Remettre à zéro tous les avertissements d'un utilisateur.
 
   - /resetallwarns : Supprimer tous les avertissements du chat. Tous les utilisateurs reviennent à 0 avertissement. (créateur uniquement)
 
@@ -2771,7 +2771,7 @@ warns_extend_msg: |
   /dwarn — avertir et supprimer le message cité
   /warns — afficher les avertissements d'un utilisateur
   /rmwarn — retirer le dernier avertissement d'un utilisateur
-  /resetwarns —réinitialiser les avertissements d'un utilisateur
+  /resetwarns — réinitialiser les avertissements d'un utilisateur
   /resetallwarns — réinitialiser tous les avertissements du chat
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction

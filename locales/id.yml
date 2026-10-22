@@ -933,7 +933,7 @@ warns_help_msg:
 
   - /rmwarn: Hapus peringatan terbaru pengguna.
 
-  - /resetwarns:Atur ulang semua peringatan pengguna ke 0.
+  - /resetwarns: Atur ulang semua peringatan pengguna ke 0.
 
   - /resetallwarns: Hapus semua peringatan di obrolan. Semua pengguna kembali ke 0 peringatan. (hanya pembuat)
 
@@ -2851,7 +2851,7 @@ warns_extend_msg: |
   /dwarn — beri peringatan dan hapus pesan yang dibalas
   /warns — lihat peringatan pengguna
   /rmwarn — hapus peringatan terakhir pengguna
-  /resetwarns —reset peringatan pengguna
+  /resetwarns — reset peringatan pengguna
   /resetallwarns — reset semua peringatan di obrolan
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman

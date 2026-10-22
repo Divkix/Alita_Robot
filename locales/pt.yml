@@ -905,7 +905,7 @@ warns_help_msg:
 
   - /rmwarn: Remove o aviso mais recente de um usuário.
 
-  - /resetwarns:Reseta todos os avisos de um usuário para 0.
+  - /resetwarns: Reseta todos os avisos de um usuário para 0.
 
   - /resetallwarns: Deleta todos os avisos em um chat. Todos os usuários retornam a 0 avisos. (apenas criador)
 
@@ -2824,7 +2824,7 @@ warns_extend_msg: |
   /dwarn — advertir e apagar a mensagem respondida
   /warns — ver as advertências de um usuário
   /rmwarn — remover a última advertência de um usuário
-  /resetwarns —zerar as advertências de um usuário
+  /resetwarns — zerar as advertências de um usuário
   /resetallwarns — zerar todas as advertências do chat
   /warnings — ver as configurações de advertência
   /setwarnlimit — advertências antes da punição
