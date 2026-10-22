@@ -1,8 +1,10 @@
-// Warnings: every warned user with all their entries, expired ones labelled,
-// and a remove button that runs the same repository call as /unwarn. Server
-// data reaches the DOM only through textContent.
+// Warnings: admin-only pages of warned users with all their entries, expired
+// ones labelled, and a remove button that runs the same repository call as
+// /unwarn. Server data reaches the DOM only through textContent.
 import { api } from "../api.js";
 import { textElement } from "../ui.js";
+
+const PAGE_SIZE = 50;
 
 function formatTime(value) {
 	if (!value) {
@@ -31,35 +33,46 @@ export async function renderWarnings(root, chatID, chat) {
 	const status = textElement("p", "", "status");
 	const list = document.createElement("ul");
 	list.className = "list-rows";
-	container.append(status, list);
+	const loadMore = textElement("button", "Load more");
+	loadMore.type = "button";
+	loadMore.hidden = true;
+	container.append(status, list, loadMore);
 	if (readOnly) {
-		container.append(textElement("p", "Read-only: only chat admins can remove a warning.", "muted"));
+		container.append(textElement("p", "Read-only: warnings cannot be removed in this chat.", "muted"));
 	}
 
-	let loading = false;
+	const state = { cursor: 0, loading: false };
 
-	async function load() {
-		if (loading) {
+	async function loadPage(reset) {
+		if (state.loading) {
 			return;
 		}
-		loading = true;
+		state.loading = true;
 		status.className = "status";
 		status.textContent = "Loading warnings…";
 		try {
-			const data = await api(`chats/${encodeURIComponent(chatID)}/warnings`);
-			const users = data.users ?? [];
-			list.replaceChildren();
-			for (const user of users) {
+			const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+			if (!reset && state.cursor > 0) {
+				params.set("cursor", String(state.cursor));
+			}
+			const data = await api(`chats/${encodeURIComponent(chatID)}/warnings?${params}`);
+			if (reset) {
+				list.replaceChildren();
+				state.cursor = 0;
+			}
+			for (const user of data.users ?? []) {
 				list.append(userRow(user));
 			}
-			status.textContent = users.length === 0
+			state.cursor = data.next_cursor ?? 0;
+			loadMore.hidden = !state.cursor;
+			status.textContent = list.childElementCount === 0
 				? "No warnings in this chat."
-				: `${users.length} warned ${users.length === 1 ? "member" : "members"}`;
+				: `${list.childElementCount} warned ${list.childElementCount === 1 ? "member" : "members"} shown`;
 		} catch (error) {
 			status.className = "error";
 			status.textContent = error?.message ?? "Could not load warnings.";
 		} finally {
-			loading = false;
+			state.loading = false;
 		}
 	}
 
@@ -97,7 +110,7 @@ export async function renderWarnings(root, chatID, chat) {
 						method: "DELETE",
 						body: { user_id: user.user_id },
 					});
-					await load();
+					await loadPage(true);
 					status.textContent = result.removed
 						? `Removed one warning for user ${user.user_id}.`
 						: `User ${user.user_id} has no warnings left.`;
@@ -113,5 +126,7 @@ export async function renderWarnings(root, chatID, chat) {
 		return item;
 	}
 
-	await load();
+	loadMore.addEventListener("click", () => loadPage(false));
+
+	await loadPage(true);
 }

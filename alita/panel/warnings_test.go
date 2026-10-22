@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -35,7 +38,9 @@ func seedChatWarns(t *testing.T, chatID, userID int64, expiry int, entries []mod
 		t.Fatalf("seed warned user: %v", err)
 	}
 	settings := models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute", WarnExpiry: expiry}
-	if err := db.DB.Create(&settings).Error; err != nil {
+	// One settings row per chat, however many users the test warns.
+	if err := db.DB.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "chat_id"}}, DoNothing: true}).
+		Create(&settings).Error; err != nil {
 		t.Fatalf("seed warn settings: %v", err)
 	}
 	reasons := make(models.StringArray, 0, len(entries))
@@ -61,9 +66,13 @@ func seedChatWarns(t *testing.T, chatID, userID int64, expiry int, entries []mod
 	})
 }
 
-func warningsPage(t *testing.T, fixture panelFixture, chatID int64) warningsResponse {
+func warningsPage(t *testing.T, fixture panelFixture, chatID int64, query string) warningsResponse {
 	t.Helper()
-	recorder := panelRequest(t, fixture.handler, http.MethodGet, listTarget(chatID, "warnings"), readFixture(t, "initdata_main.txt"), "", "")
+	target := listTarget(chatID, "warnings")
+	if query != "" {
+		target += "?" + query
+	}
+	recorder := panelRequest(t, fixture.handler, http.MethodGet, target, readFixture(t, "initdata_main.txt"), "", "")
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("GET warnings status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
 	}
@@ -126,7 +135,7 @@ func TestWarningsLabelsExpiredEntriesAndUndatedNeverExpire(t *testing.T) {
 	}
 	seedChatWarns(t, chatID, panelTestUserID, 3600, entries)
 
-	page := warningsPage(t, fixture, chatID)
+	page := warningsPage(t, fixture, chatID, "")
 	if page.ReadOnly {
 		t.Fatal("read_only = true for an admin, want false")
 	}
@@ -222,9 +231,9 @@ func TestNonAdminCannotRemoveWarning(t *testing.T) {
 	if count, _ := warns.GetWarns(panelTestUserID, chatID); count != 1 {
 		t.Fatalf("warns after refused remove = %d, want 1", count)
 	}
-	if page := warningsPage(t, fixture, chatID); !page.ReadOnly {
-		t.Fatal("read_only = false for a non-admin, want true")
-	}
+	requireAPIError(t,
+		panelRequest(t, fixture.handler, http.MethodGet, listTarget(chatID, "warnings"), readFixture(t, "initdata_main.txt"), "", ""),
+		http.StatusForbidden, "not_admin")
 }
 
 func TestWarningsRejectsMissingUserID(t *testing.T) {
@@ -232,4 +241,122 @@ func TestWarningsRejectsMissingUserID(t *testing.T) {
 
 	recorder := panelRequest(t, fixture.handler, http.MethodDelete, listTarget(chatID, "warnings"), readFixture(t, "initdata_main.txt"), `{}`, "application/json")
 	requireAPIError(t, recorder, http.StatusBadRequest, "invalid_user_id")
+}
+
+func TestWarningsAndTimelineAreAdminOnly(t *testing.T) {
+	fixture := newPanelFixture(t)
+	chatID := uniquePanelChatID()
+	seedPanelChat(t, chatID, "Read-only Moderation Chat", fixtureNow)
+	// The caller is a plain member: only the bot is listed as an admin.
+	fixture.client.admins[chatID] = adminListJSON(999)
+	raw := readFixture(t, "initdata_main.txt")
+
+	requireAPIError(t,
+		panelRequest(t, fixture.handler, http.MethodGet, listTarget(chatID, "warnings"), raw, "", ""),
+		http.StatusForbidden, "not_admin")
+	requireAPIError(t,
+		panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(chatID, 10)+"/timeline", raw, "", ""),
+		http.StatusForbidden, "not_admin")
+}
+
+func TestRemoveWarningRequiresBotAdmin(t *testing.T) {
+	fixture, chatID := newWarningsFixture(t)
+	fixture.client.botAdmin = false
+
+	stamp := time.Now().UTC()
+	seedChatWarns(t, chatID, panelTestUserID, 0, []models.WarnEntry{
+		{Reason: "kept", WarnedBy: 77, WarnedAt: &stamp},
+	})
+
+	// Reads still work without bot admin rights; only the remove button is off.
+	page := warningsPage(t, fixture, chatID, "")
+	if !page.ReadOnly || len(page.Users) != 1 {
+		t.Fatalf("page = %+v, want one user read-only", page)
+	}
+
+	body := mustJSON(t, warningRemoveRequest{UserID: panelTestUserID})
+	recorder := panelRequest(t, fixture.handler, http.MethodDelete, listTarget(chatID, "warnings"), readFixture(t, "initdata_main.txt"), body, "application/json")
+	requireAPIError(t, recorder, http.StatusConflict, "bot_not_admin")
+
+	if count, _ := warns.GetWarns(panelTestUserID, chatID); count != 1 {
+		t.Fatalf("warns after refused remove = %d, want 1", count)
+	}
+}
+
+func TestWarningsPaginationReturnsEveryUserOnce(t *testing.T) {
+	fixture, chatID := newWarningsFixture(t)
+	const total = 7
+	stamp := time.Now().UTC()
+	seeded := make(map[int64]bool, total)
+	for i := range total {
+		userID := int64(500_000 + i)
+		seeded[userID] = true
+		seedChatWarns(t, chatID, userID, 0, []models.WarnEntry{
+			{Reason: "warn", WarnedBy: 77, WarnedAt: &stamp},
+		})
+	}
+
+	seen := make(map[int64]int, total)
+	const pageSize = 2
+	cursor := ""
+	for page := 1; ; page++ {
+		query := fmt.Sprintf("limit=%d", pageSize)
+		if cursor != "" {
+			query += "&cursor=" + cursor
+		}
+		body := warningsPage(t, fixture, chatID, query)
+		if len(body.Users) == 0 {
+			t.Fatalf("page %d is empty before every warned user was returned", page)
+		}
+		if len(body.Users) > pageSize {
+			t.Fatalf("page %d returned %d users, want at most %d", page, len(body.Users), pageSize)
+		}
+		for _, user := range body.Users {
+			seen[user.UserID]++
+		}
+		if body.NextCursor == 0 {
+			break
+		}
+		cursor = strconv.FormatInt(body.NextCursor, 10)
+		if page > total {
+			t.Fatal("pagination did not terminate")
+		}
+	}
+
+	if len(seen) != total {
+		t.Fatalf("pages returned %d distinct users, want %d", len(seen), total)
+	}
+	for userID := range seeded {
+		if seen[userID] != 1 {
+			t.Fatalf("user %d returned %d times, want exactly once", userID, seen[userID])
+		}
+	}
+}
+
+func TestWarningsPageRespectsTheHardMax(t *testing.T) {
+	fixture, chatID := newWarningsFixture(t)
+	stamp := time.Now().UTC()
+	for i := range warnPageMax + 3 {
+		seedChatWarns(t, chatID, int64(600_000+i), 0, []models.WarnEntry{
+			{Reason: "warn", WarnedBy: 77, WarnedAt: &stamp},
+		})
+	}
+
+	page := warningsPage(t, fixture, chatID, "limit=100000")
+	if len(page.Users) != warnPageMax {
+		t.Fatalf("users = %d, want the hard max %d", len(page.Users), warnPageMax)
+	}
+	if page.NextCursor == 0 {
+		t.Fatal("a full first page has no next_cursor")
+	}
+}
+
+func TestWarningsRejectsInvalidPageQuery(t *testing.T) {
+	fixture, chatID := newWarningsFixture(t)
+	for _, query := range []string{"limit=0", "limit=abc", "cursor=-1", "cursor=abc"} {
+		recorder := panelRequest(t, fixture.handler, http.MethodGet, listTarget(chatID, "warnings")+"?"+query, readFixture(t, "initdata_main.txt"), "", "")
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("query %q status = %d, want 400 (body %s)", query, recorder.Code, recorder.Body.String())
+		}
+	}
 }

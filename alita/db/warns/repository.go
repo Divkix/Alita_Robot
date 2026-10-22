@@ -588,20 +588,37 @@ type ChatWarn struct {
 	Entries  []models.WarnEntry
 }
 
-// ListChatWarns returns every warned user of the chat with their entries,
-// oldest first. Entries are reconciled with the reasons column like every warn
-// read, and expired ones are included: reads never prune.
-func ListChatWarns(chatId int64) ([]ChatWarn, error) {
+// ListChatWarns returns one page of the chat's warned users, ordered by user
+// id, with their entries. afterUserID pages forward (0 starts the first page)
+// and limit<=0 returns every remaining user. Users without a live warn row are
+// skipped in the query, so a page never comes back empty while another page
+// exists. Entries are reconciled with the reasons column like every warn read,
+// and expired ones are included: reads never prune.
+func ListChatWarns(chatId, afterUserID int64, limit int) ([]ChatWarn, error) {
+	query := db.DB.Where("chat_id = ? AND num_warns > 0", chatId)
+	if afterUserID > 0 {
+		query = query.Where("user_id > ?", afterUserID)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
 	var rows []models.Warns
-	if err := db.DB.Where("chat_id = ?", chatId).Order("user_id").Find(&rows).Error; err != nil {
+	if err := query.Order("user_id").Find(&rows).Error; err != nil {
 		return nil, fmt.Errorf("list chat warns: %w", err)
 	}
 	if len(rows) == 0 {
 		return nil, nil
 	}
 
+	// Only this page's users, so a chat with thousands of warned users never
+	// loads every entry.
+	userIDs := make([]int64, len(rows))
+	for i := range rows {
+		userIDs[i] = rows[i].UserId
+	}
 	var entries []models.WarnEntry
-	if err := db.DB.Where("chat_id = ?", chatId).Order("user_id, id").Find(&entries).Error; err != nil {
+	if err := db.DB.Where("chat_id = ? AND user_id IN ?", chatId, userIDs).
+		Order("user_id, id").Find(&entries).Error; err != nil {
 		return nil, fmt.Errorf("list chat warn entries: %w", err)
 	}
 	byUser := make(map[int64][]models.WarnEntry, len(rows))
@@ -611,6 +628,7 @@ func ListChatWarns(chatId int64) ([]ChatWarn, error) {
 
 	out := make([]ChatWarn, 0, len(rows))
 	for i := range rows {
+		// A concurrent remove can zero the row between the two queries.
 		if rows[i].NumWarns <= 0 {
 			continue
 		}

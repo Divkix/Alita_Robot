@@ -43,18 +43,22 @@ type timelineResponse struct {
 	NextCursor string          `json:"next_cursor,omitempty"`
 }
 
-// handleTimeline lists a chat's moderation events newest first. The cursor is
-// the (created_at, id) keyset of the last returned row, so a row inserted
-// between two pages neither repeats nor hides another; paging stops at the
-// retention boundary the sweep deletes past.
+// handleTimeline lists a chat's moderation events newest first, admin-only
+// because it names who banned or muted whom. The cursor is the (created_at,
+// id) keyset of the last returned row, so a row inserted between two pages
+// neither repeats nor hides another; paging stops at the retention boundary
+// the sweep deletes past.
 func (p *Panel) handleTimeline(w http.ResponseWriter, r *http.Request) {
 	_, access, ok := p.chatRequest(w, r)
 	if !ok {
 		return
 	}
+	if !requireAdmin(w, access) {
+		return
+	}
 
 	values := r.URL.Query()
-	limit, ok := parseTimelineLimit(w, values.Get("limit"))
+	limit, ok := parsePageLimit(w, values.Get("limit"), timelinePageDefault, timelinePageMax)
 	if !ok {
 		return
 	}
@@ -123,18 +127,6 @@ func eventView(ev models.ModerationEvent) timelineEvent {
 		view.Reason = ev.Reason
 	}
 	return view
-}
-
-func parseTimelineLimit(w http.ResponseWriter, raw string) (int, bool) {
-	if raw == "" {
-		return timelinePageDefault, true
-	}
-	parsed, err := strconv.Atoi(raw)
-	if err != nil || parsed <= 0 {
-		writeJSONError(w, http.StatusBadRequest, "invalid_limit", "limit must be a positive integer")
-		return 0, false
-	}
-	return min(parsed, timelinePageMax), true
 }
 
 // timelineCursor encodes a row's (created_at, id) pair. UnixNano keeps the

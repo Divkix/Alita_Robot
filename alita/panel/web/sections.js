@@ -13,6 +13,6 @@ export const sections = [
 	{ key: "filters", label: "Filters", render: renderFilters },
 	{ key: "notes", label: "Notes", render: renderNotes },
 	{ key: "blacklists", label: "Blacklists", render: renderBlacklists },
-	{ key: "warnings", label: "Warnings", render: renderWarnings },
-	{ key: "timeline", label: "Timeline", render: renderTimeline },
+	{ key: "warnings", label: "Warnings", render: renderWarnings, adminOnly: true },
+	{ key: "timeline", label: "Timeline", render: renderTimeline, adminOnly: true },
 ];

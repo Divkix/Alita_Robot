@@ -3,12 +3,18 @@ package panel
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+)
+
+const (
+	warnPageDefault = 50
+	warnPageMax     = 200
 )
 
 // warnEntryView is one warning as the panel lists it. Expired uses the same
@@ -31,10 +37,12 @@ type warnUserView struct {
 	Entries []warnEntryView `json:"entries"`
 }
 
-// warningsResponse is the GET shape; ReadOnly disables the remove buttons.
+// warningsResponse is the GET shape; ReadOnly disables the remove buttons and
+// NextCursor is the last user id of this page when another page follows.
 type warningsResponse struct {
-	Users    []warnUserView `json:"users"`
-	ReadOnly bool           `json:"read_only"`
+	Users      []warnUserView `json:"users"`
+	NextCursor int64          `json:"next_cursor,omitempty"`
+	ReadOnly   bool           `json:"read_only"`
 }
 
 type warningRemoveRequest struct {
@@ -46,20 +54,44 @@ type warningRemoveResponse struct {
 	Active  int  `json:"active"`
 }
 
-// handleWarnings lists every warned user with all entries, expired ones
-// labelled. Reads never prune expired entries, so the label is all that
-// separates them from live warns.
+// handleWarnings lists one page of warned users with their entries, expired
+// ones labelled. Reads never prune expired entries, so the label is all that
+// separates them from live warns. Who warned whom is admin-only data.
 func (p *Panel) handleWarnings(w http.ResponseWriter, r *http.Request) {
 	_, access, ok := p.chatRequest(w, r)
 	if !ok {
 		return
 	}
+	if !requireAdmin(w, access) {
+		return
+	}
 
-	rows, err := warns.ListChatWarns(access.ChatID)
+	values := r.URL.Query()
+	limit, ok := parsePageLimit(w, values.Get("limit"), warnPageDefault, warnPageMax)
+	if !ok {
+		return
+	}
+	var afterUserID int64
+	if raw := values.Get("cursor"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed < 0 {
+			writeJSONError(w, http.StatusBadRequest, "invalid_cursor", "cursor must be a non-negative user id")
+			return
+		}
+		afterUserID = parsed
+	}
+
+	// One extra user proves whether another page exists.
+	rows, err := warns.ListChatWarns(access.ChatID, afterUserID, limit+1)
 	if err != nil {
 		log.WithError(err).Error("[Panel] Failed to read warnings")
 		writeJSONError(w, http.StatusInternalServerError, "warnings_failed", "could not read warnings")
 		return
+	}
+	next := int64(0)
+	if len(rows) > limit {
+		rows = rows[:limit]
+		next = rows[len(rows)-1].UserID
 	}
 	expiry := warns.GetWarnSettingContext(r.Context(), access.ChatID).WarnExpiry
 
@@ -89,20 +121,22 @@ func (p *Panel) handleWarnings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, warningsResponse{
-		Users:    users,
-		ReadOnly: access.Role != RoleAdmin || !access.BotAdmin,
+		Users:      users,
+		NextCursor: next,
+		ReadOnly:   !access.BotAdmin,
 	})
 }
 
 // handleRemoveWarning removes one warning for a user through warns.RemoveWarn,
 // the function /rmwarn and /unwarn call, so the row locks, the entry
 // reconciliation and the cache invalidation are identical to the command path.
+// Both commands require a plain chat admin, so the panel asks for permNone.
 func (p *Panel) handleRemoveWarning(w http.ResponseWriter, r *http.Request) {
-	_, access, ok := p.chatRequest(w, r)
+	session, access, ok := p.chatRequest(w, r)
 	if !ok {
 		return
 	}
-	if !requireWritable(w, access) {
+	if !p.requirePermission(w, r, access, session.User.ID, permNone) {
 		return
 	}
 
