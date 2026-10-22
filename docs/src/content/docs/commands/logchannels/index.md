@@ -60,7 +60,7 @@ In PM, name the group first: its ID, its @username, or the title of a group wher
 - `/nolog -1001234567890 settings` - turn off a category
 - `/logchannel @mygroup` - show the log channel
 - `/unsetlog @mygroup` - remove it
-You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: `/setlog @mychannel`. The group passes the same checks as /connect, and the connection stays as it is.
+You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: `/setlog @mychannel`. While you are connected, /setlog, /log and /nolog do not look up a title: name another group by its @username or ID. The group passes the same checks as /connect, and the connection stays as it is.
 
 **Choose what gets logged:**
 - `/logcategories` - list the categories

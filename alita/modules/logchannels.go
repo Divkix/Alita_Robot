@@ -97,9 +97,18 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-	if len(args) != 1 {
+	switch {
+	case len(args) == 0:
 		text, _ := tr.GetString("logs_pm_need_channel")
 		replyHTML(b, msg, text)
+		return ext.EndGroups
+	case len(args) > 1:
+		// On a connection a title is the command's own argument, so
+		// /setlog "My Group" @chan gets here with the channel named.
+		text, _ := tr.GetString("logs_pm_setlog_usage")
+		if err := replyCommandHelp(b, msg, tr, "setlog", text); err != nil {
+			log.Error(err)
+		}
 		return ext.EndGroups
 	}
 	channel, err := chat_status.GetChat(b, args[0])

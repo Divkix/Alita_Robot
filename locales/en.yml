@@ -2590,6 +2590,7 @@ logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
 logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_pm_need_channel: "Name the channel after the group: <code>/setlog @mygroup @mychannel</code>, or the channel's ID. Make me an admin of the channel that can post messages first."
+logs_pm_setlog_usage: "Name the group, then one channel. While you are connected, name another group by its @username or ID: its title is not looked up."
 logs_pm_not_channel: "<code>{channel}</code> is not a channel I can see. Make me an admin of the channel that can post messages, then name it by its @username or ID."
 logs_pm_user_not_channel_admin: "To make the channel the log channel, you need to own it or be its admin with permission to post messages."
 logs_pm_bot_cannot_post: "I need to be an admin of the channel with permission to post messages."
@@ -2781,7 +2782,7 @@ logchannels_examples_docs: |
   • <code>/nolog -1001234567890 settings</code> - turn off a category
   • <code>/logchannel @mygroup</code> - show the log channel
   • <code>/unsetlog @mygroup</code> - remove it
-  You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>. The group passes the same checks as /connect, and the connection stays as it is.
+  You must be an admin of the group and either own the channel or be its admin with permission to post messages, as posting /setlog there would need; the bot must be an admin of the channel that can post messages. When you are connected with /connect, the group may be left out: <code>/setlog @mychannel</code>. While you are connected, /setlog, /log and /nolog do not look up a title: name another group by its @username or ID. The group passes the same checks as /connect, and the connection stays as it is.
 
   <b>Choose what gets logged:</b>
   • <code>/logcategories</code> - list the categories

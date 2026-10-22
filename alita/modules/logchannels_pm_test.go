@@ -148,6 +148,24 @@ func TestSetLogInPMWithoutChannelAsksForIt(t *testing.T) {
 	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_pm_need_channel"))
 }
 
+// On a connection a title is not looked up for /setlog, so a title before the
+// channel leaves more than one argument: the reply is /setlog's usage and
+// help, not a request for the channel the user did name.
+func TestSetLogInPMOnConnectionWithTitleRepliesUsage(t *testing.T) {
+	f := newLogChannelPMFixture(t)
+	useRealLocales(t)
+	f.connectAdmin(t)
+
+	f.sendPM(t, f.admin, `/setlog "Fixture Group" @logchan`)
+
+	f.requireNotBound(t)
+	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_pm_setlog_usage"))
+	if got := sentText(f.client); strings.Contains(got, translated(t, "logs_pm_need_channel")) {
+		t.Fatalf("/setlog with a channel asked for the channel: %s", got)
+	}
+	assertPMGroupHelp(t, sentText(f.client), "setlog")
+}
+
 func TestSetLogInPMRefusesWhenUserNotChannelAdmin(t *testing.T) {
 	f := newLogChannelPMFixture(t)
 	f.setMember(f.channel.Id, f.admin.Id, `"status":"member"`)
