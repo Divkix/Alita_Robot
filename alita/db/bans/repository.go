@@ -182,7 +182,8 @@ func LiftByID(id, liftedBy int64) (bool, error) {
 }
 
 // Reopen undoes a LiftByID by liftedBy whose unban Telegram then refused:
-// the ban is still in force.
+// the ban is still in force. It fails on the open-row unique index when the
+// user was banned again in between; the newer row then covers the ban.
 func Reopen(id, liftedBy int64) error {
 	res := db.DB.Model(&models.BanRecord{}).
 		Where("id = ? AND lifted_by = ? AND lifted_at IS NOT NULL", id, liftedBy).

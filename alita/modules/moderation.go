@@ -229,8 +229,9 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cmd.eventAction != "" {
 		recordModerationEvent(mc.Chat.Id, mc.User.Id, tgt.userID, cmd.eventAction, tgt.reason)
 	}
+	var banRecordID int64
 	if cmd.selfBan || cmd.eventAction == models.ModerationActionBan {
-		recordBan(banRecord{
+		banRecordID = recordBan(banRecord{
 			chatID:    mc.Chat.Id,
 			userID:    tgt.userID,
 			bannedBy:  mc.User.Id,
@@ -264,7 +265,7 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		if cmd.logUser {
 			actionlog.User(mc.Bot, mc.Chat, mc.User, cmd.logAction)
 		} else {
-			actionlog.Admin(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason)
+			actionlog.AdminWithMarkup(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason, unbanLogMarkup(mc.Chat.Id, banRecordID))
 		}
 	}
 	return ext.EndGroups

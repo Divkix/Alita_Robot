@@ -517,8 +517,11 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	// logAction posts the action to the log channel. The matched trigger is a
 	// field of its own, so leaving it out takes one line.
+	// banRecordID is the record of a ban the action made, for the entry's
+	// Unban button.
+	var banRecordID int64
 	logAction := func(action string) {
-		actionlog.Automated(b, chat, "BLACKLIST", user.Id(), user.Name(),
+		actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "BLACKLIST", user.Id(), user.Name(),
 			actionlog.Field{Name: "Action", Value: action},
 			actionlog.Field{Name: "Trigger", Value: i},
 		)
@@ -550,7 +553,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		recordBan(banRecord{chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist, reason: banReason})
+		banRecordID = recordBan(banRecord{chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist, reason: banReason})
 		logAction(matched.Action)
 		if err = notify("_bl_watcher_banned_user"); err != nil {
 			return err
@@ -588,7 +591,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		if matched.Action == "tban" {
-			recordBan(banRecord{
+			banRecordID = recordBan(banRecord{
 				chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist,
 				reason: banReason, untilUnix: untilDate,
 			})

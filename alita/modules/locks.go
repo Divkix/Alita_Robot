@@ -438,12 +438,12 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
-	recordBan(banRecord{chatID: chat.Id, userID: mem.Id, source: models.BanSourceLock, detail: "bots"})
+	banRecordID := recordBan(banRecord{chatID: chat.Id, userID: mem.Id, source: models.BanSourceLock, detail: "bots"})
 	var addedBy string
 	if sender != nil {
 		addedBy = fmt.Sprintf("%s (%d)", sender.Name(), senderID)
 	}
-	actionlog.Automated(b, chat, "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
+	actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 	text, _ := tr.GetString("locks_bot_only_admins")

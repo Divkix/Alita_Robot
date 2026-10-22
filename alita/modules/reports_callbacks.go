@@ -208,17 +208,23 @@ func closeReportCard(b *gotgbot.Bot, card gotgbot.MaybeInaccessibleMessage, stat
 	}
 }
 
+// readableMessage returns the message a callback was pressed on, or nil when
+// Telegram sent it as inaccessible (too old to read).
+func readableMessage(m gotgbot.MaybeInaccessibleMessage) *gotgbot.Message {
+	switch m := m.(type) {
+	case gotgbot.Message:
+		return &m
+	case *gotgbot.Message:
+		return m
+	}
+	return nil
+}
+
 // closeLogEntry appends line, after a blank line, to a message the bot posted
 // in a log channel and drops its action buttons, keeping its URL buttons. An
 // entry too old to read only loses its buttons.
 func closeLogEntry(b *gotgbot.Bot, entry gotgbot.MaybeInaccessibleMessage, line string) error {
-	var msg *gotgbot.Message
-	switch m := entry.(type) {
-	case gotgbot.Message:
-		msg = &m
-	case *gotgbot.Message:
-		msg = m
-	}
+	msg := readableMessage(entry)
 	chatID, messageID := entry.GetChat().Id, entry.GetMessageId()
 	if msg == nil || msg.Text == "" {
 		_, _, err := b.EditMessageReplyMarkup(&gotgbot.EditMessageReplyMarkupOpts{ChatId: chatID, MessageId: messageID})

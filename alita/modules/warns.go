@@ -306,8 +306,9 @@ func logWarnRemoval(b *gotgbot.Bot, chat *gotgbot.Chat, admin *gotgbot.User, tag
 // punishAtWarnLimit applies the chat's warn mode to u, who just reached the
 // warn limit, and returns the reply. punished is false for an unknown mode.
 // A ban is recorded as issued by bannedBy (0 for the bot) for reason, the
-// reason of the warn that reached the limit.
-func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, err error) {
+// reason of the warn that reached the limit; banRecordID is its record (0
+// when the mode bans nobody or the record write failed).
+func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, banRecordID int64, err error) {
 	userId := u.Id
 	switch warnrc.WarnMode {
 	case "kick":
@@ -316,7 +317,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
 		if err != nil {
 			log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
-			return "", false, err
+			return "", false, 0, err
 		}
 		punished = true
 	case "mute":
@@ -328,7 +329,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
 		if err != nil {
 			log.Errorf("[warn] warnlimit: mute (%d) - %s", userId, err)
-			return "", false, err
+			return "", false, 0, err
 		}
 		punished = true
 	case "ban":
@@ -337,9 +338,9 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
 		if err != nil {
 			log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
-			return "", false, err
+			return "", false, 0, err
 		}
-		recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: bannedBy, source: models.BanSourceWarn, reason: reason})
+		banRecordID = recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: bannedBy, source: models.BanSourceWarn, reason: reason})
 		punished = true
 	case "tban", "tmute":
 		actionTime := warnActionTime(warnrc)
@@ -353,10 +354,10 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		}
 		if err != nil {
 			log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)
-			return "", false, err
+			return "", false, 0, err
 		}
 		if warnrc.WarnMode == "tban" {
-			recordBan(banRecord{
+			banRecordID = recordBan(banRecord{
 				chatID: chat.Id, userID: userId, bannedBy: bannedBy,
 				source: models.BanSourceWarn, reason: reason, untilUnix: untilDate,
 			})
@@ -367,7 +368,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 	default:
 		log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
 	}
-	return reply, punished, nil
+	return reply, punished, banRecordID, nil
 }
 
 // warnThisUser warns userId; issuer carries who issues the warn (warnIssuer
@@ -430,13 +431,16 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	// logWarn posts an admin's warn under the warns log category. The bot's
 	// own warns (blacklists) are no admin's: they log under automated, and
 	// only at the limit.
+	// banRecordID is the record of a ban the warn limit made, for the
+	// entry's Unban button.
+	var banRecordID int64
 	logWarn := func(tag string, extra ...actionlog.Field) {
 		if issuer.WarnedBy == b.Id {
 			return
 		}
 		fields := append([]actionlog.Field{{Name: "Warns", Value: fmt.Sprintf("%d/%d", numWarns, warnrc.WarnLimit)}}, extra...)
 		fields = append(fields, actionlog.Field{Name: "Reason", Value: shownReason(reason, func(s string) string { return s })})
-		actionlog.Warn(b, chat, ctx.EffectiveUser, tag, u.Id, u.FirstName, fields...)
+		actionlog.WarnWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), ctx.EffectiveUser, tag, u.Id, u.FirstName, fields...)
 	}
 
 	if numWarns >= warnrc.WarnLimit {
@@ -446,7 +450,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		if bannedBy == b.Id {
 			bannedBy = 0
 		}
-		reply, punished, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns, bannedBy, reason)
+		reply, punished, banRecordID, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns, bannedBy, reason)
 		if err != nil {
 			// The warn stays written though the limit's action failed.
 			logWarn("WARN")
@@ -460,7 +464,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			// Only the bot's own warns (blacklists) are automated; an admin's
 			// warn at the limit is a human action.
 			if issuer.WarnedBy == b.Id {
-				actionlog.Automated(b, chat, "WARNLIMIT", u.Id, u.FirstName,
+				actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "WARNLIMIT", u.Id, u.FirstName,
 					actionlog.Field{Name: "Warns", Value: fmt.Sprintf("%d/%d", numWarns, warnrc.WarnLimit)},
 					actionlog.Field{Name: "Action", Value: warnModeLabel(warnrc)},
 					actionlog.Field{Name: "By", Value: "blacklist"},
