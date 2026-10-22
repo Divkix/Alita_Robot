@@ -48,7 +48,7 @@ In PM, `/filters` takes the group as the first argument: its ID, its @username, 
 `/filters @mygroup`
 `/filters "My Group"`
 
-This works without `/connect` and, when you are connected, lists the named group's filters instead of the connected one's; the connection stays as it is. The group passes the same checks as `/connect`. When two of your groups share a title, the bot lists both with their IDs and asks for the @username or ID. Without an argument and without a connection, the bot answers with the command's help, an example and the groups where you are an admin. In a group the argument is ignored.
+This works without `/connect` and, when you are connected, lists the named group's filters instead of the connected one's; the connection stays as it is. The group passes the same checks as `/connect`. A title is looked up only among the connected group and the 50 most recently active groups where you have written; name any other group by its @username or ID. When two of your groups share a title, the bot lists both with their IDs and asks for the @username or ID. Without an argument and without a connection, the bot answers with the command's help, an example and the groups where you are an admin. In a group the argument is ignored.
 
 
 ## Module Aliases
