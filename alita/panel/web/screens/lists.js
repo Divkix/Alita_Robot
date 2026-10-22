@@ -147,6 +147,10 @@ async function renderList(root, chatID, chat, kind) {
 					const neighbour = item.nextElementSibling ?? item.previousElementSibling;
 					item.remove();
 					shown -= 1;
+					// The cursor is an offset; every later entry moved up one.
+					if (state.cursor > 0) {
+						state.cursor -= 1;
+					}
 					(neighbour?.querySelector("button") ?? searchInput).focus();
 					if (!resetting) {
 						// With more pages left, an emptied screen loads the next
