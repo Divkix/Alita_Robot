@@ -9,5 +9,5 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testdb.Run(m, &models.BanRecord{}))
+	os.Exit(testdb.Run(m, &models.BanRecord{}, &models.User{}))
 }

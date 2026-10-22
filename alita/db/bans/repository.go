@@ -7,6 +7,8 @@ package bans
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -99,7 +101,7 @@ func Record(r models.BanRecord) (int64, error) {
 // or not yet past their end. Bounds are compared in UTC, the zone Record
 // writes: SQLite compares the stored text.
 func inForce(q *gorm.DB, now time.Time) *gorm.DB {
-	return q.Where("lifted_at IS NULL AND (until IS NULL OR until > ?)", now.UTC())
+	return q.Where("ban_records.lifted_at IS NULL AND (ban_records.until IS NULL OR ban_records.until > ?)", now.UTC())
 }
 
 // Lift closes the ban of userID in chatID that is in force, as liftedBy (0
@@ -149,6 +151,57 @@ func Latest(chatID, userID int64) (*models.BanRecord, error) {
 		return nil, fmt.Errorf("read ban record: %w", err)
 	}
 	return &r, nil
+}
+
+// likeEscaper escapes the LIKE wildcards of a search with '!', the ESCAPE
+// character ListOpen declares (a backslash reads differently across drivers).
+var likeEscaper = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_")
+
+// NormalizeSearch is the form of a ban list search ListOpen matches: trimmed,
+// without a leading @. An empty result means no search.
+func NormalizeSearch(search string) string {
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(search), "@"))
+}
+
+// ListOpen returns page (from 0) of the bans in force in chatID at now,
+// newest first, size to a page, with the count of every match and the page
+// it returned: a page past the end returns the last one. A search
+// (NormalizeSearch) matches the banned ID exactly, or part of the username or
+// name users holds for it, case-insensitively.
+func ListOpen(chatID int64, search string, now time.Time, page, size int) ([]models.BanRecord, int64, int, error) {
+	search = NormalizeSearch(search)
+	scope := func() *gorm.DB {
+		q := inForce(db.DB.Model(&models.BanRecord{}), now).Where("ban_records.chat_id = ?", chatID)
+		if search == "" {
+			return q
+		}
+		// Both sides are folded in SQL, so a search folds like the names do.
+		pattern := "%" + likeEscaper.Replace(search) + "%"
+		match := db.DB.Where("LOWER(users.username) LIKE LOWER(?) ESCAPE '!'", pattern).
+			Or("LOWER(users.name) LIKE LOWER(?) ESCAPE '!'", pattern)
+		if id, err := strconv.ParseInt(search, 10, 64); err == nil {
+			match = match.Or("ban_records.user_id = ?", id)
+		}
+		return q.Joins("LEFT JOIN users ON users.user_id = ban_records.user_id").Where(match)
+	}
+	var total int64
+	if err := scope().Count(&total).Error; err != nil {
+		return nil, 0, 0, fmt.Errorf("count open bans: %w", err)
+	}
+	if total == 0 {
+		return nil, 0, 0, nil
+	}
+	page = min(max(page, 0), int((total-1)/int64(size)))
+	var rows []models.BanRecord
+	if err := scope().
+		Select("ban_records.*").
+		Order("ban_records.created_at DESC, ban_records.id DESC").
+		Offset(page * size).
+		Limit(size).
+		Find(&rows).Error; err != nil {
+		return nil, 0, 0, fmt.Errorf("list open bans: %w", err)
+	}
+	return rows, total, page, nil
 }
 
 // DeleteExpiredBefore removes the rows lifted before cutoff and the open
