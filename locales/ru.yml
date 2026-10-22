@@ -1170,6 +1170,9 @@ greetings_auto_approve_invalid_option: "Я понимаю только 'on/yes' 
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Проверка капчи была <b>включена</b>. Новые участники должны будут пройти капчу для присоединения."
 captcha_disabled_success: "❌ Проверка капчи была <b>отключена</b>."
+captcha_join_enable_button: "🛡 Включить капчу"
+captcha_join_enabled: "✅ Капча включена: новые участники должны пройти её, прежде чем смогут писать. Отключить: /captcha off."
+captcha_join_already_enabled: "Капча уже включена."
 captcha_timeout_set_success: "✅ Время ожидания капчи установлено на <b>%d минут</b>"
 captcha_action_set_success: "✅ Действие при неудаче капчи установлено на <b>%s</b>"
 captcha_refresh_button: "🔄 Новое изображение"

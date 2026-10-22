@@ -76,10 +76,16 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 	// send a message to group itself
 	thanksText, _ := tr.GetString("bot_updates_thanks_for_adding")
 	creatorsPlug, _ := tr.GetString("bot_updates_creators_plug")
+	// Offer captcha with a button; it stays off until an admin presses it.
+	var opts *gotgbot.SendMessageOpts
+	buttonText, _ := tr.GetString("captcha_join_enable_button")
+	if markup, ok := captchaJoinOfferMarkup(ctx, chat.Id, buttonText); ok {
+		opts = &gotgbot.SendMessageOpts{ReplyMarkup: markup}
+	}
 	_, err := b.SendMessage(
 		chat.Id,
 		fmt.Sprint(thanksText, creatorsPlug, msgAdmin),
-		nil,
+		opts,
 	)
 	if err != nil {
 		log.Error(err)

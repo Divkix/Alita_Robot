@@ -1344,6 +1344,9 @@ greetings_auto_approve_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/n
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Verifikasi Captcha telah <b>diaktifkan</b>. Anggota baru perlu menyelesaikan captcha untuk bergabung."
 captcha_disabled_success: "❌ Verifikasi Captcha telah <b>dinonaktifkan</b>."
+captcha_join_enable_button: "🛡 Aktifkan captcha"
+captcha_join_enabled: "✅ Captcha diaktifkan: anggota baru harus menyelesaikannya sebelum bisa menulis. Nonaktifkan dengan /captcha off."
+captcha_join_already_enabled: "Captcha sudah diaktifkan."
 captcha_timeout_set_success: "✅ Batas waktu captcha diatur ke <b>%d menit</b>"
 captcha_action_set_success: "✅ Tindakan kegagalan captcha diatur ke <b>%s</b>"
 captcha_refresh_button: "🔄 Gambar Baru"
