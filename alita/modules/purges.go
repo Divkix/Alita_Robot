@@ -21,9 +21,8 @@ import (
 )
 
 type delMsgEntry struct {
-	userID    int64
-	timestamp time.Time
-	msgID     int64
+	userID int64
+	msgID  int64
 }
 
 var (
@@ -230,7 +229,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		delMsgs.Store(chat.Id, delMsgEntry{userID: user.Id, timestamp: time.Now(), msgID: TodelId})
+		delMsgs.Store(chat.Id, delMsgEntry{userID: user.Id, msgID: TodelId})
 
 		go func(chatId, toDelId int64, msgToDelete *gotgbot.Message) {
 			defer error_handling.RecoverFromPanic("purgeFromCleanup", "purges")

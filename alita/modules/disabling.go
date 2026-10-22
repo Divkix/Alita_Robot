@@ -23,7 +23,6 @@ var disablingModule = moduleStruct{moduleName: "Disabling"}
 
 type toggleCmdConfig struct {
 	emptyArgsMsgKey  string
-	noCmdMsgKey      string
 	successMsgKey    string
 	unknownCmdMsgKey string
 	dbOp             func(int64, string) error
@@ -45,7 +44,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		if enable {
 			cfg = toggleCmdConfig{
 				emptyArgsMsgKey:  "disabling_no_command_reenable",
-				noCmdMsgKey:      "disabling_no_command_reenable",
 				successMsgKey:    "disabling_enabled_successfully",
 				unknownCmdMsgKey: "disabling_unknown_reenable",
 				dbOp:             disabling.EnableCMD,
@@ -54,7 +52,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		} else {
 			cfg = toggleCmdConfig{
 				emptyArgsMsgKey:  "disabling_no_command_specified",
-				noCmdMsgKey:      "disabling_no_command_specified",
 				successMsgKey:    "disabling_disabled_successfully",
 				unknownCmdMsgKey: "disabling_unknown_command",
 				dbOp:             disabling.DisableCMD,
