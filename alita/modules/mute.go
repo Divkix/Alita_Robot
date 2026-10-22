@@ -41,7 +41,7 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{keyboard.UnrestrictButton(c.Tr, "mutes_unmute_button", "unmute", t.userID)},
+					{keyboard.UnrestrictButton(c.Tr, "mutes_unmute_button", "unmute", t.userID, 0)},
 				},
 			},
 		},

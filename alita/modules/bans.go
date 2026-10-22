@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -147,7 +148,7 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{unrestrictButton(c.Tr, c.Msg, c.Chat, "bans_unban_button", "unban", t.userID)},
+					{keyboard.UnrestrictButton(c.Tr, "bans_unban_button", "unban", t.userID, pmButtonChatID(c.Msg, c.Chat))},
 				},
 			},
 		},
@@ -686,8 +687,8 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						unrestrictButton(tr, msg, ctx.EffectiveChat, "button_unban", "unban", userId),
-						unrestrictButton(tr, msg, ctx.EffectiveChat, "button_unmute", "unmute", userId),
+						keyboard.UnrestrictButton(tr, "button_unban", "unban", userId, pmButtonChatID(msg, ctx.EffectiveChat)),
+						keyboard.UnrestrictButton(tr, "button_unmute", "unmute", userId, pmButtonChatID(msg, ctx.EffectiveChat)),
 					},
 				},
 			},
@@ -1030,23 +1031,23 @@ func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat
 	return text + pmGroupLine(tr, msg, chat, true)
 }
 
-// moderationButtonData is the callback data of a button a bans command sends
-// in reply to msg. Sent in PM, whose chat names no group, it names chat, the
-// group it acts on, in its "c" field.
-func moderationButtonData(namespace string, msg *gotgbot.Message, chat *gotgbot.Chat, fields map[string]string) string {
+// pmButtonChatID is the group a button a bans command sends in reply to msg
+// names: chat, the group it acts on, when msg came from PM, whose chat names
+// no group; else 0, so the button acts on the chat it is pressed in.
+func pmButtonChatID(msg *gotgbot.Message, chat *gotgbot.Chat) int64 {
 	if msg.Chat.Type == "private" {
-		fields["c"] = strconv.FormatInt(chat.Id, 10)
+		return chat.Id
 	}
-	return encodeCallbackData(namespace, fields)
+	return 0
 }
 
-// unrestrictButton is keyboard.UnrestrictButton for a button sent in reply to
-// msg, naming chat when sent in PM (moderationButtonData).
-func unrestrictButton(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, labelKey, action string, userID int64) gotgbot.InlineKeyboardButton {
-	return gotgbot.InlineKeyboardButton{
-		Text:         trS(tr, labelKey),
-		CallbackData: moderationButtonData("unrestrict", msg, chat, map[string]string{"a": action, "u": strconv.FormatInt(userID, 10)}),
+// moderationButtonData is the callback data of a button a bans command sends
+// in reply to msg, naming the group in its "c" field when pmButtonChatID does.
+func moderationButtonData(namespace string, msg *gotgbot.Message, chat *gotgbot.Chat, fields map[string]string) string {
+	if chatID := pmButtonChatID(msg, chat); chatID != 0 {
+		fields["c"] = strconv.FormatInt(chatID, 10)
 	}
+	return encodeCallbackData(namespace, fields)
 }
 
 // From PM, the commands that act on a user named after the group take the

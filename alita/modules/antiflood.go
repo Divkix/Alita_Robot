@@ -356,7 +356,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 		keyboard = [][]gotgbot.InlineKeyboardButton{
-			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id())},
+			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id(), 0)},
 		}
 
 		_, err := chat.RestrictMember(b, userId,
@@ -385,7 +385,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", user.Id())},
+				{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", user.Id(), 0)},
 			}
 			_, err := chat.BanSenderChat(b, userId, nil)
 			if err != nil {
@@ -406,7 +406,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
 		} else {
 			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id())},
+				{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id(), 0)},
 			}
 			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 		}
