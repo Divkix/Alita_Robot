@@ -8,8 +8,11 @@ type ReportChatSettings struct {
 	Enabled     bool       `gorm:"column:enabled;default:true" json:"enabled,omitempty"`
 	Status      bool       `gorm:"column:status;default:true" json:"status,omitempty"`
 	BlockedList Int64Array `gorm:"column:blocked_list;type:jsonb" json:"blocked_list,omitempty"`
-	CreatedAt   time.Time  `gorm:"column:created_at" json:"created_at,omitempty"`
-	UpdatedAt   time.Time  `gorm:"column:updated_at" json:"updated_at,omitempty"`
+	// MuteThreshold is the number of different members whose open reports
+	// against a user mute that user; 0 turns the auto-mute off.
+	MuteThreshold int       `gorm:"column:mute_threshold;not null;default:0" json:"mute_threshold,omitempty"`
+	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
+	UpdatedAt     time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
 func (ReportChatSettings) TableName() string {
