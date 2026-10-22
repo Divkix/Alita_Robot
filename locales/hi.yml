@@ -2410,10 +2410,17 @@ chat_status_bot_change_info_error: "मैं यहाँ ग्रुप क�
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "सभी कमांड एक सूची में"
+main_bot_command_commands: "सेक्शन के हिसाब से कमांड, सदस्यों या एडमिन के लिए"
 help_extend_hint: "\n\nसभी कमांड एक सूची में देखने के लिए /extend भेजें।"
 help_extend_header: "📋 <b>सभी कमांड</b>\nआर्ग्युमेंट और उदाहरण: /help → मॉड्यूल।"
 help_extend_pm: "कमांड की पूरी सूची लंबी है, इसलिए मैं इसे PM में भेज रहा हूँ।"
 help_extend_button: "📋 सभी कमांड"
+commands_menu_member: "📋 <b>सेक्शन के हिसाब से कमांड</b>\nसिर्फ़ वे कमांड दिखाए गए हैं जिन्हें कोई सदस्य इस्तेमाल कर सकता है। किसी सेक्शन के कमांड देखने के लिए उसे दबाएँ।"
+commands_menu_admin: "📋 <b>सेक्शन के हिसाब से कमांड</b>\nआप एडमिन हैं, इसलिए एडमिन कमांड भी दिखाए गए हैं। किसी सेक्शन के कमांड देखने के लिए उसे दबाएँ।"
+commands_section_hint: "<i>कमांड इस्तेमाल करने का तरीका देखने के लिए उसे दबाएँ।</i>"
+commands_copy_example_button: "📋 उदाहरण कॉपी करें"
+commands_open_in_pm: "यह सूची पढ़ने वाले पर निर्भर करती है, इसलिए मैं इसे आपको PM में दिखाऊँगा।"
+commands_open_in_pm_button: "📋 PM में खोलें"
 admin_section_desc: "ग्रुप के एडमिन बनाएँ, हटाएँ और मैनेज करें"
 aispam_section_desc: "AI फ़िल्टर से स्पैम पकड़ें"
 antiflood_section_desc: "बहुत ज़्यादा संदेश भेजने वालों पर कार्रवाई करें"

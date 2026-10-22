@@ -651,6 +651,7 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("start", DefaultHelpRegistry().start))
 	dispatcher.AddHandler(handlers.NewCommand("help", DefaultHelpRegistry().help))
 	dispatcher.AddHandler(handlers.NewCommand("extend", DefaultHelpRegistry().extend))
+	loadCommandsMenu(dispatcher)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), DefaultHelpRegistry().helpButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("donate", DefaultHelpRegistry().donate))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), DefaultHelpRegistry().botConfig))

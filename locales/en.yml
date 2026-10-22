@@ -2703,10 +2703,17 @@ chat_status_bot_change_info_error: "I can't change group info here! Make sure I'
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "All commands in one list"
+main_bot_command_commands: "Commands by section, for members or admins"
 help_extend_hint: "\n\nSend /extend to see every command in one list."
 help_extend_header: "📋 <b>All commands</b>\nArguments and examples: /help → module."
 help_extend_pm: "The full command list is long, so I'll send it in PM."
 help_extend_button: "📋 All commands"
+commands_menu_member: "📋 <b>Commands by section</b>\nOnly the commands a member can use are listed. Tap a section to see its commands."
+commands_menu_admin: "📋 <b>Commands by section</b>\nYou are an admin, so admin commands are listed too. Tap a section to see its commands."
+commands_section_hint: "<i>Tap a command to see how to use it.</i>"
+commands_copy_example_button: "📋 Copy example"
+commands_open_in_pm: "The list depends on who reads it, so I'll show it to you in PM."
+commands_open_in_pm_button: "📋 Open in PM"
 # One line per help module: what the module covers
 admin_section_desc: "Promote, demote and manage the group's admins"
 aispam_section_desc: "Catch spam with an AI filter"

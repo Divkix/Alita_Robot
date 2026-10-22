@@ -191,7 +191,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - `menuCommands` (`alita/modules/command_help.go`) lists exactly the commands of the en.yml `<module>_extend_msg`
   texts, each with its module and `AdminOnly` (set only when no form of the command works for a member); a command
   added to or removed from an extend list changes the map in the same commit (`TestMenuCommandsMatchExtendLists`).
-  Every module there has a one-line `<module>_section_desc` in all 7 locales.
+  Every module there has a one-line `<module>_section_desc` in all 7 locales. `/commands` (`commands_menu.go`) shows
+  members only the commands without `AdminOnly`; it finds admin status in PM through the deep-link group, the
+  connected group, then `adminGroupsForUser` (the picker's pause and scan), and never through a scan of its own.
 - `moderation_events` gets one row per successful human moderation action, written only by `recordModerationEvent`
   (`alita/modules/moderation.go`) from commands and inline moderation buttons. Never record automated actions
   (spamdb, captcha, antiraid, locks, blacklists, warn limits, report auto-mute): the shared-reputation join check

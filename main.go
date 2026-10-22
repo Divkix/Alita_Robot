@@ -426,11 +426,13 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	startDesc, _ := tr.GetString("main_bot_command_start")
 	helpDesc, _ := tr.GetString("main_bot_command_help")
 	extendDesc, _ := tr.GetString("main_bot_command_extend")
+	commandsDesc, _ := tr.GetString("main_bot_command_commands")
 	_, err := b.SetMyCommands(
 		[]gotgbot.BotCommand{
 			{Command: "start", Description: startDesc},
 			{Command: "help", Description: helpDesc},
 			{Command: "extend", Description: extendDesc},
+			{Command: "commands", Description: commandsDesc},
 		},
 		&gotgbot.SetMyCommandsOpts{
 			Scope:        gotgbot.BotCommandScopeAllPrivateChats{},

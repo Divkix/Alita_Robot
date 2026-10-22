@@ -2695,10 +2695,17 @@ chat_status_bot_change_info_error: "¡No puedo cambiar la información del grupo
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "Todos los comandos en una lista"
+main_bot_command_commands: "Comandos por sección, para miembros o administradores"
 help_extend_hint: "\n\nEnvía /extend para ver todos los comandos en una lista."
 help_extend_header: "📋 <b>Todos los comandos</b>\nArgumentos y ejemplos: /help → módulo."
 help_extend_pm: "La lista completa de comandos es larga, así que te la envío por privado."
 help_extend_button: "📋 Todos los comandos"
+commands_menu_member: "📋 <b>Comandos por sección</b>\nSolo aparecen los comandos que puede usar un miembro. Pulsa una sección para ver sus comandos."
+commands_menu_admin: "📋 <b>Comandos por sección</b>\nEres administrador, así que también aparecen los comandos de administración. Pulsa una sección para ver sus comandos."
+commands_section_hint: "<i>Pulsa un comando para ver cómo se usa.</i>"
+commands_copy_example_button: "📋 Copiar ejemplo"
+commands_open_in_pm: "La lista depende de quién la lea, así que te la muestro por privado."
+commands_open_in_pm_button: "📋 Abrir en privado"
 admin_section_desc: "Promover, degradar y gestionar a los administradores del grupo"
 aispam_section_desc: "Detectar spam con un filtro de IA"
 antiflood_section_desc: "Actuar contra quien envía demasiados mensajes"
