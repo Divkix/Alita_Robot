@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -711,6 +712,48 @@ func TestBanCommandsInPMNameGroupInReply(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// renderedText is the text Telegram shows for an HTML message, which is what
+// a button press brings back as the message's text: tags dropped, entities
+// decoded.
+func renderedText(htmlText string) string {
+	return html.UnescapeString(regexp.MustCompile(`<[^>]*>`).ReplaceAllString(htmlText, ""))
+}
+
+// The unban button of a /ban sent from PM for a group whose title has HTML
+// characters strikes the reply through with the title escaped exactly once,
+// so the edit goes through.
+func TestUnrestrictButtonInPMWithMarkupInGroupTitleEscapes(t *testing.T) {
+	f, _ := pmBansFixture(t)
+	named := `Tom & <Jerry>`
+	for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
+		f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
+	}
+	dispatcher := bansPMDispatcher()
+	processPM(t, dispatcher, f, f.admin.Id, "/ban @fixturegroup @victim")
+	data := buttonFor(t, f, 0, "unrestrict", "unban")
+	reply := renderedText(fmt.Sprint(f.client.callsFor("sendMessage")[0].Params["text"]))
+	if !strings.Contains(reply, named) {
+		t.Fatalf("/ban from PM shows %q, want the title %q", reply, named)
+	}
+
+	update := newModuleCallbackContext(f.bot, privateChatOf(f.admin), f.admin, data).Update
+	shown := update.CallbackQuery.Message.(gotgbot.Message)
+	shown.Text = reply
+	update.CallbackQuery.Message = shown
+	if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(callback %q) error = %v", data, err)
+	}
+
+	edit := f.client.onlyCall(t, "editMessageText")
+	text := fmt.Sprint(edit.Params["text"])
+	if !strings.Contains(text, html.EscapeString(named)) || strings.Contains(text, named) || strings.Contains(text, "&amp;amp;") {
+		t.Fatalf("edited text = %q, want the title escaped once as %q", text, html.EscapeString(named))
+	}
+	if renderedText(text) == text || !strings.Contains(renderedText(text), reply) {
+		t.Fatalf("edited text = %q, want the reply %q struck through", text, reply)
 	}
 }
 
