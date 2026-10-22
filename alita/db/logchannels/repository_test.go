@@ -32,6 +32,11 @@ func TestLogChannelSetCategoryAndUnset(t *testing.T) {
 	if !CategoryEnabled(got, CategoryAdmin) {
 		t.Fatal("admin category should default on")
 	}
+	for _, name := range OptInCategories {
+		if CategoryEnabled(got, name) {
+			t.Fatalf("%s category should default off", name)
+		}
+	}
 	if err := SetCategory(chatID, CategoryAdmin, false); err != nil {
 		t.Fatalf("SetCategory: %v", err)
 	}
@@ -57,6 +62,7 @@ func TestLogChannelCategoryHelpers(t *testing.T) {
 		categoryColumn("automated") != "cat_automated" ||
 		categoryColumn("reports") != "cat_reports" ||
 		categoryColumn("other") != "cat_other" ||
+		categoryColumn("warns") != "cat_warns" ||
 		categoryColumn("nope") != "" {
 		t.Fatal("categoryColumn mismatch")
 	}
@@ -68,6 +74,7 @@ func TestLogChannelCategoryHelpers(t *testing.T) {
 		CatAutomated: true,
 		CatReports:   true,
 		CatOther:     true,
+		CatWarns:     true,
 	}
 	for _, name := range AllCategories {
 		if !CategoryEnabled(settings, name) {
@@ -83,6 +90,7 @@ func TestLogChannelCategoryHelpers(t *testing.T) {
 	settings.CatAutomated = false
 	settings.CatReports = false
 	settings.CatOther = false
+	settings.CatWarns = false
 	for _, name := range AllCategories {
 		if CategoryEnabled(settings, name) {
 			t.Fatalf("%s should be disabled", name)

@@ -560,6 +560,7 @@ captcha_no_pending_messages: "Aucun message en attente trouvé pour cet utilisat
 captcha_clear_usage: "Utilisation : <code>/captchaclear @user</code> ou <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Échec de la suppression des messages stockés. Veuillez réessayer."
 captcha_clear_success: "✅ Tous les messages stockés pour l'utilisateur %d ont été supprimés"
+captcha_bot_cannot_restrict: "⚠️ Le captcha est activé, mais je ne peux pas rendre muets les nouveaux membres : ils reçoivent donc le message de bienvenue sans captcha. Un administrateur doit m'accorder le droit <b>Bannir des utilisateurs</b>."
 captcha_invalid_mode_error: "mode captcha invalide : doit être 'math' ou 'text'"
 captcha_timeout_range_error: "le délai doit être entre 1 et 10 minutes"
 captcha_invalid_action_error: "action d'échec invalide : doit être 'kick', 'ban' ou 'mute'"
@@ -1804,6 +1805,18 @@ reports_extended_docs: |
   • <b>❎ Supprimer le message</b> - Supprimer le message signalé
   • <b>✔️ Marquer comme résolu</b> - Marquer le rapport comme résolu sans action
 
+  <b>Fiche dans le canal de journal :</b>
+  Si le groupe a un canal de journal (<code>/setlog</code>) avec la catégorie <code>reports</code> activée, chaque message signalé y reçoit aussi une fiche, avec ses propres boutons <b>Bannir</b>, <b>Rendre muet</b>, <b>Supprimer</b> et <b>Ignorer</b>. Seuls les administrateurs du groupe concerné peuvent les utiliser, avec les mêmes droits que dans le groupe. Le groupe reçoit toujours le signalement complet, avec les mentions des admins et les boutons décrits ci-dessus.
+
+  Dans le canal de journal :
+  • Une copie du message signalé, pour que la preuve reste disponible si l'original est supprimé. Les messages qui ne peuvent pas être copiés sont cités sous forme de texte.
+  • Une fiche en réponse à cette copie, avec l'utilisateur signalé, le nombre de membres qui ont signalé le message, le dernier à l'avoir signalé et son motif, et un lien vers le message d'origine.
+  • Les signalements suivants du même message mettent à jour la même fiche ; un membre qui signale deux fois le même message n'est compté qu'une fois.
+  • Une fois que les admins ont tranché le signalement d'un membre, si ce membre signale à nouveau le même message, il reçoit une réponse indiquant que les admins l'ont déjà examiné, sans mention des admins ni boutons.
+  • Les boutons d'une fiche fonctionnent tant qu'un signalement y reste ouvert ; quand il n'y en a plus, appuyer dessus indique que le signalement a expiré.
+
+  Chaque signalement est aussi enregistré dans la base de données avec son auteur, sa cible, l'ID du message, les 100 premiers caractères du texte du message et son statut, que les boutons ci-dessus enregistrent ; le message complet n'est conservé que dans le canal de journal. Les signalements clos sont supprimés 90 jours après leur clôture, et ceux que personne n'a clos 90 jours après leur création. Les signalements ne sont pas inclus dans <code>/export</code>.
+
   <b>Paramètres Personnels vs Groupe :</b>
   • <b>En MP :</b> <code>/reports on/off</code> bascule si VOUS recevez les notifications de rapport (nécessite une connexion active via /connect à un groupe où vous et le bot êtes administrateurs)
   • <b>En Groupe :</b> <code>/reports on/off</code> bascule si le signalement est activé pour ce groupe
@@ -2453,7 +2466,7 @@ logchannels_help_msg: |
   × /logchannel: Afficher le canal de journal actuel.
   × /logcategories: Lister les catégories.
 
-  Catégories : settings (modifications des réglages du canal de journal), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated (actions que le bot prend de lui-même : détections dans les bases de spam, actions de l'antiflood et de la liste noire, limite d'avertissements atteinte par des avertissements de la liste noire, captchas échoués, mode AntiRaid activé par le seuil d'arrivées, bots bannis par le verrou bots), other. Rien n'est encore journalisé dans other.
+  Catégories : settings (modifications du canal de journal et du mode AntiRaid), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated (actions que le bot prend de lui-même : détections dans les bases de spam, actions de l'antiflood et de la liste noire, limite d'avertissements atteinte par des avertissements de la liste noire, captchas échoués, mode AntiRaid activé par le seuil d'arrivées, bots bannis par le verrou bots), warns (avertissements donnés, retirés et réinitialisés par les administrateurs, et limite d'avertissements atteinte par leurs avertissements ; désactivée tant qu'elle n'est pas activée avec /log warns), other. Rien n'est encore journalisé dans other.
 
   En privé, indiquez d'abord le groupe dans /setlog, /unsetlog, /log, /nolog et /logchannel : son titre, son @nom d'utilisateur ou son ID.
 feds_pm_only: "Cette commande ne peut être utilisée qu'en discussion privée avec moi."
@@ -2541,7 +2554,7 @@ logs_pm_set_ok: "Canal de journal défini. Les actions d'administration de <b>{g
 logs_unset_ok: "Canal de journal retiré."
 logs_not_set: "Aucun canal de journal n'est défini pour ce chat."
 logs_current: "Canal de journal : <code>{id}</code>"
-logs_categories: "Catégories : settings (modifications des réglages du canal de journal), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated (actions que le bot prend de lui-même : détections dans les bases de spam, actions de l'antiflood et de la liste noire, limite d'avertissements atteinte par des avertissements de la liste noire, captchas échoués, mode AntiRaid activé par le seuil d'arrivées, bots bannis par le verrou bots), other. Rien n'est encore journalisé dans other."
+logs_categories: "Catégories : settings (modifications du canal de journal et du mode AntiRaid), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated (actions que le bot prend de lui-même : détections dans les bases de spam, actions de l'antiflood et de la liste noire, limite d'avertissements atteinte par des avertissements de la liste noire, captchas échoués, mode AntiRaid activé par le seuil d'arrivées, bots bannis par le verrou bots), warns (avertissements donnés, retirés et réinitialisés par les administrateurs, et limite d'avertissements atteinte par leurs avertissements ; désactivée tant qu'elle n'est pas activée avec /log warns), other. Rien n'est encore journalisé dans other."
 logs_enabled: "Journalisation activée pour : {cats}"
 logs_disabled: "Journalisation désactivée pour : {cats}"
 logs_unknown_category: "Catégorie inconnue. Voir /logcategories."
@@ -2731,6 +2744,16 @@ logchannels_examples_docs: |
   2. Envoyez <code>/setlog</code> dans le canal.
   3. Dans l'heure qui suit, transférez ce message /setlog dans votre groupe.
 
+  <b>Le configurer et le gérer en privé :</b>
+  En privé, indiquez d'abord le groupe : son ID, son @username ou le titre d'un groupe dont vous êtes administrateur (la casse est ignorée ; mettez entre guillemets un titre qui contient des espaces). Rien n'est publié dans le groupe, et le canal ne reçoit que l'entrée de paramètres habituelle.
+  • <code>/setlog @mygroup @mychannel</code> - lier un canal par son @username
+  • <code>/setlog -1001234567890 -1009876543210</code> - le lier par ses ID
+  • <code>/log @mygroup admin</code> - activer une catégorie
+  • <code>/nolog -1001234567890 settings</code> - désactiver une catégorie
+  • <code>/logchannel @mygroup</code> - afficher le canal de journal
+  • <code>/unsetlog @mygroup</code> - le retirer
+  Vous devez être administrateur du groupe et, en plus, propriétaire du canal ou administrateur du canal avec la permission de publier des messages, comme il le faudrait pour y publier /setlog ; le bot doit être administrateur du canal avec la permission de publier des messages. Si vous êtes connecté avec /connect, vous pouvez omettre le groupe : <code>/setlog @mychannel</code>. Tant que vous êtes connecté, /setlog, /log et /nolog ne cherchent pas de titre : indiquez un autre groupe par son @username ou son ID. Le groupe passe les mêmes vérifications qu'avec /connect, et la connexion reste inchangée.
+
   <b>Choisir ce qui est journalisé :</b>
   • <code>/logcategories</code> - lister les catégories
   • <code>/log admin user</code> - activer deux catégories
@@ -2759,7 +2782,8 @@ logchannels_permissions_docs: |
   <b>Permissions des utilisateurs :</b>
   • <code>/setlog</code> s'envoie dans le canal lui-même, où seuls les administrateurs du canal peuvent publier.
   • Seuls les administrateurs du groupe peuvent lier le canal en transférant ce message, et eux seuls peuvent utiliser <code>/unsetlog</code>, <code>/log</code> et <code>/nolog</code>.
-  • Tout le monde peut utiliser <code>/logchannel</code> (groupes uniquement) et <code>/logcategories</code>.
+  • <code>/setlog</code> en privé ne lie le canal que pour un administrateur du groupe qui est propriétaire du canal ou administrateur du canal avec la permission de publier des messages.
+  • Tout le monde peut utiliser <code>/logchannel</code> et <code>/logcategories</code> ; en privé, <code>/logchannel</code> fonctionne pour un groupe auquel vous pourriez vous connecter avec <code>/connect</code>.
 
   <b>Permissions du bot :</b>
   • Le bot doit être administrateur du canal de journal avec la permission de publier des messages, à la fois pour voir <code>/setlog</code> et pour envoyer les entrées du journal. Les entrées qu'il ne peut pas envoyer sont abandonnées sans erreur.

@@ -1367,6 +1367,7 @@ captcha_no_pending_messages: "Tidak ada pesan tertunda untuk pengguna ini."
 captcha_clear_usage: "Penggunaan: <code>/captchaclear @user</code> atau <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Gagal menghapus pesan yang disimpan. Silakan coba lagi."
 captcha_clear_success: "✅ Berhasil menghapus semua pesan yang disimpan untuk pengguna %d"
+captcha_bot_cannot_restrict: "⚠️ Captcha aktif, tetapi saya tidak dapat membisukan anggota baru, jadi mereka menerima pesan sambutan tanpa captcha. Admin perlu memberi saya hak <b>Blokir pengguna</b>."
 
 # Notes module strings
 notes_save_success: "Catatan <b>%s</b> tersimpan!\nDapatkan dengan <code>#%s</code> atau <code>/get %s</code>."
@@ -2010,6 +2011,18 @@ reports_extended_docs: |
   • <b>❎ Hapus Pesan</b> - Hapus pesan yang dilaporkan
   • <b>✔️ Tandai Selesai</b> - Tandai laporan sebagai selesai tanpa tindakan
 
+  <b>Kartu di Kanal Log:</b>
+  Jika grup memiliki kanal log (<code>/setlog</code>) dengan kategori <code>reports</code> aktif, setiap pesan yang dilaporkan juga mendapat satu kartu di sana, dengan tombol <b>Blokir</b>, <b>Bisukan</b>, <b>Hapus</b> dan <b>Abaikan</b> miliknya sendiri. Hanya admin grup yang dilaporkan yang bisa menggunakannya, dengan hak yang sama seperti di grup. Grup tetap menerima laporan lengkap dengan sebutan admin dan tombol yang dijelaskan di atas.
+
+  Di kanal log:
+  • Salinan pesan yang dilaporkan, agar buktinya tetap ada jika pesan aslinya dihapus. Pesan yang tidak bisa disalin dikutip sebagai teks.
+  • Kartu yang membalas salinan itu, berisi pengguna yang dilaporkan, jumlah anggota yang melaporkan pesan itu, pelapor terakhir beserta alasannya, dan tautan ke pesan asli.
+  • Laporan berikutnya atas pesan yang sama memperbarui kartu yang sama; anggota yang melaporkan pesan yang sama dua kali hanya dihitung sekali.
+  • Setelah admin memutuskan laporan seorang anggota, jika anggota itu melaporkan pesan yang sama lagi, ia mendapat balasan bahwa admin sudah meninjaunya, tanpa sebutan admin maupun tombol.
+  • Tombol kartu tetap berfungsi selama masih ada laporan yang terbuka di kartu itu; jika sudah tidak ada, menekannya akan dijawab bahwa laporan sudah kedaluwarsa.
+
+  Setiap laporan juga disimpan di database beserta pelapor, target, ID pesan, 100 karakter pertama teks pesan, dan statusnya, yang dicatat oleh tombol di atas; pesan lengkapnya hanya ada di kanal log. Laporan yang sudah ditutup dihapus 90 hari setelah ditutup, dan laporan yang tidak ditutup siapa pun dihapus 90 hari setelah dibuat. Laporan tidak disertakan dalam <code>/export</code>.
+
   <b>Pengaturan Pribadi vs Grup:</b>
   • <b>Di PM:</b> <code>/reports on/off</code> mengalihkan apakah ANDA menerima notifikasi laporan (memerlukan /connect aktif ke grup tempat Anda dan bot sama-sama menjadi admin)
   • <b>Di Grup:</b> <code>/reports on/off</code> mengalihkan apakah pelaporan diaktifkan untuk grup itu
@@ -2533,7 +2546,7 @@ logchannels_help_msg: |
   × /logchannel: Tampilkan kanal log saat ini.
   × /logcategories: Daftar kategori.
 
-  Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), other. Belum ada yang dicatat di other.
+  Kategori: settings (perubahan kanal log dan mode AntiRaid), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), warns (peringatan yang diberikan, dihapus, dan diatur ulang oleh admin, serta batas peringatan yang tercapai lewat peringatan mereka; mati sampai dinyalakan dengan /log warns), other. Belum ada yang dicatat di other.
 
   Di chat pribadi, sebutkan grup lebih dulu pada /setlog, /unsetlog, /log, /nolog dan /logchannel: judulnya, @username, atau ID-nya.
 feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."
@@ -2621,7 +2634,7 @@ logs_pm_set_ok: "Kanal log diatur. Tindakan admin dari <b>{group}</b> akan dikir
 logs_unset_ok: "Kanal log dihapus."
 logs_not_set: "Belum ada kanal log untuk obrolan ini."
 logs_current: "Kanal log: <code>{id}</code>"
-logs_categories: "Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), other. Belum ada yang dicatat di other."
+logs_categories: "Kategori: settings (perubahan kanal log dan mode AntiRaid), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), warns (peringatan yang diberikan, dihapus, dan diatur ulang oleh admin, serta batas peringatan yang tercapai lewat peringatan mereka; mati sampai dinyalakan dengan /log warns), other. Belum ada yang dicatat di other."
 logs_enabled: "Pencatatan diaktifkan untuk: {cats}"
 logs_disabled: "Pencatatan dinonaktifkan untuk: {cats}"
 logs_unknown_category: "Kategori tidak dikenal. Lihat /logcategories."
@@ -2811,6 +2824,16 @@ logchannels_examples_docs: |
   2. Kirim <code>/setlog</code> di kanal.
   3. Dalam satu jam, teruskan pesan /setlog itu ke grup Anda.
 
+  <b>Menyiapkan dan mengelolanya dari chat pribadi:</b>
+  Di chat pribadi, sebutkan grup lebih dulu: ID-nya, @username-nya, atau judul grup tempat Anda menjadi admin (huruf besar dan kecil tidak dibedakan; beri tanda kutip pada judul yang mengandung spasi). Tidak ada yang diposting di grup, dan kanal hanya menerima catatan pengaturan seperti biasa.
+  • <code>/setlog @mygroup @mychannel</code> - tautkan kanal dengan @username-nya
+  • <code>/setlog -1001234567890 -1009876543210</code> - tautkan dengan ID
+  • <code>/log @mygroup admin</code> - aktifkan satu kategori
+  • <code>/nolog -1001234567890 settings</code> - nonaktifkan satu kategori
+  • <code>/logchannel @mygroup</code> - tampilkan kanal log
+  • <code>/unsetlog @mygroup</code> - hapus kanal log
+  Anda harus menjadi admin grup, dan juga pemilik kanal atau admin kanal dengan izin mengirim pesan, sama seperti yang diperlukan untuk mengirim /setlog di sana; bot harus menjadi admin kanal yang bisa mengirim pesan. Jika Anda terhubung dengan /connect, grup boleh tidak disebutkan: <code>/setlog @mychannel</code>. Selama Anda terhubung, /setlog, /log dan /nolog tidak mencari berdasarkan judul: sebutkan grup lain dengan @username atau ID-nya. Grup melewati pemeriksaan yang sama seperti /connect, dan koneksi Anda tidak berubah.
+
   <b>Memilih apa yang dicatat:</b>
   • <code>/logcategories</code> - daftar kategori
   • <code>/log admin user</code> - aktifkan dua kategori
@@ -2839,7 +2862,8 @@ logchannels_permissions_docs: |
   <b>Izin Pengguna:</b>
   • <code>/setlog</code> dikirim di kanal itu sendiri, tempat hanya admin kanal yang bisa mengirim pesan.
   • Hanya admin grup yang bisa menautkan kanal dengan meneruskan pesan itu, dan hanya mereka yang bisa menggunakan <code>/unsetlog</code>, <code>/log</code> dan <code>/nolog</code>.
-  • Siapa saja bisa menggunakan <code>/logchannel</code> (hanya di grup) dan <code>/logcategories</code>.
+  • <code>/setlog</code> di chat pribadi hanya menautkan kanal untuk admin grup yang merupakan pemilik kanal atau admin kanal dengan izin mengirim pesan.
+  • Siapa saja bisa menggunakan <code>/logchannel</code> dan <code>/logcategories</code>; di chat pribadi, <code>/logchannel</code> berfungsi untuk grup yang bisa Anda hubungkan dengan <code>/connect</code>.
 
   <b>Izin Bot:</b>
   • Bot harus menjadi admin kanal log dengan izin mengirim pesan, baik untuk melihat <code>/setlog</code> maupun untuk mengirim catatan log. Catatan yang tidak bisa dikirim akan dibuang tanpa pesan kesalahan.
