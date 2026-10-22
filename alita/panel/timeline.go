@@ -39,8 +39,9 @@ type timelineEvent struct {
 }
 
 type timelineResponse struct {
-	Events     []timelineEvent `json:"events"`
-	NextCursor string          `json:"next_cursor,omitempty"`
+	Events     []timelineEvent     `json:"events"`
+	NextCursor string              `json:"next_cursor,omitempty"`
+	Names      map[string]userName `json:"names,omitempty"`
 }
 
 // handleTimeline lists a chat's moderation events newest first, admin-only
@@ -107,10 +108,16 @@ func (p *Panel) handleTimeline(w http.ResponseWriter, r *http.Request) {
 		next = timelineCursor(rows[len(rows)-1])
 	}
 	events := make([]timelineEvent, 0, len(rows))
+	ids := make([]int64, 0, 2*len(rows))
 	for _, row := range rows {
 		events = append(events, eventView(row))
+		ids = append(ids, row.ActorId, row.TargetUserId)
 	}
-	writeJSON(w, http.StatusOK, timelineResponse{Events: events, NextCursor: next})
+	writeJSON(w, http.StatusOK, timelineResponse{
+		Events:     events,
+		NextCursor: next,
+		Names:      userNames(r.Context(), ids),
+	})
 }
 
 // eventView maps one stored event to the API shape. A non-positive actor is

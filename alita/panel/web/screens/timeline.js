@@ -2,7 +2,7 @@
 // with "Load more" so the reading position never moves, and filters by action
 // and actor. It carries actions only, never message text.
 import { api } from "../api.js";
-import { textElement } from "../ui.js";
+import { textElement, userLabel } from "../ui.js";
 
 const PAGE_SIZE = 50;
 const ACTIONS = ["ban", "kick", "mute", "unban"];
@@ -74,7 +74,7 @@ export async function renderTimeline(root, chatID, chat) {
 			}
 			const data = await api(`chats/${encodeURIComponent(chatID)}/timeline?${params}`, { method: "GET" });
 			for (const event of data.events ?? []) {
-				list.append(eventRow(event));
+				list.append(eventRow(event, data.names));
 			}
 			state.cursor = data.next_cursor ?? "";
 			state.done = !state.cursor;
@@ -90,7 +90,7 @@ export async function renderTimeline(root, chatID, chat) {
 		}
 	}
 
-	function eventRow(event) {
+	function eventRow(event, names) {
 		const item = document.createElement("li");
 		item.className = `timeline-event action-${event.action}`;
 
@@ -98,8 +98,8 @@ export async function renderTimeline(root, chatID, chat) {
 		head.className = "timeline-head";
 		head.append(
 			textElement("span", `#${event.action}`, "badge"),
-			textElement("span", `actor ${event.actor_id <= 0 ? "automatic" : event.actor_id}`, "list-name"),
-			textElement("span", `→ ${event.target_user_id}`, "list-name"),
+			textElement("span", event.actor_id <= 0 ? "automatic" : userLabel(names, event.actor_id), "list-name"),
+			textElement("span", `→ ${userLabel(names, event.target_user_id)}`, "list-name"),
 		);
 		item.append(head);
 

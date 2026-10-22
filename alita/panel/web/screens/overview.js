@@ -3,7 +3,7 @@
 // Server data reaches the DOM only through textContent and SVG attributes, so
 // a chat title or an action value can never become markup.
 import { api } from "../api.js";
-import { clear, showError, textElement } from "../ui.js";
+import { clear, showError, textElement, userLabel } from "../ui.js";
 
 const WINDOWS = [7, 30, 90];
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -132,7 +132,7 @@ function formatTime(value) {
 // recentSection lists action, actor, target and time. The API also carries a
 // reason; the overview deliberately shows only the four fields the screen
 // promises, and no message text exists to show.
-function recentSection(events) {
+function recentSection(events, names) {
 	const section = document.createElement("section");
 	section.className = "overview-recent";
 	section.append(textElement("h3", "Recent moderation"));
@@ -148,13 +148,22 @@ function recentSection(events) {
 		item.className = "event-row";
 		item.append(
 			textElement("span", String(event.action ?? ""), "event-action"),
-			textElement("span", `actor ${number(event.actor_id)} → target ${number(event.target_user_id)}`, "event-parties"),
+			textElement("span", `${partyLabel(names, event.actor_id)} → ${partyLabel(names, event.target_user_id)}`, "event-parties"),
 			textElement("span", formatTime(event.created_at), "event-time"),
 		);
 		list.append(item);
 	}
 	section.append(list);
 	return section;
+}
+
+// partyLabel names an actor or target. Names reach admins only; a member sees
+// IDs, and a non-positive actor is the bot's own automated action.
+function partyLabel(names, id) {
+	if (!(Number(id) > 0)) {
+		return "automatic";
+	}
+	return userLabel(names, id);
 }
 
 function collectionNote() {
@@ -198,7 +207,7 @@ function drawOverview(root, data) {
 		);
 	}
 
-	root.append(totalsBlock(totals), collectionNote(), recentSection(recent));
+	root.append(totalsBlock(totals), collectionNote(), recentSection(recent, data.names));
 }
 
 export async function renderOverview(root, chatID) {

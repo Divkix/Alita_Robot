@@ -2,7 +2,7 @@
 // ones labelled, and a remove button that runs the same repository call as
 // /unwarn. Server data reaches the DOM only through textContent.
 import { api } from "../api.js";
-import { textElement } from "../ui.js";
+import { textElement, userLabel } from "../ui.js";
 
 const PAGE_SIZE = 50;
 
@@ -14,14 +14,14 @@ function formatTime(value) {
 	return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-function issuerLabel(entry) {
+function issuerLabel(entry, names) {
 	if (entry.anonymous) {
 		return "anonymous admin";
 	}
 	if (entry.automatic) {
 		return "automatic";
 	}
-	return entry.warned_by ? `by ${entry.warned_by}` : "unknown issuer";
+	return entry.warned_by ? `by ${userLabel(names, entry.warned_by)}` : "unknown issuer";
 }
 
 export async function renderWarnings(root, chatID, chat) {
@@ -61,7 +61,7 @@ export async function renderWarnings(root, chatID, chat) {
 				state.cursor = 0;
 			}
 			for (const user of data.users ?? []) {
-				list.append(userRow(user));
+				list.append(userRow(user, data.names));
 			}
 			state.cursor = data.next_cursor ?? 0;
 			loadMore.hidden = !state.cursor;
@@ -76,14 +76,14 @@ export async function renderWarnings(root, chatID, chat) {
 		}
 	}
 
-	function userRow(user) {
+	function userRow(user, names) {
 		const item = document.createElement("li");
 		item.className = "warn-user";
 
 		const head = document.createElement("div");
 		head.className = "warn-head";
 		head.append(
-			textElement("span", `User ${user.user_id}`, "list-name"),
+			textElement("span", userLabel(names, user.user_id), "list-name"),
 			textElement("span", `${user.active} active`, "badge"),
 		);
 		item.append(head);
@@ -94,7 +94,7 @@ export async function renderWarnings(root, chatID, chat) {
 			const row = document.createElement("li");
 			row.className = entry.expired ? "warn-entry expired" : "warn-entry";
 			row.append(textElement("span", entry.reason || "(no reason)", "warn-reason"));
-			const meta = [issuerLabel(entry), formatTime(entry.warned_at), entry.expired ? "expired" : "active"];
+			const meta = [issuerLabel(entry, names), formatTime(entry.warned_at), entry.expired ? "expired" : "active"];
 			row.append(textElement("span", meta.join(" · "), "muted"));
 			entries.append(row);
 		}
@@ -112,8 +112,8 @@ export async function renderWarnings(root, chatID, chat) {
 					});
 					await loadPage(true);
 					status.textContent = result.removed
-						? `Removed one warning for user ${user.user_id}.`
-						: `User ${user.user_id} has no warnings left.`;
+						? `Removed one warning for ${userLabel(names, user.user_id)}.`
+						: `${userLabel(names, user.user_id)} has no warnings left.`;
 				} catch (error) {
 					remove.disabled = false;
 					status.className = "error";

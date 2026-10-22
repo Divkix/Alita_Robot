@@ -144,9 +144,14 @@ checked against the bot token on arrival.
 - The **overview** screen is the first entry in the dashboard list: the
   Telegram member count, a 7, 30 or 90 day chart of messages, joins and
   leaves, the window's moderation count and the five most recent moderation
-  actions (action, actor, target and time — never message text). Switching the
+  actions (action, actor, target and time — never message text). Admins see
+  the actor and target by the name and @username the bot last saw; members see
+  user IDs. Switching the
   window redraws without a page reload, and a chat with no recorded activity
   says so instead of drawing an empty chart.
+- **Warnings** and **Timeline** (admins only) name warned users, issuers,
+  actors and targets the same way; a user the bot never stored, or whose name
+  it cannot read, is shown by ID.
 - Only **members** of a group can open it. **Non-admin members** see the chat
   read-only; anyone else is refused (`403 not_member`), and private chats and
   channels are not served. **When the bot is not an admin** in the chat, values
