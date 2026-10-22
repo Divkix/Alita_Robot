@@ -1110,6 +1110,7 @@ func initBanDescs() {
 	kickmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("kickme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
 	restrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("restrict"), pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unrestrict"), pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	initBanRecordDescs()
 }
 
 func LoadBans(dispatcher *ext.Dispatcher) {
@@ -1125,6 +1126,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, unbanDesc, pipelineHandler(bansModule.unban))
 	helpers.WrapCommand(dispatcher, banmeDesc, pipelineHandler(bansModule.banme))
 	helpers.WrapCommand(dispatcher, unbanAllDesc, pipelineHandler(bansModule.unbanAllHandler))
+	helpers.WrapCommand(dispatcher, banInfoDesc, pipelineHandler(bansModule.banInfo))
 
 	helpers.WrapCommand(dispatcher, kickDesc, pipelineHandler(bansModule.kick))
 	helpers.WrapCommand(dispatcher, dkickDesc, pipelineHandler(bansModule.dkick))
@@ -1146,6 +1148,7 @@ func init() {
 	RegisterAnonymousAdminHandler("sban", anonPipelineHandler(sbanDesc, bansModule.sBan))
 	RegisterAnonymousAdminHandler("tban", anonPipelineHandler(tbanDesc, bansModule.tBan))
 	RegisterAnonymousAdminHandler("unban", anonPipelineHandler(unbanDesc, bansModule.unban))
+	RegisterAnonymousAdminHandler("baninfo", anonPipelineHandler(banInfoDesc, bansModule.banInfo))
 	RegisterAnonymousAdminHandler("kick", anonPipelineHandler(kickDesc, bansModule.kick))
 	RegisterAnonymousAdminHandler("dkick", anonPipelineHandler(dkickDesc, bansModule.dkick))
 	RegisterAnonymousAdminHandler("skick", anonPipelineHandler(skickDesc, bansModule.sKick))

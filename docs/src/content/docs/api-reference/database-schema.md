@@ -10,7 +10,7 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Application Tables**: 37
+- **Application Tables**: 38
 - **Migration Metadata**: `schema_migrations`
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
@@ -980,6 +980,45 @@ One row per warn: its reason, who issued it and when. `warns_users` keeps the co
 
 There is no foreign key to `warns_users`: the bot deletes a user's entries in the same transaction as their `warns_users` row.
 
+---
+
+### `ban_records`
+
+One row per ban the bot issues in a chat: `/ban` and its variants, the restrict, report and join-request buttons, the warn limit, antiflood, blacklists, antiraid, captcha, federation bans, the bots lock and the spam databases. Bans made in Telegram's own interface are not recorded, and the table starts empty. `/baninfo` reads it. It is not part of `/export`.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE while open (composite: `chat_id`, `user_id`) |
+| `user_id` | `BIGINT` | NO | — | UNIQUE while open (composite: `chat_id`, `user_id`) |
+| `banned_by` | `BIGINT` | NO | `0` | — |
+| `reason` | `TEXT` | NO | `''` | — |
+| `source` | `VARCHAR(16)` | NO | — | CHECK (`manual`, `warn`, `antiflood`, `blacklist`, `antiraid`, `captcha`, `fed`, `lock`, `report`, `join_request`, `spamdb`) |
+| `source_detail` | `VARCHAR(64)` | NO | `''` | — |
+| `created_at` | `TIMESTAMPTZ` | NO | `NOW()` | — |
+| `until` | `TIMESTAMPTZ` | YES | — | — |
+| `lifted_at` | `TIMESTAMPTZ` | YES | — | — |
+| `lifted_by` | `BIGINT` | YES | — | — |
+
+`banned_by = 0` marks a ban the bot made on its own. `source_detail` holds the federation ID of a federation ban, the spam database's name, or the lock (`bots`). `until` is the end of a temporary ban, `NULL` for a permanent one; an open row past `until` counts as expired. The bot sets `lifted_at` and `lifted_by` when it unbans the user. Only IDs are stored; names are read from `users` when shown.
+
+A chat holds at most one open row (`lifted_at IS NULL`) per user: a repeat ban updates it. An hourly sweep deletes lifted rows 90 days after `lifted_at` and expired temporary bans 90 days after `until`; open permanent bans are kept.
+
+#### Indexes
+
+- Unique partial index on (`chat_id`, `user_id`) where `lifted_at IS NULL` (`uq_ban_records_open`)
+- `idx_ban_records_chat_user_id` (on `chat_id`, `user_id`, `id`)
+- `idx_ban_records_lifted_at` (on `lifted_at`, where `lifted_at IS NOT NULL`)
+- `idx_ban_records_open_until` (on `until`, where `lifted_at IS NULL AND until IS NOT NULL`)
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+`user_id`, `banned_by` and `lifted_by` have no foreign key: a banned user often has no `users` row.
+
 ## Entity Relationships
 
 ### Core Entities
@@ -999,3 +1038,4 @@ There is no foreign key to `warns_users`: the bot deletes a user's entries in th
 - Federation → Members: one-to-many (`federation_admins`, `federation_bans`, `federation_chats`), plus federation-to-federation subscriptions via `federation_subs`
 - Chat → Federation: at most one (`federation_chats.chat_id` is unique)
 - Chat → Log channel: one-to-one (`log_channels`)
+- Chat → Ban records: one-to-many (`ban_records`), at most one open row per user

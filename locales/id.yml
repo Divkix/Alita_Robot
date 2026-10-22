@@ -177,6 +177,8 @@ bans_help_msg:
 
   × /unbanall: konfirmasi khusus pemilik untuk membuka blokir pengguna yang dikenal.
 
+  × /baninfo <userhandle>: menampilkan ban yang saya catat untuk pengguna: siapa yang memban, kapan, mengapa, apa penyebabnya, dan sampai kapan. (melalui handle, atau balasan)
+
 
   *Perintah Pembatasan:* (Admin saja)
 
@@ -357,7 +359,7 @@ connections_help_msg:
 
   Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
 
-  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
 
   Dari obrolan pribadi, anggota grup juga dapat melihat peringatan seorang pengguna di grup itu dengan /warns jika grup mengizinkan anggota terhubung (/allowconnect; jika tidak, hanya adminnya), dan adminnya melihat pengaturan peringatan grup dengan /warnings: sebutkan grupnya dulu (@username atau ID-nya; adminnya juga dapat memakai judulnya), lalu untuk /warns penggunanya, atau hubungkan ke grup itu. Jawabannya dikirim ke obrolan pribadi.
 
@@ -1865,7 +1867,7 @@ admin_extended_docs: |
 
   <b>Perintah yang Didukung:</b>
   Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
+  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
   Bisu: /mute, /smute, /dmute, /tmute, /unmute
   Pin: /pin, /unpin, /permapin, /unpinall
   Pembersihan: /purge, /del, /purgefrom, /purgeto
@@ -2658,6 +2660,16 @@ bans_banme_ok: "Sesuai keinginan Anda. Anda diblokir."
 bans_unbanall_ask: "Buka blokir semua pengguna yang dikenal di obrolan ini? Ini tidak mudah dibatalkan."
 bans_unbanall_done: "Buka blokir dikirim untuk {count} pengguna yang dikenal."
 bans_unbanall_cancel: "Dibatalkan."
+bans_baninfo_record: "<b>Catatan ban</b>\n<b>Pengguna:</b> {user} (<code>{id}</code>)\n<b>Status:</b> {status}\n<b>Diban oleh:</b> {admin}\n<b>Tanggal:</b> {date}\n<b>Sumber:</b> {source}\n<b>Sampai:</b> {until}"
+bans_baninfo_reason: "\n<b>Alasan:</b> {reason}"
+bans_baninfo_status_banned: "diban"
+bans_baninfo_status_expired: "ban sementara sudah berakhir"
+bans_baninfo_status_lifted: "ban dibuka oleh {admin} pada {date}"
+bans_baninfo_permanent: "permanen"
+bans_baninfo_none: "Saya tidak punya catatan ban untuk {user} di sini. Saya hanya mencatat ban yang saya lakukan, dan menghapus catatan 90 hari setelah bannya berakhir."
+bans_record_by_bot: "saya, secara otomatis"
+bans_record_by_anonymous: "admin anonim"
+bans_record_read_failed: "Saya tidak dapat membaca catatan ban saat ini. Coba lagi nanti."
 admin_setgtitle_need_title: "Berikan saya judul grup yang baru."
 admin_setgtitle_ok: "Judul grup diperbarui."
 admin_setgtitle_failed: "Saya tidak dapat mengubah judul grup. Pastikan saya bisa mengubah info grup."
@@ -2774,6 +2786,7 @@ bans_extend_msg: |
   /restrict — pilih kick, ban, atau mute lewat tombol
   /unrestrict — pilih unmute atau unban lewat tombol
   /unbanall — buka ban semua pengguna yang dikenal (hanya pemilik)
+  /baninfo — lihat catatan ban pengguna
 blacklists_extend_msg: |
   /blacklists — daftar kata di daftar hitam
   /addblacklist — masukkan kata ke daftar hitam

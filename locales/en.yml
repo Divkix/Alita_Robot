@@ -217,6 +217,8 @@ bans_help_msg:
 
   × /unbanall: owner-only confirmation to unban known users.
 
+  × /baninfo <userhandle>: shows the ban I recorded for a user: who banned them, when, why, what caused it and until when. (via handle, or reply)
+
 
   *Restrict Commands:* (Admin only)
 
@@ -400,7 +402,7 @@ connections_help_msg:
 
   From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
 
-  From PM, a group's admins can also run /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
+  From PM, a group's admins can also run /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
 
   From PM, a group's members can also see a user's warns there with /warns if the group allows members to connect (/allowconnect; otherwise only its admins can), and its admins the group's warn settings with /warnings: name the group first (its @username or ID; its admins may also use its title), then for /warns the user, or connect to the group. The answer comes to PM.
 
@@ -1914,7 +1916,7 @@ admin_extended_docs: |
 
   <b>Supported Commands:</b>
   Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
+  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
   Purges: /purge, /del, /purgefrom, /purgeto
@@ -2675,6 +2677,16 @@ bans_banme_ok: "As you wish. You are banned."
 bans_unbanall_ask: "Unban every known user in this chat? This cannot be undone easily."
 bans_unbanall_done: "Issued unban for {count} known users."
 bans_unbanall_cancel: "Cancelled."
+bans_baninfo_record: "<b>Ban record</b>\n<b>User:</b> {user} (<code>{id}</code>)\n<b>Status:</b> {status}\n<b>Banned by:</b> {admin}\n<b>Date:</b> {date}\n<b>Source:</b> {source}\n<b>Until:</b> {until}"
+bans_baninfo_reason: "\n<b>Reason:</b> {reason}"
+bans_baninfo_status_banned: "banned"
+bans_baninfo_status_expired: "temporary ban ended"
+bans_baninfo_status_lifted: "unbanned by {admin} on {date}"
+bans_baninfo_permanent: "permanent"
+bans_baninfo_none: "I have no ban record for {user} here. I record only the bans I make, and drop a record 90 days after its ban ends."
+bans_record_by_bot: "me, automatically"
+bans_record_by_anonymous: "an anonymous admin"
+bans_record_read_failed: "I couldn't read the ban records right now. Try again later."
 admin_setgtitle_need_title: "Give me a new group title."
 admin_setgtitle_ok: "Group title updated."
 admin_setgtitle_failed: "I couldn't change the group title. Make sure I can change group info."
@@ -2792,6 +2804,7 @@ bans_extend_msg: |
   /restrict — pick kick, ban or mute from buttons
   /unrestrict — pick unmute or unban from buttons
   /unbanall — unban all known users (owner only)
+  /baninfo — show a user's ban record
 blacklists_extend_msg: |
   /blacklists — list blacklisted words
   /addblacklist — blacklist a word

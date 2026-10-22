@@ -125,6 +125,8 @@ bans_help_msg:
     × /unban <userhandle>: разбанивает пользователя. (через ник, или ответ)
 
     × /unbanall: только для владельца — с подтверждением разбанивает известных пользователей.
+
+    × /baninfo <userhandle>: показывает записанный мной бан пользователя: кто забанил, когда, за что, что его вызвало и до какого времени. (через ник, или ответ)
   
   
     *Команды ограничения:* (только для администратора)
@@ -263,7 +265,7 @@ connections_help_msg:
 
     Из лички админы группы могут также выполнить /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache и /clearadmincache: сначала назовите группу (название, @username или ID) или подключитесь к ней. Нужны те же права, что и в группе, а ответ придёт в личку.
 
-    Из лички админы группы могут также выполнить /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn и /resetwarns: сначала назовите группу (название, @username или ID), затем пользователя (@username, ID или упоминание) — или подключитесь к группе. При подключении другую группу выбирают только по @username или ID. Нужны те же права, что и в группе; ответ на сообщение в личке пользователя не задаёт, а ответ и кнопки придут в личку.
+    Из лички админы группы могут также выполнить /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn и /resetwarns: сначала назовите группу (название, @username или ID), затем пользователя (@username, ID или упоминание) — или подключитесь к группе. При подключении другую группу выбирают только по @username или ID. Нужны те же права, что и в группе; ответ на сообщение в личке пользователя не задаёт, а ответ и кнопки придут в личку.
 
     Из лички участники группы могут также посмотреть предупреждения пользователя в ней командой /warns, если группа разрешает участникам подключаться (/allowconnect; иначе — только её админы), а её админы — настройки предупреждений группы командой /warnings: сначала назовите группу (@username или ID; админы группы могут указать и название), затем для /warns — пользователя, или подключитесь к группе. Ответ придёт в личку.
   
@@ -1651,7 +1653,7 @@ admin_extended_docs: |
 
   <b>Поддерживаемые команды:</b>
   Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
+  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
   Purges: /purge, /del, /purgefrom, /purgeto
@@ -2445,6 +2447,16 @@ bans_banme_ok: "Как скажете. Вы забанены."
 bans_unbanall_ask: "Разбанить всех известных пользователей в этом чате? Это будет непросто отменить."
 bans_unbanall_done: "Отправлен разбан для известных пользователей: {count}."
 bans_unbanall_cancel: "Отменено."
+bans_baninfo_record: "<b>Запись о бане</b>\n<b>Пользователь:</b> {user} (<code>{id}</code>)\n<b>Статус:</b> {status}\n<b>Забанил:</b> {admin}\n<b>Дата:</b> {date}\n<b>Источник:</b> {source}\n<b>До:</b> {until}"
+bans_baninfo_reason: "\n<b>Причина:</b> {reason}"
+bans_baninfo_status_banned: "забанен"
+bans_baninfo_status_expired: "временный бан закончился"
+bans_baninfo_status_lifted: "разбанен {admin} {date}"
+bans_baninfo_permanent: "навсегда"
+bans_baninfo_none: "У меня нет записи о бане {user} здесь. Я записываю только баны, которые выдаю сам, и удаляю запись через 90 дней после окончания бана."
+bans_record_by_bot: "я, автоматически"
+bans_record_by_anonymous: "анонимный админ"
+bans_record_read_failed: "Сейчас не удалось прочитать записи о банах. Попробуйте позже."
 admin_setgtitle_need_title: "Дайте мне новое название группы."
 admin_setgtitle_ok: "Название группы обновлено."
 admin_setgtitle_failed: "Я не смог изменить название группы. Убедитесь, что я могу изменять информацию о группе."
@@ -2561,6 +2573,7 @@ bans_extend_msg: |
   /restrict — выбрать кнопкой: kick, ban или mute
   /unrestrict — выбрать кнопкой: unmute или unban
   /unbanall — разбанить всех известных (только владелец)
+  /baninfo — показать запись о бане пользователя
 blacklists_extend_msg: |
   /blacklists — чёрный список слов
   /addblacklist — добавить слово в чёрный список

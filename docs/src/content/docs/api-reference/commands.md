@@ -11,7 +11,7 @@ This page provides a complete reference of all commands available in Alita Robot
 ## Overview
 
 - **Total Modules**: 31 (29 user-facing + 2 internal)
-- **Total Commands**: 219
+- **Total Commands**: 220
 
 ## Commands by Module
 
@@ -85,6 +85,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/ban` | Ban a user | Admin | ❌ | — |
+| `/baninfo` | Show the ban the bot recorded for a user | Admin | ❌ | — |
 | `/banme` | Ban yourself from the group | Everyone | ✅ | — |
 | `/dban` | Ban a user and delete their message | Admin | ❌ | — |
 | `/dkick` | Kick a user and delete their message | Admin | ❌ | — |
@@ -429,6 +430,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/autoantiraid` | AntiRaid | Set auto-raid trigger threshold | Admin |
 | `/autoapprove` | Greetings | Toggle auto-approve join requests | Admin |
 | `/ban` | Bans | Ban a user | Admin |
+| `/baninfo` | Bans | Show the ban the bot recorded for a user | Admin |
 | `/banme` | Bans | Ban yourself from the group | Everyone |
 | `/blacklist` | Blacklists | Add a word to the blacklist | Admin |
 | `/blacklistaction` | Blacklists | Set the blacklist trigger action | Admin |
