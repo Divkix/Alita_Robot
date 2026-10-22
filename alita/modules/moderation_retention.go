@@ -9,10 +9,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/moderation"
 )
 
-// moderationEventRetention is how long a moderation event is kept. It feeds
-// the shared reputation window and the dashboard timeline, so it outlives the
-// longest configured window; after it, only the retention job deletes rows.
-const moderationEventRetention = 180 * 24 * time.Hour
+// moderationEventRetention is how long a moderation event is kept. The value
+// lives in the moderation package so the dashboard timeline stops at the same
+// boundary; it feeds the shared reputation window, so it outlives the longest
+// configured window. After it, only the retention job deletes rows.
+const moderationEventRetention = moderation.EventRetention
 
 var moderationEventRetentionOnce sync.Once
 

@@ -3,6 +3,7 @@ package warns
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -578,4 +579,50 @@ func LoadWarnsStats() (warnedUsers, warnChats int64) {
 	warnedUsers = db.CountRows(&models.Warns{}, "")
 	warnChats = db.CountDistinct(&models.Warns{}, "chat_id", "")
 	return
+}
+
+// ChatWarn is one user's warnings in a chat, entries oldest first.
+type ChatWarn struct {
+	UserID   int64
+	NumWarns int
+	Entries  []models.WarnEntry
+}
+
+// ListChatWarns returns every warned user of the chat with their entries,
+// oldest first. Entries are reconciled with the reasons column like every warn
+// read, and expired ones are included: reads never prune.
+func ListChatWarns(chatId int64) ([]ChatWarn, error) {
+	var rows []models.Warns
+	if err := db.DB.Where("chat_id = ?", chatId).Order("user_id").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list chat warns: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	var entries []models.WarnEntry
+	if err := db.DB.Where("chat_id = ?", chatId).Order("user_id, id").Find(&entries).Error; err != nil {
+		return nil, fmt.Errorf("list chat warn entries: %w", err)
+	}
+	byUser := make(map[int64][]models.WarnEntry, len(rows))
+	for _, entry := range entries {
+		byUser[entry.UserId] = append(byUser[entry.UserId], entry)
+	}
+
+	out := make([]ChatWarn, 0, len(rows))
+	for i := range rows {
+		if rows[i].NumWarns <= 0 {
+			continue
+		}
+		reconciled, _ := models.ReconcileWarnEntries(&rows[i], byUser[rows[i].UserId])
+		out = append(out, ChatWarn{UserID: rows[i].UserId, NumWarns: rows[i].NumWarns, Entries: reconciled})
+	}
+	return out, nil
+}
+
+// EntryExpired reports whether e stopped counting under the chat's expiry in
+// seconds: expiry 0 is off and an entry with no timestamp never expires. The
+// panel labels entries with this so it matches /warns exactly.
+func EntryExpired(e models.WarnEntry, expiry int) bool {
+	return expiredWarn(e, expiry, timeNow())
 }
