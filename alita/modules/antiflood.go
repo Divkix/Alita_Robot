@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -418,6 +419,11 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Warnf("[Antiflood] chat %d has unhandled flood action %q; no punishment applied", chatId, flood.Action)
 		return ext.ContinueGroups
 	}
+	logAction := flood.Action
+	if logAction == "tban" || logAction == "tmute" {
+		logAction += " " + formatDuration(floodTimedActionTime)
+	}
+	actionlog.Automated(b, chat, "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		trSprintf(tr, strings.ToLower(m.moduleName)+"_checkflood_perform_action", formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood.Action)),
 		&gotgbot.SendMessageOpts{
