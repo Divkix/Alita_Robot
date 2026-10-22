@@ -18,3 +18,8 @@ CREATE TABLE IF NOT EXISTS chat_daily_stats (
     leaves BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (chat_id, day)
 );
+
+-- The retention sweep deletes on day alone, a prefix the (chat_id, day)
+-- primary key cannot serve. Keeping it in the same migration means an
+-- AutoMigrated database has the index before the first sweep runs.
+CREATE INDEX IF NOT EXISTS idx_chat_daily_stats_day ON chat_daily_stats (day);

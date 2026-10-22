@@ -8,7 +8,7 @@ package models
 // computed from zero.
 type ChatDailyStat struct {
 	ChatID   int64  `gorm:"column:chat_id;primaryKey" json:"chat_id"`
-	Day      string `gorm:"column:day;primaryKey;size:10" json:"day"`
+	Day      string `gorm:"column:day;primaryKey;size:10;index:idx_chat_daily_stats_day" json:"day"`
 	Messages int64  `gorm:"column:messages;not null;default:0" json:"messages"`
 	Joins    int64  `gorm:"column:joins;not null;default:0" json:"joins"`
 	Leaves   int64  `gorm:"column:leaves;not null;default:0" json:"leaves"`
