@@ -537,6 +537,93 @@ func captchaAdminGate(bot *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) 
 	return user, chat, true
 }
 
+// captchaJoinNamespace is the callback namespace of the "Turn on captcha"
+// button on the message the bot sends when it joins a group. The button
+// carries no fields: it acts on the chat it was pressed in.
+const captchaJoinNamespace = "captcha_on"
+
+// captchaJoinOfferMarkup returns the "Turn on captcha" keyboard for the join
+// message in chatID, or false when captcha is already on there or the button
+// cannot be encoded. It reads the settings without creating a row.
+func captchaJoinOfferMarkup(ctx *ext.Context, chatID int64, buttonText string) (gotgbot.InlineKeyboardMarkup, bool) {
+	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chatID)
+	if err == nil && settings != nil && settings.Enabled {
+		return gotgbot.InlineKeyboardMarkup{}, false
+	}
+	data, ok := mustCallbackData(captchaJoinNamespace, nil)
+	if !ok {
+		return gotgbot.InlineKeyboardMarkup{}, false
+	}
+	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
+		{Text: buttonText, CallbackData: data},
+	}}}, true
+}
+
+// captchaJoinEnableCallback turns captcha on from the join message's button.
+// It takes the same rights as /captcha on (the presser and the bot are admins
+// of the chat) and the same write, answering every press in the chat's
+// language.
+func (moduleStruct) captchaJoinEnableCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
+	if _, ok := decodeCallbackData(query.Data, captchaJoinNamespace); !ok || query.Message == nil {
+		return answerInvalidCallback(bot, ctx, query)
+	}
+	chat := query.Message.GetChat()
+	if chat.Type == "private" {
+		return answerInvalidCallback(bot, ctx, query)
+	}
+
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	answer := func(key string) {
+		text, _ := tr.GetString(key)
+		if _, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text}); err != nil {
+			log.Warnf("[Captcha] Failed to answer captcha button press in chat %d: %v", chat.Id, err)
+		}
+	}
+	removeButton := func(confirmation string) {
+		var err error
+		if msg, ok := query.Message.(gotgbot.Message); ok && msg.Text != "" && confirmation != "" {
+			_, _, err = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: msg.Text + "\n\n" + confirmation})
+		} else {
+			_, _, err = query.Message.EditReplyMarkup(bot, &gotgbot.EditMessageReplyMarkupOpts{})
+		}
+		if err != nil {
+			log.Debugf("[Captcha] Failed to remove the captcha button in chat %d: %v", chat.Id, err)
+		}
+	}
+
+	if !chat_status.IsUserAdmin(bot, chat.Id, query.From.Id) {
+		answer("connections_is_user_connected_user_not_admin")
+		return ext.EndGroups
+	}
+	if !chat_status.IsUserAdmin(bot, chat.Id, bot.Id) {
+		answer("connections_is_user_connected_bot_not_admin")
+		return ext.EndGroups
+	}
+
+	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	if err != nil {
+		answer("captcha_enable_failed")
+		return err
+	}
+	if settings.Enabled {
+		answer("captcha_join_already_enabled")
+		removeButton("")
+		return ext.EndGroups
+	}
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+		answer("captcha_enable_failed")
+		return err
+	}
+	answer("captcha_join_enabled")
+	confirmation, _ := tr.GetString("captcha_join_enabled")
+	removeButton(confirmation)
+	return ext.EndGroups
+}
+
 func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -2212,6 +2299,7 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify"), captchaModule.captchaVerifyCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_refresh"), captchaModule.captchaRefreshCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(captchaJoinNamespace+"|"), captchaModule.captchaJoinEnableCallback))
 }
 
 func init() {
