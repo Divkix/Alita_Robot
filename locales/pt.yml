@@ -1721,6 +1721,7 @@ spamdb_status_disabled: "A verificação de bases de spam na entrada está <b>de
 spamdb_status_databases: "<b>Bases:</b> {databases}. Altere com <code>/spamdb db</code>."
 spamdb_status_db_on: "{database} (ativada)"
 spamdb_status_db_off: "{database} (desativada)"
+spamdb_status_db_on_inactive: "{database} (ativada, mas inativa: o operador do bot desativou a rede de banimentos compartilhados)"
 spamdb_status_globally_disabled: "⚠️ Indisponível: o operador do bot desativou a verificação da base de spam, então nenhum membro está sendo verificado."
 spamdb_data_notice: "<b>O que é enviado:</b> o ID do Telegram de cada novo membro, a {services}. Nada mais sai do bot."
 spamdb_shared_data_notice: "<b>Shared bans</b> é calculado a partir dos eventos de moderação deste bot; nada sobre este chat ou seus membros é enviado a lugar algum para isso."

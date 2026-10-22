@@ -223,8 +223,7 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	database := spamDBDatabases[idx]
 	params := i18n.TranslationParams{"database": database.source.Name()}
 
-	if want && database.name == spamdbsettings.DatabaseShared &&
-		(config.AppConfig == nil || !config.AppConfig.EnableReputation) {
+	if want && database.name == spamdbsettings.DatabaseShared && !spamDBReputationEnabled() {
 		return spamDBReplyKey(c, "spamdb_db_shared_disabled", params)
 	}
 
@@ -267,6 +266,12 @@ func spamDBCheckRuns(c *helpers.CommandContext) bool {
 	return settings.Enabled
 }
 
+// spamDBReputationEnabled reports whether the operator lets chats use the
+// shared reputation network.
+func spamDBReputationEnabled() bool {
+	return config.AppConfig != nil && config.AppConfig.EnableReputation
+}
+
 func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) string {
 	lineKey := "spamdb_status_disabled"
 	if settings.Enabled {
@@ -281,6 +286,11 @@ func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) stri
 		stateKey := "spamdb_status_db_off"
 		if on {
 			stateKey = "spamdb_status_db_on"
+			// Shared bans is selected but does nothing while the operator's
+			// switch is off, so the line must not read as a running lookup.
+			if d.source == spamdb.SourceShared && !spamDBReputationEnabled() {
+				stateKey = "spamdb_status_db_on_inactive"
+			}
 			if d.service != "" {
 				services = append(services, d.service)
 			}

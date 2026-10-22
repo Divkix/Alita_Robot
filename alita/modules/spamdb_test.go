@@ -935,6 +935,10 @@ func TestSpamDBDatabaseOnReplyFollowsTheCheck(t *testing.T) {
 // The status lists every database with its state, not only the selected ones.
 func TestSpamDBStatusNamesTheChatsDatabases(t *testing.T) {
 	useEnglishLocale(t)
+	previousConfig := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = previousConfig })
+	config.AppConfig.EnableReputation = true
+
 	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
 	client := aispamAdminClient()
 	bot := newModuleTestBot(client)
@@ -992,6 +996,57 @@ func TestSpamDBStatusNamesTheChatsDatabases(t *testing.T) {
 	}
 	if !strings.Contains(replies[1], sharedNotice) {
 		t.Fatalf("status with Shared bans on does not explain it sends nothing: %q", replies[1])
+	}
+}
+
+// A chat that selected Shared bans must not read it as running while the
+// operator has the shared reputation network switched off.
+func TestSpamDBStatusMarksSharedInertWhenReputationDisabled(t *testing.T) {
+	cases := []struct {
+		name         string
+		reputationOn bool
+		wantKey      string
+		unwantedKey  string
+	}{
+		{"operator switch off", false, "spamdb_status_db_on_inactive", "spamdb_status_db_on"},
+		{"operator switch on", true, "spamdb_status_db_on", "spamdb_status_db_on_inactive"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			useEnglishLocale(t)
+			previousConfig := *config.AppConfig
+			t.Cleanup(func() { *config.AppConfig = previousConfig })
+			config.AppConfig.EnableReputation = tc.reputationOn
+
+			dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
+			client := aispamAdminClient()
+			bot := newModuleTestBot(client)
+			chat := spamDBSharedOnlyChat(t, spamdbsettings.ActionBan)
+
+			tr := i18n.MustNewTranslator("en")
+			params := i18n.TranslationParams{"database": "Shared bans"}
+			want, _ := tr.GetString(tc.wantKey, params)
+			if want == "" {
+				t.Fatalf("locale key %s is missing from en.yml", tc.wantKey)
+			}
+			unwanted, _ := tr.GetString(tc.unwantedKey, params)
+			if unwanted == "" {
+				t.Fatalf("locale key %s is missing from en.yml", tc.unwantedKey)
+			}
+
+			spamDBCommand(t, dispatcher, bot, chat, gotgbot.User{Id: 42, FirstName: "Admin"}, "/spamdb")
+
+			replies := spamDBMessagesTo(client, chat.Id)
+			if len(replies) != 1 {
+				t.Fatalf("replies = %d, want 1", len(replies))
+			}
+			if !strings.Contains(replies[0], want) {
+				t.Fatalf("status %q does not contain %q", replies[0], want)
+			}
+			if strings.Contains(replies[0], unwanted) {
+				t.Fatalf("status %q contains %q", replies[0], unwanted)
+			}
+		})
 	}
 }
 

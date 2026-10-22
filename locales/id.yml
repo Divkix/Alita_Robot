@@ -1749,6 +1749,7 @@ spamdb_status_disabled: "Pemeriksaan database spam saat bergabung <b>nonaktif</b
 spamdb_status_databases: "<b>Database:</b> {databases}. Ubah dengan <code>/spamdb db</code>."
 spamdb_status_db_on: "{database} (aktif)"
 spamdb_status_db_off: "{database} (nonaktif)"
+spamdb_status_db_on_inactive: "{database} (aktif, tetapi tidak berjalan: operator bot telah mematikan jaringan larangan bersama)"
 spamdb_status_globally_disabled: "⚠️ Tidak tersedia: operator bot telah mematikan pemeriksaan database spam, jadi tidak ada anggota yang diperiksa."
 spamdb_data_notice: "<b>Yang dikirim:</b> ID Telegram setiap anggota baru, ke {services}. Tidak ada yang lain keluar dari bot."
 spamdb_shared_data_notice: "<b>Shared bans</b> dihitung dari peristiwa moderasi bot ini sendiri; tidak ada informasi tentang chat ini atau anggotanya yang dikirim ke mana pun untuk itu."

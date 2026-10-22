@@ -1798,6 +1798,7 @@ spamdb_status_disabled: "The spam database join check is <b>off</b> in this chat
 spamdb_status_databases: "<b>Databases:</b> {databases}. Change them with <code>/spamdb db</code>."
 spamdb_status_db_on: "{database} (on)"
 spamdb_status_db_off: "{database} (off)"
+spamdb_status_db_on_inactive: "{database} (on, but inactive: the bot operator has switched the shared bans network off)"
 spamdb_status_globally_disabled: "⚠️ Unavailable: the bot operator has switched the spam database check off, so no member is being checked."
 spamdb_data_notice: "<b>What is sent:</b> the Telegram user ID of each new member, to {services}. Nothing else leaves the bot."
 spamdb_shared_data_notice: "<b>Shared bans</b> is computed from this bot's own moderation events; nothing about this chat or its members is sent anywhere for it."

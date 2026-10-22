@@ -727,6 +727,7 @@ spamdb_status_disabled: "इस चैट में जुड़ने पर �
 spamdb_status_databases: "<b>डेटाबेस:</b> {databases}। <code>/spamdb db</code> से बदलें।"
 spamdb_status_db_on: "{database} (चालू)"
 spamdb_status_db_off: "{database} (बंद)"
+spamdb_status_db_on_inactive: "{database} (चालू, लेकिन निष्क्रिय: बॉट ऑपरेटर ने साझा बैन नेटवर्क बंद कर दिया है)"
 spamdb_status_globally_disabled: "⚠️ उपलब्ध नहीं: बॉट ऑपरेटर ने स्पैम डेटाबेस जाँच बंद कर दी है, इसलिए किसी सदस्य की जाँच नहीं हो रही।"
 spamdb_data_notice: "<b>क्या भेजा जाता है:</b> हर नए सदस्य की Telegram ID, {services} को। बॉट से और कुछ नहीं जाता।"
 spamdb_shared_data_notice: "<b>Shared bans</b> इस बॉट के अपने मॉडरेशन इवेंट से बनता है; इसके लिए इस चैट या इसके सदस्यों की कोई जानकारी कहीं नहीं भेजी जाती।"

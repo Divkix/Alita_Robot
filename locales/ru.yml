@@ -1535,6 +1535,7 @@ spamdb_status_disabled: "Проверка по базам спамеров пр�
 spamdb_status_databases: "<b>Базы:</b> {databases}. Изменить: <code>/spamdb db</code>."
 spamdb_status_db_on: "{database} (включена)"
 spamdb_status_db_off: "{database} (выключена)"
+spamdb_status_db_on_inactive: "{database} (включена, но неактивна: оператор бота отключил сеть общих блокировок)"
 spamdb_status_globally_disabled: "⚠️ Недоступно: оператор бота отключил проверку по базе спамеров, поэтому участники не проверяются."
 spamdb_data_notice: "<b>Что отправляется:</b> Telegram ID каждого нового участника на {services}. Больше ничего не уходит."
 spamdb_shared_data_notice: "<b>Shared bans</b> вычисляется по событиям модерации этого бота; никакие данные об этом чате или его участниках никуда для этого не отправляются."
