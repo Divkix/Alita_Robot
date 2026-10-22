@@ -280,7 +280,7 @@ func (p *Panel) handleSettings(w http.ResponseWriter, r *http.Request) {
 // nothing. A setter failure keeps the other writes and reports which fields
 // saved and which did not.
 func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	_, access, ok := p.chatRequest(w, r)
+	session, access, ok := p.chatRequest(w, r)
 	if !ok {
 		return
 	}
@@ -305,6 +305,12 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 			Error:  &apiError{Code: "invalid_settings", Message: "one or more settings are invalid"},
 			Errors: fieldErrors,
 		})
+		return
+	}
+
+	// The equivalent command checks a right per setting; check the batch's
+	// strongest requirement once, before the first write.
+	if !p.requirePermission(w, r, access, session.User.ID, settingsPermission(updates)) {
 		return
 	}
 

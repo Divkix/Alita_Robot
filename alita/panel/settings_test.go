@@ -38,6 +38,9 @@ func newSettingsFixture(t *testing.T) (panelFixture, int64) {
 	fixture := newPanelFixture(t)
 	chatID := uniquePanelChatID()
 	fixture.client.admins[chatID] = adminListJSON(settingsFixtureUserID, 999)
+	// The fixture admin is the one who may write every module; refusal tests
+	// take the right away again.
+	fixture.client.rights[settingsFixtureUserID] = panelFakeRights{canChangeInfo: true, canRestrictMembers: true}
 	seedPanelChat(t, chatID, fmt.Sprintf("Settings Chat %d", chatID), fixtureNow)
 	return fixture, chatID
 }

@@ -70,21 +70,36 @@ func sqliteLookup(ctx context.Context, _ int64, limit int) ([]models.Chat, error
 	return chats, err
 }
 
+// panelFakeRights are the administrator rights getChatMember reports for one
+// fake member.
+type panelFakeRights struct {
+	canChangeInfo      bool
+	canRestrictMembers bool
+}
+
 type panelFakeClient struct {
 	mu        sync.Mutex
 	calls     []string
 	chatType  string
 	chatErr   error
 	members   map[int64]json.RawMessage
+	admins    map[int64]json.RawMessage
 	botAdmin  bool
 	blockUser int64
+	rights    map[int64]panelFakeRights
+	botRights panelFakeRights
+	statuses  map[int64]string
 }
 
 func newPanelFakeClient() *panelFakeClient {
 	return &panelFakeClient{
-		chatType: "supergroup",
-		members:  make(map[int64]json.RawMessage),
-		botAdmin: true,
+		chatType:  "supergroup",
+		members:   make(map[int64]json.RawMessage),
+		admins:    make(map[int64]json.RawMessage),
+		botAdmin:  true,
+		rights:    make(map[int64]panelFakeRights),
+		botRights: panelFakeRights{canChangeInfo: true, canRestrictMembers: true},
+		statuses:  make(map[int64]string),
 	}
 }
 
@@ -134,7 +149,17 @@ func (c *panelFakeClient) RequestWithContext(ctx context.Context, _ string, meth
 		if userID != 999 && strings.Contains(string(c.admins[chatID]), fmt.Sprintf(`"id":%d,`, userID)) {
 			status = "administrator"
 		}
-		return json.RawMessage(fmt.Sprintf(`{"status":%q,"user":{"id":%d,"is_bot":%t,"first_name":"Fake"}}`, status, userID, userID == 999)), nil
+		if override, ok := c.statuses[userID]; ok {
+			status = override
+		}
+		rights := c.rights[userID]
+		if userID == 999 {
+			rights = c.botRights
+		}
+		return json.RawMessage(fmt.Sprintf(
+			`{"status":%q,"user":{"id":%d,"is_bot":%t,"first_name":"Fake"},`+
+				`"can_change_info":%t,"can_restrict_members":%t}`,
+			status, userID, userID == 999, rights.canChangeInfo, rights.canRestrictMembers)), nil
 	default:
 		return json.RawMessage(`true`), nil
 	}
@@ -164,6 +189,16 @@ type panelFixture struct {
 func newPanelFixture(t *testing.T) panelFixture {
 	t.Helper()
 	return newPanelFixtureWithClock(t, fixtureBotToken, fixtureNow)
+}
+
+// adminListJSON lists ids as chat administrators; getChatMember reports a
+// listed user as an administrator with the rights set in c.rights.
+func adminListJSON(ids ...int64) json.RawMessage {
+	entries := make([]string, 0, len(ids))
+	for _, id := range ids {
+		entries = append(entries, fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":%t,"first_name":"Admin %d"}}`, id, id == 999, id))
+	}
+	return json.RawMessage("[" + strings.Join(entries, ",") + "]")
 }
 
 func newPanelFixtureWithClock(t *testing.T, botToken string, now time.Time) panelFixture {
