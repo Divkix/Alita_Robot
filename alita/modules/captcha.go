@@ -30,6 +30,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -1222,11 +1223,18 @@ func expireCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, 
 		attempt.ID,
 		attempt.MessageID,
 		settings.FailureAction,
+		captchaFailedTimeout,
 	)
 	return claimed, nil
 }
 
-func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint, fallbackMessageID int64, action string) (bool, bool) {
+// Why a captcha failed, as the log channel entry names it.
+const (
+	captchaFailedTimeout      = "timeout"
+	captchaFailedWrongAnswers = "wrong answers"
+)
+
+func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint, fallbackMessageID int64, action, cause string) (bool, bool) {
 	attempt, err := captcha.GetCaptchaAttemptByID(attemptID)
 	if err != nil || attempt == nil {
 		log.Debugf("[Captcha] Timeout handler skipped - attempt not found for attempt_id=%d", attemptID)
@@ -1298,6 +1306,17 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 			log.Errorf("[Captcha] Failed to clear fallback unmute for user %d: %v", userID, err)
 		}
 	}
+	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount)
+	return true, true
+}
+
+// reportCaptchaFailure logs an applied failure action to the log channel and
+// posts the group notice, which deletes itself after 30 seconds.
+func reportCaptchaFailure(bot *gotgbot.Bot, chatID, userID int64, userName, action, cause string, storedMsgCount int64) {
+	actionlog.Automated(bot, captchaLogChat(chatID), "CAPTCHA_FAILED", userID, userName,
+		actionlog.Field{Name: "Action", Value: action},
+		actionlog.Field{Name: "Cause", Value: cause},
+	)
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: &gotgbot.Chat{Id: chatID}}))
 	failureMsg := buildCaptchaFailureMessage(tr, action, userID, userName, storedMsgCount)
@@ -1312,8 +1331,16 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, sent.MessageId)
 		})
 	}
+}
 
-	return true, true
+// captchaLogChat is the chat for a log entry when only its ID is at hand; the
+// entry header takes its title from the chats table.
+func captchaLogChat(chatID int64) *gotgbot.Chat {
+	chat := &gotgbot.Chat{Id: chatID}
+	if info, err := chats.GetChatBasicInfoCached(chatID); err == nil && info != nil {
+		chat.Title = info.ChatName
+	}
+	return chat
 }
 
 func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64, userName string, storedMsgCount int64) string {
@@ -1570,7 +1597,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		}
 
 		if attempt.Attempts >= settings.MaxAttempts {
-			claimed, applied := handleCaptchaTimeout(bot, chat.Id, targetUserID, attempt.ID, attempt.MessageID, settings.FailureAction)
+			claimed, applied := handleCaptchaTimeout(bot, chat.Id, targetUserID, attempt.ID, attempt.MessageID, settings.FailureAction, captchaFailedWrongAnswers)
 			if applied {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				actionText, _ := tr.GetString("captcha_action_kicked")

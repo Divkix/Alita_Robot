@@ -2,7 +2,6 @@ package modules
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -133,10 +131,10 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 			// would lift the mute and its timeout kick would undo the ban.
 			claimRecentJoinProcessing(chat.Id, member.Id)
 		}
-		actionlog.Log(b, chat, logchannels.CategoryAutomated, fmt.Sprintf(
-			"#SPAMDB\nUser: %s (<code>%d</code>)\nListed in: %s\nAction: %s",
-			formatting.MentionHtml(member.Id, member.FirstName), member.Id, source.Name(), outcome,
-		))
+		actionlog.Automated(b, chat, "SPAMDB", member.Id, member.FirstName,
+			actionlog.Field{Name: "Listed in", Value: source.Name()},
+			actionlog.Field{Name: "Action", Value: outcome},
+		)
 	}
 	return ext.ContinueGroups
 }

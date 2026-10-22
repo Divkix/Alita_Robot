@@ -22,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -415,6 +416,15 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 
 		if punished {
+			// Only the bot's own warns (blacklists) are automated; an admin's
+			// warn at the limit is a human action.
+			if issuer.WarnedBy == b.Id {
+				actionlog.Automated(b, chat, "WARNLIMIT", u.Id, u.FirstName,
+					actionlog.Field{Name: "Warns", Value: fmt.Sprintf("%d/%d", numWarns, warnrc.WarnLimit)},
+					actionlog.Field{Name: "Action", Value: warnModeLabel(warnrc)},
+					actionlog.Field{Name: "By", Value: "blacklist"},
+				)
+			}
 			if _, resetErr := warns.ResetUserWarns(userId, chat.Id); resetErr != nil {
 				return resetErr
 			}

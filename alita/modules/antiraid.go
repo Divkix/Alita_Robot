@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -423,6 +424,14 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 				continue
 			}
 			log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
+			// One entry for the raid: joiners banned during it get none of
+			// their own, as a raid can be hundreds of joins.
+			actionlog.Automated(bot, chat, "ANTIRAID", 0, "",
+				actionlog.Field{Name: "Joins", Value: strconv.Itoa(count)},
+				actionlog.Field{Name: "Threshold", Value: strconv.Itoa(settings.AutoAntiRaidThreshold)},
+				actionlog.Field{Name: "Duration", Value: formatDuration(settings.RaidTime)},
+				actionlog.Field{Name: "Joiners banned for", Value: formatDuration(settings.RaidActionTime)},
+			)
 
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
