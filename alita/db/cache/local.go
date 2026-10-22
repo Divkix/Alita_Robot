@@ -42,6 +42,9 @@ var (
 	beforeLocalSetHook func(key string)
 
 	captchaPendingPrefix = CacheKey("captcha_pending") + ":"
+	// probationMemberPrefix is alita/db/probation.MemberKeyPrefix, which
+	// cannot be imported here.
+	probationMemberPrefix = CacheKey("probation_member") + ":"
 )
 
 // skipLocal reports whether key must never be served from process memory.
@@ -51,8 +54,9 @@ var (
 // be served stale for up to CACHE_LOCAL_TTL seconds.
 func skipLocal(key string) bool {
 	// Captcha pending flag gates whether a new member's messages are held;
-	// a replica must see a flag set elsewhere immediately.
-	return strings.HasPrefix(key, captchaPendingPrefix)
+	// a replica must see a flag set elsewhere immediately. A probation row
+	// gates a new member's first messages the same way.
+	return strings.HasPrefix(key, captchaPendingPrefix) || strings.HasPrefix(key, probationMemberPrefix)
 }
 
 func localSettings() (ttl, size int) {
