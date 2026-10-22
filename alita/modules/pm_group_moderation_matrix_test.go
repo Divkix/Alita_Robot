@@ -304,8 +304,8 @@ func TestPMModerationRefusesMember(t *testing.T) {
 			if tc.acted(t, f, f.chat.Id, victimID) {
 				t.Fatalf("/%s from a member who is no admin acted on the group", tc.cmd)
 			}
-			if !calledFor(f, "sendMessage", f.member.Id) {
-				t.Fatalf("/%s from a member who is no admin got no answer", tc.cmd)
+			if refusal := translated(t, "connections_is_user_connected_user_not_admin"); !repliedIn(f, f.member.Id, refusal) {
+				t.Fatalf("/%s from a member who is no admin did not get %q; sent:\n%s", tc.cmd, refusal, sentText(f.client))
 			}
 			requireConnectedTo(t, f.member.Id, connected)
 		})

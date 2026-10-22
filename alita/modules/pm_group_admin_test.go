@@ -172,8 +172,10 @@ func TestAdminCommandsInPMWithGroupActOnThatGroup(t *testing.T) {
 }
 
 // From PM, a member of the named group who is no admin there gets a refusal
-// and the group stays as it was; so does their connection.
+// and the group stays as it was; so does their connection. /admincache checks
+// admin rights itself, live, and refuses with its own message.
 func TestAdminCommandsInPMWithGroupRefuseMember(t *testing.T) {
+	refusals := map[string]string{"admincache": "admin_need_admin"}
 	for _, tc := range pmAdminCases {
 		t.Run(tc.cmd, func(t *testing.T) {
 			f, connected := pmAdminFixture(t)
@@ -190,8 +192,12 @@ func TestAdminCommandsInPMWithGroupRefuseMember(t *testing.T) {
 			if tc.acted(t, f, f.chat.Id, f.member.Id) {
 				t.Fatalf("/%s from a member who is no admin acted on the group", tc.cmd)
 			}
-			if !calledFor(f, "sendMessage", f.member.Id) {
-				t.Fatalf("/%s from a member who is no admin got no answer", tc.cmd)
+			refusal, ok := refusals[tc.cmd]
+			if !ok {
+				refusal = "connections_is_user_connected_user_not_admin"
+			}
+			if !repliedIn(f, f.member.Id, translated(t, refusal)) {
+				t.Fatalf("/%s from a member who is no admin did not get %s; sent:\n%s", tc.cmd, refusal, sentText(f.client))
 			}
 			requireConnectedTo(t, f.member.Id, connected)
 		})
