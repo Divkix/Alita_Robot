@@ -617,6 +617,7 @@ Per-chat admin log channel and enabled categories.
 | `cat_automated` | `BOOLEAN` | NO | `TRUE` | — |
 | `cat_reports` | `BOOLEAN` | NO | `TRUE` | — |
 | `cat_other` | `BOOLEAN` | NO | `TRUE` | — |
+| `cat_warns` | `BOOLEAN` | NO | `FALSE` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 

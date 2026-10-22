@@ -523,6 +523,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
+		logRaidMode(bot, chat, ctx.EffectiveUser, true, settings.RaidTime)
 
 	case "off":
 		disabled, err := a.disableRaid(chat.Id)
@@ -538,6 +539,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, _ := tr.GetString("antiraid_disabled")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
+		logRaidMode(bot, chat, ctx.EffectiveUser, false, 0)
 
 	default:
 		dur, ok := parseDuration(arg)
@@ -554,9 +556,23 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(dur)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
+		logRaidMode(bot, chat, ctx.EffectiveUser, true, dur)
 	}
 
 	return ext.EndGroups
+}
+
+// logRaidMode posts an admin switching raid mode on (for duration seconds)
+// or off under the settings log category.
+func logRaidMode(bot *gotgbot.Bot, chat *gotgbot.Chat, admin *gotgbot.User, on bool, duration int) {
+	state, shown := "off", ""
+	if on {
+		state, shown = "on", formatDuration(duration)
+	}
+	actionlog.SettingChange(bot, chat, admin, "ANTIRAID",
+		actionlog.Field{Name: "Raid mode", Value: state},
+		actionlog.Field{Name: "Duration", Value: shown},
+	)
 }
 
 func (a *antiRaidStruct) raidTime(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -715,11 +731,13 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 	if msg == nil {
 		return ext.ContinueGroups
 	}
-	chatID := msg.GetChat().Id
+	shownIn := msg.GetChat()
+	chat := &shownIn
+	chatID := chat.Id
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if msg.GetChat().Type == "private" {
 		// The status message was sent in PM: act on the group it showed.
-		chat := callbackAdminChat(bot, ctx, query, decoded, true)
+		chat = callbackAdminChat(bot, ctx, query, decoded, true)
 		if chat == nil {
 			return ext.EndGroups
 		}
@@ -750,6 +768,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: formatting.ToTelegramHTML(text), ParseMode: formatting.HTML})
+		logRaidMode(bot, chat, &query.From, true, settings.RaidTime)
 	case "off":
 		disabled, err := a.disableRaid(chatID)
 		if err != nil {
@@ -765,6 +784,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		text, _ := tr.GetString("antiraid_disabled")
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: formatting.ToTelegramHTML(text), ParseMode: formatting.HTML})
+		logRaidMode(bot, chat, &query.From, false, 0)
 	default:
 		return answerInvalidCallback(bot, ctx, query)
 	}
