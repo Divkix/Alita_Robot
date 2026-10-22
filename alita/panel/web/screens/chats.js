@@ -1,5 +1,5 @@
 import { api } from "../api.js";
-import { clear, initials, loading, relativeTime, setHeader, showError, textElement } from "../ui.js";
+import { clear, emptyState, initials, loading, relativeTime, setHeader, showError, textElement } from "../ui.js";
 
 // chatRow is one tappable group: an initials avatar, the title, and either
 // the group the panel was opened from or when the user was last active there.
@@ -47,16 +47,7 @@ export async function renderChats(root) {
 
 	const chats = Array.isArray(data.chats) ? data.chats : [];
 	if (chats.length === 0) {
-		const empty = document.createElement("div");
-		empty.className = "empty";
-		empty.append(
-			textElement("p", "No groups yet", "empty-title"),
-			textElement(
-				"p",
-				"Add me to a group, or send /connect in a private chat, then open the panel again.",
-			),
-		);
-		root.append(empty);
+		root.append(emptyState("No groups yet", "Add me to a group, or send /connect in a private chat, then open the panel again."));
 		return;
 	}
 

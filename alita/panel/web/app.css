@@ -319,6 +319,10 @@ a {
 	background: var(--card);
 }
 
+.callout.ok {
+	background: color-mix(in srgb, var(--ok) 14%, var(--card));
+}
+
 .callout.warn {
 	background: color-mix(in srgb, var(--warn) 14%, var(--card));
 }
@@ -656,8 +660,7 @@ body.has-save-bar .toast {
 	gap: 8px;
 }
 
-.list-controls,
-.list-actions {
+.list-controls {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
@@ -723,6 +726,46 @@ body.has-save-bar .toast {
 	min-height: 32px;
 	padding: 4px 12px;
 	font-size: 14px;
+}
+
+.import-box {
+	border-radius: var(--radius);
+	background: var(--card);
+}
+
+.import-box summary {
+	min-height: var(--tap);
+	padding: 12px 16px;
+}
+
+.import-body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0 16px 16px;
+}
+
+.import-box button {
+	align-self: flex-start;
+}
+
+.import-box .muted {
+	margin-block: 0;
+	font-size: 14px;
+}
+
+.import-results {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.import-results:empty {
+	display: none;
+}
+
+.table-scroll {
+	overflow-x: auto;
 }
 
 .import-table {
@@ -880,7 +923,8 @@ body.has-save-bar .toast {
 	font-size: 13px;
 }
 
-.collection-note summary {
+.collection-note summary,
+.import-box summary {
 	color: var(--link);
 	cursor: pointer;
 }
