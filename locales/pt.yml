@@ -1133,7 +1133,7 @@ warns_reset_all_cancelled: Cancelada a remoção de todos os avisos de todos os 
 warns_reset_all_final: Removidos todos os avisos de todos os usuários neste chat.
 
 # Locks module strings
-locks_locktypes_header: "Locks:\n - "
+locks_locktypes_header: "Bloqueios:\n - "
 locks_what_to_lock: O que você quer bloquear? Verifique /locktypes para opções disponíveis.
 locks_invalid_lock_type: "<code>%s</code> não é um tipo de bloqueio correto, verifique /locktypes."
 locks_locked_successfully: "Bloqueado o seguinte neste grupo:\n - %s"
