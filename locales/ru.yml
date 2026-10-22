@@ -89,7 +89,7 @@ bans_ban_ban_reason: "<b>Причина:</b> %s"
 bans_ban_dban_no_reply: Вам нужно ответить на сообщение, чтобы удалить его и забанить пользователя!
 bans_ban_is_admin: Зачем мне банить администратора? Это звучит как довольно глупая идея.
 bans_ban_is_bot_itself: Вы правда думаете, что я забаню сам себя?
-bans_ban_normal_ban: "Ещё один укусил пыл...!\nЗабанен %s."
+bans_ban_normal_ban: "Ещё одним меньше...!\nЗабанен %s."
 bans_ban_tban: Забанен %s на %s
 bans_help_msg:
   "Иногда пользователи могут раздражать, и вы можете захотеть удалить их
@@ -145,9 +145,9 @@ bans_unban_is_bot_itself: Зачем мне снимать ограничени�
 bans_unban_unbanned_user: "Дадим ему ещё один шанс.\nРазбанен %s!"
 blacklists_bl_watcher_banned_user: Забанен %s из-за %s
 blacklists_bl_watcher_kicked_user: Выгнан %s из-за %s
-blacklists_bl_watcher_muted_user: Замучен %s из-за %s
+blacklists_bl_watcher_muted_user: Заглушен %s из-за %s
 blacklists_bl_watcher_tbanned_user: Забанен %s на %s из-за %s
-blacklists_bl_watcher_tmuted_user: Замучен %s на %s из-за %s
+blacklists_bl_watcher_tmuted_user: Заглушен %s на %s из-за %s
 blacklists_blacklist_added_bl: "Добавлены следующие слова в чёрный список:"
 blacklists_blacklist_already_blacklisted: "Эти слова уже в чёрном списке:"
 blacklists_blacklist_give_bl_word: Пожалуйста, дайте мне слово для добавления в чёрный список!
@@ -930,7 +930,7 @@ bans_restrict_banned: "Администратор %s забанил %s из эт
 bans_unrestrict_question: Как я могу снять ограничения с этого пользователя?
 bans_unrestrict_admin_error: Зачем мне выгонять администратора? Это звучит как довольно глупая идея.
 bans_unrestrict_self_error: Нет, ты
-bans_unrestrict_unmuted: "Размучен администратором %s!"
+bans_unrestrict_unmuted: "Разглушён администратором %s!"
 bans_unrestrict_unbanned: "Разбанен администратором %s!"
 bans_invalid_callback_data: "Неверные данные обратного вызова."
 bans_invalid_user_id: "Неверный ID пользователя."
@@ -1183,7 +1183,7 @@ captcha_refresh_success: "🔄 Новая капча отправлена!"
 captcha_timeout_failure_kicked: "❌ %s не удалось пройти проверку капчи и был выгнан."
 captcha_timeout_failure_banned: "❌ %s не удалось пройти проверку капчи и был забанен."
 captcha_timeout_failure_muted: "❌ %s не удалось пройти проверку капчи и был заглушен."
-captcha_timeout_with_messages: "❌ %s не удалось пройти проверку капчи. Мера: %s.\n\n📝 %d сообщение(й) было предпринято, но удалено из-за незавершённой проверки."
+captcha_timeout_stored_note: "📝 %d сообщение(й) было отправлено, но удалено из-за незавершённой проверки."
 captcha_stored_messages_summary: "📝 %s попытался отправить %d сообщение(й) (%s) до проверки"
 captcha_pending_usage: "Использование: <code>/captchapending @user</code> или <code>/captchapending user_id</code>"
 captcha_no_pending_messages: "Нет ожидающих сообщений для этого пользователя."
@@ -1922,7 +1922,7 @@ captcha_extended_docs: |
   1. Когда капча включена, новые участники автоматически заглушаются при присоединении
   2. Задание капчи отправляется новому участнику
   3. Пользователь должен выбрать правильный ответ из предоставленных опций
-  4. При успехе пользователь размучается и может участвовать в группе
+  4. При успехе пользователь разглушается и может участвовать в группе
   5. При неудаче или таймауте применяется настроенное действие (kick, ban или mute)
 
   <b>Типы капчи:</b>

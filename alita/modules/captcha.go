@@ -1344,21 +1344,6 @@ func captchaLogChat(chatID int64) *gotgbot.Chat {
 }
 
 func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64, userName string, storedMsgCount int64) string {
-	if storedMsgCount > 0 {
-		var actionKey string
-		switch action {
-		case "ban":
-			actionKey, _ = tr.GetString("captcha_action_banned")
-		case "mute":
-			actionKey, _ = tr.GetString("captcha_action_muted")
-		default:
-			actionKey, _ = tr.GetString("captcha_action_kicked")
-		}
-
-		template, _ := tr.GetString("captcha_timeout_with_messages")
-		return fmt.Sprintf(template, formatting.MentionHtml(userID, userName), actionKey, storedMsgCount)
-	}
-
 	var msgKey string
 	switch action {
 	case "ban":
@@ -1370,7 +1355,14 @@ func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64
 	}
 
 	template, _ := tr.GetString(msgKey)
-	return fmt.Sprintf(template, formatting.MentionHtml(userID, userName))
+	msg := fmt.Sprintf(template, formatting.MentionHtml(userID, userName))
+
+	if storedMsgCount > 0 {
+		note, _ := tr.GetString("captcha_timeout_stored_note")
+		msg += "\n\n" + fmt.Sprintf(note, storedMsgCount)
+	}
+
+	return msg
 }
 
 func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action string) error {
