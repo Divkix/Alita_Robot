@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -87,8 +88,10 @@ type listImportRequest struct {
 }
 
 // handleListGet serves one page of a list, or the whole matching set as a
-// download with ?format=text. Filters and notes export JSON so replies keep
-// their newlines; blacklists export one word per line.
+// download with ?format=text. Filters and notes export JSON with replies in
+// the import box's MarkdownV2 form, so an export can be pasted back;
+// blacklists export one word per line. Admin-only notes are only returned to
+// admins, matching /get.
 func (p *Panel) handleListGet(kind listKind) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, access, ok := p.chatRequest(w, r)
@@ -99,9 +102,10 @@ func (p *Panel) handleListGet(kind listKind) http.HandlerFunc {
 		if !ok {
 			return
 		}
+		admin := access.Role == RoleAdmin
 
 		if r.URL.Query().Get("format") == "text" {
-			body, contentType, filename, err := exportList(r.Context(), kind, access.ChatID, query)
+			body, contentType, filename, err := exportList(r.Context(), kind, access.ChatID, query, admin)
 			if err != nil {
 				log.WithError(err).Error("[Panel] Failed to export list")
 				writeJSONError(w, http.StatusInternalServerError, "list_failed", "could not read this list")
@@ -117,7 +121,7 @@ func (p *Panel) handleListGet(kind listKind) http.HandlerFunc {
 			return
 		}
 
-		entries, next, err := listEntries(r.Context(), kind, access.ChatID, query, limit, offset)
+		entries, next, err := listEntries(r.Context(), kind, access.ChatID, query, limit, offset, admin)
 		if err != nil {
 			log.WithError(err).Error("[Panel] Failed to read list")
 			writeJSONError(w, http.StatusInternalServerError, "list_failed", "could not read this list")
@@ -138,11 +142,11 @@ func (p *Panel) handleListGet(kind listKind) http.HandlerFunc {
 // created filter or note replies with text.
 func (p *Panel) handleListImport(kind listKind) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, access, ok := p.chatRequest(w, r)
+		session, access, ok := p.chatRequest(w, r)
 		if !ok {
 			return
 		}
-		if !requireWritable(w, access) {
+		if !p.requirePermission(w, r, access, session.User.ID, listWritePermission(kind)) {
 			return
 		}
 
@@ -170,11 +174,11 @@ func (p *Panel) handleListImport(kind listKind) http.HandlerFunc {
 // soon as the write invalidates the cache.
 func (p *Panel) handleListDelete(kind listKind) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, access, ok := p.chatRequest(w, r)
+		session, access, ok := p.chatRequest(w, r)
 		if !ok {
 			return
 		}
-		if !requireWritable(w, access) {
+		if !p.requirePermission(w, r, access, session.User.ID, listWritePermission(kind)) {
 			return
 		}
 
@@ -213,6 +217,16 @@ func (p *Panel) handleListDelete(kind listKind) http.HandlerFunc {
 	}
 }
 
+// listWritePermission is the right the matching command checks before it
+// writes: /filter and /note check the caller's can_change_info, /blacklist
+// checks can_restrict_members for the caller and the bot.
+func listWritePermission(kind listKind) permission {
+	if kind == listBlacklists {
+		return permRestrict
+	}
+	return permChangeInfo
+}
+
 // parseListPage reads ?q, ?limit and ?cursor (or ?offset) from a list request.
 func parseListPage(w http.ResponseWriter, r *http.Request) (query string, limit, offset int, ok bool) {
 	values := r.URL.Query()
@@ -244,11 +258,12 @@ func parseListPage(w http.ResponseWriter, r *http.Request) (query string, limit,
 }
 
 // listEntries returns one page and, when another page exists, the cursor to
-// request it. limit<=0 returns every matching entry, which export uses.
-func listEntries(ctx context.Context, kind listKind, chatID int64, query string, limit, offset int) ([]listEntry, int, error) {
+// request it. limit<=0 returns every matching entry, which export uses. admin
+// selects whether admin-only notes are visible to the caller.
+func listEntries(ctx context.Context, kind listKind, chatID int64, query string, limit, offset int, admin bool) ([]listEntry, int, error) {
 	switch kind {
 	case listFilters, listNotes:
-		return repositoryPage(ctx, kind, chatID, query, limit, offset)
+		return repositoryPage(ctx, kind, chatID, query, limit, offset, admin)
 	case listBlacklists:
 		entries := blacklistEntries(ctx, chatID, query)
 		if offset >= len(entries) {
@@ -268,7 +283,7 @@ func listEntries(ctx context.Context, kind listKind, chatID int64, query string,
 	}
 }
 
-func repositoryPage(ctx context.Context, kind listKind, chatID int64, query string, limit, offset int) ([]listEntry, int, error) {
+func repositoryPage(ctx context.Context, kind listKind, chatID int64, query string, limit, offset int, admin bool) ([]listEntry, int, error) {
 	fetchLimit := 0
 	if limit > 0 {
 		fetchLimit = limit + 1
@@ -285,7 +300,7 @@ func repositoryPage(ctx context.Context, kind listKind, chatID int64, query stri
 			entries = append(entries, listEntry{Name: row.KeyWord, Reply: row.FilterReply})
 		}
 	case listNotes:
-		rows, err := notes.ListNotesContext(ctx, chatID, query, fetchLimit, offset)
+		rows, err := notes.ListNotesContext(ctx, chatID, query, fetchLimit, offset, admin)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -323,8 +338,12 @@ func blacklistEntries(ctx context.Context, chatID int64, query string) []listEnt
 	return entries
 }
 
-func exportList(ctx context.Context, kind listKind, chatID int64, query string) ([]byte, string, string, error) {
-	entries, _, err := listEntries(ctx, kind, chatID, query, 0, 0)
+// exportList writes the whole matching set as a download. Filters and notes
+// export JSON with each reply in the MarkdownV2 form the import box and the
+// commands take, so an exported list can be pasted back; blacklists export one
+// word per line. admin selects whether admin-only notes are included.
+func exportList(ctx context.Context, kind listKind, chatID int64, query string, admin bool) ([]byte, string, string, error) {
+	entries, _, err := listEntries(ctx, kind, chatID, query, 0, 0, admin)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -338,6 +357,9 @@ func exportList(ctx context.Context, kind listKind, chatID int64, query string) 
 		return []byte(out.String()), contentTypePlain, "blacklists.txt", nil
 	}
 
+	for index := range entries {
+		entries[index].Reply = listReplySource(entries[index].Reply)
+	}
 	body, err := json.Marshal(entries)
 	if err != nil {
 		return nil, "", "", err
@@ -470,6 +492,27 @@ func decodeListEntries(raw json.RawMessage) ([]listEntry, error) {
 	return entries, nil
 }
 
+// listReplyHTML stores a panel reply the way /filter and /note store theirs:
+// MarkdownV2 text through the same converter, so "<" is escaped once and the
+// HTML parse mode both send paths use accepts the message. Button syntax is
+// returned separately and dropped, because panel entries are text-only.
+func listReplyHTML(reply string) string {
+	text, _ := tgmd2html.MD2HTMLButtonsV2(reply)
+	return text
+}
+
+// listReplySource is the inverse of listReplyHTML, used by the export so an
+// exported list can be pasted into the import box again. A stored reply that
+// does not convert back is exported verbatim rather than failing the download.
+func listReplySource(reply string) string {
+	source, err := tgmd2html.ReverseV2(reply, nil)
+	if err != nil {
+		log.WithError(err).Debug("[Panel] Could not reverse a stored list reply for export")
+		return reply
+	}
+	return source
+}
+
 func importList(ctx context.Context, kind listKind, chatID int64, entries []listEntry) ([]listImportResult, error) {
 	switch kind {
 	case listFilters:
@@ -488,15 +531,16 @@ func importFilters(chatID int64, entries []listEntry) ([]listImportResult, error
 	results := make([]listImportResult, 0, len(entries))
 	for index, entry := range entries {
 		name := strings.ToLower(strings.TrimSpace(entry.Name))
+		reply := listReplyHTML(entry.Reply)
 		result := listImportResult{Line: index + 1, Value: name, Status: statusCreated}
 		switch {
 		case name == "":
 			result.Status, result.Error = statusInvalid, "keyword is required"
 		case utf8.RuneCountInString(name) > filterKeywordMaxRunes:
 			result.Status, result.Error = statusInvalid, "keyword must be at most 100 characters"
-		case strings.TrimSpace(entry.Reply) == "":
+		case reply == "":
 			result.Status, result.Error = statusInvalid, "reply is required"
-		case utf8.RuneCountInString(entry.Reply) > listReplyMaxRunes:
+		case utf8.RuneCountInString(reply) > listReplyMaxRunes:
 			result.Status, result.Error = statusInvalid, "reply must be at most 4096 characters"
 		case filters.DoesFilterExists(chatID, name):
 			result.Status = statusDuplicate
@@ -504,7 +548,7 @@ func importFilters(chatID int64, entries []listEntry) ([]listImportResult, error
 			result.Status, result.Error = statusInvalid, "this chat already has the maximum of 150 filters"
 		}
 		if result.Status == statusCreated {
-			if err := filters.AddFilter(chatID, name, entry.Reply, "", nil, db.TEXT); err != nil {
+			if err := filters.AddFilter(chatID, name, reply, "", nil, db.TEXT); err != nil {
 				return nil, err
 			}
 			count++
@@ -518,19 +562,20 @@ func importNotes(chatID int64, entries []listEntry) ([]listImportResult, error) 
 	results := make([]listImportResult, 0, len(entries))
 	for index, entry := range entries {
 		name := strings.ToLower(strings.TrimSpace(entry.Name))
+		reply := listReplyHTML(entry.Reply)
 		result := listImportResult{Line: index + 1, Value: name, Status: statusCreated}
 		switch {
 		case name == "":
 			result.Status, result.Error = statusInvalid, "name is required"
-		case strings.TrimSpace(entry.Reply) == "":
+		case reply == "":
 			result.Status, result.Error = statusInvalid, "reply is required"
-		case utf8.RuneCountInString(entry.Reply) > listReplyMaxRunes:
+		case utf8.RuneCountInString(reply) > listReplyMaxRunes:
 			result.Status, result.Error = statusInvalid, "reply must be at most 4096 characters"
 		case notes.DoesNoteExists(chatID, name):
 			result.Status = statusDuplicate
 		}
 		if result.Status == statusCreated {
-			if err := notes.AddNote(chatID, name, entry.Reply, "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+			if err := notes.AddNote(chatID, name, reply, "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 				return nil, err
 			}
 		}

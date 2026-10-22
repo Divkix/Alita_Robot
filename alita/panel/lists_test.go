@@ -3,6 +3,7 @@
 package panel
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,10 +14,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/utils/content"
 )
 
 // panelTestUserID is the user in testdata/initdata_main.txt.
@@ -28,6 +33,9 @@ func newListFixture(t *testing.T) (panelFixture, int64) {
 	chatID := uniquePanelChatID()
 	seedPanelChat(t, chatID, "Lists Chat", fixtureNow)
 	fixture.client.admins[chatID] = adminListJSON(panelTestUserID, 999)
+	// The fixture admin holds every right the list commands check; refusal
+	// tests take the right away again.
+	fixture.client.rights[panelTestUserID] = panelFakeRights{canChangeInfo: true, canRestrictMembers: true}
 	return fixture, chatID
 }
 
@@ -253,8 +261,12 @@ func TestFilterExportReimportsToTheSameSet(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &exported); err != nil {
 		t.Fatalf("decode export %q: %v", recorder.Body.String(), err)
 	}
-	if !reflect.DeepEqual(exported, source) {
-		t.Fatalf("exported = %+v, want %+v", exported, source)
+	if got, want := entryNames(exported), []string{"alpha", "beta"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("exported names = %v, want %v", got, want)
+	}
+	// The export is the import box's form, so a reply with a newline keeps it.
+	if exported[1].Reply != "line one\nline two" {
+		t.Fatalf("exported reply = %q, want the two-line reply", exported[1].Reply)
 	}
 
 	otherID := uniquePanelChatID()
@@ -263,9 +275,12 @@ func TestFilterExportReimportsToTheSameSet(t *testing.T) {
 
 	requireImportResults(t, postList(t, fixture, otherID, "filters", recorder.Body.String()))
 
+	// Re-importing the export must restore the stored replies byte for byte,
+	// not escape the converted HTML a second time.
+	original := listEntriesOf(t, fixture, chatID, "filters", "")
 	reimported := listEntriesOf(t, fixture, otherID, "filters", "")
-	if !reflect.DeepEqual(reimported, exported) {
-		t.Fatalf("re-imported = %+v, want the exported set %+v", reimported, exported)
+	if !reflect.DeepEqual(reimported, original) {
+		t.Fatalf("re-imported = %+v, want the original set %+v", reimported, original)
 	}
 }
 
@@ -307,11 +322,30 @@ func TestFilterValueWithHTMLAndNewlineRoundTrips(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("filters = %d, want 1", len(entries))
 	}
-	if entries[0].Reply != reply {
-		t.Fatalf("reply = %q, want %q", entries[0].Reply, reply)
+	// Stored the way /filter stores it: escaped once, so the HTML send path
+	// renders the text instead of rejecting the tags.
+	const stored = "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;\nsecond &amp; line"
+	if entries[0].Reply != stored {
+		t.Fatalf("reply = %q, want %q", entries[0].Reply, stored)
 	}
 	if strings.Contains(recorder.Body.String(), "<script>") {
 		t.Fatalf("raw JSON body contains unescaped HTML: %s", recorder.Body.String())
+	}
+
+	// The export carries the import form, so pasting it back restores the
+	// same stored reply rather than escaping it again.
+	export := panelRequest(t, fixture.handler, http.MethodGet, listTarget(chatID, "filters")+"?format=text", readFixture(t, "initdata_main.txt"), "", "")
+	if export.Code != http.StatusOK {
+		t.Fatalf("export status = %d, want 200 (body %s)", export.Code, export.Body.String())
+	}
+	otherID := uniquePanelChatID()
+	seedPanelChat(t, otherID, "Other Lists Chat", fixtureNow)
+	fixture.client.admins[otherID] = adminListJSON(panelTestUserID, 999)
+	requireImportResults(t, postList(t, fixture, otherID, "filters", export.Body.String()))
+
+	reimported := listEntriesOf(t, fixture, otherID, "filters", "")
+	if !reflect.DeepEqual(reimported, entries) {
+		t.Fatalf("re-imported = %+v, want %+v", reimported, entries)
 	}
 }
 
@@ -405,6 +439,176 @@ func TestBotWithoutAdminRightsCannotWriteLists(t *testing.T) {
 	if !page.ReadOnly {
 		t.Fatal("read_only = false without bot admin rights, want true")
 	}
+}
+
+// /filter and /note check the caller's can_change_info, so the panel must
+// refuse both writes without it and write nothing.
+func TestFilterAndNoteWritesNeedChangeInfo(t *testing.T) {
+	fixture, chatID := newListFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+
+	// Seed one entry per list as an admin so the delete gate has something to
+	// refuse.
+	requireImportResults(t, postList(t, fixture, chatID, "filters", `{"entries":[{"name":"kept","reply":"still here"}]}`))
+	requireImportResults(t, postList(t, fixture, chatID, "notes", `{"entries":[{"name":"keptnote","reply":"still here"}]}`))
+
+	delete(fixture.client.rights, panelTestUserID)
+
+	for _, kind := range []string{"filters", "notes"} {
+		recorder := postList(t, fixture, chatID, kind, `{"entries":[{"name":"blocked","reply":"nope"}]}`)
+		requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
+	}
+	recorder := panelRequest(t, fixture.handler, http.MethodDelete, listTarget(chatID, "filters"), raw, `{"entries":["kept"]}`, "application/json")
+	requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
+	recorder = panelRequest(t, fixture.handler, http.MethodDelete, listTarget(chatID, "notes"), raw, `{"entries":["keptnote"]}`, "application/json")
+	requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
+
+	if filters.DoesFilterExists(chatID, "blocked") || notes.DoesNoteExists(chatID, "blocked") {
+		t.Fatal("refused import wrote an entry")
+	}
+	if !filters.DoesFilterExists(chatID, "kept") || !notes.DoesNoteExists(chatID, "keptnote") {
+		t.Fatal("refused delete removed an entry")
+	}
+
+	fixture.client.rights[panelTestUserID] = panelFakeRights{canChangeInfo: true}
+	results := requireImportResults(t, postList(t, fixture, chatID, "filters", `{"entries":[{"name":"allowed","reply":"yes"}]}`))
+	if len(results) != 1 || results[0].Status != statusCreated {
+		t.Fatalf("import with can_change_info = %+v, want one created filter", results)
+	}
+}
+
+// /blacklist checks can_restrict_members for the caller and the bot, so the
+// panel must refuse both writes until both hold, and write nothing meanwhile.
+func TestBlacklistWritesNeedCallerAndBotRestrict(t *testing.T) {
+	fixture, chatID := newListFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+
+	requireImportResults(t, postList(t, fixture, chatID, "blacklists", `{"text":"kept"}`))
+
+	delete(fixture.client.rights, panelTestUserID)
+	recorder := postList(t, fixture, chatID, "blacklists", `{"text":"blocked"}`)
+	requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
+	recorder = panelRequest(t, fixture.handler, http.MethodDelete, listTarget(chatID, "blacklists"), raw, `{"entries":["kept"]}`, "application/json")
+	requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
+
+	fixture.client.rights[panelTestUserID] = panelFakeRights{canRestrictMembers: true}
+	fixture.client.botRights = panelFakeRights{canChangeInfo: true}
+	recorder = postList(t, fixture, chatID, "blacklists", `{"text":"blocked"}`)
+	requireAPIError(t, recorder, http.StatusConflict, "bot_missing_permission")
+	recorder = panelRequest(t, fixture.handler, http.MethodDelete, listTarget(chatID, "blacklists"), raw, `{"entries":["kept"]}`, "application/json")
+	requireAPIError(t, recorder, http.StatusConflict, "bot_missing_permission")
+
+	if words := blacklists.GetBlacklistSettings(chatID); len(words) != 1 || words[0].Word != "kept" {
+		t.Fatalf("blacklist after refused writes = %+v, want just kept", words)
+	}
+
+	fixture.client.botRights = panelFakeRights{canChangeInfo: true, canRestrictMembers: true}
+	results := requireImportResults(t, postList(t, fixture, chatID, "blacklists", `{"text":"allowed"}`))
+	if len(results) != 1 || results[0].Status != statusCreated {
+		t.Fatalf("import with caller and bot restrict = %+v, want one created word", results)
+	}
+}
+
+// /get refuses admin-only notes to non-admins, so the panel list and export
+// must not return them either. Filtering after the page would leak the note
+// and leave the page count wrong.
+func TestNotesListHidesAdminOnlyNotesFromReadonlyMembers(t *testing.T) {
+	fixture, chatID := newListFixture(t)
+	for _, note := range []struct {
+		name      string
+		adminOnly bool
+	}{
+		{name: "alpha"},
+		{name: "secret", adminOnly: true},
+		{name: "zulu"},
+	} {
+		if err := notes.AddNote(chatID, note.name, "reply "+note.name, "", nil, db.TEXT, false, false, note.adminOnly, false, false, false); err != nil {
+			t.Fatalf("AddNote(%q) error = %v", note.name, err)
+		}
+	}
+
+	adminPage := listPage(t, fixture, chatID, listTarget(chatID, "notes")+"?limit=2")
+	if got, want := entryNames(adminPage.Entries), []string{"alpha", "secret"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("admin page 1 = %v, want %v", got, want)
+	}
+	if adminPage.NextCursor != 2 {
+		t.Fatalf("admin page 1 next_cursor = %d, want 2", adminPage.NextCursor)
+	}
+	adminRest := listPage(t, fixture, chatID, listTarget(chatID, "notes")+"?limit=2&cursor=2")
+	if got, want := entryNames(adminRest.Entries), []string{"zulu"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("admin page 2 = %v, want %v", got, want)
+	}
+	if adminRest.NextCursor != 0 {
+		t.Fatalf("admin page 2 next_cursor = %d, want 0", adminRest.NextCursor)
+	}
+	if got, want := entryNames(exportListEntries(t, fixture, chatID, "notes")), []string{"alpha", "secret", "zulu"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("admin export = %v, want %v", got, want)
+	}
+
+	// A separate panel state, because the first one memoised the admin role.
+	readonly := newPanelFixture(t)
+	readonly.client.admins[chatID] = adminListJSON(999)
+
+	page := listPage(t, readonly, chatID, listTarget(chatID, "notes")+"?limit=2")
+	if got, want := entryNames(page.Entries), []string{"alpha", "zulu"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("readonly page = %v, want %v", got, want)
+	}
+	if page.NextCursor != 0 {
+		t.Fatalf("readonly next_cursor = %d, want 0", page.NextCursor)
+	}
+	if got, want := entryNames(exportListEntries(t, readonly, chatID, "notes")), []string{"alpha", "zulu"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("readonly export = %v, want %v", got, want)
+	}
+}
+
+// A panel-imported filter reply must be stored exactly as /filter stores the
+// same text, or the HTML send path fails on every match.
+func TestImportedFilterReplyIsStoredLikeTheCommand(t *testing.T) {
+	fixture, chatID := newListFixture(t)
+	const reply = "use < 5"
+
+	requireImportResults(t, postList(t, fixture, chatID, "filters", `{"entries":[{"name":"compare","reply":`+mustJSON(t, reply)+`}]}`))
+	requireImportResults(t, postList(t, fixture, chatID, "notes", `{"entries":[{"name":"compare","reply":`+mustJSON(t, reply)+`}]}`))
+
+	filterCommand := content.ExtractNoteAndFilter(&gotgbot.Message{Text: "/filter compare " + reply}, true, "en")
+	if filterCommand.Text != "use &lt; 5" {
+		t.Fatalf("command stored %q, want %q", filterCommand.Text, "use &lt; 5")
+	}
+	rows, err := filters.ListFiltersContext(context.Background(), chatID, "compare", 1, 0)
+	if err != nil {
+		t.Fatalf("ListFiltersContext() error = %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("filters = %d, want 1", len(rows))
+	}
+	if rows[0].FilterReply != filterCommand.Text {
+		t.Fatalf("panel filter reply = %q, want the command's %q", rows[0].FilterReply, filterCommand.Text)
+	}
+	if strings.Contains(rows[0].FilterReply, "<") {
+		t.Fatalf("stored filter reply %q still contains raw HTML", rows[0].FilterReply)
+	}
+
+	noteCommand := content.ExtractNoteAndFilter(&gotgbot.Message{Text: "/addnote compare " + reply}, false, "en")
+	note := notes.GetNote(chatID, "compare")
+	if note == nil {
+		t.Fatal("imported note is missing")
+	}
+	if note.NoteContent != noteCommand.Text {
+		t.Fatalf("panel note reply = %q, want the command's %q", note.NoteContent, noteCommand.Text)
+	}
+}
+
+func exportListEntries(t *testing.T, fixture panelFixture, chatID int64, kind string) []listEntry {
+	t.Helper()
+	recorder := panelRequest(t, fixture.handler, http.MethodGet, listTarget(chatID, kind)+"?format=text", readFixture(t, "initdata_main.txt"), "", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("export %s status = %d, want 200 (body %s)", kind, recorder.Code, recorder.Body.String())
+	}
+	var entries []listEntry
+	if err := json.Unmarshal(recorder.Body.Bytes(), &entries); err != nil {
+		t.Fatalf("decode %s export %q: %v", kind, recorder.Body.String(), err)
+	}
+	return entries
 }
 
 func entryNames(entries []listEntry) []string {
