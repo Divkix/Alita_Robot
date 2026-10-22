@@ -18,7 +18,7 @@ import (
 // withMiniredis starts an in-process Redis server (miniredis), points both the
 // cache marshaler and the raw Redis client at it, and restores the previous
 // cache state when t finishes. Antiraid is Redis-only, so tests of its
-// Redis-dependent paths (trackJoin, checkExpiredRaids) use this to run against
+// Redis-dependent paths (trackJoin, raid expiry) use this to run against
 // real Redis semantics without a live server.
 func withMiniredis(t *testing.T) {
 	t.Helper()

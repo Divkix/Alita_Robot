@@ -3,7 +3,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -123,60 +122,6 @@ func TestAntiRaidKeysAndNoCacheFallbacks(t *testing.T) {
 
 	if err := setRaidState(chatID, &raidState{Active: true}); err == nil {
 		t.Fatal("setRaidState() error = nil, want cache not initialized")
-	}
-}
-
-func TestStopAntiRaidExpiryPollerCancelsExistingContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	antiRaidCtx = ctx
-	antiRaidCancel = cancel
-	t.Cleanup(func() {
-		antiRaidCancel = nil
-		antiRaidCtx = nil
-	})
-
-	StopAntiRaidExpiryPoller()
-	if antiRaidCancel != nil {
-		t.Fatal("antiRaidCancel was not cleared")
-	}
-
-	select {
-	case <-ctx.Done():
-	case <-time.After(time.Second):
-		t.Fatal("anti-raid context was not cancelled")
-	}
-}
-
-func TestStartAntiRaidExpiryPollerSkipsWhenRedisUnavailable(t *testing.T) {
-	antiRaidCancel = nil
-	antiRaidCtx = nil
-	restoreRedis := cache.DisableRedisForTest()
-	t.Cleanup(func() {
-		restoreRedis()
-		StopAntiRaidExpiryPoller()
-		antiRaidCtx = nil
-	})
-
-	StartAntiRaidExpiryPoller()
-	if antiRaidCancel != nil {
-		t.Fatal("StartAntiRaidExpiryPoller created cancel func without Redis")
-	}
-}
-
-func TestAntiRaidPollerReturnsOnCancelledContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	done := make(chan struct{})
-	go func() {
-		antiRaidModule.expiryPoller(ctx)
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("expiryPoller did not return after context cancellation")
 	}
 }
 
@@ -787,7 +732,6 @@ func TestAntiRaidJoinRunsBeforeGreetingsGroup(t *testing.T) {
 		t.Fatalf("enableRaid() = (%v, %v), want true, nil", enabled, err)
 	}
 	t.Cleanup(func() {
-		StopAntiRaidExpiryPoller()
 		_, _ = antiRaidModule.disableRaid(chat.Id)
 	})
 
@@ -1016,7 +960,7 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 	})
 }
 
-func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
+func TestAntiRaidReleasesExpiredRaidOnRead(t *testing.T) {
 	withMiniredis(t)
 
 	rdb := cache.GetRedisClient()
@@ -1057,22 +1001,19 @@ func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
 		t.Fatalf("setRaidState(active) setup error = %v", err)
 	}
 
-	antiRaidModule.checkExpiredRaids(context.Background())
-
-	expiredSt := getRaidState(expiredChatID)
-	if expiredSt.Active {
-		t.Fatalf("getRaidState(expired).Active = true after checkExpiredRaids, want false")
-	}
 	if antiRaidModule.isRaidActive(expiredChatID) {
-		t.Fatal("isRaidActive(expired) = true after checkExpiredRaids, want false")
+		t.Fatal("isRaidActive(expired) = true, want false")
+	}
+	if getRaidState(expiredChatID).Active {
+		t.Fatal("getRaidState(expired).Active = true after isRaidActive, want the state deleted")
 	}
 
 	activeSt := getRaidState(activeChatID)
 	if !activeSt.Active {
-		t.Fatalf("getRaidState(active).Active = false after checkExpiredRaids, want true (non-expired raid must not be released)")
+		t.Fatalf("getRaidState(active).Active = false, want true (non-expired raid must not be released)")
 	}
 	if !antiRaidModule.isRaidActive(activeChatID) {
-		t.Fatal("isRaidActive(active) = false after checkExpiredRaids, want true (non-expired raid must stay active)")
+		t.Fatal("isRaidActive(active) = false, want true (non-expired raid must stay active)")
 	}
 }
 

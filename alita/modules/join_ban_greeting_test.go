@@ -28,7 +28,6 @@ func TestJoinGuardsWelcomeNewcomerTheyDoNotBan(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, enabled)
 		t.Cleanup(func() {
-			StopAntiRaidExpiryPoller()
 			_, _ = antiRaidModule.disableRaid(chat.Id)
 		})
 	}
@@ -180,7 +179,6 @@ func TestRaidSwitchedOnByJoinStillChallengesNewcomersItDidNotBan(t *testing.T) {
 	require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
 	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 3))
 	t.Cleanup(func() {
-		StopAntiRaidExpiryPoller()
 		_, _ = antiRaidModule.disableRaid(chat.Id)
 	})
 	members := []gotgbot.User{
@@ -228,7 +226,6 @@ func TestJoinGuardBanThatFailsStillChallengesNewcomer(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, enabled)
 			t.Cleanup(func() {
-				StopAntiRaidExpiryPoller()
 				_, _ = antiRaidModule.disableRaid(chat.Id)
 			})
 		}},
@@ -278,7 +275,6 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, enabled)
 			t.Cleanup(func() {
-				StopAntiRaidExpiryPoller()
 				_, _ = antiRaidModule.disableRaid(chat.Id)
 			})
 		}},
@@ -568,7 +564,6 @@ func TestAntiRaidLeavesFedBannedNewcomerToFedBan(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, enabled)
 			t.Cleanup(func() {
-				StopAntiRaidExpiryPoller()
 				_, _ = antiRaidModule.disableRaid(chat.Id)
 			})
 			clearRecentJoinProcessing(chat.Id, member.Id)
@@ -616,7 +611,6 @@ func TestFedBannedJoinCountsTowardsAutoAntiRaid(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 2))
 	t.Cleanup(func() {
-		StopAntiRaidExpiryPoller()
 		_, _ = antiRaidModule.disableRaid(chat.Id)
 	})
 
@@ -667,7 +661,6 @@ func TestFedBanOnJoinRetriesAShortFloodWait(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, enabled)
 			t.Cleanup(func() {
-				StopAntiRaidExpiryPoller()
 				_, _ = antiRaidModule.disableRaid(chat.Id)
 			})
 			clearRecentJoinProcessing(chat.Id, member.Id)
