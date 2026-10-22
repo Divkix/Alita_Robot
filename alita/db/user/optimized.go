@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -58,4 +59,31 @@ func GetUserBasicInfoCachedContext(ctx context.Context, userID int64) (*models.U
 	}
 
 	return cached, nil
+}
+
+// GetUserNamesContext returns the stored row of each listed user that has
+// one, keyed by user ID, in one query. It reads the table directly, like the
+// panel's other page reads: the names are display-only and a page names at
+// most a few hundred users.
+func GetUserNamesContext(ctx context.Context, userIDs []int64) (map[int64]models.User, error) {
+	if len(userIDs) == 0 {
+		return map[int64]models.User{}, nil
+	}
+	if db.DB == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var users []models.User
+	if err := db.DB.WithContext(ctx).Model(&models.User{}).
+		Select("user_id, username, name").
+		Where("user_id IN ?", userIDs).
+		Find(&users).Error; err != nil {
+		return nil, fmt.Errorf("get user names: %w", err)
+	}
+
+	byID := make(map[int64]models.User, len(users))
+	for _, user := range users {
+		byID[user.UserId] = user
+	}
+	return byID, nil
 }
