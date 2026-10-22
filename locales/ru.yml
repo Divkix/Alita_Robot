@@ -23,7 +23,7 @@ admin_errors_err_set_title: |
   Не удалось установить заголовок админа; Заголовок может быть некорректным или содержать эмодзи.
 admin_errors_title_empty: Вам нужно дать мне заголовок администратора для установки.
 admin_errors_admin_cache_failed: "У меня проблемы с доступом к списку администраторов. Пожалуйста, попробуйте позже."
-admin_help_msg: "Облегчите продвижение и понижение пользователей с помощью модуля администратора!\n\n*Пользовательские команды:*\n× /adminlist: Список администраторов в текущем чате.\n\n*Команды администратора:*\n× /promote `<reply/username/mention/userid>` `[title]`: Повысить пользователя, при желании с собственным заголовком администратора (не более 16 символов).\n× /demote `<reply/username/mention/userid>`: Понизить пользователя.\n× /title `<reply/username/mention/userid>` `<custom title>`: Установить заголовок администратора для пользователя\n× /setgtitle <title>: Изменить название группы.\n× /setgpic: Ответьте на фото, чтобы установить его как изображение группы.\n× /setgdesc [text]: Изменить описание группы.\n× /invitelink: Получить ссылку-приглашение в чат.\n× /anonadmin `<on/off>`: on позволяет анонимным администраторам действовать без подтверждения; off (по умолчанию) требует подтверждения кнопкой (только владелец группы).\n× /admincache: Перезагрузить список администраторов.\n× /clearadmincache: Очистить кэшированный список администраторов."
+admin_help_msg: "Облегчите продвижение и понижение пользователей с помощью модуля администратора!\n\n*Пользовательские команды:*\n× /adminlist: Список администраторов в текущем чате.\n\n*Команды администратора:*\n× /promote `<reply/username/mention/userid>` `[title]`: Повысить пользователя, при желании с собственным заголовком администратора (не более 16 символов).\n× /demote `<reply/username/mention/userid>`: Понизить пользователя.\n× /title `<reply/username/mention/userid>` `<custom title>`: Установить заголовок администратора для пользователя\n× /setgtitle <title>: Изменить название группы.\n× /setgpic: Ответьте на фото, чтобы установить его как изображение группы.\n× /setgdesc [text]: Изменить описание группы.\n× /invitelink: Получить ссылку-приглашение в чат.\n× /anonadmin `<on/off>`: on позволяет анонимным администраторам действовать без подтверждения; off (по умолчанию) требует подтверждения кнопкой (только владелец группы).\n× /admincache: Перезагрузить список администраторов.\n× /clearadmincache: Очистить кэшированный список администраторов.\n× /timezone `[name]`: Показать или установить часовой пояс чата в виде имени IANA, например Asia/Kolkata (по умолчанию UTC)."
 admin_promote_admin_title_truncated: Заголовок администратора сокращён до 16 символов из %d
 admin_promote_is_admin: Этот человек уже администратор, и как я должен его повысить?
 admin_promote_is_bot_itself: Если бы только я мог сделать это с собой ;_;
@@ -261,7 +261,7 @@ connections_help_msg:
 
     Из лички владелец группы может также выполнить /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns и /unbanall, а её админы — /privnote: сначала назовите группу (название, @username или ID) или подключитесь к ней. Подтверждение действует на эту группу, и нажать его может только её владелец.
 
-    Из лички админы группы могут также выполнить /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache и /clearadmincache: сначала назовите группу (название, @username или ID) или подключитесь к ней. Нужны те же права, что и в группе, а ответ придёт в личку.
+    Из лички админы группы могут также выполнить /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache и /clearadmincache: сначала назовите группу (название, @username или ID) или подключитесь к ней. Нужны те же права, что и в группе, а ответ придёт в личку.
 
     Из лички админы группы могут также выполнить /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn и /resetwarns: сначала назовите группу (название, @username или ID), затем пользователя (@username, ID или упоминание) — или подключитесь к группе. При подключении другую группу выбирают только по @username или ID. Нужны те же права, что и в группе; ответ на сообщение в личке пользователя не задаёт, а ответ и кнопки придут в личку.
 
@@ -2453,6 +2453,9 @@ admin_setgpic_ok: "Изображение группы обновлено."
 admin_setgpic_failed: "Я не смог изменить изображение группы."
 admin_setgdesc_ok: "Описание группы обновлено."
 admin_setgdesc_failed: "Я не смог изменить описание группы."
+timezone_status: "Часовой пояс этого чата: <b>{timezone}</b> (UTC{offset}); там сейчас {time}.\nИзмените его командой <code>/timezone &lt;имя&gt;</code>, указав имя IANA, например <code>Europe/Moscow</code>."
+timezone_set: "Часовой пояс установлен: <b>{timezone}</b> (UTC{offset}); там сейчас {time}."
+timezone_invalid: "Я не знаю часовой пояс <code>{input}</code>. Укажите имя IANA, например <code>Europe/Moscow</code> или <code>Asia/Yekaterinburg</code> (список: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 misc_stickerid_need_sticker: "Ответьте на стикер, чтобы получить его file ID."
 misc_stickerid_result: "File ID стикера: <code>{id}</code>"
 misc_zombies_scanning: "Ищу удалённые аккаунты…"
@@ -2525,6 +2528,7 @@ admin_extend_msg: |
   /setgtitle — сменить название группы
   /setgpic — поставить фото из ответа аватаркой группы
   /setgdesc — сменить описание группы
+  /timezone — показать или сменить часовой пояс чата
 aispam_extend_msg: |
   /aispam — показать или включить ИИ-фильтр спама
 antiflood_extend_msg: |

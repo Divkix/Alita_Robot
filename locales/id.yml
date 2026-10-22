@@ -63,7 +63,9 @@ admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna denga
 
   × /admincache: Muat ulang daftar admin.
 
-  × /clearadmincache: Hapus daftar admin yang tersimpan di cache."
+  × /clearadmincache: Hapus daftar admin yang tersimpan di cache.
+
+  × /timezone `[nama]`: Tampilkan atau atur zona waktu chat sebagai nama IANA, misalnya Asia/Kolkata (bawaan UTC)."
 admin_promote_admin_title_truncated: Judul admin dipotong menjadi 16 karakter dari %d
 admin_promote_is_admin: Orang ini sudah menjadi admin, bagaimana saya bisa mempromosikannya?
 admin_promote_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
@@ -355,7 +357,7 @@ connections_help_msg:
 
   Dari obrolan pribadi, pemilik grup juga dapat menjalankan /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns dan /unbanall, dan adminnya /privnote: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Konfirmasi berlaku untuk grup itu dan hanya pemiliknya yang dapat menekannya.
 
-  Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
 
   Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
 
@@ -2666,6 +2668,9 @@ admin_setgpic_ok: "Gambar grup diperbarui."
 admin_setgpic_failed: "Saya tidak dapat mengubah gambar grup."
 admin_setgdesc_ok: "Deskripsi grup diperbarui."
 admin_setgdesc_failed: "Saya tidak dapat mengubah deskripsi grup."
+timezone_status: "Zona waktu chat ini adalah <b>{timezone}</b> (UTC{offset}); di sana sekarang pukul {time}.\nUbah dengan <code>/timezone &lt;nama&gt;</code>, nama IANA seperti <code>Asia/Jakarta</code>."
+timezone_set: "Zona waktu diatur ke <b>{timezone}</b> (UTC{offset}); di sana sekarang pukul {time}."
+timezone_invalid: "Saya tidak mengenal zona waktu <code>{input}</code>. Gunakan nama IANA seperti <code>Asia/Jakarta</code> atau <code>Asia/Makassar</code> (daftar: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 misc_stickerid_need_sticker: "Balas ke stiker untuk mendapatkan ID filenya."
 misc_stickerid_result: "ID file stiker: <code>{id}</code>"
 misc_zombies_scanning: "Memindai akun yang dihapus…"
@@ -2738,6 +2743,7 @@ admin_extend_msg: |
   /setgtitle — ubah judul grup
   /setgpic — jadikan foto yang dibalas sebagai foto grup
   /setgdesc — ubah deskripsi grup
+  /timezone — lihat atau ubah zona waktu chat
 aispam_extend_msg: |
   /aispam — lihat atau ubah filter spam AI
 antiflood_extend_msg: |

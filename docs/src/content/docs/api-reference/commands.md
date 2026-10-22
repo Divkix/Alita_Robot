@@ -35,6 +35,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/setgrouppic` | Alias of `/setgpic` | Admin | ❌ | `/setgpic` |
 | `/setgrouptitle` | Alias of `/setgtitle` | Admin | ❌ | `/setgtitle` |
 | `/setgtitle` | Change the group title | Admin | ❌ | `/setgrouptitle` |
+| `/timezone` | Show or set the chat's timezone (IANA name, default UTC) | Admin (change info) | ❌ | — |
 | `/title` | Set a custom admin title | Admin | ❌ | — |
 
 ### Moderation
@@ -603,6 +604,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/tban` | Bans | Temporarily ban a user | Admin |
 | `/teamusers` | Devs | List all team members | Team |
 | `/tell` | Misc | Echo a message via the bot | Admin |
+| `/timezone` | Admin | Show or set the chat's timezone | Admin |
 | `/title` | Admin | Set a custom admin title | Admin |
 | `/tmute` | Mutes | Temporarily mute a user | Admin |
 | `/tr` | Misc | Translate text to another language | Everyone |

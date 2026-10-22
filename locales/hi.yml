@@ -16,7 +16,7 @@ admin_errors_err_cannot_promote: "प्रमोट करने में व�
 admin_errors_err_set_title: "कस्टम एडमिन टाइटल सेट करने में विफल; टाइटल सही नहीं हो सकता या इसमें इमोजी हो सकते हैं।"
 admin_errors_title_empty: आपको मुझे सेट करने के लिए एक एडमिन टाइटल देना होगा।
 admin_errors_admin_cache_failed: "मुझे एडमिन सूची तक पहुँचने में समस्या हो रही है। कृपया बाद में पुनः प्रयास करें।"
-admin_help_msg: "एडमिन मॉड्यूल के साथ उपयोगकर्ताओं को प्रमोट और डिमोट करना आसान बनाएं!\n\n*उपयोगकर्ता कमांड:*\n× /adminlist: वर्तमान चैट में एडमिन की सूची।\n\n*एडमिन कमांड:*\n× /promote `<reply/username/mention/userid>` `[title]`: किसी उपयोगकर्ता को प्रमोट करें, वैकल्पिक रूप से कस्टम एडमिन टाइटल के साथ (अधिकतम 16 अक्षर)।\n× /demote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को डिमोट करें।\n× /title `<reply/username/mention/userid>` `<custom title>`: उपयोगकर्ता के लिए कस्टम टाइटल सेट करें\n× /setgtitle <title>: ग्रुप का टाइटल बदलें।\n× /setgpic: किसी फ़ोटो को रिप्लाई करके उसे ग्रुप की तस्वीर बनाएं।\n× /setgdesc [text]: ग्रुप का विवरण बदलें।\n× /invitelink: चैट का इनवाइट लिंक प्राप्त करें।\n× /anonadmin `<on/off>`: on से अनाम एडमिन बिना पुष्टि के कार्य कर सकते हैं; off (डिफ़ॉल्ट) से उन्हें बटन दबाकर पुष्टि करनी होगी (केवल ग्रुप ओनर)।\n× /admincache: एडमिन सूची को दोबारा लोड करें।\n× /clearadmincache: कैश की गई एडमिन सूची साफ़ करें।"
+admin_help_msg: "एडमिन मॉड्यूल के साथ उपयोगकर्ताओं को प्रमोट और डिमोट करना आसान बनाएं!\n\n*उपयोगकर्ता कमांड:*\n× /adminlist: वर्तमान चैट में एडमिन की सूची।\n\n*एडमिन कमांड:*\n× /promote `<reply/username/mention/userid>` `[title]`: किसी उपयोगकर्ता को प्रमोट करें, वैकल्पिक रूप से कस्टम एडमिन टाइटल के साथ (अधिकतम 16 अक्षर)।\n× /demote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को डिमोट करें।\n× /title `<reply/username/mention/userid>` `<custom title>`: उपयोगकर्ता के लिए कस्टम टाइटल सेट करें\n× /setgtitle <title>: ग्रुप का टाइटल बदलें।\n× /setgpic: किसी फ़ोटो को रिप्लाई करके उसे ग्रुप की तस्वीर बनाएं।\n× /setgdesc [text]: ग्रुप का विवरण बदलें।\n× /invitelink: चैट का इनवाइट लिंक प्राप्त करें।\n× /anonadmin `<on/off>`: on से अनाम एडमिन बिना पुष्टि के कार्य कर सकते हैं; off (डिफ़ॉल्ट) से उन्हें बटन दबाकर पुष्टि करनी होगी (केवल ग्रुप ओनर)।\n× /admincache: एडमिन सूची को दोबारा लोड करें।\n× /clearadmincache: कैश की गई एडमिन सूची साफ़ करें।\n× /timezone `[name]`: चैट का टाइमज़ोन देखें या सेट करें, IANA नाम के रूप में जैसे Asia/Kolkata (डिफ़ॉल्ट UTC)।"
 admin_promote_admin_title_truncated: एडमिन टाइटल %d से 16 अक्षरों में छोटा किया गया
 admin_promote_is_admin: "यह व्यक्ति पहले से ही एडमिन है, मैं उन्हें कैसे प्रमोट करूं?"
 admin_promote_is_bot_itself: काश मैं यह खुद पर कर पाता ;_;
@@ -281,7 +281,7 @@ connections_help_msg: "यह मॉड्यूल आपको चैट क�
 
   निजी चैट से समूह का मालिक /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns और /unbanall भी चला सकता है, और उसके एडमिन /privnote: पहले समूह का नाम दें (उसका शीर्षक, @username या ID) या उससे जुड़ें। पुष्टि उसी समूह पर लागू होती है और उसे केवल उसका मालिक दबा सकता है।
 
-  निजी चैट से समूह के एडमिन /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache और /clearadmincache भी चला सकते हैं: पहले समूह का नाम दें (उसका शीर्षक, @username या ID) या उससे जुड़ें। इसके लिए वही अधिकार चाहिए जो समूह में चाहिए, और जवाब निजी चैट में आता है।
+  निजी चैट से समूह के एडमिन /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache और /clearadmincache भी चला सकते हैं: पहले समूह का नाम दें (उसका शीर्षक, @username या ID) या उससे जुड़ें। इसके लिए वही अधिकार चाहिए जो समूह में चाहिए, और जवाब निजी चैट में आता है।
 
   निजी चैट से समूह के एडमिन /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn और /resetwarns भी चला सकते हैं: पहले समूह का नाम दें (उसका शीर्षक, @username या ID), फिर उपयोगकर्ता (@username, ID या मेंशन), या समूह से जुड़ें। जुड़े रहने पर दूसरा समूह केवल @username या ID से चुना जाता है। इसके लिए वही अधिकार चाहिए जो समूह में चाहिए; निजी चैट में किसी संदेश का जवाब देने से उपयोगकर्ता नहीं चुना जाता, और जवाब व बटन निजी चैट में आते हैं।
 
@@ -2390,6 +2390,9 @@ admin_setgpic_ok: "ग्रुप की तस्वीर अपडेट क
 admin_setgpic_failed: "मैं ग्रुप की तस्वीर नहीं बदल सका।"
 admin_setgdesc_ok: "ग्रुप का विवरण अपडेट किया गया।"
 admin_setgdesc_failed: "मैं ग्रुप का विवरण नहीं बदल सका।"
+timezone_status: "इस चैट का टाइमज़ोन <b>{timezone}</b> (UTC{offset}) है; वहाँ अभी {time} बजे हैं।\nइसे <code>/timezone &lt;नाम&gt;</code> से बदलें, जैसे IANA नाम <code>Asia/Kolkata</code>।"
+timezone_set: "टाइमज़ोन <b>{timezone}</b> (UTC{offset}) पर सेट किया गया; वहाँ अभी {time} बजे हैं।"
+timezone_invalid: "मुझे टाइमज़ोन <code>{input}</code> नहीं पता। <code>Asia/Kolkata</code> या <code>Europe/London</code> जैसा IANA नाम इस्तेमाल करें (सूची: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)।"
 misc_stickerid_need_sticker: "किसी स्टिकर की फ़ाइल ID पाने के लिए उसे रिप्लाई करें।"
 misc_stickerid_result: "स्टिकर फ़ाइल ID: <code>{id}</code>"
 misc_zombies_scanning: "हटाए गए अकाउंट खोजे जा रहे हैं…"
@@ -2462,6 +2465,7 @@ admin_extend_msg: |
   /setgtitle — ग्रुप का टाइटल बदलें
   /setgpic — रिप्लाई की गई फ़ोटो को ग्रुप फ़ोटो बनाएँ
   /setgdesc — ग्रुप का विवरण बदलें
+  /timezone — चैट का टाइमज़ोन देखें या बदलें
 aispam_extend_msg: |
   /aispam — AI स्पैम फ़िल्टर देखें या चालू/बंद करें
 antiflood_extend_msg: |

@@ -822,6 +822,7 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, setGTitleDesc, adminModule.setGTitle)
 	helpers.WrapCommand(dispatcher, setGPicDesc, adminModule.setGPic)
 	helpers.WrapCommand(dispatcher, setGDescDesc, adminModule.setGDesc)
+	loadTimezone(dispatcher)
 
 	dispatcher.AddHandler(handlers.NewCommand("admincache", withPMGroupArg("admincache", helpers.PMGroupArgNone, func(b *gotgbot.Bot, ctx *ext.Context) error {
 		defer error_handling.RecoverFromPanic("admincache", "admin")
@@ -887,6 +888,7 @@ func init() {
 		{setGTitleDesc, adminModule.setGTitle},
 		{setGPicDesc, adminModule.setGPic},
 		{setGDescDesc, adminModule.setGDesc},
+		{timezoneDesc, adminModule.timezone},
 	} {
 		for _, name := range append([]string{d.desc.Name}, d.desc.Aliases...) {
 			RegisterAnonymousAdminHandler(name, anonCommandContextHandler(d.desc, d.h))

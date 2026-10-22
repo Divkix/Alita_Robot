@@ -59,7 +59,9 @@ admin_help_msg: "Facilite a promoção e rebaixamento de usuários com o módulo
 
   × /admincache: Recarrega a lista de admins.
 
-  × /clearadmincache: Limpa a lista de admins em cache."
+  × /clearadmincache: Limpa a lista de admins em cache.
+
+  × /timezone `[nome]`: Mostra ou define o fuso horário do chat como um nome IANA, por exemplo Asia/Kolkata (padrão UTC)."
 admin_promote_admin_title_truncated: "Título de administrador truncado para 16 caracteres de %d"
 admin_promote_is_admin: Esta pessoa já é administradora, como eu vou
   promovê-la?
@@ -346,7 +348,7 @@ connections_help_msg:
 
   No privado, o dono de um grupo também pode usar /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns e /unbanall, e seus administradores /privnote: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. A confirmação age nesse grupo e só o dono pode apertá-la.
 
-  No privado, os administradores de um grupo também podem usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache e /clearadmincache: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. É preciso ter as mesmas permissões que no grupo, e a resposta chega no privado.
+  No privado, os administradores de um grupo também podem usar /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache e /clearadmincache: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. É preciso ter as mesmas permissões que no grupo, e a resposta chega no privado.
 
   No privado, os administradores de um grupo também podem usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn e /resetwarns: nomeie primeiro o grupo (título, @username ou ID) e depois o usuário (@username, ID ou menção), ou conecte-se ao grupo. Com uma conexão, só um @username ou ID escolhe outro grupo. É preciso ter as mesmas permissões que no grupo; responder a uma mensagem no privado não indica o usuário, e a resposta e os botões chegam no privado.
 
@@ -2639,6 +2641,9 @@ admin_setgpic_ok: "Imagem do grupo atualizada."
 admin_setgpic_failed: "Não consegui alterar a imagem do grupo."
 admin_setgdesc_ok: "Descrição do grupo atualizada."
 admin_setgdesc_failed: "Não consegui alterar a descrição do grupo."
+timezone_status: "O fuso horário deste chat é <b>{timezone}</b> (UTC{offset}); lá são {time} agora.\nMude com <code>/timezone &lt;nome&gt;</code>, um nome IANA como <code>America/Sao_Paulo</code>."
+timezone_set: "Fuso horário definido como <b>{timezone}</b> (UTC{offset}); lá são {time} agora."
+timezone_invalid: "Não conheço o fuso horário <code>{input}</code>. Use um nome IANA como <code>America/Sao_Paulo</code> ou <code>Europe/Lisbon</code> (lista: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 misc_stickerid_need_sticker: "Responda a um sticker para obter o ID do arquivo."
 misc_stickerid_result: "ID do arquivo do sticker: <code>{id}</code>"
 misc_zombies_scanning: "Procurando contas excluídas…"
@@ -2711,6 +2716,7 @@ admin_extend_msg: |
   /setgtitle — mudar o título do grupo
   /setgpic — definir a foto respondida como foto do grupo
   /setgdesc — mudar a descrição do grupo
+  /timezone — ver ou mudar o fuso horário do chat
 aispam_extend_msg: |
   /aispam — ver ou ativar o filtro de spam com IA
 antiflood_extend_msg: |

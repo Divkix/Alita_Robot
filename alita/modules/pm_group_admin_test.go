@@ -12,6 +12,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
@@ -126,6 +127,10 @@ var pmAdminCases = []pmAdminCase{
 	{"setgdesc", " New description", func(_ *testing.T, f adminChatFixture, id, _ int64) bool {
 		return calledFor(f, "setChatDescription", id)
 	}},
+	{"timezone", " Asia/Kolkata", func(_ *testing.T, _ adminChatFixture, id, _ int64) bool {
+		name, err := chattz.Name(id)
+		return err == nil && name == "Asia/Kolkata"
+	}},
 	{"admincache", "", func(_ *testing.T, _ adminChatFixture, id, _ int64) bool {
 		found, admins := cache.GetAdminCacheList(id)
 		if !found {
@@ -214,6 +219,7 @@ func TestAdminCommandsInPMWithGroupRefuseAdminWithoutRight(t *testing.T) {
 	}{
 		{"setgtitle", " New Title", "chat_status_change_info_cmd_error", func(m *gotgbot.MergedChatMember) { m.CanChangeInfo = false }},
 		{"setgdesc", " New description", "chat_status_change_info_cmd_error", func(m *gotgbot.MergedChatMember) { m.CanChangeInfo = false }},
+		{"timezone", " Asia/Kolkata", "chat_status_change_info_cmd_error", func(m *gotgbot.MergedChatMember) { m.CanChangeInfo = false }},
 		{"invitelink", "", "chat_status_invite_link_user_error", func(m *gotgbot.MergedChatMember) { m.CanInviteUsers = false }},
 	} {
 		t.Run(tc.cmd, func(t *testing.T) {
@@ -224,8 +230,12 @@ func TestAdminCommandsInPMWithGroupRefuseAdminWithoutRight(t *testing.T) {
 
 			processPM(t, adminPMDispatcher(), f, f.admin.Id, "/"+tc.cmd+" @fixturegroup"+tc.args)
 
+			timezone, err := chattz.Name(f.chat.Id)
+			if err != nil {
+				t.Fatalf("chattz.Name() error = %v", err)
+			}
 			if calledFor(f, "setChatTitle", f.chat.Id) || calledFor(f, "setChatDescription", f.chat.Id) ||
-				repliedIn(f, f.admin.Id, inviteLinkOf(f.chat.Id)) {
+				repliedIn(f, f.admin.Id, inviteLinkOf(f.chat.Id)) || timezone != chattz.DefaultName {
 				t.Fatalf("/%s from an admin without the right acted on the group", tc.cmd)
 			}
 			if !repliedIn(f, f.admin.Id, translated(t, tc.refusal)) {

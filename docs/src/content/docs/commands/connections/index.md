@@ -23,7 +23,7 @@ In PM, /rules, /notes, /filters and many settings commands, such as /lock, /setf
 
 From PM, the owner of a group can also run /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns and /unbanall, and its admins /privnote: name the group first (its title, @username or ID) or connect to it. The confirmation acts on that group and only its owner can press it.
 
-From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
+From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
 
 From PM, a group's admins can also run /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
 
