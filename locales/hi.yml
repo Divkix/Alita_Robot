@@ -53,7 +53,7 @@ admin_extended_docs: |
 
   <b>समर्थित कमांड:</b>
   एडमिन: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  प्रतिबंध: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
+  प्रतिबंध: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
   म्यूट: /mute, /smute, /dmute, /tmute, /unmute
   पिन: /pin, /unpin, /permapin, /unpinall
   पर्ज: /purge, /del, /purgefrom, /purgeto
@@ -189,6 +189,8 @@ bans_help_msg: "कभी-कभी उपयोगकर्ता परेश�
 
   × /unbanall: ज्ञात उपयोगकर्ताओं को अनबैन करने के लिए केवल मालिक की पुष्टि।
 
+  × /baninfo <userhandle>: किसी उपयोगकर्ता का मेरे द्वारा दर्ज बैन दिखाता है: किसने बैन किया, कब, क्यों, किस वजह से और कब तक। (हैंडल द्वारा, या रिप्लाई द्वारा)
+
 
   *प्रतिबंध कमांड:* (केवल एडमिन)
 
@@ -283,7 +285,7 @@ connections_help_msg: "यह मॉड्यूल आपको चैट क�
 
   निजी चैट से समूह के एडमिन /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache और /clearadmincache भी चला सकते हैं: पहले समूह का नाम दें (उसका शीर्षक, @username या ID) या उससे जुड़ें। इसके लिए वही अधिकार चाहिए जो समूह में चाहिए, और जवाब निजी चैट में आता है।
 
-  निजी चैट से समूह के एडमिन /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn और /resetwarns भी चला सकते हैं: पहले समूह का नाम दें (उसका शीर्षक, @username या ID), फिर उपयोगकर्ता (@username, ID या मेंशन), या समूह से जुड़ें। जुड़े रहने पर दूसरा समूह केवल @username या ID से चुना जाता है। इसके लिए वही अधिकार चाहिए जो समूह में चाहिए; निजी चैट में किसी संदेश का जवाब देने से उपयोगकर्ता नहीं चुना जाता, और जवाब व बटन निजी चैट में आते हैं।
+  निजी चैट से समूह के एडमिन /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn और /resetwarns भी चला सकते हैं: पहले समूह का नाम दें (उसका शीर्षक, @username या ID), फिर उपयोगकर्ता (@username, ID या मेंशन), या समूह से जुड़ें। जुड़े रहने पर दूसरा समूह केवल @username या ID से चुना जाता है। इसके लिए वही अधिकार चाहिए जो समूह में चाहिए; निजी चैट में किसी संदेश का जवाब देने से उपयोगकर्ता नहीं चुना जाता, और जवाब व बटन निजी चैट में आते हैं।
 
   निजी चैट से समूह के सदस्य /warns से उस समूह में किसी उपयोगकर्ता की चेतावनियाँ भी देख सकते हैं, अगर समूह सदस्यों को जुड़ने देता है (/allowconnect; वरना सिर्फ़ उसके एडमिन), और उसके एडमिन /warnings से समूह की चेतावनी सेटिंग्स: पहले समूह का नाम दें (उसका @username या ID; उसके एडमिन उसका शीर्षक भी दे सकते हैं), फिर /warns के लिए उपयोगकर्ता, या समूह से जुड़ें। जवाब निजी चैट में आता है।
 
@@ -2382,6 +2384,16 @@ bans_banme_ok: "जैसी आपकी इच्छा। आपको बै
 bans_unbanall_ask: "इस चैट के सभी ज्ञात यूज़र को अनबैन करें? इसे आसानी से पूर्ववत नहीं किया जा सकता।"
 bans_unbanall_done: "{count} ज्ञात यूज़र के लिए अनबैन भेजा गया।"
 bans_unbanall_cancel: "रद्द किया गया।"
+bans_baninfo_record: "<b>बैन रिकॉर्ड</b>\n<b>उपयोगकर्ता:</b> {user} (<code>{id}</code>)\n<b>स्थिति:</b> {status}\n<b>बैन करने वाला:</b> {admin}\n<b>तारीख:</b> {date}\n<b>स्रोत:</b> {source}\n<b>कब तक:</b> {until}"
+bans_baninfo_reason: "\n<b>कारण:</b> {reason}"
+bans_baninfo_status_banned: "बैन है"
+bans_baninfo_status_expired: "अस्थायी बैन समाप्त हो गया"
+bans_baninfo_status_lifted: "{admin} ने {date} को अनबैन किया"
+bans_baninfo_permanent: "स्थायी"
+bans_baninfo_none: "यहाँ {user} का कोई बैन रिकॉर्ड मेरे पास नहीं है। मैं केवल अपने किए बैन दर्ज करता हूँ, और बैन खत्म होने के 90 दिन बाद उसका रिकॉर्ड हटा देता हूँ।"
+bans_record_by_bot: "मैं, स्वचालित रूप से"
+bans_record_by_anonymous: "एक गुमनाम एडमिन"
+bans_record_read_failed: "मैं अभी बैन रिकॉर्ड नहीं पढ़ सका। बाद में फिर कोशिश करें।"
 admin_setgtitle_need_title: "मुझे ग्रुप का नया टाइटल दें।"
 admin_setgtitle_ok: "ग्रुप का टाइटल अपडेट किया गया।"
 admin_setgtitle_failed: "मैं ग्रुप का टाइटल नहीं बदल सका। पक्का करें कि मैं ग्रुप की जानकारी बदल सकता हूँ।"
@@ -2498,6 +2510,7 @@ bans_extend_msg: |
   /restrict — बटन से kick, ban या mute चुनें
   /unrestrict — बटन से unmute या unban चुनें
   /unbanall — सभी ज्ञात यूज़र का बैन हटाएँ (केवल मालिक)
+  /baninfo — किसी यूज़र का बैन रिकॉर्ड देखें
 blacklists_extend_msg: |
   /blacklists — ब्लैकलिस्ट किए गए शब्दों की सूची
   /addblacklist — शब्द को ब्लैकलिस्ट करें

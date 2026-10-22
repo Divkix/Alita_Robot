@@ -159,7 +159,7 @@ func TestFbanWalkBansNobodyOnceTheBanRowIsGone(t *testing.T) {
 				require.NoError(t, err)
 				unlock := lockFedWalk(fed.FedID, target)
 				done := make(chan struct{})
-				go func() { defer close(done); applyActiveFban(bot, fed.FedID, target) }()
+				go func() { defer close(done); applyActiveFban(bot, fed.FedID, target, 1) }()
 				// Delete the row only once the walk waits on the lock, so the test
 				// also fails if the walk reads the ban before taking the lock.
 				require.Eventually(t, func() bool {
@@ -176,7 +176,7 @@ func TestFbanWalkBansNobodyOnceTheBanRowIsGone(t *testing.T) {
 					t.Fatal("the queued fban walk never finished")
 				}
 			} else {
-				applyActiveFban(bot, fed.FedID, target)
+				applyActiveFban(bot, fed.FedID, target, 1)
 			}
 			require.Empty(t, lastBanActions(client, target),
 				"a fban walk that finds no ban row must not ban the user anywhere")
@@ -219,7 +219,7 @@ func TestUnfbanKeepsBansWhenTheFedTreeLookupFails(t *testing.T) {
 	require.NoError(t, err)
 	failFedBanLookups(t, fedB.FedID)
 
-	applyActiveUnfban(bot, fedA.FedID, target)
+	applyActiveUnfban(bot, fedA.FedID, target, 1)
 	require.Empty(t, unbanTargets(client, target),
 		"a failed lookup of a subscribed federation's ban must not lift the ban it may still hold")
 }
@@ -238,7 +238,7 @@ func TestFbanWalkStillBansWhenTheBanLookupFails(t *testing.T) {
 	require.NoError(t, err)
 	failFedBanLookups(t, fed.FedID)
 
-	applyActiveFban(bot, fed.FedID, target)
+	applyActiveFban(bot, fed.FedID, target, 1)
 	var chatIDs []int64
 	for _, call := range client.callsFor("banChatMember") {
 		if uid, _ := call.Params["user_id"].(int64); uid == target {
@@ -309,7 +309,7 @@ func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 			}
 			failed := failFirstFedBanLookups(t, fed.FedID, 1)
 
-			applyActiveFban(bot, fed.FedID, target)
+			applyActiveFban(bot, fed.FedID, target, 1)
 			require.Positive(t, failed.Load(), "the injected lookup failure must have fired")
 			require.Len(t, client.callsFor("banChatMember"), 2, "a failed first read must still ban")
 			if tc.wantUnban {
@@ -358,7 +358,7 @@ func TestFedBanWalksRetryFloodWaitsUpToTheCap(t *testing.T) {
 	cases := []struct {
 		name       string
 		method     string
-		walk       func(b *gotgbot.Bot, fedID string, userID int64)
+		walk       func(b *gotgbot.Bot, fedID string, userID, actorID int64)
 		retryAfter int64
 		attempts   int
 	}{
@@ -385,7 +385,7 @@ func TestFedBanWalksRetryFloodWaitsUpToTheCap(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			tc.walk(bot, fed.FedID, target)
+			tc.walk(bot, fed.FedID, target, owner)
 			var chatIDs []int64
 			for _, call := range client.callsFor(tc.method) {
 				if uid, _ := call.Params["user_id"].(int64); uid == target {

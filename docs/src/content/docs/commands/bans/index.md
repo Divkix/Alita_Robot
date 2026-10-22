@@ -20,6 +20,7 @@ Ban/kick users from your chat, and unban them later on if they're behaving thems
 × /tban <userhandle> x(m/h/d/w): bans a user for `x` time. (via handle, or reply). m = minutes, h = hours, d = days, w = weeks.
 × /unban <userhandle>: unbans a user. (via handle, or reply)
 × /unbanall: owner-only confirmation to unban known users.
+× /baninfo <userhandle>: shows the ban I recorded for a user: who banned them, when, why, what caused it and until when. (via handle, or reply)
 
 *Kick Commands* (Admin only):
 × /kick <userhandle>: kicks a user. (via handle, or reply)
@@ -49,12 +50,14 @@ This module can be accessed using the following aliases:
 - `skick`
 - `banme`
 - `unbanall`
+- `baninfo`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/ban` | Ban a user | ❌ |
+| `/baninfo` | Show the ban the bot recorded for a user | ❌ |
 | `/banme` | Ban yourself from the group | ✅ |
 | `/dban` | Ban a user and delete the replied message | ❌ |
 | `/dkick` | Kick a user and delete the replied message | ❌ |
@@ -85,6 +88,7 @@ For detailed command usage, refer to the commands table above.
 Most commands in this module require **admin permissions** in the group.
 
 - `/unbanall` — Requires the **chat owner**.
+- `/baninfo` — Requires an admin who can ban users; the bot needs no right of its own.
 - `/kickme`, `/banme` — Available to everyone (disableable).
 
 **Bot Permissions Required:**

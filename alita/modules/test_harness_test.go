@@ -504,6 +504,7 @@ func TestMain(m *testing.M) {
 		&models.Report{},
 		&models.ReportAutoMute{},
 		&models.ModerationEvent{},
+		&models.BanRecord{},
 		&db.AntifloodSettings{},
 		&models.AntiRaidSettings{},
 		&db.DevSettings{},

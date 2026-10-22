@@ -305,7 +305,9 @@ func logWarnRemoval(b *gotgbot.Bot, chat *gotgbot.Chat, admin *gotgbot.User, tag
 
 // punishAtWarnLimit applies the chat's warn mode to u, who just reached the
 // warn limit, and returns the reply. punished is false for an unknown mode.
-func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int) (reply string, punished bool, err error) {
+// A ban is recorded as issued by bannedBy (0 for the bot) for reason, the
+// reason of the warn that reached the limit.
+func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, err error) {
 	userId := u.Id
 	switch warnrc.WarnMode {
 	case "kick":
@@ -337,6 +339,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 			log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
 			return "", false, err
 		}
+		recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: bannedBy, source: models.BanSourceWarn, reason: reason})
 		punished = true
 	case "tban", "tmute":
 		actionTime := warnActionTime(warnrc)
@@ -351,6 +354,12 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		if err != nil {
 			log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)
 			return "", false, err
+		}
+		if warnrc.WarnMode == "tban" {
+			recordBan(banRecord{
+				chatID: chat.Id, userID: userId, bannedBy: bannedBy,
+				source: models.BanSourceWarn, reason: reason, untilUnix: untilDate,
+			})
 		}
 		temp, _ := tr.GetString(key)
 		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName), formatDuration(actionTime))
@@ -432,7 +441,12 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 	if numWarns >= warnrc.WarnLimit {
 		var punished bool
-		reply, punished, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns)
+		// The bot's own warns (blacklists) make a ban no admin issued.
+		bannedBy := issuer.WarnedBy
+		if bannedBy == b.Id {
+			bannedBy = 0
+		}
+		reply, punished, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns, bannedBy, reason)
 		if err != nil {
 			// The warn stays written though the limit's action failed.
 			logWarn("WARN")
