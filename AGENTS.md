@@ -48,9 +48,11 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (`-100…` ID, a group's @username, or the title of a group the user administers). A title is matched against the
   connected group and the `settingsCandidateLimit` (50) most recently active groups the user posted in
   (`settingsCandidateChats`, uncached), and admin rights are checked only on the matches, outside the `/settings`
-  picker's button cap, budget and pause; a group outside those 50 is named by @username or ID only. A call without a
-  group, or with a title that matches none, gets the command's help and `adminGroupsForUser`'s list (which does share
-  the picker's pause and budget), so the command needs a `commandHelpModules` entry. It checks the group like
+  picker's button cap and budget; a group outside those 50 is named by @username or ID only. The lookup takes the
+  picker's pause before it scans, so one user scans `chats` at most once per pause: inside the pause a title is
+  matched against the list the last picker build kept, and with no list kept the call gets `settings_picker_wait`. A
+  call without a group, or with a title that matches none, gets the command's help and the picker's list (for a title,
+  built from the lookup's scan), so the command needs a `commandHelpModules` entry. It checks the group like
   `/connect`, stores it with `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved
   connection and checks only for `chatAdmin`/`botAdmin`, not membership, and whose failed checks never disconnect;
   any new caller must run `checkUserConnectToChat` first and, when it reports no live member check (an admin from the

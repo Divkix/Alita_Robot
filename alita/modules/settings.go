@@ -206,6 +206,23 @@ func settingsPickerView(tr *i18n.Translator, userID int64, entries []settingsPic
 }
 
 func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []settingsPickerEntry {
+	return settingsPickerEntriesFrom(b, ctx, userID, settingsCandidates(ctx, userID))
+}
+
+// settingsCandidates scans for the groups userID posted in most recently.
+// Callers hold the picker's pause, which bounds the scans to one per user per
+// pause.
+func settingsCandidates(ctx *ext.Context, userID int64) []models.Chat {
+	candidates, err := settingsCandidateChats(tracing.UpdateContext(ctx), userID, settingsCandidateLimit)
+	if err != nil {
+		log.Warnf("[Settings] candidate chats for user %d: %v", userID, err)
+	}
+	return candidates
+}
+
+// settingsPickerEntriesFrom builds the picker's list from candidates, the
+// groups settingsCandidates found.
+func settingsPickerEntriesFrom(b *gotgbot.Bot, ctx *ext.Context, userID int64, candidates []models.Chat) []settingsPickerEntry {
 	deadline := settingsPickerNow().Add(settingsPickerLiveBudget)
 	// The deadline also bounds each check's Telegram calls and its wait for a
 	// shared admin-list load, so one hung group cannot hold the picker past it.
@@ -234,10 +251,6 @@ func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []set
 		}
 	}
 
-	candidates, err := settingsCandidateChats(tracing.UpdateContext(ctx), userID, settingsCandidateLimit)
-	if err != nil {
-		log.Warnf("[Settings] candidate chats for user %d: %v", userID, err)
-	}
 	// Cached admin lists answer without Telegram, so they go first.
 	var cold []models.Chat
 	for _, candidate := range candidates {

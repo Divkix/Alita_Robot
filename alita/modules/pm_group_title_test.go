@@ -298,36 +298,66 @@ func TestConnectWithoutArgInPMRepliesHelp(t *testing.T) {
 	assertPMGroupHelp(t, fmt.Sprint(call.Params["text"]), "connect", f.chat)
 }
 
-// The title lookup checks only the groups with that title, so it does not
-// wait for the /settings picker's pause.
-func TestPMGroupTitleDuringPickerPauseFindsGroup(t *testing.T) {
+// Inside the /settings picker's pause a title is looked up in the list the
+// last build kept, without scanning the user's groups again.
+func TestPMGroupTitleDuringPickerPauseFindsGroupInKeptList(t *testing.T) {
 	f := titleFixture(t, "My Group")
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
 	settingsPickerCooldown = 5 * time.Second
 	if _, wait := settingsPickerWait(i18n.MustNewTranslator("en"), f.admin.Id); wait {
 		t.Fatal("settingsPickerWait() paused a fresh user")
 	}
+	storeSettingsPickerEntries(f.admin.Id, []settingsPickerEntry{{ChatID: f.chat.Id, Title: "My Group"}})
 	addTestNote(t, f.chat.Id, "pause-note")
 
 	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
+
+	if n := scans.Load(); n != 0 {
+		t.Fatalf("candidate scans inside the pause = %d, want 0", n)
+	}
 }
 
-// A title that names no group lists the user's groups, and that list shares
-// the picker's pause: with no list kept the reply asks the user to wait.
-func TestPMGroupTitleNotFoundDuringPauseWithoutListWaits(t *testing.T) {
+// Inside the pause with no list kept, a title is not looked up at all: the
+// reply asks the user to wait, as the picker does, and nothing is scanned.
+func TestPMGroupTitleDuringPauseWithoutListWaits(t *testing.T) {
 	f := titleFixture(t, "My Group")
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
 	settingsPickerCooldown = 5 * time.Second
 	if _, wait := settingsPickerWait(i18n.MustNewTranslator("en"), f.admin.Id); wait {
 		t.Fatal("settingsPickerWait() paused a fresh user")
 	}
 
 	update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
-		MessageId: 101, Date: 1, Chat: privateChatOf(f.admin), From: &f.admin, Text: `/notes "no such group"`,
+		MessageId: 101, Date: 1, Chat: privateChatOf(f.admin), From: &f.admin, Text: `/notes "my group"`,
 	}}
 	if err := notesDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
 		t.Fatalf("ProcessUpdate() error = %v", err)
 	}
 
 	assertWaitNotice(t, sentText(f.client))
+	if n := scans.Load(); n != 0 {
+		t.Fatalf("candidate scans inside the pause = %d, want 0", n)
+	}
+}
+
+// A user repeating a PM command whose first word names no group costs one
+// scan of the chats table per picker pause, not one per message: the first
+// call scans once for both the title and the help's list, and the repeats
+// answer from the list it kept.
+func TestPMGroupTitleRepeatedScansOncePerPause(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
+	settingsPickerCooldown = 5 * time.Second
+	notFound := fmt.Sprintf(translated(t, "connections_pm_group_not_found"), "x")
+
+	for i := range 5 {
+		resetCalls(f.client)
+		call := sendPMCommand(t, rulesDispatcher(), f.bot, f.client, f.admin, "/rules x", notFound)
+		assertPMGroupHelp(t, fmt.Sprint(call.Params["text"]), "rules", f.chat)
+		if n := scans.Load(); n != 1 {
+			t.Fatalf("candidate scans after %d calls = %d, want 1", i+1, n)
+		}
+	}
 }
 
 // Without a connection a command with arguments of its own still takes the

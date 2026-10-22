@@ -17,11 +17,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // pmGroupToken is the first argument of a PM command, which may name a group.
@@ -315,9 +315,30 @@ func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmG
 }
 
 // groupByTitle returns the one group the user administers titled tok.Raw, or
-// nil after answering why there is none.
+// nil after answering why there is none. It shares the /settings picker's
+// pause, so a user repeating the call scans the chats table once per pause:
+// taking the pause, it scans the user's groups and, when the title names none,
+// keeps the help's list built from that scan; inside the pause it looks the
+// title up in the list the last build kept, or asks the user to wait when none
+// was kept.
 func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Chat {
-	switch matches := c.adminGroupsTitled(tok.Raw); len(matches) {
+	userID := c.ctx.EffectiveUser.Id
+	var entries []settingsPickerEntry
+	var candidates []models.Chat
+	notice, paused := settingsPickerWait(c.tr, userID)
+	if paused {
+		stored, ok := storedSettingsPickerEntries(userID)
+		if !ok {
+			_ = c.reply(notice)
+			return nil
+		}
+		entries = stored
+	} else {
+		candidates = settingsCandidates(c.ctx, userID)
+		entries = c.titleCandidates(candidates)
+	}
+
+	switch matches := c.adminGroupsTitled(entries, tok.Raw); len(matches) {
 	case 0:
 	case 1:
 		if group := lookupPMGroup(c.b, strconv.FormatInt(matches[0].ChatID, 10)); group != nil {
@@ -328,30 +349,37 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 		_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)) + "\n" + pmGroupList(matches))
 		return nil
 	}
-	c.replyHelp(notFound)
+
+	list := entries
+	if !paused {
+		list = settingsPickerEntriesFrom(c.b, c.ctx, userID, candidates)
+		storeSettingsPickerEntries(userID, list)
+	}
+	_ = c.reply(pmGroupHelpText(c.tr, c.cmd, notFound, list, ""))
 	return nil
 }
 
-// adminGroupsTitled returns the groups titled title, ignoring case, that the
-// user administers among the connected group and the settingsCandidateLimit
-// groups they posted in most recently. Only groups with that title are checked,
-// so the /settings picker's button cap and live budget do not hide a group.
-func (c pmGroupCall) adminGroupsTitled(title string) []settingsPickerEntry {
-	userID := c.ctx.EffectiveUser.Id
+// titleCandidates lists the groups a title is looked up among: the connected
+// group and candidates, the settingsCandidateLimit groups the user posted in
+// most recently. Only groups with that title are checked, so the /settings
+// picker's button cap and live budget do not hide a group.
+func (c pmGroupCall) titleCandidates(candidates []models.Chat) []settingsPickerEntry {
 	var entries []settingsPickerEntry
-	if conn := connections.Connection(userID); conn.Connected && conn.ChatId != 0 {
+	if conn := connections.Connection(c.ctx.EffectiveUser.Id); conn.Connected && conn.ChatId != 0 {
 		if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {
 			entries = append(entries, settingsPickerEntry{ChatID: conn.ChatId, Title: info.ChatName})
 		}
 	}
-	candidates, err := settingsCandidateChats(tracing.UpdateContext(c.ctx), userID, settingsCandidateLimit)
-	if err != nil {
-		log.WithFields(log.Fields{"userId": userID, "error": err}).Warn("[PMGroupArg] candidate chats failed")
-	}
 	for _, candidate := range candidates {
 		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
 	}
+	return entries
+}
 
+// adminGroupsTitled returns the entries titled title, ignoring case, that the
+// user administers.
+func (c pmGroupCall) adminGroupsTitled(entries []settingsPickerEntry, title string) []settingsPickerEntry {
+	userID := c.ctx.EffectiveUser.Id
 	var matches []settingsPickerEntry
 	seen := map[int64]bool{}
 	for _, entry := range pmGroupsTitled(entries, title) {
