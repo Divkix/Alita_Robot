@@ -77,8 +77,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (`confirmData`), and the press acts only through `ownerConfirmChat`, which reads the group with `buttonChat` and
   checks the presser against it: never the PM it was pressed in. A bans button sent from PM carries the group the
   same way: `moderationButtonData` adds it, and an unban or unmute button gets it as `keyboard.UnrestrictButton`'s
-  chat ID (`pmButtonChatID`). Its handler reads it with `buttonChat` and checks the presser's right there. Without
-  a `c` field (sent in a group, or before PM support) `buttonChat` returns the chat the button is in.
+  chat ID (`pmButtonChatID`). Its handler reads it with `buttonChat` and checks the presser's right there. A bans or
+  unrestrict button sent in a group has no `c` field (`moderationButtonData` adds none, and `UnrestrictButton` gets
+  chat ID 0), nor does one sent before PM support; for those `buttonChat` returns the chat the button is in.
+  Confirmation buttons always have it (`confirmData` writes `c` wherever they are sent).
 - gotgbot stops a group at the first matching handler. Watchers return `ext.ContinueGroups`; commands return
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` via `RegisterLegacyModule(name, priority, load)`. Use a unique name; duplicates are
