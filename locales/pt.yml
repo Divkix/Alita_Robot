@@ -348,7 +348,7 @@ connections_help_msg:
 
   No privado, os administradores de um grupo também podem usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache e /clearadmincache: nomeie o grupo primeiro (título, @username ou ID) ou conecte-se a ele. É preciso ter as mesmas permissões que no grupo, e a resposta chega no privado.
 
-  No privado, os administradores de um grupo também podem usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute e /unmute: nomeie primeiro o grupo (título, @username ou ID) e depois o usuário (@username, ID ou menção), ou conecte-se ao grupo. Com uma conexão, só um @username ou ID escolhe outro grupo. É preciso ter as mesmas permissões que no grupo; responder a uma mensagem no privado não indica o usuário, e a resposta e os botões chegam no privado.
+  No privado, os administradores de um grupo também podem usar /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn e /resetwarns: nomeie primeiro o grupo (título, @username ou ID) e depois o usuário (@username, ID ou menção), ou conecte-se ao grupo. Com uma conexão, só um @username ou ID escolhe outro grupo. É preciso ter as mesmas permissões que no grupo; responder a uma mensagem no privado não indica o usuário, e a resposta e os botões chegam no privado.
 
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
@@ -903,7 +903,7 @@ warns_help_msg:
 
   - /rmwarn: Remove o aviso mais recente de um usuário.
 
-  - /resetwarn: Reseta todos os avisos de um usuário para 0.
+  - /resetwarns:Reseta todos os avisos de um usuário para 0.
 
   - /resetallwarns: Deleta todos os avisos em um chat. Todos os usuários retornam a 0 avisos. (apenas criador)
 
@@ -2822,7 +2822,7 @@ warns_extend_msg: |
   /dwarn — advertir e apagar a mensagem respondida
   /warns — ver as advertências de um usuário
   /rmwarn — remover a última advertência de um usuário
-  /resetwarn — zerar as advertências de um usuário
+  /resetwarns —zerar as advertências de um usuário
   /resetallwarns — zerar todas as advertências do chat
   /warnings — ver as configurações de advertência
   /setwarnlimit — advertências antes da punição

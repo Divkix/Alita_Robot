@@ -17,7 +17,7 @@ If you're looking for automated warnings, read about the blacklist module!
 - /dwarn <reason>: Warn a user by reply, and delete their message.
 - /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
 - /rmwarn: Remove a user's latest warning.
-- /resetwarn: Reset all of a user's warnings to 0.
+- /resetwarns: Reset all of a user's warnings to 0.
 - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 - /warnings: Get the chat's warning settings.
 - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.

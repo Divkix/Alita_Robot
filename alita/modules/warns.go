@@ -400,7 +400,10 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			}
 		}
 	case "swarn":
-		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+		// From PM there is no command message in the group to delete.
+		if msg.Chat.Type != "private" {
+			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+		}
 	}
 
 	if numWarns >= warnrc.WarnLimit {
@@ -418,13 +421,14 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		reply += warnEntryLines(b, tr, entries, html.EscapeString)
 	} else {
 		rules := rules.GetChatRulesInfo(chat.Id)
+		removeWarnData := moderationButtonData("rmWarn", msg, chat, map[string]string{"u": fmt.Sprint(u.Id)})
 		if len(rules.Rules) >= 1 {
 			keyboard = gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
 							Text:         removeWarnText,
-							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}),
+							CallbackData: removeWarnData,
 						},
 						{
 							Text: rulesButtonText,
@@ -439,7 +443,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 					{
 						{
 							Text:         removeWarnText,
-							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}),
+							CallbackData: removeWarnData,
 						},
 					},
 				},
@@ -455,8 +459,9 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 	}
 	// The list at the warn limit can pass Telegram's length limit; only the
-	// first part replies to the command and carries the buttons.
-	for i, part := range formatting.SplitMessage(reply) {
+	// first part replies to the command and carries the buttons. The reply
+	// goes where the command came from: from PM, to the PM.
+	for i, part := range formatting.SplitMessage(withGroupLine(tr, msg, chat, reply)) {
 		opts := &gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
@@ -470,7 +475,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			}
 			opts.ReplyMarkup = &keyboard
 		}
-		if _, err = b.SendMessage(chat.Id, part, opts); err != nil {
+		if _, err = b.SendMessage(msg.Chat.Id, part, opts); err != nil {
 			log.Errorf("[warn] sendMessage (%d) - %s", userId, err)
 			return err
 		}
@@ -485,6 +490,7 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 		return ext.EndGroups
 	}
 
+	mc.Command = warnType
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	tr := mc.Tr
@@ -502,7 +508,12 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 		return ext.EndGroups
 	} else if userId == 0 {
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+		if mc.sentInPM() {
+			// From PM, show how to name the group and the user.
+			err = mc.replyCommandHelp(text)
+		} else {
+			_, err = msg.Reply(b, text, formatting.Shtml())
+		}
 		if err != nil {
 			log.Error(err)
 			return err
@@ -628,23 +639,26 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+	// A button sent from PM names its group; the presser and the bot are
+	// checked there.
+	decoded, decodedOK := decodeCallbackData(query.Data, "rmWarn")
+	chat, chatOK := buttonChat(ctx, decoded)
+	if chatOK && !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+	if chatOK && !chat_status.RequireBotAdmin(b, ctx, chat) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	userMatch := ""
-	if decoded, ok := decodeCallbackData(query.Data, "rmWarn"); ok {
+	if decodedOK {
 		userMatch, _ = decoded.Field("u")
 	}
-	if userMatch == "" {
+	if !chatOK || userMatch == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
 	}
@@ -764,7 +778,13 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	} else if userId == 0 {
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+		var err error
+		if inPM(msg) {
+			// From PM, show how to name the group and the user.
+			err = replyCommandHelp(b, msg, tr, "resetwarns", text)
+		} else {
+			_, err = msg.Reply(b, text, formatting.Shtml())
+		}
 		if err != nil {
 			log.Error(err)
 			return err
@@ -781,7 +801,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		text, _ = tr.GetString("warns_no_warns_to_remove")
 	}
-	_, err := msg.Reply(b, text, formatting.Shtml())
+	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -935,7 +955,13 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	} else if userId == 0 {
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+		var err error
+		if inPM(msg) {
+			// From PM, show how to name the group and the user.
+			err = replyCommandHelp(b, msg, tr, "rmwarn", text)
+		} else {
+			_, err = msg.Reply(b, text, formatting.Shtml())
+		}
 		if err != nil {
 			log.Error(err)
 			return err
@@ -954,7 +980,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString("warns_no_warns_to_remove")
 	}
 
-	_, err := msg.Reply(b, replyText, formatting.Shtml())
+	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, replyText), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -962,30 +988,35 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// From PM, the commands that act on a user named after the group take the
+// group as their first argument (or from the connection), as the bans
+// commands do. /dwarn needs a reply to a group message, so it stays
+// group-only.
 var (
-	warnDesc        = helpers.CommandDescriptor{Name: "warn"}
-	swarnDesc       = helpers.CommandDescriptor{Name: "swarn"}
+	warnDesc        = helpers.CommandDescriptor{Name: "warn", PMGroupArg: helpers.PMGroupArgOwn}
+	swarnDesc       = helpers.CommandDescriptor{Name: "swarn", PMGroupArg: helpers.PMGroupArgOwn}
 	dwarnDesc       = helpers.CommandDescriptor{Name: "dwarn"}
-	resetWarnsDesc  = helpers.CommandDescriptor{Name: "resetwarns", Aliases: []string{"resetwarn"}}
-	removeWarnDesc  = helpers.CommandDescriptor{Name: "rmwarn", Aliases: []string{"unwarn"}}
+	resetWarnsDesc  = helpers.CommandDescriptor{Name: "resetwarns", Aliases: []string{"resetwarn"}, PMGroupArg: helpers.PMGroupArgOwn}
+	removeWarnDesc  = helpers.CommandDescriptor{Name: "rmwarn", Aliases: []string{"unwarn"}, PMGroupArg: helpers.PMGroupArgOwn}
 	warnsStatusDesc = helpers.CommandDescriptor{Name: "warns", Disableable: true}
 )
 
-func adminBotUserChecks(cmd string) []helpers.CheckFunc {
-	return []helpers.CheckFunc{
-		helpers.CheckDisabled(cmd),
+// adminBotUserChecks are the checks of a command an admin runs with the bot
+// an admin; chat checks (pmTargetChatCheck) run before the group's.
+func adminBotUserChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
+	return append(append([]helpers.CheckFunc{helpers.CheckDisabled(cmd)}, chat...),
 		helpers.RequireGroup(),
 		helpers.RequireBotAdmin(),
 		helpers.RequireUserAdmin(),
-	}
+	)
 }
 
 func initWarnDescs() {
-	warnDesc.RequiredChecks = restrictChecks("warn")
-	swarnDesc.RequiredChecks = deleteRestrictChecks("swarn")
+	warnDesc.RequiredChecks = restrictChecks("warn", pmTargetChatCheck)
+	swarnDesc.RequiredChecks = deleteRestrictChecks("swarn", pmTargetChatCheck)
 	dwarnDesc.RequiredChecks = deleteRestrictChecks("dwarn")
-	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns")
-	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn")
+	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns", pmTargetChatCheck)
+	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn", pmTargetChatCheck)
 	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns")}
 }
 

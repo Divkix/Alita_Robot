@@ -357,7 +357,7 @@ connections_help_msg:
 
   Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
 
-  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute dan /unmute: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
 
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
@@ -931,7 +931,7 @@ warns_help_msg:
 
   - /rmwarn: Hapus peringatan terbaru pengguna.
 
-  - /resetwarn: Atur ulang semua peringatan pengguna ke 0.
+  - /resetwarns:Atur ulang semua peringatan pengguna ke 0.
 
   - /resetallwarns: Hapus semua peringatan di obrolan. Semua pengguna kembali ke 0 peringatan. (hanya pembuat)
 
@@ -2849,7 +2849,7 @@ warns_extend_msg: |
   /dwarn — beri peringatan dan hapus pesan yang dibalas
   /warns — lihat peringatan pengguna
   /rmwarn — hapus peringatan terakhir pengguna
-  /resetwarn — reset peringatan pengguna
+  /resetwarns —reset peringatan pengguna
   /resetallwarns — reset semua peringatan di obrolan
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman
