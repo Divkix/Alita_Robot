@@ -39,4 +39,5 @@ const (
 	// probation" just before another replica's join commit can keep that
 	// stale answer in Redis; DeleteCache cannot order against it.
 	CacheTTLProbationMember = time.Minute
+	CacheTTLRecurring       = DefaultCacheTTL
 )

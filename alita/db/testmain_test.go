@@ -84,6 +84,7 @@ func TestMain(m *testing.M) {
 			&models.ChatTimezone{},
 			&models.ProbationSettings{},
 			&models.ProbationMember{},
+			&models.RecurringMessage{},
 		)
 		if err != nil {
 			fmt.Printf("AutoMigrate failed: %v\n", err)
