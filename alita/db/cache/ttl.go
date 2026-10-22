@@ -40,4 +40,5 @@ const (
 	// stale answer in Redis; DeleteCache cannot order against it.
 	CacheTTLProbationMember = time.Minute
 	CacheTTLRecurring       = DefaultCacheTTL
+	CacheTTLNightMode       = DefaultCacheTTL
 )
