@@ -395,7 +395,7 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	if !chat_status.CanBotDelete(b, ctx, nil) {
+	if !chat_status.CanBotDeleteForUpdate(b, ctx, nil) {
 		return ext.ContinueGroups
 	}
 
@@ -452,7 +452,7 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	if !chat_status.CanBotDelete(b, ctx, nil) {
+	if !chat_status.CanBotDeleteForUpdate(b, ctx, nil) {
 		return ext.ContinueGroups
 	}
 

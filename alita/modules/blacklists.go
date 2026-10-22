@@ -499,7 +499,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	if !chat_status.IsBotAdmin(b, ctx, chat) {
+	if !chat_status.IsBotAdminForUpdate(b, ctx, chat) {
 		return ext.ContinueGroups
 	}
 
