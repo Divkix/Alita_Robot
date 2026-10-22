@@ -355,24 +355,9 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	question, _ := tr.GetString("filters_clear_all_confirm")
-	yesText, _ := tr.GetString("common_yes")
-	noText, _ := tr.GetString("common_no")
 	_, err := msg.Reply(b, confirmText(ctx, tr, question, chat),
 		&gotgbot.SendMessageOpts{
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         yesText,
-							CallbackData: confirmData("rmAllFilters", "yes", chat),
-						},
-						{
-							Text:         noText,
-							CallbackData: confirmData("rmAllFilters", "no", chat),
-						},
-					},
-				},
-			},
+			ReplyMarkup: confirmKeyboard(tr, "rmAllFilters", chat),
 		},
 	)
 	if err != nil {

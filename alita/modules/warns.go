@@ -825,9 +825,6 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	yesText, _ := tr.GetString("common_yes")
-	noText, _ := tr.GetString("common_no")
-
 	chat := groupOnlyChat(b, ctx)
 	if chat == nil {
 		return ext.EndGroups
@@ -853,20 +850,7 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		text = confirmText(ctx, tr, text, chat)
 		_, err := msg.Reply(b, text,
 			&gotgbot.SendMessageOpts{
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-						{
-							{
-								Text:         yesText,
-								CallbackData: confirmData("rmAllChatWarns", "yes", chat),
-							},
-							{
-								Text:         noText,
-								CallbackData: confirmData("rmAllChatWarns", "no", chat),
-							},
-						},
-					},
-				},
+				ReplyMarkup: confirmKeyboard(tr, "rmAllChatWarns", chat),
 			},
 		)
 		if err != nil {

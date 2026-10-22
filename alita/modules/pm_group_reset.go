@@ -80,6 +80,18 @@ func confirmData(namespace, action string, chat *gotgbot.Chat) string {
 	return encodeCallbackData(namespace, map[string]string{"a": action, "c": strconv.FormatInt(chat.Id, 10)})
 }
 
+// confirmKeyboard is the yes/no keyboard of a reset confirmation for chat.
+func confirmKeyboard(tr *i18n.Translator, namespace string, chat *gotgbot.Chat) gotgbot.InlineKeyboardMarkup {
+	yesText, _ := tr.GetString("button_yes")
+	noText, _ := tr.GetString("button_no")
+	return gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
+			{Text: yesText, CallbackData: confirmData(namespace, "yes", chat)},
+			{Text: noText, CallbackData: confirmData(namespace, "no", chat)},
+		}},
+	}
+}
+
 // buttonChat returns the group a button sent by a bans or reset command acts
 // on: the one its "c" field names or, on a button without one, the chat the
 // button is in (nil when Telegram did not include its message). ok is false

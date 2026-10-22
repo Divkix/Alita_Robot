@@ -402,24 +402,9 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_ask")
 	text = confirmText(ctx, tr, text, chat)
-	yesText, _ := tr.GetString("button_yes")
-	noText, _ := tr.GetString("button_no")
 	_, err := msg.Reply(b, text,
 		&gotgbot.SendMessageOpts{
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         yesText,
-							CallbackData: confirmData("rmAllApprovals", "yes", chat),
-						},
-						{
-							Text:         noText,
-							CallbackData: confirmData("rmAllApprovals", "no", chat),
-						},
-					},
-				},
-			},
+			ReplyMarkup: confirmKeyboard(tr, "rmAllApprovals", chat),
 		},
 	)
 	if err != nil {

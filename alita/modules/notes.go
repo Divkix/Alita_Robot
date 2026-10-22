@@ -472,24 +472,9 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		clearAllText, _ := tr.GetString("notes_clear_all_confirm")
 		clearAllText = confirmText(ctx, tr, clearAllText, chat)
-		yesText, _ := tr.GetString("button_yes")
-		noText, _ := tr.GetString("button_no")
 		_, err := msg.Reply(b, clearAllText,
 			&gotgbot.SendMessageOpts{
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-						{
-							{
-								Text:         yesText,
-								CallbackData: confirmData("rmAllNotes", "yes", chat),
-							},
-							{
-								Text:         noText,
-								CallbackData: confirmData("rmAllNotes", "no", chat),
-							},
-						},
-					},
-				},
+				ReplyMarkup: confirmKeyboard(tr, "rmAllNotes", chat),
 			},
 		)
 		if err != nil {
