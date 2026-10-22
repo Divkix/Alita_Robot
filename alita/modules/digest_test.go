@@ -14,9 +14,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
@@ -436,6 +438,56 @@ func TestGreetingsCountOneLeaveAcrossBothLeaveUpdates(t *testing.T) {
 	got := digestStatsFor(t, chat.Id)
 	if got.Leaves != 1 {
 		t.Fatalf("leaves = %d, want 1 for one membership change seen as two updates", got.Leaves)
+	}
+}
+
+// /digest is admin-only and /digest off is already its switch, so it is not
+// disableable: /disable refuses it, and a stored row from a build that allowed
+// it cannot block /digest off.
+func TestDigestIsNotDisableable(t *testing.T) {
+	useRealLocales(t)
+	withDigestEnabled(t, true)
+	withDisableCommands(t, "rules")
+
+	f := newAdminChatFixture(t)
+	cleanupDigestChat(t, f.chat.Id)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadDigest(dispatcher)
+
+	if helpers.IsDisableable("digest") {
+		t.Fatal("/digest was registered as disableable")
+	}
+
+	disableCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/disable digest")
+	if err := disablingModule.disable(f.bot, disableCtx); err != ext.EndGroups {
+		t.Fatalf("disable() error = %v, want EndGroups", err)
+	}
+	if disabled := disabling.GetChatDisabledCMDs(f.chat.Id); containsString(disabled, "digest") {
+		t.Fatalf("disabled commands = %v, want no digest row", disabled)
+	}
+
+	if err := disabling.DisableCMD(f.chat.Id, "digest"); err != nil {
+		t.Fatalf("DisableCMD(digest) error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := disabling.EnableCMD(f.chat.Id, "digest"); err != nil {
+			t.Errorf("cleanup digest disable row: %v", err)
+		}
+	})
+
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 915, "/digest on")
+	if settings := digestSettingsFor(t, f.chat.Id); !settings.Enabled {
+		t.Fatal("the switch on was not persisted")
+	}
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 916, "/digest off")
+
+	tr := i18n.MustNewTranslator("en")
+	disabledText, _ := tr.GetString("digest_status_disabled")
+	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, disabledText) {
+		t.Fatalf("reply %q does not confirm the digest is off with a stored disable row", reply)
+	}
+	if settings := digestSettingsFor(t, f.chat.Id); settings.Enabled {
+		t.Fatal("a stored disable row blocked /digest off")
 	}
 }
 

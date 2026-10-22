@@ -24,10 +24,11 @@ var digestModule = moduleStruct{
 }
 
 var digestDesc = helpers.CommandDescriptor{
-	Name:        "digest",
-	Disableable: true,
+	Name: "digest",
+	// Every /digest form is admin-only, so a chat cannot silence it: /digest
+	// off already is the switch. A stored disable row must not block that.
+	Disableable: false,
 	RequiredChecks: []helpers.CheckFunc{
-		helpers.CheckDisabled("digest"),
 		helpers.RequireGroup(),
 		helpers.RequireBotAdmin(),
 		helpers.RequireUserAdmin(),

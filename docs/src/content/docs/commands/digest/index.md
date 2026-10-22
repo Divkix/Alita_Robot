@@ -25,7 +25,7 @@ The counts are kept per chat and never include message text.
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/digest` | Show whether the digest is on and where it goes. | ✅ |
+| `/digest` | Show whether the digest is on and where it goes. | ❌ |
 
 ## Usage Examples
 
@@ -39,5 +39,9 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Every `/digest` form requires **admin permissions** in the group. The digest itself is sent by the bot.
+
+**Bot Permissions Required:**
+
+- Send messages (in the group, or in the log channel when the digest goes there)
 
