@@ -109,7 +109,9 @@ func AddChatMember(chatId, userid int64) error {
 		log.Errorf("[Database] AddChatMember atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
 		return result.Error
 	}
-	cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+	if result.RowsAffected > 0 {
+		cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+	}
 
 	log.Debugf("[Database] AddChatMember: %d %d", chatId, userid)
 	return nil
