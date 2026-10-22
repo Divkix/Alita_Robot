@@ -157,8 +157,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Subsystem traps
 
-- Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, locks, blacklists, captcha,
-  probation, and the report auto-mute.
+- Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, the spam filter, locks,
+  blacklists, captcha, probation, and the report auto-mute.
 - Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
@@ -186,7 +186,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (`× /cmd …`, continuation lines up to a blank line or the next entry) in all 7 locales, with no `"` or unknown HTML
   tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`; `TestEveryHelpCommandHasItsLineInEveryLocale`
   enforces it. Each such command also needs a `<cmd>_example` in `locales/config.yml` starting with `/<cmd> `, except
-  reply-only commands (`replyOnlyCommands`: /dban, /dkick, /dmute), which must have none;
+  reply-only commands (`replyOnlyCommands`: /dban, /dkick, /dmute, /spam), which must have none;
   `TestEveryHelpCommandHasAnExample` enforces it. Help sent to PM shows the optional `<cmd>_pm_example` (the group
   first) in place of `<cmd>_example` when the command has one.
 - `menuCommands` (`alita/modules/command_help.go`) lists exactly the commands of the en.yml `<module>_extend_msg`
@@ -200,6 +200,11 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (spamdb, captcha, antiraid, locks, blacklists, warn limits, report auto-mute): the shared-reputation join check
   reads this table, and a join it blocks must not feed the signal back. A reputation unban clears the signal only
   when the same chat removed the user earlier in the window.
+- The spam filter (`alita/modules/spamfilter*.go`, off by default) matches in the aispam watcher before the Jev call
+  and only against the chat's own samples plus the shared corpus (`spamfilter.Shared`: a text two unrelated chats
+  flagged, no common owner or admin). Each replica keeps decoded samples in memory for 10 s
+  (`spamCorpora`): every sample write calls `spamCorpusForget` (or `spamCorpusForgetAll`) after
+  `spamfilter`'s own cache invalidation. A match is only logged until 7 days after the chat turned it on.
 - Activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats`,
   `chat_hourly_stats` (UTC day and hour) and `chat_member_daily_stats` (real users only, capped per flush by
   `memberCounterLimit`) in one transaction every 60 s and on shutdown (before DB close). Never add a DB write per

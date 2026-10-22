@@ -90,7 +90,7 @@ func TestEveryHelpCommandHasItsLineInEveryLocale(t *testing.T) {
 
 // replyOnlyCommands act on the replied message, so an example without the
 // reply would mislead.
-var replyOnlyCommands = map[string]bool{"dkick": true, "dban": true, "dmute": true}
+var replyOnlyCommands = map[string]bool{"dkick": true, "dban": true, "dmute": true, "spam": true}
 
 func TestEveryHelpCommandHasAnExample(t *testing.T) {
 	useRealLocales(t)

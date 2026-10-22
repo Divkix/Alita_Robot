@@ -1640,6 +1640,54 @@ spamdb_db_usage: "Indiquez une base et <code>on</code>/<code>off</code> : <code>
 spamdb_db_enabled: "✅ Les nouveaux membres seront désormais recherchés dans {database}."
 spamdb_db_disabled: "❌ Les nouveaux membres ne seront plus recherchés dans {database}."
 spamdb_db_last: "❌ {database} est la seule base restante, elle reste donc activée. Activez d'abord une autre base, ou désactivez la vérification avec <code>/spamdb off</code>."
+
+# Spam filter strings
+spamfilter_help_msg: |
+  <b>🧹 Filtre anti-spam</b>
+
+  Un filtre facultatif qui apprend du spam supprimé par vos administrateurs. Répondez /spam à un message de spam pour le supprimer, bannir son auteur et enregistrer le texte comme exemple de spam de ce chat. Filtre activé, un nouveau message très proche d'un exemple est repéré, même avec un lien changé, des emojis ajoutés ou des lettres d'apparence semblable.
+
+  Un texte compte aussi dans tous les chats qui utilisent le filtre dès que deux chats sans lien (propriétaires différents, aucun administrateur commun) l'ont signalé.
+
+  L'activation du filtre ouvre une période d'essai de 7 jours : les correspondances sont seulement signalées dans le canal de journal, chacune avec un bouton Pas du spam, et rien n'est supprimé. Les administrateurs, les utilisateurs approuvés et les membres en train de résoudre un captcha ne sont jamais vérifiés.
+
+
+  <b>Commandes d'administration :</b>
+
+  × /spam : Répondez à un message pour le supprimer, bannir son auteur et enregistrer le texte comme exemple de spam.
+
+  × /spamfilter <code>on/off/dryrun</code> : Active le filtre (les correspondances sont supprimées après l'essai de 7 jours), le désactive, ou le laisse en essai seulement (les correspondances sont signalées, jamais supprimées). Sans option, affiche l'état du filtre.
+  Utilisez /spamfilter threshold <code>0.5-1</code> pour fixer à quel point un message doit ressembler à un exemple : 0.85 par défaut ; plus bas repère davantage et se trompe davantage.
+
+  × /spamsamples : Liste les exemples de spam les plus récents avec leur ID.
+
+  × /forgetspam <code>ID</code> : Supprime un exemple de spam.
+
+
+  Les exemples sont gardés 90 jours, 200 au plus par chat. Débannir un utilisateur banni avec /spam, ou appuyer sur Pas du spam dans le canal de journal, marque le texte comme légitime dans ce chat.
+spamfilter_spam_no_reply: "Répondez /spam au message de spam pour le supprimer, bannir son auteur et l'enregistrer comme exemple."
+spamfilter_spam_banned: "🧹 Spam supprimé et {user} banni."
+spamfilter_spam_saved: "Enregistré comme exemple de spam <code>#{id}</code>."
+spamfilter_spam_too_short: "Le message était trop court pour servir d'exemple."
+spamfilter_usage: "Choisissez <code>on</code>, <code>off</code> ou <code>dryrun</code>, ou réglez la similarité avec <code>/spamfilter threshold 0.85</code>."
+spamfilter_threshold_invalid: "Le seuil doit être un nombre entre <code>0.5</code> et <code>1</code>, par exemple <code>/spamfilter threshold 0.85</code>."
+spamfilter_status_off: "Le filtre anti-spam est <b>désactivé</b> dans ce chat. Essayez-le avec <code>/spamfilter dryrun</code>."
+spamfilter_status_dryrun: "Le filtre anti-spam est <b>en essai</b> : les correspondances sont signalées dans le canal de journal et jamais supprimées."
+spamfilter_status_on_pending: "Le filtre anti-spam est <b>activé</b>, en essai jusqu'au {date} : d'ici là, les correspondances sont seulement signalées dans le canal de journal."
+spamfilter_status_on: "Le filtre anti-spam est <b>activé</b> : les correspondances sont supprimées et signalées dans le canal de journal."
+spamfilter_status_threshold: "<b>Seuil :</b> {threshold}"
+spamfilter_status_samples: "<b>Exemples :</b> {spam} de spam, {ham} légitimes. Listez-les avec <code>/spamsamples</code>."
+spamfilter_status_no_log: "⚠️ Ce chat n'a pas de canal de journal, vous ne verrez donc pas ce que le filtre repère. Définissez-en un avec <code>/setlog</code>."
+spamfilter_samples_empty: "Ce chat n'a encore aucun exemple de spam ({ham} légitimes). Répondez <code>/spam</code> à un message de spam pour en ajouter un."
+spamfilter_samples_header: "<b>Exemples de spam</b> : {spam} de spam, {ham} légitimes. Les plus récents d'abord :"
+spamfilter_samples_footer: "Supprimez-en un avec <code>/forgetspam ID</code>."
+spamfilter_forget_usage: "Indiquez l'ID d'un exemple de <code>/spamsamples</code>."
+spamfilter_forget_done: "🗑 Exemple de spam <code>#{id}</code> supprimé."
+spamfilter_forget_not_found: "Ce chat n'a pas d'exemple <code>#{id}</code>."
+spamfilter_not_spam_button: "✅ Pas du spam"
+spamfilter_not_spam_invalid: "Ce bouton ne fonctionne plus."
+spamfilter_not_spam_failed: "Une erreur s'est produite ; rien n'a été modifié."
+spamfilter_not_spam_done: "Marqué comme légitime."
 spamdb_db_lols_warning: "⚠️ lols.bot liste les comptes plus agressivement que CAS, attendez-vous donc à plus de faux positifs. Envisagez <code>/spamdb action log</code> tant que vous ne lui faites pas confiance. L'ID Telegram de chaque nouveau membre est désormais envoyé à lols.bot."
 spamdb_db_enabled_idle: "✅ {database} est sélectionnée, mais rien n'est recherché tant que la vérification est désactivée. Consultez son état avec <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot liste les comptes plus agressivement que CAS, attendez-vous donc à plus de faux positifs. Envisagez <code>/spamdb action log</code> tant que vous ne lui faites pas confiance. Une fois la vérification active, l'ID Telegram de chaque nouveau membre sera envoyé à lols.bot."
@@ -2772,6 +2820,7 @@ reactions_section_desc: "Réagir à des mots-clés avec un emoji"
 reports_section_desc: "Signaler des messages aux admins"
 rules_section_desc: "Le règlement du groupe"
 spamdb_section_desc: "Vérifier les nouveaux membres dans des bases anti-spam"
+spamfilter_section_desc: "Apprendre du spam supprimé et repérer ses copies proches"
 warns_section_desc: "Avertir des utilisateurs et sanctionner à la limite"
 admin_extend_msg: |
   /adminlist — liste des administrateurs du chat
@@ -3027,6 +3076,11 @@ spamdb_extend_msg: |
   /spamdb — afficher ou basculer la vérification anti-spam, choisir ses bases ou son action
 probation_extend_msg: |
   /probation — afficher ou basculer la période d'essai des nouveaux membres, ou régler sa durée, ses messages, sa longueur, le contenu bloqué et l'avis
+spamfilter_extend_msg: |
+  /spam — supprimer le spam visé, bannir son auteur et l'enregistrer comme exemple
+  /spamfilter — afficher ou changer le filtre anti-spam, ou régler son seuil
+  /spamsamples — lister les exemples de spam du chat
+  /forgetspam — supprimer un exemple de spam
 digest_extend_msg: |
   /digest — affiche l'état du résumé hebdomadaire, l'active ou le désactive, choisit sa destination ou en donne un aperçu
 recurring_extend_msg: |

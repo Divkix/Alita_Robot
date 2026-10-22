@@ -41,4 +41,5 @@ const (
 	CacheTTLProbationMember = time.Minute
 	CacheTTLRecurring       = DefaultCacheTTL
 	CacheTTLNightMode       = DefaultCacheTTL
+	CacheTTLSpamFilter      = DefaultCacheTTL
 )

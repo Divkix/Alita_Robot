@@ -1813,6 +1813,54 @@ spamdb_db_usage: "Pilih database dan <code>on</code>/<code>off</code>: <code>cas
 spamdb_db_enabled: "✅ Anggota baru sekarang akan dicari di {database}."
 spamdb_db_disabled: "❌ Anggota baru tidak akan lagi dicari di {database}."
 spamdb_db_last: "❌ {database} adalah satu-satunya database yang tersisa, jadi tetap aktif. Aktifkan database lain dulu, atau matikan pemeriksaan dengan <code>/spamdb off</code>."
+
+# Spam filter strings
+spamfilter_help_msg: |
+  <b>🧹 Filter Spam</b>
+
+  Filter opsional yang belajar dari spam yang dihapus admin Anda. Balas /spam ke pesan spam untuk menghapusnya, memblokir pengirimnya, dan menyimpan teksnya sebagai sampel spam chat ini. Saat filter aktif, pesan baru yang sangat mirip dengan sampel akan tertangkap, meski tautannya diganti, emoji ditambahkan, atau memakai huruf yang mirip.
+
+  Sebuah teks juga berlaku di setiap chat yang memakai filter setelah dua chat yang tidak berkaitan (pemilik berbeda, tanpa admin yang sama) menandainya.
+
+  Mengaktifkan filter memulai uji coba 7 hari: kecocokan hanya dilaporkan ke kanal log, masing-masing dengan tombol Bukan spam, dan tidak ada yang dihapus. Admin, pengguna yang disetujui, dan anggota yang sedang menjawab captcha tidak pernah diperiksa.
+
+
+  <b>Perintah admin:</b>
+
+  × /spam: Balas ke pesan untuk menghapusnya, memblokir pengirimnya, dan menyimpan teksnya sebagai sampel spam.
+
+  × /spamfilter <code>on/off/dryrun</code>: Aktifkan filter (kecocokan dihapus setelah uji coba 7 hari selesai), matikan, atau jalankan uji coba saja (kecocokan dilaporkan, tidak pernah dihapus). Tanpa opsi, tampilkan status filter.
+  Gunakan /spamfilter threshold <code>0.5-1</code> untuk mengatur seberapa mirip pesan dengan sampel: bawaan 0.85; nilai lebih rendah menangkap lebih banyak dan lebih sering keliru.
+
+  × /spamsamples: Tampilkan sampel spam terbaru beserta ID-nya.
+
+  × /forgetspam <code>ID</code>: Hapus sebuah sampel spam.
+
+
+  Sampel disimpan 90 hari, paling banyak 200 per chat. Membuka blokir pengguna yang diblokir dengan /spam, atau menekan Bukan spam di kanal log, menandai teks itu sebagai bukan spam di chat ini.
+spamfilter_spam_no_reply: "Balas /spam ke pesan spam untuk menghapusnya, memblokir pengirimnya, dan menyimpannya sebagai sampel."
+spamfilter_spam_banned: "🧹 Spam dihapus dan {user} diblokir."
+spamfilter_spam_saved: "Disimpan sebagai sampel spam <code>#{id}</code>."
+spamfilter_spam_too_short: "Pesannya terlalu pendek untuk disimpan sebagai sampel."
+spamfilter_usage: "Pilih <code>on</code>, <code>off</code>, atau <code>dryrun</code>, atau atur kemiripan dengan <code>/spamfilter threshold 0.85</code>."
+spamfilter_threshold_invalid: "Ambang harus berupa angka dari <code>0.5</code> sampai <code>1</code>, misalnya <code>/spamfilter threshold 0.85</code>."
+spamfilter_status_off: "Filter spam <b>nonaktif</b> di chat ini. Coba dengan <code>/spamfilter dryrun</code>."
+spamfilter_status_dryrun: "Filter spam dalam <b>uji coba</b>: kecocokan dilaporkan ke kanal log dan tidak pernah dihapus."
+spamfilter_status_on_pending: "Filter spam <b>aktif</b>, dalam uji coba sampai {date}: sampai saat itu kecocokan hanya dilaporkan ke kanal log."
+spamfilter_status_on: "Filter spam <b>aktif</b>: kecocokan dihapus dan dilaporkan ke kanal log."
+spamfilter_status_threshold: "<b>Ambang:</b> {threshold}"
+spamfilter_status_samples: "<b>Sampel:</b> {spam} spam, {ham} bukan spam. Lihat daftarnya dengan <code>/spamsamples</code>."
+spamfilter_status_no_log: "⚠️ Chat ini tidak punya kanal log, jadi Anda tidak akan melihat apa yang ditangkap filter. Atur dengan <code>/setlog</code>."
+spamfilter_samples_empty: "Chat ini belum punya sampel spam ({ham} bukan spam). Balas <code>/spam</code> ke pesan spam untuk menambahkannya."
+spamfilter_samples_header: "<b>Sampel spam</b>: {spam} spam, {ham} bukan spam. Terbaru lebih dulu:"
+spamfilter_samples_footer: "Hapus salah satunya dengan <code>/forgetspam ID</code>."
+spamfilter_forget_usage: "Berikan ID sampel dari <code>/spamsamples</code>."
+spamfilter_forget_done: "🗑 Sampel spam <code>#{id}</code> dihapus."
+spamfilter_forget_not_found: "Chat ini tidak punya sampel <code>#{id}</code>."
+spamfilter_not_spam_button: "✅ Bukan spam"
+spamfilter_not_spam_invalid: "Tombol ini sudah tidak berfungsi."
+spamfilter_not_spam_failed: "Terjadi kesalahan; tidak ada yang diubah."
+spamfilter_not_spam_done: "Ditandai sebagai bukan spam."
 spamdb_db_lols_warning: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. ID Telegram setiap anggota baru sekarang dikirim ke lols.bot."
 spamdb_db_enabled_idle: "✅ {database} dipilih, tetapi tidak ada yang dicari selama pemeriksaan mati. Lihat statusnya dengan <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. Setelah pemeriksaan aktif, ID Telegram setiap anggota baru akan dikirim ke lols.bot."
@@ -2854,6 +2902,7 @@ reactions_section_desc: "Beri reaksi emoji pada kata kunci"
 reports_section_desc: "Laporkan pesan ke admin"
 rules_section_desc: "Aturan grup"
 spamdb_section_desc: "Periksa anggota baru di database spam"
+spamfilter_section_desc: "Belajar dari spam yang dihapus dan tangkap salinan miripnya"
 warns_section_desc: "Beri peringatan dan hukum pengguna saat mencapai batas"
 admin_extend_msg: |
   /adminlist — daftar admin obrolan
@@ -3109,6 +3158,11 @@ spamdb_extend_msg: |
   /spamdb — tampilkan atau ubah pemeriksaan database spam, pilih database-nya, atau atur tindakannya
 probation_extend_msg: |
   /probation — tampilkan atau ubah masa percobaan anggota baru, atau atur waktu, pesan, panjang, konten yang diblokir, dan pemberitahuannya
+spamfilter_extend_msg: |
+  /spam — hapus spam yang dibalas, blokir pengirimnya, dan simpan sebagai sampel
+  /spamfilter — tampilkan atau ubah filter spam, atau atur ambangnya
+  /spamsamples — daftar sampel spam chat
+  /forgetspam — hapus sebuah sampel spam
 digest_extend_msg: |
   /digest — tampilkan status ringkasan mingguan, aktifkan atau nonaktifkan, pilih tujuannya, atau lihat pratinjaunya
 recurring_extend_msg: |

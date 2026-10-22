@@ -527,6 +527,8 @@ func TestMain(m *testing.M) {
 		&models.ProbationMember{},
 		&models.RecurringMessage{},
 		&models.NightModeSettings{},
+		&models.SpamSample{},
+		&models.SpamFilterSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

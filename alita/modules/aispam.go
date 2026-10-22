@@ -151,17 +151,21 @@ func (t aispamTask) state(recent []string, lastHour int) aispamState {
 
 // checkAISpam is the group 3 watcher. Every message is either carved out here,
 // before anything is enqueued, or handed to the worker pool. It always returns
-// ContinueGroups: AI moderation is never allowed to consume an update.
+// ContinueGroups: AI moderation is never allowed to consume an update. The
+// spam filter, which works with the AI check off, sees an eligible message
+// first, and a message it deletes is not sent to the model.
 func (m moduleStruct) checkAISpam(b *gotgbot.Bot, ctx *ext.Context) error {
-	if !config.AppConfig.EnableAISpam || config.AppConfig.TypeSafeAPIKey == "" {
-		return ext.ContinueGroups
-	}
-
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
 	text := aispamMessageText(msg)
 	if !aispamEligible(b.Username, chat, msg, ctx.EffectiveSender, user, text) {
+		return ext.ContinueGroups
+	}
+	if spamFilterCheck(b, ctx, text) {
+		return ext.ContinueGroups
+	}
+	if !config.AppConfig.EnableAISpam || config.AppConfig.TypeSafeAPIKey == "" {
 		return ext.ContinueGroups
 	}
 	if !aispam.IsAISpamEnabled(chat.Id) || aispamBreakerPaused(chat.Id) {
