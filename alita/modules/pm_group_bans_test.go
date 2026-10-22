@@ -210,6 +210,9 @@ func TestBanButtonsFromPMCheckPresserInNamedGroup(t *testing.T) {
 			if len(f.client.callsFor(tc.method)) != 0 {
 				t.Fatalf("a %s button naming a group the presser has no right in acted", tc.action)
 			}
+			if len(f.client.callsFor("answerCallbackQuery")) == 0 {
+				t.Fatalf("a %s button naming a group the presser has no right in got no answer", tc.action)
+			}
 		})
 	}
 }
@@ -291,8 +294,8 @@ func TestUnrestrictButtonInPMWithMarkupInGroupTitleEscapes(t *testing.T) {
 			if !strings.Contains(text, html.EscapeString(named)) || strings.Contains(text, named) || strings.Contains(text, "&amp;amp;") {
 				t.Fatalf("edited text = %q, want the title escaped once as %q", text, html.EscapeString(named))
 			}
-			if renderedText(text) == text || !strings.Contains(renderedText(text), reply) {
-				t.Fatalf("edited text = %q, want the reply %q struck through", text, reply)
+			if struck := "<s>" + html.EscapeString(reply) + "</s>"; !strings.HasPrefix(text, struck) {
+				t.Fatalf("edited text = %q, want it to start with the reply struck through: %q", text, struck)
 			}
 		})
 	}
