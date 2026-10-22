@@ -82,26 +82,43 @@ func processPM(t *testing.T, dispatcher *ext.Dispatcher, f adminChatFixture, use
 
 // One command per module, sent from PM with @fixturegroup while connected to
 // another group, changes the named group and leaves the connected one alone.
+// Each group's state is read before the command, so a cached read after it
+// shows whether the command invalidated the cache, and the named group must
+// start from another state than the one the command sets.
 func TestSettingsCommandsInPMWithGroupChangeThatGroup(t *testing.T) {
+	allowConnect := func(t *testing.T, chatID int64) {
+		t.Helper()
+		if err := connections.ToggleAllowConnect(chatID, true); err != nil {
+			t.Fatalf("ToggleAllowConnect(%d) error = %v", chatID, err)
+		}
+	}
 	for _, tc := range []struct {
 		module, text string
+		seed         func(t *testing.T, chatID int64)
 		state        func(chatID int64) any
 		want         any
 	}{
-		{"locks", "/lock @fixturegroup sticker", func(id int64) any { return locks.IsPermLocked(id, "sticker") }, true},
-		{"antiflood", "/setflood @fixturegroup 7", func(id int64) any { return antiflood.GetFlood(id).Limit }, 7},
-		{"disabling", "/disable @fixturegroup locks", func(id int64) any { return disabling.IsCommandDisabled(id, "locks") }, true},
-		{"reactions", "/addreaction @fixturegroup hello 👍", func(id int64) any { return reactions.GetReactions(id)["hello"] }, "👍"},
-		{"antiraid", "/raidtime @fixturegroup 2h", func(id int64) any { return antiraid.GetAntiRaidSettings(id).RaidTime }, 7200},
-		{"pins", "/antichannelpin @fixturegroup on", func(id int64) any { return pins.GetPinData(id).AntiChannelPin }, true},
-		{"connections", "/allowconnect @fixturegroup off", func(id int64) any { return connections.GetChatConnectionSetting(id).AllowConnect }, false},
-		{"rules", "/privaterules @fixturegroup on", func(id int64) any { return rules.GetChatRulesInfo(id).Private }, true},
-		{"blacklists", "/addblacklist @fixturegroup badword", func(id int64) any { return fmt.Sprint(blacklists.GetBlacklistSettings(id).Triggers()) }, "[badword]"},
-		{"approvals", "/approve @fixturegroup 4242", func(id int64) any { return approvals.IsUserApproved(id, 4242) }, true},
+		{"locks", "/lock @fixturegroup sticker", nil, func(id int64) any { return locks.IsPermLocked(id, "sticker") }, true},
+		{"antiflood", "/setflood @fixturegroup 7", nil, func(id int64) any { return antiflood.GetFlood(id).Limit }, 7},
+		{"disabling", "/disable @fixturegroup locks", nil, func(id int64) any { return disabling.IsCommandDisabled(id, "locks") }, true},
+		{"reactions", "/addreaction @fixturegroup hello 👍", nil, func(id int64) any { return reactions.GetReactions(id)["hello"] }, "👍"},
+		{"antiraid", "/raidtime @fixturegroup 2h", nil, func(id int64) any { return antiraid.GetAntiRaidSettings(id).RaidTime }, 7200},
+		{"pins", "/antichannelpin @fixturegroup on", nil, func(id int64) any { return pins.GetPinData(id).AntiChannelPin }, true},
+		{"connections", "/allowconnect @fixturegroup off", allowConnect, func(id int64) any { return connections.GetChatConnectionSetting(id).AllowConnect }, false},
+		{"rules", "/privaterules @fixturegroup on", nil, func(id int64) any { return rules.GetChatRulesInfo(id).Private }, true},
+		{"blacklists", "/addblacklist @fixturegroup badword", nil, func(id int64) any { return fmt.Sprint(blacklists.GetBlacklistSettings(id).Triggers()) }, "[badword]"},
+		{"approvals", "/approve @fixturegroup 4242", nil, func(id int64) any { return approvals.IsUserApproved(id, 4242) }, true},
 	} {
 		t.Run(tc.module, func(t *testing.T) {
 			f, connected := pmSettingsFixture(t)
+			if tc.seed != nil {
+				tc.seed(t, f.chat.Id)
+				tc.seed(t, connected)
+			}
 			before := tc.state(connected)
+			if got := tc.state(f.chat.Id); got == tc.want {
+				t.Fatalf("%s: named group state before the command = %v, want it to differ from %v", tc.text, got, tc.want)
+			}
 
 			processPM(t, pmSettingsDispatcher(), f, f.admin.Id, tc.text)
 
