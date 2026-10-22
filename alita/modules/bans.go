@@ -12,6 +12,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/bans"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -102,6 +103,7 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 				return ext.EndGroups
 			}
 			_, err := c.Chat.BanMember(c.Bot, t.userID, &gotgbot.BanChatMemberOpts{UntilDate: _time})
+			t.untilUnix = _time
 			return err
 		},
 		reply: func(c *moderationCtx, t *target) error {
@@ -622,6 +624,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			return err
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
+		recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: user.Id, source: models.BanSourceManual})
 		temp, _ := tr.GetString("bans_restrict_banned")
 		helpText = fmt.Sprintf(temp,
 			formatting.MentionHtml(user.Id, user.FirstName),
@@ -824,6 +827,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			}
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionUnban, "")
+		liftBanRecord(chat.Id, userId, user.Id)
 
 		temp, _ := tr.GetString("bans_unrestrict_unbanned")
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
@@ -915,6 +919,7 @@ func moderationBanme(m *moduleStruct) *moderationCommand {
 		},
 		logAction: "banme",
 		logUser:   true,
+		selfBan:   true,
 	}
 }
 
@@ -970,7 +975,7 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Debugf("[Bans] unbanall GetChatUsersCached %d: %v", chatID, err)
 			users = nil
 		}
-		unbanned := 0
+		unbanned := make([]int64, 0, len(users))
 		for _, userID := range users {
 			if !chat_status.IsValidUserId(userID) || userID == b.Id {
 				continue
@@ -979,9 +984,14 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 				log.Debugf("[Bans] unbanall user %d: %v", userID, err)
 				continue
 			}
-			unbanned++
+			unbanned = append(unbanned, userID)
 		}
-		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": unbanned})
+		// Close the records of the bans it lifted; a failed write changes
+		// nothing else, like every ban record write.
+		if _, err := bans.LiftUsers(chatID, unbanned, query.From.Id); err != nil {
+			log.WithError(err).WithField("chat_id", chatID).Error("[Bans] Failed to close the ban records of /unbanall")
+		}
+		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": len(unbanned)})
 	case "no":
 		helpText, _ = tr.GetString("bans_unbanall_cancel")
 	default:
@@ -1106,6 +1116,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(bansModule.moduleName, true)
 	initBanDescs()
 	startModerationEventRetentionSweeper()
+	startBanRecordRetentionSweeper()
 
 	helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))
 	helpers.WrapCommand(dispatcher, sbanDesc, pipelineHandler(bansModule.sBan))

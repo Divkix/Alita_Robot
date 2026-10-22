@@ -133,6 +133,12 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if action.eventAction != "" {
 		recordModerationEvent(rep.ChatId, user.Id, rep.ReportedUserId, action.eventAction, "")
 	}
+	if actionName == "ban" {
+		recordBan(banRecord{
+			chatID: rep.ChatId, userID: rep.ReportedUserId, bannedBy: user.Id,
+			source: models.BanSourceReport, reason: rep.Reason,
+		})
+	}
 	settleReportAutoMute(b, rep.ChatId, rep.ReportedUserId, action.status)
 
 	closeReportCard(b, card, action.status, user)

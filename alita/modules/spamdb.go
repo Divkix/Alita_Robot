@@ -127,6 +127,9 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": err}).Warnf("[SpamDB] %s failed", settings.Action)
 			outcome += " (failed)"
 		} else if settings.Action != spamdbsettings.ActionLog {
+			if settings.Action == spamdbsettings.ActionBan {
+				recordBan(banRecord{chatID: chat.Id, userID: member.Id, source: models.BanSourceSpamDB, detail: source.Name()})
+			}
 			// Take the join so greetings send no welcome or captcha: a captcha
 			// would lift the mute and its timeout kick would undo the ban.
 			claimRecentJoinProcessing(chat.Id, member.Id)

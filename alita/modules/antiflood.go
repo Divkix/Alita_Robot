@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -351,6 +352,8 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
 	}
 
+	// floodTimedUntil is the until_date of a tban or tmute, 0 otherwise.
+	var floodTimedUntil int64
 	switch flood.Action {
 	case "mute":
 		if !user.IsUser() {
@@ -401,6 +404,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 		untilDate := time.Now().Unix() + floodTimedActionTime
+		floodTimedUntil = untilDate
 		var err error
 		if flood.Action == "tban" {
 			keyboard = nil
@@ -418,6 +422,9 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	default:
 		log.Warnf("[Antiflood] chat %d has unhandled flood action %q; no punishment applied", chatId, flood.Action)
 		return ext.ContinueGroups
+	}
+	if flood.Action == "ban" || flood.Action == "tban" {
+		recordBan(banRecord{chatID: chatId, userID: userId, source: models.BanSourceAntiflood, untilUnix: floodTimedUntil})
 	}
 	logAction := flood.Action
 	if logAction == "tban" || logAction == "tmute" {

@@ -1495,6 +1495,9 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		}
 		return true, false
 	}
+	if action == "ban" {
+		recordBan(banRecord{chatID: chatID, userID: userID, source: models.BanSourceCaptcha, detail: cause})
+	}
 	if action != "mute" {
 		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
 			log.Errorf("[Captcha] Failed to clear fallback unmute for user %d: %v", userID, err)

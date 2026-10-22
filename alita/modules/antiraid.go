@@ -20,6 +20,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -350,6 +351,7 @@ func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTim
 		log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
 		return
 	}
+	recordBan(banRecord{chatID: chat.Id, userID: userID, source: models.BanSourceAntiraid, untilUnix: untilDate})
 	// Take the join so greetings sends the banned user no captcha or welcome.
 	// Only a ban that went through does this; a failed one leaves the captcha.
 	claimRecentJoinProcessing(chat.Id, userID)

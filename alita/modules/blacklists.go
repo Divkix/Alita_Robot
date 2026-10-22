@@ -498,6 +498,10 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
+	// banReason is the reason a ban's record keeps: plain text, unlike the
+	// notice's.
+	banReason := fmt.Sprintf(reason, i)
+
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 
 	// notify renders the action's locale line and posts it to the chat.
@@ -546,6 +550,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+		recordBan(banRecord{chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist, reason: banReason})
 		logAction(matched.Action)
 		if err = notify("_bl_watcher_banned_user"); err != nil {
 			return err
@@ -581,6 +586,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			log.Error(err)
 			return err
+		}
+		if matched.Action == "tban" {
+			recordBan(banRecord{
+				chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist,
+				reason: banReason, untilUnix: untilDate,
+			})
 		}
 		logAction(matched.Action + " " + formatDuration(blacklistTimedActionTime))
 		if err = notify(key, formatDuration(blacklistTimedActionTime)); err != nil {

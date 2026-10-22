@@ -154,7 +154,7 @@ func TestImportFBansNeedsFileAndOwnedFedLookup(t *testing.T) {
 	}
 
 	notifyFedAction(bot, federations.GetFed(fed.FedID), &stranger, "notify")
-	applyActiveFban(bot, fed.FedID, 42)
+	applyActiveFban(bot, fed.FedID, 42, 1)
 }
 
 func TestJoinFedRejectsNonOwner(t *testing.T) {
@@ -587,7 +587,7 @@ func TestUnfbanChatFailureDoesNotStopOtherChats(t *testing.T) {
 	chatA := seedFedChat(t, fed.FedID, target)
 	chatB := seedFedChat(t, fed.FedID, target)
 
-	applyActiveUnfban(bot, fed.FedID, target)
+	applyActiveUnfban(bot, fed.FedID, target, 1)
 	require.ElementsMatch(t, []int64{chatA.Id, chatB.Id}, unbanTargets(client, target),
 		"an error in one chat must not skip the remaining chats")
 }

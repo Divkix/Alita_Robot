@@ -1007,6 +1007,7 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			}
 		} else {
 			recordModerationEvent(chat.Id, user.Id, joinUser.Id, models.ModerationActionBan, "")
+			recordBan(banRecord{chatID: chat.Id, userID: joinUser.Id, bannedBy: user.Id, source: models.BanSourceJoinRequest})
 		}
 		// The ban stands even when the request itself is already gone.
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil && !isJoinRequestGone(err) {

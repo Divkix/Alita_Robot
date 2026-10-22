@@ -744,7 +744,7 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		if logText != "" {
 			notifyFedAction(b, fed, from, logText)
 		}
-		go applyActiveFban(b, fed.FedID, targetID)
+		go applyActiveFban(b, fed.FedID, targetID, from.Id)
 		return ext.EndGroups
 	}
 	if err := federations.Unfban(fed.FedID, targetID); err != nil {
@@ -764,7 +764,7 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 	if logText != "" {
 		notifyFedAction(b, fed, from, logText)
 	}
-	go applyActiveUnfban(b, fed.FedID, targetID)
+	go applyActiveUnfban(b, fed.FedID, targetID, from.Id)
 	return ext.EndGroups
 }
 
@@ -840,7 +840,9 @@ func retryAfterFloodWithin(maxWait time.Duration, call func() error) error {
 	return call()
 }
 
-func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
+// applyActiveFban bans userID, fbanned by actorID, in the federation's chats
+// that know the user.
+func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveFban", "Federations")
 	defer lockFedWalk(fedID, userID)()
 	// Only a confirmed missing ban stops the walk; a failed lookup bans anyway.
@@ -862,7 +864,9 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 		})
 		if err != nil {
 			log.Debugf("[Federations] active fban chat %d user %d: %v", chatID, userID, err)
+			continue
 		}
+		recordBan(banRecord{chatID: chatID, userID: userID, bannedBy: actorID, source: models.BanSourceFed, detail: fedID})
 	}
 	if lookupErr == nil {
 		return
@@ -885,7 +889,9 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 		})
 		if err != nil {
 			log.Debugf("[Federations] active fban undo chat %d user %d: %v", chatID, userID, err)
+			continue
 		}
+		liftBanRecord(chatID, userID, 0)
 	}
 }
 
@@ -894,7 +900,7 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 // still bans the user, since enforceFedBan would ban them again on their next
 // message, or when that cannot be checked. OnlyIfBanned keeps members who are not
 // banned from being kicked.
-func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID int64) {
+func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveUnfban", "Federations")
 	defer lockFedWalk(fedID, userID)()
 	ban, _, err := federations.FindBanInFedTreeE(context.Background(), fedID, userID)
@@ -916,7 +922,9 @@ func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID int64) {
 		})
 		if err != nil {
 			log.Debugf("[Federations] active unfban chat %d user %d: %v", chatID, userID, err)
+			continue
 		}
+		liftBanRecord(chatID, userID, actorID)
 	}
 }
 
@@ -1415,6 +1423,7 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		}
 		return
 	}
+	recordBan(banRecord{chatID: chat.Id, userID: userID, bannedBy: ban.BannedBy, source: models.BanSourceFed, detail: sourceFed})
 	if !join {
 		// The sender may have joined unseen; keep greetings from challenging
 		// them if that join's update comes later.

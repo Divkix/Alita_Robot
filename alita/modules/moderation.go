@@ -59,6 +59,9 @@ type target struct {
 	reason    string
 	timeVal   string // used by time-based commands (e.g., tban)
 	isChannel bool   // true if original target was a channel ID
+	// untilUnix is the until_date a temporary ban was made with, 0 for a
+	// permanent one.
+	untilUnix int64
 }
 
 // extractFromArgs resolves the target from command arguments using ExtractUserAndText.
@@ -169,6 +172,10 @@ type moderationCommand struct {
 	// succeeds. Variants set their base action; empty (unmute, kickme, banme,
 	// restrict) records nothing.
 	eventAction string
+	// selfBan records the ban execute made in ban_records although it records
+	// no event (banme). An eventAction of ban records the ban too, and one of
+	// unban closes the record of the ban it lifted.
+	selfBan bool
 }
 
 // buildModerationCtx creates the common decomposed context from a gotgbot update.
@@ -221,6 +228,19 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	// command.
 	if cmd.eventAction != "" {
 		recordModerationEvent(mc.Chat.Id, mc.User.Id, tgt.userID, cmd.eventAction, tgt.reason)
+	}
+	if cmd.selfBan || cmd.eventAction == models.ModerationActionBan {
+		recordBan(banRecord{
+			chatID:    mc.Chat.Id,
+			userID:    tgt.userID,
+			bannedBy:  mc.User.Id,
+			source:    models.BanSourceManual,
+			reason:    tgt.reason,
+			untilUnix: tgt.untilUnix,
+		})
+	}
+	if cmd.eventAction == models.ModerationActionUnban {
+		liftBanRecord(mc.Chat.Id, tgt.userID, mc.User.Id)
 	}
 
 	// Cleanup runs after the record: the ban or kick stands even when the
