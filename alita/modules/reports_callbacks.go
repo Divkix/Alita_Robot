@@ -133,6 +133,7 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if action.eventAction != "" {
 		recordModerationEvent(rep.ChatId, user.Id, rep.ReportedUserId, action.eventAction, "")
 	}
+	settleReportAutoMute(b, rep.ChatId, rep.ReportedUserId, action.status)
 
 	closeReportCard(b, card, action.status, user)
 	return answer(action.successKey)

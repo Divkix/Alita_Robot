@@ -879,6 +879,8 @@ reports_help_msg:
   × /reports `showblocklist`: Periksa semua pengguna yang diblokir yang tidak dapat menggunakan /report atau
   @admin.
 
+  × /reports `mute <N>` / `mute off`: bisukan pengguna setelah N (2-20) anggota berbeda memiliki laporan terbuka terhadapnya, sampai admin memutuskan dan paling lama 24 jam. Nonaktif secara default; tidak pernah berlaku untuk admin atau pengguna yang disetujui.
+
 
   Untuk melaporkan pengguna, cukup balas pesannya dengan @admin atau /report; Alita
   akan kemudian membalas dengan pesan yang menyatakan bahwa admin telah diberitahu.
@@ -1600,6 +1602,12 @@ reports_already_reviewed: "Admin sudah meninjau laporan Anda atas pesan ini."
 reports_expired: "Laporan ini sudah kedaluwarsa."
 reports_action_failed: "Tindakan tidak dapat diselesaikan. Coba lagi."
 reports_sent_to_admins: "Dilaporkan ke admin."
+reports_automute_status_on: "Bisu otomatis: aktif. Pengguna dibisukan paling lama 24 jam setelah {count} anggota berbeda memiliki laporan terbuka terhadapnya."
+reports_automute_status_off: "Bisu otomatis: nonaktif."
+reports_automute_enabled: "Bisu otomatis diaktifkan. Setelah {count} anggota berbeda memiliki laporan terbuka terhadap seorang pengguna, pengguna itu dibisukan sampai admin memutuskan, paling lama 24 jam."
+reports_automute_disabled: "Bisu otomatis dinonaktifkan. Laporan tidak akan lagi membisukan siapa pun."
+reports_automute_usage: "Penggunaan: <code>/reports mute &lt;N&gt;</code> dengan N dari {min} sampai {max}, atau <code>/reports mute off</code>."
+reports_automute_applied: "{user} telah dibisukan sampai admin meninjau laporan terhadapnya (paling lama 24 jam)."
 
 # Language module additional strings
 language_current_user: "Bahasa Anda Saat Ini adalah %s\nPilih bahasa dari keyboard di bawah."
@@ -2022,6 +2030,7 @@ reports_extended_docs: |
   <b>Pengaturan Pribadi vs Grup:</b>
   • <b>Di PM:</b> <code>/reports on/off</code> mengalihkan apakah ANDA menerima notifikasi laporan (memerlukan /connect aktif ke grup tempat Anda dan bot sama-sama menjadi admin)
   • <b>Di Grup:</b> <code>/reports on/off</code> mengalihkan apakah pelaporan diaktifkan untuk grup itu
+  • <b>Bisu otomatis:</b> <code>/reports mute &lt;N&gt;</code> (N dari 2 sampai 20) membisukan pengguna setelah N anggota berbeda memiliki laporan terbuka terhadapnya, sampai admin memutuskan dan paling lama 24 jam. Menandai laporan sebagai selesai atau menghapus pesan mencabut bisu. Tidak pernah berlaku untuk admin atau pengguna yang disetujui. <code>/reports mute off</code> menonaktifkannya (default).
 
 reports_permissions_docs: |
   <b>Siapa yang Dapat Melaporkan?</b>
@@ -2914,7 +2923,7 @@ reactions_extend_msg: |
   /resetreactions — hapus semua reaksi
 reports_extend_msg: |
   /report — laporkan pesan yang dibalas ke admin (atau @admin)
-  /reports — aktifkan atau nonaktifkan laporan, blokir atau buka blokir pelapor
+  /reports — aktifkan atau nonaktifkan laporan, blokir atau buka blokir pelapor, bisu otomatis
 rules_extend_msg: |
   /rules — lihat aturan
   /setrules — atur aturan

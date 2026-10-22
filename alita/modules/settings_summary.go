@@ -256,13 +256,18 @@ func greetingsSettingsSection(ctx context.Context, chatID int64) settingsSection
 }
 
 func reportsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	status, blocked := true, 0
+	status, blocked, muteThreshold := true, 0, 0
 	if r, ok := readChatSetting[models.ReportChatSettings](ctx, chatID); ok {
-		status, blocked = r.Status, len(r.BlockedList)
+		status, blocked, muteThreshold = r.Status, len(r.BlockedList), r.MuteThreshold
+	}
+	mute := settingsRow{Command: "/reports mute", Value: "off"}
+	if muteThreshold > 0 {
+		mute = settingsRow{Command: "/reports mute", Value: strconv.Itoa(muteThreshold), Changed: true}
 	}
 	return settingsSection{Title: "Reports", Rows: []settingsRow{
 		boolRow("/reports", status, true),
 		countRow("/reports showblocklist", blocked),
+		mute,
 	}}
 }
 
