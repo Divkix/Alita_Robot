@@ -203,6 +203,11 @@ type Config struct {
 	// takes none.
 	EnableSpamDB bool
 	CASAPIKey    string
+
+	// Weekly digest of the daily activity counters and the /digest command.
+	// EnableDigest is the operator's kill switch; it is on unless explicitly
+	// disabled, and the feature stays inert until a chat opts in.
+	EnableDigest bool
 }
 
 var AppConfig *Config
@@ -343,6 +348,8 @@ func LoadConfig() (*Config, error) {
 
 		EnableSpamDB: typeConvertor{str: os.Getenv("ENABLE_SPAMDB")}.Bool(),
 		CASAPIKey:    os.Getenv("CAS_API_KEY"),
+
+		EnableDigest: typeConvertor{str: os.Getenv("ENABLE_DIGEST")}.Bool(),
 	}
 
 	cfg.setDefaults()
@@ -466,6 +473,12 @@ func (cfg *Config) setDefaults() {
 	// flag sends nothing to CAS.
 	if os.Getenv("ENABLE_SPAMDB") == "" {
 		cfg.EnableSpamDB = true
+	}
+
+	// On unless explicitly disabled. The counters themselves always record;
+	// this switch only stops the digest and refuses /digest.
+	if os.Getenv("ENABLE_DIGEST") == "" {
+		cfg.EnableDigest = true
 	}
 }
 

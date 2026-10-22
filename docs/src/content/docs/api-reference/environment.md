@@ -94,6 +94,21 @@ become required. The key is redacted from logs.
 | **Type** | `string` |
 | **Required** | No |
 
+## 📂 Weekly digest configuration
+
+### `ENABLE_DIGEST`
+
+Operator kill switch for the weekly digest and the `/digest now` preview. When
+`false`, `/digest` refuses and no digest is generated; the daily counters keep
+recording because the dashboard overview uses the same data. Chats control
+their own digest settings separately.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `true` |
+
 ## 📂 Bot settings
 
 ### `MESSAGE_DUMP` (Required)
@@ -606,6 +621,7 @@ ENABLE_AISPAM=# global AI spam filter kill switch (default: true)
 ENABLE_AUTO_CLEANUP=# (default: true)
 ENABLE_BACKGROUND_STATS=# (default: true in prod, false in debug)
 ENABLE_DB_MONITORING=# (default: false)
+ENABLE_DIGEST=# operator kill switch for the weekly digest and /digest (default: true)
 ENABLE_PERFORMANCE_MONITORING=# (default: true in prod, false in debug)
 ENABLE_PPROF=# enable pprof endpoints (default: false)
 ENABLE_SPAMDB=# operator kill switch for the /spamdb CAS and lols.bot join check (default: true)

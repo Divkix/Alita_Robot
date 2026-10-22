@@ -1772,6 +1772,26 @@ spamdb_db_lols_warning: "⚠️ lols.bot lista cuentas de forma más agresiva qu
 spamdb_db_enabled_idle: "✅ {database} está seleccionada, pero no se busca nada mientras la comprobación esté desactivada. Consulta su estado con <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot lista cuentas de forma más agresiva que CAS, así que habrá más falsos positivos. Considera <code>/spamdb action log</code> hasta que confíes en ella. Cuando la comprobación esté activa, el ID de Telegram de cada nuevo miembro se enviará a lols.bot."
 
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Resumen semanal</b>
+
+  El bot cuenta cada día los mensajes, las entradas y las salidas de este chat, en UTC, y guarda los totales durante un año. Un resumen semanal los publicará aquí; mientras tanto, los administradores pueden ver una vista previa.
+
+  *Comandos de administrador:*
+
+  × /digest now: Muestra los mensajes, las entradas y las salidas de hoy y los totales de esta semana (desde el lunes a las 00:00 UTC).
+
+  Los recuentos se guardan por chat y nunca incluyen el texto de los mensajes.
+digest_globally_disabled: "❌ El operador del bot ha desactivado el resumen."
+digest_usage: "Usa <code>/digest now</code> para ver los totales de actividad de este chat."
+digest_preview_title: "<b>📊 Vista previa de actividad</b>"
+digest_preview_today: "<b>Hoy</b> ({day} UTC)"
+digest_preview_week: "<b>Esta semana</b> (desde {day} UTC)"
+digest_preview_messages: "Mensajes: <b>{count}</b>"
+digest_preview_joins: "Entradas: <b>{count}</b>"
+digest_preview_leaves: "Salidas: <b>{count}</b>"
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Soporte para administradores anónimos</b>
@@ -2833,6 +2853,8 @@ rules_extend_msg: |
   /resetrulesbtn — igual que /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — muestra o alterna la comprobación de bases de spam, elige sus bases o fija su acción
+digest_extend_msg: |
+  /digest — muestra una vista previa de los totales diarios y semanales de actividad de este chat
 warns_extend_msg: |
   /warn — advertir a un usuario
   /swarn — advertir y borrar tu comando

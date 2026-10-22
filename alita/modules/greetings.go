@@ -31,6 +31,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -689,6 +690,12 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if leftMember.Id == bot.Id {
 		return ext.EndGroups
 	}
+
+	// A leave arrives only as this ChatMemberUpdated: cleanService matches the
+	// LeftChatMember service message but never processes it. Counting here is
+	// therefore exactly one increment per membership change, and delivering
+	// the service message too does not add another.
+	stats.RecordLeave(chat.Id)
 
 	// A ban keeps the join claim: a guard that banned the newcomer on one
 	// update of the join must not see the join again on the other.

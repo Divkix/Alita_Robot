@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
 func spawnAsyncUpdate(fn func()) {
@@ -204,6 +205,15 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	repliedMsg := msg.ReplyToMessage
+
+	// Every group message counts once, whatever its sender: a real user, an
+	// anonymous admin (GroupAnonymousBot) or a channel. This watcher matches
+	// new messages only (handlers.NewMessage excludes edited ones), so an edit
+	// never reaches this line. The increment is in process memory; see the
+	// stats package for the batched flush.
+	if chat != nil && (chat.Type == "group" || chat.Type == "supergroup") {
+		stats.RecordMessage(chat.Id)
+	}
 
 	if user != nil {
 		if isChannelSender(user) {
