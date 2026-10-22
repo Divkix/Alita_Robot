@@ -11,6 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
@@ -209,4 +210,50 @@ func TestAdminWarnAtTheLimitLogsNothingAutomated(t *testing.T) {
 	if entries := spamDBMessagesTo(client, automatedLogChannel); len(entries) != 0 {
 		t.Fatalf("log channel entries = %d, want none: %v", len(entries), entries)
 	}
+}
+
+func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
+	checkAutomatedLog(t, automatedLogCase{
+		name:       "wrong answers",
+		tag:        "CAPTCHA_FAILED",
+		userID:     42,
+		want:       []string{"ban", "wrong answers"},
+		failMethod: "banChatMember",
+		run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
+			if err := captcha.SetCaptchaFailureAction(chat.Id, "ban"); err != nil {
+				t.Fatalf("SetCaptchaFailureAction() error = %v", err)
+			}
+			if err := captcha.SetCaptchaMaxAttempts(chat.Id, 1); err != nil {
+				t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
+			}
+			attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
+			if err != nil {
+				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+			}
+			member := gotgbot.User{Id: 42, FirstName: "Member"}
+			ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"}))
+			_ = captchaModule.captchaVerifyCallback(bot, ctx)
+		},
+	})
+
+	checkAutomatedLog(t, automatedLogCase{
+		name:       "timeout",
+		tag:        "CAPTCHA_FAILED",
+		userID:     42,
+		want:       []string{"kick", "timeout", "Automated Log Chat"},
+		failMethod: "unbanChatMember",
+		run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
+			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+				t.Fatalf("SetCaptchaEnabled() error = %v", err)
+			}
+			if err := captcha.SetCaptchaFailureAction(chat.Id, "kick"); err != nil {
+				t.Fatalf("SetCaptchaFailureAction() error = %v", err)
+			}
+			attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
+			if err != nil {
+				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+			}
+			_, _ = expireCaptchaAttempt(bot, attempt)
+		},
+	})
 }

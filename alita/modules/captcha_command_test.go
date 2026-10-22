@@ -1385,7 +1385,7 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 				}
 			}
 
-			claimed, applied := handleCaptchaTimeout(bot, chat.Id, member.Id, attempt.ID, 456, tt.action)
+			claimed, applied := handleCaptchaTimeout(bot, chat.Id, member.Id, attempt.ID, 456, tt.action, captchaFailedTimeout)
 			if !claimed || !applied {
 				t.Fatalf("handleCaptchaTimeout(%s) = (%v, %v), want claimed and applied", tt.name, claimed, applied)
 			}
@@ -1414,7 +1414,7 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 	t.Run("missing attempt", func(t *testing.T) {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
-		if claimed, applied := handleCaptchaTimeout(bot, uniqueModuleChatID(), 42, 999999, 456, "kick"); claimed || applied {
+		if claimed, applied := handleCaptchaTimeout(bot, uniqueModuleChatID(), 42, 999999, 456, "kick", captchaFailedTimeout); claimed || applied {
 			t.Fatalf("handleCaptchaTimeout(missing) = (%v, %v), want false, false", claimed, applied)
 		}
 		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
@@ -1430,7 +1430,7 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 		if err != nil {
 			t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 		}
-		if claimed, applied := handleCaptchaTimeout(bot, chat.Id, 43, attempt.ID, 456, "kick"); claimed || applied {
+		if claimed, applied := handleCaptchaTimeout(bot, chat.Id, 43, attempt.ID, 456, "kick", captchaFailedTimeout); claimed || applied {
 			t.Fatalf("handleCaptchaTimeout(mismatch) = (%v, %v), want false, false", claimed, applied)
 		}
 		if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current == nil {
@@ -1462,7 +1462,7 @@ func TestHandleCaptchaTimeoutLeavesAnExistingBanInPlace(t *testing.T) {
 				t.Fatalf("CreateMutedUser() error = %v", err)
 			}
 
-			claimed, applied := handleCaptchaTimeout(bot, chat.Id, 42, attempt.ID, 456, action)
+			claimed, applied := handleCaptchaTimeout(bot, chat.Id, 42, attempt.ID, 456, action, captchaFailedTimeout)
 			if !claimed || applied {
 				t.Fatalf("handleCaptchaTimeout() = (%v, %v), want claimed, not applied", claimed, applied)
 			}
@@ -1543,7 +1543,7 @@ func TestHandleCaptchaTimeoutRestoresPermissionsWhenActionFails(t *testing.T) {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
 
-	claimed, applied := handleCaptchaTimeout(bot, chatID, 42, attempt.ID, 123, "ban")
+	claimed, applied := handleCaptchaTimeout(bot, chatID, 42, attempt.ID, 123, "ban", captchaFailedTimeout)
 	if !claimed || applied {
 		t.Fatalf("handleCaptchaTimeout() = (%v, %v), want claimed with failed action", claimed, applied)
 	}
