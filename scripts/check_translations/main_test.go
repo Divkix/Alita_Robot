@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -290,6 +292,189 @@ func TestHandler(t *testing.T) {
 	}
 	if foundKeys["test_only_key"] {
 		t.Error("Expected 'test_only_key' from module_test.go to be excluded, but it was found")
+	}
+}
+
+func writeFixtures(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	return dir
+}
+
+func loadFixtureLocales(t *testing.T, files map[string]string) map[string]map[string]any {
+	t.Helper()
+	locales, err := loadLocaleFiles(writeFixtures(t, files))
+	if err != nil {
+		t.Fatalf("loadLocaleFiles() error = %v", err)
+	}
+	return locales
+}
+
+const fixtureEnglish = `copied: "Hello there, %s!"
+translated: "Good morning"
+format_only: "%s (%d, %v)"
+symbols_only: " - %s"
+dash: "—"
+html_and_placeholder: "<b>{first}</b>: <code>%s</code>"
+emoji_only: "✅ %s"
+url_only: "https://t.me/%s"
+brand: "Telegram"
+nested:
+  child: "Nested text"
+`
+
+func flatten(locale map[string]any) map[string]string {
+	out := make(map[string]string)
+	flattenStrings("", locale, out)
+	return out
+}
+
+func loadFixtureAllowlist(t *testing.T, content string) allowlist {
+	t.Helper()
+	dir := writeFixtures(t, map[string]string{"allow.txt": content})
+	allow, err := loadAllowlist(filepath.Join(dir, "allow.txt"))
+	if err != nil {
+		t.Fatalf("loadAllowlist() error = %v", err)
+	}
+	return allow
+}
+
+func TestCheckUntranslatedValues_ListsKeysCopiedFromEnglish(t *testing.T) {
+	spanish := strings.Replace(fixtureEnglish, `"Good morning"`, `"Buenos días"`, 1) + "only_here: \"Hello\"\n"
+	locales := loadFixtureLocales(t, map[string]string{"en.yml": fixtureEnglish, "es.yml": spanish})
+
+	got := checkUntranslatedValues(flatten(locales["en.yml"]), locales["es.yml"], "es", allowlist{})
+	if want := []string{"brand", "copied", "nested.child"}; !slices.Equal(got, want) {
+		t.Fatalf("checkUntranslatedValues() = %v, want %v", got, want)
+	}
+}
+
+func TestCheckUntranslatedValues_AllowlistSkipsListedKeysOnly(t *testing.T) {
+	locales := loadFixtureLocales(t, map[string]string{
+		"en.yml": fixtureEnglish,
+		"es.yml": fixtureEnglish,
+		"fr.yml": fixtureEnglish,
+	})
+	allow := loadFixtureAllowlist(t, `# comment line
+
+brand          # product name, same in every language
+es:copied      # pretend this one is Spanish too
+`)
+	en := flatten(locales["en.yml"])
+
+	gotES := checkUntranslatedValues(en, locales["es.yml"], "es", allow)
+	if want := []string{"nested.child", "translated"}; !slices.Equal(gotES, want) {
+		t.Errorf("es: got %v, want %v", gotES, want)
+	}
+	gotFR := checkUntranslatedValues(en, locales["fr.yml"], "fr", allow)
+	if want := []string{"copied", "nested.child", "translated"}; !slices.Equal(gotFR, want) {
+		t.Errorf("fr: got %v, want %v (an es: entry must not cover fr)", gotFR, want)
+	}
+}
+
+func TestReportUntranslatedValues_CountsEveryLocaleButEnglishAndConfig(t *testing.T) {
+	locales := loadFixtureLocales(t, map[string]string{
+		"en.yml":     "greeting: \"Hello\"\nfarewell: \"Goodbye\"\n",
+		"es.yml":     "greeting: \"Hello\"\nfarewell: \"Adiós\"\n",
+		"ru.yml":     "greeting: \"Hello\"\nfarewell: \"Goodbye\"\n",
+		"config.yml": "greeting: \"Hello\"\nfarewell: \"Goodbye\"\n",
+	})
+
+	got, err := reportUntranslatedValues(locales, allowlist{})
+	if err != nil {
+		t.Fatalf("reportUntranslatedValues() error = %v", err)
+	}
+	if got != 3 {
+		t.Fatalf("reportUntranslatedValues() = %d, want 3 (es greeting, ru greeting and farewell)", got)
+	}
+}
+
+func TestReportUntranslatedValues_CountsAllowlistEntriesThatMatchNothing(t *testing.T) {
+	locales := loadFixtureLocales(t, map[string]string{
+		"en.yml": "greeting: \"Hello\"\nfarewell: \"Goodbye\"\n",
+		"es.yml": "greeting: \"Hello\"\nfarewell: \"Adiós\"\n",
+	})
+	allow := loadFixtureAllowlist(t, `es:greeting   # still identical, so needed
+es:farewell   # translated since, so stale
+fr:greeting   # no fr locale
+gone_key      # no such key
+`)
+
+	got, err := reportUntranslatedValues(locales, allow)
+	if err != nil {
+		t.Fatalf("reportUntranslatedValues() error = %v", err)
+	}
+	if got != 3 {
+		t.Fatalf("reportUntranslatedValues() = %d, want 3 (the three entries that match nothing)", got)
+	}
+}
+
+func TestReportUntranslatedValues_FailsWithoutEnglish(t *testing.T) {
+	locales := loadFixtureLocales(t, map[string]string{"es.yml": "greeting: \"Hello\"\n"})
+
+	if _, err := reportUntranslatedValues(locales, allowlist{}); err == nil {
+		t.Fatal("reportUntranslatedValues() error = nil, want an error when en.yml is missing")
+	}
+}
+
+func TestHasTranslatableText(t *testing.T) {
+	cases := map[string]bool{
+		"Hello":                         true,
+		"Status: <code>%s</code>":       true,
+		"Привет":                        true,
+		"नमस्ते":                        true,
+		"100% OK":                       true,
+		"50% of %d":                     true,
+		"—":                             false,
+		" - %s":                         false,
+		"%s (%s, %s)":                   false,
+		"%[1]s: %-5d %.2f %%":           false,
+		"<b>{first}</b> {last}":         false,
+		"<a href=\"%s\">%s</a>":         false,
+		"https://example.com/path?x=1":  false,
+		"t.me/%s":                       false,
+		"✅ ❌ 🔒 ⚙️ 1. 2.":                false,
+		"&lt;%s&gt; &amp; &#8212;":      false,
+		"<code>%s</code> https://x.y/z": false,
+	}
+	for in, want := range cases {
+		if got := hasTranslatableText(in); got != want {
+			t.Errorf("hasTranslatableText(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestLoadAllowlist_RejectsEntryWithoutReason(t *testing.T) {
+	for _, content := range []string{"es:button_no\n", "es:button_no #   \n", "es:button_no extra # reason\n"} {
+		dir := writeFixtures(t, map[string]string{"allow.txt": content})
+		if _, err := loadAllowlist(filepath.Join(dir, "allow.txt")); err == nil {
+			t.Errorf("loadAllowlist(%q) error = nil, want an error", content)
+		}
+	}
+}
+
+// The repository's own locales must pass with the committed allowlist, and
+// every allowlist entry must still be needed.
+func TestRepositoryLocalesHaveNoValuesCopiedFromEnglish(t *testing.T) {
+	locales, err := loadLocaleFiles("../../locales")
+	if err != nil {
+		t.Fatalf("loadLocaleFiles() error = %v", err)
+	}
+	allow, err := loadAllowlist(identicalAllowlistFile)
+	if err != nil {
+		t.Fatalf("loadAllowlist() error = %v", err)
+	}
+	got, err := reportUntranslatedValues(locales, allow)
+	if err != nil {
+		t.Fatalf("reportUntranslatedValues() error = %v", err)
+	}
+	if got != 0 {
+		t.Fatalf("reportUntranslatedValues() = %d, want 0; run make check-translations for the list", got)
 	}
 }
 

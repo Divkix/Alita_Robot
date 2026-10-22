@@ -26,7 +26,7 @@ Update this file in the same commit as any change that invalidates a rule below.
 ```bash
 make test                 # the only valid full test run (tags, race, coverage, skip gate)
 make lint                 # golangci-lint v2
-make check-translations   # missing locale keys
+make check-translations   # missing locale keys; values copied from en.yml (allowlist: scripts/check_translations/identical_allowlist.txt)
 make check-docs           # generated-docs drift; fix with `make generate-docs`
 make bump-version TAG=vX.Y.Z   # the only way to change version strings
 go test -tags testtools -race -count=1 -run '^TestName$' ./alita/db/warns   # one test
