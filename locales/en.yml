@@ -2551,7 +2551,7 @@ logchannels_help_msg: |
   × /logchannel: Show the current log channel.
   × /logcategories: List categories.
 
-  Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated (actions the bot takes on its own: spam database hits, antiflood and blacklist actions, the warn limit reached through blacklist warns, failed captchas, raid mode switched on by the join threshold, bots banned by the bots lock), warns (warnings admins give, remove and reset, and the warn limit their warns reach; off until turned on with /log warns), other. Nothing is logged under other yet.
+  Categories: settings (log channel and raid mode changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated (actions the bot takes on its own: spam database hits, antiflood and blacklist actions, the warn limit reached through blacklist warns, failed captchas, raid mode switched on by the join threshold, bots banned by the bots lock), warns (warnings admins give, remove and reset, and the warn limit their warns reach; off until turned on with /log warns), other. Nothing is logged under other yet.
 
   From PM, name the group first in /setlog, /unsetlog, /log, /nolog and /logchannel: its title, @username or ID.
 feds_pm_only: "This command can only be used in private chat with me."
@@ -2639,7 +2639,7 @@ logs_pm_set_ok: "Log channel set. Admin actions from <b>{group}</b> will be sent
 logs_unset_ok: "Log channel removed."
 logs_not_set: "No log channel is set for this chat."
 logs_current: "Log channel: <code>{id}</code>"
-logs_categories: "Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated (actions the bot takes on its own: spam database hits, antiflood and blacklist actions, the warn limit reached through blacklist warns, failed captchas, raid mode switched on by the join threshold, bots banned by the bots lock), warns (warnings admins give, remove and reset, and the warn limit their warns reach; off until turned on with /log warns), other. Nothing is logged under other yet."
+logs_categories: "Categories: settings (log channel and raid mode changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated (actions the bot takes on its own: spam database hits, antiflood and blacklist actions, the warn limit reached through blacklist warns, failed captchas, raid mode switched on by the join threshold, bots banned by the bots lock), warns (warnings admins give, remove and reset, and the warn limit their warns reach; off until turned on with /log warns), other. Nothing is logged under other yet."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."

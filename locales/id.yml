@@ -2530,7 +2530,7 @@ logchannels_help_msg: |
   × /logchannel: Tampilkan kanal log saat ini.
   × /logcategories: Daftar kategori.
 
-  Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), warns (peringatan yang diberikan, dihapus, dan diatur ulang oleh admin, serta batas peringatan yang tercapai lewat peringatan mereka; mati sampai dinyalakan dengan /log warns), other. Belum ada yang dicatat di other.
+  Kategori: settings (perubahan kanal log dan mode AntiRaid), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), warns (peringatan yang diberikan, dihapus, dan diatur ulang oleh admin, serta batas peringatan yang tercapai lewat peringatan mereka; mati sampai dinyalakan dengan /log warns), other. Belum ada yang dicatat di other.
 
   Di chat pribadi, sebutkan grup lebih dulu pada /setlog, /unsetlog, /log, /nolog dan /logchannel: judulnya, @username, atau ID-nya.
 feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."
@@ -2618,7 +2618,7 @@ logs_pm_set_ok: "Kanal log diatur. Tindakan admin dari <b>{group}</b> akan dikir
 logs_unset_ok: "Kanal log dihapus."
 logs_not_set: "Belum ada kanal log untuk obrolan ini."
 logs_current: "Kanal log: <code>{id}</code>"
-logs_categories: "Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), warns (peringatan yang diberikan, dihapus, dan diatur ulang oleh admin, serta batas peringatan yang tercapai lewat peringatan mereka; mati sampai dinyalakan dengan /log warns), other. Belum ada yang dicatat di other."
+logs_categories: "Kategori: settings (perubahan kanal log dan mode AntiRaid), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated (tindakan yang diambil bot sendiri: temuan di basis data spam, tindakan antiflood dan daftar hitam, batas peringatan yang tercapai lewat peringatan daftar hitam, captcha gagal, mode AntiRaid yang menyala karena ambang bergabung, bot yang diban oleh kunci bots), warns (peringatan yang diberikan, dihapus, dan diatur ulang oleh admin, serta batas peringatan yang tercapai lewat peringatan mereka; mati sampai dinyalakan dengan /log warns), other. Belum ada yang dicatat di other."
 logs_enabled: "Pencatatan diaktifkan untuk: {cats}"
 logs_disabled: "Pencatatan dinonaktifkan untuk: {cats}"
 logs_unknown_category: "Kategori tidak dikenal. Lihat /logcategories."

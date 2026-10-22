@@ -99,6 +99,16 @@ func Warn(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, tag string, u
 	Log(b, chat, logchannels.CategoryWarns, entryText(tag, actor, userID, userName, fields))
 }
 
+// SettingChange logs a chat setting an admin changed under the settings
+// category, with its own tag and the given fields. Call it only after the
+// change was made.
+func SettingChange(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, tag string, fields ...Field) {
+	if actor == nil {
+		return
+	}
+	Log(b, chat, logchannels.CategorySettings, entryText(tag, actor, 0, "", fields))
+}
+
 // entryText renders an entry: the tag, the admin (none when actor is nil),
 // the user (none when userID is 0) and one line per field with a value.
 func entryText(tag string, actor *gotgbot.User, userID int64, userName string, fields []Field) string {
