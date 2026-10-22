@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	// Embeds the IANA time zone database so chat timezones load on hosts
+	// without /usr/share/zoneinfo (the alpine debug image, nixpacks builds).
+	_ "time/tzdata"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
