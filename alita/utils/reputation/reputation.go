@@ -2,9 +2,11 @@
 // kicked a user, using moderation_events as the shared signal.
 //
 // The signal is a rolling window, not a score: when a human unbans the user
-// inside the same window the signal clears. Lookups fail open — a database
-// error is logged and reported as not listed, so a join is never blocked by
-// it — and a verdict is cached per user for ten minutes. Nothing invalidates
+// inside the same window in a chat that banned or kicked them earlier in that
+// window, the signal clears. A no-op /unban in a chat that never removed the
+// user clears nothing. Lookups fail open — a database error is logged and
+// reported as not listed, so a join is never blocked by it — and a verdict is
+// cached per user for ten minutes. Nothing invalidates
 // that key on write or on the retention sweep; the next lookup after the TTL
 // sees the new window, which is the only refresh the feature needs.
 package reputation
@@ -41,7 +43,9 @@ type signal struct {
 
 // Lookup reports whether userID was banned or kicked by at least
 // REPUTATION_MIN_CHATS distinct chats inside the last REPUTATION_WINDOW_DAYS
-// days, and whether no human unban was recorded in that window.
+// days, and whether no human unban reversed one of those removals. An unban
+// only reverses a ban or kick the same chat recorded earlier in the window; an
+// unban in a chat that never removed the user does not clear the signal.
 //
 // It fails open. With ENABLE_REPUTATION off it returns not listed without
 // touching the database; a database error is logged at warn level and returned

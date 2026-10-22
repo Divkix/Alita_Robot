@@ -171,6 +171,48 @@ func TestLookupUnbanInsideTheWindowClears(t *testing.T) {
 	}
 }
 
+// A no-op /unban in a chat that never banned or kicked the user must not clear
+// a signal other chats recorded (M7).
+func TestLookupUnrelatedChatUnbanDoesNotClear(t *testing.T) {
+	enableReputation(t, 3, 30)
+	at := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	fixClock(t, at)
+	userID := testID()
+	for range 3 {
+		seedEvent(t, testID(), userID, models.ModerationActionBan, at.Add(-5*24*time.Hour))
+	}
+	seedEvent(t, testID(), userID, models.ModerationActionUnban, at.Add(-time.Hour))
+
+	listed, chats, err := Lookup(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("Lookup() error = %v", err)
+	}
+	if !listed || chats != 3 {
+		t.Fatalf("Lookup() = %v, %d; want an unban in a chat that never removed the user to leave the 3-chat signal", listed, chats)
+	}
+}
+
+// An unban recorded before the chat's own ban does not reverse it (M7).
+func TestLookupUnbanBeforeTheBanDoesNotClear(t *testing.T) {
+	enableReputation(t, 3, 30)
+	at := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	fixClock(t, at)
+	userID := testID()
+	chatIDs := []int64{testID(), testID(), testID()}
+	for _, chatID := range chatIDs {
+		seedEvent(t, chatID, userID, models.ModerationActionBan, at.Add(-5*24*time.Hour))
+	}
+	seedEvent(t, chatIDs[0], userID, models.ModerationActionUnban, at.Add(-6*24*time.Hour))
+
+	listed, chats, err := Lookup(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("Lookup() error = %v", err)
+	}
+	if !listed || chats != 3 {
+		t.Fatalf("Lookup() = %v, %d; want an unban older than the chat's ban to leave the 3-chat signal", listed, chats)
+	}
+}
+
 func TestLookupUnbanOutsideTheWindowDoesNotClear(t *testing.T) {
 	enableReputation(t, 3, 30)
 	at := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)

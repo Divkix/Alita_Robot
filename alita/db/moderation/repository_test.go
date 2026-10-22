@@ -348,6 +348,42 @@ func TestReputationSignalReportsAnUnbanInsideTheWindow(t *testing.T) {
 	}
 }
 
+func TestReputationSignalIgnoresAnUnbanInAnotherChat(t *testing.T) {
+	now := time.Now().UTC()
+	userID, chats := newSignalFixture(t, 4)
+	for _, chatID := range chats[:3] {
+		seedSignalEvent(t, chatID, userID, models.ModerationActionBan, now.Add(-5*24*time.Hour))
+	}
+	// The fourth chat never banned or kicked the user, so its /unban is a no-op.
+	seedSignalEvent(t, chats[3], userID, models.ModerationActionUnban, now.Add(-time.Hour))
+
+	gotChats, unbanned, err := ReputationSignal(userID, now.Add(-30*24*time.Hour))
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 3 || unbanned {
+		t.Fatalf("ReputationSignal() = %d, %v; want the 3 removals and no clearing unban", gotChats, unbanned)
+	}
+}
+
+func TestReputationSignalIgnoresAnUnbanBeforeTheRemoval(t *testing.T) {
+	now := time.Now().UTC()
+	userID, chats := newSignalFixture(t, 3)
+	for _, chatID := range chats {
+		seedSignalEvent(t, chatID, userID, models.ModerationActionBan, now.Add(-5*24*time.Hour))
+	}
+	// Same chat, but the unban came before the ban, so it reversed nothing.
+	seedSignalEvent(t, chats[0], userID, models.ModerationActionUnban, now.Add(-6*24*time.Hour))
+
+	gotChats, unbanned, err := ReputationSignal(userID, now.Add(-30*24*time.Hour))
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 3 || unbanned {
+		t.Fatalf("ReputationSignal() = %d, %v; want the 3 removals and no clearing unban", gotChats, unbanned)
+	}
+}
+
 func TestReputationSignalIgnoresAnUnbanBeforeTheWindow(t *testing.T) {
 	now := time.Now().UTC()
 	userID, chats := newSignalFixture(t, 3)

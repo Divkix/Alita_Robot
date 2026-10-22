@@ -101,11 +101,13 @@ become required. The key is redacted from logs.
 Operator kill switch for the shared reputation lookup. When `false`, the shared
 source is unavailable and a chat cannot enable it. The lookup lists a user that
 at least `REPUTATION_MIN_CHATS` distinct chats banned or kicked inside the
-rolling window, clears the signal on a human unban in that window, and treats a
-failed lookup as not listed so a join is never blocked. Only user IDs and
-moderation actions are aggregated; no message content is stored. The feature is
-off by default and every chat stays opted out until its spam database settings
-enable the shared source.
+rolling window, clears the signal when a human unban in that window reverses a
+ban or kick the same chat recorded earlier in the window, and treats a failed
+lookup as not listed so a join is never blocked. An unban in a chat that never
+removed the user changes nothing. Only user IDs and moderation actions are
+aggregated; no message content is stored. The feature is off by default and
+every chat stays opted out until its spam database settings enable the shared
+source.
 
 | Property | Value |
 |----------|-------|
@@ -129,7 +131,8 @@ one chat.
 ### `REPUTATION_WINDOW_DAYS`
 
 Rolling window, in days, the shared reputation count looks back. A human unban
-inside the window clears the signal. The maximum is `180`, the moderation event
+inside the window clears the signal only when the same chat banned or kicked
+the user earlier in the window. The maximum is `180`, the moderation event
 retention: older events are deleted, so a longer window could never be observed
 in full.
 
