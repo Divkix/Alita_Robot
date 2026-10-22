@@ -14,6 +14,7 @@ func TestMain(m *testing.M) {
 	os.Exit(testdb.Run(m,
 		&models.DigestSettings{},
 		&models.ChatDailyStat{},
+		&models.ChatHourlyStat{},
 		&models.ModerationEvent{},
 		&models.LogChannel{},
 	))

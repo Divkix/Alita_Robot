@@ -199,8 +199,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (spamdb, captcha, antiraid, locks, blacklists, warn limits, report auto-mute): the shared-reputation join check
   reads this table, and a join it blocks must not feed the signal back. A reputation unban clears the signal only
   when the same chat removed the user earlier in the window.
-- Daily activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats` every
-  60 s and on shutdown (before DB close). Never add a DB write per message; joins count after
+- Activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats` and
+  `chat_hourly_stats` (UTC day and hour) in one transaction every 60 s and on shutdown (before DB close). Never add a
+  DB write per message; joins count after
   `claimRecentJoinProcessing`, leaves in `leftMember`. Counts are approximate across a crash by design.
 - A `/settings` summary toggle (`settingsToggles`, `settings_toggles.go`) is keyed by its row's `Command` and cycles
   the values that row shows. It must check what its command checks (`botAdmin`, and `right`, which returns a

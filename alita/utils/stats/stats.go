@@ -1,5 +1,6 @@
-// Package stats keeps per-chat daily activity counters in process memory and
-// writes them to chat_daily_stats in one batched upsert every 60 seconds.
+// Package stats keeps per-chat activity counters in process memory and writes
+// them to chat_daily_stats and chat_hourly_stats in one batched, transactional
+// upsert every 60 seconds.
 //
 // Counting never touches the database: one sync.Map lookup and one atomic add
 // per message, join or leave. A crash therefore loses at most the events since
@@ -36,10 +37,12 @@ const (
 	metricLeaves
 )
 
-// statKey identifies one counter: a chat, a UTC day and one metric.
+// statKey identifies one counter: a chat, a UTC day and hour, and one metric.
+// The daily rows sum a day's hours; the hourly rows keep messages per hour.
 type statKey struct {
 	chatID int64
 	day    string
+	hour   int16
 	metric metric
 }
 
@@ -66,6 +69,11 @@ func Day(t time.Time) string {
 	return t.UTC().Format(dayLayout)
 }
 
+// hourOf returns t's UTC hour, the hour key stored in chat_hourly_stats.
+func hourOf(t time.Time) int16 {
+	return int16(t.UTC().Hour())
+}
+
 func counter(key statKey) *atomic.Int64 {
 	if value, ok := counters.Load(key); ok {
 		return value.(*atomic.Int64)
@@ -75,7 +83,8 @@ func counter(key statKey) *atomic.Int64 {
 }
 
 func record(chatID int64, m metric) {
-	counter(statKey{chatID: chatID, day: Day(timeNow()), metric: m}).Add(1)
+	now := timeNow()
+	counter(statKey{chatID: chatID, day: Day(now), hour: hourOf(now), metric: m}).Add(1)
 }
 
 // RecordMessage counts one group message.
@@ -106,14 +115,18 @@ func Flush() error {
 		return nil
 	}
 
-	if err := chatstats.AddDaily(rowsFromDeltas(deltas)); err != nil {
+	batch := chatstats.Batch{
+		Daily:  rowsFromDeltas(deltas),
+		Hourly: hourlyRowsFromDeltas(deltas),
+	}
+	if err := chatstats.Add(batch); err != nil {
 		for key, delta := range deltas {
 			counter(key).Add(delta)
 		}
 		return err
 	}
 
-	pruneBefore(Day(now))
+	pruneBefore(Day(now), hourOf(now))
 	return nil
 }
 
@@ -129,7 +142,8 @@ func drain() map[statKey]int64 {
 	return deltas
 }
 
-// rowsFromDeltas folds the per-metric deltas into one row per chat and day.
+// rowsFromDeltas folds the per-hour, per-metric deltas into one row per chat
+// and day.
 func rowsFromDeltas(deltas map[statKey]int64) []models.ChatDailyStat {
 	type rowKey struct {
 		chatID int64
@@ -163,13 +177,33 @@ func rowsFromDeltas(deltas map[statKey]int64) []models.ChatDailyStat {
 	return rows
 }
 
-// pruneBefore drops drained counters for days before today, so the map does
-// not keep one entry per chat and metric per day forever. An event for an old
-// day that races the delete can be lost; that is inside the same at-most-one-
-// minute trade the package documents.
-func pruneBefore(today string) {
+// hourlyRowsFromDeltas keeps the message deltas, one row per chat, day and
+// hour. Joins and leaves have no hourly table.
+func hourlyRowsFromDeltas(deltas map[statKey]int64) []models.ChatHourlyStat {
+	rows := make([]models.ChatHourlyStat, 0, len(deltas))
+	for key, delta := range deltas {
+		if key.metric != metricMessages {
+			continue
+		}
+		rows = append(rows, models.ChatHourlyStat{
+			ChatID:   key.chatID,
+			Day:      key.day,
+			Hour:     key.hour,
+			Messages: delta,
+		})
+	}
+	return rows
+}
+
+// pruneBefore drops drained counters for hours before the current one, so the
+// map does not keep one entry per chat and metric per hour forever. An event
+// for a past hour that races the delete can be lost; that is inside the same
+// at-most-one-minute trade the package documents.
+func pruneBefore(today string, hour int16) {
 	counters.Range(func(key, value any) bool {
-		if key.(statKey).day < today && value.(*atomic.Int64).Load() == 0 {
+		k := key.(statKey)
+		past := k.day < today || (k.day == today && k.hour < hour)
+		if past && value.(*atomic.Int64).Load() == 0 {
 			counters.CompareAndDelete(key, value)
 		}
 		return true
