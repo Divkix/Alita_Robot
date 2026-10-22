@@ -40,9 +40,10 @@ type warnUserView struct {
 // warningsResponse is the GET shape; ReadOnly disables the remove buttons and
 // NextCursor is the last user id of this page when another page follows.
 type warningsResponse struct {
-	Users      []warnUserView `json:"users"`
-	NextCursor int64          `json:"next_cursor,omitempty"`
-	ReadOnly   bool           `json:"read_only"`
+	Users      []warnUserView      `json:"users"`
+	NextCursor int64               `json:"next_cursor,omitempty"`
+	ReadOnly   bool                `json:"read_only"`
+	Names      map[string]userName `json:"names,omitempty"`
 }
 
 type warningRemoveRequest struct {
@@ -96,7 +97,9 @@ func (p *Panel) handleWarnings(w http.ResponseWriter, r *http.Request) {
 	expiry := warns.GetWarnSettingContext(r.Context(), access.ChatID).WarnExpiry
 
 	users := make([]warnUserView, 0, len(rows))
+	ids := make([]int64, 0, len(rows))
 	for _, row := range rows {
+		ids = append(ids, row.UserID)
 		view := warnUserView{UserID: row.UserID, Entries: make([]warnEntryView, 0, len(row.Entries))}
 		for _, entry := range row.Entries {
 			expired := warns.EntryExpired(entry, expiry)
@@ -115,6 +118,7 @@ func (p *Panel) handleWarnings(w http.ResponseWriter, r *http.Request) {
 			if entry.Anonymous {
 				entryView.WarnedBy = 0
 			}
+			ids = append(ids, entryView.WarnedBy)
 			view.Entries = append(view.Entries, entryView)
 		}
 		users = append(users, view)
@@ -124,6 +128,7 @@ func (p *Panel) handleWarnings(w http.ResponseWriter, r *http.Request) {
 		Users:      users,
 		NextCursor: next,
 		ReadOnly:   !access.BotAdmin,
+		Names:      userNames(r.Context(), ids),
 	})
 }
 

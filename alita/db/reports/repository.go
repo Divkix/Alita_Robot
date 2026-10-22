@@ -192,15 +192,7 @@ func SetUserReportSettings(userID int64, pref bool) error {
 }
 
 func LoadReportStats() (uRCount, gRCount int64) {
-	err := db.DB.Model(&models.ReportUserSettings{}).Where("enabled = ?", true).Count(&uRCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadReportStats (users): %v", err)
-	}
-
-	err = db.DB.Model(&models.ReportChatSettings{}).Where("enabled = ?", true).Count(&gRCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadReportStats (chats): %v", err)
-	}
-
+	uRCount = db.CountRows(&models.ReportUserSettings{}, "enabled = ?", true)
+	gRCount = db.CountRows(&models.ReportChatSettings{}, "enabled = ?", true)
 	return
 }

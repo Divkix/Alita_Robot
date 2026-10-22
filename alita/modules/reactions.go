@@ -260,11 +260,10 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := chat_status.IsUserConnected(b, ctx, false, false)
+	chat := resolveMemberChat(b, ctx, false)
 	if chat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = chat
 
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {

@@ -56,7 +56,7 @@ Disposable snapshots use `alita:cache:`. Operational state uses its existing `al
 | `alita:cache:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
 | `alita:cache:captcha_settings:{chatId}` | Captcha settings (30 min TTL) |
 | `alita:cache:approvals:{chatId}` | Approved users list (30 min TTL) |
-| `alita:antiraid:state:{chatId}` | Live anti-raid state (TTL covers the requested raid expiry plus one polling interval) |
+| `alita:antiraid:state:{chatId}` | Live anti-raid state (TTL covers the requested raid expiry plus a 30 s grace; readers treat it as expired from the expiry on) |
 | `alita:antiraid:joins:{chatId}` | Anti-raid join tracking (60s counting window) |
 | `alita:cache:locks_map:{chatId}` | Lock status (1 hour TTL, from optimized queries) |
 | `alita:cache:user:{userId}` | User basic info (1 hour TTL, from optimized queries) |

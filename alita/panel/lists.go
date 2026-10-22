@@ -232,14 +232,8 @@ func parseListPage(w http.ResponseWriter, r *http.Request) (query string, limit,
 	values := r.URL.Query()
 	query = strings.ToLower(strings.TrimSpace(values.Get("q")))
 
-	limit = listPageDefault
-	if raw := values.Get("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed <= 0 {
-			writeJSONError(w, http.StatusBadRequest, "invalid_limit", "limit must be a positive integer")
-			return "", 0, 0, false
-		}
-		limit = min(parsed, listPageMax)
+	if limit, ok = parsePageLimit(w, values.Get("limit"), listPageDefault, listPageMax); !ok {
+		return "", 0, 0, false
 	}
 
 	rawCursor := values.Get("cursor")

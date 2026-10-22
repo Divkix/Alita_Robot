@@ -11,11 +11,10 @@ import (
 )
 
 type KeywordMatcher struct {
-	matcher   *ahocorasick.Matcher
-	patterns  []string
-	mu        sync.RWMutex
-	lastBuild time.Time
-	lastUsed  atomic.Int64
+	matcher  *ahocorasick.Matcher
+	patterns []string
+	mu       sync.RWMutex
+	lastUsed atomic.Int64
 }
 
 func newKeywordMatcher(patterns []string) *KeywordMatcher {
@@ -49,7 +48,6 @@ func (km *KeywordMatcher) build() {
 	}
 
 	km.matcher = ahocorasick.NewStringMatcher(lowerPatterns)
-	km.lastBuild = time.Now()
 
 	log.WithFields(log.Fields{
 		"patterns_count": len(km.patterns),

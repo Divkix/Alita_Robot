@@ -539,13 +539,7 @@ func GetWarnSettingContext(ctx context.Context, chatId int64) *models.WarnSettin
 }
 
 func GetAllChatWarns(chatId int64) int {
-	var count int64
-	err := db.DB.Model(&models.Warns{}).Where("chat_id = ?", chatId).Count(&count).Error
-	if err != nil {
-		log.Errorf("[Database] GetAllChatWarns: %v", err)
-		return 0
-	}
-	return int(count)
+	return int(db.CountRows(&models.Warns{}, "chat_id = ?", chatId))
 }
 
 func ResetAllChatWarns(chatId int64) error {

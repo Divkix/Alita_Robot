@@ -349,11 +349,9 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "notes") {
 		return ext.EndGroups
 	}
-	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
-	if connectedChat == nil {
+	if resolveMemberChat(b, ctx, true) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -472,24 +470,9 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		clearAllText, _ := tr.GetString("notes_clear_all_confirm")
 		clearAllText = confirmText(ctx, tr, clearAllText, chat)
-		yesText, _ := tr.GetString("button_yes")
-		noText, _ := tr.GetString("button_no")
 		_, err := msg.Reply(b, clearAllText,
 			&gotgbot.SendMessageOpts{
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-						{
-							{
-								Text:         yesText,
-								CallbackData: confirmData("rmAllNotes", "yes", chat),
-							},
-							{
-								Text:         noText,
-								CallbackData: confirmData("rmAllNotes", "no", chat),
-							},
-						},
-					},
-				},
+				ReplyMarkup: confirmKeyboard(tr, "rmAllNotes", chat),
 			},
 		)
 		if err != nil {
@@ -794,11 +777,9 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "get") {
 		return ext.EndGroups
 	}
-	connectedChat := chat_status.IsUserConnected(b, ctx, false, false)
-	if connectedChat == nil {
+	if resolveMemberChat(b, ctx, false) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	var err error

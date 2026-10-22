@@ -32,12 +32,7 @@ func groupOnlyMemberChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	if !inPM(ctx.EffectiveMessage) {
 		return ctx.EffectiveChat
 	}
-	chat := chat_status.IsUserConnected(b, ctx, false, false)
-	if chat == nil {
-		return nil
-	}
-	ctx.EffectiveChat = chat
-	return chat
+	return resolveMemberChat(b, ctx, false)
 }
 
 // groupOnlyChatCheck runs groupOnlyChat first among a WrapCommand command's
@@ -78,6 +73,18 @@ func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *g
 // names the group, so a confirmation sent in PM acts on it.
 func confirmData(namespace, action string, chat *gotgbot.Chat) string {
 	return encodeCallbackData(namespace, map[string]string{"a": action, "c": strconv.FormatInt(chat.Id, 10)})
+}
+
+// confirmKeyboard is the yes/no keyboard of a reset confirmation for chat.
+func confirmKeyboard(tr *i18n.Translator, namespace string, chat *gotgbot.Chat) gotgbot.InlineKeyboardMarkup {
+	yesText, _ := tr.GetString("button_yes")
+	noText, _ := tr.GetString("button_no")
+	return gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
+			{Text: yesText, CallbackData: confirmData(namespace, "yes", chat)},
+			{Text: noText, CallbackData: confirmData(namespace, "no", chat)},
+		}},
+	}
 }
 
 // buttonChat returns the group a button sent by a bans or reset command acts

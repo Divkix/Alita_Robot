@@ -23,7 +23,16 @@ import (
 // replies go to the user's PM; read the group's language from the returned
 // chat.
 func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
-	chat := chat_status.IsUserConnected(b, ctx, true, requireBotAdmin)
+	return resolveConnectedChat(b, ctx, true, requireBotAdmin)
+}
+
+// resolveMemberChat is resolveAdminChat for commands any member may run.
+func resolveMemberChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
+	return resolveConnectedChat(b, ctx, false, requireBotAdmin)
+}
+
+func resolveConnectedChat(b *gotgbot.Bot, ctx *ext.Context, requireUserAdmin, requireBotAdmin bool) *gotgbot.Chat {
+	chat := chat_status.IsUserConnected(b, ctx, requireUserAdmin, requireBotAdmin)
 	if chat == nil {
 		return nil
 	}

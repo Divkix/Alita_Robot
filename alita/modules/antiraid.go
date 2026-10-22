@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"strconv"
@@ -24,7 +23,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -32,21 +30,19 @@ import (
 
 const (
 	antiraidJoinWindowSeconds = 60
-	antiraidPollInterval      = 30 * time.Second
-	antiraidStateKey          = "alita:antiraid:state" // format: state:chat_id
-	antiraidJoinsKey          = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
-	maxAntiRaidDuration       = 366 * 24 * 60 * 60
+	// antiraidStateGrace keeps an active raid's state this long past its
+	// expiry; readers treat it as inactive (and delete it) from ExpiresAt on.
+	antiraidStateGrace  = 30 * time.Second
+	antiraidStateKey    = "alita:antiraid:state" // format: state:chat_id
+	antiraidJoinsKey    = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
+	maxAntiRaidDuration = 366 * 24 * 60 * 60
 )
 
 var (
 	antiRaidModule = antiRaidStruct{
 		moduleStruct: moduleStruct{moduleName: "AntiRaid", handlerGroup: -5},
 	}
-	antiRaidCtx      context.Context
-	antiRaidCancel   context.CancelFunc
-	antiRaidPollerMu sync.Mutex
-	antiRaidPollerWG sync.WaitGroup
-	antiRaidStateMu  sync.Mutex
+	antiRaidStateMu sync.Mutex
 
 	deleteRaidStateScript = redis.NewScript(`
 		if redis.call("GET", KEYS[1]) == ARGV[1] then
@@ -83,41 +79,6 @@ type raidState struct {
 	Active    bool  `json:"active"`
 	StartedAt int64 `json:"started_at"`
 	ExpiresAt int64 `json:"expires_at"`
-}
-
-func StartAntiRaidExpiryPoller() {
-	if !cache.IsRedisAvailable() {
-		log.Warn("[AntiRaid] Redis not available, skipping expiry poller start")
-		return
-	}
-	antiRaidPollerMu.Lock()
-	defer antiRaidPollerMu.Unlock()
-	if antiRaidCancel != nil {
-		return
-	}
-	antiRaidCtx, antiRaidCancel = context.WithCancel(context.Background())
-	antiRaidPollerWG.Add(1)
-	go func(ctx context.Context) {
-		defer antiRaidPollerWG.Done()
-		defer error_handling.RecoverFromPanic("antiRaidExpiryPoller", "antiraid")
-		antiRaidModule.expiryPoller(ctx)
-	}(antiRaidCtx)
-}
-
-func StopAntiRaidExpiryPoller() {
-	antiRaidPollerMu.Lock()
-	cancel := antiRaidCancel
-	antiRaidPollerMu.Unlock()
-	if cancel != nil {
-		cancel()
-		// Wait without holding the mutex (cf. captcha lifecycle): a stalled
-		// Redis read must not wedge the shutdown loop past its 10s budget.
-		antiRaidPollerWG.Wait()
-		antiRaidPollerMu.Lock()
-		antiRaidCancel = nil
-		antiRaidCtx = nil
-		antiRaidPollerMu.Unlock()
-	}
 }
 
 func stateKey(chatID int64) string {
@@ -177,9 +138,9 @@ func setRaidState(chatID int64, st *raidState) error {
 func raidStateExpiration(st *raidState) time.Duration {
 	expiration := 24 * time.Hour
 	if st.Active {
-		expiration = time.Until(time.Unix(st.ExpiresAt, 0)) + antiraidPollInterval
+		expiration = time.Until(time.Unix(st.ExpiresAt, 0)) + antiraidStateGrace
 		if expiration <= 0 {
-			expiration = antiraidPollInterval
+			expiration = antiraidStateGrace
 		}
 	}
 	return expiration
@@ -252,55 +213,6 @@ func replaceRaidStateIfUnchanged(chatID int64, expected, replacement *raidState)
 		return false, nil
 	}
 	return true, setRaidState(chatID, replacement)
-}
-
-func (a *antiRaidStruct) expiryPoller(ctx context.Context) {
-	ticker := time.NewTicker(antiraidPollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			a.checkExpiredRaids(ctx)
-		case <-ctx.Done():
-			log.Info("AntiRaid expiry poller shutting down gracefully")
-			return
-		}
-	}
-}
-
-func (a *antiRaidStruct) checkExpiredRaids(ctx context.Context) {
-	if !cache.IsRedisAvailable() {
-		return
-	}
-	rdb := cache.GetRedisClient()
-
-	iter := rdb.Scan(ctx, 0, fmt.Sprintf("%s:*", antiraidStateKey), 100).Iterator()
-	for iter.Next(ctx) {
-		k := iter.Val()
-		parts := strings.Split(k, ":")
-		if len(parts) < 4 {
-			continue
-		}
-		chatID, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
-		if chatID == 0 {
-			continue
-		}
-		st := getRaidState(chatID)
-		if st.Active && time.Now().Unix() > st.ExpiresAt {
-			deleted, err := deleteRaidStateIfUnchanged(chatID, st)
-			if err != nil {
-				log.WithError(err).Warnf("[AntiRaid] Failed to expire raid for chat %d", chatID)
-				continue
-			}
-			if deleted {
-				log.Infof("[AntiRaid] Raid expired for chat %d (auto-expiry)", chatID)
-			}
-		}
-	}
-	if err := iter.Err(); err != nil {
-		log.WithError(err).Warn("[AntiRaid] SCAN iteration failed in checkExpiredRaids")
-	}
 }
 
 func (a *antiRaidStruct) isRaidActive(chatID int64) bool {
@@ -929,8 +841,6 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("antiraid"), antiRaidModule.callbackHandler))
 
 	helpers.AddCmdToDisableable("antiraid")
-
-	StartAntiRaidExpiryPoller()
 }
 
 func init() {

@@ -2,8 +2,6 @@ package modules
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"html"
@@ -67,11 +65,11 @@ const (
 )
 
 func newPendingToken() (string, error) {
-	var value [8]byte
-	if _, err := rand.Read(value[:]); err != nil {
+	token, err := newOverwriteToken()
+	if err != nil {
 		return "", fmt.Errorf("generate pending backup token: %w", err)
 	}
-	return hex.EncodeToString(value[:]), nil
+	return token, nil
 }
 
 func storePendingImport(chatID int64, bkp *backup.BackupFormat, modules []string) (string, error) {

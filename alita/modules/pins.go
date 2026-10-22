@@ -16,6 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -346,83 +347,46 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-//nolint:dupl // antichannelpin has symmetric logic with cleanlinked
-func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := ctx.EffectiveChat
-	args := ctx.Args()
-
-	if len(args) >= 2 {
-		switch strings.ToLower(args[1]) {
-		case "on", "yes", "true":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if err := pins.SetAntiChannelPin(chat.Id, true); err != nil {
-				log.Errorf("[Pins] SetAntiChannelPin failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, formatting.Shtml())
-				return ext.EndGroups
-			}
-			text, _ := tr.GetString("pins_antichannelpin_enabled")
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		case "off", "no", "false":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if err := pins.SetAntiChannelPin(chat.Id, false); err != nil {
-				log.Errorf("[Pins] SetAntiChannelPin failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, formatting.Shtml())
-				return ext.EndGroups
-			}
-			text, _ := tr.GetString("pins_antichannelpin_disabled")
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		default:
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("pins_input_not_recognized")
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		}
-	} else {
-		pinprefs := pins.GetPinData(chat.Id)
-		if pinprefs.AntiChannelPin {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("pins_antichannelpin_current_enabled")
-			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		} else {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("pins_antichannelpin_current_disabled")
-			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		}
-	}
-
-	return ext.EndGroups
+// pinToggleConfig is one on/off pin setting and the replies of its command.
+type pinToggleConfig struct {
+	setterName                            string
+	set                                   func(chatID int64, on bool) error
+	get                                   func(*models.PinSettings) bool
+	enabledKey, disabledKey               string
+	currentEnabledKey, currentDisabledKey string
 }
 
-//nolint:dupl // cleanlinked has symmetric logic with antichannelpin
+var (
+	antiChannelPinToggle = pinToggleConfig{
+		setterName:         "SetAntiChannelPin",
+		set:                pins.SetAntiChannelPin,
+		get:                func(p *models.PinSettings) bool { return p.AntiChannelPin },
+		enabledKey:         "pins_antichannelpin_enabled",
+		disabledKey:        "pins_antichannelpin_disabled",
+		currentEnabledKey:  "pins_antichannelpin_current_enabled",
+		currentDisabledKey: "pins_antichannelpin_current_disabled",
+	}
+	cleanLinkedToggle = pinToggleConfig{
+		setterName:         "SetCleanLinked",
+		set:                pins.SetCleanLinked,
+		get:                func(p *models.PinSettings) bool { return p.CleanLinked },
+		enabledKey:         "pins_cleanlinked_enabled",
+		disabledKey:        "pins_cleanlinked_disabled",
+		currentEnabledKey:  "pins_cleanlinked_current_enabled",
+		currentDisabledKey: "pins_cleanlinked_current_disabled",
+	}
+)
+
+func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
+	return pinToggle(b, ctx, antiChannelPinToggle)
+}
+
 func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
+	return pinToggle(b, ctx, cleanLinkedToggle)
+}
+
+// pinToggle shows or switches one on/off pin setting.
+func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 	msg := ctx.EffectiveMessage
 	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
@@ -430,69 +394,46 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
+	var text string
 	if len(args) >= 2 {
+		var on bool
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if err := pins.SetCleanLinked(chat.Id, true); err != nil {
-				log.Errorf("[Pins] SetCleanLinked failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, formatting.Shtml())
-				return ext.EndGroups
-			}
-			text, _ := tr.GetString("pins_cleanlinked_enabled")
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
+			on = true
 		case "off", "no", "false":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if err := pins.SetCleanLinked(chat.Id, false); err != nil {
-				log.Errorf("[Pins] SetCleanLinked failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, formatting.Shtml())
-				return ext.EndGroups
-			}
-			text, _ := tr.GetString("pins_cleanlinked_disabled")
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
 		default:
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("pins_input_not_recognized")
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
+			text, _ = tr.GetString("pins_input_not_recognized")
+			return replyPinToggle(b, msg, text)
+		}
+		if err := cfg.set(chat.Id, on); err != nil {
+			log.Errorf("[Pins] %s failed for chat %d: %v", cfg.setterName, chat.Id, err)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(b, errText, formatting.Shtml())
+			return ext.EndGroups
+		}
+		if on {
+			text, _ = tr.GetString(cfg.enabledKey)
+		} else {
+			text, _ = tr.GetString(cfg.disabledKey)
 		}
 	} else {
-		pinprefs := pins.GetPinData(chat.Id)
-		if pinprefs.CleanLinked {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("pins_cleanlinked_current_enabled")
-			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		} else {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("pins_cleanlinked_current_disabled")
-			text := fmt.Sprintf(temp, html.EscapeString(chat.Title))
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
+		key := cfg.currentDisabledKey
+		if cfg.get(pins.GetPinData(chat.Id)) {
+			key = cfg.currentEnabledKey
 		}
+		temp, _ := tr.GetString(key)
+		text = fmt.Sprintf(temp, html.EscapeString(chat.Title))
 	}
+	return replyPinToggle(b, msg, text)
+}
 
+func replyPinToggle(b *gotgbot.Bot, msg *gotgbot.Message, text string) error {
+	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
+		log.Error(err)
+		return err
+	}
 	return ext.EndGroups
 }
 

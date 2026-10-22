@@ -184,10 +184,7 @@ func logsChat(b *gotgbot.Bot, ctx *ext.Context, admin *gotgbot.User) *gotgbot.Ch
 	if admin != nil {
 		return resolveAdminChat(b, ctx, false)
 	}
-	if chat = chat_status.IsUserConnected(b, ctx, false, false); chat != nil {
-		ctx.EffectiveChat = chat
-	}
-	return chat
+	return resolveMemberChat(b, ctx, false)
 }
 
 func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {

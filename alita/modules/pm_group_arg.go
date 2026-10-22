@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -104,8 +103,8 @@ func stripPMGroupToken(msg *gotgbot.Message, tok pmGroupToken) *gotgbot.Message 
 }
 
 func cutPMGroupToken(text string, entities []gotgbot.MessageEntity, tok pmGroupToken) (string, []gotgbot.MessageEntity) {
-	cutStart := utf16Len(text[:tok.start])
-	cutLen := utf16Len(text[tok.start:tok.end])
+	cutStart := int64(formatting.UTF16Len(text[:tok.start]))
+	cutLen := int64(formatting.UTF16Len(text[tok.start:tok.end]))
 	cutEnd := cutStart + cutLen
 
 	var kept []gotgbot.MessageEntity
@@ -124,10 +123,6 @@ func cutPMGroupToken(text string, entities []gotgbot.MessageEntity, tok pmGroupT
 		kept = append(kept, entity)
 	}
 	return text[:tok.start] + text[tok.end:], kept
-}
-
-func utf16Len(s string) int64 {
-	return int64(len(utf16.Encode([]rune(s))))
 }
 
 func init() {

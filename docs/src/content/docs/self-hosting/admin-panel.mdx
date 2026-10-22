@@ -144,9 +144,22 @@ checked against the bot token on arrival.
 - The **overview** screen is the first entry in the dashboard list: the
   Telegram member count, a 7, 30 or 90 day chart of messages, joins and
   leaves, the window's moderation count and the five most recent moderation
-  actions (action, actor, target and time — never message text). Switching the
+  actions (action, actor, target and time — never message text). Admins see
+  the actor and target by the name and @username the bot last saw; members see
+  user IDs. Switching the
   window redraws without a page reload, and a chat with no recorded activity
   says so instead of drawing an empty chart.
+- **Settings** groups each module's options under the name the commands use,
+  with switches for on/off values and the default shown (with a reset link)
+  once a value differs from it. Changes are saved together from a bar that
+  appears at the bottom; leaving the screen or closing the panel with unsaved
+  changes asks first (closing asks only on clients with Bot API 6.2 or later).
+- **Filters**, **Notes** and **Blacklists** search as you type, and admins
+  can delete entries or bulk-import them from a folded import box that
+  reports each line's result. Read-only viewers do not see the import box.
+- **Warnings** and **Timeline** (admins only) name warned users, issuers,
+  actors and targets the same way; a user the bot never stored, or whose name
+  it cannot read, is shown by ID.
 - Only **members** of a group can open it. **Non-admin members** see the chat
   read-only; anyone else is refused (`403 not_member`), and private chats and
   channels are not served. **When the bot is not an admin** in the chat, values
@@ -176,9 +189,12 @@ a real client and cannot run in CI):
 1. Open `PANEL_PUBLIC_URL` in a browser outside Telegram: the shell renders and
    reports the missing `initData` instead of crashing.
 2. Open it from a group's dashboard button inside Telegram: that chat opens
-   directly, and `← All chats` leads to the chat list.
+   directly, and Telegram's own Back button in the header leads to the chat
+   list (a client older than Bot API 6.1 shows an in-page `‹ All chats` link
+   instead).
 3. Switch the Telegram theme between light and dark while the panel is open:
-   backgrounds and text follow the `--tg-theme-*` colours.
+   backgrounds, cards and text follow the `--tg-theme-*` colours, and the
+   Telegram header matches the page background.
 4. Open it for a user with no groups: the empty state explains how to add the
    bot, with no browser console error.
 5. Throttle the network to slow 3G and reload: the loading state appears first,
@@ -191,6 +207,8 @@ a real client and cannot run in CI):
 8. In a group, `/settings` shows two buttons and the panel button opens the
    panel for that group; with `PANEL_ENABLED=false` the second row is gone.
 9. Open **Warnings**: a warning older than the chat's warn expiry is labelled
-   expired, and **Remove newest warning** deletes one entry. Open **Timeline**
+   expired, and **Remove newest warning** asks first, then deletes one entry
+   (Cancel leaves it). Deleting a filter, note or blacklisted word asks the
+   same way. Open **Timeline**
    with more than 50 events and scroll: the next page appends without the list
    jumping, and the action/actor filters return only matching rows.

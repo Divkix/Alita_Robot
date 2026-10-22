@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -143,7 +142,7 @@ func TestPurgeReasonIsEscapedForMarkdown(t *testing.T) {
 			handler, replyID := purgesModule.purge, int64(501)
 			if cmd == "purgeto" {
 				// /purgefrom marked 501; /purgeto replies to the range's last message.
-				delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 501, timestamp: time.Now()})
+				delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 501})
 				handler, replyID = purgesModule.purgeTo, 503
 			}
 
@@ -263,7 +262,7 @@ func TestAnonymousAdminPurgeFromToAreRouted(t *testing.T) {
 func TestPurgeFromRefusesWhileAnotherMessageIsMarked(t *testing.T) {
 	useRealLocales(t)
 	f := newAdminChatFixture(t)
-	delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 215, timestamp: time.Now()})
+	delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 215})
 	t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
 
 	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/purgefrom", 220, 216)

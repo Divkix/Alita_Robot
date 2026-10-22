@@ -64,6 +64,8 @@ type overviewResponse struct {
 	Totals          overviewTotals  `json:"totals"`
 	ModerationCount int64           `json:"moderation_count"`
 	Recent          []overviewEvent `json:"recent"`
+	// Names is sent to chat admins only, as on the admin-only timeline.
+	Names map[string]userName `json:"names,omitempty"`
 }
 
 // parseOverviewDays accepts only the offered windows, so a typo cannot
@@ -144,7 +146,9 @@ func (p *Panel) handleOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	recent := make([]overviewEvent, 0, len(recentRows))
+	ids := make([]int64, 0, 2*len(recentRows))
 	for _, ev := range recentRows {
+		ids = append(ids, ev.ActorId, ev.TargetUserId)
 		recent = append(recent, overviewEvent{
 			ID:           ev.ID,
 			Action:       ev.Action,
@@ -162,13 +166,17 @@ func (p *Panel) handleOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, overviewResponse{
+	response := overviewResponse{
 		MemberCount:     memberCount,
 		Days:            series,
 		Totals:          totals,
 		ModerationCount: moderationCount,
 		Recent:          recent,
-	})
+	}
+	if access.Role == RoleAdmin {
+		response.Names = userNames(r.Context(), ids)
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 // memberCountEntry is one memoised getChatMemberCount answer.
