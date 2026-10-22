@@ -44,6 +44,24 @@ Days before marking a chat as inactive
 
 ## 📂 AI spam filter configuration
 
+### `AISPAM_DAILY_LIMIT`
+
+Most AI spam checks (Jev calls) the bot makes per UTC day, across every chat.
+A check past the limit is not made: the message stays unchecked and nothing is
+deleted, as for a check shed under load, until the next UTC day. The count is
+kept in Redis (`alita:aispam:daily:<YYYY-MM-DD>`), so replicas sharing Redis
+share it; without Redis, or while a Redis call fails, each replica counts on
+its own, and the bot as a whole can make up to the limit times its replica
+count. A retried request counts as one check. Unset means no cap; use
+`ENABLE_AISPAM=false` to stop checks altogether.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Default** | unset (no cap) |
+| **Validation** | integer, at least 1 (a non-integer, `0` or a negative value fails startup) |
+
 ### `ENABLE_AISPAM`
 
 Global kill switch for the AI spam filter. When `false`, no chat runs AI spam
@@ -725,6 +743,7 @@ OWNER_ID=
 
 ```bash
 ACTIVITY_CHECK_INTERVAL=# hours between activity checks (default: 1)
+AISPAM_DAILY_LIMIT=# most AI spam checks per UTC day (default: unset, no cap)
 API_SERVER=# custom API server URL (default: https://api.telegram.org)
 AUTO_MIGRATE=# enable automatic database migrations (default: false)
 AUTO_MIGRATE_SILENT_FAIL=# continue even if migrations fail (default: false)

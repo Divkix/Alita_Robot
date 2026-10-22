@@ -128,8 +128,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   evicts it on this replica only; list freshness-critical keys in `skipLocal` (`alita/db/cache/local.go`). Tests that
   write rows directly must call `cache.ResetLocalForTest()` or `DeleteCache` before reading through the cache.
 - Two packages are named `cache`; the loader and generation guards are in `alita/db/cache`, not `alita/utils/cache`.
-- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`, `alita:probation:*`) sit outside the
-  `alita:cache:` prefix; `CLEAR_CACHE_ON_STARTUP` does not clear them.
+- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`, `alita:probation:*`, `alita:aispam:*`) sit outside
+  the `alita:cache:` prefix; `CLEAR_CACHE_ON_STARTUP` does not clear them. `alita:aispam:daily:<UTC day>` is the
+  shared `AISPAM_DAILY_LIMIT` count; without Redis (or when a call fails) each replica counts on its own.
 - `UpdateRecord` skips zero values. Use `UpdateRecordWithZeroValues` to write `false`/`0`/`""`. Both return
   `gorm.ErrRecordNotFound` when no row matched.
 - Check `TableName()` before raw SQL: `ConnectionSettings→connection` (per user), `ConnectionChatSettings→
@@ -260,7 +261,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   on only when `DEBUG=false` (an explicit `true` still enables them in debug); `HTTP_PORT` falls back to `PORT` then
   8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB` (a
   non-integer or a value outside 0-15 fails startup) and the shared-reputation settings `REPUTATION_MIN_CHATS` /
-  `REPUTATION_WINDOW_DAYS` (a non-integer or an out-of-range value fails startup). Integers that parse but are out of
+  `REPUTATION_WINDOW_DAYS` (a non-integer or an out-of-range value fails startup), and `AISPAM_DAILY_LIMIT` (unset
+  means no cap; a non-integer or a value below 1 fails startup). Integers that parse but are out of
   range (`DB_*`, `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
 
 ## Testing
