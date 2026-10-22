@@ -100,6 +100,60 @@ make psql-migrate
   Database setup, migrations, connection pooling, and schema design.
 </Card>
 
+## Admin Panel (Mini App)
+
+An optional Telegram Mini App dashboard is served by the same HTTP server under
+`/panel`. It is off by default: with `PANEL_ENABLED` unset or `false`, `/panel`
+and `/panel/api/v1/*` return 404 and the bot behaves exactly as before.
+
+Enable it with two variables:
+
+```bash
+PANEL_ENABLED=true
+PANEL_PUBLIC_URL=https://bot.example.com   # HTTPS origin, no path
+```
+
+`PANEL_PUBLIC_URL` must use `https://`; `http://` is accepted only when
+`DEBUG=true`. Point a reverse proxy at the bot's HTTP port and forward `/panel`
+(and `/webhook` if you use webhooks). Everything else stays the same: one
+process, one deploy, no separate frontend.
+
+Optional variables:
+
+- `PANEL_MINIAPP_SHORTNAME` — a BotFather Mini App short name. When set, group
+  buttons open `https://t.me/<bot>/<short_name>?startapp=chat_<id>` directly
+  instead of the PM `/start panel_<id>` hop.
+- `PANEL_SESSION_MAX_AGE` — maximum accepted `initData` age as a Go duration
+  (default `24h`). A value that does not parse fails startup.
+
+Open the panel by sending `/start panel_<chat_id>` to the bot in PM; the reply
+carries the Mini App button. Group `/settings` and `/help` buttons are added by
+a later release. The panel authenticates every request with Telegram `initData`;
+there are no passwords, cookies or server-side sessions. It only opens group
+chats the caller is currently a member of: admins get the editable dashboard and
+other members a read-only view, while everyone else gets `403 not_member`.
+
+### Manual smoke checklist
+
+Run this once after enabling the panel on a deployment (the last item needs a
+real Telegram client and cannot run in CI):
+
+1. Open `PANEL_PUBLIC_URL` in a browser outside Telegram: the shell renders and
+   reports the missing `initData` instead of crashing.
+2. Open it from the bot's panel button inside Telegram: the dashboard for that
+   chat opens directly, and `← All chats` leads to the chat list.
+3. Switch the Telegram theme between light and dark while the panel is open:
+   backgrounds and text follow the `--tg-theme-*` colours.
+4. Open it for a user with no groups: the empty state explains how to add the
+   bot, with no browser console error.
+5. Throttle the network to slow 3G and reload: the loading state appears first,
+   then the list, with no layout shift or blank screen.
+6. Open it for a user with many groups (the list is capped at 50): the list
+   scrolls smoothly and every title is selectable.
+7. Open the same URL inside `web.telegram.org`: the Mini App loads in the iframe
+   with no `frame-ancestors` violation in the console, and the same URL also
+   works standalone in the mobile Telegram app.
+
 ## Monitoring
 
 Built-in observability endpoints:

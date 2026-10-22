@@ -2866,3 +2866,7 @@ settings_open_in_pm: "Ketuk tombol untuk melihat pengaturan grup ini di obrolan 
 settings_open_in_pm_button: "Buka pengaturan di obrolan pribadi"
 settings_btn_refresh: "🔄 Segarkan"
 settings_btn_other_group: "↩️ Grup lain"
+
+# Admin panel (Telegram Mini App) PM deep link
+panel_open_message: "Ketuk tombol di bawah untuk membuka panel admin untuk grup ini."
+panel_open_button: "Buka panel admin"

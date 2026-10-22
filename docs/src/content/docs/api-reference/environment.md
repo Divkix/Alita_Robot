@@ -382,6 +382,54 @@ those endpoints without authentication and logs a warning.
 | **Type** | `string` |
 | **Required** | No |
 
+## 📂 Admin panel configuration
+
+The Telegram Mini App admin panel is served by the bot's own HTTP server under
+`/panel`. It is off by default; with it disabled those paths return 404.
+
+### `PANEL_ENABLED`
+
+Enable the admin panel. Requires `PANEL_PUBLIC_URL`.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
+### `PANEL_PUBLIC_URL`
+
+Public HTTPS origin the panel is served from, for example
+`https://bot.example.com`. Must be `https://`; `http://` is accepted only when
+`DEBUG=true`. A trailing slash is trimmed. Required when `PANEL_ENABLED=true`.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | Conditional |
+
+### `PANEL_MINIAPP_SHORTNAME`
+
+Optional BotFather Mini App short name. When set, group buttons open
+`https://t.me/<bot>/<short_name>?startapp=chat_<chat_id>` directly; otherwise
+they use the `/start panel_<chat_id>` PM deep link.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+### `PANEL_SESSION_MAX_AGE`
+
+How old a Mini App `initData` payload may be before the panel rejects it. Go
+duration syntax such as `30m` or `24h`; an invalid value fails startup.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `duration` |
+| **Required** | No |
+| **Default** | `24h` |
+
 ## 📂 Redis configuration
 
 ### `REDIS_ADDRESS`
@@ -637,6 +685,10 @@ OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint (e.g., localhost:4317)
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
 OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
+PANEL_ENABLED=# enable the Telegram Mini App admin panel (default: false)
+PANEL_MINIAPP_SHORTNAME=# optional BotFather Mini App short name for direct group links
+PANEL_PUBLIC_URL=# HTTPS origin serving /panel; required when PANEL_ENABLED=true
+PANEL_SESSION_MAX_AGE=# maximum initData age, Go duration (default: 24h)
 REDIS_DB=# Redis database number (default: 1 with REDIS_ADDRESS; REDIS_URL uses its path, else 0)
 REDIS_PASSWORD=# Redis password
 REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)

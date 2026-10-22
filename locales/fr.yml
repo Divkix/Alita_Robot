@@ -2786,3 +2786,7 @@ settings_open_in_pm: "Appuyez sur le bouton pour voir les paramètres de ce grou
 settings_open_in_pm_button: "Ouvrir les paramètres en privé"
 settings_btn_refresh: "🔄 Actualiser"
 settings_btn_other_group: "↩️ Autre groupe"
+
+# Admin panel (Telegram Mini App) PM deep link
+panel_open_message: "Appuyez sur le bouton ci-dessous pour ouvrir le panneau d’administration de ce groupe."
+panel_open_button: "Ouvrir le panneau d’administration"

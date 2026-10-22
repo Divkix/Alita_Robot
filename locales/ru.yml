@@ -2653,3 +2653,7 @@ settings_open_in_pm: "Нажмите кнопку, чтобы открыть н�
 settings_open_in_pm_button: "Открыть настройки в личке"
 settings_btn_refresh: "🔄 Обновить"
 settings_btn_other_group: "↩️ Другая группа"
+
+# Admin panel (Telegram Mini App) PM deep link
+panel_open_message: "Нажмите кнопку ниже, чтобы открыть панель администратора для этого чата."
+panel_open_button: "Открыть панель администратора"
