@@ -1,6 +1,7 @@
 package panel
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -36,7 +37,7 @@ func (p *Panel) handleSession(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !p.allow(w, session, 0) {
+	if !p.allow(w, session) {
 		return
 	}
 
@@ -80,8 +81,9 @@ func (p *Panel) handleSession(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleChat verifies the caller's role in one chat. A non-admin still gets a
-// 200 with role readonly; a Telegram failure is surfaced as an error.
+// handleChat verifies the caller's membership and role in one chat. A member
+// who is not an admin still gets a 200 with role readonly; a non-member or a
+// chat that is not a group is refused, and a Telegram failure is surfaced.
 func (p *Panel) handleChat(w http.ResponseWriter, r *http.Request) {
 	_, access, ok := p.chatRequest(w, r)
 	if !ok {
@@ -97,7 +99,7 @@ func (p *Panel) handleChat(w http.ResponseWriter, r *http.Request) {
 }
 
 // chatRequest is the preamble of every /chats/{id} endpoint: it parses the id,
-// authenticates the caller, applies the (user, chat) rate limit and verifies
+// authenticates the caller, applies the per-user rate limit and verifies
 // access. When it returns false it has already written the error response.
 func (p *Panel) chatRequest(w http.ResponseWriter, r *http.Request) (Session, chatAccess, bool) {
 	chatID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
@@ -110,13 +112,22 @@ func (p *Panel) chatRequest(w http.ResponseWriter, r *http.Request) (Session, ch
 	if !ok {
 		return Session{}, chatAccess{}, false
 	}
-	if !p.allow(w, session, chatID) {
+	if !p.allow(w, session) {
 		return Session{}, chatAccess{}, false
 	}
 
 	access, err := p.accessChat(r.Context(), session.User.ID, chatID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return this chat: "+err.Error())
+		switch {
+		case r.Context().Err() != nil:
+			writeJSONError(w, http.StatusGatewayTimeout, "timeout", "Telegram did not answer before the panel request deadline")
+		case errors.Is(err, errNotGroup):
+			writeJSONError(w, http.StatusNotFound, "chat_not_found", "the panel only serves group chats")
+		case errors.Is(err, errNotMember):
+			writeJSONError(w, http.StatusForbidden, "not_member", "you are not a member of this chat")
+		default:
+			writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return this chat: "+err.Error())
+		}
 		return Session{}, chatAccess{}, false
 	}
 	return session, access, true

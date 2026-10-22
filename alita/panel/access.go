@@ -2,6 +2,7 @@ package panel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,9 +17,21 @@ const (
 	RoleReadonly = "readonly"
 )
 
-// chatAccessMemoTTL is how long an admin check is trusted. Writes with the
+// chatAccessMemoTTL is how long an access answer is trusted. Writes with the
 // panel are gated by the same answer, so keep it short.
 const chatAccessMemoTTL = 60 * time.Second
+
+// chatAccessMemoCap bounds the memo. One (chat, user) pair is one entry;
+// reaching the cap clears the map instead of scanning it on every request, so
+// the worst case is a few extra Telegram calls, never unbounded growth.
+const chatAccessMemoCap = 4096
+
+// Errors returned by accessChat. chatRequest maps them to stable panel error
+// codes; every other error is a Telegram failure.
+var (
+	errNotGroup  = errors.New("chat is not a group")
+	errNotMember = errors.New("user is not a member of the chat")
+)
 
 // chatAccess is one verified chat: its Telegram title and the caller's role.
 type chatAccess struct {
@@ -38,10 +51,11 @@ type accessEntry struct {
 	expires time.Time
 }
 
-// accessChat verifies that userID may open chatID through the existing admin
-// cache and returns the caller's role. A non-admin is readonly, not an error.
-// Results are memoised per (chat, user) for 60 seconds; later panel endpoints
-// reuse this helper through the same memo.
+// accessChat verifies that userID is a current member of chatID and returns
+// the caller's role. Only groups and supergroups are served; a non-member is
+// refused with errNotMember, and a member who is not an admin is readonly.
+// Results are memoised per (chat, user) for 60 seconds, successes only; later
+// panel endpoints reuse this helper through the same memo.
 func (p *Panel) accessChat(ctx context.Context, userID, chatID int64) (chatAccess, error) {
 	key := accessKey{chatID: chatID, userID: userID}
 	now := p.deps.Now()
@@ -57,32 +71,55 @@ func (p *Panel) accessChat(ctx context.Context, userID, chatID int64) (chatAcces
 	if err != nil {
 		return chatAccess{}, fmt.Errorf("get chat: %w", err)
 	}
+	if info.Type != "group" && info.Type != "supergroup" {
+		return chatAccess{}, fmt.Errorf("%w: chat %d has type %q", errNotGroup, chatID, info.Type)
+	}
 
-	isAdmin, err := chat_status.IsUserAdminWithContext(ctx, p.bot, chatID, userID)
+	member, err := p.bot.GetChatMemberWithContext(ctx, chatID, userID, nil)
 	if err != nil {
-		return chatAccess{}, fmt.Errorf("check admin: %w", err)
+		return chatAccess{}, fmt.Errorf("get chat member: %w", err)
+	}
+	role, ok := memberRole(member)
+	if !ok {
+		status := "unknown"
+		if member != nil {
+			status = member.GetStatus()
+		}
+		return chatAccess{}, fmt.Errorf("%w: status %q", errNotMember, status)
 	}
 
 	access := chatAccess{
 		ChatID:   chatID,
 		Title:    info.Title,
-		Role:     RoleReadonly,
+		Role:     role,
 		BotAdmin: chat_status.IsBotAdmin(p.bot, nil, &gotgbot.Chat{Id: info.Id, Type: info.Type, Title: info.Title}),
-	}
-	if isAdmin {
-		access.Role = RoleAdmin
 	}
 
 	p.accessMu.Lock()
-	if len(p.access) > 4096 {
-		for k, e := range p.access {
-			if !now.Before(e.expires) {
-				delete(p.access, k)
-			}
-		}
+	if _, cached := p.access[key]; !cached && len(p.access) >= chatAccessMemoCap {
+		clear(p.access)
 	}
 	p.access[key] = accessEntry{access: access, expires: now.Add(chatAccessMemoTTL)}
 	p.accessMu.Unlock()
 
 	return access, nil
+}
+
+// memberRole is the panel role for one chat member. It reports false when the
+// member is not in the chat: left, kicked, or restricted with is_member false.
+func memberRole(member gotgbot.ChatMember) (string, bool) {
+	if member == nil {
+		return "", false
+	}
+	switch member.GetStatus() {
+	case gotgbot.ChatMemberStatusCreator, gotgbot.ChatMemberStatusAdministrator:
+		return RoleAdmin, true
+	case gotgbot.ChatMemberStatusMember:
+		return RoleReadonly, true
+	case gotgbot.ChatMemberStatusRestricted:
+		if restricted, ok := member.(gotgbot.ChatMemberRestricted); ok && restricted.IsMember {
+			return RoleReadonly, true
+		}
+	}
+	return "", false
 }

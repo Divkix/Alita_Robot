@@ -48,8 +48,19 @@ type Deps struct {
 	Now func() time.Time
 }
 
+// panelRequestTimeout bounds one panel request below the HTTP server's 10 s
+// WriteTimeout (alita/utils/httpserver), so a slow Telegram call ends with a
+// JSON error the Mini App can show instead of a dropped connection. It is a
+// var so tests can shrink it.
+var panelRequestTimeout = 8 * time.Second
+
 // New builds the panel handler. Mount it at /panel and /panel/.
 func New(bot *gotgbot.Bot, deps Deps) http.Handler {
+	return newPanel(bot, deps).handler()
+}
+
+// newPanel builds the handler state before the response policy wraps it.
+func newPanel(bot *gotgbot.Bot, deps Deps) *Panel {
 	if deps.SessionMaxAge <= 0 {
 		deps.SessionMaxAge = DefaultSessionMaxAge
 	}
@@ -72,7 +83,7 @@ func New(bot *gotgbot.Bot, deps Deps) http.Handler {
 		access:  make(map[accessKey]accessEntry),
 	}
 	p.routes()
-	return p.handler()
+	return p
 }
 
 // Panel is the panel handler state. Later tickets add routes in routes and
@@ -98,13 +109,17 @@ func (p *Panel) routes() {
 }
 
 // handler applies the panel-wide response policy before routing: security
-// headers on every response, and a JSON content-type plus body cap on
-// mutating methods.
+// headers on every response, a request deadline under the server's
+// WriteTimeout, and a JSON content-type plus body cap on mutating methods.
 func (p *Panel) handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
+
+		ctx, cancel := context.WithTimeout(r.Context(), panelRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
 
 		if mutatingMethod(r.Method) {
 			if !isJSONContentType(r.Header.Get("Content-Type")) {
@@ -169,10 +184,10 @@ func (p *Panel) authenticate(w http.ResponseWriter, r *http.Request) (Session, b
 	return session, true
 }
 
-// allow applies the per-(user, chat) rate limit, writing 429 with Retry-After
-// when the window is exhausted.
-func (p *Panel) allow(w http.ResponseWriter, session Session, chatID int64) bool {
-	retryAfter := p.limiter.allow(session.User.ID, chatID)
+// allow applies the per-user rate limit, writing 429 with Retry-After when the
+// window is exhausted.
+func (p *Panel) allow(w http.ResponseWriter, session Session) bool {
+	retryAfter := p.limiter.allow(session.User.ID)
 	if retryAfter <= 0 {
 		return true
 	}

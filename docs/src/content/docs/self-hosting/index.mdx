@@ -129,7 +129,9 @@ Optional variables:
 Open the panel by sending `/start panel_<chat_id>` to the bot in PM; the reply
 carries the Mini App button. Group `/settings` and `/help` buttons are added by
 a later release. The panel authenticates every request with Telegram `initData`;
-there are no passwords, cookies or server-side sessions.
+there are no passwords, cookies or server-side sessions. It only opens group
+chats the caller is currently a member of: admins get the editable dashboard and
+other members a read-only view, while everyone else gets `403 not_member`.
 
 ### Manual smoke checklist
 
@@ -138,8 +140,8 @@ real Telegram client and cannot run in CI):
 
 1. Open `PANEL_PUBLIC_URL` in a browser outside Telegram: the shell renders and
    reports the missing `initData` instead of crashing.
-2. Open it from the bot's panel button inside Telegram: the chat list appears
-   and the chat from the deep link is marked as opened from this group.
+2. Open it from the bot's panel button inside Telegram: the dashboard for that
+   chat opens directly, and `← All chats` leads to the chat list.
 3. Switch the Telegram theme between light and dark while the panel is open:
    backgrounds and text follow the `--tg-theme-*` colours.
 4. Open it for a user with no groups: the empty state explains how to add the

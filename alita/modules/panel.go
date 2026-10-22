@@ -18,8 +18,10 @@ func init() {
 }
 
 // panelDeepLinkHandler answers /start panel_<chatID> in PM with an inline
-// web_app button. With the panel disabled the payload is unknown, so it falls
-// back to the same help every other unknown deep link sends.
+// web_app button. The button is sent to any caller; the panel itself refuses a
+// chat the caller is not a member of. With the panel disabled the payload is
+// unknown, so it falls back to the same help every other unknown deep link
+// sends.
 func panelDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
 	if !config.AppConfig.PanelEnabled {
 		return sendDefaultHelp(b, ctx, user)

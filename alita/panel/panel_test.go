@@ -61,15 +61,21 @@ func sqliteLookup(ctx context.Context, _ int64, limit int) ([]models.Chat, error
 }
 
 type panelFakeClient struct {
-	mu       sync.Mutex
-	calls    []string
-	admins   map[int64]json.RawMessage
-	chatErr  error
-	botAdmin bool
+	mu        sync.Mutex
+	calls     []string
+	chatType  string
+	chatErr   error
+	members   map[int64]json.RawMessage
+	botAdmin  bool
+	blockUser int64
 }
 
 func newPanelFakeClient() *panelFakeClient {
-	return &panelFakeClient{admins: make(map[int64]json.RawMessage), botAdmin: true}
+	return &panelFakeClient{
+		chatType: "supergroup",
+		members:  make(map[int64]json.RawMessage),
+		botAdmin: true,
+	}
 }
 
 func (c *panelFakeClient) record(method string) {
@@ -90,7 +96,7 @@ func (c *panelFakeClient) countCalls(method string) int {
 	return count
 }
 
-func (c *panelFakeClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+func (c *panelFakeClient) RequestWithContext(ctx context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
 	c.record(method)
 
 	chatID, _ := strconv.ParseInt(fmt.Sprint(params["chat_id"]), 10, 64)
@@ -99,14 +105,16 @@ func (c *panelFakeClient) RequestWithContext(_ context.Context, _ string, method
 		if c.chatErr != nil {
 			return nil, c.chatErr
 		}
-		return json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":"Panel Chat %d"}`, chatID, chatID)), nil
-	case "getChatAdministrators":
-		if response, ok := c.admins[chatID]; ok {
-			return response, nil
-		}
-		return json.RawMessage(`[]`), nil
+		return json.RawMessage(fmt.Sprintf(`{"id":%d,"type":%q,"title":"Panel Chat %d"}`, chatID, c.chatType, chatID)), nil
 	case "getChatMember":
 		userID, _ := strconv.ParseInt(fmt.Sprint(params["user_id"]), 10, 64)
+		if userID == c.blockUser {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		if response, ok := c.members[userID]; ok {
+			return response, nil
+		}
 		status := "member"
 		if userID == 999 && c.botAdmin {
 			status = "administrator"
@@ -125,16 +133,16 @@ func (c *panelFakeClient) FileURL(token, path string, _ *gotgbot.RequestOpts) st
 	return "https://api.telegram.org/file/bot" + token + "/" + path
 }
 
-func adminListJSON(ids ...int64) json.RawMessage {
-	entries := make([]string, 0, len(ids))
-	for _, id := range ids {
-		entries = append(entries, fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":%t,"first_name":"Admin %d"}}`, id, id == 999, id))
-	}
-	return json.RawMessage("[" + strings.Join(entries, ",") + "]")
+func chatMemberJSON(userID int64, status string, isMember bool) json.RawMessage {
+	return json.RawMessage(fmt.Sprintf(
+		`{"status":%q,"user":{"id":%d,"is_bot":false,"first_name":"Member"},"is_member":%t}`,
+		status, userID, isMember,
+	))
 }
 
 type panelFixture struct {
 	handler http.Handler
+	panel   *Panel
 	client  *panelFakeClient
 }
 
@@ -153,12 +161,12 @@ func newPanelFixtureWithClock(t *testing.T, botToken string, now time.Time) pane
 		BotClient: client,
 		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
 	}
-	handler := New(bot, Deps{
+	state := newPanel(bot, Deps{
 		SessionMaxAge: 24 * time.Hour,
 		LookupChats:   sqliteLookup,
 		Now:           func() time.Time { return now },
 	})
-	return panelFixture{handler: handler, client: client}
+	return panelFixture{handler: state.handler(), panel: state, client: client}
 }
 
 func panelRequest(t *testing.T, handler http.Handler, method, target, initData, body, contentType string) *httptest.ResponseRecorder {
@@ -345,7 +353,7 @@ func TestAuthFailuresReturn401WithStableCodes(t *testing.T) {
 func TestChatReturnsAdminRoleAndBotAdmin(t *testing.T) {
 	fixture := newPanelFixture(t)
 	chatID := uniquePanelChatID()
-	fixture.client.admins[chatID] = adminListJSON(279058397, 999)
+	fixture.client.members[279058397] = chatMemberJSON(279058397, "administrator", true)
 
 	recorder := panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(chatID, 10), readFixture(t, "initdata_main.txt"), "", "")
 	if recorder.Code != http.StatusOK {
@@ -370,10 +378,9 @@ func TestChatReturnsAdminRoleAndBotAdmin(t *testing.T) {
 	}
 }
 
-func TestChatNonAdminIsReadonly(t *testing.T) {
+func TestChatMemberIsReadonly(t *testing.T) {
 	fixture := newPanelFixture(t)
 	chatID := uniquePanelChatID()
-	fixture.client.admins[chatID] = adminListJSON(999)
 
 	recorder := panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(chatID, 10), readFixture(t, "initdata_main.txt"), "", "")
 	if recorder.Code != http.StatusOK {
@@ -389,6 +396,76 @@ func TestChatNonAdminIsReadonly(t *testing.T) {
 	}
 	if !body.BotAdmin {
 		t.Fatal("bot_admin = false, want true")
+	}
+}
+
+func TestChatNonMemberIsForbidden(t *testing.T) {
+	fixture := newPanelFixture(t)
+	chatID := uniquePanelChatID()
+	fixture.client.members[279058397] = chatMemberJSON(279058397, "left", false)
+	target := "/panel/api/v1/chats/" + strconv.FormatInt(chatID, 10)
+	raw := readFixture(t, "initdata_main.txt")
+
+	requireAPIError(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""), http.StatusForbidden, "not_member")
+	requireAPIError(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""), http.StatusForbidden, "not_member")
+
+	if calls := fixture.client.countCalls("getChat"); calls != 2 {
+		t.Fatalf("getChat calls = %d, want 2: refusals must not be memoised", calls)
+	}
+}
+
+func TestChatKickedAndRestrictedNonMemberAreForbidden(t *testing.T) {
+	tests := []struct {
+		name   string
+		member json.RawMessage
+	}{
+		{name: "kicked", member: chatMemberJSON(279058397, "kicked", false)},
+		{name: "restricted non-member", member: chatMemberJSON(279058397, "restricted", false)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newPanelFixture(t)
+			chatID := uniquePanelChatID()
+			fixture.client.members[279058397] = test.member
+
+			recorder := panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(chatID, 10), readFixture(t, "initdata_main.txt"), "", "")
+			requireAPIError(t, recorder, http.StatusForbidden, "not_member")
+		})
+	}
+}
+
+func TestChatRestrictedMemberIsReadonly(t *testing.T) {
+	fixture := newPanelFixture(t)
+	chatID := uniquePanelChatID()
+	fixture.client.members[279058397] = chatMemberJSON(279058397, "restricted", true)
+
+	recorder := panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(chatID, 10), readFixture(t, "initdata_main.txt"), "", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 read-only (body %s)", recorder.Code, recorder.Body.String())
+	}
+
+	var body chatResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode chat: %v", err)
+	}
+	if body.Role != RoleReadonly {
+		t.Fatalf("role = %q, want readonly", body.Role)
+	}
+}
+
+func TestChatRequiresGroupChat(t *testing.T) {
+	for _, chatType := range []string{"private", "channel"} {
+		t.Run(chatType, func(t *testing.T) {
+			fixture := newPanelFixture(t)
+			fixture.client.chatType = chatType
+			chatID := uniquePanelChatID()
+
+			recorder := panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(chatID, 10), readFixture(t, "initdata_main.txt"), "", "")
+			requireAPIError(t, recorder, http.StatusNotFound, "chat_not_found")
+			if calls := fixture.client.countCalls("getChatMember"); calls != 0 {
+				t.Fatalf("getChatMember calls = %d, want none for a non-group chat", calls)
+			}
+		})
 	}
 }
 
@@ -414,7 +491,7 @@ func TestInvalidChatID(t *testing.T) {
 func TestChatAccessMemoAvoidsRepeatedTelegramLookups(t *testing.T) {
 	fixture := newPanelFixture(t)
 	chatID := uniquePanelChatID()
-	fixture.client.admins[chatID] = adminListJSON(279058397, 999)
+	fixture.client.members[279058397] = chatMemberJSON(279058397, "administrator", true)
 	target := "/panel/api/v1/chats/" + strconv.FormatInt(chatID, 10)
 
 	first := panelRequest(t, fixture.handler, http.MethodGet, target, readFixture(t, "initdata_main.txt"), "", "")
@@ -447,6 +524,82 @@ func TestRateLimitReturns429WithRetryAfter(t *testing.T) {
 	requireAPIError(t, recorder, http.StatusTooManyRequests, "rate_limited")
 	if got := recorder.Header().Get("Retry-After"); got != "60" {
 		t.Fatalf("Retry-After = %q, want 60", got)
+	}
+}
+
+func TestRateLimitKeysOnUserOnly(t *testing.T) {
+	fixture := newPanelFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+
+	allowed, limited := 0, 0
+	for range 300 {
+		// Every request targets a different chat id, which used to buy a fresh
+		// rate-limit window.
+		target := "/panel/api/v1/chats/" + strconv.FormatInt(uniquePanelChatID(), 10)
+		switch code := panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", "").Code; code {
+		case http.StatusOK:
+			allowed++
+		case http.StatusTooManyRequests:
+			limited++
+		default:
+			t.Fatalf("status = %d, want 200 or 429", code)
+		}
+	}
+
+	if allowed != rateLimitPerWindow {
+		t.Fatalf("allowed = %d, want %d across different chat ids", allowed, rateLimitPerWindow)
+	}
+	if limited != 300-rateLimitPerWindow {
+		t.Fatalf("rate limited = %d, want %d", limited, 300-rateLimitPerWindow)
+	}
+}
+
+func TestRateLimiterStaysBounded(t *testing.T) {
+	limiter := newRateLimiter(func() time.Time { return fixtureNow })
+
+	for i := range rateLimitMaxUsers + 100 {
+		limiter.allow(int64(i) + 1)
+
+		limiter.mu.Lock()
+		size := len(limiter.entries)
+		limiter.mu.Unlock()
+		if size > rateLimitMaxUsers {
+			t.Fatalf("entries = %d after request %d, want at most %d", size, i+1, rateLimitMaxUsers)
+		}
+	}
+}
+
+func TestChatAccessMemoStaysBounded(t *testing.T) {
+	fixture := newPanelFixture(t)
+
+	// Every lookup is a new (chat, user) pair, so the memo fills to its cap.
+	for i := range chatAccessMemoCap + 100 {
+		chatID := uniquePanelChatID()
+		if _, err := fixture.panel.accessChat(context.Background(), 279058397, chatID); err != nil {
+			t.Fatalf("accessChat(%d) error = %v", chatID, err)
+		}
+
+		fixture.panel.accessMu.Lock()
+		size := len(fixture.panel.access)
+		fixture.panel.accessMu.Unlock()
+		if size > chatAccessMemoCap {
+			t.Fatalf("memo entries = %d after lookup %d, want at most %d", size, i+1, chatAccessMemoCap)
+		}
+	}
+}
+
+func TestChatDeadlineReturnsJSONError(t *testing.T) {
+	fixture := newPanelFixture(t)
+	previous := panelRequestTimeout
+	panelRequestTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { panelRequestTimeout = previous })
+	fixture.client.blockUser = 279058397
+
+	started := time.Now()
+	recorder := panelRequest(t, fixture.handler, http.MethodGet, "/panel/api/v1/chats/"+strconv.FormatInt(uniquePanelChatID(), 10), readFixture(t, "initdata_main.txt"), "", "")
+	requireAPIError(t, recorder, http.StatusGatewayTimeout, "timeout")
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("request took %v, want it bounded by the panel deadline", elapsed)
 	}
 }
 
