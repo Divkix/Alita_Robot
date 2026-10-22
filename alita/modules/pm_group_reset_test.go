@@ -129,6 +129,12 @@ func (f adminChatFixture) setMemberStatus(chatID, userID int64, status string) {
 // confirmButtons returns the data of the "yes" buttons in the messages sent
 // since call number from.
 func confirmButtons(f adminChatFixture, from int) []string {
+	return buttonsWithAction(f, from, "yes")
+}
+
+// buttonsWithAction returns the data of the buttons whose "a" field is action
+// in the messages sent since call number from.
+func buttonsWithAction(f adminChatFixture, from int, action string) []string {
 	var yes []string
 	for _, call := range f.client.callsFor("sendMessage")[from:] {
 		markup, ok := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
@@ -138,7 +144,7 @@ func confirmButtons(f adminChatFixture, from int) []string {
 		for _, row := range markup.InlineKeyboard {
 			for _, button := range row {
 				if decoded, ok := decodeCallbackData(button.CallbackData); ok {
-					if action, _ := decoded.Field("a"); action == "yes" {
+					if a, _ := decoded.Field("a"); a == action {
 						yes = append(yes, button.CallbackData)
 					}
 				}
@@ -199,6 +205,40 @@ func TestResetCommandsInPMWithGroupResetThatGroup(t *testing.T) {
 				t.Fatalf("/%s from PM changed the connected group", tc.cmd)
 			}
 			requireConnectedTo(t, f.admin.Id, connected)
+		})
+	}
+}
+
+// The cancel button of a confirmation sent from PM names the group too, and
+// pressing it there leaves both groups as they were.
+func TestResetCommandsInPMCancelLeavesGroups(t *testing.T) {
+	for _, tc := range pmResetCases {
+		if tc.cmd == "privnote" {
+			continue
+		}
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, connected := pmResetFixture(t, tc)
+			f.makeOwner()
+			dispatcher := pmResetDispatcher()
+
+			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @fixturegroup"+tc.args)
+			cancels := buttonsWithAction(f, 0, "no")
+			if len(cancels) != 1 {
+				t.Fatalf("/%s from PM sent %d cancel buttons, want one; sent:\n%s", tc.cmd, len(cancels), sentText(f.client))
+			}
+			decoded, _ := decodeCallbackData(cancels[0])
+			if c, _ := decoded.Field("c"); c != fmt.Sprint(f.chat.Id) {
+				t.Fatalf("/%s cancel button names group %q, want %d", tc.cmd, c, f.chat.Id)
+			}
+
+			pressConfirmInPM(t, dispatcher, f, f.admin, cancels[0])
+
+			if !tc.intact(f, f.chat.Id) || !tc.intact(f, connected) {
+				t.Fatalf("/%s cancel from PM changed a group", tc.cmd)
+			}
+			if len(f.client.callsFor("editMessageText")) == 0 && len(f.client.callsFor("answerCallbackQuery")) == 0 {
+				t.Fatalf("/%s cancel from PM got no answer", tc.cmd)
+			}
 		})
 	}
 }
