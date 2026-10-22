@@ -40,8 +40,15 @@ func TestAddToGroupURLRequestsEveryBotAdminRight(t *testing.T) {
 	}
 	// Without admin= Telegram adds the bot as a plain member, so every
 	// admin-only feature fails until someone promotes it by hand.
+	if strings.TrimSpace(helpers.BotAdminRights) == "" {
+		t.Fatal("BotAdminRights is empty; the add-to-group link would grant no rights")
+	}
+	admin := u.Query().Get("admin")
+	if strings.TrimSpace(admin) == "" {
+		t.Fatalf("admin = %q, want the bot's rights", admin)
+	}
 	want := strings.Split(helpers.BotAdminRights, "+")
-	got := strings.Split(u.Query().Get("admin"), " ") // "+" decodes to a space
+	got := strings.Split(admin, " ") // "+" decodes to a space
 	slices.Sort(want)
 	slices.Sort(got)
 	if !slices.Equal(got, want) {

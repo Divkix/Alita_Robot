@@ -139,6 +139,22 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Each such command also needs a `<cmd>_example` in
   `locales/config.yml` starting with `/<cmd> `, except reply-only commands (`replyOnlyCommands`: /dban, /dkick,
   /dmute), which must have none; `TestEveryHelpCommandHasAnExample` enforces it.
+- `moderation_events` gets one row per successful human moderation action, written only by `recordModerationEvent`
+  (`alita/modules/moderation.go`) from commands and inline moderation buttons. Never record automated actions
+  (spamdb, captcha, antiraid, locks, blacklists, warn limits): the shared-reputation join check reads this table, and a
+  join it blocks must not feed the signal back. A reputation unban clears the signal only when the same chat removed
+  the user earlier in the window.
+- Daily activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats` every
+  60 s and on shutdown (before DB close). Never add a DB write per message; joins count after
+  `claimRecentJoinProcessing`, leaves in `leftMember`. Counts are approximate across a crash by design.
+- The weekly digest sends at most once per chat per week through the `digestsettings.Claim` compare-and-set on
+  `last_sent_at`. A transient send error `Restore`s the claim to retry; a permanent one
+  (`helpers.IsPermanentSendError`) keeps it.
+- The admin panel (`alita/panel`, off unless `PANEL_ENABLED`) authenticates only through `VerifyInitData`. Every
+  `/chats/{id}` endpoint starts with `chatRequest` (groups only, current members only; non-admins read-only). Gate
+  each write with `requirePermission` set to the Telegram right the equivalent command checks. Never call
+  `chat_status` `Can*` helpers from the panel: they reply into the chat. Render server data with DOM APIs, never
+  `innerHTML`.
 
 ## Go rules
 
