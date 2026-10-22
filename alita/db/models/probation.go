@@ -3,7 +3,7 @@ package models
 import "time"
 
 // The limits of the probation settings.
-// migrations/20261023001000_add_probation.sql repeats them; change both.
+// migrations/20261023006200_add_probation.sql repeats them; change both.
 const (
 	ProbationDurationMin     = time.Hour
 	ProbationDurationMax     = 30 * 24 * time.Hour
