@@ -216,6 +216,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - The weekly digest sends at most once per chat per week through the `digestsettings.Claim` compare-and-set on
   `last_sent_at`. A transient send error `Restore`s the claim to retry; a permanent one
   (`helpers.IsPermanentSendError`) keeps it.
+- Messages the bot sends on its own (digest fan-out and any new scheduled send) go through
+  `ratelimit.GlobalSendLimiter().Do`: 25/s token bucket, a 429 pauses it for `retry_after`. It is per replica, not
+  shared through Redis. A fan-out checks `PausedFor()` before each claim and ends its tick on a pause longer than
+  `MaxSendRetryAfter`, so no claim waits out a long flood wait.
 - The admin panel (`alita/panel`, off unless `PANEL_ENABLED`) authenticates only through `VerifyInitData`. Every
   `/chats/{id}` endpoint starts with `chatRequest` (groups only, current members only; non-admins read-only). Gate
   each write with `requirePermission` set to the Telegram right the equivalent command checks. Never call

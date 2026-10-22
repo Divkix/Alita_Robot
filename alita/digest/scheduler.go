@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
 // Scheduler sends each opted-in chat the previous week's digest once.
@@ -29,9 +30,14 @@ import (
 // send restores the claim and the next tick retries it, unless the failure is
 // permanent (the bot was removed, the chat is gone or the bot may not send
 // there): then the week counts as done and the failure is logged once.
+//
+// Sends are paced by the global send limiter. A 429 is retried once after its
+// retry_after while the claim is held; a longer flood wait is a transient
+// failure like any other.
 type Scheduler struct {
 	bot      *gotgbot.Bot
 	interval time.Duration
+	limiter  *ratelimit.SendLimiter
 	// now is the clock a tick reads. Tests replace it to pin the week
 	// boundary and the claim instant; production never writes it after
 	// construction.
@@ -49,7 +55,7 @@ func NewScheduler(bot *gotgbot.Bot) *Scheduler {
 	if config.AppConfig != nil && config.AppConfig.DigestInterval > 0 {
 		interval = config.AppConfig.DigestInterval
 	}
-	return &Scheduler{bot: bot, interval: interval, now: time.Now}
+	return &Scheduler{bot: bot, interval: interval, limiter: ratelimit.GlobalSendLimiter(), now: time.Now}
 }
 
 // Start begins the ticker. Calling it twice does nothing.
@@ -71,7 +77,7 @@ func (s *Scheduler) Start() {
 				case <-ticker.C:
 					func() {
 						defer error_handling.RecoverFromPanic("digestSchedulerTick", "digest")
-						s.runDue(s.now())
+						s.runDue(ctx, s.now())
 					}()
 				}
 			}
@@ -92,8 +98,9 @@ func (s *Scheduler) Stop() {
 
 // runDue sends the digest for the week that just ended to every chat due one.
 // The completed week is [WeekStart(now)-7d, WeekStart(now)); a chat is due when
-// its digest is on and last_sent_at is nil or before that boundary.
-func (s *Scheduler) runDue(now time.Time) {
+// its digest is on and last_sent_at is nil or before that boundary. Sends go
+// through the global send limiter; ctx ends a wait for it at shutdown.
+func (s *Scheduler) runDue(ctx context.Context, now time.Time) {
 	if config.AppConfig == nil || !config.AppConfig.EnableDigest {
 		return
 	}
@@ -105,13 +112,22 @@ func (s *Scheduler) runDue(now time.Time) {
 		return
 	}
 	for i := range due {
-		s.send(&due[i], boundary)
+		// Shutdown, or a flood wait the limiter will not wait out, ends the
+		// tick before the next claim: the chats left stay due for the next.
+		if ctx.Err() != nil {
+			return
+		}
+		if paused := s.limiter.PausedFor(); paused > ratelimit.MaxSendRetryAfter {
+			log.WithField("paused_for", paused).Warn("[Digest] Telegram flood wait; leaving the rest for the next tick")
+			return
+		}
+		s.send(ctx, &due[i], boundary)
 	}
 }
 
 // send claims and delivers one chat's digest. A lost claim means another
 // replica already sent it this week.
-func (s *Scheduler) send(settings *models.DigestSettings, boundary time.Time) {
+func (s *Scheduler) send(ctx context.Context, settings *models.DigestSettings, boundary time.Time) {
 	claimedAt := s.now().UTC()
 	won, err := digestsettings.Claim(settings.ChatID, settings.LastSentAt, claimedAt)
 	if err != nil {
@@ -123,7 +139,7 @@ func (s *Scheduler) send(settings *models.DigestSettings, boundary time.Time) {
 		return
 	}
 
-	if err := s.deliver(settings, boundary.AddDate(0, 0, -7), boundary); err != nil {
+	if err := s.deliver(ctx, settings, boundary.AddDate(0, 0, -7), boundary); err != nil {
 		// A permanent failure cannot be fixed by retrying: keep the claim so
 		// the week counts as done and the next week starts clean.
 		if helpers.IsPermanentSendError(err) {
@@ -131,8 +147,12 @@ func (s *Scheduler) send(settings *models.DigestSettings, boundary time.Time) {
 				Warn("[Digest] week's digest is undeliverable; not retrying")
 			return
 		}
-		log.WithFields(log.Fields{"chat_id": settings.ChatID, "error": err}).
-			Error("[Digest] could not send the weekly digest")
+		entry := log.WithFields(log.Fields{"chat_id": settings.ChatID, "error": err})
+		if ctx.Err() != nil {
+			entry.Info("[Digest] shutdown stopped the weekly digest; giving the claim back")
+		} else {
+			entry.Error("[Digest] could not send the weekly digest")
+		}
 		if restoreErr := digestsettings.Restore(settings.ChatID, claimedAt, settings.LastSentAt); restoreErr != nil {
 			log.WithFields(log.Fields{"chat_id": settings.ChatID, "error": restoreErr}).
 				Error("[Digest] could not restore the digest claim")
@@ -141,8 +161,9 @@ func (s *Scheduler) send(settings *models.DigestSettings, boundary time.Time) {
 }
 
 // deliver reads the two weeks, renders the message in the chat's language and
-// sends it to the resolved destination.
-func (s *Scheduler) deliver(settings *models.DigestSettings, from, to time.Time) error {
+// sends it to the resolved destination at the global send limiter's pace. A
+// wait that ctx cancels returns ctx's error, which send treats as transient.
+func (s *Scheduler) deliver(ctx context.Context, settings *models.DigestSettings, from, to time.Time) error {
 	current, err := ReadStats(settings.ChatID, from, to)
 	if err != nil {
 		return err
@@ -170,6 +191,8 @@ func (s *Scheduler) deliver(settings *models.DigestSettings, from, to time.Time)
 	if keyboard != nil {
 		opts.ReplyMarkup = keyboard
 	}
-	_, err = s.bot.SendMessage(target, text, opts)
-	return err
+	return s.limiter.Do(ctx, func() error {
+		_, sendErr := s.bot.SendMessage(target, text, opts)
+		return sendErr
+	})
 }

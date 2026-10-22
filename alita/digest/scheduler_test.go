@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/moderation"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/panel"
+	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
 var digestChatSeq atomic.Int64
@@ -266,8 +268,8 @@ func TestSchedulerSendsOneDigestAcrossTwoReplicas(t *testing.T) {
 	second.now = func() time.Time { return now }
 
 	// Both replicas hold the row they listed before either claimed it.
-	first.send(row, weekStart)
-	second.send(row, weekStart)
+	first.send(context.Background(), row, weekStart)
+	second.send(context.Background(), row, weekStart)
 
 	sends := client.sends()
 	if len(sends) != 1 {
@@ -323,7 +325,7 @@ func TestSchedulerRetriesAFailedSend(t *testing.T) {
 	scheduler := NewScheduler(bot)
 	scheduler.now = func() time.Time { return now }
 
-	scheduler.runDue(now)
+	scheduler.runDue(context.Background(), now)
 	if got := len(client.sends()); got != 1 {
 		t.Fatalf("sendMessage attempts = %d, want 1", got)
 	}
@@ -333,7 +335,7 @@ func TestSchedulerRetriesAFailedSend(t *testing.T) {
 
 	next := now.Add(time.Hour)
 	scheduler.now = func() time.Time { return next }
-	scheduler.runDue(next)
+	scheduler.runDue(context.Background(), next)
 
 	if got := len(client.sends()); got != 2 {
 		t.Fatalf("sendMessage attempts = %d, want the retry as a second attempt", got)
@@ -372,7 +374,7 @@ func TestSchedulerDoesNotRetryAPermanentSendFailure(t *testing.T) {
 			client := &digestBotClient{failSends: 10, sendErr: sendErr}
 			scheduler := NewScheduler(newDigestTestBot(client))
 			scheduler.now = func() time.Time { return now }
-			scheduler.runDue(now)
+			scheduler.runDue(context.Background(), now)
 
 			if got := len(client.sends()); got != 1 {
 				t.Fatalf("sendMessage attempts = %d, want 1", got)
@@ -400,7 +402,7 @@ func TestSchedulerDoesNotRetryAPermanentSendFailure(t *testing.T) {
 
 			next := now.Add(time.Hour)
 			scheduler.now = func() time.Time { return next }
-			scheduler.runDue(next)
+			scheduler.runDue(context.Background(), next)
 			if got := len(client.sends()); got != 1 {
 				t.Fatalf("sendMessage attempts after the next tick = %d, want no retry", got)
 			}
@@ -423,7 +425,7 @@ func TestSchedulerSendsNothingWhenTheSwitchIsOff(t *testing.T) {
 	client := &digestBotClient{}
 	scheduler := NewScheduler(newDigestTestBot(client))
 	scheduler.now = func() time.Time { return now }
-	scheduler.runDue(now)
+	scheduler.runDue(context.Background(), now)
 
 	if sends := client.sends(); len(sends) != 0 {
 		t.Fatalf("sendMessage calls = %d with the switch off, want none", len(sends))
@@ -476,7 +478,7 @@ func TestSchedulerDestinations(t *testing.T) {
 			client := &digestBotClient{}
 			scheduler := NewScheduler(newDigestTestBot(client))
 			scheduler.now = func() time.Time { return now }
-			scheduler.runDue(now)
+			scheduler.runDue(context.Background(), now)
 
 			sends := client.sends()
 			if len(sends) != 1 {
@@ -510,7 +512,7 @@ func TestSchedulerUsesTheChatLanguage(t *testing.T) {
 	client := &digestBotClient{}
 	scheduler := NewScheduler(newDigestTestBot(client))
 	scheduler.now = func() time.Time { return now }
-	scheduler.runDue(now)
+	scheduler.runDue(context.Background(), now)
 
 	sends := client.sends()
 	if len(sends) != 1 {
@@ -541,7 +543,7 @@ func TestSchedulerAddsTheDashboardButtonOnlyWithThePanel(t *testing.T) {
 			bot := newDigestTestBot(client)
 			scheduler := NewScheduler(bot)
 			scheduler.now = func() time.Time { return now }
-			scheduler.runDue(now)
+			scheduler.runDue(context.Background(), now)
 
 			sends := client.sends()
 			if len(sends) != 1 {
@@ -565,5 +567,135 @@ func TestSchedulerAddsTheDashboardButtonOnlyWithThePanel(t *testing.T) {
 				t.Fatalf("button URL = %q, want %q", button.Url, want)
 			}
 		})
+	}
+}
+
+func digestFloodError(retryAfter int64) error {
+	return &gotgbot.TelegramError{
+		Method:         "sendMessage",
+		Code:           http.StatusTooManyRequests,
+		Description:    "Too Many Requests: retry after",
+		ResponseParams: &gotgbot.ResponseParameters{RetryAfter: retryAfter},
+	}
+}
+
+// newPacedDigestScheduler returns a scheduler with a limiter of its own, so a
+// test's pause or 429 never slows the other tests' sends.
+func newPacedDigestScheduler(client *digestBotClient, now time.Time) *Scheduler {
+	scheduler := NewScheduler(newDigestTestBot(client))
+	scheduler.limiter = ratelimit.NewSendLimiter(ratelimit.DefaultSendRate, ratelimit.DefaultSendBurst)
+	scheduler.now = func() time.Time { return now }
+	return scheduler
+}
+
+// A 429 is retried once after retry_after inside the same tick, under the
+// same claim: the chat still gets one digest and the week counts as sent.
+func TestSchedulerRetriesA429AfterRetryAfter(t *testing.T) {
+	useDigestLocales(t)
+	withDigestConfig(t, true, false)
+
+	chatID := newDigestTestChat(t)
+	weekStart := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	now := weekStart.Add(12 * time.Hour)
+	seedWeek(t, chatID, weekStart.AddDate(0, 0, -7), Stats{Messages: 4})
+	enableDigest(t, chatID, digestsettings.DestinationGroup)
+
+	client := &digestBotClient{failSends: 1, sendErr: digestFloodError(1)}
+	scheduler := newPacedDigestScheduler(client, now)
+
+	start := time.Now()
+	scheduler.send(context.Background(), dueRow(t, chatID, weekStart), weekStart)
+
+	if got := len(client.sends()); got != 2 {
+		t.Fatalf("sendMessage attempts = %d, want the 429 and its retry", got)
+	}
+	if elapsed := time.Since(start); elapsed < time.Second {
+		t.Fatalf("retry came after %v, want at least retry_after 1s", elapsed)
+	}
+	settings := digestSettingsOf(t, chatID)
+	if settings.LastSentAt == nil || !settings.LastSentAt.Equal(now) {
+		t.Fatalf("last_sent_at = %v, want the claim %v kept after the retry succeeded", settings.LastSentAt, now)
+	}
+}
+
+// A flood wait longer than the limiter's cap is not waited out: the send
+// fails like any transient error and the claim is given back for the next
+// tick.
+func TestSchedulerRestoresTheClaimOnALongFloodWait(t *testing.T) {
+	useDigestLocales(t)
+	withDigestConfig(t, true, false)
+
+	chatID := newDigestTestChat(t)
+	weekStart := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	now := weekStart.Add(12 * time.Hour)
+	seedWeek(t, chatID, weekStart.AddDate(0, 0, -7), Stats{Messages: 4})
+	enableDigest(t, chatID, digestsettings.DestinationGroup)
+
+	client := &digestBotClient{failSends: 1, sendErr: digestFloodError(3600)}
+	scheduler := newPacedDigestScheduler(client, now)
+	scheduler.send(context.Background(), dueRow(t, chatID, weekStart), weekStart)
+
+	if got := len(client.sends()); got != 1 {
+		t.Fatalf("sendMessage attempts = %d, want 1 without a retry", got)
+	}
+	if settings := digestSettingsOf(t, chatID); settings.LastSentAt != nil {
+		t.Fatalf("last_sent_at = %v after a long flood wait, want the claim restored", settings.LastSentAt)
+	}
+}
+
+// Shutdown cancels a send still waiting for the limiter: nothing is sent and
+// the claim is given back, so another replica or the next start sends it.
+func TestSchedulerRestoresTheClaimWhenShutdownEndsTheWait(t *testing.T) {
+	useDigestLocales(t)
+	withDigestConfig(t, true, false)
+
+	chatID := newDigestTestChat(t)
+	weekStart := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	now := weekStart.Add(12 * time.Hour)
+	seedWeek(t, chatID, weekStart.AddDate(0, 0, -7), Stats{Messages: 4})
+	enableDigest(t, chatID, digestsettings.DestinationGroup)
+
+	client := &digestBotClient{}
+	scheduler := newPacedDigestScheduler(client, now)
+	scheduler.limiter.Pause(30 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	scheduler.send(ctx, dueRow(t, chatID, weekStart), weekStart)
+
+	if got := len(client.sends()); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none while the limiter is paused", got)
+	}
+	if settings := digestSettingsOf(t, chatID); settings.LastSentAt != nil {
+		t.Fatalf("last_sent_at = %v after the wait was cancelled, want the claim restored", settings.LastSentAt)
+	}
+}
+
+// A flood wait longer than the limiter waits out ends the tick before the next
+// claim: no chat is claimed and left waiting on the pause, so all stay due.
+func TestSchedulerClaimsNothingDuringALongFloodWait(t *testing.T) {
+	useDigestLocales(t)
+	withDigestConfig(t, true, false)
+
+	weekStart := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	now := weekStart.Add(12 * time.Hour)
+	chats := []int64{newDigestTestChat(t), newDigestTestChat(t)}
+	for _, chatID := range chats {
+		seedWeek(t, chatID, weekStart.AddDate(0, 0, -7), Stats{Messages: 4})
+		enableDigest(t, chatID, digestsettings.DestinationGroup)
+	}
+
+	client := &digestBotClient{}
+	scheduler := newPacedDigestScheduler(client, now)
+	scheduler.limiter.Pause(time.Hour)
+	scheduler.runDue(context.Background(), now)
+
+	if got := len(client.sends()); got != 0 {
+		t.Fatalf("sendMessage calls = %d during a long flood wait, want none", got)
+	}
+	for _, chatID := range chats {
+		if settings := digestSettingsOf(t, chatID); settings.LastSentAt != nil {
+			t.Fatalf("chat %d last_sent_at = %v, want it still due", chatID, settings.LastSentAt)
+		}
 	}
 }
