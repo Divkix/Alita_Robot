@@ -246,44 +246,6 @@ func TestBanButtonsInGroupNameNoGroup(t *testing.T) {
 	}
 }
 
-// Sent from PM, the reply of a bans command names the group it acted on: the
-// one given first, or the connected one. Sent in the group, it does not.
-func TestBanCommandsInPMNameGroupInReply(t *testing.T) {
-	for _, tc := range pmModerationCases {
-		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
-			// A title with HTML characters: the reply is HTML, so it must be escaped.
-			named := `Tom & <Jerry>`
-			for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
-				f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
-			}
-			dispatcher := bansPMDispatcher()
-
-			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
-			if want := groupLine(t, named, f.chat.Id); !repliedIn(f, f.admin.Id, want) {
-				t.Fatalf("/%s @fixturegroup from PM did not name the group %q; sent:\n%s", tc.cmd, want, sentText(f.client))
-			}
-
-			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @victim"+tc.args)
-			if want := groupLine(t, chatTitleOf(f, connected), connected); !repliedIn(f, f.admin.Id, want) {
-				t.Fatalf("/%s from PM on a connection did not name the connected group %q; sent:\n%s", tc.cmd, want, sentText(f.client))
-			}
-
-			before := len(f.client.callsFor("sendMessage"))
-			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd+" @victim"+tc.args).Update
-			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
-				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
-			}
-			prefix := strings.SplitN(translated(t, "connections_pm_group_confirm_target"), "{", 2)[0]
-			for _, call := range f.client.callsFor("sendMessage")[before:] {
-				if strings.Contains(fmt.Sprint(call.Params["text"]), prefix) {
-					t.Fatalf("/%s in the group named a group: %q", tc.cmd, call.Params["text"])
-				}
-			}
-		})
-	}
-}
-
 // renderedText is the text Telegram shows for an HTML message, which is what
 // a button press brings back as the message's text: tags dropped, entities
 // decoded.

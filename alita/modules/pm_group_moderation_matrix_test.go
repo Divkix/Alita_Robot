@@ -57,6 +57,10 @@ var pmModerationCases = []pmModerationCase{
 	{"skick", "", bansPMDispatcher, calledOn("unbanChatMember"), "bans_kick_cannot_kick_admin"},
 	{"restrict", "", bansPMDispatcher, menuFor("restrict"), "bans_restrict_admin_error"},
 	{"unrestrict", "", bansPMDispatcher, menuFor("unrestrict"), "bans_unrestrict_admin_error"},
+	{"mute", " spam", mutesPMDispatcher, calledOn("restrictChatMember"), "mutes_mute_admin_error"},
+	{"smute", "", mutesPMDispatcher, calledOn("restrictChatMember"), "mutes_mute_admin_error"},
+	{"tmute", " 2h", mutesPMDispatcher, calledOn("restrictChatMember"), "mutes_mute_admin_error"},
+	{"unmute", "", mutesPMDispatcher, calledOn("restrictChatMember"), ""},
 }
 
 // targetedIn reports whether method was called on userID in chatID.
@@ -125,6 +129,11 @@ func buttonFor(t *testing.T, f adminChatFixture, from int, namespace, action str
 	return ""
 }
 
+// restrictedAnyone reports whether anyone was banned, unbanned or restricted.
+func restrictedAnyone(f adminChatFixture) bool {
+	return len(f.client.callsFor("banChatMember"))+len(f.client.callsFor("unbanChatMember"))+len(f.client.callsFor("restrictChatMember")) != 0
+}
+
 // requireNothingSentTo fails if any message was sent to chatID.
 func requireNothingSentTo(t *testing.T, f adminChatFixture, chatID int64) {
 	t.Helper()
@@ -178,6 +187,57 @@ func TestPMModerationActsOnNamedGroup(t *testing.T) {
 			requireConnectedTo(t, f.admin.Id, connected)
 		})
 	}
+}
+
+// Sent from PM, the reply of each command names the group it acted on, as
+// HTML: the one given first, or the connected one. Sent in the group, it does
+// not.
+func TestPMModerationNamesGroupInReply(t *testing.T) {
+	for _, tc := range pmModerationCases {
+		t.Run(tc.cmd, func(t *testing.T) {
+			f, connected := pmModerationFixture(t)
+			// A title with HTML characters: the reply is HTML, so it must be escaped.
+			named := `Tom & <Jerry>`
+			for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
+				f.client.chatsByID[key] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, f.chat.Id, named))
+			}
+			dispatcher := tc.dispatcher()
+
+			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
+			if want := groupLine(t, named, f.chat.Id); !repliedInHTML(f, f.admin.Id, want) {
+				t.Fatalf("/%s @fixturegroup from PM did not name the group %q as HTML; sent:\n%s", tc.cmd, want, sentText(f.client))
+			}
+
+			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @victim"+tc.args)
+			if want := groupLine(t, chatTitleOf(f, connected), connected); !repliedInHTML(f, f.admin.Id, want) {
+				t.Fatalf("/%s from PM on a connection did not name the connected group %q; sent:\n%s", tc.cmd, want, sentText(f.client))
+			}
+
+			before := len(f.client.callsFor("sendMessage"))
+			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd+" @victim"+tc.args).Update
+			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
+			}
+			prefix := strings.SplitN(translated(t, "connections_pm_group_confirm_target"), "{", 2)[0]
+			for _, call := range f.client.callsFor("sendMessage")[before:] {
+				if strings.Contains(fmt.Sprint(call.Params["text"]), prefix) {
+					t.Fatalf("/%s in the group named a group: %q", tc.cmd, call.Params["text"])
+				}
+			}
+		})
+	}
+}
+
+// repliedInHTML reports whether a message containing text was sent to chatID
+// as HTML.
+func repliedInHTML(f adminChatFixture, chatID int64, text string) bool {
+	for _, call := range f.client.callsFor("sendMessage") {
+		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(chatID) && strings.Contains(fmt.Sprint(call.Params["text"]), text) &&
+			fmt.Sprint(call.Params["parse_mode"]) == gotgbot.ParseModeHTML {
+			return true
+		}
+	}
+	return false
 }
 
 // With a connection and no group named, each command acts on @victim in the
@@ -338,7 +398,7 @@ func TestPMModerationIgnoresReplyInPM(t *testing.T) {
 
 			processPMReply(t, tc.dispatcher(), f, f.admin, bot, "/"+tc.cmd+" @fixturegroup")
 
-			if tc.acted(t, f, f.chat.Id, 999) || len(f.client.callsFor("banChatMember")) != 0 || len(f.client.callsFor("unbanChatMember")) != 0 {
+			if tc.acted(t, f, f.chat.Id, 999) || restrictedAnyone(f) {
 				t.Fatalf("/%s from PM in reply to the bot acted", tc.cmd)
 			}
 			if !repliedIn(f, f.admin.Id, translated(t, "common_no_user_specified")) {
@@ -350,8 +410,8 @@ func TestPMModerationIgnoresReplyInPM(t *testing.T) {
 
 			processPMReply(t, tc.dispatcher(), f, f.admin, f.admin, "/"+tc.cmd+" @fixturegroup")
 
-			if tc.acted(t, f, f.chat.Id, f.admin.Id) {
-				t.Fatalf("/%s from PM in reply to the caller's own message acted on them", tc.cmd)
+			if tc.acted(t, f, f.chat.Id, f.admin.Id) || restrictedAnyone(f) {
+				t.Fatalf("/%s from PM in reply to the caller's own message acted", tc.cmd)
 			}
 			if !repliedIn(f, f.admin.Id, translated(t, "common_no_user_specified")) {
 				t.Fatalf("/%s from PM in reply to own message: want common_no_user_specified; sent:\n%s", tc.cmd, sentText(f.client))
