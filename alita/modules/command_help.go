@@ -221,7 +221,7 @@ func commandHelpTextWith(tr *i18n.Translator, cmd, errText, example string) stri
 // (commandPMExample).
 func replyCommandHelp(b *gotgbot.Bot, msg *gotgbot.Message, tr *i18n.Translator, cmd, errText string) error {
 	example := commandExample(cmd)
-	if msg.Chat.Type == "private" {
+	if inPM(msg) {
 		example = commandPMExample(cmd)
 	}
 	_, err := msg.Reply(b, commandHelpTextWith(tr, cmd, errText, example), formatting.Shtml())

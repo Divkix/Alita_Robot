@@ -56,7 +56,7 @@ func groupOnlyChatCheck(c *helpers.CommandContext) bool {
 // when msg came from PM, where the reply names no group: a line after a blank
 // one, with the title HTML-escaped when escape is set. Elsewhere it is "".
 func pmGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, escape bool) string {
-	if msg == nil || msg.Chat.Type != "private" {
+	if !inPM(msg) {
 		return ""
 	}
 	title := chat.Title

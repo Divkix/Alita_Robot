@@ -618,7 +618,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	// Sent in PM, the menu named the group, and the text that replaces it
 	// names it too; the button carries only the group's ID. The line is only
 	// text, so a failed lookup leaves it out.
-	if ctx.EffectiveMessage.Chat.Type == "private" {
+	if inPM(ctx.EffectiveMessage) {
 		if full, err := b.GetChat(chat.Id, nil); err != nil {
 			log.Error(err)
 		} else {
@@ -1016,7 +1016,7 @@ func pmTargetChatCheck(c *helpers.CommandContext) bool {
 	if !groupOnlyChatCheck(c) {
 		return false
 	}
-	if msg := c.Ctx.EffectiveMessage; msg != nil && msg.Chat.Type == "private" && msg.ReplyToMessage != nil {
+	if msg := c.Ctx.EffectiveMessage; inPM(msg) && msg.ReplyToMessage != nil {
 		noReply := *msg
 		noReply.ReplyToMessage = nil
 		c.Ctx.EffectiveMessage = &noReply
@@ -1035,7 +1035,7 @@ func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat
 // names: chat, the group it acts on, when msg came from PM, whose chat names
 // no group; else 0, so the button acts on the chat it is pressed in.
 func pmButtonChatID(msg *gotgbot.Message, chat *gotgbot.Chat) int64 {
-	if msg.Chat.Type == "private" {
+	if inPM(msg) {
 		return chat.Id
 	}
 	return 0
