@@ -1855,6 +1855,58 @@ spamdb_db_lols_warning: "⚠️ lols.bot lists accounts more aggressively than C
 spamdb_db_enabled_idle: "✅ {database} is selected, but nothing is looked up while the check is off. See <code>/spamdb</code> for its state."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot lists accounts more aggressively than CAS, so expect more false positives. Consider <code>/spamdb action log</code> until you trust it. Once the check is running, each new member's Telegram user ID is sent to lols.bot."
 
+# New-member probation strings
+probation_help_msg: |
+  <b>🕑 Probation</b>
+
+  An opt-in probation for new members: someone who joins after an admin turns it on can't post links or forwards (and, if you choose, media) until they have sent a few real messages or a set time has passed. Their blocked messages are deleted; they are not muted.
+
+  Members who were in the group before probation was turned on are never on probation. Admins, approved users and bots are skipped.
+
+
+  *Admin commands:*
+
+  × /probation: Show the probation settings.
+
+  × /probation `<on/off>`: Turn probation on or off for members who join from now on.
+
+  × /probation time `<duration>`: How long probation lasts, from 1h to 30d. The default is 24h.
+
+  × /probation messages `<number>`: How many messages end probation early, from 1 to 100. The default is 5.
+
+  × /probation minlen `<number>`: The shortest message, in characters, that counts. The default is 20. A repeated message counts once.
+
+  × /probation block `<links,forwards,media>`: What is deleted during probation. The default is links and forwards.
+
+  × /probation notice `<on/off>`: Tell the member once, in the group, why a message was removed. Off by default.
+
+
+  Probation is off in every chat until an admin turns it on. Messages are counted only when the bot has Redis; without it, probation ends when its time is up. The bot needs the right to delete messages.
+probation_usage: "Use <code>/probation on</code>/<code>off</code>, <code>/probation time 24h</code>, <code>/probation messages 5</code>, <code>/probation minlen 20</code>, <code>/probation block links,forwards</code> or <code>/probation notice on</code>/<code>off</code>."
+probation_status_on: "New-member probation is <b>on</b> in this chat."
+probation_status_off: "New-member probation is <b>off</b> in this chat. Turn it on with <code>/probation on</code>."
+probation_status_details: "Members who join can't post <b>{blocked}</b> for <b>{time}</b>, or until they send <b>{messages}</b> different messages of at least <b>{minlen}</b> characters."
+probation_status_notice_on: "<b>Notice:</b> on. A member is told once, in the group, why a message was removed."
+probation_status_notice_off: "<b>Notice:</b> off. Messages are removed silently. Turn it on with <code>/probation notice on</code>."
+probation_status_no_redis: "⚠️ The bot has no Redis, so messages are not counted: probation ends only when its time is up."
+probation_status_no_delete: "⚠️ I can't delete messages in this chat, so probation does nothing until I get that right."
+probation_enabled_success: "✅ New-member probation is now <b>on</b>. Members who join from now on are on probation; current members are not."
+probation_disabled_success: "❌ New-member probation is now <b>off</b>."
+probation_time_success: "✅ Probation now lasts <b>{time}</b>."
+probation_messages_success: "✅ Probation now ends after <b>{messages}</b> messages."
+probation_minlen_success: "✅ Messages now count from <b>{minlen}</b> characters."
+probation_block_success: "✅ During probation I now delete: <b>{blocked}</b>."
+probation_notice_on_success: "✅ A member on probation will be told once why a message was removed."
+probation_notice_off_success: "❌ Messages from members on probation are now removed without a notice."
+probation_invalid_time: "Give a time from 1h to 30d. Example: <code>/probation time 12h</code>"
+probation_invalid_messages: "Give a number of messages from 1 to 100. Example: <code>/probation messages 5</code>"
+probation_invalid_minlen: "Give a length from 1 to 500 characters. Example: <code>/probation minlen 20</code>"
+probation_invalid_block: "Choose at least one of <code>links</code>, <code>forwards</code> and <code>media</code>. Example: <code>/probation block links,forwards</code>"
+probation_notice: "{user}, new members can't post {blocked} yet, so I removed your message. This ends after a few messages or some time."
+probation_block_links: "links"
+probation_block_forwards: "forwards"
+probation_block_media: "media"
+
 # Weekly digest strings
 digest_help_msg: |
   <b>📊 Weekly digest</b>
@@ -2770,6 +2822,7 @@ misc_section_desc: "Info, IDs, translation and other tools"
 mutes_section_desc: "Mute and unmute users"
 notes_section_desc: "Saved notes anyone can get"
 pins_section_desc: "Pin messages and handle channel pins"
+probation_section_desc: "Hold back links and media from new members"
 purges_section_desc: "Delete messages in bulk"
 reactions_section_desc: "React to keywords with an emoji"
 reports_section_desc: "Report messages to the admins"
@@ -3027,6 +3080,8 @@ rules_extend_msg: |
   /resetrulesbtn — same as /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — show or toggle the spam database join check, choose its databases, or set its action
+probation_extend_msg: |
+  /probation — show or toggle new-member probation, or set its time, messages, length, blocked content and notice
 digest_extend_msg: |
   /digest — show the weekly digest state, turn it on or off, choose its destination, or preview it
 warns_extend_msg: |

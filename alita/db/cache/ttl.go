@@ -34,4 +34,9 @@ const (
 	CacheTTLSpamDB          = DefaultCacheTTL
 	CacheTTLDigest          = DefaultCacheTTL
 	CacheTTLChatTimezone    = DefaultCacheTTL
+	CacheTTLProbation       = DefaultCacheTTL
+	// CacheTTLProbationMember bounds how long a replica that read "not on
+	// probation" just before another replica's join commit can keep that
+	// stale answer in Redis; DeleteCache cannot order against it.
+	CacheTTLProbationMember = time.Minute
 )

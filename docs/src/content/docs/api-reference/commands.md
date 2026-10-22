@@ -10,8 +10,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 31 (29 user-facing + 2 internal)
-- **Total Commands**: 221
+- **Total Modules**: 32 (30 user-facing + 2 internal)
+- **Total Commands**: 222
 
 ## Commands by Module
 
@@ -70,6 +70,12 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/spamdb` | Show the spam database join check, turn it on/off, choose its databases (`db cas\|lols\|shared on\|off`), or set its action (`action ban\|mute\|log`) | Admin | ✅ | — |
+
+#### 🕑 Probation
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/probation` | Show new-member probation, turn it on/off, or set `time`, `messages`, `minlen`, `block links,forwards,media` and `notice on\|off` | Admin (restrict) | ❌ | — |
 
 #### 👤 Approvals
 
@@ -533,6 +539,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/privatenotes` | Notes | Alias of `/privnote` | Admin |
 | `/privaterules` | Rules | Toggle private rules delivery | Admin |
 | `/privnote` | Notes | Toggle private note delivery | Admin |
+| `/probation` | Probation | Show or configure new-member probation | Admin |
 | `/promote` | Admin | Promote a user to admin | Admin |
 | `/purge` | Purges | Purge messages from replied-to onwards (optional reason) | Admin |
 | `/purgefrom` | Purges | Set purge start point | Admin |

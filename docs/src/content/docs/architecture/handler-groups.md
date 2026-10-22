@@ -23,6 +23,7 @@ This page documents every handler group the bot registers outside the default gr
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |
 | 1 | Connections | `connectedChatGuard` | update whose `EffectiveChat` a group-0 PM command swapped to the connected group | `EndGroups` | Keeps later groups from running on the swapped context; group 1 is reserved for this guard |
+| 2 | Probation | `checkProbation` | `message.All` | `ContinueGroups` (always) | Opt-in new-member probation: for a member who joined after `/probation on`, deletes links, forwards or media (as the chat chose) until enough different messages (counted in Redis) or the time has passed; skips admins and approved users; ends the probation on time or count |
 | 3 | AISpam | `checkAISpam` | `message.All` | `ContinueGroups` (always) | Opt-in AI spam filter; enqueues a check and never blocks propagation |
 | 4 | Antiflood | `checkFlood` | `message.All` | `ContinueGroups` (always) | Flood control; on flood deletes the message(s), punishes the sender and posts a notice without stopping later groups; skips anon admins, linked channels, approved users and media groups |
 | 5 | Locks | `permHandler` | `message.All` | `ContinueGroups` (always) | Content-type locks (sticker, gif, url, forward, rtl, anonchannel, ...); deletes the offending message but does not block later groups |

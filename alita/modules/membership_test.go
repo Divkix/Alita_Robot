@@ -70,6 +70,28 @@ func TestProcessSingleJoinDuplicate(t *testing.T) {
 	}
 }
 
+// Probation starts once per join, for the claim winner, never for an approved user.
+func TestProcessSingleJoinStartsProbationForUnapprovedWinner(t *testing.T) {
+	claimed := map[int64]bool{}
+	deps, _, _ := testMembershipDeps(func(_, uid int64) bool {
+		if claimed[uid] {
+			return false
+		}
+		claimed[uid] = true
+		return true
+	}, map[int64]bool{7: true}, nil)
+	var started []int64
+	deps.Probation = func(_ int64, u gotgbot.User) { started = append(started, u.Id) }
+
+	_, _ = ProcessSingleJoin(1, 999, gotgbot.User{Id: 5}, false, deps)
+	_, _ = ProcessSingleJoin(1, 999, gotgbot.User{Id: 5}, false, deps)
+	_, _ = ProcessSingleJoin(1, 999, gotgbot.User{Id: 7}, false, deps)
+	_, _ = ProcessSingleJoin(1, 999, gotgbot.User{Id: 999}, false, deps)
+	if len(started) != 1 || started[0] != 5 {
+		t.Fatalf("probation started for %v, want [5]", started)
+	}
+}
+
 func TestProcessSingleJoinApprovedBypass(t *testing.T) {
 	deps, challenged, welcomed := testMembershipDeps(nil, map[int64]bool{7: true}, nil)
 	o, err := ProcessSingleJoin(1, 999, gotgbot.User{Id: 7}, true, deps)

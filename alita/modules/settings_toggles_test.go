@@ -170,6 +170,11 @@ func TestSettingsToggleRefusals(t *testing.T) {
 			denyKey: "chat_status_change_info_button_error",
 		},
 		{
+			name: "admin without restrict", key: "pb", value: "on", command: "/probation",
+			user:    func(adminChatFixture) gotgbot.User { return limited },
+			denyKey: "chat_status_restrict_button_error",
+		},
+		{
 			name: "admin who is not the owner", key: "an", value: "on", command: "/anonadmin",
 			user:    func(f adminChatFixture) gotgbot.User { return f.admin },
 			denyKey: "chat_status_owner_button_error",

@@ -762,6 +762,58 @@ spamdb_db_lols_warning: "⚠️ lols.bot खातों को CAS से ज�
 spamdb_db_enabled_idle: "✅ {database} चुना गया है, लेकिन जाँच बंद रहने तक कुछ भी नहीं खोजा जाएगा। उसकी स्थिति <code>/spamdb</code> से देखें।"
 spamdb_db_lols_warning_idle: "⚠️ lols.bot खातों को CAS से ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा होगी। जब तक भरोसा न हो, <code>/spamdb action log</code> पर विचार करें। जाँच चालू होने पर हर नए सदस्य की Telegram ID lols.bot को भेजी जाएगी।"
 
+# New-member probation strings
+probation_help_msg: |
+  <b>🕑 परिवीक्षा</b>
+
+  नए सदस्यों के लिए एक वैकल्पिक परिवीक्षा: किसी एडमिन के इसे चालू करने के बाद जुड़ने वाला सदस्य तब तक लिंक या फ़ॉरवर्ड (और, अगर आप चुनें, मीडिया) पोस्ट नहीं कर सकता, जब तक वह कुछ असली संदेश न भेज दे या तय समय न बीत जाए। उसके रोके गए संदेश हटा दिए जाते हैं; उसे म्यूट नहीं किया जाता।
+
+  परिवीक्षा चालू होने से पहले ग्रुप में मौजूद सदस्य कभी परिवीक्षा पर नहीं होते। एडमिन, स्वीकृत उपयोगकर्ता और बॉट छोड़ दिए जाते हैं।
+
+
+  *एडमिन कमांड:*
+
+  × /probation: परिवीक्षा की सेटिंग्स दिखाएँ।
+
+  × /probation `<on/off>`: अब से जुड़ने वाले सदस्यों के लिए परिवीक्षा चालू या बंद करें।
+
+  × /probation time `<अवधि>`: परिवीक्षा कितनी देर चलती है, 1h से 30d तक। डिफ़ॉल्ट 24h है।
+
+  × /probation messages `<संख्या>`: कितने संदेश परिवीक्षा जल्दी खत्म करते हैं, 1 से 100 तक। डिफ़ॉल्ट 5 है।
+
+  × /probation minlen `<संख्या>`: गिना जाने वाला सबसे छोटा संदेश, अक्षरों में। डिफ़ॉल्ट 20 है। दोहराया गया संदेश एक बार गिना जाता है।
+
+  × /probation block `<links,forwards,media>`: परिवीक्षा के दौरान क्या हटाया जाता है। डिफ़ॉल्ट लिंक और फ़ॉरवर्ड है।
+
+  × /probation notice `<on/off>`: सदस्य को एक बार, ग्रुप में, बताएँ कि संदेश क्यों हटाया गया। डिफ़ॉल्ट रूप से बंद।
+
+
+  परिवीक्षा हर चैट में तब तक बंद रहती है जब तक कोई एडमिन इसे चालू न करे। संदेश केवल तब गिने जाते हैं जब बॉट के पास Redis हो; उसके बिना परिवीक्षा समय पूरा होने पर खत्म होती है। बॉट को संदेश हटाने का अधिकार चाहिए।
+probation_usage: "<code>/probation on</code>/<code>off</code>, <code>/probation time 24h</code>, <code>/probation messages 5</code>, <code>/probation minlen 20</code>, <code>/probation block links,forwards</code> या <code>/probation notice on</code>/<code>off</code> का उपयोग करें।"
+probation_status_on: "इस चैट में नए सदस्यों की परिवीक्षा <b>चालू</b> है।"
+probation_status_off: "इस चैट में नए सदस्यों की परिवीक्षा <b>बंद</b> है। इसे <code>/probation on</code> से चालू करें।"
+probation_status_details: "जुड़ने वाले सदस्य <b>{time}</b> तक, या <b>{minlen}</b> अक्षरों के कम से कम <b>{messages}</b> अलग-अलग संदेश भेजने तक, <b>{blocked}</b> पोस्ट नहीं कर सकते।"
+probation_status_notice_on: "<b>सूचना:</b> चालू। सदस्य को एक बार, ग्रुप में, बताया जाता है कि संदेश क्यों हटाया गया।"
+probation_status_notice_off: "<b>सूचना:</b> बंद। संदेश चुपचाप हटाए जाते हैं। इसे <code>/probation notice on</code> से चालू करें।"
+probation_status_no_redis: "⚠️ बॉट के पास Redis नहीं है, इसलिए संदेश नहीं गिने जाते: परिवीक्षा केवल समय पूरा होने पर खत्म होती है।"
+probation_status_no_delete: "⚠️ मैं इस चैट में संदेश नहीं हटा सकता, इसलिए जब तक मुझे यह अधिकार नहीं मिलता, परिवीक्षा कुछ नहीं करती।"
+probation_enabled_success: "✅ नए सदस्यों की परिवीक्षा अब <b>चालू</b> है। अब से जुड़ने वाले सदस्य परिवीक्षा पर हैं; मौजूदा सदस्य नहीं।"
+probation_disabled_success: "❌ नए सदस्यों की परिवीक्षा अब <b>बंद</b> है।"
+probation_time_success: "✅ परिवीक्षा अब <b>{time}</b> चलती है।"
+probation_messages_success: "✅ परिवीक्षा अब <b>{messages}</b> संदेशों के बाद खत्म होती है।"
+probation_minlen_success: "✅ संदेश अब <b>{minlen}</b> अक्षरों से गिने जाते हैं।"
+probation_block_success: "✅ परिवीक्षा के दौरान अब मैं हटाता हूँ: <b>{blocked}</b>।"
+probation_notice_on_success: "✅ परिवीक्षा पर सदस्य को एक बार बताया जाएगा कि संदेश क्यों हटाया गया।"
+probation_notice_off_success: "❌ परिवीक्षा पर सदस्यों के संदेश अब बिना सूचना के हटाए जाते हैं।"
+probation_invalid_time: "1h से 30d तक का समय दें। उदाहरण: <code>/probation time 12h</code>"
+probation_invalid_messages: "1 से 100 तक संदेशों की संख्या दें। उदाहरण: <code>/probation messages 5</code>"
+probation_invalid_minlen: "1 से 500 अक्षरों तक की लंबाई दें। उदाहरण: <code>/probation minlen 20</code>"
+probation_invalid_block: "<code>links</code>, <code>forwards</code> और <code>media</code> में से कम से कम एक चुनें। उदाहरण: <code>/probation block links,forwards</code>"
+probation_notice: "{user}, नए सदस्य अभी {blocked} पोस्ट नहीं कर सकते, इसलिए मैंने आपका संदेश हटा दिया। यह कुछ संदेशों या कुछ समय के बाद खत्म हो जाएगा।"
+probation_block_links: "लिंक"
+probation_block_forwards: "फ़ॉरवर्ड"
+probation_block_media: "मीडिया"
+
 # Weekly digest strings
 digest_help_msg: |
   <b>📊 साप्ताहिक सारांश</b>
@@ -2474,6 +2526,7 @@ misc_section_desc: "जानकारी, ID, अनुवाद और दू�
 mutes_section_desc: "यूज़र को म्यूट और अनम्यूट करें"
 notes_section_desc: "सहेजे गए नोट्स जिन्हें कोई भी पा सकता है"
 pins_section_desc: "संदेश पिन करें और चैनल के पिन संभालें"
+probation_section_desc: "नए सदस्यों के लिंक और मीडिया रोकें"
 purges_section_desc: "एक साथ कई संदेश हटाएँ"
 reactions_section_desc: "कीवर्ड पर इमोजी से प्रतिक्रिया दें"
 reports_section_desc: "संदेशों की शिकायत एडमिन से करें"
@@ -2731,6 +2784,8 @@ rules_extend_msg: |
   /resetrulesbtn — /resetrulesbutton के समान
 spamdb_extend_msg: |
   /spamdb — स्पैम डेटाबेस जाँच दिखाएँ या बदलें, उसके डेटाबेस चुनें, या उसकी कार्रवाई तय करें
+probation_extend_msg: |
+  /probation — नए सदस्यों की परिवीक्षा दिखाएँ या बदलें, या उसका समय, संदेश, लंबाई, रोकी गई सामग्री और सूचना तय करें
 digest_extend_msg: |
   /digest — साप्ताहिक सारांश की स्थिति दिखाएँ, उसे चालू या बंद करें, उसका गंतव्य चुनें, या उसका पूर्वावलोकन देखें
 warns_extend_msg: |

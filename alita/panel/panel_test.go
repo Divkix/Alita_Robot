@@ -50,6 +50,7 @@ func TestMain(m *testing.M) {
 		&models.Warns{},
 		&models.WarnEntry{},
 		&models.ModerationEvent{},
+		&models.ProbationSettings{},
 	))
 }
 

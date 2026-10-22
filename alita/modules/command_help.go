@@ -109,6 +109,7 @@ var commandHelpModules = map[string]string{
 	"setwarntime":        "warns",
 	"aispam":             "aispam",
 	"spamdb":             "spamdb",
+	"probation":          "probation",
 	"anonadmin":          "admin",
 	// Group resets, with the group from PM.
 	"privnote":      "notes",
@@ -347,6 +348,8 @@ var menuCommands = map[string]menuCommand{
 	"resetrulesbtn":    {Module: "rules", AdminOnly: true},
 
 	"spamdb": {Module: "spamdb", AdminOnly: true},
+
+	"probation": {Module: "probation", AdminOnly: true},
 
 	"warn":          {Module: "warns", AdminOnly: true},
 	"swarn":         {Module: "warns", AdminOnly: true},

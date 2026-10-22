@@ -28,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -128,6 +129,7 @@ func collectChatSettings(ctx context.Context, chatID int64) []settingsSection {
 		antifloodSettingsSection(chatID),
 		antiraidSettingsSection(chatID),
 		{Title: "AI Spam", Rows: []settingsRow{boolRow("/aispam", aispam.IsAISpamEnabled(chatID), false)}},
+		probationSettingsSection(ctx, chatID),
 		warnsSettingsSection(ctx, chatID),
 		locksSettingsSection(chatID),
 		blacklistSettingsSection(chatID),
@@ -190,6 +192,32 @@ func antiraidSettingsSection(chatID int64) settingsSection {
 		{Command: "/raidactiontime", Value: formatDuration(s.RaidActionTime), Changed: s.RaidActionTime != settingsDefaultRaidActionTime},
 		auto,
 	}}
+}
+
+func probationSettingsSection(ctx context.Context, chatID int64) settingsSection {
+	s, err := probation.GetSettings(ctx, chatID)
+	if err != nil {
+		log.Warnf("[Settings] read probation settings for chat %d: %v", chatID, err)
+		s = models.DefaultProbationSettings(chatID)
+	}
+	def := models.DefaultProbationSettings(chatID)
+	return settingsSection{Title: "Probation", Rows: []settingsRow{
+		boolRow("/probation", s.Enabled, false),
+		{Command: "/probation time", Value: formatDuration(s.DurationSeconds), Changed: s.DurationSeconds != def.DurationSeconds},
+		intRow("/probation messages", s.MessageCount, def.MessageCount),
+		intRow("/probation minlen", s.MinLength, def.MinLength),
+		stringRow("/probation block", probationSettingSummary(s), probationSettingSummary(def)),
+		boolRow("/probation notice", s.Notice, false),
+	}}
+}
+
+// probationSettingSummary is the value of the /probation block summary row.
+func probationSettingSummary(settings *models.ProbationSettings) string {
+	kinds := probationBlockedKinds(settings)
+	if len(kinds) == 0 {
+		return "—"
+	}
+	return strings.Join(kinds, ", ")
 }
 
 func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {

@@ -29,10 +29,22 @@ var settingsPermissions = map[string]permission{
 	// need the same right the captcha watcher uses.
 	"captcha":     permRestrict,
 	"antiflood":   permNone, // /setflood requires an admin and the bot admin
-	"antispam":    permNone, // /aispam and /spamdb only require an admin
+	"antispam":    permNone, // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
 	"antiraid":    permNone, // /antiraid and the raid timers only require an admin
 	"locks":       permNone, // read-only summary
 	"log_channel": permNone, // read-only summary
+}
+
+// settingsFieldPermission is the right one "<module>.<field>" change needs:
+// its module's, raised for a field whose command checks more than the rest
+// of the module.
+func settingsFieldPermission(module, field string) permission {
+	perm := settingsPermissions[module]
+	// /probation checks can_restrict_members, unlike /aispam and /spamdb.
+	if module == "antispam" && strings.HasPrefix(field, "probation_") {
+		perm = max(perm, permRestrict)
+	}
+	return perm
 }
 
 // settingsPermission reports the strongest right a batch of changes needs.
@@ -40,11 +52,11 @@ var settingsPermissions = map[string]permission{
 func settingsPermission(changes map[string]any) permission {
 	required := permNone
 	for key := range changes {
-		module, _, ok := strings.Cut(key, ".")
+		module, field, ok := strings.Cut(key, ".")
 		if !ok {
 			continue
 		}
-		if perm := settingsPermissions[module]; perm > required {
+		if perm := settingsFieldPermission(module, field); perm > required {
 			required = perm
 		}
 	}

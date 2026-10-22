@@ -41,6 +41,9 @@ type MembershipDeps struct {
 	IsApproved func(chatID, userID int64) bool
 	Challenge  func(user gotgbot.User) error
 	Welcome    func(user gotgbot.User) error
+	// Probation puts a member who is not approved on probation when the chat
+	// has it on. It runs only for the update that won the join claim.
+	Probation func(chatID int64, user gotgbot.User)
 }
 
 type joinErrorStage uint8
@@ -85,6 +88,9 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 	approved := false
 	if deps.IsApproved != nil {
 		approved = deps.IsApproved(chatID, user.Id)
+	}
+	if !approved && deps.Probation != nil {
+		deps.Probation(chatID, user)
 	}
 	switch DecideJoin(JoinInput{IsApproved: approved, CaptchaEnabled: captchaEnabled}) {
 	case JoinChallenge:

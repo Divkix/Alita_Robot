@@ -111,6 +111,7 @@ setwarnmode_example: "/setwarnmode @mygroup mute"
 setwarntime_example: "/setwarntime @mygroup 30d"
 aispam_example: "/aispam @mygroup on"
 spamdb_example: "/spamdb @mygroup action mute"
+probation_example: "/probation @mygroup on"
 anonadmin_example: "/anonadmin @mygroup on"
 privnote_example: "/privnote @mygroup on"
 clearall_example: '/clearall "My Group"'

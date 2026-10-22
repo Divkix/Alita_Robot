@@ -1806,6 +1806,58 @@ spamdb_db_lols_warning: "⚠️ lols.bot mendaftarkan akun lebih agresif daripad
 spamdb_db_enabled_idle: "✅ {database} dipilih, tetapi tidak ada yang dicari selama pemeriksaan mati. Lihat statusnya dengan <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. Setelah pemeriksaan aktif, ID Telegram setiap anggota baru akan dikirim ke lols.bot."
 
+# New-member probation strings
+probation_help_msg: |
+  <b>🕑 Masa Percobaan</b>
+
+  Masa percobaan opsional untuk anggota baru: siapa pun yang bergabung setelah admin mengaktifkannya tidak bisa mengirim tautan atau pesan terusan (dan, jika Anda pilih, media) sampai mereka mengirim beberapa pesan sungguhan atau waktu yang ditentukan berlalu. Pesan yang diblokir dihapus; mereka tidak dibisukan.
+
+  Anggota yang sudah ada di grup sebelum masa percobaan diaktifkan tidak pernah menjalani masa percobaan. Admin, pengguna yang disetujui, dan bot dilewati.
+
+
+  *Perintah admin:*
+
+  × /probation: Tampilkan pengaturan masa percobaan.
+
+  × /probation `<on/off>`: Aktifkan atau matikan masa percobaan untuk anggota yang bergabung mulai sekarang.
+
+  × /probation time `<durasi>`: Berapa lama masa percobaan berlangsung, dari 1h sampai 30d. Bawaannya 24h.
+
+  × /probation messages `<angka>`: Berapa pesan yang mengakhiri masa percobaan lebih awal, dari 1 sampai 100. Bawaannya 5.
+
+  × /probation minlen `<angka>`: Pesan terpendek, dalam karakter, yang dihitung. Bawaannya 20. Pesan yang diulang dihitung sekali.
+
+  × /probation block `<links,forwards,media>`: Apa yang dihapus selama masa percobaan. Bawaannya tautan dan pesan terusan.
+
+  × /probation notice `<on/off>`: Beri tahu anggota sekali, di grup, mengapa pesannya dihapus. Mati secara bawaan.
+
+
+  Masa percobaan mati di setiap obrolan sampai admin mengaktifkannya. Pesan hanya dihitung jika bot memiliki Redis; tanpanya, masa percobaan berakhir saat waktunya habis. Bot memerlukan hak untuk menghapus pesan.
+probation_usage: "Gunakan <code>/probation on</code>/<code>off</code>, <code>/probation time 24h</code>, <code>/probation messages 5</code>, <code>/probation minlen 20</code>, <code>/probation block links,forwards</code> atau <code>/probation notice on</code>/<code>off</code>."
+probation_status_on: "Masa percobaan anggota baru <b>aktif</b> di obrolan ini."
+probation_status_off: "Masa percobaan anggota baru <b>mati</b> di obrolan ini. Aktifkan dengan <code>/probation on</code>."
+probation_status_details: "Anggota yang bergabung tidak bisa mengirim <b>{blocked}</b> selama <b>{time}</b>, atau sampai mereka mengirim <b>{messages}</b> pesan berbeda dengan sedikitnya <b>{minlen}</b> karakter."
+probation_status_notice_on: "<b>Pemberitahuan:</b> aktif. Anggota diberi tahu sekali, di grup, mengapa pesannya dihapus."
+probation_status_notice_off: "<b>Pemberitahuan:</b> mati. Pesan dihapus tanpa pemberitahuan. Aktifkan dengan <code>/probation notice on</code>."
+probation_status_no_redis: "⚠️ Bot tidak memiliki Redis, jadi pesan tidak dihitung: masa percobaan hanya berakhir saat waktunya habis."
+probation_status_no_delete: "⚠️ Saya tidak bisa menghapus pesan di obrolan ini, jadi masa percobaan tidak berbuat apa-apa sampai saya mendapat hak itu."
+probation_enabled_success: "✅ Masa percobaan anggota baru sekarang <b>aktif</b>. Anggota yang bergabung mulai sekarang menjalani masa percobaan; anggota yang sudah ada tidak."
+probation_disabled_success: "❌ Masa percobaan anggota baru sekarang <b>mati</b>."
+probation_time_success: "✅ Masa percobaan sekarang berlangsung <b>{time}</b>."
+probation_messages_success: "✅ Masa percobaan sekarang berakhir setelah <b>{messages}</b> pesan."
+probation_minlen_success: "✅ Pesan sekarang dihitung mulai <b>{minlen}</b> karakter."
+probation_block_success: "✅ Selama masa percobaan sekarang saya menghapus: <b>{blocked}</b>."
+probation_notice_on_success: "✅ Anggota dalam masa percobaan akan diberi tahu sekali mengapa pesannya dihapus."
+probation_notice_off_success: "❌ Pesan dari anggota dalam masa percobaan sekarang dihapus tanpa pemberitahuan."
+probation_invalid_time: "Berikan waktu dari 1h sampai 30d. Contoh: <code>/probation time 12h</code>"
+probation_invalid_messages: "Berikan jumlah pesan dari 1 sampai 100. Contoh: <code>/probation messages 5</code>"
+probation_invalid_minlen: "Berikan panjang dari 1 sampai 500 karakter. Contoh: <code>/probation minlen 20</code>"
+probation_invalid_block: "Pilih setidaknya satu dari <code>links</code>, <code>forwards</code>, dan <code>media</code>. Contoh: <code>/probation block links,forwards</code>"
+probation_notice: "{user}, anggota baru belum bisa mengirim {blocked}, jadi pesan Anda saya hapus. Ini berakhir setelah beberapa pesan atau beberapa waktu."
+probation_block_links: "tautan"
+probation_block_forwards: "pesan terusan"
+probation_block_media: "media"
+
 # Weekly digest strings
 digest_help_msg: |
   <b>📊 Ringkasan mingguan</b>
@@ -2752,6 +2804,7 @@ misc_section_desc: "Info, ID, terjemahan, dan alat lainnya"
 mutes_section_desc: "Bisukan dan batalkan bisu pengguna"
 notes_section_desc: "Catatan tersimpan yang bisa diambil siapa saja"
 pins_section_desc: "Sematkan pesan dan atur sematan dari kanal"
+probation_section_desc: "Tahan tautan dan media dari anggota baru"
 purges_section_desc: "Hapus banyak pesan sekaligus"
 reactions_section_desc: "Beri reaksi emoji pada kata kunci"
 reports_section_desc: "Laporkan pesan ke admin"
@@ -3009,6 +3062,8 @@ rules_extend_msg: |
   /resetrulesbtn — sama dengan /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — tampilkan atau ubah pemeriksaan database spam, pilih database-nya, atau atur tindakannya
+probation_extend_msg: |
+  /probation — tampilkan atau ubah masa percobaan anggota baru, atau atur waktu, pesan, panjang, konten yang diblokir, dan pemberitahuannya
 digest_extend_msg: |
   /digest — tampilkan status ringkasan mingguan, aktifkan atau nonaktifkan, pilih tujuannya, atau lihat pratinjaunya
 warns_extend_msg: |

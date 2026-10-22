@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -97,6 +98,13 @@ func canChangeInfoRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 	return ""
 }
 
+func restrictRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
+	if !chat_status.CanUserRestrict(b, ctx, chat, userID) {
+		return "chat_status_restrict_button_error"
+	}
+	return ""
+}
+
 func ownerRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
 	if !chat_status.RequireUserOwner(b, ctx, chat, userID) {
 		return "chat_status_owner_button_error"
@@ -120,6 +128,8 @@ var settingsToggles = []settingsToggle{
 	boolToggle("fd", "/delflood", true, antiflood.SetFloodMsgDel),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
 	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},
+	withRight(boolToggle("pb", "/probation", true, probation.SetEnabled), restrictRight),
+	withRight(boolToggle("pv", "/probation notice", true, probation.SetNotice), restrictRight),
 	boolToggle("we", "/welcome", false, greetings.SetWelcomeToggle),
 	greetingSettingsToggle("cw", "/cleanwelcome", cleanWelcomeToggleConfig),
 	boolToggle("gb", "/goodbye", false, greetings.SetGoodbyeToggle),

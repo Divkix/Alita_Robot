@@ -46,8 +46,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 - Group numbers are execution order: `-10` captcha sweeper · `-6` fed-ban · `-5` antiraid · `-4` spamdb ·
   `-2` admin-cache · `-1` users tracker + bot-joined (MyChatMember) · `0` commands/help/greetings ·
-  `1` connected-chat guard · `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists · `8` reports+reactions ·
-  `9` filters · `10` pins · `11` log-channel.
+  `1` connected-chat guard · `2` probation · `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists ·
+  `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
 - A PM command that acts on the connected group sets `ctx.EffectiveChat` to it, and later groups must not run on
   that ctx. `WrapCommand` ends iteration after such a swap in any group, whatever the handler returns (error and
   panic included). Legacy `dispatcher.AddHandler` commands rely on the group-`1` guard, which only sees swaps made in
@@ -128,8 +128,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   evicts it on this replica only; list freshness-critical keys in `skipLocal` (`alita/db/cache/local.go`). Tests that
   write rows directly must call `cache.ResetLocalForTest()` or `DeleteCache` before reading through the cache.
 - Two packages are named `cache`; the loader and generation guards are in `alita/db/cache`, not `alita/utils/cache`.
-- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`) sit outside the `alita:cache:` prefix;
-  `CLEAR_CACHE_ON_STARTUP` does not clear them.
+- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`, `alita:probation:*`) sit outside the
+  `alita:cache:` prefix; `CLEAR_CACHE_ON_STARTUP` does not clear them.
 - `UpdateRecord` skips zero values. Use `UpdateRecordWithZeroValues` to write `false`/`0`/`""`. Both return
   `gorm.ErrRecordNotFound` when no row matched.
 - Check `TableName()` before raw SQL: `ConnectionSettings→connection` (per user), `ConnectionChatSettings→
@@ -157,7 +157,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 ## Subsystem traps
 
 - Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, locks, blacklists, captcha,
-  and the report auto-mute.
+  probation, and the report auto-mute.
 - Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
