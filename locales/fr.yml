@@ -1730,6 +1730,38 @@ digest_change_same: "aucun changement par rapport à la semaine d'avant"
 digest_change_new: "nouveau"
 digest_change_none: "—"
 digest_dashboard_button: "📊 Ouvrir le tableau de bord"
+# Recurring messages strings
+recurring_help_msg: |
+  <b>🔁 Messages récurrents</b>
+
+  Les admins peuvent faire publier un message par le bot dans ce chat de façon répétée, par exemple un rappel des règles chaque jour. Le contenu fonctionne comme une note : texte avec mise en forme, boutons et remplissages comme le nom du chat, ou le message auquel vous répondez, médias compris. Les heures sont en UTC. Un chat peut avoir jusqu'à 5 messages récurrents, et l'intervalle minimal est de 1 heure.
+
+  *Commandes d'admin :*
+
+  × /recurring add `<intervalle>` `<réponse/texte>` : publie le texte, ou le message auquel vous répondez, à chaque intervalle (par exemple 6h, 1d ou 1w) dans le sujet où la commande est envoyée.
+  Les options se placent entre l'intervalle et le texte : `start=HH:MM` publie d'abord à cette heure (UTC), puis à chaque intervalle ; `end=AAAA-MM-JJ` s'arrête après ce jour (`end=AAAA-MM-JJTHH:MM` à cette heure) ; `delete=on` supprime la publication précédente quand la suivante part ; `topic=ID` publie dans ce sujet.
+  × /recurring list : liste les messages récurrents de ce chat avec leurs ID.
+  × /recurring rm `<id>` : supprime un message récurrent.
+
+  Un message que le bot ne peut plus publier (il a été retiré ou le sujet n'existe plus) est arrêté et reste dans la liste jusqu'à sa suppression. Si le bot ne peut pas écrire dans le chat, il saute les publications jusqu'à ce qu'il le puisse à nouveau.
+recurring_usage: "Utilisez <code>/recurring add &lt;intervalle&gt; &lt;texte&gt;</code>, <code>/recurring list</code> ou <code>/recurring rm &lt;id&gt;</code>."
+recurring_interval_too_short: "❌ L'intervalle doit être d'au moins 1 heure."
+recurring_invalid_option: "❌ Je n'ai pas pu lire l'option <code>{option}</code>. Utilisez <code>start=HH:MM</code>, <code>end=AAAA-MM-JJ</code>, <code>delete=on</code> ou <code>topic=ID</code>."
+recurring_need_content: "❌ Donnez-moi quelque chose à publier : du texte après l'intervalle, ou répondez à un message."
+recurring_end_before_start: "❌ L'heure de fin est avant la première publication."
+recurring_limit_reached: "❌ Ce chat a déjà {max} messages récurrents, le maximum autorisé. Supprimez-en d'abord un avec <code>/recurring rm &lt;id&gt;</code>."
+recurring_added: "✅ Message récurrent <b>#{id}</b> enregistré."
+recurring_list_title: "<b>🔁 Messages récurrents</b> ({count}/{max})"
+recurring_list_item: "<b>#{id}</b> · intervalle {interval} · prochain {next} UTC"
+recurring_list_item_until: "jusqu'au {end} UTC"
+recurring_list_item_topic: "sujet {topic}"
+recurring_list_item_delete_previous: "remplace la publication précédente"
+recurring_list_item_stopped: "⏸ arrêté"
+recurring_list_media: "📎 média"
+recurring_list_empty: "Ce chat n'a aucun message récurrent. Ajoutez-en un avec <code>/recurring add &lt;intervalle&gt; &lt;texte&gt;</code>."
+recurring_list_hint: "Supprimez-en un avec <code>/recurring rm &lt;id&gt;</code>."
+recurring_not_found: "❌ Ce chat n'a pas de message récurrent #{id}."
+recurring_removed: "✅ Message récurrent #{id} supprimé."
 
 # Locks module extended documentation
 locks_notes_docs: |
@@ -2710,6 +2742,7 @@ blacklists_section_desc: "Sanctionner les mots en liste noire"
 captcha_section_desc: "Faire résoudre un captcha aux nouveaux membres"
 connections_section_desc: "Gérer un groupe depuis le privé"
 digest_section_desc: "Un résumé hebdomadaire de l'activité du groupe"
+recurring_section_desc: "Des messages que le bot publie selon un calendrier"
 disabling_section_desc: "Désactiver des commandes pour les membres"
 federations_section_desc: "Partager les bannissements entre groupes"
 filters_section_desc: "Réponses automatiques à des mots déclencheurs"
@@ -2984,6 +3017,8 @@ probation_extend_msg: |
   /probation — afficher ou basculer la période d'essai des nouveaux membres, ou régler sa durée, ses messages, sa longueur, le contenu bloqué et l'avis
 digest_extend_msg: |
   /digest — affiche l'état du résumé hebdomadaire, l'active ou le désactive, choisit sa destination ou en donne un aperçu
+recurring_extend_msg: |
+  /recurring — ajouter, lister ou supprimer les messages que le bot publie selon un calendrier
 warns_extend_msg: |
   /warn — avertir un utilisateur
   /swarn — avertir et supprimer votre commande

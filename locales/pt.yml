@@ -1875,6 +1875,38 @@ digest_change_same: "sem mudança em relação à semana anterior"
 digest_change_new: "novo"
 digest_change_none: "—"
 digest_dashboard_button: "📊 Abrir o painel"
+# Recurring messages strings
+recurring_help_msg: |
+  <b>🔁 Mensagens recorrentes</b>
+
+  Os administradores podem fazer o bot publicar uma mensagem neste chat repetidamente, por exemplo um lembrete das regras todos os dias. O conteúdo funciona como uma nota: texto com formatação, botões e preenchimentos como o nome do chat, ou a mensagem respondida, incluindo mídia. Os horários estão em UTC. Um chat pode ter até 5 mensagens recorrentes, e o intervalo mínimo é de 1 hora.
+
+  *Comandos de administrador:*
+
+  × /recurring add `<intervalo>` `<resposta/texto>`: Publica o texto, ou a mensagem respondida, a cada intervalo (por exemplo 6h, 1d ou 1w) no tópico onde o comando foi enviado.
+  As opções ficam entre o intervalo e o texto: `start=HH:MM` publica primeiro neste horário (UTC) e depois a cada intervalo; `end=AAAA-MM-DD` para depois desse dia (`end=AAAA-MM-DDTHH:MM` nesse horário); `delete=on` apaga a publicação anterior quando a próxima sai; `topic=ID` publica nesse tópico.
+  × /recurring list: Lista as mensagens recorrentes deste chat com seus IDs.
+  × /recurring rm `<id>`: Remove uma mensagem recorrente.
+
+  Uma mensagem que o bot não consegue mais publicar (ele foi removido ou o tópico não existe mais) é parada e fica na lista até ser removida. Se o bot não puder escrever no chat, ele pula as publicações até poder de novo.
+recurring_usage: "Use <code>/recurring add &lt;intervalo&gt; &lt;texto&gt;</code>, <code>/recurring list</code> ou <code>/recurring rm &lt;id&gt;</code>."
+recurring_interval_too_short: "❌ O intervalo deve ser de pelo menos 1 hora."
+recurring_invalid_option: "❌ Não consegui ler a opção <code>{option}</code>. Use <code>start=HH:MM</code>, <code>end=AAAA-MM-DD</code>, <code>delete=on</code> ou <code>topic=ID</code>."
+recurring_need_content: "❌ Dê-me algo para publicar: texto depois do intervalo, ou responda a uma mensagem."
+recurring_end_before_start: "❌ O horário de fim é anterior à primeira publicação."
+recurring_limit_reached: "❌ Este chat já tem {max} mensagens recorrentes, o máximo permitido. Remova uma primeiro com <code>/recurring rm &lt;id&gt;</code>."
+recurring_added: "✅ Mensagem recorrente <b>#{id}</b> salva."
+recurring_list_title: "<b>🔁 Mensagens recorrentes</b> ({count}/{max})"
+recurring_list_item: "<b>#{id}</b> · a cada {interval} · próxima {next} UTC"
+recurring_list_item_until: "até {end} UTC"
+recurring_list_item_topic: "tópico {topic}"
+recurring_list_item_delete_previous: "substitui a publicação anterior"
+recurring_list_item_stopped: "⏸ parada"
+recurring_list_media: "📎 mídia"
+recurring_list_empty: "Este chat não tem mensagens recorrentes. Adicione uma com <code>/recurring add &lt;intervalo&gt; &lt;texto&gt;</code>."
+recurring_list_hint: "Remova uma com <code>/recurring rm &lt;id&gt;</code>."
+recurring_not_found: "❌ Este chat não tem a mensagem recorrente #{id}."
+recurring_removed: "✅ Mensagem recorrente #{id} removida."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2765,6 +2797,7 @@ blacklists_section_desc: "Agir contra palavras da lista negra"
 captcha_section_desc: "Pedir um captcha aos novos membros"
 connections_section_desc: "Gerenciar um grupo pelo privado"
 digest_section_desc: "Um resumo semanal da atividade do grupo"
+recurring_section_desc: "Mensagens que o bot publica em uma programação"
 disabling_section_desc: "Desativar comandos para os membros"
 federations_section_desc: "Compartilhar banimentos entre grupos"
 filters_section_desc: "Respostas automáticas a palavras-gatilho"
@@ -3039,6 +3072,8 @@ probation_extend_msg: |
   /probation — mostrar ou alternar o período de experiência de novos membros, ou definir o tempo, as mensagens, o comprimento, o conteúdo bloqueado e o aviso
 digest_extend_msg: |
   /digest — mostra o estado do resumo semanal, ativa ou desativa, escolhe o destino ou mostra uma prévia
+recurring_extend_msg: |
+  /recurring — adicionar, listar ou remover mensagens que o bot publica em uma programação
 warns_extend_msg: |
   /warn — advertir um usuário
   /swarn — advertir e apagar seu comando

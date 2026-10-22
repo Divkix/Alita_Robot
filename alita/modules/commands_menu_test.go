@@ -21,7 +21,7 @@ import (
 var helpMenuModules = []string{
 	"Admin", "AISpam", "Antiflood", "AntiRaid", "Approvals", "Backup", "Bans", "Blacklists", "Captcha",
 	"Connections", "Digest", "Disabling", "Federations", "Filters", "Formatting", "Greetings", "Languages",
-	"Locks", "LogChannels", "Misc", "Mutes", "Notes", "Pins", "Purges", "Reactions", "Reports", "Rules",
+	"Locks", "LogChannels", "Misc", "Mutes", "Notes", "Pins", "Purges", "Reactions", "Recurring", "Reports", "Rules",
 	"SpamDB", "Warns",
 }
 

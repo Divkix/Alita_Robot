@@ -220,6 +220,11 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `ratelimit.GlobalSendLimiter().Do`: 25/s token bucket, a 429 pauses it for `retry_after`. It is per replica, not
   shared through Redis. A fan-out checks `PausedFor()` before each claim and ends its tick on a pause longer than
   `MaxSendRetryAfter`, so no claim waits out a long flood wait.
+- Recurring messages (`alita/recurring`) are claimed per occurrence with `recurringmessages.Claim`, a compare-and-set on
+  `next_run_at`; store every `next_run_at` through `runTime` (UTC, whole seconds) or the equality never matches
+  Postgres' microseconds. Missed occurrences are not caught up. An undeliverable send (`recurring.IsUndeliverable`)
+  stops the message; shutdown or a flood wait `Restore`s the claim; any other error, `media.ErrNoPermission`
+  included, skips that occurrence only.
 - The admin panel (`alita/panel`, off unless `PANEL_ENABLED`) authenticates only through `VerifyInitData`. Every
   `/chats/{id}` endpoint starts with `chatRequest` (groups only, current members only; non-admins read-only). Gate
   each write with `requirePermission` set to the Telegram right the equivalent command checks. Never call

@@ -129,6 +129,7 @@ clearadmincache_example: "/clearadmincache @mygroup"
 timezone_example: "/timezone Asia/Kolkata"
 timezone_pm_example: "/timezone @mygroup Asia/Kolkata"
 digest_example: "/digest now"
+recurring_example: "/recurring add 6h Read the rules before posting!"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc, timezone]
   Approvals: [approval, approve, unapprove]

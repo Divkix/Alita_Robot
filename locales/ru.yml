@@ -1687,6 +1687,38 @@ digest_change_same: "без изменений к прошлой неделе"
 digest_change_new: "новое"
 digest_change_none: "—"
 digest_dashboard_button: "📊 Открыть панель"
+# Recurring messages strings
+recurring_help_msg: |
+  <b>🔁 Повторяющиеся сообщения</b>
+
+  Администраторы могут поручить боту публиковать сообщение в этом чате снова и снова, например напоминание о правилах каждый день. Содержимое работает как заметка: текст с форматированием, кнопками и подстановками вроде названия чата или сообщение, на которое вы отвечаете, включая медиа. Время указано в UTC. В чате может быть до 5 повторяющихся сообщений, минимальный интервал — 1 час.
+
+  *Команды администратора:*
+
+  × /recurring add `<интервал>` `<ответ/текст>`: Публиковать текст или сообщение, на которое вы отвечаете, каждый интервал (например 6h, 1d или 1w) в теме, где отправлена команда.
+  Параметры ставятся между интервалом и текстом: `start=HH:MM` — первая публикация в это время (UTC), затем каждый интервал; `end=YYYY-MM-DD` — остановка после этого дня (`end=YYYY-MM-DDTHH:MM` — в это время); `delete=on` — удалять предыдущую публикацию, когда выходит следующая; `topic=ID` — публиковать в этой теме.
+  × /recurring list: Показать повторяющиеся сообщения этого чата с их ID.
+  × /recurring rm `<id>`: Удалить повторяющееся сообщение.
+
+  Сообщение, которое бот больше не может опубликовать (бота удалили или темы больше нет), останавливается и остаётся в списке, пока его не удалят. Если боту запрещено писать в чат, он пропускает публикации, пока не сможет писать снова.
+recurring_usage: "Используйте <code>/recurring add &lt;интервал&gt; &lt;текст&gt;</code>, <code>/recurring list</code> или <code>/recurring rm &lt;id&gt;</code>."
+recurring_interval_too_short: "❌ Интервал должен быть не меньше 1 часа."
+recurring_invalid_option: "❌ Не удалось прочитать параметр <code>{option}</code>. Используйте <code>start=HH:MM</code>, <code>end=YYYY-MM-DD</code>, <code>delete=on</code> или <code>topic=ID</code>."
+recurring_need_content: "❌ Укажите, что публиковать: текст после интервала или ответ на сообщение."
+recurring_end_before_start: "❌ Время окончания раньше первой публикации."
+recurring_limit_reached: "❌ В этом чате уже {max} повторяющихся сообщений — это максимум. Сначала удалите одно командой <code>/recurring rm &lt;id&gt;</code>."
+recurring_added: "✅ Повторяющееся сообщение <b>#{id}</b> сохранено."
+recurring_list_title: "<b>🔁 Повторяющиеся сообщения</b> ({count}/{max})"
+recurring_list_item: "<b>#{id}</b> · каждые {interval} · следующее {next} UTC"
+recurring_list_item_until: "до {end} UTC"
+recurring_list_item_topic: "тема {topic}"
+recurring_list_item_delete_previous: "заменяет предыдущую публикацию"
+recurring_list_item_stopped: "⏸ остановлено"
+recurring_list_media: "📎 медиа"
+recurring_list_empty: "В этом чате нет повторяющихся сообщений. Добавьте одно командой <code>/recurring add &lt;интервал&gt; &lt;текст&gt;</code>."
+recurring_list_hint: "Удалить: <code>/recurring rm &lt;id&gt;</code>."
+recurring_not_found: "❌ В этом чате нет повторяющегося сообщения #{id}."
+recurring_removed: "✅ Повторяющееся сообщение #{id} удалено."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2577,6 +2609,7 @@ blacklists_section_desc: "Реагировать на слова из чёрно
 captcha_section_desc: "Капча для новых участников"
 connections_section_desc: "Управлять группой из лички"
 digest_section_desc: "Недельная сводка активности группы"
+recurring_section_desc: "Сообщения, которые бот публикует по расписанию"
 disabling_section_desc: "Отключать команды для участников"
 federations_section_desc: "Общие баны для нескольких групп"
 filters_section_desc: "Автоответы на ключевые слова"
@@ -2851,6 +2884,8 @@ probation_extend_msg: |
   /probation — показать или переключить испытательный срок новых участников, задать время, сообщения, длину, блокируемое и уведомление
 digest_extend_msg: |
   /digest — показать состояние недельной сводки, включить или выключить её, выбрать назначение или посмотреть предпросмотр
+recurring_extend_msg: |
+  /recurring — добавить, показать или удалить сообщения, которые бот публикует по расписанию
 warns_extend_msg: |
   /warn — предупредить
   /swarn — предупредить и удалить команду
