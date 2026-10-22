@@ -5,11 +5,12 @@ export const telegram = window.Telegram?.WebApp ?? null;
 export const initData = telegram?.initData ?? "";
 
 export class ApiError extends Error {
-	constructor(code, message, status) {
+	constructor(code, message, status, payload = null) {
 		super(message);
 		this.name = "ApiError";
 		this.code = code;
 		this.status = status;
+		this.payload = payload;
 	}
 }
 
@@ -36,7 +37,7 @@ export async function api(path, { method = "GET", body } = {}) {
 
 	if (!response.ok) {
 		const detail = payload?.error ?? {};
-		throw new ApiError(detail.code ?? "http_error", detail.message ?? `Request failed (${response.status})`, response.status);
+		throw new ApiError(detail.code ?? "http_error", detail.message ?? `Request failed (${response.status})`, response.status, payload);
 	}
 	return payload;
 }
