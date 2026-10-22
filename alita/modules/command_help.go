@@ -112,6 +112,9 @@ var commandHelpModules = map[string]string{
 	"aispam":             "aispam",
 	"spamdb":             "spamdb",
 	"probation":          "probation",
+	"spam":               "spamfilter",
+	"spamfilter":         "spamfilter",
+	"forgetspam":         "spamfilter",
 	"anonadmin":          "admin",
 	// Group resets, with the group from PM.
 	"privnote":      "notes",
@@ -354,7 +357,11 @@ var menuCommands = map[string]menuCommand{
 
 	"spamdb": {Module: "spamdb", AdminOnly: true},
 
-	"probation": {Module: "probation", AdminOnly: true},
+	"probation":   {Module: "probation", AdminOnly: true},
+	"spam":        {Module: "spamfilter", AdminOnly: true},
+	"spamfilter":  {Module: "spamfilter", AdminOnly: true},
+	"spamsamples": {Module: "spamfilter", AdminOnly: true},
+	"forgetspam":  {Module: "spamfilter", AdminOnly: true},
 
 	"warn":          {Module: "warns", AdminOnly: true},
 	"swarn":         {Module: "warns", AdminOnly: true},

@@ -388,6 +388,10 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 			_, err := c.Chat.UnbanMember(c.Bot, t.userID, nil)
 			return err
 		},
+		cleanup: func(c *moderationCtx, t *target) error {
+			spamFilterUnbanHam(c.Chat.Id, t.userID, c.User.Id)
+			return nil
+		},
 		reply: func(c *moderationCtx, t *target) error {
 			var text string
 			if t.isChannel {
@@ -828,6 +832,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionUnban, "")
 		liftBanRecord(chat.Id, userId, user.Id)
+		spamFilterUnbanHam(chat.Id, userId, user.Id)
 
 		temp, _ := tr.GetString("bans_unrestrict_unbanned")
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))

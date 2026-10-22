@@ -1862,6 +1862,54 @@ spamdb_db_usage: "Choose a database and <code>on</code>/<code>off</code>: <code>
 spamdb_db_enabled: "✅ New members will now be looked up in {database}."
 spamdb_db_disabled: "❌ New members will no longer be looked up in {database}."
 spamdb_db_last: "❌ {database} is the only database left, so it stays on. Switch another one on first, or turn the check off with <code>/spamdb off</code>."
+
+# Spam filter strings
+spamfilter_help_msg: |
+  <b>🧹 Spam Filter</b>
+
+  An opt-in filter that learns from the spam your admins remove. Reply /spam to a spam message to delete it, ban its sender and save the text as one of this chat's spam samples. With the filter on, a new message that closely matches a sample is caught, even with a changed link, added emoji or look-alike letters.
+
+  A text also counts in every chat that uses the filter once two unrelated chats (different owners, no admin in common) have flagged it.
+
+  Turning the filter on starts a 7-day dry run: matches are only reported to the log channel, each with a Not spam button, and nothing is deleted. Admins, approved users and members solving a captcha are never checked.
+
+
+  <b>Admin commands:</b>
+
+  × /spam: Reply to a message to delete it, ban its sender and save the text as a spam sample.
+
+  × /spamfilter <code>on/off/dryrun</code>: Turn the filter on (matches are deleted once the 7-day dry run is over), off, or to dry run only (matches are reported, never deleted). Without an option, show the filter's state.
+  Use /spamfilter threshold <code>0.5-1</code> to set how similar a message must be to a sample: 0.85 by default; lower catches more and makes more mistakes.
+
+  × /spamsamples: List the newest spam samples with their IDs.
+
+  × /forgetspam <code>ID</code>: Delete a spam sample.
+
+
+  Samples are kept for 90 days, at most 200 per chat. Unbanning a user banned with /spam, or pressing Not spam in the log channel, marks the text as not spam in this chat.
+spamfilter_spam_no_reply: "Reply /spam to the spam message to delete it, ban its sender and save it as a sample."
+spamfilter_spam_banned: "🧹 Deleted the spam and banned {user}."
+spamfilter_spam_saved: "Saved as spam sample <code>#{id}</code>."
+spamfilter_spam_too_short: "The message was too short to save as a sample."
+spamfilter_usage: "Choose <code>on</code>, <code>off</code> or <code>dryrun</code>, or set the similarity with <code>/spamfilter threshold 0.85</code>."
+spamfilter_threshold_invalid: "The threshold must be a number from <code>0.5</code> to <code>1</code>, like <code>/spamfilter threshold 0.85</code>."
+spamfilter_status_off: "The spam filter is <b>off</b> in this chat. Try it with <code>/spamfilter dryrun</code>."
+spamfilter_status_dryrun: "The spam filter is in <b>dry run</b>: matches are reported to the log channel and never deleted."
+spamfilter_status_on_pending: "The spam filter is <b>on</b>, in its dry run until {date}: until then matches are only reported to the log channel."
+spamfilter_status_on: "The spam filter is <b>on</b>: matches are deleted and reported to the log channel."
+spamfilter_status_threshold: "<b>Threshold:</b> {threshold}"
+spamfilter_status_samples: "<b>Samples:</b> {spam} spam, {ham} not spam. List them with <code>/spamsamples</code>."
+spamfilter_status_no_log: "⚠️ This chat has no log channel, so you will not see what the filter matches. Set one with <code>/setlog</code>."
+spamfilter_samples_empty: "This chat has no spam samples yet ({ham} not spam). Reply <code>/spam</code> to a spam message to add one."
+spamfilter_samples_header: "<b>Spam samples</b>: {spam} spam, {ham} not spam. Newest first:"
+spamfilter_samples_footer: "Delete one with <code>/forgetspam ID</code>."
+spamfilter_forget_usage: "Give the ID of a sample from <code>/spamsamples</code>."
+spamfilter_forget_done: "🗑 Deleted spam sample <code>#{id}</code>."
+spamfilter_forget_not_found: "This chat has no sample <code>#{id}</code>."
+spamfilter_not_spam_button: "✅ Not spam"
+spamfilter_not_spam_invalid: "This button no longer works."
+spamfilter_not_spam_failed: "Something went wrong; nothing was changed."
+spamfilter_not_spam_done: "Marked as not spam."
 spamdb_db_lols_warning: "⚠️ lols.bot lists accounts more aggressively than CAS, so expect more false positives. Consider <code>/spamdb action log</code> until you trust it. Each new member's Telegram user ID is now sent to lols.bot."
 spamdb_db_enabled_idle: "✅ {database} is selected, but nothing is looked up while the check is off. See <code>/spamdb</code> for its state."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot lists accounts more aggressively than CAS, so expect more false positives. Consider <code>/spamdb action log</code> until you trust it. Once the check is running, each new member's Telegram user ID is sent to lols.bot."
@@ -2872,6 +2920,7 @@ reactions_section_desc: "React to keywords with an emoji"
 reports_section_desc: "Report messages to the admins"
 rules_section_desc: "The group's rules"
 spamdb_section_desc: "Check new members against spam databases"
+spamfilter_section_desc: "Learn from removed spam and catch its near-copies"
 warns_section_desc: "Warn users and punish them at a limit"
 admin_extend_msg: |
   /adminlist — list the chat's admins
@@ -3127,6 +3176,11 @@ spamdb_extend_msg: |
   /spamdb — show or toggle the spam database join check, choose its databases, or set its action
 probation_extend_msg: |
   /probation — show or toggle new-member probation, or set its time, messages, length, blocked content and notice
+spamfilter_extend_msg: |
+  /spam — delete the replied spam, ban its sender and save it as a sample
+  /spamfilter — show or switch the spam filter, or set its threshold
+  /spamsamples — list the chat's spam samples
+  /forgetspam — delete a spam sample
 digest_extend_msg: |
   /digest — show the weekly digest state, turn it on or off, choose its destination, or preview it
 recurring_extend_msg: |
