@@ -236,7 +236,7 @@ go func() {
 ## Translation Guidelines
 
 :::caution
-Translation keys must exist in ALL 7 locale files (`locales/en.yml`, `es.yml`, `fr.yml`, `hi.yml`, `id.yml`, `pt.yml`, `ru.yml`); `make check-translations` checks this. A key missing from a non-English file falls back to the English text. A key missing from `locales/en.yml` (or misspelled in Go) sends an empty message.
+Translation keys must exist in ALL 7 locale files (`locales/en.yml`, `es.yml`, `fr.yml`, `hi.yml`, `id.yml`, `pt.yml`, `ru.yml`); `make check-translations` checks this. It also fails when a non-English file holds the English text of a key: translate it, or, when the word is the same in that language, add `locale:key` with a reason to `scripts/check_translations/identical_allowlist.txt`. A key missing from a non-English file falls back to the English text. A key missing from `locales/en.yml` (or misspelled in Go) sends an empty message.
 :::
 
 Add help messages to every locale file (`locales/en.yml` shown):
