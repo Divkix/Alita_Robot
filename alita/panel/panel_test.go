@@ -42,6 +42,8 @@ func TestMain(m *testing.M) {
 		&models.Notes{},
 		&models.NotesSettings{},
 		&models.BlacklistSettings{},
+		&models.ChatDailyStat{},
+		&models.ModerationEvent{},
 	))
 }
 
@@ -82,28 +84,31 @@ type panelFakeRights struct {
 }
 
 type panelFakeClient struct {
-	mu        sync.Mutex
-	calls     []string
-	chatType  string
-	chatErr   error
-	members   map[int64]json.RawMessage
-	admins    map[int64]json.RawMessage
-	botAdmin  bool
-	blockUser int64
-	rights    map[int64]panelFakeRights
-	botRights panelFakeRights
-	statuses  map[int64]string
+	mu             sync.Mutex
+	calls          []string
+	chatType       string
+	chatErr        error
+	members        map[int64]json.RawMessage
+	admins         map[int64]json.RawMessage
+	botAdmin       bool
+	blockUser      int64
+	rights         map[int64]panelFakeRights
+	botRights      panelFakeRights
+	statuses       map[int64]string
+	memberCount    int64
+	memberCountErr error
 }
 
 func newPanelFakeClient() *panelFakeClient {
 	return &panelFakeClient{
-		chatType:  "supergroup",
-		members:   make(map[int64]json.RawMessage),
-		admins:    make(map[int64]json.RawMessage),
-		botAdmin:  true,
-		rights:    make(map[int64]panelFakeRights),
-		botRights: panelFakeRights{canChangeInfo: true, canRestrictMembers: true},
-		statuses:  make(map[int64]string),
+		chatType:    "supergroup",
+		members:     make(map[int64]json.RawMessage),
+		admins:      make(map[int64]json.RawMessage),
+		botAdmin:    true,
+		rights:      make(map[int64]panelFakeRights),
+		botRights:   panelFakeRights{canChangeInfo: true, canRestrictMembers: true},
+		statuses:    make(map[int64]string),
+		memberCount: 42,
 	}
 }
 
@@ -164,6 +169,11 @@ func (c *panelFakeClient) RequestWithContext(ctx context.Context, _ string, meth
 			`{"status":%q,"user":{"id":%d,"is_bot":%t,"first_name":"Fake"},`+
 				`"can_change_info":%t,"can_restrict_members":%t}`,
 			status, userID, userID == 999, rights.canChangeInfo, rights.canRestrictMembers)), nil
+	case "getChatMemberCount":
+		if c.memberCountErr != nil {
+			return nil, c.memberCountErr
+		}
+		return json.RawMessage(strconv.FormatInt(c.memberCount, 10)), nil
 	default:
 		return json.RawMessage(`true`), nil
 	}
