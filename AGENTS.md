@@ -202,6 +202,12 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Daily activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats` every
   60 s and on shutdown (before DB close). Never add a DB write per message; joins count after
   `claimRecentJoinProcessing`, leaves in `leftMember`. Counts are approximate across a crash by design.
+- A `/settings` summary toggle (`settingsToggles`, `settings_toggles.go`) is keyed by its row's `Command` and cycles
+  the values that row shows. It must check what its command checks (`botAdmin`, and `right`, which returns a
+  refusal key and sends nothing) and write through the same repository call, with the command's side effects (`/captcha off` runs
+  `DisableCaptchaForChat`); change both when either changes. Where the command has a toggle config
+  (`greetingToggleConfig`, `pinToggleConfig`), build the toggle from it. The button carries the value it sets, never
+  "flip".
 - The weekly digest sends at most once per chat per week through the `digestsettings.Claim` compare-and-set on
   `last_sent_at`. A transient send error `Restore`s the claim to retry; a permanent one
   (`helpers.IsPermanentSendError`) keeps it.

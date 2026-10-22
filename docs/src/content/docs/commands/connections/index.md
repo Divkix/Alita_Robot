@@ -105,6 +105,31 @@ per command (for example `/captcha — on`). Lines that differ from what a new g
 are marked with `•`. **Refresh** re-reads the settings and **Another group**
 returns to the list. Showing the summary never writes settings.
 
+Below the summary, a button for each on/off or few-value setting sets it to
+the value after its arrow (for example `captchamode → text`) and shows the
+summary again. A tap needs the rights the command needs, and writes the
+setting exactly as sending the command would:
+
+| Button | Values | Needs, besides being an admin |
+| --- | --- | --- |
+| `captcha` | on, off | bot admin; turning it off releases users a pending captcha holds |
+| `captchamode` | math, text | |
+| `captchaaction` | kick, ban, mute | |
+| `setfloodmode` | mute, ban, kick | bot admin |
+| `delflood` | on, off | bot admin |
+| `antiraid` | on, off | bot admin; on starts raid mode for the raid time |
+| `aispam` | on, off | on needs the operator to have set up the AI spam filter |
+| `welcome`, `goodbye` | on, off | |
+| `cleanwelcome`, `cleangoodbye` | on, off | the change-info right |
+| `cleanservice`, `autoapprove` | on, off | the change-info right; bot admin |
+| `reports`, `privaterules`, `antichannelpin`, `cleanlinked`, `disabledel` | on, off | bot admin |
+| `privnote`, `allowconnect` | on, off | |
+| `quietfed` | on, off | the group is in a federation (only then is the line shown) |
+| `anonadmin` | on, off | group creator; bot admin |
+
+A button carries the value it sets, so tapping one on an older summary sets
+that value, even if someone changed the setting since.
+
 `/settings` in a group (admins only) replies with a button
 (`t.me/<bot>?start=settings_<chat_id>`) that opens the same summary in PM. Admins who never wrote in the group, and anonymous
 admins, are not in the list; they can use `/connect <chatid>` or `/settings`

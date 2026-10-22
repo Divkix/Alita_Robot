@@ -843,15 +843,24 @@ func aispamStatusText(tr *i18n.Translator, enabled bool) string {
 }
 
 func aispamEnableRefusal(tr *i18n.Translator) (string, bool) {
+	key := aispamEnableRefusalKey()
+	if key == "" {
+		return "", false
+	}
+	text, _ := tr.GetString(key)
+	return text, true
+}
+
+// aispamEnableRefusalKey is the i18n key of the reason the filter cannot be
+// turned on, or "" when it can.
+func aispamEnableRefusalKey() string {
 	if config.AppConfig.TypeSafeAPIKey == "" {
-		text, _ := tr.GetString("aispam_no_key")
-		return text, true
+		return "aispam_no_key"
 	}
 	if !config.AppConfig.EnableAISpam {
-		text, _ := tr.GetString("aispam_globally_disabled")
-		return text, true
+		return "aispam_globally_disabled"
 	}
-	return "", false
+	return ""
 }
 
 func aispamReply(c *helpers.CommandContext, text string) error {
