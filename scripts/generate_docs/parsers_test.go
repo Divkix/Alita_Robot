@@ -120,18 +120,21 @@ func LoadNotes(dispatcher) {
 	for _, cmd := range commands {
 		got[cmd.Name] = cmd
 	}
+	// Only helpers.MultiCommand registers with MultiCommand; the loop and the
+	// aliases are one handlers.NewCommand each.
 	for name, want := range map[string]struct {
 		handler string
 		aliases []string
+		pattern string
 	}{
-		"notes":        {"notesList", []string{"notes", "saved"}},
-		"saved":        {"notesList", []string{"notes", "saved"}},
-		"privnote":     {"privNote", []string{"privnote", "privatenotes"}},
-		"privatenotes": {"privNote", []string{"privnote", "privatenotes"}},
-		"clearall":     {"rmAllNotes", []string{"clearall", "resetnotes"}},
-		"resetnotes":   {"rmAllNotes", []string{"clearall", "resetnotes"}},
+		"notes":        {"notesList", []string{"notes", "saved"}, "NewCommand"},
+		"saved":        {"notesList", []string{"notes", "saved"}, "NewCommand"},
+		"privnote":     {"privNote", []string{"privnote", "privatenotes"}, "MultiCommand"},
+		"privatenotes": {"privNote", []string{"privnote", "privatenotes"}, "MultiCommand"},
+		"clearall":     {"rmAllNotes", []string{"clearall", "resetnotes"}, "NewCommand"},
+		"resetnotes":   {"rmAllNotes", []string{"clearall", "resetnotes"}, "NewCommand"},
 		// Another command on the same handler is not an alias.
-		"get": {"rmAllNotes", nil},
+		"get": {"rmAllNotes", nil, "NewCommand"},
 	} {
 		cmd, ok := got[name]
 		if !ok {
@@ -140,6 +143,9 @@ func LoadNotes(dispatcher) {
 		}
 		if cmd.Module != "notes" || cmd.Handler != want.handler || !slices.Equal(cmd.Aliases, want.aliases) {
 			t.Errorf("command %q = %+v, want module notes, handler %s, aliases %v", name, cmd, want.handler, want.aliases)
+		}
+		if got := registrationPattern(cmd); got != want.pattern {
+			t.Errorf("command %q registration pattern = %s, want %s", name, got, want.pattern)
 		}
 	}
 	if len(commands) != 7 {

@@ -233,6 +233,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					Module:      modName,
 					Disableable: disableableCmds[cmdName],
 					Aliases:     aliases,
+					Pattern:     "NewCommand",
 				})
 			}
 		}
@@ -240,7 +241,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 		// Extract MultiCommand registrations (helpers.MultiCommand(dispatcher, []string{...}, handler))
 		// and loops that register each name of a []string with handlers.NewCommand(name, ...):
 		// every name is a command, with all the names as its aliases.
-		addNames := func(aliasesRaw, moduleVar, handler string) {
+		addNames := func(aliasesRaw, moduleVar, handler, pattern string) {
 			var aliases []string
 			for _, a := range quotedStringPattern.FindAllStringSubmatch(aliasesRaw, -1) {
 				aliases = append(aliases, a[1])
@@ -259,11 +260,12 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					Module:      modName,
 					Disableable: disableableCmds[alias],
 					Aliases:     aliases,
+					Pattern:     pattern,
 				})
 			}
 		}
 		for _, match := range multiCommandPattern.FindAllStringSubmatch(content, -1) {
-			addNames(match[1], match[2], match[3])
+			addNames(match[1], match[2], match[3], "MultiCommand")
 		}
 		for _, loc := range loopRangePattern.FindAllStringSubmatchIndex(content, -1) {
 			nameVar, aliasesRaw := content[loc[2]:loc[3]], content[loc[4]:loc[5]]
@@ -273,7 +275,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			}
 			loopCommand := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*` + regexp.QuoteMeta(nameVar) + `\s*,\s*` + pmGroupArgPrefix + `(\w+)(?:\(\))?\.(\w+)`)
 			if match := loopCommand.FindStringSubmatch(content[loc[1]:bodyEnd]); match != nil {
-				addNames(aliasesRaw, match[1], match[2])
+				addNames(aliasesRaw, match[1], match[2], "NewCommand")
 			}
 		}
 
