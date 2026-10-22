@@ -33,3 +33,17 @@ type ChatHourlyStat struct {
 func (ChatHourlyStat) TableName() string {
 	return "chat_hourly_stats"
 }
+
+// ChatMemberDailyStat is one user's message count in one chat for one UTC
+// day. Only real users are counted (no channels, no anonymous admins), and the
+// counter is only ever added to.
+type ChatMemberDailyStat struct {
+	ChatID   int64  `gorm:"column:chat_id;primaryKey;autoIncrement:false" json:"chat_id"`
+	Day      string `gorm:"column:day;primaryKey;size:10;index:idx_chat_member_daily_stats_day" json:"day"`
+	UserID   int64  `gorm:"column:user_id;primaryKey;autoIncrement:false" json:"user_id"`
+	Messages int64  `gorm:"column:messages;not null;default:0" json:"messages"`
+}
+
+func (ChatMemberDailyStat) TableName() string {
+	return "chat_member_daily_stats"
+}

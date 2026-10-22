@@ -15,6 +15,7 @@ func TestMain(m *testing.M) {
 		&models.DigestSettings{},
 		&models.ChatDailyStat{},
 		&models.ChatHourlyStat{},
+		&models.ChatMemberDailyStat{},
 		&models.ModerationEvent{},
 		&models.LogChannel{},
 	))

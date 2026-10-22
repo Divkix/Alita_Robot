@@ -33,3 +33,26 @@ func TestActivityRetentionSweepsHourlyRowsOlderThan90Days(t *testing.T) {
 		t.Fatalf("rows = %v, want the %s row only", rows, kept)
 	}
 }
+
+func TestActivityRetentionSweepsMemberRowsOlderThan90Days(t *testing.T) {
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
+	chatID := uniqueModuleChatID()
+	old := stats.Day(now.AddDate(0, 0, -(activityStatsRetentionDays + 1)))
+	kept := stats.Day(now.AddDate(0, 0, -(activityStatsRetentionDays - 1)))
+	if err := chatstats.Add(chatstats.Batch{Members: []models.ChatMemberDailyStat{
+		{ChatID: chatID, Day: old, UserID: 7, Messages: 10},
+		{ChatID: chatID, Day: kept, UserID: 7, Messages: 1},
+	}}); err != nil {
+		t.Fatalf("Add() error = %v", err)
+	}
+
+	sweepExpiredActivityStats(now)
+
+	top, err := chatstats.TopMembers(chatID, old, stats.Day(now), 10)
+	if err != nil {
+		t.Fatalf("TopMembers() error = %v", err)
+	}
+	if len(top) != 1 || top[0].Messages != 1 {
+		t.Fatalf("top = %+v, want user 7 with only the kept day's message", top)
+	}
+}

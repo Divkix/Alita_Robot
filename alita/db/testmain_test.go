@@ -78,6 +78,7 @@ func TestMain(m *testing.M) {
 			&models.SpamDBSettings{},
 			&models.ChatDailyStat{},
 			&models.ChatHourlyStat{},
+			&models.ChatMemberDailyStat{},
 			&models.DigestSettings{},
 		)
 		if err != nil {

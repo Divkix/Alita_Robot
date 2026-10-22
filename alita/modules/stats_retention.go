@@ -26,6 +26,7 @@ type activityStatsTable struct {
 var (
 	activityStatsTables = []activityStatsTable{
 		{name: "chat_hourly_stats", retentionDays: activityStatsRetentionDays, deleteBefore: chatstats.DeleteHourlyBefore},
+		{name: "chat_member_daily_stats", retentionDays: activityStatsRetentionDays, deleteBefore: chatstats.DeleteMemberDailyBefore},
 	}
 	activityStatsRetentionOnce sync.Once
 )

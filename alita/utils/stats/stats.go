@@ -1,9 +1,10 @@
 // Package stats keeps per-chat activity counters in process memory and writes
-// them to chat_daily_stats and chat_hourly_stats in one batched, transactional
-// upsert every 60 seconds.
+// them to chat_daily_stats, chat_hourly_stats and chat_member_daily_stats in
+// one batched, transactional upsert every 60 seconds.
 //
 // Counting never touches the database: one sync.Map lookup and one atomic add
-// per message, join or leave. A crash therefore loses at most the events since
+// per message, join or leave, plus one sharded map increment per message from
+// a real user (members.go). A crash therefore loses at most the events since
 // the last flush (under a minute). That is a deliberate trade: a database
 // write per message would make chat_daily_stats the busiest table in the
 // database, and the digest only needs approximate numbers.
@@ -110,19 +111,27 @@ func Flush() error {
 	defer flushMu.Unlock()
 
 	now := timeNow()
+	if dropped := memberDropped.Swap(0); dropped > 0 {
+		log.Warnf("[Stats] %d member messages were not counted: more than %d members posted in one flush interval",
+			dropped, memberCounterLimit)
+	}
+
 	deltas := drain()
-	if len(deltas) == 0 {
+	memberDeltas := drainMembers()
+	if len(deltas) == 0 && len(memberDeltas) == 0 {
 		return nil
 	}
 
 	batch := chatstats.Batch{
-		Daily:  rowsFromDeltas(deltas),
-		Hourly: hourlyRowsFromDeltas(deltas),
+		Daily:   rowsFromDeltas(deltas),
+		Hourly:  hourlyRowsFromDeltas(deltas),
+		Members: memberRowsFromDeltas(memberDeltas),
 	}
 	if err := chatstats.Add(batch); err != nil {
 		for key, delta := range deltas {
 			counter(key).Add(delta)
 		}
+		restoreMembers(memberDeltas)
 		return err
 	}
 
