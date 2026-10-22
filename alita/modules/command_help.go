@@ -191,14 +191,9 @@ func commandPMExample(cmd string) string {
 	return commandExample(cmd)
 }
 
-// commandHelpText puts errText (HTML) above the help for cmd: its own entry
-// and example when the chat's language documents it, else the whole module
-// help.
-func commandHelpText(tr *i18n.Translator, cmd, errText string) string {
-	return commandHelpTextWith(tr, cmd, errText, commandExample(cmd))
-}
-
-// commandHelpTextWith is commandHelpText with example as the sample call.
+// commandHelpTextWith puts errText (HTML) above the help for cmd: its own
+// entry and example, the sample call, when the chat's language documents it,
+// else the whole module help.
 func commandHelpTextWith(tr *i18n.Translator, cmd, errText, example string) string {
 	module, ok := commandHelpModules[cmd]
 	if !ok {
