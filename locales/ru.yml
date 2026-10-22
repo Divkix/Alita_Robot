@@ -1087,7 +1087,7 @@ misc_forwarded_from_user: "<b>Переслано от ID %s:</b> <code>%d</code>
 misc_forwarded_from_chat: "<b>Переслано из чата %s ID:</b> <code>%d</code>"
 misc_gif_id: "<b>ID GIF:</b> <code>%s</code>"
 misc_sticker_id: "<b>ID стикера:</b> <code>%s</code>"
-misc_user_id_is: "ID %s это <code>%d</code>"
+misc_user_id_is: "ID пользователя %s — <code>%d</code>"
 misc_your_id_private: "Ваш ID это <code>%d</code>"
 misc_your_id_group: "Ваш ID это <code>%d</code>\nID этой группы это <code>%d</code>"
 misc_need_text_and_lang: Мне нужен текст и код языка для перевода.
@@ -1100,7 +1100,7 @@ misc_username: "Имя пользователя: @%s"
 misc_channel_link: "Ссылка на канал: @%s"
 misc_user_info_header: "<b>Информация о пользователе:</b>\n\nID: <code>%d</code>\n\nИмя: %s"
 misc_owner_info: Он мой владелец!
-misc_dev_info: Он один из моих разработчиков!
+misc_dev_info: Он один из моих дев-пользователей!
 misc_translate_read_error: Ошибка чтения
 misc_translate_result: "<b>Обнаруженный язык:</b> <code>%s</code>\n\n<b>Перевод:</b> <code>%s</code>"
 
@@ -1118,7 +1118,7 @@ devs_removed_from_sudo: Удалён %s из списка Sudo!
 devs_user_not_dev: Пользователь не разработчик!
 devs_removed_from_dev: Удалён %s из списка разработчиков!
 devs_no_team_users: В команду не добавлены пользователи!
-devs_dev_users_header: "<b>Разработчики:</b>"
+devs_dev_users_header: "<b>Пользователи-разработчики:</b>"
 devs_sudo_users_header: "<b>Пользователи Sudo:</b>"
 devs_no_users: "Нет пользователей"
 devs_fetching_stats: "<code>Получение статистики бота...</code>"
@@ -1324,11 +1324,11 @@ greetings_goodbye_enable: "Я буду прощаться с пользоват�
 greetings_goodbye_disable: "Я не буду прощаться с пользователями с этого момента."
 greetings_goodbye_invalid: "Я понимаю только 'on/yes' или 'off/no'!"
 greetings_goodbye_reset: "Прощальное сообщение успешно сброшено на стандартное!"
-greetings_clean_welcome_should: "Я должен удалять приветственные сообщения до двух дней."
+greetings_clean_welcome_should: "Я должен удалять приветственные сообщения не старше двух дней."
 greetings_clean_welcome_not: "Я в данный момент не удаляю старые приветственные сообщения!"
 greetings_clean_welcome_disable: "Я не буду удалять старые приветственные сообщения!"
 greetings_clean_welcome_enable: "Я попробую удалять старые приветственные сообщения!"
-greetings_clean_goodbye_should: "Я должен удалять прощальные сообщения до двух дней."
+greetings_clean_goodbye_should: "Я должен удалять прощальные сообщения не старше двух дней."
 greetings_clean_goodbye_not: "Я в данный момент не удаляю старые прощальные сообщения!"
 greetings_clean_goodbye_disable: "Я не буду удалять старые прощальные сообщения!"
 greetings_clean_goodbye_enable: "Я попробую удалять старые прощальные сообщения!"
@@ -1524,7 +1524,7 @@ aispam_data_notice: |
   Имена, имена пользователей, идентификаторы, номера телефонов и сообщения из других чатов не отправляются.
 aispam_enabled_success: "✅ ИИ-фильтр спама теперь <b>включён</b>. Сообщения, в спаме которых модель уверена, будут удаляться."
 aispam_disabled_success: "❌ ИИ-фильтр спама теперь <b>выключен</b>."
-aispam_no_key: "❌ Я не могу включить ИИ-фильтр спама: оператор бота не настроил ключ API TypeSafe. Ничего не изменилось."
+aispam_no_key: "❌ Я не могу включить ИИ-фильтр спама: оператор бота не настроил ключ API. Ничего не изменилось."
 aispam_globally_disabled: "❌ Я не могу включить ИИ-фильтр спама: оператор бота выключил его глобально. Ничего не изменилось."
 aispam_invalid_option: "Я понимаю только один из вариантов: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ ИИ-проверки спама приостановлены в этом чате на несколько минут из-за повторяющихся сбоев поставщика ИИ. Они возобновятся сами, а фильтр останется включённым."

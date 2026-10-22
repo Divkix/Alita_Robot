@@ -438,7 +438,7 @@ blacklists_rm_all_bl_ask:
   "Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
   ce chat ?"
 blacklists_rm_all_bl_button_handler_no:
-  "Suppression de la liste noire de ce chat annulée
+  "Suppression de toutes les listes noires de ce chat annulée
   ❌"
 blacklists_rm_all_bl_button_handler_yes: Tous les mots de la liste noire ont été supprimés de ce chat ✅
 blacklists_set_bl_action_changed_mode: "Mode de liste noire changé avec succès : *%s*"
@@ -552,9 +552,9 @@ captcha_timeout_failure_banned: "❌ %s n'a pas complété la vérification capt
 captcha_timeout_failure_muted: "❌ %s n'a pas complété la vérification captcha et a été rendu muet."
 captcha_timeout_stored_note: "📝 %d message(s) ont été tentés mais supprimés en raison de la vérification incomplète."
 captcha_stored_messages_summary: "📝 %s a essayé d'envoyer %d message(s) (%s) avant la vérification"
-captcha_pending_usage: "Utilisation : <code>/captchapending @utilisateur</code> ou <code>/captchapending user_id</code>"
+captcha_pending_usage: "Utilisation : <code>/captchapending @user</code> ou <code>/captchapending user_id</code>"
 captcha_no_pending_messages: "Aucun message en attente trouvé pour cet utilisateur."
-captcha_clear_usage: "Utilisation : <code>/captchaclear @utilisateur</code> ou <code>/captchaclear user_id</code>"
+captcha_clear_usage: "Utilisation : <code>/captchaclear @user</code> ou <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Échec de la suppression des messages stockés. Veuillez réessayer."
 captcha_clear_success: "✅ Tous les messages stockés pour l'utilisateur %d ont été supprimés"
 captcha_invalid_mode_error: "mode captcha invalide : doit être 'math' ou 'text'"
@@ -631,8 +631,8 @@ greetings_goodbye_status: |
 greetings_goodbye_set_success: "Message d'au revoir personnalisé défini avec succès !"
 greetings_clean_welcome_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
 greetings_clean_goodbye_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
-greetings_clean_service_disable: "Je ne supprimerai pas les messages de rejointe."
-greetings_clean_service_enable: "J'essaierai de supprimer les messages de rejointe !"
+greetings_clean_service_disable: "Je ne supprimerai pas les messages d'arrivée."
+greetings_clean_service_enable: "J'essaierai de supprimer les messages d'arrivée !"
 greetings_clean_service_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
 greetings_captcha_verified_success: "✅ %s a été vérifié et peut maintenant discuter !"
 greetings_join_request_new: "Un nouvel utilisateur a demandé à rejoindre le chat !"
@@ -661,7 +661,7 @@ greetings_clean_goodbye_not: "Je ne supprime actuellement pas les anciens messag
 greetings_clean_goodbye_disable: "Je ne supprimerai pas les anciens messages d'au revoir !"
 greetings_clean_goodbye_enable: "J'essaierai de supprimer les anciens messages d'au revoir !"
 greetings_clean_service_should: "Je devrais supprimer les messages 'utilisateur a rejoint le chat' maintenant."
-greetings_clean_service_not: "Je ne supprime actuellement pas les messages de rejointe."
+greetings_clean_service_not: "Je ne supprime actuellement pas les messages d'arrivée."
 
 # Filters module strings
 filters_help_msg:
@@ -1232,7 +1232,7 @@ misc_username: "Nom d'utilisateur : @%s"
 misc_channel_link: "Lien de la chaîne : @%s"
 misc_user_info_header: "<b>Info utilisateur :</b>\n\nID : <code>%d</code>\n\nNom : %s"
 misc_owner_info: C'est mon propriétaire !
-misc_dev_info: C'est l'un de mes développeurs !
+misc_dev_info: C'est l'un de mes utilisateurs développeurs !
 misc_translate_read_error: Erreur de lecture
 misc_translate_result: "<b>Langue détectée :</b> <code>%s</code>\n\n<b>Traduction :</b> <code>%s</code>"
 
@@ -1567,7 +1567,7 @@ aispam_data_notice: |
   Aucun nom, nom d'utilisateur, identifiant, numéro de téléphone ni message provenant d'autres chats n'est envoyé.
 aispam_enabled_success: "✅ Le filtre anti-spam par IA est maintenant <b>activé</b>. Les messages dont le modèle est sûr qu'il s'agit de spam seront supprimés."
 aispam_disabled_success: "❌ Le filtre anti-spam par IA est maintenant <b>désactivé</b>."
-aispam_no_key: "❌ Je ne peux pas activer le filtre anti-spam par IA : l'opérateur du bot n'a pas configuré de clé d'API TypeSafe. Rien n'a changé."
+aispam_no_key: "❌ Je ne peux pas activer le filtre anti-spam par IA : l'opérateur du bot n'a pas configuré de clé d'API. Rien n'a changé."
 aispam_globally_disabled: "❌ Je ne peux pas activer le filtre anti-spam par IA : l'opérateur du bot l'a désactivé globalement. Rien n'a changé."
 aispam_invalid_option: "Je ne comprends qu'une option parmi : <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ Les analyses anti-spam par IA sont en pause dans ce chat pendant quelques minutes après des échecs répétés du fournisseur d'IA. Elles reprennent d'elles-mêmes et le filtre reste activé."
@@ -2391,7 +2391,7 @@ antiraid_raidactiontime_set: "Durée d'action du raid définie à {duration}."
 antiraid_auto_disabled: "L'AntiRaid automatique est désactivé."
 antiraid_auto_enabled: "Seuil d'Auto-AntiRaid : {threshold} joins/min."
 antiraid_invalid_threshold: "Seuil invalide. Donnez un nombre positif ou 'off'."
-antiraid_auto_triggered: "Raid auto déclenché ! %s utilisateurs ont rejoint/min — nouveaux joiners bannis temporairement."
+antiraid_auto_triggered: "Raid auto déclenché ! %s utilisateurs ont rejoint/min — nouveaux arrivants bannis temporairement."
 antiraid_btn_enable: "Activer AntiRaid"
 antiraid_btn_disable: "Désactiver AntiRaid"
 
