@@ -19,12 +19,12 @@ lives in the same binary and is served on the same port as `/health`,
    `WEBHOOK_DOMAIN` is the usual choice.
 2. Point a reverse proxy at the bot's `HTTP_PORT` (default `8080`) and forward
    `/panel` and `/panel/api/*`, plus `/webhook` if you use webhooks.
-3. Link that host to the bot in BotFather: send `/setdomain`, pick the bot and
-   enter the domain (for example `bot.example.com`). Telegram refuses to open a
-   `web_app` button for a domain the bot has not linked; creating the Mini App
-   described below links it as well.
-4. Set the variables below and restart the bot.
-5. Send `/start panel_<chat_id>` to the bot in a private chat to check it.
+3. Set the variables below and restart the bot.
+4. Send `/start panel_<chat_id>` to the bot in a private chat to check it.
+
+No BotFather setup is needed: `web_app` buttons and the menu button open any
+HTTPS URL. BotFather's `/setdomain` is for the Telegram Login Widget, which the
+panel does not use.
 
 ```bash
 PANEL_ENABLED=true
@@ -98,9 +98,8 @@ webhook, that is fine — both are just paths on the one server.
 
 By default a group button opens the bot's private chat with a
 `/start panel_<chat_id>` deep link; the bot then replies with a `web_app`
-button that launches the panel. Once the domain is linked (step 3) that works as
-is. Creating a Mini App in BotFather also gives you a short name, so the button
-can skip the hop:
+button that launches the panel. That works with no BotFather setup. Creating a
+Mini App in BotFather gives you a short name, so the button can skip the hop:
 
 1. In [@BotFather](https://t.me/BotFather), send `/newapp`, pick the bot and
    follow the prompts — or use `/mybots` → your bot → **Bot Settings** →
@@ -158,7 +157,6 @@ checked against the bot token on arrival.
 | No dashboard buttons in group `/settings` or `/help` | Same as above: a disabled panel adds no buttons and does not change the menu button | Enable the panel. |
 | The button opens a blank page or Telegram says the app is unavailable | `PANEL_PUBLIC_URL` is not HTTPS, is missing the `/panel` path, or the BotFather Mini App points elsewhere | Use the public HTTPS panel URL in `PANEL_PUBLIC_URL` and in the BotFather Mini App. |
 | The panel loads but the chat is missing or empty | The bot is not in the chat, or you are no longer an admin there | Add the bot, or reopen the panel from the group. |
-| Telegram answers "bot domain invalid" when the button is tapped | The panel's domain is not linked to the bot in BotFather | Send `/setdomain` to @BotFather and enter the panel's domain. |
 | Values show but every change is refused | The bot is not an admin in that chat | Promote the bot with the rights it asks for in the add-to-group link. |
 | The menu button still opens the command list | Telegram refused `setChatMenuButton`; startup logs a warning and carries on | Check the bot token and the URL; the group buttons and the `/start panel_` link still work. |
 | The menu button still opens the panel after `PANEL_ENABLED=false` | The default menu button is bot-wide state, and the bot only writes it while the panel is enabled | Reset it with `/setmenubutton` in BotFather, or re-enable the panel. |
