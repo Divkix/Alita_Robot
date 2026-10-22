@@ -1778,6 +1778,58 @@ spamdb_db_lols_warning: "⚠️ O lols.bot lista contas de forma mais agressiva 
 spamdb_db_enabled_idle: "✅ {database} está selecionada, mas nada é procurado enquanto a verificação estiver desativada. Veja o estado dela com <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ O lols.bot lista contas de forma mais agressiva que o CAS, então haverá mais falsos positivos. Considere <code>/spamdb action log</code> até confiar nele. Quando a verificação estiver ativa, o ID do Telegram de cada novo membro será enviado ao lols.bot."
 
+# New-member probation strings
+probation_help_msg: |
+  <b>🕑 Período de experiência</b>
+
+  Um período de experiência opcional para novos membros: quem entra depois que um admin o ativa não pode publicar links nem encaminhamentos (e, se você escolher, mídia) até ter enviado algumas mensagens de verdade ou até passar um tempo definido. As mensagens bloqueadas são apagadas; o membro não é silenciado.
+
+  Membros que já estavam no grupo antes da ativação nunca ficam em período de experiência. Admins, usuários aprovados e bots são ignorados.
+
+
+  *Comandos de administrador:*
+
+  × /probation: Mostra as configurações do período de experiência.
+
+  × /probation `<on/off>`: Ativa ou desativa o período de experiência para quem entrar a partir de agora.
+
+  × /probation time `<duração>`: Quanto dura o período de experiência, de 1h a 30d. O padrão é 24h.
+
+  × /probation messages `<número>`: Quantas mensagens encerram o período de experiência mais cedo, de 1 a 100. O padrão é 5.
+
+  × /probation minlen `<número>`: A mensagem mais curta, em caracteres, que conta. O padrão é 20. Uma mensagem repetida conta uma vez.
+
+  × /probation block `<links,forwards,media>`: O que é apagado durante o período de experiência. O padrão é links e encaminhamentos.
+
+  × /probation notice `<on/off>`: Avisa o membro uma vez, no grupo, por que uma mensagem foi apagada. Desativado por padrão.
+
+
+  O período de experiência fica desativado em todos os chats até que um admin o ative. As mensagens só são contadas quando o bot tem Redis; sem ele, o período termina quando acaba o tempo. O bot precisa do direito de apagar mensagens.
+probation_usage: "Use <code>/probation on</code>/<code>off</code>, <code>/probation time 24h</code>, <code>/probation messages 5</code>, <code>/probation minlen 20</code>, <code>/probation block links,forwards</code> ou <code>/probation notice on</code>/<code>off</code>."
+probation_status_on: "O período de experiência para novos membros está <b>ativado</b> neste chat."
+probation_status_off: "O período de experiência para novos membros está <b>desativado</b> neste chat. Ative com <code>/probation on</code>."
+probation_status_details: "Quem entra não pode publicar <b>{blocked}</b> por <b>{time}</b>, ou até enviar <b>{messages}</b> mensagens diferentes de pelo menos <b>{minlen}</b> caracteres."
+probation_status_notice_on: "<b>Aviso:</b> ativado. O membro é avisado uma vez, no grupo, de por que uma mensagem foi apagada."
+probation_status_notice_off: "<b>Aviso:</b> desativado. As mensagens são apagadas sem aviso. Ative com <code>/probation notice on</code>."
+probation_status_no_redis: "⚠️ O bot não tem Redis, então as mensagens não são contadas: o período de experiência só termina quando acaba o tempo."
+probation_status_no_delete: "⚠️ Não consigo apagar mensagens neste chat, então o período de experiência não faz nada até eu ter esse direito."
+probation_enabled_success: "✅ O período de experiência para novos membros agora está <b>ativado</b>. Quem entrar a partir de agora fica em experiência; os membros atuais não."
+probation_disabled_success: "❌ O período de experiência para novos membros agora está <b>desativado</b>."
+probation_time_success: "✅ O período de experiência agora dura <b>{time}</b>."
+probation_messages_success: "✅ O período de experiência agora termina após <b>{messages}</b> mensagens."
+probation_minlen_success: "✅ As mensagens agora contam a partir de <b>{minlen}</b> caracteres."
+probation_block_success: "✅ Durante o período de experiência agora apago: <b>{blocked}</b>."
+probation_notice_on_success: "✅ Um membro em experiência será avisado uma vez de por que uma mensagem foi apagada."
+probation_notice_off_success: "❌ As mensagens de membros em experiência agora são apagadas sem aviso."
+probation_invalid_time: "Informe um tempo de 1h a 30d. Exemplo: <code>/probation time 12h</code>"
+probation_invalid_messages: "Informe um número de mensagens de 1 a 100. Exemplo: <code>/probation messages 5</code>"
+probation_invalid_minlen: "Informe um comprimento de 1 a 500 caracteres. Exemplo: <code>/probation minlen 20</code>"
+probation_invalid_block: "Escolha pelo menos um de <code>links</code>, <code>forwards</code> e <code>media</code>. Exemplo: <code>/probation block links,forwards</code>"
+probation_notice: "{user}, novos membros ainda não podem publicar {blocked}, então apaguei sua mensagem. Isso termina após algumas mensagens ou algum tempo."
+probation_block_links: "links"
+probation_block_forwards: "encaminhamentos"
+probation_block_media: "mídia"
+
 # Weekly digest strings
 digest_help_msg: |
   <b>📊 Resumo semanal</b>
@@ -2725,6 +2777,7 @@ misc_section_desc: "Informações, IDs, tradução e outras ferramentas"
 mutes_section_desc: "Silenciar usuários e tirar o silêncio"
 notes_section_desc: "Notas salvas que qualquer um pode obter"
 pins_section_desc: "Fixar mensagens e controlar as fixações do canal"
+probation_section_desc: "Segurar links e mídia de novos membros"
 purges_section_desc: "Apagar mensagens em massa"
 reactions_section_desc: "Reagir a palavras-chave com um emoji"
 reports_section_desc: "Denunciar mensagens aos admins"
@@ -2982,6 +3035,8 @@ rules_extend_msg: |
   /resetrulesbtn — igual a /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — mostrar ou alternar a verificação de bases de spam, escolher as bases ou definir sua ação
+probation_extend_msg: |
+  /probation — mostrar ou alternar o período de experiência de novos membros, ou definir o tempo, as mensagens, o comprimento, o conteúdo bloqueado e o aviso
 digest_extend_msg: |
   /digest — mostra o estado do resumo semanal, ativa ou desativa, escolhe o destino ou mostra uma prévia
 warns_extend_msg: |

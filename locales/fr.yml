@@ -1633,6 +1633,58 @@ spamdb_db_lols_warning: "⚠️ lols.bot liste les comptes plus agressivement qu
 spamdb_db_enabled_idle: "✅ {database} est sélectionnée, mais rien n'est recherché tant que la vérification est désactivée. Consultez son état avec <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot liste les comptes plus agressivement que CAS, attendez-vous donc à plus de faux positifs. Envisagez <code>/spamdb action log</code> tant que vous ne lui faites pas confiance. Une fois la vérification active, l'ID Telegram de chaque nouveau membre sera envoyé à lols.bot."
 
+# New-member probation strings
+probation_help_msg: |
+  <b>🕑 Période d'essai</b>
+
+  Une période d'essai facultative pour les nouveaux membres : celui qui arrive après qu'un admin l'a activée ne peut pas publier de liens ni de transferts (ni, si vous le choisissez, de médias) avant d'avoir envoyé quelques vrais messages ou qu'un délai fixé soit écoulé. Ses messages bloqués sont supprimés ; il n'est pas rendu muet.
+
+  Les membres présents avant l'activation ne sont jamais en période d'essai. Les admins, les utilisateurs approuvés et les bots sont ignorés.
+
+
+  *Commandes admin :*
+
+  × /probation: Affiche les réglages de la période d'essai.
+
+  × /probation `<on/off>`: Active ou désactive la période d'essai pour les membres qui arrivent à partir de maintenant.
+
+  × /probation time `<durée>`: Durée de la période d'essai, de 1h à 30d. Par défaut 24h.
+
+  × /probation messages `<nombre>`: Nombre de messages qui mettent fin à la période d'essai plus tôt, de 1 à 100. Par défaut 5.
+
+  × /probation minlen `<nombre>`: Le message le plus court, en caractères, qui compte. Par défaut 20. Un message répété compte une fois.
+
+  × /probation block `<links,forwards,media>`: Ce qui est supprimé pendant la période d'essai. Par défaut, les liens et les transferts.
+
+  × /probation notice `<on/off>`: Prévient le membre une fois, dans le groupe, de la raison de la suppression d'un message. Désactivé par défaut.
+
+
+  La période d'essai est désactivée dans tous les chats jusqu'à ce qu'un admin l'active. Les messages ne sont comptés que si le bot dispose de Redis ; sans lui, la période se termine à la fin de son délai. Le bot a besoin du droit de supprimer des messages.
+probation_usage: "Utilisez <code>/probation on</code>/<code>off</code>, <code>/probation time 24h</code>, <code>/probation messages 5</code>, <code>/probation minlen 20</code>, <code>/probation block links,forwards</code> ou <code>/probation notice on</code>/<code>off</code>."
+probation_status_on: "La période d'essai des nouveaux membres est <b>activée</b> dans ce chat."
+probation_status_off: "La période d'essai des nouveaux membres est <b>désactivée</b> dans ce chat. Activez-la avec <code>/probation on</code>."
+probation_status_details: "Les membres qui arrivent ne peuvent pas publier de <b>{blocked}</b> pendant <b>{time}</b>, ou jusqu'à ce qu'ils envoient <b>{messages}</b> messages différents d'au moins <b>{minlen}</b> caractères."
+probation_status_notice_on: "<b>Avis :</b> activé. Le membre est prévenu une fois, dans le groupe, de la raison de la suppression d'un message."
+probation_status_notice_off: "<b>Avis :</b> désactivé. Les messages sont supprimés sans prévenir. Activez-le avec <code>/probation notice on</code>."
+probation_status_no_redis: "⚠️ Le bot n'a pas de Redis, donc les messages ne sont pas comptés : la période d'essai ne se termine qu'à la fin de son délai."
+probation_status_no_delete: "⚠️ Je ne peux pas supprimer de messages dans ce chat, donc la période d'essai ne fait rien tant que je n'ai pas ce droit."
+probation_enabled_success: "✅ La période d'essai des nouveaux membres est maintenant <b>activée</b>. Les membres qui arrivent à partir de maintenant sont en période d'essai ; les membres actuels ne le sont pas."
+probation_disabled_success: "❌ La période d'essai des nouveaux membres est maintenant <b>désactivée</b>."
+probation_time_success: "✅ La période d'essai dure maintenant <b>{time}</b>."
+probation_messages_success: "✅ La période d'essai se termine maintenant après <b>{messages}</b> messages."
+probation_minlen_success: "✅ Les messages comptent maintenant à partir de <b>{minlen}</b> caractères."
+probation_block_success: "✅ Pendant la période d'essai, je supprime maintenant : <b>{blocked}</b>."
+probation_notice_on_success: "✅ Un membre en période d'essai sera prévenu une fois de la raison de la suppression d'un message."
+probation_notice_off_success: "❌ Les messages des membres en période d'essai sont maintenant supprimés sans avis."
+probation_invalid_time: "Indiquez une durée de 1h à 30d. Exemple : <code>/probation time 12h</code>"
+probation_invalid_messages: "Indiquez un nombre de messages de 1 à 100. Exemple : <code>/probation messages 5</code>"
+probation_invalid_minlen: "Indiquez une longueur de 1 à 500 caractères. Exemple : <code>/probation minlen 20</code>"
+probation_invalid_block: "Choisissez au moins l'un de <code>links</code>, <code>forwards</code> et <code>media</code>. Exemple : <code>/probation block links,forwards</code>"
+probation_notice: "{user}, les nouveaux membres ne peuvent pas encore publier de {blocked}, j'ai donc supprimé votre message. Cela prend fin après quelques messages ou un certain temps."
+probation_block_links: "liens"
+probation_block_forwards: "transferts"
+probation_block_media: "médias"
+
 # Weekly digest strings
 digest_help_msg: |
   <b>📊 Résumé hebdomadaire</b>
@@ -2670,6 +2722,7 @@ misc_section_desc: "Infos, ID, traduction et autres outils"
 mutes_section_desc: "Rendre muets des utilisateurs et leur rendre la parole"
 notes_section_desc: "Notes enregistrées que tout le monde peut obtenir"
 pins_section_desc: "Épingler des messages et gérer les épinglages du canal"
+probation_section_desc: "Retenir les liens et médias des nouveaux membres"
 purges_section_desc: "Supprimer des messages en masse"
 reactions_section_desc: "Réagir à des mots-clés avec un emoji"
 reports_section_desc: "Signaler des messages aux admins"
@@ -2927,6 +2980,8 @@ rules_extend_msg: |
   /resetrulesbtn — identique à /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — afficher ou basculer la vérification anti-spam, choisir ses bases ou son action
+probation_extend_msg: |
+  /probation — afficher ou basculer la période d'essai des nouveaux membres, ou régler sa durée, ses messages, sa longueur, le contenu bloqué et l'avis
 digest_extend_msg: |
   /digest — affiche l'état du résumé hebdomadaire, l'active ou le désactive, choisit sa destination ou en donne un aperçu
 warns_extend_msg: |

@@ -120,6 +120,27 @@ func TestSettersAreIndependentAndInvalidateCache(t *testing.T) {
 	}
 }
 
+// SetBlock changes one kind and keeps the others.
+func TestSetBlockChangesOneKind(t *testing.T) {
+	requireDB(t)
+	cache.SetupTestMemoryMarshaler(t)
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	if err := SetBlock(chatID, BlockMedia, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetBlock(chatID, BlockLinks, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := mustSettings(t, chatID); got.BlockLinks || !got.BlockForwards || !got.BlockMedia {
+		t.Fatalf("after SetBlock = %+v, want forwards and media only", got)
+	}
+	if err := SetBlock(chatID, "stickers", true); !errors.Is(err, ErrInvalidBlock) {
+		t.Fatalf("SetBlock(stickers) error = %v, want ErrInvalidBlock", err)
+	}
+}
+
 func TestSettersRejectOutOfRangeValues(t *testing.T) {
 	requireDB(t)
 	cache.SetupTestMemoryMarshaler(t)
@@ -188,8 +209,14 @@ func TestClaimNoticeOncePerProbation(t *testing.T) {
 	if err := Start(chatID, userID, time.Now()); err != nil {
 		t.Fatal(err)
 	}
+	if member, err := GetMember(context.Background(), chatID, userID); err != nil || member.Notified {
+		t.Fatalf("member before the claim = %+v, %v; want not notified", member, err)
+	}
 	if ok, err := ClaimNotice(chatID, userID); err != nil || !ok {
 		t.Fatalf("first claim = %v, %v; want true", ok, err)
+	}
+	if member, err := GetMember(context.Background(), chatID, userID); err != nil || !member.Notified {
+		t.Fatalf("cached member after the claim = %+v, %v; want notified", member, err)
 	}
 	if ok, err := ClaimNotice(chatID, userID); err != nil || ok {
 		t.Fatalf("second claim = %v, %v; want false", ok, err)

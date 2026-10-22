@@ -16,4 +16,6 @@ fr:message_type_document        # "document" is French
 fr:message_type_photo           # "photo" is French
 fr:reports_button_message       # "Message" is French
 id:feds_role_admin              # "admin" is the usual Indonesian word
+id:probation_block_media        # "media" is Indonesian
 pt:captcha_settings_status      # "Status" is Portuguese and pt.yml uses it elsewhere
+pt:probation_block_links        # "links" is the usual Portuguese word, as pt.yml uses it elsewhere

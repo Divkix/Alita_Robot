@@ -91,6 +91,25 @@ func SetBlocked(chatID int64, links, forwards, media bool) error {
 	return upsert(chatID, map[string]any{"block_links": links, "block_forwards": forwards, "block_media": media})
 }
 
+// Block kinds, as /probation block and SetBlock take them.
+const (
+	BlockLinks    = "links"
+	BlockForwards = "forwards"
+	BlockMedia    = "media"
+)
+
+// ErrInvalidBlock is returned for a block kind other than links, forwards or media.
+var ErrInvalidBlock = errors.New("probation: invalid block kind")
+
+// SetBlock blocks or allows one kind, keeping the other two.
+func SetBlock(chatID int64, kind string, on bool) error {
+	switch kind {
+	case BlockLinks, BlockForwards, BlockMedia:
+		return upsert(chatID, map[string]any{"block_" + kind: on})
+	}
+	return ErrInvalidBlock
+}
+
 // SetNotice turns the one notice per chat a member gets on a deletion on or off.
 func SetNotice(chatID int64, on bool) error {
 	return upsert(chatID, map[string]any{"notice": on})
@@ -127,11 +146,13 @@ func upsert(chatID int64, row map[string]any) error {
 type Member struct {
 	Found    bool
 	JoinedAt time.Time
+	// Notified is true once the member got the notice for this probation.
+	Notified bool
 }
 
 // GetMember returns userID's probation in chatID.
 func GetMember(ctx context.Context, chatID, userID int64) (Member, error) {
-	return cache.GetFromCacheOrLoad(ctx, memberKey(chatID, userID), cache.CacheTTLProbation,
+	return cache.GetFromCacheOrLoad(ctx, memberKey(chatID, userID), cache.CacheTTLProbationMember,
 		func(ctx context.Context) (Member, error) {
 			var row models.ProbationMember
 			err := db.DB.WithContext(ctx).Where("chat_id = ? AND user_id = ?", chatID, userID).Take(&row).Error
@@ -141,7 +162,7 @@ func GetMember(ctx context.Context, chatID, userID int64) (Member, error) {
 			if err != nil {
 				return Member{}, fmt.Errorf("get probation member: %w", err)
 			}
-			return Member{Found: true, JoinedAt: row.JoinedAt}, nil
+			return Member{Found: true, JoinedAt: row.JoinedAt, Notified: row.Notified}, nil
 		})
 }
 
@@ -180,7 +201,11 @@ func ClaimNotice(chatID, userID int64) (bool, error) {
 	if res.Error != nil {
 		return false, fmt.Errorf("claim probation notice: %w", res.Error)
 	}
-	return res.RowsAffected == 1, nil
+	if res.RowsAffected != 1 {
+		return false, nil
+	}
+	cache.DeleteCache(memberKey(chatID, userID))
+	return true, nil
 }
 
 // DeleteJoinedBefore removes the members who joined before cutoff and returns

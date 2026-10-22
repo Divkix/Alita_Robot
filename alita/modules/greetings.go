@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -709,6 +710,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if err := captcha.DeleteMutedUser(leftMember.Id, chat.Id); err != nil {
 		log.Errorf("Failed to delete scheduled captcha unmute for leaving user %d: %v", leftMember.Id, err)
 	}
+	endProbationOnLeave(tracing.UpdateContext(ctx), chat.Id, leftMember.Id)
 
 	if greetPrefs.GoodbyeSettings == nil {
 		log.Warnf("[Greetings][leftMember] GoodbyeSettings is nil for chat %d, skipping goodbye message", chat.Id)
@@ -759,6 +761,9 @@ func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64)
 				return err
 			}
 			return nil
+		},
+		Probation: func(chatID int64, user gotgbot.User) {
+			startProbation(context.Background(), chatID, user)
 		},
 		Welcome: func(user gotgbot.User) error {
 			ctxCopy := ext.Context{EffectiveChat: chat}
