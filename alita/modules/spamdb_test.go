@@ -21,6 +21,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/moderation"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -107,6 +109,44 @@ func spamDBChat(t *testing.T, enabled bool, action string) gotgbot.Chat {
 }
 
 var spamDBUpdateID atomic.Int64
+
+// withSpamDBReputation turns the shared network on with explicit thresholds and
+// restores the whole process config when the test ends.
+func withSpamDBReputation(t *testing.T, minChats, windowDays int) {
+	t.Helper()
+	previous := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = previous })
+	config.AppConfig.EnableReputation = true
+	config.AppConfig.ReputationMinChats = minChats
+	config.AppConfig.ReputationWindowDays = windowDays
+}
+
+// seedSpamDBEvent records one human moderation event, the only kind the shared
+// network aggregates.
+func seedSpamDBEvent(t *testing.T, chatID, userID int64, action string) {
+	t.Helper()
+	if err := moderation.Record(models.ModerationEvent{
+		ChatId:       chatID,
+		ActorId:      42,
+		TargetUserId: userID,
+		Action:       action,
+	}); err != nil {
+		t.Fatalf("Record(%s) error = %v", action, err)
+	}
+}
+
+// spamDBSharedOnlyChat returns a chat whose only spam database is Shared bans.
+func spamDBSharedOnlyChat(t *testing.T, action string) gotgbot.Chat {
+	t.Helper()
+	chat := spamDBChat(t, true, action)
+	if err := spamdbsettings.SetSpamDBDatabase(chat.Id, spamdbsettings.DatabaseShared, true); err != nil {
+		t.Fatalf("SetSpamDBDatabase(shared, true) error = %v", err)
+	}
+	if err := spamdbsettings.SetSpamDBDatabase(chat.Id, spamdbsettings.DatabaseCAS, false); err != nil {
+		t.Fatalf("SetSpamDBDatabase(cas, false) error = %v", err)
+	}
+	return chat
+}
 
 func spamDBJoin(t *testing.T, dispatcher *ext.Dispatcher, bot *gotgbot.Bot, chat gotgbot.Chat, members ...gotgbot.User) {
 	t.Helper()
@@ -575,7 +615,7 @@ func TestSpamDBReadsCacheEntryWithoutDatabaseFieldsAsCAS(t *testing.T) {
 		t.Fatalf("seed stale cache entry: %v", err)
 	}
 	dbcache.ResetLocalForTest()
-	if got, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), chat.Id); err != nil || got.CheckCAS || got.CheckLols {
+	if got, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), chat.Id); err != nil || got.CheckCAS || got.CheckLols || got.CheckShared {
 		t.Fatalf("stale entry not served from cache: %+v, %v", got, err)
 	}
 	dbcache.ResetLocalForTest()
@@ -589,6 +629,7 @@ func TestSpamDBReadsCacheEntryWithoutDatabaseFieldsAsCAS(t *testing.T) {
 
 func TestSpamDBCommandSelectsDatabases(t *testing.T) {
 	useEnglishLocale(t)
+	withSpamDBReputation(t, 3, 30)
 	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
 	client := aispamAdminClient()
 	bot := newModuleTestBot(client)
@@ -596,29 +637,40 @@ func TestSpamDBCommandSelectsDatabases(t *testing.T) {
 	admin := gotgbot.User{Id: 42, FirstName: "Admin"}
 
 	tr := i18n.MustNewTranslator("en")
-	lastText, _ := tr.GetString("spamdb_db_last", i18n.TranslationParams{"database": "lols.bot"})
 	warning, _ := tr.GetString("spamdb_db_lols_warning")
-	if lastText == "" || warning == "" {
-		t.Fatal("spamdb_db_last or spamdb_db_lols_warning is missing from en.yml")
+	if warning == "" {
+		t.Fatal("spamdb_db_lols_warning is missing from en.yml")
+	}
+	lastText := map[string]bool{}
+	for _, name := range []string{"CAS", "lols.bot", "Shared bans"} {
+		text, _ := tr.GetString("spamdb_db_last", i18n.TranslationParams{"database": name})
+		if text == "" {
+			t.Fatalf("spamdb_db_last is missing from en.yml for %s", name)
+		}
+		lastText[text] = true
 	}
 
 	steps := []struct {
-		command   string
-		cas, lols bool
+		command           string
+		cas, lols, shared bool
 		// last: the reply is the refusal to switch off the last database.
 		// warning: the reply carries the lols.bot warning. Neither: the
 		// reply is not the refusal and carries no warning.
 		last, warning bool
 	}{
-		{"/spamdb db lols on", true, true, false, true},
-		{"/spamdb db cas off", false, true, false, false},
+		{"/spamdb db lols on", true, true, false, false, true},
+		{"/spamdb db shared on", true, true, true, false, false},
+		{"/spamdb db cas off", false, true, true, false, false},
+		{"/spamdb db lols off", false, false, true, false, false},
 		// The last database cannot be switched off.
-		{"/spamdb db lols off", false, true, true, false},
-		{"/spamdb db spamwatch on", false, true, false, false},
-		{"/spamdb db cas maybe", false, true, false, false},
-		{"/spamdb db", false, true, false, false},
-		{"/spamdb db CAS ON", true, true, false, false},
-		{"/spamdb db lols no", true, false, false, false},
+		{"/spamdb db shared off", false, false, true, true, false},
+		{"/spamdb db spamwatch on", false, false, true, false, false},
+		{"/spamdb db cas maybe", false, false, true, false, false},
+		{"/spamdb db", false, false, true, false, false},
+		{"/spamdb db SHARED ON", false, false, true, false, false},
+		{"/spamdb db lols no", false, false, true, false, false},
+		{"/spamdb db cas on", true, false, true, false, false},
+		{"/spamdb db shared off", true, false, false, false, false},
 	}
 	for i, s := range steps {
 		spamDBCommand(t, dispatcher, bot, chat, admin, s.command)
@@ -626,20 +678,192 @@ func TestSpamDBCommandSelectsDatabases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
 		}
-		if settings.CheckCAS != s.cas || settings.CheckLols != s.lols {
-			t.Fatalf("after %q: cas %v lols %v, want cas %v lols %v", s.command, settings.CheckCAS, settings.CheckLols, s.cas, s.lols)
+		if settings.CheckCAS != s.cas || settings.CheckLols != s.lols || settings.CheckShared != s.shared {
+			t.Fatalf("after %q: cas %v lols %v shared %v, want cas %v lols %v shared %v",
+				s.command, settings.CheckCAS, settings.CheckLols, settings.CheckShared, s.cas, s.lols, s.shared)
 		}
 		replies := spamDBMessagesTo(client, chat.Id)
 		if len(replies) != i+1 {
 			t.Fatalf("after %q: replies = %d, want one per command", s.command, len(replies))
 		}
 		reply := replies[i]
-		if (reply == lastText) != s.last {
+		if lastText[reply] != s.last {
 			t.Fatalf("after %q: reply %q, refusal expected = %v", s.command, reply, s.last)
 		}
 		if strings.Contains(reply, warning) != s.warning {
 			t.Fatalf("after %q: reply %q, lols.bot warning expected = %v", s.command, reply, s.warning)
 		}
+	}
+}
+
+// The last enabled database cannot be switched off whichever one it is.
+func TestSpamDBCommandRefusesLastDatabaseEveryCombination(t *testing.T) {
+	useEnglishLocale(t)
+	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
+	client := aispamAdminClient()
+	bot := newModuleTestBot(client)
+	admin := gotgbot.User{Id: 42, FirstName: "Admin"}
+	tr := i18n.MustNewTranslator("en")
+
+	cases := []struct {
+		name     string
+		database string
+		label    string
+		source   spamdb.Source
+	}{
+		{"cas", spamdbsettings.DatabaseCAS, "CAS", spamdb.SourceCAS},
+		{"lols", spamdbsettings.DatabaseLols, "lols.bot", spamdb.SourceLols},
+		{"shared", spamdbsettings.DatabaseShared, "Shared bans", spamdb.SourceShared},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			chat := spamDBChat(t, true, spamdbsettings.ActionBan)
+			if tc.database != spamdbsettings.DatabaseCAS {
+				// Leave only this database on: turn it on, then CAS off.
+				if err := spamdbsettings.SetSpamDBDatabase(chat.Id, tc.database, true); err != nil {
+					t.Fatalf("SetSpamDBDatabase(%s, true) error = %v", tc.database, err)
+				}
+				if err := spamdbsettings.SetSpamDBDatabase(chat.Id, spamdbsettings.DatabaseCAS, false); err != nil {
+					t.Fatalf("SetSpamDBDatabase(cas, false) error = %v", err)
+				}
+			}
+			want, _ := tr.GetString("spamdb_db_last", i18n.TranslationParams{"database": tc.label})
+			if want == "" {
+				t.Fatalf("spamdb_db_last is missing from en.yml for %s", tc.label)
+			}
+
+			spamDBCommand(t, dispatcher, bot, chat, admin, "/spamdb db "+tc.name+" off")
+
+			settings, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), chat.Id)
+			if err != nil {
+				t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
+			}
+			if got := spamDBSources(settings); len(got) != 1 || got[0] != tc.source {
+				t.Fatalf("after refusal sources = %v, want only %s", got, tc.source)
+			}
+			replies := spamDBMessagesTo(client, chat.Id)
+			if len(replies) != 1 || replies[0] != want {
+				t.Fatalf("replies = %v, want the last-database refusal %q", replies, want)
+			}
+		})
+	}
+}
+
+func TestSpamDBCommandRefusesSharedWhenReputationDisabled(t *testing.T) {
+	useEnglishLocale(t)
+	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
+	previous := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = previous })
+	config.AppConfig.EnableReputation = false
+
+	client := aispamAdminClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "No Reputation Chat"}
+	tr := i18n.MustNewTranslator("en")
+	want, _ := tr.GetString("spamdb_db_shared_disabled", i18n.TranslationParams{"database": "Shared bans"})
+	if want == "" {
+		t.Fatal("spamdb_db_shared_disabled is missing from en.yml")
+	}
+
+	spamDBCommand(t, dispatcher, bot, chat, gotgbot.User{Id: 42, FirstName: "Admin"}, "/spamdb db shared on")
+
+	settings, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), chat.Id)
+	if err != nil {
+		t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
+	}
+	if settings.CheckShared {
+		t.Fatal("Shared bans was switched on while the operator had it disabled")
+	}
+	replies := spamDBMessagesTo(client, chat.Id)
+	if len(replies) != 1 || replies[0] != want {
+		t.Fatalf("replies = %v, want the shared refusal %q", replies, want)
+	}
+}
+
+// A user several distinct chats removed is acted on through the shared
+// source, the log notice names it, and the block writes no moderation event of
+// its own: it is not a human action.
+func TestSpamDBActsOnSharedListedJoiner(t *testing.T) {
+	cases := []struct {
+		action       string
+		wantBan      int
+		wantRestrict int
+	}{
+		{spamdbsettings.ActionBan, 1, 0},
+		{spamdbsettings.ActionMute, 0, 1},
+		{spamdbsettings.ActionLog, 0, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.action, func(t *testing.T) {
+			withSpamDBReputation(t, 3, 30)
+			dispatcher, cas, _ := withSpamDBServices(t, true, http.StatusOK, spamDBCASNotFound, false)
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := spamDBSharedOnlyChat(t, tc.action)
+			spammer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Spammer"}
+			seedSpamDBEvent(t, chat.Id-1, spammer.Id, models.ModerationActionBan)
+			seedSpamDBEvent(t, chat.Id-2, spammer.Id, models.ModerationActionKick)
+			seedSpamDBEvent(t, chat.Id-3, spammer.Id, models.ModerationActionBan)
+
+			spamDBJoin(t, dispatcher, bot, chat, spammer)
+
+			if got := cas.hits.Load(); got != 0 {
+				t.Fatalf("CAS lookups = %d, want 0 for a shared-only chat", got)
+			}
+			if got := len(client.callsFor("banChatMember")); got != tc.wantBan {
+				t.Fatalf("banChatMember calls = %d, want %d", got, tc.wantBan)
+			}
+			if got := len(client.callsFor("restrictChatMember")); got != tc.wantRestrict {
+				t.Fatalf("restrictChatMember calls = %d, want %d", got, tc.wantRestrict)
+			}
+			notices := spamDBMessagesTo(client, spamDBLogChannel)
+			if len(notices) != 1 {
+				t.Fatalf("log channel messages = %d, want 1", len(notices))
+			}
+			if !strings.Contains(notices[0], "Shared bans") || !strings.Contains(notices[0], tc.action) {
+				t.Fatalf("log notice %q does not name Shared bans and the action %q", notices[0], tc.action)
+			}
+
+			events, err := moderation.ListForTarget(spammer.Id, time.Now().Add(-time.Hour))
+			if err != nil {
+				t.Fatalf("ListForTarget() error = %v", err)
+			}
+			if len(events) != 3 {
+				t.Fatalf("moderation events = %d, want the 3 seeded ones and no row from the block", len(events))
+			}
+		})
+	}
+}
+
+// The shared verdict is cached for ten minutes: once a user is known clean,
+// adding enough events to list them does not change the second join.
+func TestSpamDBSharedLookupServedFromCache(t *testing.T) {
+	withSpamDBReputation(t, 3, 30)
+	dispatcher, _, _ := withSpamDBServices(t, true, http.StatusOK, spamDBCASNotFound, false)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	first := spamDBSharedOnlyChat(t, spamdbsettings.ActionBan)
+	second := spamDBSharedOnlyChat(t, spamdbsettings.ActionBan)
+	joiner := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Member"}
+	// Two distinct chats is below the threshold.
+	seedSpamDBEvent(t, first.Id-1, joiner.Id, models.ModerationActionBan)
+	seedSpamDBEvent(t, first.Id-2, joiner.Id, models.ModerationActionBan)
+
+	spamDBJoin(t, dispatcher, bot, first, joiner)
+	if got := spamDBMessagesTo(client, spamDBLogChannel); len(got) != 0 {
+		t.Fatalf("first join produced %v, want the member let in", got)
+	}
+
+	// A fresh lookup would now list the user; the cached clean verdict must
+	// still let them in on the second join.
+	seedSpamDBEvent(t, first.Id-3, joiner.Id, models.ModerationActionBan)
+	spamDBJoin(t, dispatcher, bot, second, joiner)
+
+	if got := len(client.callsFor("banChatMember")); got != 0 {
+		t.Fatalf("banChatMember calls = %d, want 0: the second join queried the database instead of the shared cache", got)
+	}
+	if got := spamDBMessagesTo(client, spamDBLogChannel); len(got) != 0 {
+		t.Fatalf("second join produced %v, want the cached clean verdict", got)
 	}
 }
 
@@ -708,18 +932,35 @@ func TestSpamDBDatabaseOnReplyFollowsTheCheck(t *testing.T) {
 	}
 }
 
-// The chat's databases decide what /spamdb says is sent, and to whom.
+// The status lists every database with its state, not only the selected ones.
 func TestSpamDBStatusNamesTheChatsDatabases(t *testing.T) {
 	useEnglishLocale(t)
+	previousConfig := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = previousConfig })
+	config.AppConfig.EnableReputation = true
+
 	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
 	client := aispamAdminClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Status Chat"}
 	admin := gotgbot.User{Id: 42, FirstName: "Admin"}
 
+	tr := i18n.MustNewTranslator("en")
+	state := func(key, name string) string {
+		t.Helper()
+		text, _ := tr.GetString(key, i18n.TranslationParams{"database": name})
+		if text == "" {
+			t.Fatalf("locale key %s is missing", key)
+		}
+		return text
+	}
+
 	spamDBCommand(t, dispatcher, bot, chat, admin, "/spamdb")
 	if err := spamdbsettings.SetSpamDBDatabase(chat.Id, spamdbsettings.DatabaseLols, true); err != nil {
 		t.Fatalf("SetSpamDBDatabase(lols) error = %v", err)
+	}
+	if err := spamdbsettings.SetSpamDBDatabase(chat.Id, spamdbsettings.DatabaseShared, true); err != nil {
+		t.Fatalf("SetSpamDBDatabase(shared) error = %v", err)
 	}
 	spamDBCommand(t, dispatcher, bot, chat, admin, "/spamdb")
 
@@ -727,11 +968,85 @@ func TestSpamDBStatusNamesTheChatsDatabases(t *testing.T) {
 	if len(replies) != 2 {
 		t.Fatalf("replies = %d, want 2", len(replies))
 	}
-	if strings.Contains(replies[0], "lols.bot") {
-		t.Fatalf("CAS-only status mentions lols.bot: %q", replies[0])
+	for _, want := range []string{
+		state("spamdb_status_db_on", "CAS"),
+		state("spamdb_status_db_off", "lols.bot"),
+		state("spamdb_status_db_off", "Shared bans"),
+	} {
+		if !strings.Contains(replies[0], want) {
+			t.Fatalf("CAS-only status %q does not contain %q", replies[0], want)
+		}
 	}
-	if !strings.Contains(replies[1], "lols.bot") {
-		t.Fatalf("status with lols.bot on does not name it: %q", replies[1])
+	for _, want := range []string{
+		state("spamdb_status_db_on", "CAS"),
+		state("spamdb_status_db_on", "lols.bot"),
+		state("spamdb_status_db_on", "Shared bans"),
+	} {
+		if !strings.Contains(replies[1], want) {
+			t.Fatalf("all-on status %q does not contain %q", replies[1], want)
+		}
+	}
+
+	sharedNotice, _ := tr.GetString("spamdb_shared_data_notice")
+	if sharedNotice == "" {
+		t.Fatal("spamdb_shared_data_notice is missing from en.yml")
+	}
+	if strings.Contains(replies[0], sharedNotice) {
+		t.Fatalf("status mentions the shared data notice while the source is off: %q", replies[0])
+	}
+	if !strings.Contains(replies[1], sharedNotice) {
+		t.Fatalf("status with Shared bans on does not explain it sends nothing: %q", replies[1])
+	}
+}
+
+// A chat that selected Shared bans must not read it as running while the
+// operator has the shared reputation network switched off.
+func TestSpamDBStatusMarksSharedInertWhenReputationDisabled(t *testing.T) {
+	cases := []struct {
+		name         string
+		reputationOn bool
+		wantKey      string
+		unwantedKey  string
+	}{
+		{"operator switch off", false, "spamdb_status_db_on_inactive", "spamdb_status_db_on"},
+		{"operator switch on", true, "spamdb_status_db_on", "spamdb_status_db_on_inactive"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			useEnglishLocale(t)
+			previousConfig := *config.AppConfig
+			t.Cleanup(func() { *config.AppConfig = previousConfig })
+			config.AppConfig.EnableReputation = tc.reputationOn
+
+			dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
+			client := aispamAdminClient()
+			bot := newModuleTestBot(client)
+			chat := spamDBSharedOnlyChat(t, spamdbsettings.ActionBan)
+
+			tr := i18n.MustNewTranslator("en")
+			params := i18n.TranslationParams{"database": "Shared bans"}
+			want, _ := tr.GetString(tc.wantKey, params)
+			if want == "" {
+				t.Fatalf("locale key %s is missing from en.yml", tc.wantKey)
+			}
+			unwanted, _ := tr.GetString(tc.unwantedKey, params)
+			if unwanted == "" {
+				t.Fatalf("locale key %s is missing from en.yml", tc.unwantedKey)
+			}
+
+			spamDBCommand(t, dispatcher, bot, chat, gotgbot.User{Id: 42, FirstName: "Admin"}, "/spamdb")
+
+			replies := spamDBMessagesTo(client, chat.Id)
+			if len(replies) != 1 {
+				t.Fatalf("replies = %d, want 1", len(replies))
+			}
+			if !strings.Contains(replies[0], want) {
+				t.Fatalf("status %q does not contain %q", replies[0], want)
+			}
+			if strings.Contains(replies[0], unwanted) {
+				t.Fatalf("status %q contains %q", replies[0], unwanted)
+			}
+		})
 	}
 }
 

@@ -705,7 +705,7 @@ aispam_breaker_notice: "⚠️ AI प्रदाता की बार-बा�
 spamdb_help_msg: |
   <b>🛡 स्पैम डेटाबेस</b>
 
-  एक वैकल्पिक जाँच जो हर नए सदस्य को जुड़ते समय स्पैम डेटाबेस में खोजती है और जो उनमें सूचीबद्ध हैं उन पर कार्रवाई करती है। डिफ़ॉल्ट रूप से CAS (cas.chat) जाँचा जाता है; lols.bot जोड़ा जा सकता है।
+  एक वैकल्पिक जाँच जो हर नए सदस्य को जुड़ते समय स्पैम डेटाबेस में खोजती है और जो उनमें सूचीबद्ध हैं उन पर कार्रवाई करती है। डिफ़ॉल्ट रूप से CAS (cas.chat) जाँचा जाता है; lols.bot और बॉट का अपना Shared bans नेटवर्क जोड़ा जा सकता है।
 
   एडमिन, स्वीकृत उपयोगकर्ता और बॉट कभी नहीं जाँचे जाते। अगर किसी डेटाबेस तक नहीं पहुँचा जा सके, तो सदस्य को आने दिया जाता है। हर कार्रवाई की सूचना केवल लॉग चैनल में दी जाती है, ग्रुप में कभी नहीं।
 
@@ -716,27 +716,32 @@ spamdb_help_msg: |
 
   × /spamdb `<on/off>`: इस चैट में जाँच चालू या बंद करें।
 
-  × /spamdb db `<cas/lols>` `<on/off>`: डेटाबेस चुनें। CAS डिफ़ॉल्ट रूप से चालू है, और कम से कम एक चालू रहना चाहिए। lols.bot खातों को ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा हो सकती है।
+  × /spamdb db `<cas/lols/shared>` `<on/off>`: डेटाबेस चुनें। CAS डिफ़ॉल्ट रूप से चालू है, और कम से कम एक चालू रहना चाहिए। lols.bot खातों को ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा हो सकती है। Shared bans डिफ़ॉल्ट रूप से बंद है, ऑपरेटर के साझा प्रतिष्ठा नेटवर्क की ज़रूरत है, और उन उपयोगकर्ताओं को सूचीबद्ध करता है जिन्हें हाल में कई चैट ने हटाया है।
 
   × /spamdb action `<ban/mute/log>`: चुनें कि सूचीबद्ध सदस्य के साथ क्या हो। डिफ़ॉल्ट ban है; log केवल सूचना देता है।
 
 
-  जब तक कोई एडमिन इसे चालू न करे, जाँच हर चैट में बंद रहती है। चालू करने पर हर नए सदस्य की Telegram ID हर चुने गए डेटाबेस (cas.chat, lols.bot) को भेजी जाती है।
+  जब तक कोई एडमिन इसे चालू न करे, जाँच हर चैट में बंद रहती है। चालू करने पर हर नए सदस्य की Telegram ID हर चुने गए बाहरी डेटाबेस (cas.chat, lols.bot) को भेजी जाती है। Shared bans बॉट के अंदर ही रहता है और कुछ नहीं भेजता।
 spamdb_status_enabled: "इस चैट में जुड़ने पर स्पैम डेटाबेस जाँच <b>चालू</b> है। सूचीबद्ध सदस्यों पर: <code>{action}</code>।"
 spamdb_status_disabled: "इस चैट में जुड़ने पर स्पैम डेटाबेस जाँच <b>बंद</b> है। <code>/spamdb on</code> से चालू करें।"
 spamdb_status_databases: "<b>डेटाबेस:</b> {databases}। <code>/spamdb db</code> से बदलें।"
+spamdb_status_db_on: "{database} (चालू)"
+spamdb_status_db_off: "{database} (बंद)"
+spamdb_status_db_on_inactive: "{database} (चालू, लेकिन निष्क्रिय: बॉट ऑपरेटर ने साझा बैन नेटवर्क बंद कर दिया है)"
 spamdb_status_globally_disabled: "⚠️ उपलब्ध नहीं: बॉट ऑपरेटर ने स्पैम डेटाबेस जाँच बंद कर दी है, इसलिए किसी सदस्य की जाँच नहीं हो रही।"
 spamdb_data_notice: "<b>क्या भेजा जाता है:</b> हर नए सदस्य की Telegram ID, {services} को। बॉट से और कुछ नहीं जाता।"
+spamdb_shared_data_notice: "<b>Shared bans</b> इस बॉट के अपने मॉडरेशन इवेंट से बनता है; इसके लिए इस चैट या इसके सदस्यों की कोई जानकारी कहीं नहीं भेजी जाती।"
 spamdb_enabled_success: "✅ जुड़ने पर स्पैम डेटाबेस जाँच अब <b>चालू</b> है। नए सदस्यों को जुड़ते समय चुने गए डेटाबेस में खोजा जाएगा।"
 spamdb_disabled_success: "❌ जुड़ने पर स्पैम डेटाबेस जाँच अब <b>बंद</b> है।"
 spamdb_globally_disabled: "❌ मैं स्पैम डेटाबेस जाँच चालू नहीं कर सकता: बॉट ऑपरेटर ने इसे बंद कर दिया है। कुछ नहीं बदला।"
+spamdb_db_shared_disabled: "❌ मैं Shared bans चालू नहीं कर सकता: बॉट ऑपरेटर ने साझा प्रतिष्ठा नेटवर्क चालू नहीं किया है। कुछ नहीं बदला।"
 spamdb_invalid_option: "मैं केवल इनमें से विकल्प समझता हूँ: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>/<code>db</code>"
 spamdb_invalid_action: "इनमें से कार्रवाई चुनें: <code>ban</code>/<code>mute</code>/<code>log</code>। उदाहरण: <code>/spamdb action mute</code>"
 spamdb_action_success: "✅ सूचीबद्ध सदस्यों पर अब: <code>{action}</code>।"
-spamdb_db_usage: "एक डेटाबेस और <code>on</code>/<code>off</code> चुनें: <code>cas</code> (CAS, डिफ़ॉल्ट रूप से चालू) या <code>lols</code> (lols.bot)। उदाहरण: <code>/spamdb db lols on</code>"
+spamdb_db_usage: "एक डेटाबेस और <code>on</code>/<code>off</code> चुनें: <code>cas</code> (CAS, डिफ़ॉल्ट रूप से चालू), <code>lols</code> (lols.bot) या <code>shared</code> (Shared bans, डिफ़ॉल्ट रूप से बंद)। उदाहरण: <code>/spamdb db lols on</code>"
 spamdb_db_enabled: "✅ अब नए सदस्यों को {database} में खोजा जाएगा।"
 spamdb_db_disabled: "❌ अब नए सदस्यों को {database} में नहीं खोजा जाएगा।"
-spamdb_db_last: "❌ {database} आख़िरी बचा डेटाबेस है, इसलिए यह चालू रहेगा। पहले दूसरा चालू करें, या <code>/spamdb off</code> से जाँच बंद करें।"
+spamdb_db_last: "❌ {database} आख़िरी बचा डेटाबेस है, इसलिए यह चालू रहेगा। पहले कोई दूसरा चालू करें, या <code>/spamdb off</code> से जाँच बंद करें।"
 spamdb_db_lols_warning: "⚠️ lols.bot खातों को CAS से ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा होगी। जब तक भरोसा न हो, <code>/spamdb action log</code> पर विचार करें। अब हर नए सदस्य की Telegram ID lols.bot को भेजी जाती है।"
 spamdb_db_enabled_idle: "✅ {database} चुना गया है, लेकिन जाँच बंद रहने तक कुछ भी नहीं खोजा जाएगा। उसकी स्थिति <code>/spamdb</code> से देखें।"
 spamdb_db_lols_warning_idle: "⚠️ lols.bot खातों को CAS से ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा होगी। जब तक भरोसा न हो, <code>/spamdb action log</code> पर विचार करें। जाँच चालू होने पर हर नए सदस्य की Telegram ID lols.bot को भेजी जाएगी।"

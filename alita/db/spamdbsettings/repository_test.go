@@ -192,14 +192,14 @@ func TestSpamDBDatabasesDefaultToCASOnly(t *testing.T) {
 	chatID := time.Now().UnixNano()
 	cleanupChat(t, chatID)
 
-	if got := mustGet(t, chatID); !got.CheckCAS || got.CheckLols {
-		t.Fatalf("missing row = cas %v lols %v, want CAS only", got.CheckCAS, got.CheckLols)
+	if got := mustGet(t, chatID); !got.CheckCAS || got.CheckLols || got.CheckShared {
+		t.Fatalf("missing row = cas %v lols %v shared %v, want CAS only", got.CheckCAS, got.CheckLols, got.CheckShared)
 	}
 	if err := SetSpamDBEnabled(chatID, true); err != nil {
 		t.Fatalf("SetSpamDBEnabled(true) error = %v", err)
 	}
-	if got := mustGet(t, chatID); !got.CheckCAS || got.CheckLols {
-		t.Fatalf("new row = cas %v lols %v, want CAS only", got.CheckCAS, got.CheckLols)
+	if got := mustGet(t, chatID); !got.CheckCAS || got.CheckLols || got.CheckShared {
+		t.Fatalf("new row = cas %v lols %v shared %v, want CAS only", got.CheckCAS, got.CheckLols, got.CheckShared)
 	}
 }
 
@@ -214,22 +214,26 @@ func TestSetSpamDBDatabaseRoundTrip(t *testing.T) {
 	cleanupChat(t, chatID)
 
 	steps := []struct {
-		database  string
-		on        bool
-		cas, lols bool
+		database         string
+		on               bool
+		cas, lols, share bool
 	}{
-		{DatabaseLols, false, true, false},
-		{DatabaseLols, true, true, true},
-		{DatabaseCAS, false, false, true},
-		{DatabaseCAS, true, true, true},
-		{DatabaseLols, false, true, false},
+		{DatabaseLols, false, true, false, false},
+		{DatabaseLols, true, true, true, false},
+		{DatabaseShared, true, true, true, true},
+		{DatabaseCAS, false, false, true, true},
+		{DatabaseLols, false, false, false, true},
+		{DatabaseCAS, true, true, false, true},
+		{DatabaseShared, false, true, false, false},
+		{DatabaseLols, true, true, true, false},
 	}
 	for _, s := range steps {
 		if err := SetSpamDBDatabase(chatID, s.database, s.on); err != nil {
 			t.Fatalf("SetSpamDBDatabase(%s, %v) error = %v", s.database, s.on, err)
 		}
-		if got := mustGet(t, chatID); got.CheckCAS != s.cas || got.CheckLols != s.lols {
-			t.Fatalf("after %s=%v: cas %v lols %v, want cas %v lols %v", s.database, s.on, got.CheckCAS, got.CheckLols, s.cas, s.lols)
+		if got := mustGet(t, chatID); got.CheckCAS != s.cas || got.CheckLols != s.lols || got.CheckShared != s.share {
+			t.Fatalf("after %s=%v: cas %v lols %v shared %v, want cas %v lols %v shared %v",
+				s.database, s.on, got.CheckCAS, got.CheckLols, got.CheckShared, s.cas, s.lols, s.share)
 		}
 	}
 }
@@ -259,8 +263,22 @@ func TestSetSpamDBDatabaseKeepsOneDatabase(t *testing.T) {
 	if err := SetSpamDBDatabase(chatID, DatabaseLols, false); !errors.Is(err, ErrLastDatabase) {
 		t.Fatalf("switching off the last database: error = %v, want ErrLastDatabase", err)
 	}
-	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols {
-		t.Fatalf("after refusal: cas %v lols %v, want lols only", got.CheckCAS, got.CheckLols)
+	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols || got.CheckShared {
+		t.Fatalf("after refusal: cas %v lols %v shared %v, want lols only", got.CheckCAS, got.CheckLols, got.CheckShared)
+	}
+
+	// Shared bans can be the last one too, and the same guard must hold.
+	if err := SetSpamDBDatabase(chatID, DatabaseShared, true); err != nil {
+		t.Fatalf("SetSpamDBDatabase(shared, true) error = %v", err)
+	}
+	if err := SetSpamDBDatabase(chatID, DatabaseLols, false); err != nil {
+		t.Fatalf("SetSpamDBDatabase(lols, false) error = %v", err)
+	}
+	if err := SetSpamDBDatabase(chatID, DatabaseShared, false); !errors.Is(err, ErrLastDatabase) {
+		t.Fatalf("switching off shared as the last database: error = %v, want ErrLastDatabase", err)
+	}
+	if got := mustGet(t, chatID); got.CheckCAS || got.CheckLols || !got.CheckShared {
+		t.Fatalf("after second refusal: cas %v lols %v shared %v, want shared only", got.CheckCAS, got.CheckLols, got.CheckShared)
 	}
 }
 
@@ -295,8 +313,8 @@ func TestSpamDBDatabasesSwitchAndActionAreIndependent(t *testing.T) {
 	if err := SetSpamDBAction(chatID, ActionMute); err != nil {
 		t.Fatalf("SetSpamDBAction(mute) error = %v", err)
 	}
-	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols {
-		t.Fatalf("after switch and action = cas %v lols %v, want lols only", got.CheckCAS, got.CheckLols)
+	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols || got.CheckShared {
+		t.Fatalf("after switch and action = cas %v lols %v shared %v, want lols only", got.CheckCAS, got.CheckLols, got.CheckShared)
 	}
 }
 
@@ -329,9 +347,41 @@ func TestSpamDBSettingsRowNeedsADatabase(t *testing.T) {
 
 	// A map, because GORM would swap the struct's false for the default.
 	err := db.DB.Model(&models.SpamDBSettings{}).
-		Create(map[string]any{"chat_id": chatID, "check_cas": false, "check_lols": false}).Error
+		Create(map[string]any{"chat_id": chatID, "check_cas": false, "check_lols": false, "check_shared": false}).Error
 	if err == nil {
 		t.Fatal("a row with no database was stored")
+	}
+}
+
+// Any non-empty combination of the three databases is a valid row; only all
+// three off is refused.
+func TestSpamDBSettingsRowAcceptsEveryDatabaseCombination(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	combinations := []struct {
+		cas, lols, shared bool
+	}{
+		{true, false, false},
+		{false, true, false},
+		{false, false, true},
+		{true, true, false},
+		{true, false, true},
+		{false, true, true},
+		{true, true, true},
+	}
+	for i, c := range combinations {
+		chatID := base + int64(i)
+		cleanupChat(t, chatID)
+		err := db.DB.Model(&models.SpamDBSettings{}).Create(map[string]any{
+			"chat_id":      chatID,
+			"check_cas":    c.cas,
+			"check_lols":   c.lols,
+			"check_shared": c.shared,
+		}).Error
+		if err != nil {
+			t.Fatalf("combination cas=%v lols=%v shared=%v rejected: %v", c.cas, c.lols, c.shared, err)
+		}
 	}
 }
 
