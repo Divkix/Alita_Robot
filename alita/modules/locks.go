@@ -186,12 +186,17 @@ type setLocksKeys struct {
 	whatKey, failedKey, doneKey, verb string
 }
 
+var (
+	lockKeys   = setLocksKeys{"locks_what_to_lock", "locks_lock_failed", "locks_locked_successfully", "lock"}
+	unlockKeys = setLocksKeys{"locks_what_to_unlock", "locks_unlock_failed", "locks_unlocked_successfully", "unlock"}
+)
+
 func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
-	return m.setLocks(b, ctx, true, setLocksKeys{"locks_what_to_lock", "locks_lock_failed", "locks_locked_successfully", "lock"})
+	return m.setLocks(b, ctx, true, lockKeys)
 }
 
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
-	return m.setLocks(b, ctx, false, setLocksKeys{"locks_what_to_unlock", "locks_unlock_failed", "locks_unlocked_successfully", "unlock"})
+	return m.setLocks(b, ctx, false, unlockKeys)
 }
 
 func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys setLocksKeys) error {
