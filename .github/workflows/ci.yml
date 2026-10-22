@@ -411,6 +411,11 @@ jobs:
         run: make check-translations
       - name: Check generated docs drift
         run: make check-docs
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Check hand-written docs links
+        working-directory: docs
+        run: bun run check:links
 
   # Docker build verification (single arch, fast)
   docker-verify:
