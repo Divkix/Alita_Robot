@@ -1,0 +1,19 @@
+# Values a locale may share with locales/en.yml, read by `make check-translations`.
+#
+# One entry per line: `locale:key` for one locale, or `key` for every locale,
+# followed by a `# reason` comment (required). Values with no letters left after
+# removing format verbs, HTML, {placeholders} and URLs are skipped without an
+# entry. An entry that matches no identical value fails the check: remove it.
+# Never list English text copied into a locale: translate it.
+
+es:button_no                    # "No" is Spanish for no
+es:common_no                    # "No" is Spanish for no
+fr:common_time_minute           # "minute" is French
+fr:common_time_minutes          # "minutes" is French
+fr:help_button_configuration    # "Configuration" is French
+fr:message_type_audio           # "audio" is French
+fr:message_type_document        # "document" is French
+fr:message_type_photo           # "photo" is French
+fr:reports_button_message       # "Message" is French
+id:feds_role_admin              # "admin" is the usual Indonesian word
+pt:captcha_settings_status      # "Status" is Portuguese and pt.yml uses it elsewhere

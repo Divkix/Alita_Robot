@@ -140,7 +140,7 @@ GOOS=windows GOARCH=amd64 go build -o alita_robot_windows_amd64.exe .
 | `psql-reset` | `make psql-reset` | Reset database (DANGEROUS) |
 | `validate-db` | `make validate-db` | Validate database for orphaned data |
 | `backup-db` | `make backup-db` | Backup database before migrations |
-| `check-translations` | `make check-translations` | Detect missing translation keys |
+| `check-translations` | `make check-translations` | Detect missing translation keys and values left in English |
 | `check-duplicates` | `make check-duplicates` | Check for duplicate code |
 | `check-docs` | `make check-docs` | Check documentation integrity |
 | `inventory` | `make inventory` | Generate the canonical command inventory (`.planning/INVENTORY.json` and `.planning/INVENTORY.md`) |
