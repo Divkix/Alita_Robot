@@ -244,8 +244,10 @@ func replaceFormatPlaceholders(s string, values [len(formatPlaceholderTokens)]st
 	}
 }
 
-// chatLanguage is the language of the chat a formatted message is sent to: the
-// user's own language in a PM, the group's otherwise. It is only read when a
+// chatLanguage is the language of the chat passed to FormattingReplacer: the
+// user's own language when that chat is a PM, the group's otherwise. A note or
+// greeting preview of a connected group, shown in the admin's PM, passes the
+// group, so it renders in the group's language. It is only read when a
 // fallback label is needed.
 func chatLanguage(chat *gotgbot.Chat) string {
 	if chat == nil {
