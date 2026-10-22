@@ -89,7 +89,9 @@ func TestFormattingReplacerFallbacksFollowTheChatLanguage(t *testing.T) {
 		t.Errorf("user without a first name in a ru chat = %q, want %q", got, noName)
 	}
 
-	rules.SetChatRules(chat.Id, "Keep it tidy.")
+	if err := rules.SetChatRules(chat.Id, "Keep it tidy."); err != nil {
+		t.Fatalf("SetChatRules: %v", err)
+	}
 	_, buttons := FormattingReplacer(bot, chat, &gotgbot.User{Id: 5, FirstName: "Ada"}, "{rules}", nil)
 	if len(buttons) != 1 {
 		t.Fatalf("buttons = %#v, want one rules button", buttons)
