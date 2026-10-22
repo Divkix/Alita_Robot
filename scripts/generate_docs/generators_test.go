@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -85,6 +86,16 @@ func TestGenerateModuleDocs_MixedSentinelAndNonSentinel(t *testing.T) {
 	unprotectedFile := filepath.Join(tmpDir, "commands", "unprotected", "index.md")
 	if _, err := os.Stat(unprotectedFile); os.IsNotExist(err) {
 		t.Error("Unprotected file was NOT created — likely used return nil instead of continue")
+	}
+}
+
+func TestGeneratePermissionsSection_DigestIsAdminOnly(t *testing.T) {
+	got := generatePermissionsSection(Module{Name: "digest"})
+	if strings.Contains(got, "available to all users") {
+		t.Fatalf("digest permissions = %q, want no all-users claim", got)
+	}
+	if !strings.Contains(got, "admin permissions") {
+		t.Fatalf("digest permissions = %q, want the admin requirement", got)
 	}
 }
 

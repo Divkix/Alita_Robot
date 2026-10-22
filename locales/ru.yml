@@ -1553,21 +1553,47 @@ spamdb_db_lols_warning_idle: "⚠️ lols.bot вносит аккаунты аг
 digest_help_msg: |
   <b>📊 Недельная сводка</b>
 
-  Бот ежедневно считает сообщения, входы и выходы в этом чате по UTC и хранит итоги год. Недельная сводка будет публиковать их здесь; пока администраторы могут посмотреть предварительные данные.
+  Бот ежедневно считает сообщения, входы и выходы в этом чате по UTC и хранит итоги год. Администраторы могут включить недельную сводку: каждый понедельник после 00:00 UTC она публикует итоги прошлой недели и изменение по сравнению с неделей до неё. Сводка уходит в канал логов, если он есть у чата, иначе в группу.
 
   *Команды администратора:*
 
-  × /digest now: Показать сообщения, входы и выходы за сегодня и итоги этой недели (с понедельника 00:00 UTC).
+  × /digest: Показать, включена ли сводка и куда она уходит.
+  × /digest on: Включить недельную сводку.
+  × /digest off: Выключить недельную сводку.
+  × /digest here: Отправлять сводку в эту группу.
+  × /digest log: Отправлять сводку в канал логов (нужен канал логов).
+  × /digest now: Предпросмотр текущей недели в том же виде, что и сводка.
 
   Счётчики хранятся по чатам и никогда не включают текст сообщений.
 digest_globally_disabled: "❌ Оператор бота отключил сводку."
-digest_usage: "Используйте <code>/digest now</code>, чтобы увидеть итоги активности этого чата."
-digest_preview_title: "<b>📊 Обзор активности</b>"
-digest_preview_today: "<b>Сегодня</b> ({day} UTC)"
-digest_preview_week: "<b>На этой неделе</b> (с {day} UTC)"
-digest_preview_messages: "Сообщения: <b>{count}</b>"
-digest_preview_joins: "Входы: <b>{count}</b>"
-digest_preview_leaves: "Выходы: <b>{count}</b>"
+digest_usage: "Используйте <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> или <code>/digest now</code>."
+digest_status_title: "<b>📊 Недельная сводка</b>"
+digest_status_enabled: "Состояние: <b>включена</b>"
+digest_status_disabled: "Состояние: <b>выключена</b>"
+digest_destination_log: "канал логов"
+digest_destination_group: "эта группа"
+digest_status_destination_default: "Назначение: <b>{destination}</b> (по умолчанию)"
+digest_status_destination_set: "Назначение: <b>{destination}</b> (выбрано администратором)"
+digest_status_hint: "Используйте <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> или <code>/digest now</code>."
+digest_log_unavailable: "❌ У этого чата нет канала логов, поэтому сводка не может туда уходить. Настройте канал через <code>/setlog</code> или используйте <code>/digest here</code>."
+digest_message_title: "<b>📊 Недельная сводка</b>"
+digest_message_period: "<b>Неделя с {date}</b> (UTC)"
+digest_message_messages: "Сообщения: <b>{count}</b> — {change}"
+digest_message_joins: "Входы: <b>{count}</b> — {change}"
+digest_message_leaves: "Выходы: <b>{count}</b> — {change}"
+digest_message_moderation: "Действия модерации: <b>{count}</b> — {change}"
+digest_message_top_action: "Самое частое действие: <b>{action}</b>"
+digest_message_empty: "😴 <b>Активность не зафиксирована</b>\nЗа этот период не было ни сообщений, ни входов, ни выходов, ни действий модерации."
+digest_action_ban: "баны"
+digest_action_kick: "кики"
+digest_action_mute: "муты"
+digest_action_unban: "разбаны"
+digest_change_up: "▲ {percent}% к прошлой неделе"
+digest_change_down: "▼ {percent}% к прошлой неделе"
+digest_change_same: "без изменений к прошлой неделе"
+digest_change_new: "новое"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Открыть панель"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2632,7 +2658,7 @@ rules_extend_msg: |
 spamdb_extend_msg: |
   /spamdb — показать или переключить проверку по базам спамеров, выбрать базы, задать действие
 digest_extend_msg: |
-  /digest — предварительный просмотр дневных и недельных итогов активности этого чата
+  /digest — показать состояние недельной сводки, включить или выключить её, выбрать назначение или посмотреть предпросмотр
 warns_extend_msg: |
   /warn — предупредить
   /swarn — предупредить и удалить команду

@@ -217,6 +217,59 @@ func TestListForTargetReturnsNewestFirstInsideTheCutoff(t *testing.T) {
 	}
 }
 
+// CountForChat is what the digest reports: the number of actions in the
+// window and the action that happened most often, ties settled by name.
+func TestCountForChatCountsInsideTheWindowAndPicksTheTopAction(t *testing.T) {
+	chatID := newEventChat()
+	otherChatID := newEventChat()
+	deleteEventsFor(t, chatID)
+	deleteEventsFor(t, otherChatID)
+	now := time.Now().UTC()
+	from := now.Add(-7 * 24 * time.Hour)
+	for _, ev := range []models.ModerationEvent{
+		{ChatId: chatID, ActorId: 1, TargetUserId: 42, Action: models.ModerationActionBan, CreatedAt: from.Add(-time.Hour)},
+		{ChatId: chatID, ActorId: 1, TargetUserId: 42, Action: models.ModerationActionBan, CreatedAt: from},
+		{ChatId: chatID, ActorId: 1, TargetUserId: 43, Action: models.ModerationActionBan, CreatedAt: now.Add(-time.Hour)},
+		{ChatId: chatID, ActorId: 1, TargetUserId: 44, Action: models.ModerationActionMute, CreatedAt: now.Add(-time.Minute)},
+		{ChatId: otherChatID, ActorId: 1, TargetUserId: 42, Action: models.ModerationActionKick, CreatedAt: now.Add(-time.Hour)},
+	} {
+		recordEvent(t, ev)
+	}
+
+	total, topAction, err := CountForChat(chatID, from, now)
+	if err != nil {
+		t.Fatalf("CountForChat() error = %v", err)
+	}
+	if total != 3 {
+		t.Fatalf("CountForChat() total = %d, want 3 inside [from, to)", total)
+	}
+	if topAction != models.ModerationActionBan {
+		t.Fatalf("CountForChat() top action = %q, want %q", topAction, models.ModerationActionBan)
+	}
+
+	total, topAction, err = CountForChat(otherChatID, from, now)
+	if err != nil {
+		t.Fatalf("CountForChat(other) error = %v", err)
+	}
+	if total != 1 || topAction != models.ModerationActionKick {
+		t.Fatalf("CountForChat(other) = %d, %q, want 1 kick", total, topAction)
+	}
+}
+
+func TestCountForChatWithoutEvents(t *testing.T) {
+	chatID := newEventChat()
+	deleteEventsFor(t, chatID)
+	now := time.Now().UTC()
+
+	total, topAction, err := CountForChat(chatID, now.Add(-7*24*time.Hour), now)
+	if err != nil {
+		t.Fatalf("CountForChat() error = %v", err)
+	}
+	if total != 0 || topAction != "" {
+		t.Fatalf("CountForChat() = %d, %q, want 0 and no action", total, topAction)
+	}
+}
+
 func TestDeleteExpiredBeforeRemovesOnlyOldEvents(t *testing.T) {
 	oldChatID := newEventChat()
 	freshChatID := newEventChat()

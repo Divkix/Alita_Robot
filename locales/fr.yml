@@ -1596,21 +1596,47 @@ spamdb_db_lols_warning_idle: "⚠️ lols.bot liste les comptes plus agressiveme
 digest_help_msg: |
   <b>📊 Résumé hebdomadaire</b>
 
-  Le bot compte chaque jour les messages, les arrivées et les départs dans ce chat, en UTC, et conserve les totaux pendant un an. Un résumé hebdomadaire les publiera ici ; en attendant, les admins peuvent en voir un aperçu.
+  Le bot compte chaque jour les messages, les arrivées et les départs dans ce chat, en UTC, et conserve les totaux pendant un an. Les admins peuvent activer un résumé hebdomadaire qui publie les totaux de la semaine précédente, avec l'évolution par rapport à la semaine d'avant, chaque lundi après 00:00 UTC. Il part dans le canal de journal si ce chat en a un, sinon dans le groupe.
 
   *Commandes d'admin :*
 
-  × /digest now : affiche les messages, arrivées et départs d'aujourd'hui et les totaux de la semaine (depuis lundi 00:00 UTC).
+  × /digest : affiche si le résumé est actif et où il part.
+  × /digest on : active le résumé hebdomadaire.
+  × /digest off : désactive le résumé hebdomadaire.
+  × /digest here : envoie le résumé dans ce groupe.
+  × /digest log : envoie le résumé dans le canal de journal (nécessite un canal de journal).
+  × /digest now : prévisualise la semaine en cours avec le même rendu que le résumé.
 
   Les compteurs sont conservés par chat et n'incluent jamais le texte des messages.
 digest_globally_disabled: "❌ L'opérateur du bot a désactivé le résumé."
-digest_usage: "Utilisez <code>/digest now</code> pour voir les totaux d'activité de ce chat."
-digest_preview_title: "<b>📊 Aperçu de l'activité</b>"
-digest_preview_today: "<b>Aujourd'hui</b> ({day} UTC)"
-digest_preview_week: "<b>Cette semaine</b> (depuis le {day} UTC)"
-digest_preview_messages: "Messages : <b>{count}</b>"
-digest_preview_joins: "Arrivées : <b>{count}</b>"
-digest_preview_leaves: "Départs : <b>{count}</b>"
+digest_usage: "Utilisez <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> ou <code>/digest now</code>."
+digest_status_title: "<b>📊 Résumé hebdomadaire</b>"
+digest_status_enabled: "État : <b>activé</b>"
+digest_status_disabled: "État : <b>désactivé</b>"
+digest_destination_log: "le canal de journal"
+digest_destination_group: "ce groupe"
+digest_status_destination_default: "Destination : <b>{destination}</b> (par défaut)"
+digest_status_destination_set: "Destination : <b>{destination}</b> (choisie par un admin)"
+digest_status_hint: "Utilisez <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> ou <code>/digest now</code>."
+digest_log_unavailable: "❌ Ce chat n'a pas de canal de journal, le résumé ne peut donc pas y aller. Configurez-en un avec <code>/setlog</code> ou utilisez <code>/digest here</code>."
+digest_message_title: "<b>📊 Résumé hebdomadaire</b>"
+digest_message_period: "<b>Semaine du {date}</b> (UTC)"
+digest_message_messages: "Messages : <b>{count}</b> — {change}"
+digest_message_joins: "Arrivées : <b>{count}</b> — {change}"
+digest_message_leaves: "Départs : <b>{count}</b> — {change}"
+digest_message_moderation: "Actions de modération : <b>{count}</b> — {change}"
+digest_message_top_action: "Action la plus fréquente : <b>{action}</b>"
+digest_message_empty: "😴 <b>Aucune activité enregistrée</b>\nAucun message, aucune arrivée, aucun départ et aucune action de modération sur cette période."
+digest_action_ban: "bannissements"
+digest_action_kick: "expulsions"
+digest_action_mute: "silenciations"
+digest_action_unban: "débannissements"
+digest_change_up: "▲ {percent} % par rapport à la semaine d'avant"
+digest_change_down: "▼ {percent} % par rapport à la semaine d'avant"
+digest_change_same: "aucun changement par rapport à la semaine d'avant"
+digest_change_new: "nouveau"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Ouvrir le tableau de bord"
 
 # Locks module extended documentation
 locks_notes_docs: |
@@ -2765,7 +2791,7 @@ rules_extend_msg: |
 spamdb_extend_msg: |
   /spamdb — afficher ou basculer la vérification anti-spam, choisir ses bases ou son action
 digest_extend_msg: |
-  /digest — affiche un aperçu des totaux d'activité quotidiens et hebdomadaires de ce chat
+  /digest — affiche l'état du résumé hebdomadaire, l'active ou le désactive, choisit sa destination ou en donne un aperçu
 warns_extend_msg: |
   /warn — avertir un utilisateur
   /swarn — avertir et supprimer votre commande

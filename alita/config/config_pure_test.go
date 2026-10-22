@@ -293,6 +293,43 @@ func TestLoadConfig(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("DIGEST_INTERVAL", func(t *testing.T) {
+		for _, tc := range []struct {
+			env  string
+			want time.Duration
+		}{
+			{"", time.Hour},
+			{"30m", 30 * time.Minute},
+			{"6h", 6 * time.Hour},
+		} {
+			t.Run("env="+tc.env, func(t *testing.T) {
+				setRequiredEnv(t)
+				t.Setenv("DIGEST_INTERVAL", tc.env)
+
+				cfg, err := LoadConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.DigestInterval != tc.want {
+					t.Fatalf("DigestInterval = %v, want %v", cfg.DigestInterval, tc.want)
+				}
+			})
+		}
+	})
+}
+
+// A digest cadence typo fails startup instead of silently running hourly.
+func TestDigestConfigRejectsInvalidInterval(t *testing.T) {
+	for _, raw := range []string{"soon", "0s", "-5m"} {
+		t.Run("env="+raw, func(t *testing.T) {
+			setRequiredEnv(t)
+			t.Setenv("DIGEST_INTERVAL", raw)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatalf("LoadConfig() accepted DIGEST_INTERVAL=%q", raw)
+			}
+		})
+	}
 }
 
 func setPanelTestRequiredEnv(t *testing.T) {

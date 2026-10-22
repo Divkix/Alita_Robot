@@ -1776,21 +1776,47 @@ spamdb_db_lols_warning_idle: "⚠️ lols.bot lista cuentas de forma más agresi
 digest_help_msg: |
   <b>📊 Resumen semanal</b>
 
-  El bot cuenta cada día los mensajes, las entradas y las salidas de este chat, en UTC, y guarda los totales durante un año. Un resumen semanal los publicará aquí; mientras tanto, los administradores pueden ver una vista previa.
+  El bot cuenta cada día los mensajes, las entradas y las salidas de este chat, en UTC, y guarda los totales durante un año. Los administradores pueden activar un resumen semanal que publica los totales de la semana anterior, con el cambio respecto a la semana previa, cada lunes después de las 00:00 UTC. Se envía al canal de registro si este chat tiene uno; si no, al grupo.
 
   *Comandos de administrador:*
 
-  × /digest now: Muestra los mensajes, las entradas y las salidas de hoy y los totales de esta semana (desde el lunes a las 00:00 UTC).
+  × /digest: Muestra si el resumen está activo y a dónde va.
+  × /digest on: Activa el resumen semanal.
+  × /digest off: Desactiva el resumen semanal.
+  × /digest here: Envía el resumen a este grupo.
+  × /digest log: Envía el resumen al canal de registro (requiere un canal de registro).
+  × /digest now: Muestra una vista previa de esta semana con el mismo formato que el resumen.
 
   Los recuentos se guardan por chat y nunca incluyen el texto de los mensajes.
 digest_globally_disabled: "❌ El operador del bot ha desactivado el resumen."
-digest_usage: "Usa <code>/digest now</code> para ver los totales de actividad de este chat."
-digest_preview_title: "<b>📊 Vista previa de actividad</b>"
-digest_preview_today: "<b>Hoy</b> ({day} UTC)"
-digest_preview_week: "<b>Esta semana</b> (desde {day} UTC)"
-digest_preview_messages: "Mensajes: <b>{count}</b>"
-digest_preview_joins: "Entradas: <b>{count}</b>"
-digest_preview_leaves: "Salidas: <b>{count}</b>"
+digest_usage: "Usa <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> o <code>/digest now</code>."
+digest_status_title: "<b>📊 Resumen semanal</b>"
+digest_status_enabled: "Estado: <b>activado</b>"
+digest_status_disabled: "Estado: <b>desactivado</b>"
+digest_destination_log: "el canal de registro"
+digest_destination_group: "este grupo"
+digest_status_destination_default: "Destino: <b>{destination}</b> (el predeterminado)"
+digest_status_destination_set: "Destino: <b>{destination}</b> (elegido por un administrador)"
+digest_status_hint: "Usa <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> o <code>/digest now</code>."
+digest_log_unavailable: "❌ Este chat no tiene canal de registro, así que el resumen no puede ir allí. Configura uno con <code>/setlog</code> o usa <code>/digest here</code>."
+digest_message_title: "<b>📊 Resumen semanal</b>"
+digest_message_period: "<b>Semana del {date}</b> (UTC)"
+digest_message_messages: "Mensajes: <b>{count}</b> — {change}"
+digest_message_joins: "Entradas: <b>{count}</b> — {change}"
+digest_message_leaves: "Salidas: <b>{count}</b> — {change}"
+digest_message_moderation: "Acciones de moderación: <b>{count}</b> — {change}"
+digest_message_top_action: "Acción más frecuente: <b>{action}</b>"
+digest_message_empty: "😴 <b>Sin actividad registrada</b>\nNi mensajes, ni entradas, ni salidas, ni acciones de moderación en este periodo."
+digest_action_ban: "baneos"
+digest_action_kick: "expulsiones"
+digest_action_mute: "silenciamientos"
+digest_action_unban: "desbaneos"
+digest_change_up: "▲ {percent}% respecto a la semana anterior"
+digest_change_down: "▼ {percent}% respecto a la semana anterior"
+digest_change_same: "sin cambios respecto a la semana anterior"
+digest_change_new: "nuevo"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Abrir el panel"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2854,7 +2880,7 @@ rules_extend_msg: |
 spamdb_extend_msg: |
   /spamdb — muestra o alterna la comprobación de bases de spam, elige sus bases o fija su acción
 digest_extend_msg: |
-  /digest — muestra una vista previa de los totales diarios y semanales de actividad de este chat
+  /digest — muestra el estado del resumen semanal, lo activa o desactiva, elige su destino o lo previsualiza
 warns_extend_msg: |
   /warn — advertir a un usuario
   /swarn — advertir y borrar tu comando

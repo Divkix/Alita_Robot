@@ -117,6 +117,25 @@ func getPanelSessionMaxAge() (time.Duration, error) {
 	return d, nil
 }
 
+// DefaultDigestInterval is how often the weekly digest scheduler looks for
+// chats due a digest when DIGEST_INTERVAL is unset.
+const DefaultDigestInterval = time.Hour
+
+// getDigestInterval reads DIGEST_INTERVAL as a Go duration. Like
+// PANEL_SESSION_MAX_AGE, a typo fails startup instead of silently running on
+// a cadence nobody asked for.
+func getDigestInterval() (time.Duration, error) {
+	raw := strings.TrimSpace(os.Getenv("DIGEST_INTERVAL"))
+	if raw == "" {
+		return DefaultDigestInterval, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("DIGEST_INTERVAL must be a positive Go duration such as 1h")
+	}
+	return d, nil
+}
+
 func getHTTPPort() int {
 	value := os.Getenv("HTTP_PORT")
 	if value == "" {
@@ -261,7 +280,10 @@ type Config struct {
 	// Weekly digest of the daily activity counters and the /digest command.
 	// EnableDigest is the operator's kill switch; it is on unless explicitly
 	// disabled, and the feature stays inert until a chat opts in.
-	EnableDigest bool
+	// DigestInterval overrides the scheduler tick (DIGEST_INTERVAL), which
+	// exists for tests and unusual deployments; it defaults to an hour.
+	EnableDigest   bool
+	DigestInterval time.Duration
 
 	// Admin panel (Telegram Mini App). Disabled by default; when enabled the
 	// bot's own HTTP server serves it under /panel.
@@ -341,6 +363,9 @@ func ValidateConfig(cfg *Config) error {
 	if cfg.PanelSessionMaxAge < 0 {
 		return fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive duration")
 	}
+	if cfg.DigestInterval < 0 {
+		return fmt.Errorf("DIGEST_INTERVAL must be a positive duration")
+	}
 	if cfg.PanelEnabled {
 		if cfg.PanelPublicURL == "" {
 			return fmt.Errorf("PANEL_PUBLIC_URL is required when PANEL_ENABLED is true")
@@ -375,6 +400,10 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 	reputationWindowDays, err := getReputationInt("REPUTATION_WINDOW_DAYS", DefaultReputationWindowDays)
+	if err != nil {
+		return nil, err
+	}
+	digestInterval, err := getDigestInterval()
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +480,8 @@ func LoadConfig() (*Config, error) {
 		ReputationMinChats:   reputationMinChats,
 		ReputationWindowDays: reputationWindowDays,
 
-		EnableDigest: typeConvertor{str: os.Getenv("ENABLE_DIGEST")}.Bool(),
+		EnableDigest:   typeConvertor{str: os.Getenv("ENABLE_DIGEST")}.Bool(),
+		DigestInterval: digestInterval,
 
 		PanelEnabled:          typeConvertor{str: os.Getenv("PANEL_ENABLED")}.Bool(),
 		PanelPublicURL:        strings.TrimSpace(os.Getenv("PANEL_PUBLIC_URL")),
@@ -586,6 +616,10 @@ func (cfg *Config) setDefaults() {
 	// this switch only stops the digest and refuses /digest.
 	if os.Getenv("ENABLE_DIGEST") == "" {
 		cfg.EnableDigest = true
+	}
+
+	if cfg.DigestInterval == 0 {
+		cfg.DigestInterval = DefaultDigestInterval
 	}
 
 	if cfg.PanelSessionMaxAge == 0 {

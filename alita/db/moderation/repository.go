@@ -1,6 +1,7 @@
 package moderation
 
 import (
+	"errors"
 	"fmt"
 	"time"
 	"unicode/utf8"
@@ -115,4 +116,36 @@ func ReputationSignal(userID int64, since time.Time) (chats int, unbanned bool, 
 		return 0, false, fmt.Errorf("check for a target unban: %w", err)
 	}
 	return int(chatCount), reversingUnban > 0, nil
+}
+
+// CountForChat returns how many events the chat recorded in [from, to) and the
+// action that happened most often (one of the models.ModerationAction values,
+// or "" without events). Ties go to the alphabetically first action, so every
+// replica reports the same line. Time bounds are compared in UTC, the zone
+// Record writes.
+func CountForChat(chatID int64, from, to time.Time) (total int64, topAction string, err error) {
+	if db.DB == nil {
+		return 0, "", errors.New("database not initialized")
+	}
+
+	var byAction []struct {
+		Action string
+		Count  int64
+	}
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Select("action, COUNT(*) AS count").
+		Where("chat_id = ? AND created_at >= ? AND created_at < ?", chatID, from.UTC(), to.UTC()).
+		Group("action").
+		Order("count DESC, action ASC").
+		Scan(&byAction).Error
+	if err != nil {
+		return 0, "", fmt.Errorf("count moderation events for chat: %w", err)
+	}
+	for _, row := range byAction {
+		total += row.Count
+	}
+	if len(byAction) > 0 {
+		topAction = byAction[0].Action
+	}
+	return total, topAction, nil
 }

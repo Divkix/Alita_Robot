@@ -357,6 +357,13 @@ func generatePermissionsSection(module Module) string {
 		return content.String()
 	}
 
+	if module.Name == "digest" {
+		content.WriteString("Every `/digest` form requires **admin permissions** in the group. The digest itself is sent by the bot.\n\n")
+		content.WriteString("**Bot Permissions Required:**\n\n")
+		content.WriteString("- Send messages (in the group, or in the log channel when the digest goes there)\n")
+		return content.String()
+	}
+
 	if adminModules[module.Name] {
 		content.WriteString("Most commands in this module require **admin permissions** in the group.\n\n")
 		content.WriteString("**Bot Permissions Required:**\n\n")

@@ -32,4 +32,5 @@ const (
 	CacheTTLLogChannel      = DefaultCacheTTL
 	CacheTTLAISpam          = DefaultCacheTTL
 	CacheTTLSpamDB          = DefaultCacheTTL
+	CacheTTLDigest          = DefaultCacheTTL
 )
