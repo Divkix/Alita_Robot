@@ -1025,15 +1025,15 @@ func pmTargetChatCheck(c *helpers.CommandContext) bool {
 	return true
 }
 
-// withGroupLine adds the group chat to the HTML reply text of a bans command
-// sent in reply to msg (pmGroupLine).
+// withGroupLine adds the group chat to the HTML reply text of a moderation
+// command sent in reply to msg (pmGroupLine).
 func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, text string) string {
 	return text + pmGroupLine(tr, msg, chat, true)
 }
 
-// pmButtonChatID is the group a button a bans command sends in reply to msg
-// names: chat, the group it acts on, when msg came from PM, whose chat names
-// no group; else 0, so the button acts on the chat it is pressed in.
+// pmButtonChatID is the group a button a moderation command sends in reply to
+// msg names: chat, the group it acts on, when msg came from PM, whose chat
+// names no group; else 0, so the button acts on the chat it is pressed in.
 func pmButtonChatID(msg *gotgbot.Message, chat *gotgbot.Chat) int64 {
 	if inPM(msg) {
 		return chat.Id

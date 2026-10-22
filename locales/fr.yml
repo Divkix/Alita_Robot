@@ -888,7 +888,7 @@ connections_help_msg:
 
   En privé, les administrateurs d'un groupe peuvent aussi utiliser /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache et /clearadmincache : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. Il faut les mêmes droits que dans le groupe, et la réponse arrive en privé.
 
-  En privé, les administrateurs d'un groupe peuvent aussi utiliser /ban, /sban, /tban, /unban, /kick, /skick, /restrict et /unrestrict : nommez d'abord le groupe (son titre, son @username ou son ID), puis l'utilisateur (@username, ID ou mention), ou connectez-vous au groupe. Une fois connecté, seul un @username ou un ID choisit un autre groupe. Il faut les mêmes droits que dans le groupe ; répondre à un message en privé ne désigne pas l'utilisateur, et la réponse et les boutons arrivent en privé.
+  En privé, les administrateurs d'un groupe peuvent aussi utiliser /ban, /sban, /tban, /unban, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute et /unmute : nommez d'abord le groupe (son titre, son @username ou son ID), puis l'utilisateur (@username, ID ou mention), ou connectez-vous au groupe. Une fois connecté, seul un @username ou un ID choisit un autre groupe. Il faut les mêmes droits que dans le groupe ; répondre à un message en privé ne désigne pas l'utilisateur, et la réponse et les boutons arrivent en privé.
 
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris

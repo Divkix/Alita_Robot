@@ -24,6 +24,10 @@ mute_example: "/mute @username"
 smute_example: "/smute @username"
 tmute_example: "/tmute @username 30m"
 unmute_example: "/unmute @username"
+mute_pm_example: "/mute @mygroup @username flooding"
+smute_pm_example: "/smute -1001234567890 @username"
+tmute_pm_example: '/tmute "My Group" @username 30m'
+unmute_pm_example: "/unmute @mygroup @username"
 rules_example: '/rules "My Group"'
 notes_example: '/notes "My Group"'
 saved_example: '/saved "My Group"'
