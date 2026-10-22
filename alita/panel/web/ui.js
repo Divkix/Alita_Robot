@@ -141,6 +141,18 @@ export function showError(root, error, retry) {
 	haptic("error");
 }
 
+// emptyState is the centred "nothing here" card: a title and, optionally, a
+// line on what to do about it.
+export function emptyState(title, hint) {
+	const empty = document.createElement("div");
+	empty.className = "empty";
+	empty.append(textElement("p", title, "empty-title"));
+	if (hint) {
+		empty.append(textElement("p", hint));
+	}
+	return empty;
+}
+
 // userLabel names a user from a response's names map (keyed by decimal ID),
 // falling back to the ID when the bot never stored the user.
 export function userLabel(names, id) {
