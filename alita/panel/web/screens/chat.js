@@ -29,6 +29,10 @@ export async function renderSection(root, chatID, key) {
 	back.textContent = `← ${chat.title || String(chat.id)}`;
 	const content = document.createElement("div");
 	root.append(back, textElement("h2", section.label), content);
+	if (section.adminOnly && chat.role !== "admin") {
+		content.append(textElement("p", "Only chat admins can see this page.", "muted"));
+		return;
+	}
 	await section.render(content, chatID, chat);
 }
 
@@ -73,6 +77,9 @@ export async function renderChat(root, chatID) {
 		const nav = document.createElement("ul");
 		nav.className = "sections";
 		for (const section of sections) {
+			if (section.adminOnly && chat.role !== "admin") {
+				continue;
+			}
 			const item = document.createElement("li");
 			const link = document.createElement("a");
 			link.href = `#/chats/${encodeURIComponent(chatID)}/${section.key}`;

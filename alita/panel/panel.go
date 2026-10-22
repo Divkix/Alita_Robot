@@ -124,6 +124,9 @@ func (p *Panel) routes() {
 	}
 
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/overview", p.handleOverview)
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/warnings", p.handleWarnings)
+	p.mux.HandleFunc("DELETE /panel/api/v1/chats/{id}/warnings", p.handleRemoveWarning)
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/timeline", p.handleTimeline)
 
 	p.mux.Handle("GET /panel/", http.StripPrefix("/panel/", http.FileServer(http.FS(p.web))))
 }

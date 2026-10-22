@@ -168,3 +168,46 @@ func CountSince(chatID int64, since time.Time) (int64, error) {
 	}
 	return total, nil
 }
+
+// EventRetention is how long a moderation event is kept. The timeline stops
+// at this boundary, the same instant the retention sweep deletes past.
+const EventRetention = 180 * 24 * time.Hour
+
+// TimelineFilter selects one page of a chat's moderation timeline. Since is
+// the retention boundary and is inclusive. Before and BeforeID are the keyset
+// cursor of the previous page: only rows older than that (created_at, id) pair
+// are returned, so a row inserted between two pages never duplicates or skips
+// another. Action and ActorID filter when set.
+type TimelineFilter struct {
+	ChatID   int64
+	Since    time.Time
+	Action   string
+	ActorID  int64
+	Before   time.Time
+	BeforeID int64
+	Limit    int
+}
+
+// ListTimeline returns the chat's events newest first after the cursor. Time
+// bounds are compared in UTC, the zone Record writes.
+func ListTimeline(filter TimelineFilter) ([]models.ModerationEvent, error) {
+	query := db.DB.Where("chat_id = ? AND created_at >= ?", filter.ChatID, filter.Since.UTC())
+	if filter.Action != "" {
+		query = query.Where("action = ?", filter.Action)
+	}
+	if filter.ActorID != 0 {
+		query = query.Where("actor_id = ?", filter.ActorID)
+	}
+	if filter.BeforeID != 0 {
+		before := filter.Before.UTC()
+		query = query.Where("(created_at < ? OR (created_at = ? AND id < ?))", before, before, filter.BeforeID)
+	}
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+	var rows []models.ModerationEvent
+	if err := query.Order("created_at DESC, id DESC").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list moderation timeline: %w", err)
+	}
+	return rows, nil
+}

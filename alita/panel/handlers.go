@@ -133,12 +133,22 @@ func (p *Panel) chatRequest(w http.ResponseWriter, r *http.Request) (Session, ch
 	return session, access, true
 }
 
-// requireWritable rejects a write unless the caller is an admin and the bot
-// can act in the chat. Reads never call it: a non-admin, or a chat where the
-// bot lost its rights, still sees values read-only.
-func requireWritable(w http.ResponseWriter, access chatAccess) bool {
+// requireAdmin rejects a request from a plain member. Reads of data that names
+// who warned, banned or muted whom use it too: those rows are admin-only, but
+// the bot needs no rights of its own to show them.
+func requireAdmin(w http.ResponseWriter, access chatAccess) bool {
 	if access.Role != RoleAdmin {
 		writeJSONError(w, http.StatusForbidden, "not_admin", "only chat admins can change this")
+		return false
+	}
+	return true
+}
+
+// requireWritable rejects a write unless the caller is an admin and the bot
+// can act in the chat. Most reads never call it: a non-admin, or a chat where
+// the bot lost its rights, still sees values read-only.
+func requireWritable(w http.ResponseWriter, access chatAccess) bool {
+	if !requireAdmin(w, access) {
 		return false
 	}
 	if !access.BotAdmin {
@@ -146,4 +156,18 @@ func requireWritable(w http.ResponseWriter, access chatAccess) bool {
 		return false
 	}
 	return true
+}
+
+// parsePageLimit reads a ?limit= query value: def when absent, capped at max,
+// and a 400 for anything that is not a positive integer.
+func parsePageLimit(w http.ResponseWriter, raw string, def, max int) (int, bool) {
+	if raw == "" {
+		return def, true
+	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed <= 0 {
+		writeJSONError(w, http.StatusBadRequest, "invalid_limit", "limit must be a positive integer")
+		return 0, false
+	}
+	return min(parsed, max), true
 }
