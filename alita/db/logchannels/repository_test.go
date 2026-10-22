@@ -63,6 +63,7 @@ func TestLogChannelCategoryHelpers(t *testing.T) {
 		categoryColumn("reports") != "cat_reports" ||
 		categoryColumn("other") != "cat_other" ||
 		categoryColumn("warns") != "cat_warns" ||
+		categoryColumn("joins") != "cat_joins" ||
 		categoryColumn("nope") != "" {
 		t.Fatal("categoryColumn mismatch")
 	}
@@ -75,6 +76,7 @@ func TestLogChannelCategoryHelpers(t *testing.T) {
 		CatReports:   true,
 		CatOther:     true,
 		CatWarns:     true,
+		CatJoins:     true,
 	}
 	for _, name := range AllCategories {
 		if !CategoryEnabled(settings, name) {
@@ -91,6 +93,7 @@ func TestLogChannelCategoryHelpers(t *testing.T) {
 	settings.CatReports = false
 	settings.CatOther = false
 	settings.CatWarns = false
+	settings.CatJoins = false
 	for _, name := range AllCategories {
 		if CategoryEnabled(settings, name) {
 			t.Fatalf("%s should be disabled", name)
