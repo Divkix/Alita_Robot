@@ -8,10 +8,13 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
@@ -254,6 +257,103 @@ func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
 				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 			}
 			_, _ = expireCaptchaAttempt(bot, attempt)
+		},
+	})
+}
+
+// raidJoin posts one service message with members joining chat.
+func raidJoin(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat, members ...gotgbot.User) {
+	t.Helper()
+	msg := &gotgbot.Message{MessageId: 501, Date: 1, Chat: chat, From: &members[0], NewChatMembers: members}
+	if err := antiRaidModule.onJoin(bot, ext.NewContext(bot, &gotgbot.Update{UpdateId: 501, Message: msg}, nil)); err != ext.ContinueGroups {
+		t.Fatalf("onJoin() error = %v, want ContinueGroups", err)
+	}
+}
+
+func TestAntiRaidAutoTriggerLogsOneEntry(t *testing.T) {
+	members := []gotgbot.User{{Id: 5201, FirstName: "First"}, {Id: 5202, FirstName: "Second"}, {Id: 5203, FirstName: "Third"}}
+	setup := func(t *testing.T, threshold int, categoryOn bool) (*moduleBotClient, *gotgbot.Bot, gotgbot.Chat) {
+		t.Helper()
+		withMiniredis(t)
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Automated Log Chat"}
+		if err := logchannels.Set(chat.Id, chat.Title, automatedLogChannel); err != nil {
+			t.Fatalf("logchannels.Set() error = %v", err)
+		}
+		if !categoryOn {
+			if err := logchannels.SetCategory(chat.Id, logchannels.CategoryAutomated, false); err != nil {
+				t.Fatalf("SetCategory() error = %v", err)
+			}
+		}
+		if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, threshold); err != nil {
+			t.Fatalf("SetAutoAntiRaidThreshold() error = %v", err)
+		}
+		t.Cleanup(func() {
+			_, _ = antiRaidModule.disableRaid(chat.Id)
+			clearJoinTracking(chat.Id)
+		})
+		return client, bot, chat
+	}
+
+	t.Run("logged once for the whole raid", func(t *testing.T) {
+		client, bot, chat := setup(t, 2, true)
+		raidJoin(t, bot, chat, members...)
+
+		if calls := client.callsFor("banChatMember"); len(calls) != 2 {
+			t.Fatalf("banChatMember calls = %d, want the joiners from the threshold on", len(calls))
+		}
+		entries := spamDBMessagesTo(client, automatedLogChannel)
+		if len(entries) != 1 {
+			t.Fatalf("log channel entries = %d, want 1: %v", len(entries), entries)
+		}
+		for _, want := range []string{"#ANTIRAID", "Joins: 2", "Threshold: 2"} {
+			if !strings.Contains(entries[0], want) {
+				t.Fatalf("log entry %q does not contain %q", entries[0], want)
+			}
+		}
+		if strings.Contains(entries[0], "User:") {
+			t.Fatalf("log entry %q names a user, want the raid alone", entries[0])
+		}
+	})
+
+	t.Run("category off", func(t *testing.T) {
+		client, bot, chat := setup(t, 2, false)
+		raidJoin(t, bot, chat, members...)
+		if entries := spamDBMessagesTo(client, automatedLogChannel); len(entries) != 0 {
+			t.Fatalf("log channel entries = %d, want none: %v", len(entries), entries)
+		}
+	})
+
+	t.Run("below the threshold", func(t *testing.T) {
+		client, bot, chat := setup(t, 5, true)
+		raidJoin(t, bot, chat, members...)
+		if entries := spamDBMessagesTo(client, automatedLogChannel); len(entries) != 0 {
+			t.Fatalf("log channel entries = %d, want none: %v", len(entries), entries)
+		}
+	})
+}
+
+func TestBotsLockLogsTheBannedBot(t *testing.T) {
+	checkAutomatedLog(t, automatedLogCase{
+		name:       "ban",
+		tag:        "LOCK_BOTS",
+		userID:     4243,
+		want:       []string{"Added by", "42"},
+		failMethod: "banChatMember",
+		run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
+			if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
+				t.Fatalf("UpdateLock() error = %v", err)
+			}
+			adder := gotgbot.User{Id: 42, FirstName: "Member"}
+			addedBot := gotgbot.User{Id: 4243, IsBot: true, FirstName: "Added Bot"}
+			ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 3, ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat:          chat,
+				From:          adder,
+				OldChatMember: gotgbot.ChatMemberLeft{User: addedBot},
+				NewChatMember: gotgbot.ChatMemberMember{User: addedBot},
+			}}, nil)
+			_ = locksModule.botLockHandler(bot, ctx)
 		},
 	})
 }

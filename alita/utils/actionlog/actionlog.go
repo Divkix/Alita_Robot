@@ -75,14 +75,18 @@ type Field struct {
 }
 
 // Automated logs an action the bot took on its own: the tag, the user it hit
-// and the given fields. Call it only after Telegram accepted the action.
+// (none when userID is 0) and the given fields. Call it only after Telegram
+// accepted the action.
 func Automated(b *gotgbot.Bot, chat *gotgbot.Chat, tag string, userID int64, userName string, fields ...Field) {
-	who := html.EscapeString(userName)
-	if userID > 0 {
-		who = formatting.MentionHtml(userID, userName)
-	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "#%s\nUser: %s (<code>%d</code>)", html.EscapeString(tag), who, userID)
+	text.WriteString("#" + html.EscapeString(tag))
+	if userID != 0 {
+		who := html.EscapeString(userName)
+		if userID > 0 {
+			who = formatting.MentionHtml(userID, userName)
+		}
+		fmt.Fprintf(&text, "\nUser: %s (<code>%d</code>)", who, userID)
+	}
 	for _, f := range fields {
 		if f.Value != "" {
 			fmt.Fprintf(&text, "\n%s: %s", html.EscapeString(f.Name), html.EscapeString(f.Value))
