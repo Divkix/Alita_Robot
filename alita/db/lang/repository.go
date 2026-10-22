@@ -54,6 +54,12 @@ func GetGroupLanguage(ctx context.Context, groupID int64) string {
 	return getGroupLanguageContext(ctx, groupID)
 }
 
+// GetUserLanguage returns a user's language by id, for replies sent to a PM
+// without an update from that user to read it from.
+func GetUserLanguage(ctx context.Context, userID int64) string {
+	return getUserLanguageContext(ctx, userID)
+}
+
 func getGroupLanguage(GroupID int64) string {
 	return getGroupLanguageContext(context.Background(), GroupID)
 }
