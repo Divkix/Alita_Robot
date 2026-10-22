@@ -1140,6 +1140,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansModule.unbanAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banListNamespace+"|"), bansModule.banListCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banLogUnbanNamespace+"|"), bansModule.banLogUnbanCallback))
 }
 
 func init() {

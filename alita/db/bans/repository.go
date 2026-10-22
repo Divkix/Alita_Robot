@@ -153,6 +153,47 @@ func Latest(chatID, userID int64) (*models.BanRecord, error) {
 	return &r, nil
 }
 
+// GetByID returns the record with id, or nil when there is none (never made,
+// or removed by the retention sweep).
+func GetByID(id int64) (*models.BanRecord, error) {
+	var r models.BanRecord
+	err := db.DB.Where("id = ?", id).Take(&r).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read ban record %d: %w", id, err)
+	}
+	return &r, nil
+}
+
+// LiftByID closes the record with id as liftedBy if its ban is in force, and
+// reports whether it did. One statement claims the row, so of two callers
+// lifting the same ban only one gets true.
+func LiftByID(id, liftedBy int64) (bool, error) {
+	now := time.Now().UTC()
+	res := inForce(db.DB.Model(&models.BanRecord{}), now).
+		Where("id = ?", id).
+		Updates(map[string]any{"lifted_at": now, "lifted_by": liftedBy})
+	if res.Error != nil {
+		return false, fmt.Errorf("lift ban record %d: %w", id, res.Error)
+	}
+	return res.RowsAffected > 0, nil
+}
+
+// Reopen undoes a LiftByID by liftedBy whose unban Telegram then refused:
+// the ban is still in force. It fails on the open-row unique index when the
+// user was banned again in between; the newer row then covers the ban.
+func Reopen(id, liftedBy int64) error {
+	res := db.DB.Model(&models.BanRecord{}).
+		Where("id = ? AND lifted_by = ? AND lifted_at IS NOT NULL", id, liftedBy).
+		Updates(map[string]any{"lifted_at": nil, "lifted_by": nil})
+	if res.Error != nil {
+		return fmt.Errorf("reopen ban record %d: %w", id, res.Error)
+	}
+	return nil
+}
+
 // likeEscaper escapes the LIKE wildcards of a search with '!', the ESCAPE
 // character ListOpen declares (a backslash reads differently across drivers).
 var likeEscaper = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_")

@@ -17,15 +17,20 @@ import (
 
 // Failures are swallowed so logging never blocks a user-facing command.
 func Log(b *gotgbot.Bot, chat *gotgbot.Chat, category, htmlText string) {
+	logWithMarkup(b, chat, category, htmlText, nil)
+}
+
+// logWithMarkup is Log with buttons under the entry; nil sends none.
+func logWithMarkup(b *gotgbot.Bot, chat *gotgbot.Chat, category, htmlText string, markup *gotgbot.InlineKeyboardMarkup) {
 	if b == nil || chat == nil || htmlText == "" || chat.Type == "channel" {
 		return
 	}
-	logTo(b, chat, logchannels.Get(chat.Id), category, htmlText)
+	logTo(b, chat, logchannels.Get(chat.Id), category, htmlText, markup)
 }
 
 // logTo sends to the log channel in settings rather than looking it up, so a
 // change that removes the settings can still be logged to them.
-func logTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, category, htmlText string) {
+func logTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, category, htmlText string, markup *gotgbot.InlineKeyboardMarkup) {
 	if b == nil || chat == nil || htmlText == "" || chat.Type == "channel" {
 		return
 	}
@@ -41,14 +46,21 @@ func logTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, cate
 		}
 	}
 	header := fmt.Sprintf("<b>%s</b> (<code>%d</code>)\n", html.EscapeString(title), chat.Id)
-	if _, err := helpers.SendMessageWithErrorHandling(b, settings.LogChannelID, header+htmlText, &gotgbot.SendMessageOpts{
-		ParseMode: formatting.HTML,
-	}); err != nil {
+	opts := &gotgbot.SendMessageOpts{ParseMode: formatting.HTML}
+	if markup != nil {
+		opts.ReplyMarkup = *markup
+	}
+	if _, err := helpers.SendMessageWithErrorHandling(b, settings.LogChannelID, header+htmlText, opts); err != nil {
 		log.Debugf("[ActionLog] failed to send %s log for chat %d: %v", category, chat.Id, err)
 	}
 }
 
 func Admin(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string, targetID int64, reason string) {
+	AdminWithMarkup(b, chat, actor, action, targetID, reason, nil)
+}
+
+// AdminWithMarkup is Admin with buttons under the entry; nil sends none.
+func AdminWithMarkup(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string, targetID int64, reason string, markup *gotgbot.InlineKeyboardMarkup) {
 	if actor == nil {
 		return
 	}
@@ -61,7 +73,7 @@ func Admin(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action strin
 	if reason != "" {
 		text += "\nReason: " + html.EscapeString(reason)
 	}
-	Log(b, chat, logchannels.CategoryAdmin, text)
+	logWithMarkup(b, chat, logchannels.CategoryAdmin, text, markup)
 }
 
 func User(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string) {
@@ -86,17 +98,28 @@ type Field struct {
 // (none when userID is 0) and the given fields. Call it only after Telegram
 // accepted the action.
 func Automated(b *gotgbot.Bot, chat *gotgbot.Chat, tag string, userID int64, userName string, fields ...Field) {
-	Log(b, chat, logchannels.CategoryAutomated, entryText(tag, nil, userID, userName, fields))
+	AutomatedWithMarkup(b, chat, nil, tag, userID, userName, fields...)
+}
+
+// AutomatedWithMarkup is Automated with buttons under the entry; nil sends
+// none.
+func AutomatedWithMarkup(b *gotgbot.Bot, chat *gotgbot.Chat, markup *gotgbot.InlineKeyboardMarkup, tag string, userID int64, userName string, fields ...Field) {
+	logWithMarkup(b, chat, logchannels.CategoryAutomated, entryText(tag, nil, userID, userName, fields), markup)
 }
 
 // Warn logs an admin's warn action under the warns category: the tag, the
 // admin, the user it concerns (none when userID is 0) and the given fields.
 // Call it only after the warn was written.
 func Warn(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, tag string, userID int64, userName string, fields ...Field) {
+	WarnWithMarkup(b, chat, nil, actor, tag, userID, userName, fields...)
+}
+
+// WarnWithMarkup is Warn with buttons under the entry; nil sends none.
+func WarnWithMarkup(b *gotgbot.Bot, chat *gotgbot.Chat, markup *gotgbot.InlineKeyboardMarkup, actor *gotgbot.User, tag string, userID int64, userName string, fields ...Field) {
 	if actor == nil {
 		return
 	}
-	Log(b, chat, logchannels.CategoryWarns, entryText(tag, actor, userID, userName, fields))
+	logWithMarkup(b, chat, logchannels.CategoryWarns, entryText(tag, actor, userID, userName, fields), markup)
 }
 
 // Join logs a member joining under the joins category: the tag, the member
@@ -144,7 +167,7 @@ func Settings(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, summary s
 
 // SettingsTo logs to the given settings, for changes that remove them.
 func SettingsTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, actor *gotgbot.User, summary string) {
-	logTo(b, chat, settings, logchannels.CategorySettings, settingsText(actor, summary))
+	logTo(b, chat, settings, logchannels.CategorySettings, settingsText(actor, summary), nil)
 }
 
 func settingsText(actor *gotgbot.User, summary string) string {

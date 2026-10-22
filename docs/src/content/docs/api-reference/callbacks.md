@@ -10,7 +10,7 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 29
+- **Total Callbacks**: 31
 - **Modules with Callbacks**: 19
 
 ## Callback Data Format
@@ -40,6 +40,8 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Bans | `restrict` | restrictButtonHandler |
 | Bans | `unrestrict` | unrestrictButtonHandler |
 | Bans | `unbanall` | unbanAllCallback |
+| Bans | `banlist` | banListCallback |
+| Bans | `banlogunban` | banLogUnbanCallback |
 | Blacklists | `rmAllBlacklist` | buttonHandler |
 | Bot Updates | `anon_admin` | verifyAnonymousAdmin |
 | AntiRaid | `antiraid` | callbackHandler |
@@ -95,6 +97,22 @@ Confirms or cancels a pending /import or /reset via inline buttons (actions ci/x
 - **Source**: `bans.go`
 
 Confirms or cancels `/unbanall`. Only the chat owner may press it.
+
+#### `banlist`
+
+- **Handler**: `banListCallback`
+- **Source**: `bans_list.go`
+- **Data**: `banlist|v1|p=<page>[&t=<search token>][&c=<group id>]`
+
+Turns a `/banlist` page. The presser must be able to restrict members in the group the list shows (`c` when the list was sent from PM). A search is kept in Redis behind the 16-hex token `t` for an hour; a press after that is told to send /banlist again.
+
+#### `banlogunban`
+
+- **Handler**: `banLogUnbanCallback`
+- **Source**: `bans_log_unban.go`
+- **Data**: `banlogunban|v1|r=<ban record id>`
+
+The Unban button under a ban's log channel entry (admin #ban, #sban, #tban and #dban entries; ANTIFLOOD, BLACKLIST, CAPTCHA_FAILED, LOCK_BOTS, SPAMDB and WARNLIMIT entries that banned). Like `rpt`, the presser must be an admin of the group the ban is in with the right to restrict members, and the bot must be able to restrict there; admin rights in the log channel alone are not enough. The press must come from the group's current log channel. The first press closes the ban record and unbans as /unban does (moderation event and #unban entry), then appends "Unbanned by …" to the entry and removes the button. Later presses, or presses after the ban was lifted or ended, are answered that it is no longer in force. If Telegram refuses the unban, the record is reopened.
 
 ### Blacklists
 

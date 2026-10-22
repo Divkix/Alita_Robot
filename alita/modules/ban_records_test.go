@@ -220,7 +220,7 @@ func TestWarnLimitBanRecordsTheBan(t *testing.T) {
 	f := newAdminChatFixture(t)
 	tr := i18n.MustNewTranslator("en")
 	settings := &models.WarnSettings{WarnMode: "ban", WarnLimit: 3}
-	if _, punished, err := punishAtWarnLimit(f.bot, &f.chat, tr, settings, f.member, 3, 0, "flooding"); err != nil || !punished {
+	if _, punished, _, err := punishAtWarnLimit(f.bot, &f.chat, tr, settings, f.member, 3, 0, "flooding"); err != nil || !punished {
 		t.Fatalf("punishAtWarnLimit() = %v, %v; want the member banned", punished, err)
 	}
 	got := singleBanRecord(t, f.chat.Id)

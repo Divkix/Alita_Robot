@@ -423,14 +423,15 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Warnf("[Antiflood] chat %d has unhandled flood action %q; no punishment applied", chatId, flood.Action)
 		return ext.ContinueGroups
 	}
+	var banRecordID int64
 	if flood.Action == "ban" || flood.Action == "tban" {
-		recordBan(banRecord{chatID: chatId, userID: userId, source: models.BanSourceAntiflood, untilUnix: floodTimedUntil})
+		banRecordID = recordBan(banRecord{chatID: chatId, userID: userId, source: models.BanSourceAntiflood, untilUnix: floodTimedUntil})
 	}
 	logAction := flood.Action
 	if logAction == "tban" || logAction == "tmute" {
 		logAction += " " + formatDuration(floodTimedActionTime)
 	}
-	actionlog.Automated(b, chat, "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
+	actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chatId, banRecordID), "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		trSprintf(tr, strings.ToLower(m.moduleName)+"_checkflood_perform_action", formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood.Action)),
 		&gotgbot.SendMessageOpts{

@@ -1495,22 +1495,24 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		}
 		return true, false
 	}
+	var banRecordID int64
 	if action == "ban" {
-		recordBan(banRecord{chatID: chatID, userID: userID, source: models.BanSourceCaptcha, detail: cause})
+		banRecordID = recordBan(banRecord{chatID: chatID, userID: userID, source: models.BanSourceCaptcha, detail: cause})
 	}
 	if action != "mute" {
 		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
 			log.Errorf("[Captcha] Failed to clear fallback unmute for user %d: %v", userID, err)
 		}
 	}
-	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount)
+	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount, unbanLogMarkup(chatID, banRecordID))
 	return true, true
 }
 
 // reportCaptchaFailure logs an applied failure action to the log channel and
-// posts the group notice, which deletes itself after 30 seconds.
-func reportCaptchaFailure(bot *gotgbot.Bot, chatID, userID int64, userName, action, cause string, storedMsgCount int64) {
-	actionlog.Automated(bot, captchaLogChat(chatID), "CAPTCHA_FAILED", userID, userName,
+// posts the group notice, which deletes itself after 30 seconds. The log
+// entry carries unban, the Unban button of a ban (nil for none).
+func reportCaptchaFailure(bot *gotgbot.Bot, chatID, userID int64, userName, action, cause string, storedMsgCount int64, unban *gotgbot.InlineKeyboardMarkup) {
+	actionlog.AutomatedWithMarkup(bot, captchaLogChat(chatID), unban, "CAPTCHA_FAILED", userID, userName,
 		actionlog.Field{Name: "Action", Value: action},
 		actionlog.Field{Name: "Cause", Value: cause},
 	)
