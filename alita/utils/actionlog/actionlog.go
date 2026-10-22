@@ -3,6 +3,7 @@ package actionlog
 import (
 	"fmt"
 	"html"
+	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
@@ -65,6 +66,29 @@ func User(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string
 		formatting.MentionHtml(actor.Id, actor.FirstName),
 	)
 	Log(b, chat, logchannels.CategoryUser, text)
+}
+
+// Field is one "Name: value" line of an automated entry; an empty value is left out.
+type Field struct {
+	Name  string
+	Value string
+}
+
+// Automated logs an action the bot took on its own: the tag, the user it hit
+// and the given fields. Call it only after Telegram accepted the action.
+func Automated(b *gotgbot.Bot, chat *gotgbot.Chat, tag string, userID int64, userName string, fields ...Field) {
+	who := html.EscapeString(userName)
+	if userID > 0 {
+		who = formatting.MentionHtml(userID, userName)
+	}
+	var text strings.Builder
+	fmt.Fprintf(&text, "#%s\nUser: %s (<code>%d</code>)", html.EscapeString(tag), who, userID)
+	for _, f := range fields {
+		if f.Value != "" {
+			fmt.Fprintf(&text, "\n%s: %s", html.EscapeString(f.Name), html.EscapeString(f.Value))
+		}
+	}
+	Log(b, chat, logchannels.CategoryAutomated, text.String())
 }
 
 func Settings(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, summary string) {
