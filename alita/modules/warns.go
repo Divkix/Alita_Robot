@@ -401,7 +401,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 	case "swarn":
 		// From PM there is no command message in the group to delete.
-		if msg.Chat.Type != "private" {
+		if !inPM(msg) {
 			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 		}
 	}
