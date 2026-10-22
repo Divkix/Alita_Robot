@@ -202,20 +202,27 @@ func applyReportDecision(b *gotgbot.Bot, action string, rep *models.Report) erro
 // buttons, keeping the link to the reported message. Like the rest of the
 // card, the decision line is English.
 func closeReportCard(b *gotgbot.Bot, card gotgbot.MaybeInaccessibleMessage, status string, admin gotgbot.User) {
+	line := fmt.Sprintf("Decision: %s by %s (%d)", status, admin.FirstName, admin.Id)
+	if err := closeLogEntry(b, card, line); err != nil {
+		log.Warnf("[Reports] failed to close report card %d in %d: %v", card.GetMessageId(), card.GetChat().Id, err)
+	}
+}
+
+// closeLogEntry appends line, after a blank line, to a message the bot posted
+// in a log channel and drops its action buttons, keeping its URL buttons. An
+// entry too old to read only loses its buttons.
+func closeLogEntry(b *gotgbot.Bot, entry gotgbot.MaybeInaccessibleMessage, line string) error {
 	var msg *gotgbot.Message
-	switch m := card.(type) {
+	switch m := entry.(type) {
 	case gotgbot.Message:
 		msg = &m
 	case *gotgbot.Message:
 		msg = m
 	}
-	chatID, messageID := card.GetChat().Id, card.GetMessageId()
+	chatID, messageID := entry.GetChat().Id, entry.GetMessageId()
 	if msg == nil || msg.Text == "" {
-		// The card is too old to read: only drop its buttons.
-		if _, _, err := b.EditMessageReplyMarkup(&gotgbot.EditMessageReplyMarkupOpts{ChatId: chatID, MessageId: messageID}); err != nil {
-			log.Warnf("[Reports] failed to close report card %d in %d: %v", messageID, chatID, err)
-		}
-		return
+		_, _, err := b.EditMessageReplyMarkup(&gotgbot.EditMessageReplyMarkupOpts{ChatId: chatID, MessageId: messageID})
+		return err
 	}
 
 	links := gotgbot.InlineKeyboardMarkup{}
@@ -228,16 +235,14 @@ func closeReportCard(b *gotgbot.Bot, card gotgbot.MaybeInaccessibleMessage, stat
 			}
 		}
 	}
-	// The appended line has no entities, so the card's own entities keep
+	// The appended line has no entities, so the entry's own entities keep
 	// their offsets.
 	_, _, err := b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:      chatID,
 		MessageId:   messageID,
-		Text:        fmt.Sprintf("%s\n\nDecision: %s by %s (%d)", msg.Text, status, admin.FirstName, admin.Id),
+		Text:        msg.Text + "\n\n" + line,
 		Entities:    msg.Entities,
 		ReplyMarkup: links,
 	})
-	if err != nil {
-		log.Warnf("[Reports] failed to close report card %d in %d: %v", messageID, chatID, err)
-	}
+	return err
 }
