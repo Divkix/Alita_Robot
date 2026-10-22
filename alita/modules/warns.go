@@ -293,6 +293,16 @@ func warnIssuerLabel(b *gotgbot.Bot, tr *i18n.Translator, e models.WarnEntry) st
 	return strconv.FormatInt(e.WarnedBy, 10)
 }
 
+// logWarnRemoval posts an admin's removal of userID's warns under the warns
+// log category. Call it only after the removal was written.
+func logWarnRemoval(b *gotgbot.Bot, chat *gotgbot.Chat, admin *gotgbot.User, tag string, userID int64) {
+	name := strconv.FormatInt(userID, 10)
+	if u, err := user.GetUserBasicInfoCached(userID); err == nil && u != nil && u.Name != "" {
+		name = u.Name
+	}
+	actionlog.Warn(b, chat, admin, tag, userID, name)
+}
+
 // punishAtWarnLimit applies the chat's warn mode to u, who just reached the
 // warn limit, and returns the reply. punished is false for an unknown mode.
 func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int) (reply string, punished bool, err error) {
@@ -408,14 +418,31 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 	}
 
+	// logWarn posts an admin's warn under the warns log category. The bot's
+	// own warns (blacklists) are no admin's: they log under automated, and
+	// only at the limit.
+	logWarn := func(tag string, extra ...actionlog.Field) {
+		if issuer.WarnedBy == b.Id {
+			return
+		}
+		fields := append([]actionlog.Field{{Name: "Warns", Value: fmt.Sprintf("%d/%d", numWarns, warnrc.WarnLimit)}}, extra...)
+		fields = append(fields, actionlog.Field{Name: "Reason", Value: shownReason(reason, func(s string) string { return s })})
+		actionlog.Warn(b, chat, ctx.EffectiveUser, tag, u.Id, u.FirstName, fields...)
+	}
+
 	if numWarns >= warnrc.WarnLimit {
 		var punished bool
 		reply, punished, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns)
 		if err != nil {
+			// The warn stays written though the limit's action failed.
+			logWarn("WARN")
 			return err
 		}
 
-		if punished {
+		if !punished {
+			// An unknown warn mode punishes nobody: the warn alone was made.
+			logWarn("WARN")
+		} else {
 			// Only the bot's own warns (blacklists) are automated; an admin's
 			// warn at the limit is a human action.
 			if issuer.WarnedBy == b.Id {
@@ -425,12 +452,14 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 					actionlog.Field{Name: "By", Value: "blacklist"},
 				)
 			}
+			logWarn("WARNLIMIT", actionlog.Field{Name: "Action", Value: warnModeLabel(warnrc)})
 			if _, resetErr := warns.ResetUserWarns(userId, chat.Id); resetErr != nil {
 				return resetErr
 			}
 		}
 		reply += warnEntryLines(b, tr, entries, html.EscapeString)
 	} else {
+		logWarn("WARN")
 		rules := rules.GetChatRulesInfo(chat.Id)
 		removeWarnData := moderationButtonData("rmWarn", msg, chat, map[string]string{"u": fmt.Sprint(u.Id)})
 		if len(rules.Rules) >= 1 {
@@ -692,6 +721,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if removed {
 		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
+		logWarnRemoval(b, chat, user, "RMWARN", userId)
 	} else {
 		replyText, _ = tr.GetString("warns_no_warns_to_remove")
 	}
@@ -815,6 +845,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ = tr.GetString("error_generic")
 	} else if removed {
 		text, _ = tr.GetString("warns_reset_success")
+		logWarnRemoval(b, chat, user, "RESETWARNS", userId)
 	} else {
 		text, _ = tr.GetString("warns_no_warns_to_remove")
 	}
@@ -899,6 +930,7 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err := warns.ResetAllChatWarns(chat.Id); err == nil {
 			helpText, _ = tr.GetString("warns_reset_all_success")
 			replyText, _ = tr.GetString("warns_reset_all_final")
+			actionlog.Warn(b, chat, &query.From, "RESETALLWARNS", 0, "")
 		} else {
 			helpText, _ = tr.GetString("error_generic")
 			replyText = helpText
@@ -977,6 +1009,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if removed {
 		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
+		logWarnRemoval(b, chat, user, "RMWARN", userId)
 	} else {
 		replyText, _ = tr.GetString("warns_no_warns_to_remove")
 	}

@@ -21,7 +21,7 @@ Send admin actions to a dedicated log channel.
 - `/logchannel`: Show the current log channel.
 - `/logcategories`: List categories.
 
-Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated (actions the bot takes on its own: spam database hits, antiflood and blacklist actions, the warn limit reached through blacklist warns, failed captchas, raid mode switched on by the join threshold, bots banned by the bots lock), other. Nothing is logged under other yet.
+Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated (actions the bot takes on its own: spam database hits, antiflood and blacklist actions, the warn limit reached through blacklist warns, failed captchas, raid mode switched on by the join threshold, bots banned by the bots lock), warns (warnings admins give, remove and reset, and the warn limit their warns reach; off until turned on with /log warns), other. Nothing is logged under other yet.
 
 From PM, name the group first in /setlog, /unsetlog, /log, /nolog and /logchannel: its title, @username or ID.
 

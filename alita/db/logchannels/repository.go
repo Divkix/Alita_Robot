@@ -25,6 +25,8 @@ const (
 	CategoryAutomated = "automated"
 	CategoryReports   = "reports"
 	CategoryOther     = "other"
+	// CategoryWarns is off by default; see OptInCategories.
+	CategoryWarns = "warns"
 )
 
 var AllCategories = []string{
@@ -34,6 +36,13 @@ var AllCategories = []string{
 	CategoryAutomated,
 	CategoryReports,
 	CategoryOther,
+	CategoryWarns,
+}
+
+// OptInCategories are off in a new log channel and in every log channel that
+// existed before they were added: they log nothing until an admin turns them on.
+var OptInCategories = []string{
+	CategoryWarns,
 }
 
 func invalidate(chatID int64) {
@@ -115,6 +124,7 @@ var logCategories = map[string]categoryMeta{
 	CategoryAutomated: {column: "cat_automated", get: func(s *models.LogChannel) bool { return s.CatAutomated }},
 	CategoryReports:   {column: "cat_reports", get: func(s *models.LogChannel) bool { return s.CatReports }},
 	CategoryOther:     {column: "cat_other", get: func(s *models.LogChannel) bool { return s.CatOther }},
+	CategoryWarns:     {column: "cat_warns", get: func(s *models.LogChannel) bool { return s.CatWarns }},
 }
 
 func categoryName(name string) string {

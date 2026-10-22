@@ -2503,7 +2503,7 @@ logchannels_help_msg: |
   × /logchannel: Mostra o canal de log atual.
   × /logcategories: Lista as categorias.
 
-  Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated (ações que o bot toma por conta própria: correspondências em bases de dados de spam, ações do antiflood e da lista negra, limite de advertências atingido por advertências da lista negra, captchas falhos, modo AntiRaid ativado pelo limite de entradas, bots banidos pelo bloqueio bots), other. Nada é registrado em other ainda.
+  Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated (ações que o bot toma por conta própria: correspondências em bases de dados de spam, ações do antiflood e da lista negra, limite de advertências atingido por advertências da lista negra, captchas falhos, modo AntiRaid ativado pelo limite de entradas, bots banidos pelo bloqueio bots), warns (advertências dadas, removidas e redefinidas por administradores, e o limite de advertências atingido por elas; desativada até ser ativada com /log warns), other. Nada é registrado em other ainda.
 
   No privado, indique primeiro o grupo em /setlog, /unsetlog, /log, /nolog e /logchannel: o título, @usuário ou ID.
 feds_pm_only: "Este comando só pode ser usado no meu chat privado."
@@ -2591,7 +2591,7 @@ logs_pm_set_ok: "Canal de log definido. As ações de administração de <b>{gro
 logs_unset_ok: "Canal de log removido."
 logs_not_set: "Nenhum canal de log está definido para este chat."
 logs_current: "Canal de log: <code>{id}</code>"
-logs_categories: "Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated (ações que o bot toma por conta própria: correspondências em bases de dados de spam, ações do antiflood e da lista negra, limite de advertências atingido por advertências da lista negra, captchas falhos, modo AntiRaid ativado pelo limite de entradas, bots banidos pelo bloqueio bots), other. Nada é registrado em other ainda."
+logs_categories: "Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated (ações que o bot toma por conta própria: correspondências em bases de dados de spam, ações do antiflood e da lista negra, limite de advertências atingido por advertências da lista negra, captchas falhos, modo AntiRaid ativado pelo limite de entradas, bots banidos pelo bloqueio bots), warns (advertências dadas, removidas e redefinidas por administradores, e o limite de advertências atingido por elas; desativada até ser ativada com /log warns), other. Nada é registrado em other ainda."
 logs_enabled: "Log ativado para: {cats}"
 logs_disabled: "Log desativado para: {cats}"
 logs_unknown_category: "Categoria desconhecida. Veja /logcategories."

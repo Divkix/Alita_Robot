@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -31,8 +32,15 @@ func logTo(b *gotgbot.Bot, chat *gotgbot.Chat, settings *models.LogChannel, cate
 	if settings == nil || !logchannels.CategoryEnabled(settings, category) {
 		return
 	}
-	title := html.EscapeString(chat.Title)
-	header := fmt.Sprintf("<b>%s</b> (<code>%d</code>)\n", title, chat.Id)
+	title := chat.Title
+	if title == "" {
+		// A button from PM names its group by ID alone; the header takes the
+		// title from the chats table.
+		if info, err := chats.GetChatBasicInfoCached(chat.Id); err == nil && info != nil {
+			title = info.ChatName
+		}
+	}
+	header := fmt.Sprintf("<b>%s</b> (<code>%d</code>)\n", html.EscapeString(title), chat.Id)
 	if _, err := helpers.SendMessageWithErrorHandling(b, settings.LogChannelID, header+htmlText, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
 	}); err != nil {
@@ -78,8 +86,27 @@ type Field struct {
 // (none when userID is 0) and the given fields. Call it only after Telegram
 // accepted the action.
 func Automated(b *gotgbot.Bot, chat *gotgbot.Chat, tag string, userID int64, userName string, fields ...Field) {
+	Log(b, chat, logchannels.CategoryAutomated, entryText(tag, nil, userID, userName, fields))
+}
+
+// Warn logs an admin's warn action under the warns category: the tag, the
+// admin, the user it concerns (none when userID is 0) and the given fields.
+// Call it only after the warn was written.
+func Warn(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, tag string, userID int64, userName string, fields ...Field) {
+	if actor == nil {
+		return
+	}
+	Log(b, chat, logchannels.CategoryWarns, entryText(tag, actor, userID, userName, fields))
+}
+
+// entryText renders an entry: the tag, the admin (none when actor is nil),
+// the user (none when userID is 0) and one line per field with a value.
+func entryText(tag string, actor *gotgbot.User, userID int64, userName string, fields []Field) string {
 	var text strings.Builder
 	text.WriteString("#" + html.EscapeString(tag))
+	if actor != nil {
+		fmt.Fprintf(&text, "\nAdmin: %s", formatting.MentionHtml(actor.Id, actor.FirstName))
+	}
 	if userID != 0 {
 		who := html.EscapeString(userName)
 		if userID > 0 {
@@ -92,7 +119,7 @@ func Automated(b *gotgbot.Bot, chat *gotgbot.Chat, tag string, userID int64, use
 			fmt.Fprintf(&text, "\n%s: %s", html.EscapeString(f.Name), html.EscapeString(f.Value))
 		}
 	}
-	Log(b, chat, logchannels.CategoryAutomated, text.String())
+	return text.String()
 }
 
 func Settings(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, summary string) {

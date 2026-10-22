@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -211,5 +212,43 @@ func TestSettingsSummaryTimedWarnModeShowsDuration(t *testing.T) {
 		if got.Value != tc.want || !got.Changed {
 			t.Errorf("%s/%d: /setwarnmode row = %+v, want changed value %q", tc.mode, tc.actionTime, *got, tc.want)
 		}
+	}
+}
+
+// An opt-in log category shows in /settings only once it is on, so a log
+// channel that never turned one on reads as "all", as before it existed.
+func TestSettingsSummaryShowsOptInLogCategoriesOnlyWhenOn(t *testing.T) {
+	categoriesRow := func(chatID int64) settingsRow {
+		t.Helper()
+		cache.ResetLocalForTest()
+		for _, row := range logChannelSettingsSection(chatID).Rows {
+			if row.Command == "/logcategories" {
+				return row
+			}
+		}
+		t.Fatal("summary has no /logcategories row")
+		return settingsRow{}
+	}
+
+	chatID := newSettingsTestChat(t)
+	if err := logchannels.Set(chatID, "Settings Chat", chatID-1); err != nil {
+		t.Fatalf("logchannels.Set() error = %v", err)
+	}
+	if got := categoriesRow(chatID); got.Value != "all" || got.Changed {
+		t.Fatalf("fresh log channel /logcategories row = %+v, want unchanged value all", got)
+	}
+
+	if err := logchannels.SetCategory(chatID, logchannels.CategoryWarns, true); err != nil {
+		t.Fatalf("SetCategory(warns) error = %v", err)
+	}
+	if got := categoriesRow(chatID); got.Value != "all + warns" || !got.Changed {
+		t.Fatalf("/logcategories row = %+v, want changed value all + warns", got)
+	}
+
+	if err := logchannels.SetCategory(chatID, logchannels.CategoryAdmin, false); err != nil {
+		t.Fatalf("SetCategory(admin) error = %v", err)
+	}
+	if got := categoriesRow(chatID); got.Value != "off: admin + warns" || !got.Changed {
+		t.Fatalf("/logcategories row = %+v, want changed value off: admin + warns", got)
 	}
 }

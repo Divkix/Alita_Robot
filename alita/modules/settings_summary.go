@@ -317,12 +317,17 @@ func logChannelSettingsSection(chatID int64) settingsSection {
 	if lc == nil {
 		return settingsSection{Title: "Log Channel", Rows: []settingsRow{{Command: "/logchannel", Value: "—"}}}
 	}
-	var off []string
-	for name, on := range map[string]bool{
-		"settings": lc.CatSettings, "admin": lc.CatAdmin, "user": lc.CatUser,
-		"automated": lc.CatAutomated, "reports": lc.CatReports, "other": lc.CatOther,
-	} {
-		if !on {
+	// "all" is every category on by default; an opt-in category shows only
+	// once it is turned on, so a chat that never did reads as before.
+	var off, optIn []string
+	for _, name := range logchannels.AllCategories {
+		on := logchannels.CategoryEnabled(lc, name)
+		switch {
+		case slices.Contains(logchannels.OptInCategories, name):
+			if on {
+				optIn = append(optIn, name)
+			}
+		case !on:
 			off = append(off, name)
 		}
 	}
@@ -330,6 +335,10 @@ func logChannelSettingsSection(chatID int64) settingsSection {
 	if len(off) > 0 {
 		categories = listRow("/logcategories", off)
 		categories.Value = "off: " + categories.Value
+	}
+	if len(optIn) > 0 {
+		categories.Value += " + " + listRow("/logcategories", optIn).Value
+		categories.Changed = true
 	}
 	return settingsSection{Title: "Log Channel", Rows: []settingsRow{
 		{Command: "/logchannel", Value: strconv.FormatInt(lc.LogChannelID, 10), Changed: true},
