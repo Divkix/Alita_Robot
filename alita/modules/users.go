@@ -213,6 +213,11 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	// stats package for the batched flush.
 	if chat != nil && (chat.Type == "group" || chat.Type == "supergroup") {
 		stats.RecordMessage(chat.Id)
+		// The per-member count ranks real users only: a channel or an
+		// anonymous admin posts with sender_chat set and has no user to rank.
+		if user != nil && user.IsUser() {
+			stats.RecordMemberMessage(chat.Id, user.User.Id)
+		}
 	}
 
 	if user != nil {

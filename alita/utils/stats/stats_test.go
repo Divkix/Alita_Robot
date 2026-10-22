@@ -19,7 +19,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testdb.Run(m, &models.ChatDailyStat{}))
+	os.Exit(testdb.Run(m, &models.ChatDailyStat{}, &models.ChatHourlyStat{}, &models.ChatMemberDailyStat{}, &models.ChatMemberCount{}))
 }
 
 var testChatIDSeq atomic.Int64
@@ -192,5 +192,40 @@ func TestFlushRestoresCountersWhenTheWriteFails(t *testing.T) {
 	rows := rowsFor(t, chatID, day, day)
 	if len(rows) != 1 || rows[0].Messages != 1 {
 		t.Fatalf("rows after retry = %v, want one message", rows)
+	}
+}
+
+func TestFlushWritesMessagesPerUTCHour(t *testing.T) {
+	previous := timeNow
+	t.Cleanup(func() { timeNow = previous })
+
+	// 12:15 in a UTC+2 zone is 10:15 UTC.
+	clock := time.Date(2026, 10, 22, 12, 15, 0, 0, time.FixedZone("UTC+2", 2*60*60))
+	timeNow = func() time.Time { return clock }
+	flushPending(t)
+	chatID := testChatID(t)
+
+	RecordMessage(chatID)
+	RecordMessage(chatID)
+	clock = clock.Add(time.Hour)
+	RecordMessage(chatID)
+	RecordJoin(chatID)
+	if err := Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+
+	hourly, err := chatstats.GetHourlyRange(chatID, "2026-10-22", "2026-10-22")
+	if err != nil {
+		t.Fatalf("GetHourlyRange() error = %v", err)
+	}
+	if len(hourly) != 2 ||
+		hourly[0].Hour != 10 || hourly[0].Messages != 2 ||
+		hourly[1].Hour != 11 || hourly[1].Messages != 1 {
+		t.Fatalf("hourly rows = %+v, want 2 messages at 10 UTC and 1 at 11 UTC", hourly)
+	}
+
+	daily := rowsFor(t, chatID, "2026-10-22", "2026-10-22")
+	if len(daily) != 1 || daily[0].Messages != 3 || daily[0].Joins != 1 {
+		t.Fatalf("daily rows = %+v, want one row with 3 messages and 1 join", daily)
 	}
 }

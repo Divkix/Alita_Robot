@@ -228,6 +228,7 @@ func LoadDigest(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, digestDesc, digestModule.digest)
 	RegisterAnonymousAdminHandler("digest", anonCommandContextHandler(digestDesc, digestModule.digest))
 	startDigestStatsRetention()
+	startActivityStatsRetention()
 }
 
 func init() {

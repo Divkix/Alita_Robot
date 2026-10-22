@@ -25,6 +25,7 @@ import (
 	dbmonitoring "github.com/divkix/Alita_Robot/alita/db/monitoring"
 	"github.com/divkix/Alita_Robot/alita/digest"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/membersnapshot"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -163,6 +164,7 @@ func main() {
 	stats.StartFlusher()
 
 	digestScheduler := digest.NewScheduler(b)
+	memberSnapshotter := membersnapshot.New(b)
 
 	registerShutdownDrains(shutdownManager,
 		func() error {
@@ -178,8 +180,14 @@ func main() {
 			digestScheduler.Stop()
 			return nil
 		},
+		func() error {
+			log.Info("[Shutdown] Stopping member count snapshots...")
+			memberSnapshotter.Stop()
+			return nil
+		},
 	)
 	digestScheduler.Start()
+	memberSnapshotter.Start()
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")
