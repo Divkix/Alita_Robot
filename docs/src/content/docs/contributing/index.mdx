@@ -256,6 +256,8 @@ mymodule_extend_msg: |
   /mycommand — Description of command.
 ```
 
+Each of those commands also needs an entry in `menuCommands` (`alita/modules/command_help.go`) with its module and whether only admins can use it (`AdminOnly`, set only when no form of the command works for a member); `/commands` uses it to hide admin commands from members, and `TestMenuCommandsMatchExtendLists` keeps it in step with the extend lists. The module also needs a one-line `<module>_section_desc` in every locale.
+
 :::tip
 Use double quotes for strings containing escape sequences like `\n`. Single quotes in YAML preserve backslashes literally.
 :::

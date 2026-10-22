@@ -2686,10 +2686,17 @@ chat_status_bot_change_info_error: "Saya tidak bisa mengubah info grup di sini! 
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "Semua perintah dalam satu daftar"
+main_bot_command_commands: "Perintah per bagian, untuk anggota atau admin"
 help_extend_hint: "\n\nKirim /extend untuk melihat semua perintah dalam satu daftar."
 help_extend_header: "📋 <b>Semua perintah</b>\nArgumen dan contoh: /help → modul."
 help_extend_pm: "Daftar perintah lengkap cukup panjang, jadi saya kirim lewat PM."
 help_extend_button: "📋 Semua perintah"
+commands_menu_member: "📋 <b>Perintah per bagian</b>\nHanya perintah yang bisa dipakai anggota yang ditampilkan. Ketuk sebuah bagian untuk melihat perintahnya."
+commands_menu_admin: "📋 <b>Perintah per bagian</b>\nKamu admin, jadi perintah admin juga ditampilkan. Ketuk sebuah bagian untuk melihat perintahnya."
+commands_section_hint: "<i>Ketuk sebuah perintah untuk melihat cara memakainya.</i>"
+commands_copy_example_button: "📋 Salin contoh"
+commands_open_in_pm: "Daftarnya tergantung siapa yang membaca, jadi saya tampilkan lewat PM."
+commands_open_in_pm_button: "📋 Buka di PM"
 admin_section_desc: "Promosikan, turunkan, dan kelola admin grup"
 aispam_section_desc: "Tangkap spam dengan filter AI"
 antiflood_section_desc: "Tindak pengguna yang mengirim terlalu banyak pesan"

@@ -2473,10 +2473,17 @@ chat_status_bot_change_info_error: "Я не могу изменить инфор
 
 # /extend: every help-menu command, one line each ("/command — description")
 main_bot_command_extend: "Все команды одним списком"
+main_bot_command_commands: "Команды по разделам, для участников или админов"
 help_extend_hint: "\n\nОтправьте /extend, чтобы увидеть все команды одним списком."
 help_extend_header: "📋 <b>Все команды</b>\nАргументы и примеры: /help → модуль."
 help_extend_pm: "Полный список команд длинный — пришлю его в личку."
 help_extend_button: "📋 Все команды"
+commands_menu_member: "📋 <b>Команды по разделам</b>\nПоказаны только команды, доступные участнику. Нажмите на раздел, чтобы увидеть его команды."
+commands_menu_admin: "📋 <b>Команды по разделам</b>\nВы админ, поэтому показаны и админские команды. Нажмите на раздел, чтобы увидеть его команды."
+commands_section_hint: "<i>Нажмите на команду, чтобы узнать, как ею пользоваться.</i>"
+commands_copy_example_button: "📋 Скопировать пример"
+commands_open_in_pm: "Список зависит от того, кто его читает, поэтому покажу его в личке."
+commands_open_in_pm_button: "📋 Открыть в личке"
 admin_section_desc: "Повышать, понижать и управлять админами группы"
 aispam_section_desc: "Ловить спам ИИ-фильтром"
 antiflood_section_desc: "Наказывать тех, кто шлёт слишком много сообщений"

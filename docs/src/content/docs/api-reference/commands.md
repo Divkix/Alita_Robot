@@ -339,6 +339,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/about` | Show bot information and links | Everyone | ❌ | — |
+| `/commands` | Show the commands you can use by section (groups get a PM button) | Everyone | ❌ | — |
 | `/donate` | Show donation information | Everyone | ❌ | — |
 | `/extend` | Show every command in one list (groups get a PM button) | Everyone | ❌ | — |
 | `/help` | Show help menu with module list | Everyone | ❌ | — |
@@ -456,6 +457,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/clearrules` | Rules | Alias of `/resetrules` | Admin |
 | `/clearrulesbtn` | Rules | Reset the rules button text | Admin |
 | `/clearrulesbutton` | Rules | Reset the rules button text | Admin |
+| `/commands` | Help | Show the commands you can use by section | Everyone |
 | `/connect` | Connections | Connect to a group from PM | Everyone |
 | `/connection` | Connections | Show current connection status | Everyone |
 | `/dban` | Bans | Ban a user and delete their message | Admin |
