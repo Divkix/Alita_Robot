@@ -187,3 +187,109 @@ dd {
 .settings-save:disabled {
 	opacity: 0.5;
 }
+
+.list-screen {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.list-controls,
+.list-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.list-controls input {
+	flex: 1;
+	min-width: 0;
+	padding: 8px 10px;
+	border: 1px solid var(--tg-theme-hint-color, #707579);
+	border-radius: 8px;
+	background: var(--tg-theme-bg-color, #ffffff);
+	color: var(--tg-theme-text-color, #000000);
+	font: inherit;
+}
+
+button {
+	padding: 8px 12px;
+	border: 0;
+	border-radius: 8px;
+	background: var(--tg-theme-button-color, #2481cc);
+	color: var(--tg-theme-button-text-color, #ffffff);
+	font: inherit;
+}
+
+button:disabled {
+	opacity: 0.5;
+}
+
+button.danger {
+	background: var(--tg-theme-destructive-text-color, #c62828);
+	color: #ffffff;
+}
+
+.list-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.list-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px;
+	border-radius: 10px;
+	background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+}
+
+.list-text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.list-name,
+.list-reply {
+	overflow-wrap: anywhere;
+}
+
+.list-reply {
+	white-space: pre-wrap;
+	font-size: 14px;
+}
+
+textarea {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px 10px;
+	border: 1px solid var(--tg-theme-hint-color, #707579);
+	border-radius: 8px;
+	background: var(--tg-theme-bg-color, #ffffff);
+	color: var(--tg-theme-text-color, #000000);
+	font: inherit;
+}
+
+.import-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.import-table th,
+.import-table td {
+	padding: 4px 6px;
+	border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #f4f4f5);
+	text-align: left;
+	overflow-wrap: anywhere;
+}
+
+.import-invalid td {
+	color: var(--tg-theme-destructive-text-color, #c62828);
+}
+

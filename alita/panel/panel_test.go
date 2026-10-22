@@ -38,6 +38,10 @@ func TestMain(m *testing.M) {
 		&models.AISpamSettings{},
 		&models.LockSettings{},
 		&models.LogChannel{},
+		&models.ChatFilters{},
+		&models.Notes{},
+		&models.NotesSettings{},
+		&models.BlacklistSettings{},
 	))
 }
 
