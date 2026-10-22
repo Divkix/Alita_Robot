@@ -37,7 +37,8 @@ func setPMGroupCandidates(t *testing.T, groups ...models.Chat) *atomic.Int32 {
 		if limit != settingsCandidateLimit {
 			t.Errorf("candidate chats asked with limit %d, want settingsCandidateLimit (%d)", limit, settingsCandidateLimit)
 		}
-		return groups, nil
+		// Like the query, most recently active first, at most limit.
+		return groups[:min(limit, len(groups))], nil
 	}
 	settingsPickerCooldown = 0
 	t.Cleanup(func() { settingsCandidateChats, settingsPickerCooldown = original, originalCooldown })
@@ -126,26 +127,52 @@ func TestFiltersInPMByBareTitle(t *testing.T) {
 	sendPMCommand(t, filtersDispatcher(), f.bot, f.client, f.admin, "/filters mygroup", "<code>hello</code>")
 }
 
-// A title is looked up among all the groups the user posted in, not only those
-// the /settings picker has room and time to check: the target is the 25th of
-// 25 admin groups with no cached admin list, and no live checks are allowed.
-func TestNotesInPMByTitleBeyondPickerCap(t *testing.T) {
+// A title is looked up among all the settingsCandidateLimit groups the user
+// posted in most recently, not only those the /settings picker has room and
+// time to check: with no cached admin list and no live checks allowed, the
+// last of them is found by its title, and the one past them is not.
+func TestNotesInPMByTitleUpToCandidateLimit(t *testing.T) {
 	useRealLocales(t)
 	f := newAdminChatFixture(t)
 	var groups []models.Chat
-	for i := 1; i <= 25; i++ {
+	for i := 1; i <= settingsCandidateLimit+1; i++ {
 		group := models.Chat{ChatId: uniqueModuleChatID(), ChatName: fmt.Sprintf("Group %d", i)}
 		f.addGroup(t, group.ChatId, group.ChatName, true)
+		addTestNote(t, group.ChatId, fmt.Sprintf("note-%d", i))
 		groups = append(groups, group)
 	}
-	target := groups[24]
 	setPMGroupCandidates(t, groups...)
 	original := settingsPickerLiveBudget
 	settingsPickerLiveBudget = 0
 	t.Cleanup(func() { settingsPickerLiveBudget = original })
-	addTestNote(t, target.ChatId, "far-note")
+	dispatcher := notesDispatcher()
 
-	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "group 25"`, "far-note")
+	last := fmt.Sprintf("Group %d", settingsCandidateLimit)
+	sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, fmt.Sprintf("/notes %q", last), fmt.Sprintf("note-%d", settingsCandidateLimit))
+
+	resetCalls(f.client)
+	past := fmt.Sprintf("Group %d", settingsCandidateLimit+1)
+	sendPMCommand(t, dispatcher, f.bot, f.client, f.admin, fmt.Sprintf("/notes %q", past),
+		fmt.Sprintf(translated(t, "connections_pm_group_not_found"), past))
+}
+
+// For a command without arguments of its own, a title names the group even
+// on a connection: the named group's notes are listed, not the connected
+// one's.
+func TestNotesInPMByTitleWinsOverConnection(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	other := uniqueModuleChatID()
+	f.addGroup(t, other, "Other Group", true)
+	setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"}, models.Chat{ChatId: other, ChatName: "Other Group"})
+	f.connectAdmin(t)
+	addTestNote(t, f.chat.Id, "connected-note")
+	addTestNote(t, other, "other-note")
+
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "other group"`, "other-note")
+
+	if got := sentText(f.client); strings.Contains(got, "connected-note") {
+		t.Fatalf("/notes naming another group by title listed the connected group's notes: %s", got)
+	}
 }
 
 // The connected group is also among the groups the user posted in; named by
