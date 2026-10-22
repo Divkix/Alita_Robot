@@ -10,7 +10,7 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 29
+- **Total Callbacks**: 30
 - **Modules with Callbacks**: 19
 
 ## Callback Data Format
@@ -40,6 +40,7 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Bans | `restrict` | restrictButtonHandler |
 | Bans | `unrestrict` | unrestrictButtonHandler |
 | Bans | `unbanall` | unbanAllCallback |
+| Bans | `banlist` | banListCallback |
 | Blacklists | `rmAllBlacklist` | buttonHandler |
 | Bot Updates | `anon_admin` | verifyAnonymousAdmin |
 | AntiRaid | `antiraid` | callbackHandler |
@@ -95,6 +96,14 @@ Confirms or cancels a pending /import or /reset via inline buttons (actions ci/x
 - **Source**: `bans.go`
 
 Confirms or cancels `/unbanall`. Only the chat owner may press it.
+
+#### `banlist`
+
+- **Handler**: `banListCallback`
+- **Source**: `bans_list.go`
+- **Data**: `banlist|v1|p=<page>[&t=<search token>][&c=<group id>]`
+
+Turns a `/banlist` page. The presser must be able to restrict members in the group the list shows (`c` when the list was sent from PM). A search is kept in Redis behind the 16-hex token `t` for an hour; a press after that is told to send /banlist again.
 
 ### Blacklists
 
