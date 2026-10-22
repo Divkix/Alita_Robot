@@ -25,10 +25,12 @@ const (
 	ActionLog  = "log"
 )
 
-// The databases the join check can ask, as admins name them.
+// The databases the join check can ask, as admins name them. Shared is the
+// bot's own reputation aggregate, not a third-party service.
 const (
-	DatabaseCAS  = "cas"
-	DatabaseLols = "lols"
+	DatabaseCAS    = "cas"
+	DatabaseLols   = "lols"
+	DatabaseShared = "shared"
 )
 
 const cacheKeyPrefix = "spam_db_settings"
@@ -36,7 +38,8 @@ const cacheKeyPrefix = "spam_db_settings"
 var (
 	// ErrInvalidAction is returned for an action other than ban, mute or log.
 	ErrInvalidAction = errors.New("spamdbsettings: invalid action")
-	// ErrInvalidDatabase is returned for a database other than cas or lols.
+	// ErrInvalidDatabase is returned for a database other than cas, lols or
+	// shared.
 	ErrInvalidDatabase = errors.New("spamdbsettings: invalid database")
 	// ErrLastDatabase is returned when switching off the only database left.
 	ErrLastDatabase = errors.New("spamdbsettings: at least one database must stay on")
@@ -44,8 +47,9 @@ var (
 
 // databaseColumns maps each database to its column.
 var databaseColumns = map[string]string{
-	DatabaseCAS:  "check_cas",
-	DatabaseLols: "check_lols",
+	DatabaseCAS:    "check_cas",
+	DatabaseLols:   "check_lols",
+	DatabaseShared: "check_shared",
 }
 
 // ValidAction reports whether action is one SetSpamDBAction accepts.
@@ -118,25 +122,47 @@ func writeDatabase(chatID int64, database string, on bool, current *models.SpamD
 	column := databaseColumns[database]
 	row := map[string]any{column: on}
 	if !on {
-		other, otherOn := "check_lols", current.CheckLols
-		if database == DatabaseLols {
-			other, otherOn = "check_cas", current.CheckCAS
+		otherOn := false
+		for other, otherColumn := range databaseColumns {
+			if other == database {
+				continue
+			}
+			otherOn = otherOn || databaseOn(current, other)
+			// The check constraint applies to the row an upsert proposes,
+			// even when it then updates an existing row, and a first write
+			// inserts it as is, so the proposal carries every other database
+			// as it was read: at least one of them is on.
+			row[otherColumn] = databaseOn(current, other)
 		}
 		if !otherOn {
 			return ErrLastDatabase
 		}
-		// The check constraint applies to the row an upsert proposes, even
-		// when it then updates an existing row, so the proposal carries the
-		// other database as it is: on.
-		row[other] = true
 	}
 
 	err := upsert(chatID, column, row)
 	if isLastDatabaseViolation(err) {
-		// Another admin switched the other database off after current was read.
+		// Another admin switched every other database off after current was
+		// read.
 		return ErrLastDatabase
 	}
 	return err
+}
+
+// databaseOn reports whether settings has database switched on. A nil row
+// counts as every database off.
+func databaseOn(settings *models.SpamDBSettings, database string) bool {
+	if settings == nil {
+		return false
+	}
+	switch database {
+	case DatabaseCAS:
+		return settings.CheckCAS
+	case DatabaseLols:
+		return settings.CheckLols
+	case DatabaseShared:
+		return settings.CheckShared
+	}
+	return false
 }
 
 // databasesCheck is the constraint that keeps at least one database on.

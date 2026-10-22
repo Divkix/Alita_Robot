@@ -1,5 +1,6 @@
 // Package spamdb looks a Telegram user up in the CAS (cas.chat) and lols.bot
-// spam databases, so a chat can act on a known spammer when they join.
+// spam databases and in the bot's own shared reputation aggregate, so a chat
+// can act on a known spammer when they join.
 //
 // A failed lookup is an error, never a "clean" verdict: callers let the join
 // through and nothing is cached, so the next join asks again.
@@ -22,14 +23,16 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/reputation"
 )
 
 // Source is a spam database a chat can check new members against.
 type Source string
 
 const (
-	SourceCAS  Source = "cas"
-	SourceLols Source = "lols"
+	SourceCAS    Source = "cas"
+	SourceLols   Source = "lols"
+	SourceShared Source = "shared"
 )
 
 // Name is how the source is named to admins and in log-channel notices.
@@ -39,6 +42,8 @@ func (s Source) Name() string {
 		return "CAS"
 	case SourceLols:
 		return "lols.bot"
+	case SourceShared:
+		return "Shared bans"
 	}
 	return string(s)
 }
@@ -159,7 +164,7 @@ func (c *Checker) Check(ctx context.Context, userID int64, sources []Source) (So
 		return "", ErrInvalidUserID
 	}
 	for _, src := range sources {
-		if src != SourceCAS && src != SourceLols {
+		if src != SourceCAS && src != SourceLols && src != SourceShared {
 			return "", fmt.Errorf("%w: unknown %q", ErrNoSources, src)
 		}
 	}
@@ -200,6 +205,13 @@ func (c *Checker) Check(ctx context.Context, userID int64, sources []Source) (So
 // checkSource reports whether src lists userID. Concurrent checks of the same
 // user in the same database share one lookup.
 func (c *Checker) checkSource(ctx context.Context, src Source, userID int64) (bool, error) {
+	if src == SourceShared {
+		// reputation.Lookup keeps its own ten-minute verdict cache and fails
+		// open, so caching or deduplicating it here would only serve a second
+		// copy of the same answer. The count is not used by a join check.
+		listed, _, err := reputation.Lookup(ctx, userID)
+		return listed, err
+	}
 	if listed, ok := c.cached(ctx, src, userID); ok {
 		return listed, nil
 	}

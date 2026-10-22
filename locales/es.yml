@@ -1736,7 +1736,7 @@ aispam_breaker_notice: "⚠️ Las revisiones de spam con IA están en pausa en 
 spamdb_help_msg: |
   <b>🛡 Base de spam</b>
 
-  Una comprobación opcional que busca a cada nuevo miembro en bases de spam al unirse y actúa sobre los que aparecen en ellas. Por defecto se consulta CAS (cas.chat); se puede añadir lols.bot.
+  Una comprobación opcional que busca a cada nuevo miembro en bases de spam al unirse y actúa sobre los que aparecen en ellas. Por defecto se consulta CAS (cas.chat); se pueden añadir lols.bot y la red Shared bans del propio bot.
 
   Nunca se comprueba a administradores, usuarios aprobados ni bots. Si no se puede contactar con una base, el miembro entra. Cada acción se informa solo en el canal de registro, nunca en el grupo.
 
@@ -1747,27 +1747,31 @@ spamdb_help_msg: |
 
   × /spamdb `<on/off>`: Activa o desactiva la comprobación en este chat.
 
-  × /spamdb db `<cas/lols>` `<on/off>`: Elige las bases. CAS está activada por defecto y al menos una debe seguir activada. lols.bot lista cuentas de forma más agresiva, así que habrá más falsos positivos.
+  × /spamdb db `<cas/lols/shared>` `<on/off>`: Elige las bases. CAS está activada por defecto y al menos una debe seguir activada. lols.bot lista cuentas de forma más agresiva, así que habrá más falsos positivos. Shared bans está desactivada por defecto, requiere la red de reputación compartida del operador y lista a usuarios que varios chats expulsaron recientemente.
 
   × /spamdb action `<ban/mute/log>`: Elige qué pasa con un miembro listado. Por defecto es ban; log solo lo informa.
 
 
-  La comprobación está desactivada en todos los chats hasta que un administrador la active. Al activarla, el ID de Telegram de cada nuevo miembro se envía a cada base elegida (cas.chat, lols.bot).
+  La comprobación está desactivada en todos los chats hasta que un administrador la active. Al activarla, el ID de Telegram de cada nuevo miembro se envía a cada base externa elegida (cas.chat, lols.bot). Shared bans se queda dentro del bot y no envía nada.
 spamdb_status_enabled: "La comprobación de bases de spam al unirse está <b>activada</b> en este chat. Los miembros listados reciben: <code>{action}</code>."
 spamdb_status_disabled: "La comprobación de bases de spam al unirse está <b>desactivada</b> en este chat. Actívala con <code>/spamdb on</code>."
 spamdb_status_databases: "<b>Bases:</b> {databases}. Cámbialas con <code>/spamdb db</code>."
+spamdb_status_db_on: "{database} (activada)"
+spamdb_status_db_off: "{database} (desactivada)"
 spamdb_status_globally_disabled: "⚠️ No disponible: el operador del bot ha desactivado la comprobación de la base de spam, así que no se comprueba a ningún miembro."
 spamdb_data_notice: "<b>Qué se envía:</b> el ID de Telegram de cada nuevo miembro, a {services}. Nada más sale del bot."
+spamdb_shared_data_notice: "<b>Shared bans</b> se calcula a partir de los eventos de moderación de este bot; no se envía nada de este chat ni de sus miembros para ello."
 spamdb_enabled_success: "✅ La comprobación de bases de spam al unirse ahora está <b>activada</b>. Los nuevos miembros se buscan en las bases elegidas al unirse."
 spamdb_disabled_success: "❌ La comprobación de bases de spam al unirse ahora está <b>desactivada</b>."
 spamdb_globally_disabled: "❌ No puedo activar la comprobación de bases de spam: el operador del bot la ha desactivado. No ha cambiado nada."
+spamdb_db_shared_disabled: "❌ No puedo activar Shared bans: el operador del bot no ha habilitado la red de reputación compartida. No ha cambiado nada."
 spamdb_invalid_option: "Solo entiendo una opción de: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>/<code>db</code>"
 spamdb_invalid_action: "Elige una acción de: <code>ban</code>/<code>mute</code>/<code>log</code>. Ejemplo: <code>/spamdb action mute</code>"
 spamdb_action_success: "✅ Los miembros listados ahora recibirán: <code>{action}</code>."
-spamdb_db_usage: "Elige una base y <code>on</code>/<code>off</code>: <code>cas</code> (CAS, activada por defecto) o <code>lols</code> (lols.bot). Ejemplo: <code>/spamdb db lols on</code>"
+spamdb_db_usage: "Elige una base y <code>on</code>/<code>off</code>: <code>cas</code> (CAS, activada por defecto), <code>lols</code> (lols.bot) o <code>shared</code> (Shared bans, desactivada por defecto). Ejemplo: <code>/spamdb db lols on</code>"
 spamdb_db_enabled: "✅ Ahora los nuevos miembros se buscarán en {database}."
 spamdb_db_disabled: "❌ Los nuevos miembros ya no se buscarán en {database}."
-spamdb_db_last: "❌ {database} es la única base que queda, así que sigue activada. Activa primero la otra o desactiva la comprobación con <code>/spamdb off</code>."
+spamdb_db_last: "❌ {database} es la única base que queda, así que sigue activada. Activa primero otra o desactiva la comprobación con <code>/spamdb off</code>."
 spamdb_db_lols_warning: "⚠️ lols.bot lista cuentas de forma más agresiva que CAS, así que habrá más falsos positivos. Considera <code>/spamdb action log</code> hasta que confíes en ella. El ID de Telegram de cada nuevo miembro ahora se envía a lols.bot."
 spamdb_db_enabled_idle: "✅ {database} está seleccionada, pero no se busca nada mientras la comprobación esté desactivada. Consulta su estado con <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot lista cuentas de forma más agresiva que CAS, así que habrá más falsos positivos. Considera <code>/spamdb action log</code> hasta que confíes en ella. Cuando la comprobación esté activa, el ID de Telegram de cada nuevo miembro se enviará a lols.bot."

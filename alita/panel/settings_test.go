@@ -161,7 +161,8 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatal("antispam features must default off")
 	}
 	if fieldString(t, body, "antispam.spamdb_action") != "ban" ||
-		!fieldBool(t, body, "antispam.spamdb_cas") || fieldBool(t, body, "antispam.spamdb_lols") {
+		!fieldBool(t, body, "antispam.spamdb_cas") || fieldBool(t, body, "antispam.spamdb_lols") ||
+		fieldBool(t, body, "antispam.spamdb_shared") {
 		t.Fatalf("spamdb defaults = %+v", body.Modules[5])
 	}
 	if fieldInt(t, body, "antiraid.raid_time") != 21600 || fieldInt(t, body, "antiraid.raid_action_time") != 3600 ||
@@ -208,6 +209,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "read-only field", body: `{"changes":{"locks.active":[]}}`, wantKeys: []string{"locks.active"}},
 		{name: "antiflood range", body: `{"changes":{"antiflood.limit":2}}`, wantKeys: []string{"antiflood.limit"}},
 		{name: "last spam database", body: `{"changes":{"antispam.spamdb_cas":false}}`, wantKeys: []string{"antispam.spamdb_cas"}},
+		{name: "no spam database left", body: `{"changes":{"antispam.spamdb_cas":false,"antispam.spamdb_shared":false}}`, wantKeys: []string{"antispam.spamdb_cas", "antispam.spamdb_shared"}},
 		{name: "valid beside invalid", body: `{"changes":{"greetings.welcome_enabled":false,"captcha.timeout":99}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
@@ -451,6 +453,71 @@ func TestSettingsPatchRefusesGloballyDisabledFeatures(t *testing.T) {
 	}
 	if aispam.IsAISpamEnabled(chatID) {
 		t.Fatal("AI spam stayed on after the panel disabled it")
+	}
+}
+
+// Shared bans is a third spam database in the panel: off by default, refused
+// while the operator has not enabled the network, and part of the at-least-one
+// rule.
+func TestSettingsSharedSpamDatabase(t *testing.T) {
+	rawLocale, err := os.ReadFile(filepath.Join("..", "..", "locales", "en.yml"))
+	if err != nil {
+		t.Fatalf("read locales/en.yml: %v", err)
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(map[string]string{"en": string(rawLocale)})
+	if err != nil {
+		t.Fatalf("override locales: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	target := settingsPath(chatID)
+
+	restore := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = restore })
+
+	body := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+	if fieldBool(t, body, "antispam.spamdb_shared") {
+		t.Fatal("antispam.spamdb_shared = true, want the shared source off by default")
+	}
+
+	// Without the operator's network the panel refuses the same way the
+	// command does, and writes nothing.
+	config.AppConfig.EnableReputation = false
+	recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+		`{"changes":{"antispam.spamdb_shared":true}}`, "application/json")
+	assertFieldRefusal(t, recorder, "antispam.spamdb_shared", "shared reputation")
+	if count := countChatRows(t, &models.SpamDBSettings{}, chatID); count != 0 {
+		t.Fatalf("refused shared write created %d rows", count)
+	}
+
+	// Enables run before disables, so switching shared on and CAS off in one
+	// batch does not trip the last-database constraint.
+	config.AppConfig.EnableReputation = true
+	recorder = panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+		`{"changes":{"antispam.spamdb_shared":true,"antispam.spamdb_cas":false}}`, "application/json")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("enable shared status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+	}
+	settings, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
+	if err != nil {
+		t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
+	}
+	if !settings.CheckShared || settings.CheckCAS {
+		t.Fatalf("spam db settings after patch = %+v, want shared only", settings)
+	}
+
+	// Shared is the last database now, so the panel refuses to leave none on.
+	recorder = panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+		`{"changes":{"antispam.spamdb_shared":false}}`, "application/json")
+	assertFieldRefusal(t, recorder, "antispam.spamdb_shared", "at least one spam database must stay on")
+	settings, err = spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
+	if err != nil {
+		t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
+	}
+	if !settings.CheckShared {
+		t.Fatal("Shared bans was switched off as the last database")
 	}
 }
 

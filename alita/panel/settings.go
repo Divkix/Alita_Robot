@@ -230,6 +230,7 @@ func panelSettings(access chatAccess) settingsResponse {
 				[]string{spamdbsettings.ActionBan, spamdbsettings.ActionMute, spamdbsettings.ActionLog}),
 			settingsBool("spamdb_cas", spamDB.CheckCAS, true, true),
 			settingsBool("spamdb_lols", spamDB.CheckLols, false, true),
+			settingsBool("spamdb_shared", spamDB.CheckShared, false, true),
 		}},
 		{Key: "antiraid", Label: "Antiraid", Fields: []settingsField{
 			settingsInt("raid_time", raid.RaidTime, 21600, true),
@@ -375,19 +376,20 @@ func validateSettingsChanges(changes map[string]json.RawMessage, current setting
 	}
 
 	// The table constraint refuses a row with no spam database left on. Check
-	// the batch as a whole so enabling one and disabling the other is allowed.
-	cas, casChanged := updates["antispam.spamdb_cas"].(bool)
-	if !casChanged {
-		value, _ := index["antispam.spamdb_cas"].Value.(bool)
-		cas = value
+	// the batch as a whole so enabling one and disabling another is allowed.
+	databases := []string{"antispam.spamdb_cas", "antispam.spamdb_lols", "antispam.spamdb_shared"}
+	anyOn, anyChanged := false, false
+	for _, key := range databases {
+		on, changed := updates[key].(bool)
+		if !changed {
+			value, _ := index[key].Value.(bool)
+			on = value
+		}
+		anyOn = anyOn || on
+		anyChanged = anyChanged || changed
 	}
-	lols, lolsChanged := updates["antispam.spamdb_lols"].(bool)
-	if !lolsChanged {
-		value, _ := index["antispam.spamdb_lols"].Value.(bool)
-		lols = value
-	}
-	if (casChanged || lolsChanged) && !cas && !lols {
-		for _, key := range []string{"antispam.spamdb_cas", "antispam.spamdb_lols"} {
+	if anyChanged && !anyOn {
+		for _, key := range databases {
 			if _, changed := updates[key]; changed {
 				fieldErrors[key] = "at least one spam database must stay on"
 			}
@@ -490,6 +492,10 @@ func validateAntispamValue(field string, value any) string {
 	case "spamdb_enabled":
 		if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableSpamDB) {
 			return settingsRefusal("spamdb_globally_disabled")
+		}
+	case "spamdb_shared":
+		if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableReputation) {
+			return settingsRefusal("spamdb_db_shared_disabled")
 		}
 	}
 	return ""
@@ -637,6 +643,8 @@ func applyAntispamChange(chatID int64, field string, value any) error {
 		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseCAS, value.(bool))
 	case "spamdb_lols":
 		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseLols, value.(bool))
+	case "spamdb_shared":
+		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseShared, value.(bool))
 	}
 	return fmt.Errorf("unknown antispam setting %q", field)
 }

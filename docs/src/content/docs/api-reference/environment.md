@@ -73,8 +73,9 @@ chats cannot bring their own. Leaving it empty disables the feature and makes
 
 Operator kill switch for the spam database join check (`/spamdb`). When
 `false`, no chat sends new members' user IDs to CAS or lols.bot regardless of
-its per-chat settings, and `/spamdb on` refuses. The check is off in every chat
-until an admin turns it on; CAS is its default database and lols.bot is opt-in
+its per-chat settings, no shared reputation lookup runs, and `/spamdb on`
+refuses. The check is off in every chat until an admin turns it on; CAS is its
+default database and lols.bot and the bot's own Shared bans network are opt-in
 per chat.
 
 | Property | Value |
@@ -107,7 +108,10 @@ lookup as not listed so a join is never blocked. An unban in a chat that never
 removed the user changes nothing. Only user IDs and moderation actions are
 aggregated; no message content is stored. The feature is off by default and
 every chat stays opted out until its spam database settings enable the shared
-source.
+source with `/spamdb db shared on`; `/spamdb db shared off` opts out. A chat
+that opts out stops being looked up at once, while its older events stay part
+of the aggregate until they age out (180 days). See
+[Spamdb commands](/commands/spamdb/#shared-bans) for the policy.
 
 | Property | Value |
 |----------|-------|
@@ -743,7 +747,7 @@ ENABLE_DIGEST=# operator kill switch for the weekly digest and /digest (default:
 ENABLE_PERFORMANCE_MONITORING=# (default: true in prod, false in debug)
 ENABLE_PPROF=# enable pprof endpoints (default: false)
 ENABLE_REPUTATION=# operator kill switch for shared reputation lookups (default: false)
-ENABLE_SPAMDB=# operator kill switch for the /spamdb CAS and lols.bot join check (default: true)
+ENABLE_SPAMDB=# operator kill switch for the /spamdb join check (default: true)
 ENABLED_LOCALES=# comma-separated language codes (default: en)
 HTTP_MAX_IDLE_CONNS=# (default: 100)
 HTTP_MAX_IDLE_CONNS_PER_HOST=# (default: 50)
