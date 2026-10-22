@@ -1112,7 +1112,7 @@ bans_cannot_identify_user: "Tidak dapat mengidentifikasi pengguna dari pesan yan
 mutes_tmute_message: "Diam...\nDibisukan %s untuk %s"
 mutes_mute_message: "Diam...\nDibisukan %s."
 mutes_reason_suffix: "\n<b>Alasan: </b>%s"
-mutes_unmute_button: Buka Bisu (Khusus Admin)
+mutes_unmute_button: Bunyikan (Khusus Admin)
 mutes_mute_admin_error: Mengapa saya membisukan admin? Itu terdengar seperti ide yang sangat bodoh.
 mutes_restrict_self_error: Mengapa saya membatasi diri saya sendiri?
 mutes_unmute_message: "Baik!\nSaya akan izinkan %s untuk berbicara lagi."
@@ -1519,8 +1519,8 @@ captcha_internal_update_error: "Kesalahan internal saat memperbarui captcha."
 captcha_internal_error: "Terjadi kesalahan internal saat memperbarui pengaturan captcha. Silakan coba lagi."
 
 # Greetings additional strings
-greetings_goodbye_enable: "Saya akan mengucapkan selamat tinggal pengguna mulai sekarang."
-greetings_goodbye_disable: "Saya tidak akan mengucapkan selamat tinggal pengguna mulai sekarang."
+greetings_goodbye_enable: "Saya akan mengucapkan selamat tinggal kepada pengguna mulai sekarang."
+greetings_goodbye_disable: "Saya tidak akan mengucapkan selamat tinggal kepada pengguna mulai sekarang."
 greetings_goodbye_invalid: "Saya hanya mengerti 'on/yes' atau 'off/no'!"
 greetings_goodbye_reset: "Berhasil mengatur ulang pesan selamat tinggal khusus ke default!"
 greetings_clean_welcome_should: "Saya seharusnya menghapus pesan selamat datang hingga dua hari."
@@ -1648,14 +1648,14 @@ captcha_status_disabled: "dinonaktifkan"
 button_yes: "Ya"
 button_no: "Tidak"
 button_back: "Kembali"
-button_unmute_admins: "Buka Bisu (Khusus Admin)"
+button_unmute_admins: "Bunyikan (Khusus Admin)"
 button_formatting: "Pemformatan"
 button_click_me: "Klik Saya!"
 button_ban: "Blokir"
 button_kick: "Tendang"
 button_mute: "Bisu"
 button_unban: "Buka Blokir"
-button_unmute: "Buka Bisu"
+button_unmute: "Bunyikan"
 
 # Captcha module strings
 captcha_mode_math_desc: "masalah matematika"
@@ -1738,7 +1738,7 @@ aispam_data_notice: |
   Nama, nama pengguna, ID pengguna, nomor telepon, atau pesan dari chat lain tidak dikirim.
 aispam_enabled_success: "✅ Filter spam AI sekarang <b>aktif</b>. Pesan yang diyakini model sebagai spam akan dihapus."
 aispam_disabled_success: "❌ Filter spam AI sekarang <b>nonaktif</b>."
-aispam_no_key: "❌ Saya tidak dapat mengaktifkan filter spam AI: operator bot belum mengonfigurasi kunci API TypeSafe. Tidak ada yang berubah."
+aispam_no_key: "❌ Saya tidak dapat mengaktifkan filter spam AI: operator bot belum mengonfigurasi kunci API. Tidak ada yang berubah."
 aispam_globally_disabled: "❌ Saya tidak dapat mengaktifkan filter spam AI: operator bot telah menonaktifkannya secara global. Tidak ada yang berubah."
 aispam_invalid_option: "Saya hanya memahami salah satu opsi: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ Pemeriksaan spam AI dijeda di chat ini selama beberapa menit setelah penyedia AI gagal berulang kali. Pemeriksaan lanjut sendiri, dan filter tetap aktif."
@@ -2432,7 +2432,7 @@ approvals_approved_list_file_caption: "Daftar pengguna yang disetujui untuk %s"
 approvals_list_file_error: "Gagal membuat file pengguna yang disetujui."
 approvals_unapproveall_ask: "Apakah Anda yakin ingin menghapus SEMUA pengguna yang disetujui?"
 approvals_unapproveall_done: "Semua pengguna yang disetujui telah dihapus."
-approvals_unapproveall_cancel: "Pembatalan penghapusan semua disetujui."
+approvals_unapproveall_cancel: "Pembatalan penghapusan semua persetujuan."
 approvals_approve_error: "Gagal menyetujui pengguna. Silakan coba lagi."
 approvals_unapprove_error: "Gagal menghapus pengguna dari daftar yang disetujui."
 approvals_unapproveall_error: "Gagal menghapus semua pengguna yang disetujui: {error}"

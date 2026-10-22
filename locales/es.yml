@@ -1111,7 +1111,7 @@ bans_restrict_muted: "¡El administrador %s silenció a %s en el chat!"
 bans_restrict_banned: "¡El administrador %s baneó a %s de este chat!"
 bans_unrestrict_question: ¿Cómo puedo des-restringir a este usuario?
 bans_unrestrict_admin_error: ¿Por qué expulsaría a un administrador? Eso suena como una idea bastante tonta.
-bans_unrestrict_self_error: No tú
+bans_unrestrict_self_error: Tú no
 bans_unrestrict_unmuted: "¡Desilenciado por %s!"
 bans_unrestrict_unbanned: "¡Desbaneado por %s!"
 bans_invalid_callback_data: "Datos de callback inválidos."
@@ -1365,9 +1365,9 @@ captcha_timeout_failure_banned: "❌ %s no completó la verificación captcha y 
 captcha_timeout_failure_muted: "❌ %s no completó la verificación captcha y ha sido silenciado."
 captcha_timeout_stored_note: "📝 %d mensaje(s) fueron intentados pero eliminados debido a verificación incompleta."
 captcha_stored_messages_summary: "📝 %s intentó enviar %d mensaje(s) (%s) antes de la verificación"
-captcha_pending_usage: "Uso: <code>/captchapending @usuario</code> o <code>/captchapending user_id</code>"
+captcha_pending_usage: "Uso: <code>/captchapending @user</code> o <code>/captchapending user_id</code>"
 captcha_no_pending_messages: "No se encontraron mensajes pendientes para este usuario."
-captcha_clear_usage: "Uso: <code>/captchaclear @usuario</code> o <code>/captchaclear user_id</code>"
+captcha_clear_usage: "Uso: <code>/captchaclear @user</code> o <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Error al eliminar mensajes almacenados. Inténtalo de nuevo."
 captcha_clear_success: "✅ Se eliminaron todos los mensajes almacenados para el usuario %d"
 
@@ -1747,7 +1747,7 @@ aispam_data_notice: |
   No se envían nombres, nombres de usuario, identificadores, números de teléfono ni mensajes de otros chats.
 aispam_enabled_success: "✅ El filtro de spam con IA está ahora <b>activado</b>. Se eliminarán los mensajes de los que el modelo esté seguro de que son spam."
 aispam_disabled_success: "❌ El filtro de spam con IA está ahora <b>desactivado</b>."
-aispam_no_key: "❌ No puedo activar el filtro de spam con IA: el operador del bot no ha configurado una clave de API de TypeSafe. No ha cambiado nada."
+aispam_no_key: "❌ No puedo activar el filtro de spam con IA: el operador del bot no ha configurado una clave de API. No ha cambiado nada."
 aispam_globally_disabled: "❌ No puedo activar el filtro de spam con IA: el operador del bot lo ha desactivado globalmente. No ha cambiado nada."
 aispam_invalid_option: "Solo entiendo una opción de: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ Las revisiones de spam con IA están en pausa en este chat durante unos minutos tras fallos repetidos del proveedor de IA. Se reanudan solas y el filtro sigue activado."
