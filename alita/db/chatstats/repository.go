@@ -1,6 +1,7 @@
 // Package chatstats stores per-chat activity counters: per UTC day
 // (chat_daily_stats), per UTC hour (chat_hourly_stats) and per member and day
-// (chat_member_daily_stats).
+// (chat_member_daily_stats), plus one Telegram member count per chat and day
+// (chat_member_counts, membercounts.go).
 //
 // The tables are written once per flush interval, never per event, and read
 // by /digest now and the panel; reads deliberately bypass the read-through

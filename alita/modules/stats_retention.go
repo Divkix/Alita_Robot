@@ -27,6 +27,8 @@ var (
 	activityStatsTables = []activityStatsTable{
 		{name: "chat_hourly_stats", retentionDays: activityStatsRetentionDays, deleteBefore: chatstats.DeleteHourlyBefore},
 		{name: "chat_member_daily_stats", retentionDays: activityStatsRetentionDays, deleteBefore: chatstats.DeleteMemberDailyBefore},
+		// One row per chat and day, like chat_daily_stats, so the same window.
+		{name: "chat_member_counts", retentionDays: digestStatsRetentionDays, deleteBefore: chatstats.DeleteMemberCountsBefore},
 	}
 	activityStatsRetentionOnce sync.Once
 )

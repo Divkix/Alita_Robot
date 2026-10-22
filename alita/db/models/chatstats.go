@@ -47,3 +47,16 @@ type ChatMemberDailyStat struct {
 func (ChatMemberDailyStat) TableName() string {
 	return "chat_member_daily_stats"
 }
+
+// ChatMemberCount is one chat's Telegram member count on one UTC day. The row
+// doubles as the day's claim: Count is nil from the claim until the count is
+// written, and stays nil when Telegram refused permanently.
+type ChatMemberCount struct {
+	ChatID int64  `gorm:"column:chat_id;primaryKey;autoIncrement:false" json:"chat_id"`
+	Day    string `gorm:"column:day;primaryKey;size:10;index:idx_chat_member_counts_day" json:"day"`
+	Count  *int64 `gorm:"column:count" json:"count"`
+}
+
+func (ChatMemberCount) TableName() string {
+	return "chat_member_counts"
+}

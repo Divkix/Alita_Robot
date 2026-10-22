@@ -19,7 +19,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testdb.Run(m, &models.ChatDailyStat{}, &models.ChatHourlyStat{}, &models.ChatMemberDailyStat{}))
+	os.Exit(testdb.Run(m, &models.ChatDailyStat{}, &models.ChatHourlyStat{}, &models.ChatMemberDailyStat{}, &models.ChatMemberCount{}))
 }
 
 var testChatIDSeq atomic.Int64

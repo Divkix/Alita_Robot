@@ -204,6 +204,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `memberCounterLimit`) in one transaction every 60 s and on shutdown (before DB close). Never add a DB write per
   message; joins count after
   `claimRecentJoinProcessing`, leaves in `leftMember`. Counts are approximate across a crash by design.
+- `alita/membersnapshot` stores one `getChatMemberCount` per chat active yesterday or today (UTC) per day in
+  `chat_member_counts`. The row is the claim (inserted with `count` NULL, filled by the replica whose insert won): a
+  transient error deletes it to retry, a permanent one keeps it NULL. Readers skip NULL rows.
 - A `/settings` summary toggle (`settingsToggles`, `settings_toggles.go`) is keyed by its row's `Command` and cycles
   the values that row shows. It must check what its command checks (`botAdmin`, and `right`, which returns a
   refusal key and sends nothing) and write through the same repository call, with the command's side effects (`/captcha off` runs

@@ -45,6 +45,7 @@ func TestMain(m *testing.M) {
 		&models.ChatDailyStat{},
 		&models.ChatHourlyStat{},
 		&models.ChatMemberDailyStat{},
+		&models.ChatMemberCount{},
 		&models.WarnSettings{},
 		&models.Warns{},
 		&models.WarnEntry{},
