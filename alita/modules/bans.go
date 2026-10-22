@@ -282,10 +282,10 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			if err != nil {
-				return err
-			}
-			_, err = c.Msg.Delete(c.Bot, nil)
+			return err
+		},
+		cleanup: func(c *moderationCtx, _ *target) error {
+			_, err := c.Msg.Delete(c.Bot, nil)
 			return err
 		},
 		reply:       nil,
@@ -584,6 +584,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			log.Error(err)
 			return err
 		}
+		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionKick, "")
 		temp, _ := tr.GetString("bans_restrict_kicked")
 		helpText = fmt.Sprintf(temp,
 			formatting.MentionHtml(user.Id, user.FirstName),
@@ -598,6 +599,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			log.Error(err)
 			return err
 		}
+		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionMute, "")
 		temp, _ := tr.GetString("bans_restrict_muted")
 		helpText = fmt.Sprintf(temp,
 			formatting.MentionHtml(user.Id, user.FirstName),
@@ -609,6 +611,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			log.Error(err)
 			return err
 		}
+		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
 		temp, _ := tr.GetString("bans_restrict_banned")
 		helpText = fmt.Sprintf(temp,
 			formatting.MentionHtml(user.Id, user.FirstName),
@@ -796,6 +799,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 				return failAction(err)
 			}
 		}
+		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionUnban, "")
 
 		temp, _ := tr.GetString("bans_unrestrict_unbanned")
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
@@ -833,9 +837,9 @@ func moderationSkick(m *moduleStruct) *moderationCommand {
 		extract:  extractUserOnly,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			if err := kickMember(c.Bot, c.Chat.Id, t.userID); err != nil {
-				return err
-			}
+			return kickMember(c.Bot, c.Chat.Id, t.userID)
+		},
+		cleanup: func(c *moderationCtx, _ *target) error {
 			_, err := c.Msg.Delete(c.Bot, nil)
 			return err
 		},

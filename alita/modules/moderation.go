@@ -154,10 +154,14 @@ type replyFn func(c *moderationCtx, t *target) error
 // It eliminates the 30+ lines of boilerplate that every moderation command repeats.
 type moderationCommand struct {
 	// command names the help entry a wrong call answers with (commandHelpModules).
-	command   string
-	extract   func(*moderationCtx) (target, error)
-	validate  validateTargetFn
-	execute   actionFn
+	command  string
+	extract  func(*moderationCtx) (target, error)
+	validate validateTargetFn
+	execute  actionFn
+	// cleanup runs after the event is recorded, for a step that must not
+	// decide whether the action counts: /sban and /skick delete the command
+	// message after banning or kicking, and a failed delete loses nothing.
+	cleanup   actionFn
 	reply     replyFn
 	module    *moduleStruct
 	logAction string
@@ -213,10 +217,20 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	// The action happened: record its evidence row before the reply, so a
-	// reply failure cannot lose it. The write never affects the command.
+	// The action happened: record its evidence row before any cleanup or
+	// reply, so a failure there cannot lose it. The write never affects the
+	// command.
 	if cmd.eventAction != "" {
-		recordModerationEvent(mc, &tgt, cmd.eventAction)
+		recordModerationEvent(mc.Chat.Id, mc.User.Id, tgt.userID, cmd.eventAction, tgt.reason)
+	}
+
+	// Cleanup runs after the record: the ban or kick stands even when the
+	// command message's delete fails.
+	if cmd.cleanup != nil {
+		if err := cmd.cleanup(mc, &tgt); err != nil {
+			log.Error(err)
+			return err
+		}
 	}
 
 	// Build and send the success reply.
@@ -240,18 +254,18 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 // recordModerationEvent appends the moderation_events row for an action that
 // already succeeded. It returns nothing on purpose: a database error is
 // logged and never changes the reply or the action's success.
-func recordModerationEvent(c *moderationCtx, t *target, action string) {
+func recordModerationEvent(chatID, actorID, targetID int64, action, reason string) {
 	err := moderation.Record(models.ModerationEvent{
-		ChatId:       c.Chat.Id,
-		ActorId:      c.User.Id,
-		TargetUserId: t.userID,
+		ChatId:       chatID,
+		ActorId:      actorID,
+		TargetUserId: targetID,
 		Action:       action,
-		Reason:       t.reason,
+		Reason:       reason,
 		CreatedAt:    time.Now().UTC(),
 	})
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
-			"chat_id": c.Chat.Id,
+			"chat_id": chatID,
 			"action":  action,
 		}).Error("[Moderation] Failed to record the event")
 	}
