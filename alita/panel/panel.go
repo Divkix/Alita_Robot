@@ -124,6 +124,9 @@ func (p *Panel) routes() {
 	}
 
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/overview", p.handleOverview)
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/heatmap", p.handleHeatmap)
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/growth", p.handleGrowth)
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/top-members", p.handleTopMembers)
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/warnings", p.handleWarnings)
 	p.mux.HandleFunc("DELETE /panel/api/v1/chats/{id}/warnings", p.handleRemoveWarning)
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/timeline", p.handleTimeline)

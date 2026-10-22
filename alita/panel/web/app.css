@@ -790,7 +790,8 @@ body.has-save-bar .toast {
 
 /* Overview. */
 
-.overview-content {
+.overview-content,
+.window-content {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -915,6 +916,94 @@ body.has-save-bar .toast {
 
 .swatch.series-leaves {
 	background: var(--destructive);
+}
+
+/* Activity and top members. */
+
+.analytics-section h3 {
+	margin: 16px 16px 6px;
+	color: var(--section-header);
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.heat-cell {
+	fill: var(--button);
+}
+
+.heat-cell.heat-empty {
+	fill: none;
+	stroke: var(--separator);
+	stroke-width: 0.5;
+}
+
+.series-members {
+	stroke: var(--button);
+}
+
+.series-dot {
+	fill: var(--button);
+}
+
+.chart-caption {
+	margin: 6px 16px 0;
+	color: var(--hint);
+	font-size: 13px;
+}
+
+.member-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	border-radius: var(--radius);
+	background: var(--card);
+	list-style: none;
+	overflow: hidden;
+}
+
+.member-list li {
+	padding: 10px 16px;
+	border-bottom: 0.5px solid var(--separator);
+}
+
+.member-list li:last-child {
+	border-bottom: none;
+}
+
+.member-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 6px;
+}
+
+.member-name {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.member-count {
+	flex: none;
+	color: var(--hint);
+	font-variant-numeric: tabular-nums;
+}
+
+.member-bar {
+	display: block;
+	width: 100%;
+	height: 6px;
+}
+
+.member-bar-track {
+	fill: var(--separator);
+}
+
+.member-bar-fill {
+	fill: var(--button);
 }
 
 .collection-note {
