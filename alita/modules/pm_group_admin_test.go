@@ -163,6 +163,9 @@ func TestAdminCommandsInPMWithGroupActOnThatGroup(t *testing.T) {
 			if tc.acted(t, f, f.admin.Id, f.admin.Id) {
 				t.Fatalf("/%s from PM acted on the PM", tc.cmd)
 			}
+			if !calledFor(f, "sendMessage", f.admin.Id) || calledFor(f, "sendMessage", f.chat.Id) {
+				t.Fatalf("/%s from PM answered elsewhere than in the PM; sent:\n%s", tc.cmd, sentText(f.client))
+			}
 			requireConnectedTo(t, f.admin.Id, connected)
 		})
 	}
