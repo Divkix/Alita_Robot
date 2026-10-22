@@ -181,88 +181,20 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-//nolint:dupl // lockPerm has symmetric logic with unlockPerm
-func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := ctx.EffectiveChat
-	args := ctx.Args()[1:]
-
-	sender := ctx.EffectiveSender
-	if sender == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, sender.Id()) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-
-	if len(args) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("locks_what_to_lock")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	toLock := make([]string, 0, len(args))
-	for _, perm := range args {
-		if !slices.Contains(m.getLockMapAsArray(), perm) {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("locks_invalid_lock_type")
-			text := fmt.Sprintf(temp, html.EscapeString(perm))
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			return ext.EndGroups
-		}
-		toLock = append(toLock, perm)
-	}
-
-	failedLocks := make([]string, 0, len(toLock))
-	for _, perm := range toLock {
-		if err := locks.UpdateLock(chat.Id, perm, true); err != nil {
-			log.Warnf("[Locks] Failed to lock %s in chat %d: %v", perm, chat.Id, err)
-			failedLocks = append(failedLocks, perm)
-		}
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if len(failedLocks) > 0 {
-		text, _ := tr.GetString("locks_lock_failed")
-		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	} else {
-		temp, _ := tr.GetString("locks_locked_successfully")
-		text := fmt.Sprintf(temp, strings.Join(toLock, "\n - "))
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
-
-	return ext.EndGroups
+// setLocksKeys are the replies of /lock or /unlock.
+type setLocksKeys struct {
+	whatKey, failedKey, doneKey, verb string
 }
 
-//nolint:dupl // unlockPerm has symmetric logic with lockPerm
+func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.setLocks(b, ctx, true, setLocksKeys{"locks_what_to_lock", "locks_lock_failed", "locks_locked_successfully", "lock"})
+}
+
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.setLocks(b, ctx, false, setLocksKeys{"locks_what_to_unlock", "locks_unlock_failed", "locks_unlocked_successfully", "unlock"})
+}
+
+func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys setLocksKeys) error {
 	msg := ctx.EffectiveMessage
 	connectedChat := resolveAdminChat(b, ctx, true)
 	if connectedChat == nil {
@@ -285,60 +217,42 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if len(args) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("locks_what_to_unlock")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	reply := func(text string) error {
+		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
 			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
 	}
 
-	toUnlock := make([]string, 0, len(args))
-	for _, perm := range args {
-		if !slices.Contains(m.getLockMapAsArray(), perm) {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("locks_invalid_lock_type")
-			text := fmt.Sprintf(temp, html.EscapeString(perm))
-			_, err := msg.Reply(b, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			return ext.EndGroups
-		}
-		toUnlock = append(toUnlock, perm)
+	if len(args) == 0 {
+		text, _ := tr.GetString(keys.whatKey)
+		return reply(text)
 	}
 
-	failedLocks := make([]string, 0, len(toUnlock))
-	for _, perm := range toUnlock {
-		if err := locks.UpdateLock(chat.Id, perm, false); err != nil {
-			log.Warnf("[Locks] Failed to unlock %s in chat %d: %v", perm, chat.Id, err)
+	lockTypes := m.getLockMapAsArray()
+	for _, perm := range args {
+		if !slices.Contains(lockTypes, perm) {
+			temp, _ := tr.GetString("locks_invalid_lock_type")
+			return reply(fmt.Sprintf(temp, html.EscapeString(perm)))
+		}
+	}
+
+	failedLocks := make([]string, 0, len(args))
+	for _, perm := range args {
+		if err := locks.UpdateLock(chat.Id, perm, lock); err != nil {
+			log.Warnf("[Locks] Failed to %s %s in chat %d: %v", keys.verb, perm, chat.Id, err)
 			failedLocks = append(failedLocks, perm)
 		}
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if len(failedLocks) > 0 {
-		text, _ := tr.GetString("locks_unlock_failed")
-		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	} else {
-		temp, _ := tr.GetString("locks_unlocked_successfully")
-		text := fmt.Sprintf(temp, strings.Join(toUnlock, "\n - "))
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		text, _ := tr.GetString(keys.failedKey)
+		return reply(fmt.Sprintf(text, strings.Join(failedLocks, ", ")))
 	}
-
-	return ext.EndGroups
+	temp, _ := tr.GetString(keys.doneKey)
+	return reply(fmt.Sprintf(temp, strings.Join(args, "\n - ")))
 }
 
 type chatLocksMemoKey struct{ chatID int64 }
