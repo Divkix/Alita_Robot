@@ -349,11 +349,9 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "notes") {
 		return ext.EndGroups
 	}
-	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
-	if connectedChat == nil {
+	if resolveMemberChat(b, ctx, true) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -779,11 +777,9 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "get") {
 		return ext.EndGroups
 	}
-	connectedChat := chat_status.IsUserConnected(b, ctx, false, false)
-	if connectedChat == nil {
+	if resolveMemberChat(b, ctx, false) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	var err error

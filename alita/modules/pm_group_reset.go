@@ -32,12 +32,7 @@ func groupOnlyMemberChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	if !inPM(ctx.EffectiveMessage) {
 		return ctx.EffectiveChat
 	}
-	chat := chat_status.IsUserConnected(b, ctx, false, false)
-	if chat == nil {
-		return nil
-	}
-	ctx.EffectiveChat = chat
-	return chat
+	return resolveMemberChat(b, ctx, false)
 }
 
 // groupOnlyChatCheck runs groupOnlyChat first among a WrapCommand command's
