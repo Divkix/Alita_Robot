@@ -3,7 +3,7 @@
 // Server data reaches the DOM only through textContent and SVG attributes, so
 // a chat title or an action value can never become markup.
 import { api } from "../api.js";
-import { clear, showError, textElement, userLabel } from "../ui.js";
+import { clear, haptic, loading, relativeTime, showError, textElement, userLabel } from "../ui.js";
 
 const WINDOWS = [7, 30, 90];
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -36,9 +36,10 @@ function svgNode(tag, attributes) {
 // activityChart draws one line per counter over the zero-filled series: no
 // chart library, no innerHTML, and the scale starts at a real zero baseline.
 function activityChart(series) {
-	const width = 640;
-	const height = 180;
-	const left = 40;
+	// Sized near a phone's CSS width so the 11px labels stay legible.
+	const width = 360;
+	const height = 170;
+	const left = 36;
 	const right = 12;
 	const top = 16;
 	const bottom = 28;
@@ -66,7 +67,12 @@ function activityChart(series) {
 		}),
 	);
 
-	const peakLabel = svgNode("text", { x: 4, y: top + 8, class: "chart-label" });
+	chart.append(
+		svgNode("line", { x1: left, y1: y(peak), x2: width - right, y2: y(peak), class: "chart-grid" }),
+		svgNode("line", { x1: left, y1: y(peak / 2), x2: width - right, y2: y(peak / 2), class: "chart-grid" }),
+	);
+
+	const peakLabel = svgNode("text", { x: 4, y: top + 4, class: "chart-label" });
 	peakLabel.textContent = number(peak);
 	chart.append(peakLabel);
 
@@ -145,11 +151,14 @@ function recentSection(events, names) {
 	list.className = "event-list";
 	for (const event of events) {
 		const item = document.createElement("li");
-		item.className = "event-row";
+		item.className = `event-row action-${event.action}`;
+		const time = textElement("time", relativeTime(event.created_at) || formatTime(event.created_at), "event-time");
+		time.dateTime = String(event.created_at ?? "");
+		time.title = formatTime(event.created_at);
 		item.append(
-			textElement("span", String(event.action ?? ""), "event-action"),
+			textElement("span", String(event.action ?? ""), "badge"),
 			textElement("span", `${partyLabel(names, event.actor_id)} → ${partyLabel(names, event.target_user_id)}`, "event-parties"),
-			textElement("span", formatTime(event.created_at), "event-time"),
+			time,
 		);
 		list.append(item);
 	}
@@ -196,7 +205,10 @@ function drawOverview(root, data) {
 		(point) => count(point, "messages") > 0 || count(point, "joins") > 0 || count(point, "leaves") > 0,
 	);
 	if (hasActivity) {
-		root.append(activityChart(series), chartLegend());
+		const card = document.createElement("div");
+		card.className = "chart-card";
+		card.append(activityChart(series), chartLegend());
+		root.append(card);
 	} else {
 		root.append(
 			textElement(
@@ -215,6 +227,8 @@ export async function renderOverview(root, chatID) {
 
 	const controls = document.createElement("div");
 	controls.className = "window-switch";
+	controls.setAttribute("role", "group");
+	controls.setAttribute("aria-label", "Activity window");
 	const content = document.createElement("div");
 	content.className = "overview-content";
 	root.append(controls, content);
@@ -236,13 +250,13 @@ export async function renderOverview(root, chatID) {
 	async function load() {
 		const current = ++request;
 		clear(content);
-		content.append(textElement("p", "Loading activity…", "status"));
+		content.append(loading("Loading activity…"));
 		let data;
 		try {
 			data = await api(`chats/${encodeURIComponent(chatID)}/overview?days=${days}`);
 		} catch (error) {
 			if (current === request) {
-				showError(content, error);
+				showError(content, error, () => void load());
 			}
 			return;
 		}
@@ -261,6 +275,7 @@ export async function renderOverview(root, chatID) {
 				return;
 			}
 			days = value;
+			haptic("selection");
 			syncButtons();
 			void load();
 		});

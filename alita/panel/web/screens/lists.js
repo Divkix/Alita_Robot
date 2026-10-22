@@ -2,25 +2,28 @@
 // bulk-import box with per-line results. Server data reaches the DOM only
 // through textContent; replies may contain HTML or newlines verbatim.
 import { api, initData } from "../api.js";
-import { textElement } from "../ui.js";
+import { confirmDestructive, errorMessage, haptic, textElement } from "../ui.js";
 
 const PAGE_SIZE = 100;
 
 const LISTS = {
 	filters: {
 		label: "Filters",
+		noun: "filter",
 		endpoint: "filters",
 		importHint: "One filter per line: keyword=reply, or paste an exported JSON list",
 		exportName: "filters.json",
 	},
 	notes: {
 		label: "Notes",
+		noun: "note",
 		endpoint: "notes",
 		importHint: "One note per line: name=reply, or paste an exported JSON list",
 		exportName: "notes.json",
 	},
 	blacklists: {
 		label: "Blacklists",
+		noun: "blacklisted word",
 		endpoint: "blacklists",
 		importHint: "One word per line, or paste an exported list",
 		exportName: "blacklists.txt",
@@ -114,6 +117,14 @@ async function renderList(root, chatID, chat, kind) {
 			const remove = textElement("button", "Delete", "danger");
 			remove.type = "button";
 			remove.addEventListener("click", async () => {
+				const confirmed = await confirmDestructive({
+					title: `Delete ${config.noun}?`,
+					message: `“${entry.name}” will be removed from this chat. This cannot be undone.`,
+					action: "Delete",
+				});
+				if (!confirmed) {
+					return;
+				}
 				remove.disabled = true;
 				try {
 					const result = await api(`chats/${encodeURIComponent(chatID)}/${config.endpoint}`, {
@@ -122,10 +133,12 @@ async function renderList(root, chatID, chat, kind) {
 					});
 					const outcome = result.results?.[0]?.status;
 					item.remove();
+					haptic("success");
 					setStatus(outcome === "removed" ? `Deleted ${entry.name}` : `${entry.name} was already gone`, false);
 				} catch (error) {
 					remove.disabled = false;
-					setStatus(error?.message ?? "Could not delete this entry.", true);
+					haptic("error");
+					setStatus(errorMessage(error, "Could not delete this entry."), true);
 				}
 			});
 			item.append(remove);

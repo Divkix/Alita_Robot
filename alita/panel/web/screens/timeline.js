@@ -2,7 +2,7 @@
 // with "Load more" so the reading position never moves, and filters by action
 // and actor. It carries actions only, never message text.
 import { api } from "../api.js";
-import { textElement, userLabel } from "../ui.js";
+import { relativeTime, textElement, userLabel } from "../ui.js";
 
 const PAGE_SIZE = 50;
 const ACTIONS = ["ban", "kick", "mute", "unban"];
@@ -97,7 +97,7 @@ export async function renderTimeline(root, chatID, chat) {
 		const head = document.createElement("div");
 		head.className = "timeline-head";
 		head.append(
-			textElement("span", `#${event.action}`, "badge"),
+			textElement("span", event.action, "badge"),
 			textElement("span", event.actor_id <= 0 ? "automatic" : userLabel(names, event.actor_id), "list-name"),
 			textElement("span", `→ ${userLabel(names, event.target_user_id)}`, "list-name"),
 		);
@@ -106,7 +106,10 @@ export async function renderTimeline(root, chatID, chat) {
 		if (event.reason) {
 			item.append(textElement("p", event.reason, "timeline-reason muted"));
 		}
-		item.append(textElement("span", formatTime(event.created_at), "muted"));
+		const time = textElement("time", relativeTime(event.created_at) || formatTime(event.created_at), "muted");
+		time.dateTime = event.created_at;
+		time.title = formatTime(event.created_at);
+		item.append(time);
 		return item;
 	}
 
