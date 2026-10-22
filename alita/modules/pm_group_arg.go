@@ -325,23 +325,23 @@ func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmG
 // pause, so a user repeating the call scans the chats table once per pause:
 // taking the pause, it scans the user's groups and, when the title names none,
 // keeps the help's list built from that scan; inside the pause it looks the
-// title up in the list the last build kept, or asks the user to wait when none
-// was kept.
+// title up among the groups the scan that took the pause found, or asks the
+// user to wait when that scan kept none.
 func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Chat {
 	userID := c.ctx.EffectiveUser.Id
 	var entries []settingsPickerEntry
 	var candidates []models.Chat
 	notice, paused := settingsPickerWait(c.tr, userID)
 	if paused {
-		stored, ok := storedSettingsPickerEntries(userID)
+		scanned, ok := storedSettingsScan(userID)
 		if !ok {
 			_ = c.reply(notice)
 			return nil
 		}
-		entries = stored
+		entries = c.titleCandidates(scanned)
 	} else {
 		candidates = settingsCandidates(c.ctx, userID)
-		entries = c.titleCandidates(candidates)
+		entries = c.titleCandidates(settingsScanEntries(candidates))
 	}
 
 	matches, tooMany := c.adminGroupsTitled(entries, tok.Raw)
@@ -362,30 +362,35 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 		return nil
 	}
 
-	list := entries
-	if !paused {
+	// Inside the pause the help lists the picker's kept list, or asks the user
+	// to wait for it when the pause was taken without building one.
+	var list []settingsPickerEntry
+	wait := ""
+	if paused {
+		var kept bool
+		if list, kept = storedSettingsPickerEntries(userID); !kept {
+			wait = notice
+		}
+	} else {
 		list = settingsPickerEntriesFrom(c.b, c.ctx, userID, candidates)
 		storeSettingsPickerEntries(userID, list)
 	}
-	_ = c.reply(pmGroupHelpText(c.tr, c.cmd, notFound, list, ""))
+	_ = c.reply(pmGroupHelpText(c.tr, c.cmd, notFound, list, wait))
 	return nil
 }
 
 // titleCandidates lists the groups a title is looked up among: the connected
-// group and candidates, the settingsCandidateLimit groups the user posted in
-// most recently. Only groups with that title are checked, so the /settings
-// picker's button cap and live budget do not hide a group.
-func (c pmGroupCall) titleCandidates(candidates []models.Chat) []settingsPickerEntry {
+// group and scanned, the settingsCandidateLimit groups the user posted in most
+// recently. Only groups with that title are checked, so the /settings picker's
+// button cap and live budget do not hide a group.
+func (c pmGroupCall) titleCandidates(scanned []settingsPickerEntry) []settingsPickerEntry {
 	var entries []settingsPickerEntry
 	if conn := connections.Connection(c.ctx.EffectiveUser.Id); conn.Connected && conn.ChatId != 0 {
 		if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {
 			entries = append(entries, settingsPickerEntry{ChatID: conn.ChatId, Title: info.ChatName})
 		}
 	}
-	for _, candidate := range candidates {
-		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
-	}
-	return entries
+	return append(entries, scanned...)
 }
 
 // adminGroupsTitled returns the entries titled title, ignoring case, that the

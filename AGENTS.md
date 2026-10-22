@@ -14,7 +14,9 @@ Update this file in the same commit as any change that invalidates a rule below.
   PM rule below decides.
 - In PM a group the user names wins: a command whose first argument names a group (@username or ID, or a title the
   lookup resolves; `withPMGroupArg`) runs in that group even when the user is connected to another. A command without
-  arguments of its own (`PMGroupArgNone`) whose first word does not name exactly one group refuses with its help; it
+  arguments of its own (`PMGroupArgNone`) whose first word does not name exactly one group refuses: with its help when
+  the word names no group, with the groups so titled when a title names several (`connections_pm_group_too_many` past
+  `pmGroupTitleCheckLimit`), or with `settings_picker_wait` when the picker's pause leaves nothing to look it up in; it
   never falls back to the connected group (`/rules foo` does not show the connected group's rules). Reason: the
   connection is not visible when the message is sent and is easy to forget; acting in a group other than the one named
   is a worse error than a refusal, which costs one retry. Keep this rule when adding PM forms.
@@ -57,8 +59,11 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   (`settingsCandidateChats`, uncached), and admin rights are checked only on the matches (none when more than
   `pmGroupTitleCheckLimit` (3) share the title: the call gets `connections_pm_group_too_many`), outside the `/settings`
   picker's button cap and budget; a group outside those 50 is named by @username or ID only. The lookup takes the
-  picker's pause before it scans, so one user scans `chats` at most once per pause: inside the pause a title is
-  matched against the list the last picker build kept, and with no list kept the call gets `settings_picker_wait`.
+  picker's pause before it scans, so one user scans `chats` at most once per pause: every scan keeps its groups for
+  the pause (`settingsScanKey`), and inside the pause a title is matched against them, never against the picker's
+  list, which holds only the groups that passed its checks; with no scan kept the call gets `settings_picker_wait`. A
+  title that names none there gets the help with the list the last picker build kept, or with the wait notice when
+  the pause built none.
   With a saved connection a call without a first word runs on the connection, and so does a `PMGroupArgOwn` call
   whose first word is not a group's @username or ID: that word is the command's own argument and is never looked up
   as a title. The command's help and the picker's list (for a title, built from the lookup's scan) answer a call

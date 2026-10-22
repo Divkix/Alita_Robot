@@ -140,21 +140,51 @@ func adminGroupsForUser(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, u
 
 // storeSettingsPickerEntries keeps a user's list for the pause.
 func storeSettingsPickerEntries(userID int64, entries []settingsPickerEntry) {
-	if m := cache.GetMarshal(); m != nil && settingsPickerCooldown > 0 {
-		if err := m.Set(cache.Context, settingsPickerListKey(userID), entries, store.WithExpiration(settingsPickerCooldown)); err != nil {
-			log.Debugf("[Settings] store picker for user %d: %v", userID, err)
-		}
-	}
+	storeForSettingsPause(settingsPickerListKey(userID), entries)
 }
 
 // storedSettingsPickerEntries returns the list kept for userID during the
 // pause; ok is false when there is none.
 func storedSettingsPickerEntries(userID int64) ([]settingsPickerEntry, bool) {
+	return storedForSettingsPause(settingsPickerListKey(userID))
+}
+
+// settingsScanKey keeps the groups the scan that took a user's pause found,
+// so a title named inside the pause is looked up among all of them: the
+// picker's list keeps only those that passed its checks.
+func settingsScanKey(userID int64) string {
+	return fmt.Sprintf("%ssettings_scan:%d", cache.DataCachePrefix, userID)
+}
+
+// storedSettingsScan returns the groups the scan that took userID's pause
+// found; ok is false when it kept none.
+func storedSettingsScan(userID int64) ([]settingsPickerEntry, bool) {
+	return storedForSettingsPause(settingsScanKey(userID))
+}
+
+// settingsScanEntries is candidates by ID and title.
+func settingsScanEntries(candidates []models.Chat) []settingsPickerEntry {
+	entries := make([]settingsPickerEntry, 0, len(candidates))
+	for _, candidate := range candidates {
+		entries = append(entries, settingsPickerEntry{ChatID: candidate.ChatId, Title: candidate.ChatName})
+	}
+	return entries
+}
+
+func storeForSettingsPause(key string, entries []settingsPickerEntry) {
+	if m := cache.GetMarshal(); m != nil && settingsPickerCooldown > 0 {
+		if err := m.Set(cache.Context, key, entries, store.WithExpiration(settingsPickerCooldown)); err != nil {
+			log.Debugf("[Settings] store %s: %v", key, err)
+		}
+	}
+}
+
+func storedForSettingsPause(key string) ([]settingsPickerEntry, bool) {
 	m := cache.GetMarshal()
 	if m == nil {
 		return nil, false
 	}
-	stored, err := m.Get(cache.Context, settingsPickerListKey(userID), new([]settingsPickerEntry))
+	stored, err := m.Get(cache.Context, key, new([]settingsPickerEntry))
 	entries, isList := stored.(*[]settingsPickerEntry)
 	if err != nil || !isList || entries == nil {
 		return nil, false
@@ -209,14 +239,16 @@ func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []set
 	return settingsPickerEntriesFrom(b, ctx, userID, settingsCandidates(ctx, userID))
 }
 
-// settingsCandidates scans for the groups userID posted in most recently.
-// Callers hold the picker's pause, which bounds the scans to one per user per
-// pause.
+// settingsCandidates scans for the groups userID posted in most recently and
+// keeps them for the pause. Callers hold the picker's pause, which bounds the
+// scans to one per user per pause.
 func settingsCandidates(ctx *ext.Context, userID int64) []models.Chat {
 	candidates, err := settingsCandidateChats(tracing.UpdateContext(ctx), userID, settingsCandidateLimit)
 	if err != nil {
 		log.Warnf("[Settings] candidate chats for user %d: %v", userID, err)
+		return candidates
 	}
+	storeForSettingsPause(settingsScanKey(userID), settingsScanEntries(candidates))
 	return candidates
 }
 

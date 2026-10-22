@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -346,26 +347,113 @@ func TestConnectWithoutArgInPMRepliesHelp(t *testing.T) {
 	assertPMGroupHelp(t, fmt.Sprint(call.Params["text"]), "connect", f.chat)
 }
 
-// Inside the /settings picker's pause a title is looked up in the list the
-// last build kept, without scanning the user's groups again.
-func TestPMGroupTitleDuringPickerPauseFindsGroupInKeptList(t *testing.T) {
-	f := titleFixture(t, "My Group")
-	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
-	settingsPickerCooldown = 5 * time.Second
-	if _, wait := settingsPickerWait(i18n.MustNewTranslator("en"), f.admin.Id); wait {
-		t.Fatal("settingsPickerWait() paused a fresh user")
+// cutPickerToCachedAdmins leaves the picker no time for groups whose admin
+// list is not cached, so the list a build keeps misses them.
+func cutPickerToCachedAdmins(t *testing.T) {
+	t.Helper()
+	original := settingsPickerLiveBudget
+	settingsPickerLiveBudget = 0
+	t.Cleanup(func() { settingsPickerLiveBudget = original })
+}
+
+// Inside the pause a title is looked up among the groups the scan that took
+// the pause found, not in the picker's list, which keeps only the groups whose
+// admin check fit in its budget: a second group with that title is listed
+// as a choice, as outside the pause, instead of the one the picker kept being
+// used.
+func TestPMGroupTitleInPauseListsTwinMissingFromKeptPicker(t *testing.T) {
+	f := titleFixture(t, "Chat")
+	twin := uniqueModuleChatID()
+	f.addGroup(t, twin, "Chat", true)
+	setPMGroupCandidates(t, models.Chat{ChatId: twin, ChatName: "Chat"}, models.Chat{ChatId: f.chat.Id, ChatName: "Chat"})
+	addTestNote(t, f.chat.Id, "first-note")
+	addTestNote(t, twin, "twin-note")
+	if !chat_status.IsUserAdmin(f.bot, twin, f.admin.Id) { // caches twin's admin list
+		t.Fatal("the admin is not an admin of the twin")
 	}
-	storeSettingsPickerEntries(f.admin.Id, []settingsPickerEntry{{ChatID: f.chat.Id, Title: "My Group"}})
-	addTestNote(t, f.chat.Id, "pause-note")
+	cache.InvalidateAdminCache(f.chat.Id)
+	settingsPickerCooldown = 5 * time.Second
+	cutPickerToCachedAdmins(t)
+	// Takes the pause; the picker list it keeps for the help has the twin only.
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, "/notes typo", "typo")
+	resetCalls(f.client)
 
-	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, "/notes chat", "Several of your groups")
 
-	if n := scans.Load(); n != 0 {
-		t.Fatalf("candidate scans inside the pause = %d, want 0", n)
+	if got := sentText(f.client); strings.Contains(got, "note body") || strings.Contains(got, "twin-note") {
+		t.Fatalf("an ambiguous title inside the pause ran the command in one group: %s", got)
 	}
 }
 
-// Inside the pause with no list kept, a title is not looked up at all: the
+// Inside the pause a group the picker's kept list misses is still found by
+// its title, not reported as not found.
+func TestPMGroupTitleInPauseFindsGroupMissingFromKeptPicker(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
+	addTestNote(t, f.chat.Id, "pause-note")
+	cache.InvalidateAdminCache(f.chat.Id)
+	settingsPickerCooldown = 5 * time.Second
+	cutPickerToCachedAdmins(t)
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, "/notes typo", "typo")
+	resetCalls(f.client)
+
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
+
+	if n := scans.Load(); n != 1 {
+		t.Fatalf("candidate scans = %d, want 1 for the pause", n)
+	}
+}
+
+// Two commands naming the same group by title inside one pause both run in
+// that group, though the user is connected to another; the second reuses the
+// first one's scan.
+func TestPMGroupTitleTwiceInPauseRunsInNamedGroupBothTimes(t *testing.T) {
+	f := titleFixture(t, "Connected")
+	named := uniqueModuleChatID()
+	f.addGroup(t, named, "My Group", true)
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "Connected"}, models.Chat{ChatId: named, ChatName: "My Group"})
+	f.connectAdmin(t)
+	addTestNote(t, f.chat.Id, "connected-note")
+	addTestNote(t, named, "named-note")
+	settingsPickerCooldown = 5 * time.Second
+
+	for i := range 2 {
+		resetCalls(f.client)
+		sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "named-note")
+		if got := sentText(f.client); strings.Contains(got, "connected-note") {
+			t.Fatalf("call %d listed the connected group's notes: %s", i+1, got)
+		}
+	}
+	if n := scans.Load(); n != 1 {
+		t.Fatalf("candidate scans = %d, want 1 for the pause", n)
+	}
+}
+
+// A title that names no group, inside a pause taken by a call that found its
+// group and built no picker list, gets the help with the wait notice in place
+// of the list, without a second scan.
+func TestPMGroupTitleNotFoundInPauseWithoutPickerListWaitsForList(t *testing.T) {
+	f := titleFixture(t, "My Group")
+	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
+	addTestNote(t, f.chat.Id, "pause-note")
+	settingsPickerCooldown = 5 * time.Second
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, `/notes "my group"`, "pause-note")
+	resetCalls(f.client)
+	notFound := fmt.Sprintf(translated(t, "connections_pm_group_not_found"), "typo")
+
+	call := sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, "/notes typo", notFound)
+
+	text := fmt.Sprint(call.Params["text"])
+	assertWaitNotice(t, text)
+	if header := translated(t, "connections_pm_group_your_groups"); strings.Contains(text, header) {
+		t.Fatalf("help inside the pause listed groups no picker build kept: %s", text)
+	}
+	if n := scans.Load(); n != 1 {
+		t.Fatalf("candidate scans = %d, want 1 for the pause", n)
+	}
+}
+
+// Inside the pause with no scan kept, a title is not looked up at all: the
 // reply asks the user to wait, as the picker does, and nothing is scanned.
 func TestPMGroupTitleDuringPauseWithoutListWaits(t *testing.T) {
 	f := titleFixture(t, "My Group")
