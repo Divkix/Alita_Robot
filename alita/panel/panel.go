@@ -86,6 +86,7 @@ func newPanel(bot *gotgbot.Bot, deps Deps) *Panel {
 		mux:     http.NewServeMux(),
 		limiter: newRateLimiter(deps.Now),
 		access:  make(map[accessKey]accessEntry),
+		members: make(map[int64]memberCountEntry),
 	}
 	p.routes()
 	return p
@@ -102,6 +103,9 @@ type Panel struct {
 
 	accessMu sync.Mutex
 	access   map[accessKey]accessEntry
+
+	membersMu sync.Mutex
+	members   map[int64]memberCountEntry
 }
 
 // routes is the single place panel endpoints are registered so later tickets
@@ -118,6 +122,8 @@ func (p *Panel) routes() {
 		p.mux.HandleFunc("POST "+base, p.handleListImport(kind))
 		p.mux.HandleFunc("DELETE "+base, p.handleListDelete(kind))
 	}
+
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/overview", p.handleOverview)
 
 	p.mux.Handle("GET /panel/", http.StripPrefix("/panel/", http.FileServer(http.FS(p.web))))
 }

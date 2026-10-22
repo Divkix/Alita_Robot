@@ -293,3 +293,135 @@ textarea {
 	color: var(--tg-theme-destructive-text-color, #c62828);
 }
 
+.window-switch {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.window-switch button.active {
+	outline: 2px solid var(--tg-theme-button-color, #2481cc);
+}
+
+.overview-summary,
+.overview-totals,
+.chart-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	list-style: none;
+	padding: 0;
+	margin: 0 0 12px;
+}
+
+.overview-summary li,
+.overview-totals li {
+	display: flex;
+	flex-direction: column;
+}
+
+.summary-label {
+	color: var(--tg-theme-hint-color, #707579);
+	font-size: 0.85em;
+}
+
+.activity-chart {
+	width: 100%;
+	height: auto;
+	margin-bottom: 4px;
+}
+
+.chart-axis {
+	stroke: var(--tg-theme-hint-color, #707579);
+	stroke-width: 1;
+	opacity: 0.4;
+}
+
+.chart-label {
+	fill: var(--tg-theme-hint-color, #707579);
+	font-size: 11px;
+}
+
+.series {
+	fill: none;
+	stroke-width: 2;
+}
+
+.series-messages {
+	stroke: var(--tg-theme-button-color, #2481cc);
+}
+
+.series-joins {
+	stroke: #2e7d32;
+}
+
+.series-leaves {
+	stroke: var(--tg-theme-destructive-text-color, #c62828);
+}
+
+.swatch {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	margin-right: 6px;
+}
+
+.swatch.series-messages {
+	background: var(--tg-theme-button-color, #2481cc);
+}
+
+.swatch.series-joins {
+	background: #2e7d32;
+}
+
+.swatch.series-leaves {
+	background: var(--tg-theme-destructive-text-color, #c62828);
+}
+
+.chart-legend li {
+	display: flex;
+	align-items: center;
+}
+
+.collection-note {
+	margin: 16px 0;
+	color: var(--tg-theme-hint-color, #707579);
+}
+
+.collection-note summary {
+	color: var(--tg-theme-link-color, #2481cc);
+	cursor: pointer;
+}
+
+.overview-recent h3 {
+	margin-bottom: 8px;
+}
+
+.event-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.event-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	padding: 8px;
+	border-radius: 8px;
+	background: var(--tg-theme-secondary-bg-color, rgba(127, 127, 127, 0.12));
+}
+
+.event-action {
+	font-weight: 600;
+	text-transform: capitalize;
+}
+
+.event-time {
+	color: var(--tg-theme-hint-color, #707579);
+}
+

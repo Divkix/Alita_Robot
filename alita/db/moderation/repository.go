@@ -149,3 +149,22 @@ func CountForChat(chatID int64, from, to time.Time) (total int64, topAction stri
 	}
 	return total, topAction, nil
 }
+
+// CountSince returns how many events the chat recorded from since on. It is the
+// window count the dashboard overview shows; the rows themselves come from
+// ListForChat. The bound is compared in UTC, the zone Record writes: SQLite
+// compares the stored text, so a local-zone bound would misorder.
+func CountSince(chatID int64, since time.Time) (int64, error) {
+	if db.DB == nil {
+		return 0, errors.New("database not initialized")
+	}
+
+	var total int64
+	err := db.DB.Model(&models.ModerationEvent{}).
+		Where("chat_id = ? AND created_at >= ?", chatID, since.UTC()).
+		Count(&total).Error
+	if err != nil {
+		return 0, fmt.Errorf("count moderation events for chat: %w", err)
+	}
+	return total, nil
+}

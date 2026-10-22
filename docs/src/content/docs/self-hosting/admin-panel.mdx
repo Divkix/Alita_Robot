@@ -141,6 +141,12 @@ checked against the bot token on arrival.
 - Opening a chat shows its details: **your role** (Admin or Read-only) and
   whether the **bot is an admin** there, followed by the dashboard screens
   registered for that chat.
+- The **overview** screen is the first entry in the dashboard list: the
+  Telegram member count, a 7, 30 or 90 day chart of messages, joins and
+  leaves, the window's moderation count and the five most recent moderation
+  actions (action, actor, target and time — never message text). Switching the
+  window redraws without a page reload, and a chat with no recorded activity
+  says so instead of drawing an empty chart.
 - Only **members** of a group can open it. **Non-admin members** see the chat
   read-only; anyone else is refused (`403 not_member`), and private chats and
   channels are not served. **When the bot is not an admin** in the chat, values
