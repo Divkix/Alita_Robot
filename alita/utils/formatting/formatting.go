@@ -1,6 +1,7 @@
 package formatting
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
@@ -242,9 +244,20 @@ func replaceFormatPlaceholders(s string, values [len(formatPlaceholderTokens)]st
 	}
 }
 
-func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
-	const language = "en"
+// chatLanguage is the language of the chat a formatted message is sent to: the
+// user's own language in a PM, the group's otherwise. It is only read when a
+// fallback label is needed.
+func chatLanguage(chat *gotgbot.Chat) string {
+	if chat == nil {
+		return "en"
+	}
+	if chat.Type == "private" {
+		return lang.GetUserLanguage(context.Background(), chat.Id)
+	}
+	return lang.GetGroupLanguage(context.Background(), chat.Id)
+}
 
+func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
 	if strings.IndexByte(oldMsg, '{') < 0 {
 		// No '{' means no placeholder can match: the body is returned untouched.
 		return oldMsg, buttons
@@ -259,7 +272,7 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 	)
 
 	if user == nil {
-		tr := i18n.MustNewTranslator(language)
+		tr := i18n.MustNewTranslator(chatLanguage(chat))
 		personNoName, _ := tr.GetString("helpers_person_no_name")
 		if personNoName == "" {
 			personNoName = "PersonWithNoName"
@@ -271,7 +284,7 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 	} else {
 		firstName = user.FirstName
 		if len(user.FirstName) <= 0 {
-			tr := i18n.MustNewTranslator(language)
+			tr := i18n.MustNewTranslator(chatLanguage(chat))
 			personNoName, _ := tr.GetString("helpers_person_no_name")
 			if personNoName == "" {
 				personNoName = "PersonWithNoName"
@@ -322,7 +335,7 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 
 	rulesBtnText := rulesDb.RulesBtn
 	if rulesBtnText == "" {
-		tr := i18n.MustNewTranslator(language)
+		tr := i18n.MustNewTranslator(chatLanguage(chat))
 		defaultRulesText, _ := tr.GetString("button_rules_default")
 		if defaultRulesText == "" {
 			defaultRulesText = "Rules"

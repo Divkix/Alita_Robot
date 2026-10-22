@@ -483,7 +483,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		text      string
 	)
 
-	tr := i18n.MustNewTranslator("en")
+	tr := ctxTr(ctx)
 
 	switch response {
 	case "step1":
