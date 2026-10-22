@@ -17,9 +17,18 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-// AddDaily adds each row's counters to its (chat_id, day) row in one
-// statement. The counters are added, not replaced, so two replicas that
-// flush the same day produce the sum instead of the last write.
+// dailyStatBatchSize caps the rows per INSERT. PostgreSQL rejects a statement
+// with more than 65535 bind parameters, so one row per chat in a single
+// statement would fail on a large install and, because the flush re-queues
+// everything on error, fail again on every retry. 500 rows stay far below the
+// limit on both PostgreSQL and SQLite.
+const dailyStatBatchSize = 500
+
+// AddDaily adds each row's counters to its (chat_id, day) row. The counters
+// are added, not replaced, so two replicas that flush the same day produce the
+// sum instead of the last write. Rows are inserted in batches so a flush with
+// more chats than one statement's bind-parameter limit still succeeds; all
+// batches are in one transaction, so a failure leaves no partial flush behind.
 func AddDaily(rows []models.ChatDailyStat) error {
 	if len(rows) == 0 {
 		return nil
@@ -38,7 +47,7 @@ func AddDaily(rows []models.ChatDailyStat) error {
 			"joins":    gorm.Expr("chat_daily_stats.joins + EXCLUDED.joins"),
 			"leaves":   gorm.Expr("chat_daily_stats.leaves + EXCLUDED.leaves"),
 		}),
-	}).Create(&rows).Error
+	}).CreateInBatches(&rows, dailyStatBatchSize).Error
 	if err != nil {
 		return fmt.Errorf("add daily chat stats: %w", err)
 	}

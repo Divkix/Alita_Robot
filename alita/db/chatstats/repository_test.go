@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
@@ -109,4 +110,77 @@ func TestAddDailyEmptyTouchesNothing(t *testing.T) {
 	if rows := mustGetRange(t, chatID, "0000-01-01", "9999-12-31"); len(rows) != 0 {
 		t.Fatalf("rows = %v, want none", rows)
 	}
+}
+
+// dailyRows builds one row for each chat in base..base+count-1 on day.
+func dailyRows(base int64, count int, day string) []models.ChatDailyStat {
+	rows := make([]models.ChatDailyStat, 0, count)
+	for i := range count {
+		rows = append(rows, models.ChatDailyStat{
+			ChatID:   base + int64(i),
+			Day:      day,
+			Messages: int64(i + 1),
+			Joins:    int64(i % 7),
+			Leaves:   int64(i % 3),
+		})
+	}
+	return rows
+}
+
+// assertDailyRows checks the stored rows for base..base+count-1 against the
+// counters dailyRows writes, multiplied by flushes.
+func assertDailyRows(t *testing.T, base int64, count, flushes int, day string) {
+	t.Helper()
+	var rows []models.ChatDailyStat
+	err := db.DB.
+		Where("chat_id >= ? AND chat_id < ? AND day = ?", base, base+int64(count), day).
+		Find(&rows).Error
+	if err != nil {
+		t.Fatalf("load daily rows: %v", err)
+	}
+	if len(rows) != count {
+		t.Fatalf("rows = %d, want %d", len(rows), count)
+	}
+	for _, row := range rows {
+		i := int(row.ChatID - base)
+		wantMessages := int64(flushes * (i + 1))
+		wantJoins := int64(flushes * (i % 7))
+		wantLeaves := int64(flushes * (i % 3))
+		if row.Messages != wantMessages || row.Joins != wantJoins || row.Leaves != wantLeaves {
+			t.Fatalf("chat %d = messages:%d joins:%d leaves:%d, want %d/%d/%d",
+				row.ChatID, row.Messages, row.Joins, row.Leaves, wantMessages, wantJoins, wantLeaves)
+		}
+	}
+}
+
+// TestAddDailyBatchesLargeFlush flushes more rows than one batch holds. Every
+// row must land with its own counters, and a second flush of the same rows
+// must add to them rather than replace them.
+func TestAddDailyBatchesLargeFlush(t *testing.T) {
+	const chats = 1201 // spans three batches of 500
+	base := testChatID(t)
+	day := "2026-10-21"
+	rows := dailyRows(base, chats, day)
+
+	if err := AddDaily(rows); err != nil {
+		t.Fatalf("first AddDaily(%d rows) error = %v", len(rows), err)
+	}
+	assertDailyRows(t, base, chats, 1, day)
+
+	if err := AddDaily(rows); err != nil {
+		t.Fatalf("second AddDaily(%d rows) error = %v", len(rows), err)
+	}
+	assertDailyRows(t, base, chats, 2, day)
+}
+
+// TestAddDailyFlushPastBindParameterLimit is the regression guard for the
+// single-statement insert: 7000 rows are 35000 bind parameters, more than
+// SQLite accepts in one statement, so the flush must be split into batches.
+func TestAddDailyFlushPastBindParameterLimit(t *testing.T) {
+	const chats = 7000
+	base := testChatID(t)
+	if err := AddDaily(dailyRows(base, chats, "2026-10-22")); err != nil {
+		t.Fatalf("AddDaily(%d rows) error = %v", chats, err)
+	}
+	assertDailyRows(t, base, chats, 1, "2026-10-22")
 }
