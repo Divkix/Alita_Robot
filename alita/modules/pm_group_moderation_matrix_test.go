@@ -525,12 +525,29 @@ func TestPMModerationHelpShowsPMExample(t *testing.T) {
 	}
 }
 
+// pmHelpOnlyCommands take the group first from PM but act on no user, so of
+// the checks above they share only the help without a group.
+var pmHelpOnlyCommands = []struct {
+	cmd        string
+	dispatcher func() *ext.Dispatcher
+}{
+	{"warns", warnsPMDispatcher},
+	{"warnings", warnsPMDispatcher},
+}
+
 // Every command sent from PM without a group and without a connection
 // answers with its help, its example and the user's groups.
 func TestPMModerationWithoutGroupRepliesHelp(t *testing.T) {
 	f := titleFixture(t, "My Group")
 	pick := translated(t, "connections_pm_group_pick")
+	commands := pmHelpOnlyCommands
 	for _, tc := range pmModerationCases {
+		commands = append(commands, struct {
+			cmd        string
+			dispatcher func() *ext.Dispatcher
+		}{tc.cmd, tc.dispatcher})
+	}
+	for _, tc := range commands {
 		t.Run(tc.cmd, func(t *testing.T) {
 			before := len(f.client.callsFor("sendMessage"))
 

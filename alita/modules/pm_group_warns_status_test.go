@@ -326,24 +326,3 @@ func TestWarningsInPMWithGroupAnswersAsGroupWhenBotIsNoAdmin(t *testing.T) {
 		t.Fatalf("/warnings from PM answered differently from the group, or not in the PM; sent:\n%s", sentText(f.client))
 	}
 }
-
-// /warns and /warnings sent from PM without a group and without a connection
-// answer with their help, their PM example and the user's groups.
-func TestWarnsStatusCommandsInPMWithoutGroupReplyHelp(t *testing.T) {
-	f := titleFixture(t, "My Group")
-	dispatcher := warnsPMDispatcher()
-	pick := translated(t, "connections_pm_group_pick")
-	for _, cmd := range []string{"warns", "warnings"} {
-		t.Run(cmd, func(t *testing.T) {
-			before := len(f.client.callsFor("sendMessage"))
-
-			processPM(t, dispatcher, f, f.admin.Id, "/"+cmd)
-
-			replies := f.client.callsFor("sendMessage")[before:]
-			if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), pick) {
-				t.Fatalf("/%s from PM replied %+v, want one reply asking for the group", cmd, replies)
-			}
-			assertPMGroupHelp(t, fmt.Sprint(replies[0].Params["text"]), cmd, f.chat)
-		})
-	}
-}
