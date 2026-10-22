@@ -263,6 +263,9 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	// channel does not hold up the group reply, and still goes when that
 	// reply failed.
 	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
+	if storeErr == nil && created {
+		autoMuteReported(b, tr, chat, msg.ReplyToMessage, reportprefs.MuteThreshold)
+	}
 	if err != nil {
 		return err
 	}
@@ -403,6 +406,25 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 					replyText, _ = tr.GetString("reports_reply_to_unblock")
 				}
 			}
+		case "mute":
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			if msg.Chat.Type == "private" {
+				replyText, _ = tr.GetString("reports_group_only")
+			} else {
+				// Changing it lets the bot mute members: the admin and the
+				// bot need the right to restrict, as for a mute.
+				if len(args) > 1 {
+					if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+						chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
+						return ext.EndGroups
+					}
+					if !chat_status.CanBotRestrict(b, ctx, chat) {
+						chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+						return ext.EndGroups
+					}
+				}
+				replyText = reportsMuteSetting(tr, chat.Id, args[1:])
+			}
 		case "showblocklist":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
@@ -442,12 +464,13 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				replyText, _ = tr.GetString("reports_preference_disabled_private")
 			}
 		} else {
-			rStatus := reports.GetChatReportSettings(chat.Id).Status
-			if rStatus {
+			settings := reports.GetChatReportSettings(chat.Id)
+			if settings.Status {
 				replyText, _ = tr.GetString("reports_status_enabled_group")
 			} else {
 				replyText, _ = tr.GetString("reports_status_disabled_group")
 			}
+			replyText += "\n" + reportsMuteStatus(tr, settings.MuteThreshold)
 		}
 		hintText, _ := tr.GetString("reports_change_settings_hint")
 		replyText += hintText
@@ -615,6 +638,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
+	settleReportAutoMute(b, chat.Id, userId, status)
 	if legacy {
 		// Close any report stored while the action ran, so its card stops
 		// acting.

@@ -926,6 +926,8 @@ reports_help_msg:
   × /reports `showblocklist`: Check all the blocked users who cannot use /report or
   @admin.
 
+  × /reports `mute <N>` / `mute off`: mute a user once N (2-20) different members have open reports against them, until an admin decides and for at most 24 hours. Off by default; never applies to admins or approved users.
+
 
   To report a user, simply reply to his message with @admin or /report; Alita will
   then reply with a message stating that admins have been notified.
@@ -1709,6 +1711,12 @@ reports_already_reviewed: "The admins have already reviewed your report of this 
 reports_expired: "This report has expired."
 reports_action_failed: "Could not complete this action. Try again."
 reports_sent_to_admins: "Reported to admins."
+reports_automute_status_on: "Auto-mute is on: a user is muted for up to 24 hours once {count} different members have open reports against them."
+reports_automute_status_off: "Auto-mute is off."
+reports_automute_enabled: "Auto-mute is on. Once {count} different members have open reports against a user, they are muted until an admin decides, for at most 24 hours."
+reports_automute_disabled: "Auto-mute is off. Reports will no longer mute anyone."
+reports_automute_usage: "Usage: <code>/reports mute &lt;N&gt;</code> with N from {min} to {max}, or <code>/reports mute off</code>."
+reports_automute_applied: "{user} has been muted until an admin reviews the reports against them (at most 24 hours)."
 
 # Captcha module strings
 captcha_mode_math_desc: "mathematical problems"
@@ -2071,6 +2079,15 @@ reports_extended_docs: |
   • A card's buttons keep working while any report on it is still open; once none is, pressing them answers that the report has expired.
 
   Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in <code>/export</code>.
+
+  <b>Auto-mute (off by default):</b>
+  <code>/reports mute &lt;N&gt;</code> (N from 2 to 20) mutes a user once N different members have open reports against them, until an admin decides. A member who reports several of the user's messages counts once.
+  • The mute ends on its own after 24 hours at most, even if no admin acts.
+  • It never applies to admins, approved users, the bot, or anonymous and channel senders, and never replaces a restriction an admin already set.
+  • Dismissing the report or deleting the message, on the log channel card or with the group buttons, lifts the mute unless the user's other open reports still reach N. Ban, kick and mute leave the user as that action put them.
+  • A user is muted once until an admin decides: the same reports do not mute them again when the 24 hours end.
+  • With the <code>automated</code> log category on, each auto-mute is logged to the log channel as <code>#REPORT_MUTE</code>.
+  • <code>/reports mute off</code> turns it off; <code>/reports mute</code> shows the current setting.
 
   <b>Personal vs Group Settings:</b>
   • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
@@ -2927,7 +2944,7 @@ reactions_extend_msg: |
   /resetreactions — remove all reactions
 reports_extend_msg: |
   /report — report the replied message to admins (or @admin)
-  /reports — reports on or off, block or unblock reporters
+  /reports — reports on or off, block or unblock reporters, auto-mute
 rules_extend_msg: |
   /rules — show the rules
   /setrules — set the rules

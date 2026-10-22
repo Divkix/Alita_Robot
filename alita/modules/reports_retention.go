@@ -28,6 +28,11 @@ func sweepExpiredReports(now time.Time) {
 	if deleted > 0 {
 		log.Infof("[Reports] deleted %d reports older than %v", deleted, reportRetention)
 	}
+	// An auto-mute no admin decided on outlives its mute only to keep the
+	// same reports from muting again; those reports are gone by now.
+	if _, err := reports.DeleteAutoMutesBefore(now.Add(-reportRetention)); err != nil {
+		log.Errorf("[Reports] auto-mute retention sweep failed: %v", err)
+	}
 }
 
 // startReportRetentionSweeper sweeps expired reports hourly.

@@ -18,6 +18,7 @@ We're all busy people who don't have time to monitor our groups 24/7. But how do
 × /reports `block` (via reply only): Block a user from using /report or @admin.
 × /reports `unblock` (via reply only): Unblock a user from using /report or @admin.
 × /reports `showblocklist`: Check all the blocked users who cannot use /report or @admin.
+× /reports `mute <N>` / `mute off`: mute a user once N (2-20) different members have open reports against them, until an admin decides and for at most 24 hours. Off by default; never applies to admins or approved users.
 
 To report a user, simply reply to his message with @admin or /report; Alita will then reply with a message stating that admins have been notified.
 You MUST reply to a message to report a user; you can't just use @admin to tag admins for no reason!
@@ -51,6 +52,15 @@ In the log channel:
 Once admins have decided a member's report, that member reporting the same message again gets a reply that the admins already reviewed it, with no admin mentions or buttons, whether or not the group has a log channel.
 
 Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in `/export`. A card's buttons keep working while any report on it is still stored and open; once none is, pressing them answers that the report has expired.
+
+**Auto-mute (off by default):**
+`/reports mute <N>` (N from 2 to 20) mutes a user once N different members have open reports against them, until an admin decides. A member who reports several of the user's messages counts once.
+- The mute ends on its own after 24 hours at most, even if no admin acts.
+- It never applies to admins, approved users, the bot, or anonymous and channel senders, and never replaces a restriction an admin already set.
+- Dismissing the report or deleting the message, on the log channel card or with the group buttons, lifts the mute unless the user's other open reports still reach N. Ban, kick and mute leave the user as that action put them.
+- A user is muted once until an admin decides: the same reports do not mute them again when the 24 hours end.
+- With the `automated` log category on, each auto-mute is logged to the log channel as `#REPORT_MUTE`.
+- `/reports mute off` turns it off; `/reports mute` shows the current setting. Changing it needs the right to restrict members, for you and for the bot.
 
 **Personal vs Group Settings:**
 - **In PM:** `/reports on/off` toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)

@@ -1350,6 +1350,8 @@ reports_help_msg:
   × /reports `showblocklist` : Affiche tous les utilisateurs bloqués qui ne peuvent pas utiliser /report ou
   @admin.
 
+  × /reports `mute <N>` / `mute off` : Rend muet un utilisateur dès que N (2-20) membres différents ont des signalements ouverts contre lui, jusqu'à la décision d'un admin et pour 24 heures au maximum. Désactivé par défaut ; ne s'applique jamais aux admins ni aux utilisateurs approuvés.
+
 
   Pour signaler un utilisateur, répondez simplement à son message avec @admin ou /report ; Alita
   répondra alors avec un message indiquant que les admins ont été notifiés.
@@ -1408,6 +1410,12 @@ reports_already_reviewed: "Les admins ont déjà examiné votre signalement de c
 reports_expired: "Ce signalement a expiré."
 reports_action_failed: "Impossible d’effectuer cette action. Réessayez."
 reports_sent_to_admins: "Signalé aux administrateurs."
+reports_automute_status_on: "Mise en sourdine automatique : activée. Un utilisateur est rendu muet jusqu'à 24 heures dès que {count} membres différents ont des signalements ouverts contre lui."
+reports_automute_status_off: "Mise en sourdine automatique : désactivée."
+reports_automute_enabled: "Mise en sourdine automatique activée. Dès que {count} membres différents ont des signalements ouverts contre un utilisateur, il est rendu muet jusqu'à la décision d'un admin, pour 24 heures au maximum."
+reports_automute_disabled: "Mise en sourdine automatique désactivée. Les signalements ne rendront plus personne muet."
+reports_automute_usage: "Utilisation : <code>/reports mute &lt;N&gt;</code> avec N entre {min} et {max}, ou <code>/reports mute off</code>."
+reports_automute_applied: "{user} a été rendu muet jusqu'à ce qu'un admin examine les signalements le concernant (24 heures au maximum)."
 
 # Mute module strings (additional)
 mute_reply_to_dmute: Vous devez répondre à un message pour le supprimer et rendre l'utilisateur muet !
@@ -1820,6 +1828,7 @@ reports_extended_docs: |
   <b>Paramètres Personnels vs Groupe :</b>
   • <b>En MP :</b> <code>/reports on/off</code> bascule si VOUS recevez les notifications de rapport (nécessite une connexion active via /connect à un groupe où vous et le bot êtes administrateurs)
   • <b>En Groupe :</b> <code>/reports on/off</code> bascule si le signalement est activé pour ce groupe
+  • <b>Mise en sourdine automatique :</b> <code>/reports mute &lt;N&gt;</code> (N de 2 à 20) rend muet un utilisateur dès que N membres différents ont des signalements ouverts contre lui, jusqu'à la décision d'un admin et pour 24 heures au maximum. Marquer le signalement comme résolu ou supprimer le message lève la sourdine. Ne s'applique jamais aux admins ni aux utilisateurs approuvés. <code>/reports mute off</code> la désactive (par défaut).
 
 reports_permissions_docs: |
   <b>Qui peut signaler ?</b>
@@ -2838,7 +2847,7 @@ reactions_extend_msg: |
   /resetreactions — retirer toutes les réactions
 reports_extend_msg: |
   /report — signaler le message cité aux administrateurs (ou @admin)
-  /reports — activer ou désactiver les signalements, bloquer ou débloquer un signaleur
+  /reports — activer ou désactiver les signalements, bloquer ou débloquer un signaleur, mise en sourdine automatique
 rules_extend_msg: |
   /rules — afficher les règles
   /setrules — définir les règles

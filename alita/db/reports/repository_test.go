@@ -24,6 +24,7 @@ func TestMain(m *testing.M) {
 		&models.ReportChatSettings{},
 		&models.ReportUserSettings{},
 		&models.Report{},
+		&models.ReportAutoMute{},
 		&models.DevSettings{},
 		&models.ChannelSettings{},
 		&models.AntifloodSettings{},

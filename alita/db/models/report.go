@@ -41,3 +41,25 @@ type Report struct {
 func (Report) TableName() string {
 	return "reports"
 }
+
+// Report auto-mute bounds (/reports mute <N>). The CHECK constraint in
+// migrations/20261023000400_add_report_automute.sql repeats them; change both.
+const (
+	ReportMuteThresholdMin = 2
+	ReportMuteThresholdMax = 20
+)
+
+// ReportAutoMute records a mute the report auto-mute applied and no admin has
+// decided on yet. MutedUntil is the until_date sent to Telegram, so an admin
+// decision lifts the mute only while the member still carries that one, and
+// never a mute an admin set.
+type ReportAutoMute struct {
+	ChatId     int64     `gorm:"column:chat_id;primaryKey;autoIncrement:false" json:"chat_id"`
+	UserId     int64     `gorm:"column:user_id;primaryKey;autoIncrement:false" json:"user_id"`
+	MutedUntil time.Time `gorm:"column:muted_until;not null;index:idx_report_auto_mutes_muted_until" json:"muted_until"`
+	CreatedAt  time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
+}
+
+func (ReportAutoMute) TableName() string {
+	return "report_auto_mutes"
+}

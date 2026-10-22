@@ -888,6 +888,8 @@ reports_help_msg:
   × /reports `showblocklist`: Verificar todos los usuarios bloqueados que no pueden usar /report o
   @admin.
 
+  × /reports `mute <N>` / `mute off`: silenciar a un usuario cuando N (2-20) miembros distintos tengan reportes abiertos contra él, hasta que un administrador decida y durante 24 horas como máximo. Desactivado por defecto; nunca se aplica a administradores ni a usuarios aprobados.
+
 
   Para reportar a un usuario, simplemente responde a su mensaje con @admin o /report; Alita
   entonces responderá con un mensaje indicando que los administradores han sido notificados.
@@ -1670,6 +1672,12 @@ reports_already_reviewed: "Los administradores ya revisaron tu reporte de este m
 reports_expired: "Este reporte ha caducado."
 reports_action_failed: "No se pudo completar la acción. Inténtalo de nuevo."
 reports_sent_to_admins: "Reportado a los administradores."
+reports_automute_status_on: "Silencio automático: activado. Un usuario es silenciado hasta 24 horas cuando {count} miembros distintos tienen reportes abiertos contra él."
+reports_automute_status_off: "Silencio automático: desactivado."
+reports_automute_enabled: "Silencio automático activado. Cuando {count} miembros distintos tengan reportes abiertos contra un usuario, será silenciado hasta que un administrador decida, durante 24 horas como máximo."
+reports_automute_disabled: "Silencio automático desactivado. Los reportes ya no silenciarán a nadie."
+reports_automute_usage: "Uso: <code>/reports mute &lt;N&gt;</code> con N entre {min} y {max}, o <code>/reports mute off</code>."
+reports_automute_applied: "{user} ha sido silenciado hasta que un administrador revise los reportes en su contra (24 horas como máximo)."
 
 # Captcha module strings
 captcha_mode_math_desc: "problemas matemáticos"
@@ -2035,6 +2043,7 @@ reports_extended_docs: |
   <b>Configuración personal vs de grupo:</b>
   • <b>En PM:</b> <code>/reports on/off</code> alterna si TÚ recibes notificaciones (requiere una conexión activa con /connect a un grupo donde tanto tú como el bot sean administradores)
   • <b>En grupo:</b> <code>/reports on/off</code> alterna si los reportes están habilitados en ese grupo
+  • <b>Silencio automático:</b> <code>/reports mute &lt;N&gt;</code> (N de 2 a 20) silencia a un usuario cuando N miembros distintos tienen reportes abiertos contra él, hasta que un administrador decida y durante 24 horas como máximo. Marcar el reporte como resuelto o eliminar el mensaje levanta el silencio. Nunca se aplica a administradores ni a usuarios aprobados. <code>/reports mute off</code> lo desactiva (por defecto).
 
 reports_permissions_docs: |
   <b>¿Quién puede reportar?</b>
@@ -2927,7 +2936,7 @@ reactions_extend_msg: |
   /resetreactions — quitar todas las reacciones
 reports_extend_msg: |
   /report — avisar a los administradores del mensaje respondido (o @admin)
-  /reports — activar o desactivar los reportes, bloquear o desbloquear a quien reporta
+  /reports — activar o desactivar los reportes, bloquear o desbloquear a quien reporta, silencio automático
 rules_extend_msg: |
   /rules — ver las reglas
   /setrules — establecer las reglas

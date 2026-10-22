@@ -156,7 +156,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Subsystem traps
 
-- Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, locks, blacklists, and captcha.
+- Approved users skip antiflood, antiraid (neither banned nor counted on join), aispam, locks, blacklists, captcha,
+  and the report auto-mute.
 - Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
@@ -189,9 +190,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   first) in place of `<cmd>_example` when the command has one.
 - `moderation_events` gets one row per successful human moderation action, written only by `recordModerationEvent`
   (`alita/modules/moderation.go`) from commands and inline moderation buttons. Never record automated actions
-  (spamdb, captcha, antiraid, locks, blacklists, warn limits): the shared-reputation join check reads this table, and a
-  join it blocks must not feed the signal back. A reputation unban clears the signal only when the same chat removed
-  the user earlier in the window.
+  (spamdb, captcha, antiraid, locks, blacklists, warn limits, report auto-mute): the shared-reputation join check
+  reads this table, and a join it blocks must not feed the signal back. A reputation unban clears the signal only
+  when the same chat removed the user earlier in the window.
 - Daily activity counters (`alita/utils/stats`) are in-process and flushed additively into `chat_daily_stats` every
   60 s and on shutdown (before DB close). Never add a DB write per message; joins count after
   `claimRecentJoinProcessing`, leaves in `leftMember`. Counts are approximate across a crash by design.

@@ -502,6 +502,7 @@ func TestMain(m *testing.M) {
 		&models.ReportChatSettings{},
 		&models.ReportUserSettings{},
 		&models.Report{},
+		&models.ReportAutoMute{},
 		&models.ModerationEvent{},
 		&db.AntifloodSettings{},
 		&models.AntiRaidSettings{},
