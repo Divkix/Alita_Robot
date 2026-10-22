@@ -120,9 +120,9 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 
 	registry := DefaultHelpRegistry()
 	registry.AbleMap["Admin"] = true
-	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
-	}
+	})
 
 	if got := getModuleNameFromAltName("admin", DefaultHelpRegistry()); got != "Admin" {
 		t.Fatalf("getModuleNameFromAltName() = %q, want Admin", got)
@@ -162,9 +162,9 @@ func TestHandleDeepLinkRoutesHelpDeepLink(t *testing.T) {
 
 	registry := DefaultHelpRegistry()
 	registry.AbleMap["Admin"] = true
-	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
-	}
+	})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -350,10 +350,10 @@ func TestHandleDeepLinkSendsAboutAndDefaultHelp(t *testing.T) {
 func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
 	localRegistry.AbleMap["Admin"] = true
-	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+	setHelpKb(localRegistry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "FakeAdminBtn", CallbackData: "test-admin"}},
 		{{Text: "FakeAdminBtn2", CallbackData: "test-admin2"}},
-	}
+	})
 
 	// HelpModule has no "Admin" buttons, or different ones.
 	_, kb := getModuleHelpAndKb("admin", "en", localRegistry)
@@ -416,12 +416,12 @@ func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
 	localRegistry.AbleMap["Admin"] = true
 	localRegistry.AbleMap["Filters"] = true
-	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+	setHelpKb(localRegistry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "CustomAdmin", CallbackData: "custom-admin"}},
-	}
-	localRegistry.helpableKb["Filters"] = [][]gotgbot.InlineKeyboardButton{
+	})
+	setHelpKb(localRegistry, "Filters", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "CustomFilters", CallbackData: "custom-filters"}},
-	}
+	})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -643,4 +643,9 @@ func TestDeepLinkMemberAllowed(t *testing.T) {
 			}
 		})
 	}
+}
+
+// setHelpKb gives a module fixed help buttons in every language.
+func setHelpKb(registry *moduleStruct, name string, kb [][]gotgbot.InlineKeyboardButton) {
+	registry.helpKbBuilders[name] = func(string) [][]gotgbot.InlineKeyboardButton { return kb }
 }

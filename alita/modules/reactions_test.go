@@ -274,7 +274,7 @@ func TestLoadReactionsRegistersHelpAndHandlers(t *testing.T) {
 	if got := DefaultHelpRegistry().AltHelpOptions["Reactions"]; len(got) != 1 || got[0] != "reaction" {
 		t.Fatalf("reactions alt help = %v, want [reaction]", got)
 	}
-	if got := DefaultHelpRegistry().helpableKb["Reactions"]; len(got) != 1 || len(got[0]) != 2 {
+	if got := DefaultHelpRegistry().helpKbBuilders["Reactions"]("en"); len(got) != 1 || len(got[0]) != 2 {
 		t.Fatalf("reactions help keyboard = %#v, want one row with two buttons", got)
 	}
 	// The buttons follow the viewer's language.

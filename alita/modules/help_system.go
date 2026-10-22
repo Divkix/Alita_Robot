@@ -70,8 +70,8 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 
 	ableMapMu.RLock()
 	build := registry.helpKbBuilders[ModName]
-	kb := slices.Clone(registry.helpableKb[ModName])
 	ableMapMu.RUnlock()
+	var kb [][]gotgbot.InlineKeyboardButton
 	if build != nil {
 		kb = build(lang)
 	}
