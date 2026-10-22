@@ -25,11 +25,14 @@ CREATE TABLE IF NOT EXISTS moderation_events (
 );
 
 -- One index per lookup: a target's actions across chats (the reputation
--- window) and a chat's timeline, both read newest first.
+-- window) and a chat's timeline, both read newest first. The retention sweep
+-- deletes by created_at alone, so that column has its own index too.
 CREATE INDEX IF NOT EXISTS idx_moderation_events_target_created_at
     ON moderation_events (target_user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_moderation_events_chat_created_at
     ON moderation_events (chat_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_moderation_events_created_at
+    ON moderation_events (created_at);
 
 -- Keep the chat foreign key like reports keeps its own, so a deleted chat
 -- leaves no orphan rows. actor_id and target_user_id keep no foreign key:

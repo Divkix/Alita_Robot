@@ -30,7 +30,7 @@ type ModerationEvent struct {
 	TargetUserId int64     `gorm:"column:target_user_id;not null;index:idx_moderation_events_target_created_at,priority:1" json:"target_user_id"`
 	Action       string    `gorm:"column:action;not null;check:chk_moderation_events_action,action IN ('ban','kick','mute','unban')" json:"action"`
 	Reason       string    `gorm:"column:reason;not null;default:''" json:"reason,omitempty"`
-	CreatedAt    time.Time `gorm:"column:created_at;not null;autoCreateTime;index:idx_moderation_events_chat_created_at,priority:2;index:idx_moderation_events_target_created_at,priority:2" json:"created_at"`
+	CreatedAt    time.Time `gorm:"column:created_at;not null;autoCreateTime;index:idx_moderation_events_created_at;index:idx_moderation_events_chat_created_at,priority:2;index:idx_moderation_events_target_created_at,priority:2" json:"created_at"`
 }
 
 func (ModerationEvent) TableName() string {
