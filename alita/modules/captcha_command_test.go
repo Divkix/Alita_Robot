@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -1867,6 +1868,37 @@ func TestLoadCaptchaRegistersHelpAndHandlers(t *testing.T) {
 
 	if !DefaultHelpRegistry().AbleMap[captchaModule.moduleName] {
 		t.Fatal("captcha help registration = false, want enabled")
+	}
+}
+
+// The failure notice names the action in its own sentence, so the stored-message
+// variant must report that same sentence and only append the stored count. Building
+// it from a separate action label gave Russian one user "Мера: забанены".
+func TestCaptchaFailureMessageKeepsTheActionSentenceWhenMessagesWereStored(t *testing.T) {
+	useRealLocales(t)
+
+	for _, code := range localeCodes {
+		tr := i18n.MustNewTranslator(code)
+		sentences := make(map[string]string, 3)
+		for _, action := range []string{"kick", "ban", "mute"} {
+			plain := buildCaptchaFailureMessage(tr, action, 42, "Ada", 0)
+			if plain == "" {
+				t.Fatalf("%s/%s: failure sentence is empty", code, action)
+			}
+			if other, ok := sentences[plain]; ok {
+				t.Errorf("%s: %s and %s share the failure sentence %q", code, other, action, plain)
+			}
+			sentences[plain] = action
+
+			stored := buildCaptchaFailureMessage(tr, action, 42, "Ada", 3)
+			if !strings.HasPrefix(stored, plain) {
+				t.Errorf("%s/%s: stored variant %q does not start with the failure sentence %q", code, action, stored, plain)
+				continue
+			}
+			if note := stored[len(plain):]; !strings.Contains(note, "3") {
+				t.Errorf("%s/%s: note %q does not report 3 stored messages", code, action, note)
+			}
+		}
 	}
 }
 

@@ -967,7 +967,7 @@ captcha_refresh_success: "🔄 नया कैप्चा भेजा गय�
 captcha_timeout_failure_kicked: "❌ %s कैप्चा सत्यापन पूरा करने में विफल रहा और उसे किक कर दिया गया।"
 captcha_timeout_failure_banned: "❌ %s कैप्चा सत्यापन पूरा करने में विफल रहा और उसे बैन कर दिया गया।"
 captcha_timeout_failure_muted: "❌ %s कैप्चा सत्यापन पूरा करने में विफल रहा और उसे म्यूट कर दिया गया।"
-captcha_timeout_with_messages: "❌ %s कैप्चा सत्यापन पूरा करने में विफल रहा और उसे %s कर दिया गया।\n\n📝 अपूर्ण सत्यापन के कारण %d संदेश हटा दिए गए।"
+captcha_timeout_stored_note: "📝 अपूर्ण सत्यापन के कारण %d संदेश हटा दिए गए।"
 captcha_stored_messages_summary: "📝 %s ने सत्यापन से पहले %d संदेश (%s) भेजने का प्रयास किया"
 captcha_pending_usage: "उपयोग: <code>/captchapending @user</code> या <code>/captchapending user_id</code>"
 captcha_no_pending_messages: "इस उपयोगकर्ता के लिए कोई लंबित संदेश नहीं मिले।"
