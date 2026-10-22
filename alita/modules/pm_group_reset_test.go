@@ -356,7 +356,7 @@ var confirmQuestionKeys = map[string]string{
 // once in an HTML reply (/ban) and as typed in a plain-text confirmation
 // (/stopall), so both show it as typed.
 func TestPMGroupLineEscapesOnlyHTMLReplies(t *testing.T) {
-	f, _ := pmBansFixture(t)
+	f, _ := pmModerationFixture(t)
 	f.makeOwner()
 	named := `Tom & <Jerry>`
 	for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
@@ -406,7 +406,7 @@ func TestModerationButtonWithoutGroupFieldActsOnItsChat(t *testing.T) {
 			func(f adminChatFixture) bool { return len(filters.GetFiltersList(f.chat.Id)) == 0 }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f, _ := pmBansFixture(t)
+			f, _ := pmModerationFixture(t)
 			f.makeOwner()
 			if err := filters.AddFilter(f.chat.Id, "hello", "Hi there", "", nil, db.TEXT); err != nil {
 				t.Fatalf("AddFilter() error = %v", err)
@@ -436,7 +436,7 @@ func TestModerationButtonWithMalformedGroupFieldIsRejected(t *testing.T) {
 	} {
 		for _, where := range []string{"pm", "group"} {
 			t.Run(tc.name+"/"+where, func(t *testing.T) {
-				f, _ := pmBansFixture(t)
+				f, _ := pmModerationFixture(t)
 				f.makeOwner()
 				if err := filters.AddFilter(f.chat.Id, "hello", "Hi there", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter() error = %v", err)
