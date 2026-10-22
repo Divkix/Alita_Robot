@@ -72,3 +72,47 @@ func ListForTarget(userID int64, since time.Time) ([]models.ModerationEvent, err
 	}
 	return rows, nil
 }
+
+// ReputationSignal is the shared reputation aggregate for one user: how many
+// distinct chats banned or kicked them since (inclusive), and whether a human
+// unban in the same window reverses one of those removals. An unban counts
+// only when the same chat recorded a ban or kick of the same user earlier in
+// the window, so a no-op /unban in a chat that never removed the user clears
+// nothing; a removal and an unban stamped at the same instant count as a
+// reversal, since there is no finer order. Ten bans in one chat still count as
+// one chat; mutes never count, because only ban and kick events feed it.
+//
+// Both reads use the (target_user_id, created_at) index and compare the bound
+// in UTC like Record writes it: SQLite compares the stored text, so a
+// local-zone bound would misorder.
+func ReputationSignal(userID int64, since time.Time) (chats int, unbanned bool, err error) {
+	var chatCount int64
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Where("target_user_id = ? AND created_at >= ? AND action IN ?",
+			userID, since.UTC(), []string{models.ModerationActionBan, models.ModerationActionKick}).
+		Distinct("chat_id").
+		Count(&chatCount).Error
+	if err != nil {
+		return 0, false, fmt.Errorf("count chats that removed a target: %w", err)
+	}
+
+	// Only an unban that follows a removal in the same chat reverses the
+	// signal; an unban in a chat that never acted on the user is a no-op.
+	var reversingUnban int64
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Where("target_user_id = ? AND created_at >= ? AND action = ?",
+			userID, since.UTC(), models.ModerationActionUnban).
+		Where(`EXISTS (
+			SELECT 1 FROM moderation_events AS removal
+			WHERE removal.target_user_id = moderation_events.target_user_id
+				AND removal.chat_id = moderation_events.chat_id
+				AND removal.created_at >= ?
+				AND removal.created_at <= moderation_events.created_at
+				AND removal.action IN (?, ?)
+		)`, since.UTC(), models.ModerationActionBan, models.ModerationActionKick).
+		Count(&reversingUnban).Error
+	if err != nil {
+		return 0, false, fmt.Errorf("check for a target unban: %w", err)
+	}
+	return int(chatCount), reversingUnban > 0, nil
+}
