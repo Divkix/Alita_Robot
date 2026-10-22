@@ -51,10 +51,13 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `pmGroupTitleCheckLimit` (3) share the title: the call gets `connections_pm_group_too_many`), outside the `/settings`
   picker's button cap and budget; a group outside those 50 is named by @username or ID only. The lookup takes the
   picker's pause before it scans, so one user scans `chats` at most once per pause: inside the pause a title is
-  matched against the list the last picker build kept, and with no list kept the call gets `settings_picker_wait`. A
-  call without a group, or with a title that matches none, gets the command's help and the picker's list (for a title,
-  built from the lookup's scan), so the command needs a `commandHelpModules` entry. It checks the group like
-  `/connect`, stores it with `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved
+  matched against the list the last picker build kept, and with no list kept the call gets `settings_picker_wait`.
+  With a saved connection a call without a first word runs on the connection, and so does a `PMGroupArgOwn` call
+  whose first word is not a group's @username or ID: that word is the command's own argument and is never looked up
+  as a title. The command's help and the picker's list (for a title, built from the lookup's scan) answer a call
+  without a first word and without a connection, and a first word looked up as a group that names none (an ID or
+  @username of no group, or a title that matches none), so the command needs a `commandHelpModules` entry. It checks
+  the group like `/connect`, stores it with `chat_status.SetOneOffGroup` (which `IsUserConnected` prefers over the saved
   connection and checks only for `chatAdmin`/`botAdmin`, not membership, and whose failed checks never disconnect;
   any new caller must run `checkUserConnectToChat` first and, when it reports no live member check (an admin from the
   cached list, which outlives a lost `chat_member` update), look the user up once itself), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
