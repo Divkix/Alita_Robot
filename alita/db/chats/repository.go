@@ -109,7 +109,9 @@ func AddChatMember(chatId, userid int64) error {
 		log.Errorf("[Database] AddChatMember atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
 		return result.Error
 	}
-	cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+	if result.RowsAffected > 0 {
+		cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+	}
 
 	log.Debugf("[Database] AddChatMember: %d %d", chatId, userid)
 	return nil
@@ -134,20 +136,8 @@ func GetAllChats() map[int64]models.Chat {
 }
 
 func LoadChatStats() (activeChats, inactiveChats int) {
-	var activeCount, inactiveCount int64
-
-	err := db.DB.Model(&models.Chat{}).Where("is_inactive = ?", false).Count(&activeCount).Error
-	if err != nil {
-		log.Errorf("[Database][LoadChatStats] counting active chats: %v", err)
-	}
-
-	err = db.DB.Model(&models.Chat{}).Where("is_inactive = ?", true).Count(&inactiveCount).Error
-	if err != nil {
-		log.Errorf("[Database][LoadChatStats] counting inactive chats: %v", err)
-	}
-
-	activeChats = int(activeCount)
-	inactiveChats = int(inactiveCount)
+	activeChats = int(db.CountRows(&models.Chat{}, "is_inactive = ?", false))
+	inactiveChats = int(db.CountRows(&models.Chat{}, "is_inactive = ?", true))
 	return
 }
 

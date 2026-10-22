@@ -70,15 +70,8 @@ func SetAntiChannelPin(chatID int64, pref bool) error {
 }
 
 func LoadPinStats() (acCount, clCount int64) {
-	err := db.DB.Model(&models.PinSettings{}).Where("anti_channel_pin = ?", true).Count(&acCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadPinStats: Error counting AntiChannelPin: %v", err)
-	}
-
-	err = db.DB.Model(&models.PinSettings{}).Where("clean_linked = ?", true).Count(&clCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadPinStats: Error counting CleanLinked: %v", err)
-	}
+	acCount = db.CountRows(&models.PinSettings{}, "anti_channel_pin = ?", true)
+	clCount = db.CountRows(&models.PinSettings{}, "clean_linked = ?", true)
 
 	log.Infof("[Database] LoadPinStats: AntiChannelPin=%d, CleanLinked=%d", acCount, clCount)
 	return acCount, clCount

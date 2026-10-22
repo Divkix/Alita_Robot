@@ -45,15 +45,15 @@ func TestBackupModuleStructure(t *testing.T) {
 
 func TestLoadBackupDoesNotRegisterDeadHelpButtons(t *testing.T) {
 	registry := DefaultHelpRegistry()
-	previousButtons, hadButtons := registry.helpableKb[backupModule.moduleName]
+	previousButtons, hadButtons := registry.helpKbBuilders[backupModule.moduleName]
 	previousEnabled, hadEnabled := registry.AbleMap[backupModule.moduleName]
-	delete(registry.helpableKb, backupModule.moduleName)
+	delete(registry.helpKbBuilders, backupModule.moduleName)
 	delete(registry.AbleMap, backupModule.moduleName)
 	t.Cleanup(func() {
 		if hadButtons {
-			registry.helpableKb[backupModule.moduleName] = previousButtons
+			registry.helpKbBuilders[backupModule.moduleName] = previousButtons
 		} else {
-			delete(registry.helpableKb, backupModule.moduleName)
+			delete(registry.helpKbBuilders, backupModule.moduleName)
 		}
 		if hadEnabled {
 			registry.AbleMap[backupModule.moduleName] = previousEnabled
@@ -65,7 +65,7 @@ func TestLoadBackupDoesNotRegisterDeadHelpButtons(t *testing.T) {
 	LoadBackup(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
 
 	assert.True(t, registry.AbleMap[backupModule.moduleName])
-	_, ok := registry.helpableKb[backupModule.moduleName]
+	_, ok := registry.helpKbBuilders[backupModule.moduleName]
 	assert.False(t, ok)
 }
 

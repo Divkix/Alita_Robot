@@ -71,7 +71,7 @@ func TestHelpCommandRoutesSpecificModuleInPrivateAndGroup(t *testing.T) {
 	registry := DefaultHelpRegistry()
 	registry.AbleMap["Admin"] = true
 	registry.AltHelpOptions["Admin"] = []string{"admin"}
-	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}}
+	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -252,9 +252,9 @@ func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 
 	registry := DefaultHelpRegistry()
 	registry.AbleMap["Admin"] = true
-	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
-	}
+	})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -449,7 +449,7 @@ func TestPrivateHelpWithExtraWordsAnswers(t *testing.T) {
 	registry := DefaultHelpRegistry()
 	registry.AbleMap["Admin"] = true
 	registry.AltHelpOptions["Admin"] = []string{"admin"}
-	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}}
+	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

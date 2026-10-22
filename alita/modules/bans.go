@@ -930,17 +930,8 @@ func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("bans_unbanall_ask")
 	text = confirmText(ctx, tr, text, ctx.EffectiveChat)
-	yesText, _ := tr.GetString("button_yes")
-	noText, _ := tr.GetString("button_no")
 	_, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{
-		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-				{
-					{Text: yesText, CallbackData: confirmData("unbanall", "yes", ctx.EffectiveChat)},
-					{Text: noText, CallbackData: confirmData("unbanall", "no", ctx.EffectiveChat)},
-				},
-			},
-		},
+		ReplyMarkup: confirmKeyboard(tr, "unbanall", ctx.EffectiveChat),
 	})
 	if err != nil {
 		log.Error(err)

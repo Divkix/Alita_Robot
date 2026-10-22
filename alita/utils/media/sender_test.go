@@ -246,6 +246,14 @@ func TestSendMediaFallsBackToTextWhenFileIDMissing(t *testing.T) {
 			if got := client.params["text"]; got != "fallback" {
 				t.Fatalf("fallback text = %#v, want fallback", got)
 			}
+
+			plain := &recordingBotClient{}
+			if _, err := Send(newRecordingBot(plain), Content{Text: "<b>", MsgType: tc.msgType, Name: tc.name}, Options{ChatID: -100, NoFormat: true}); err != nil {
+				t.Fatalf("Send NoFormat fallback error = %v", err)
+			}
+			if _, ok := plain.params["parse_mode"]; ok {
+				t.Fatal("NoFormat fallback must send without parse_mode")
+			}
 		})
 	}
 }

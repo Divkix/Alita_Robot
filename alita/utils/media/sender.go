@@ -86,20 +86,13 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	switch content.MsgType {
 	case db.TEXT, 0:
 		msg, err = sendText(b, content, opts, parseMode, replyParams)
-	case db.STICKER:
-		msg, err = sendSticker(b, content, opts, replyParams)
-	case db.DOCUMENT:
-		msg, err = sendDocument(b, content, opts, parseMode, replyParams)
-	case db.PHOTO:
-		msg, err = sendPhoto(b, content, opts, parseMode, replyParams)
-	case db.AUDIO:
-		msg, err = sendAudio(b, content, opts, parseMode, replyParams)
-	case db.VOICE:
-		msg, err = sendVoice(b, content, opts, parseMode, replyParams)
-	case db.VIDEO:
-		msg, err = sendVideo(b, content, opts, parseMode, replyParams)
-	case db.VIDEO_NOTE:
-		msg, err = sendVideoNote(b, content, opts, replyParams)
+	case db.STICKER, db.DOCUMENT, db.PHOTO, db.AUDIO, db.VOICE, db.VIDEO, db.VIDEO_NOTE:
+		if content.FileID == "" {
+			log.Warnf("[Media] Empty FileID for type %d '%s' in chat %d, falling back to text", content.MsgType, content.Name, opts.ChatID)
+			msg, err = sendText(b, content, opts, parseMode, replyParams)
+			break
+		}
+		msg, err = sendMedia(b, content, opts, parseMode, replyParams)
 	default:
 		log.Warnf("[Media] Unknown message type %d, falling back to text", content.MsgType)
 		msg, err = sendText(b, content, opts, parseMode, replyParams)
@@ -108,6 +101,25 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 		cache.MarkChatNotRestrictedIfOlder(opts.ChatID, sentAt)
 	}
 	return msg, err
+}
+
+func sendMedia(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	switch content.MsgType {
+	case db.STICKER:
+		return sendSticker(b, content, opts, replyParams)
+	case db.DOCUMENT:
+		return sendDocument(b, content, opts, parseMode, replyParams)
+	case db.PHOTO:
+		return sendPhoto(b, content, opts, parseMode, replyParams)
+	case db.AUDIO:
+		return sendAudio(b, content, opts, parseMode, replyParams)
+	case db.VOICE:
+		return sendVoice(b, content, opts, parseMode, replyParams)
+	case db.VIDEO:
+		return sendVideo(b, content, opts, parseMode, replyParams)
+	default:
+		return sendVideoNote(b, content, opts, replyParams)
+	}
 }
 
 func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
@@ -126,10 +138,6 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 }
 
 func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for STICKER '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, formatting.HTML, replyParams)
-	}
 	msg, err := b.SendSticker(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
 		ReplyParameters:     replyParams,
 		ReplyMarkup:         opts.Keyboard,
@@ -141,10 +149,6 @@ func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *got
 }
 
 func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for DOCUMENT '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, parseMode, replyParams)
-	}
 	msg, err := b.SendDocument(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendDocumentOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -158,10 +162,6 @@ func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode strin
 }
 
 func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for PHOTO '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, parseMode, replyParams)
-	}
 	msg, err := b.SendPhoto(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendPhotoOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -175,10 +175,6 @@ func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 }
 
 func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for AUDIO '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, parseMode, replyParams)
-	}
 	msg, err := b.SendAudio(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendAudioOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -192,10 +188,6 @@ func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 }
 
 func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for VOICE '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, parseMode, replyParams)
-	}
 	msg, err := b.SendVoice(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVoiceOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -209,10 +201,6 @@ func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 }
 
 func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for VIDEO '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, parseMode, replyParams)
-	}
 	msg, err := b.SendVideo(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -226,10 +214,6 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 }
 
 func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	if content.FileID == "" {
-		log.Warnf("[Media] Empty FileID for VideoNote '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, formatting.HTML, replyParams)
-	}
 	msg, err := b.SendVideoNote(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
 		ReplyParameters:     replyParams,
 		ReplyMarkup:         opts.Keyboard,

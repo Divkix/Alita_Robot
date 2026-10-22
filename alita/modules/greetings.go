@@ -164,11 +164,9 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 //nolint:dupl // displayGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config greetingConfig) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
+	if resolveAdminChat(bot, ctx, false) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
@@ -303,11 +301,9 @@ func (m moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // setWelcome is similar to setGoodbye but uses different DB calls and translation keys
 func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
+	if resolveAdminChat(bot, ctx, false) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
@@ -350,11 +346,9 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // resetGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome bool) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
+	if resolveAdminChat(bot, ctx, false) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
@@ -407,11 +401,9 @@ func (m moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // setGoodbye is similar to setWelcome but uses different DB calls and translation keys
 func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
+	if resolveAdminChat(bot, ctx, false) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
@@ -538,11 +530,9 @@ var autoApproveToggleConfig = greetingToggleConfig{
 
 func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greetingToggleConfig) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, cfg.connectBotAdmin)
-	if connectedChat == nil {
+	if resolveAdminChat(bot, ctx, cfg.connectBotAdmin) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	var err error

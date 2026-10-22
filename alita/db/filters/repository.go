@@ -167,12 +167,8 @@ func RemoveAllFilters(chatID int64) error {
 	return nil
 }
 
-func CountFilters(chatID int64) (filtersNum int64) {
-	err := db.DB.Model(&models.ChatFilters{}).Where("chat_id = ?", chatID).Count(&filtersNum).Error
-	if err != nil {
-		log.Errorf("[Database][CountFilters]: %d - %v", chatID, err)
-	}
-	return
+func CountFilters(chatID int64) int64 {
+	return db.CountRows(&models.ChatFilters{}, "chat_id = ?", chatID)
 }
 
 func LoadFilterStats() (filtersNum, filtersUsingChats int64) {

@@ -91,15 +91,7 @@ func SetPrivateRules(chatId int64, pref bool) error {
 }
 
 func LoadRulesStats() (setRules, pvtRules int64) {
-	err := db.DB.Model(&models.RulesSettings{}).Where("rules != ?", "").Count(&setRules).Error
-	if err != nil {
-		log.Errorf("[Database] LoadRulesStats (set rules): %v", err)
-	}
-
-	err = db.DB.Model(&models.RulesSettings{}).Where("private = ?", true).Count(&pvtRules).Error
-	if err != nil {
-		log.Errorf("[Database] LoadRulesStats (private rules): %v", err)
-	}
-
+	setRules = db.CountRows(&models.RulesSettings{}, "rules != ?", "")
+	pvtRules = db.CountRows(&models.RulesSettings{}, "private = ?", true)
 	return
 }

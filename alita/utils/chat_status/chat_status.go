@@ -190,22 +190,29 @@ func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {
 // calling Telegram. known is false when the list is missing, negative or empty;
 // callers that need an answer then must fall back to IsUserAdmin.
 func IsUserAdminCached(chatID, userId int64) (isAdmin, known bool) {
+	isAdmin, known, _ = userAdminFromCache(chatID, userId)
+	return isAdmin, known
+}
+
+// userAdminFromCache is IsUserAdminCached that also reports whether the stored
+// list holds no admins, so IsUserAdminWithContext reads the list only once.
+func userAdminFromCache(chatID, userId int64) (isAdmin, known, noAdmins bool) {
 	if !IsValidUserId(userId) {
-		return false, true
+		return false, true, false
 	}
 	if slices.Contains(tgAdminList, userId) {
-		return true, true
+		return true, true, false
 	}
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
 	if !adminsAvail || !admins.Cached || admins.Negative || len(admins.UserInfo) == 0 {
-		return false, false
+		return false, false, adminsAvail && admins.Cached && len(admins.UserInfo) == 0
 	}
 	for i := range admins.UserInfo {
 		if admins.UserInfo[i].User.Id == userId {
-			return true, true
+			return true, true, false
 		}
 	}
-	return false, true
+	return false, true, false
 }
 
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
@@ -235,7 +242,8 @@ func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId 
 		return false, nil
 	}
 
-	if isAdmin, known := IsUserAdminCached(chatID, userId); known {
+	isAdmin, known, noAdmins := userAdminFromCache(chatID, userId)
+	if known {
 		return isAdmin, nil
 	}
 	// A stored list without admins (the bot is not an admin there, or could
@@ -243,10 +251,8 @@ func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId 
 	// expires would only store it again: ask for the user's membership instead.
 	// Only groups (negative IDs) qualify; a private chat still goes through
 	// getChat below, which answers false for it.
-	if chatID < 0 {
-		if ok, admins := cache.GetAdminCacheList(chatID); ok && admins.Cached && len(admins.UserInfo) == 0 {
-			return isUserAdminByMember(ctx, b, chatID, userId)
-		}
+	if chatID < 0 && noAdmins {
+		return isUserAdminByMember(ctx, b, chatID, userId)
 	}
 
 	ctxGetChat, cancelGetChat := context.WithTimeout(ctx, 5*time.Second)

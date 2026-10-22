@@ -495,11 +495,9 @@ func (m moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "flood") {
 		return ext.EndGroups
 	}
-	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
-	if connectedChat == nil {
+	if resolveMemberChat(b, ctx, true) == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

@@ -96,6 +96,13 @@ func BotHasPermissionForUpdate(
 	return requiredField(&botMember)
 }
 
+// CanBotDeleteForUpdate is CanBotDelete memoised for the current update.
+func CanBotDeleteForUpdate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return BotHasPermissionForUpdate(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanDeleteMessages
+	})
+}
+
 // IsUserAdminForUpdate is IsUserAdmin memoised for the current update. Use it
 // only in watchers and command-pipeline checks, which run before the update
 // changes any state: the result is not refreshed afterwards.
