@@ -149,6 +149,15 @@ checked against the bot token on arrival.
   user IDs. Switching the
   window redraws without a page reload, and a chat with no recorded activity
   says so instead of drawing an empty chart.
+- **Activity** shows the same window as a heatmap of messages by weekday and
+  hour (each cell shaded by its average per day), with the busiest hour, and a
+  chart of the Telegram member count. Hours and weekdays are in UTC, and the
+  screen says so. The bot reads the member count once a day for each chat that
+  had activity yesterday or today, so the chart starts on the day the feature
+  was deployed and has no point for a day the chat was quiet.
+- **Top members** (admins only) ranks the users who sent the most messages in
+  the window, named like the timeline. Channel posts and anonymous admins are
+  not counted, and per-user counts are kept for 90 days.
 - **Settings** groups each module's options under the name the commands use,
   with switches for on/off values and the default shown (with a reset link)
   once a value differs from it. Changes are saved together from a bar that
