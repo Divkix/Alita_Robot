@@ -1735,6 +1735,26 @@ spamdb_db_lols_warning: "⚠️ O lols.bot lista contas de forma mais agressiva 
 spamdb_db_enabled_idle: "✅ {database} está selecionada, mas nada é procurado enquanto a verificação estiver desativada. Veja o estado dela com <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ O lols.bot lista contas de forma mais agressiva que o CAS, então haverá mais falsos positivos. Considere <code>/spamdb action log</code> até confiar nele. Quando a verificação estiver ativa, o ID do Telegram de cada novo membro será enviado ao lols.bot."
 
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Resumo semanal</b>
+
+  O bot conta as mensagens, entradas e saídas deste chat todos os dias, em UTC, e guarda os totais durante um ano. Um resumo semanal irá publicá-los aqui; até lá, os admins podem ver uma prévia.
+
+  *Comandos de administrador:*
+
+  × /digest now: Mostra as mensagens, entradas e saídas de hoje e os totais desta semana (desde segunda-feira às 00:00 UTC).
+
+  As contagens são guardadas por chat e nunca incluem o texto das mensagens.
+digest_globally_disabled: "❌ O operador do bot desativou o resumo."
+digest_usage: "Use <code>/digest now</code> para ver os totais de atividade deste chat."
+digest_preview_title: "<b>📊 Prévia da atividade</b>"
+digest_preview_today: "<b>Hoje</b> ({day} UTC)"
+digest_preview_week: "<b>Esta semana</b> (desde {day} UTC)"
+digest_preview_messages: "Mensagens: <b>{count}</b>"
+digest_preview_joins: "Entradas: <b>{count}</b>"
+digest_preview_leaves: "Saídas: <b>{count}</b>"
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Suporte a Admin Anônimo</b>
@@ -2797,6 +2817,8 @@ rules_extend_msg: |
   /resetrulesbtn — igual a /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — mostrar ou alternar a verificação de bases de spam, escolher as bases ou definir sua ação
+digest_extend_msg: |
+  /digest — mostra uma prévia dos totais diários e semanais de atividade deste chat
 warns_extend_msg: |
   /warn — advertir um usuário
   /swarn — advertir e apagar seu comando

@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
 // ErrChallengeDisabled signals the challenge adapter is disabled; the caller
@@ -75,6 +77,11 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 	if deps.Claim != nil && !deps.Claim(chatID, user.Id) {
 		return JoinIgnore, nil
 	}
+	// Both join updates (the new_chat_members service message and the
+	// ChatMemberUpdated) funnel through this claim and only the winner gets
+	// past it, so counting here records exactly one join per membership
+	// change whichever update arrived first.
+	stats.RecordJoin(chatID)
 	approved := false
 	if deps.IsApproved != nil {
 		approved = deps.IsApproved(chatID, user.Id)

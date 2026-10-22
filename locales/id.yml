@@ -1763,6 +1763,26 @@ spamdb_db_lols_warning: "⚠️ lols.bot mendaftarkan akun lebih agresif daripad
 spamdb_db_enabled_idle: "✅ {database} dipilih, tetapi tidak ada yang dicari selama pemeriksaan mati. Lihat statusnya dengan <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot mendaftarkan akun lebih agresif daripada CAS, jadi akan ada lebih banyak positif palsu. Pertimbangkan <code>/spamdb action log</code> sampai Anda yakin. Setelah pemeriksaan aktif, ID Telegram setiap anggota baru akan dikirim ke lols.bot."
 
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Ringkasan mingguan</b>
+
+  Bot menghitung pesan, bergabung, dan keluar di chat ini setiap hari dalam UTC dan menyimpan totalnya selama satu tahun. Ringkasan mingguan akan mengirimkannya di sini; sementara itu, admin dapat melihat pratinjaunya.
+
+  *Perintah admin:*
+
+  × /digest now: Tampilkan pesan, bergabung, dan keluar hari ini serta total minggu ini (sejak Senin 00:00 UTC).
+
+  Hitungan disimpan per chat dan tidak pernah menyertakan teks pesan.
+digest_globally_disabled: "❌ Operator bot menonaktifkan ringkasan."
+digest_usage: "Gunakan <code>/digest now</code> untuk melihat total aktivitas chat ini."
+digest_preview_title: "<b>📊 Pratinjau aktivitas</b>"
+digest_preview_today: "<b>Hari ini</b> ({day} UTC)"
+digest_preview_week: "<b>Minggu ini</b> (sejak {day} UTC)"
+digest_preview_messages: "Pesan: <b>{count}</b>"
+digest_preview_joins: "Bergabung: <b>{count}</b>"
+digest_preview_leaves: "Keluar: <b>{count}</b>"
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Dukungan Admin Anonim</b>
@@ -2824,6 +2844,8 @@ rules_extend_msg: |
   /resetrulesbtn — sama dengan /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — tampilkan atau ubah pemeriksaan database spam, pilih database-nya, atau atur tindakannya
+digest_extend_msg: |
+  /digest — pratinjau total aktivitas harian dan mingguan chat ini
 warns_extend_msg: |
   /warn — beri peringatan pengguna
   /swarn — beri peringatan dan hapus perintahmu

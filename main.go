@@ -31,6 +31,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
+	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -156,10 +157,18 @@ func main() {
 
 	shutdownManager := shutdown.NewManager()
 
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Closing database connections...")
-		return closeDBConnections()
-	})
+	stats.StartFlusher()
+
+	registerShutdownDrains(shutdownManager,
+		func() error {
+			log.Info("[Shutdown] Closing database connections...")
+			return closeDBConnections()
+		},
+		func() error {
+			log.Info("[Shutdown] Flushing daily stats counters...")
+			return stats.StopFlusher()
+		},
+	)
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")
 		modules.DrainUsersAsyncWrites()
@@ -432,6 +441,16 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 		log.Infof("[Bot] Bot has been started in %s mode...", mode)
 	} else {
 		log.Infof("[Bot] %s has been started in %s mode...", username, mode)
+	}
+}
+
+// registerShutdownDrains registers the database-close handler and the drains
+// that must finish before it. Shutdown executes handlers in reverse
+// registration order, so the close handler registered first runs last.
+func registerShutdownDrains(m *shutdown.Manager, closeDB func() error, drains ...func() error) {
+	m.RegisterHandler(closeDB)
+	for _, drain := range drains {
+		m.RegisterHandler(drain)
 	}
 }
 

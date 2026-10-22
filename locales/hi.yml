@@ -741,6 +741,26 @@ spamdb_db_lols_warning: "⚠️ lols.bot खातों को CAS से ज�
 spamdb_db_enabled_idle: "✅ {database} चुना गया है, लेकिन जाँच बंद रहने तक कुछ भी नहीं खोजा जाएगा। उसकी स्थिति <code>/spamdb</code> से देखें।"
 spamdb_db_lols_warning_idle: "⚠️ lols.bot खातों को CAS से ज़्यादा सख़्ती से सूचीबद्ध करता है, इसलिए ग़लत पहचान ज़्यादा होगी। जब तक भरोसा न हो, <code>/spamdb action log</code> पर विचार करें। जाँच चालू होने पर हर नए सदस्य की Telegram ID lols.bot को भेजी जाएगी।"
 
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 साप्ताहिक सारांश</b>
+
+  बॉट इस चैट के संदेशों, जुड़ने और छोड़ने की गिनती हर दिन UTC में करता है और कुल एक साल तक रखता है। साप्ताहिक सारांश उन्हें यहाँ भेजेगा; तब तक एडमिन इन्हें देख सकते हैं।
+
+  *एडमिन कमांड:*
+
+  × /digest now: आज के संदेश, जुड़ने और छोड़ने की संख्या और इस सप्ताह (सोमवार 00:00 UTC से) के कुल दिखाएँ।
+
+  गिनती प्रति चैट रखी जाती है और उसमें संदेशों का टेक्स्ट कभी शामिल नहीं होता।
+digest_globally_disabled: "❌ बॉट ऑपरेटर ने सारांश बंद कर दिया है।"
+digest_usage: "इस चैट के गतिविधि कुल देखने के लिए <code>/digest now</code> का उपयोग करें।"
+digest_preview_title: "<b>📊 गतिविधि पूर्वावलोकन</b>"
+digest_preview_today: "<b>आज</b> ({day} UTC)"
+digest_preview_week: "<b>इस सप्ताह</b> ({day} UTC से)"
+digest_preview_messages: "संदेश: <b>{count}</b>"
+digest_preview_joins: "जुड़े: <b>{count}</b>"
+digest_preview_leaves: "छोड़े: <b>{count}</b>"
+
 # Antiflood module strings
 antiflood_checkflood_perform_action: "हाँ, मुझे आपकी flooding पसंद नहीं है। %s को %s कर दिया गया है!"
 antiflood_errors_expected_args: "मुझे कुछ तर्क चाहिए! या तो off, या एक पूर्णांक। उदा: <code>/setflood 5</code>, या <code>/setflood off</code>"
@@ -2542,6 +2562,8 @@ rules_extend_msg: |
   /resetrulesbtn — /resetrulesbutton के समान
 spamdb_extend_msg: |
   /spamdb — स्पैम डेटाबेस जाँच दिखाएँ या बदलें, उसके डेटाबेस चुनें, या उसकी कार्रवाई तय करें
+digest_extend_msg: |
+  /digest — इस चैट के दैनिक और साप्ताहिक गतिविधि कुल का पूर्वावलोकन दिखाएँ
 warns_extend_msg: |
   /warn — यूज़र को चेतावनी दें
   /swarn — चेतावनी दें और अपनी कमांड हटाएँ

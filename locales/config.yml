@@ -14,6 +14,7 @@ mute_example: "/mute @username"
 smute_example: "/smute @username"
 tmute_example: "/tmute @username 30m"
 unmute_example: "/unmute @username"
+digest_example: "/digest now"
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]

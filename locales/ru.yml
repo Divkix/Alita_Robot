@@ -1549,6 +1549,26 @@ spamdb_db_lols_warning: "⚠️ lols.bot вносит аккаунты агре�
 spamdb_db_enabled_idle: "✅ {database} выбрана, но пока проверка выключена, никого не ищут. Её состояние — в <code>/spamdb</code>."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot вносит аккаунты агрессивнее, чем CAS, поэтому ложных срабатываний будет больше. Пока не убедитесь в ней, подумайте о <code>/spamdb action log</code>. Когда проверка заработает, Telegram ID каждого нового участника будет отправляться на lols.bot."
 
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Недельная сводка</b>
+
+  Бот ежедневно считает сообщения, входы и выходы в этом чате по UTC и хранит итоги год. Недельная сводка будет публиковать их здесь; пока администраторы могут посмотреть предварительные данные.
+
+  *Команды администратора:*
+
+  × /digest now: Показать сообщения, входы и выходы за сегодня и итоги этой недели (с понедельника 00:00 UTC).
+
+  Счётчики хранятся по чатам и никогда не включают текст сообщений.
+digest_globally_disabled: "❌ Оператор бота отключил сводку."
+digest_usage: "Используйте <code>/digest now</code>, чтобы увидеть итоги активности этого чата."
+digest_preview_title: "<b>📊 Обзор активности</b>"
+digest_preview_today: "<b>Сегодня</b> ({day} UTC)"
+digest_preview_week: "<b>На этой неделе</b> (с {day} UTC)"
+digest_preview_messages: "Сообщения: <b>{count}</b>"
+digest_preview_joins: "Входы: <b>{count}</b>"
+digest_preview_leaves: "Выходы: <b>{count}</b>"
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Поддержка анонимных администраторов</b>
@@ -2611,6 +2631,8 @@ rules_extend_msg: |
   /resetrulesbtn — то же, что /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — показать или переключить проверку по базам спамеров, выбрать базы, задать действие
+digest_extend_msg: |
+  /digest — предварительный просмотр дневных и недельных итогов активности этого чата
 warns_extend_msg: |
   /warn — предупредить
   /swarn — предупредить и удалить команду

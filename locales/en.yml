@@ -1812,6 +1812,26 @@ spamdb_db_lols_warning: "⚠️ lols.bot lists accounts more aggressively than C
 spamdb_db_enabled_idle: "✅ {database} is selected, but nothing is looked up while the check is off. See <code>/spamdb</code> for its state."
 spamdb_db_lols_warning_idle: "⚠️ lols.bot lists accounts more aggressively than CAS, so expect more false positives. Consider <code>/spamdb action log</code> until you trust it. Once the check is running, each new member's Telegram user ID is sent to lols.bot."
 
+# Weekly digest strings
+digest_help_msg: |
+  <b>📊 Weekly digest</b>
+
+  The bot counts messages, joins and leaves in this chat every day, in UTC, and keeps the totals for a year. A weekly digest will post them here; until then, admins can preview the numbers.
+
+  *Admin commands:*
+
+  × /digest now: Show today's messages, joins and leaves and the totals for this week (since Monday 00:00 UTC).
+
+  The counts are kept per chat and never include message text.
+digest_globally_disabled: "❌ The digest is disabled by the bot operator."
+digest_usage: "Use <code>/digest now</code> to see this chat's activity totals."
+digest_preview_title: "<b>📊 Activity preview</b>"
+digest_preview_today: "<b>Today</b> ({day} UTC)"
+digest_preview_week: "<b>This week</b> (since {day} UTC)"
+digest_preview_messages: "Messages: <b>{count}</b>"
+digest_preview_joins: "Joins: <b>{count}</b>"
+digest_preview_leaves: "Leaves: <b>{count}</b>"
+
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Anonymous Admin Support</b>
@@ -2845,6 +2865,8 @@ rules_extend_msg: |
   /resetrulesbtn — same as /resetrulesbutton
 spamdb_extend_msg: |
   /spamdb — show or toggle the spam database join check, choose its databases, or set its action
+digest_extend_msg: |
+  /digest — preview this chat's daily and weekly activity totals
 warns_extend_msg: |
   /warn — warn a user
   /swarn — warn and delete your command

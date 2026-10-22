@@ -268,6 +268,30 @@ func TestLoadConfig(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("ENABLE_DIGEST", func(t *testing.T) {
+		for _, tc := range []struct {
+			env  string
+			want bool
+		}{
+			{"", true},
+			{"true", true},
+			{"false", false},
+		} {
+			t.Run("env="+tc.env, func(t *testing.T) {
+				setRequiredEnv(t)
+				t.Setenv("ENABLE_DIGEST", tc.env)
+
+				cfg, err := LoadConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.EnableDigest != tc.want {
+					t.Fatalf("EnableDigest = %v, want %v", cfg.EnableDigest, tc.want)
+				}
+			})
+		}
+	})
 }
 
 func TestRedisEnvParsingPure(t *testing.T) {
