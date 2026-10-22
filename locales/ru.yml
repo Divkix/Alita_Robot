@@ -276,6 +276,7 @@ connections_is_user_connected_user_not_admin: Вам нужно быть адм�
 connections_not_connected: Вы не подключены ни к каким чатам.
 connections_pm_group_need: "В ЛС сначала укажите группу: <code>/%s @имягруппы</code> или её ID (команда /id в группе). Либо подключитесь к группе через /connect."
 connections_pm_group_duplicate: "Так называются несколько ваших групп: <code>%s</code>. Укажите нужную по @username или ID:"
+connections_pm_group_too_many: "Слишком много групп называются <code>%s</code>, чтобы проверить каждую. Укажите нужную по @username или ID (команда /id в группе)."
 connections_pm_group_not_found: "Не нашёл группу <code>%s</code>. Укажите название группы, где вы админ, её @username или ID (команда /id в группе)."
 connections_pm_group_pick: "В ЛС сначала укажите группу: название группы, где вы админ (в кавычках, если в нём есть пробелы), её @username или ID."
 connections_pm_group_your_groups: "Ваши группы:"

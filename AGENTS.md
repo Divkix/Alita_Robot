@@ -47,7 +47,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - `withPMGroupArg` (`alita/modules/pm_group_arg.go`) lets a legacy PM command take its group as the first argument
   (`-100…` ID, a group's @username, or the title of a group the user administers). A title is matched against the
   connected group and the `settingsCandidateLimit` (50) most recently active groups the user posted in
-  (`settingsCandidateChats`, uncached), and admin rights are checked only on the matches, outside the `/settings`
+  (`settingsCandidateChats`, uncached), and admin rights are checked only on the matches (none when more than
+  `pmGroupTitleCheckLimit` (3) share the title: the call gets `connections_pm_group_too_many`), outside the `/settings`
   picker's button cap and budget; a group outside those 50 is named by @username or ID only. The lookup takes the
   picker's pause before it scans, so one user scans `chats` at most once per pause: inside the pause a title is
   matched against the list the last picker build kept, and with no list kept the call gets `settings_picker_wait`. A

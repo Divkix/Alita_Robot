@@ -204,6 +204,27 @@ func TestPMGroupDuplicateTitlesListsChoices(t *testing.T) {
 	}
 }
 
+// More groups with one title than pmGroupTitleCheckLimit are not checked one
+// by one: the reply asks for the group's @username or ID, and Telegram is not
+// asked about any of them.
+func TestPMGroupTitleOverCheckLimitAsksForID(t *testing.T) {
+	f := titleFixture(t, "Chat")
+	groups := []models.Chat{{ChatId: f.chat.Id, ChatName: "Chat"}}
+	for range pmGroupTitleCheckLimit {
+		twin := uniqueModuleChatID()
+		f.addGroup(t, twin, "Chat", true)
+		groups = append(groups, models.Chat{ChatId: twin, ChatName: "Chat"})
+	}
+	setPMGroupCandidates(t, groups...)
+	tooMany := fmt.Sprintf(translated(t, "connections_pm_group_too_many"), "chat")
+
+	sendPMCommand(t, notesDispatcher(), f.bot, f.client, f.admin, "/notes chat", tooMany)
+
+	if n := adminLookups(f.client); n != 0 {
+		t.Fatalf("admin lookups for %d same-titled groups = %d, want 0", len(groups), n)
+	}
+}
+
 // Group titles are user text: the help list and the duplicate list show them
 // escaped, and the help list leaves out groups the user does not administer.
 func TestPMGroupListsEscapeTitles(t *testing.T) {

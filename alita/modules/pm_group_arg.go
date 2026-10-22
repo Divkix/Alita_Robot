@@ -24,6 +24,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
+// pmGroupTitleCheckLimit bounds the admin checks of a title lookup. Each check
+// of a group whose admin list is not cached is up to four Telegram calls, and
+// they run one after another; past this many groups with the title the user
+// names the group by its @username or ID instead.
+const pmGroupTitleCheckLimit = 3
+
 // pmGroupToken is the first argument of a PM command, which may name a group.
 // start and end are byte offsets in the message text: the cut runs from the
 // end of the command to the end of the token, so the whitespace that follows
@@ -338,7 +344,13 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 		entries = c.titleCandidates(candidates)
 	}
 
-	switch matches := c.adminGroupsTitled(entries, tok.Raw); len(matches) {
+	matches, tooMany := c.adminGroupsTitled(entries, tok.Raw)
+	if tooMany {
+		text, _ := c.tr.GetString("connections_pm_group_too_many")
+		_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)))
+		return nil
+	}
+	switch len(matches) {
 	case 0:
 	case 1:
 		if group := lookupPMGroup(c.b, strconv.FormatInt(matches[0].ChatID, 10)); group != nil {
@@ -377,18 +389,26 @@ func (c pmGroupCall) titleCandidates(candidates []models.Chat) []settingsPickerE
 }
 
 // adminGroupsTitled returns the entries titled title, ignoring case, that the
-// user administers.
-func (c pmGroupCall) adminGroupsTitled(entries []settingsPickerEntry, title string) []settingsPickerEntry {
-	userID := c.ctx.EffectiveUser.Id
-	var matches []settingsPickerEntry
+// user administers. With more than pmGroupTitleCheckLimit groups so titled it
+// checks none of them and returns tooMany.
+func (c pmGroupCall) adminGroupsTitled(entries []settingsPickerEntry, title string) (matches []settingsPickerEntry, tooMany bool) {
+	var titled []settingsPickerEntry
 	seen := map[int64]bool{}
 	for _, entry := range pmGroupsTitled(entries, title) {
-		if !seen[entry.ChatID] && chat_status.IsUserAdmin(c.b, entry.ChatID, userID) {
-			matches = append(matches, entry)
+		if !seen[entry.ChatID] {
+			titled = append(titled, entry)
 		}
 		seen[entry.ChatID] = true
 	}
-	return matches
+	if len(titled) > pmGroupTitleCheckLimit {
+		return nil, true
+	}
+	for _, entry := range titled {
+		if chat_status.IsUserAdmin(c.b, entry.ChatID, c.ctx.EffectiveUser.Id) {
+			matches = append(matches, entry)
+		}
+	}
+	return matches, false
 }
 
 // useGroup checks the group like /connect, then puts it in place of the saved

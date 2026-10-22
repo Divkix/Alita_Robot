@@ -1001,6 +1001,7 @@ connections_is_user_connected_user_not_admin: इसे करने के ल�
 connections_not_connected: आप किसी चैट से जुड़े नहीं हैं।
 connections_pm_group_need: "PM में पहले ग्रुप बताएं: <code>/%s @groupname</code> या उसका ID (ग्रुप में /id भेजें)। या /connect से किसी ग्रुप से जुड़ें।"
 connections_pm_group_duplicate: "आपके कई ग्रुप का नाम <code>%s</code> है। जिसे चाहते हैं, उसका @username या ID बताएं:"
+connections_pm_group_too_many: "<code>%s</code> नाम के बहुत सारे ग्रुप हैं, सबको जाँचा नहीं जा सकता। जिसे चाहते हैं, उसका @username या ID बताएं (ग्रुप में /id भेजें)।"
 connections_pm_group_not_found: "ग्रुप <code>%s</code> नहीं मिला। उस ग्रुप का नाम बताएं जहाँ आप एडमिन हैं, या उसका @username या ID (ग्रुप में /id भेजें)।"
 connections_pm_group_pick: "PM में पहले ग्रुप बताएं: उस ग्रुप का नाम जहाँ आप एडमिन हैं (नाम में स्पेस हों तो कोट्स में), या उसका @username या ID।"
 connections_pm_group_your_groups: "आपके ग्रुप:"

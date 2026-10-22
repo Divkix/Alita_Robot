@@ -363,6 +363,7 @@ connections_is_user_connected_user_not_admin: Você precisa ser administrador pa
 connections_not_connected: Você não está conectado a nenhum chat.
 connections_pm_group_need: "No privado, informe primeiro o grupo: <code>/%s @nomedogrupo</code> ou o ID dele (envie /id no grupo). Ou conecte-se a um grupo com /connect."
 connections_pm_group_duplicate: "Vários dos seus grupos se chamam <code>%s</code>. Informe o que você quer pelo @username ou pelo ID:"
+connections_pm_group_too_many: "Há grupos demais chamados <code>%s</code> para verificar todos. Informe o que você quer pelo @username ou pelo ID (envie /id no grupo)."
 connections_pm_group_not_found: "Não encontrei o grupo <code>%s</code>. Informe o título de um grupo em que você é admin, o @username ou o ID dele (envie /id no grupo)."
 connections_pm_group_pick: "No privado, informe primeiro o grupo: o título de um grupo em que você é admin (entre aspas se tiver espaços), o @username ou o ID dele."
 connections_pm_group_your_groups: "Seus grupos:"
