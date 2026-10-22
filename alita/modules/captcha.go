@@ -1306,6 +1306,13 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 			log.Errorf("[Captcha] Failed to clear fallback unmute for user %d: %v", userID, err)
 		}
 	}
+	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount)
+	return true, true
+}
+
+// reportCaptchaFailure logs an applied failure action to the log channel and
+// posts the group notice, which deletes itself after 30 seconds.
+func reportCaptchaFailure(bot *gotgbot.Bot, chatID, userID int64, userName, action, cause string, storedMsgCount int64) {
 	actionlog.Automated(bot, captchaLogChat(chatID), "CAPTCHA_FAILED", userID, userName,
 		actionlog.Field{Name: "Action", Value: action},
 		actionlog.Field{Name: "Cause", Value: cause},
@@ -1324,8 +1331,6 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, sent.MessageId)
 		})
 	}
-
-	return true, true
 }
 
 // captchaLogChat is the chat for a log entry when only its ID is at hand; the
