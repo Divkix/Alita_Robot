@@ -1816,21 +1816,47 @@ spamdb_db_lols_warning_idle: "⚠️ lols.bot lists accounts more aggressively t
 digest_help_msg: |
   <b>📊 Weekly digest</b>
 
-  The bot counts messages, joins and leaves in this chat every day, in UTC, and keeps the totals for a year. A weekly digest will post them here; until then, admins can preview the numbers.
+  The bot counts messages, joins and leaves in this chat every day, in UTC, and keeps the totals for a year. Admins can turn on a weekly digest that posts the previous week's totals, with the change from the week before, every Monday after 00:00 UTC. It goes to the log channel when this chat has one, otherwise to the group.
 
   *Admin commands:*
 
-  × /digest now: Show today's messages, joins and leaves and the totals for this week (since Monday 00:00 UTC).
+  × /digest: Show whether the digest is on and where it goes.
+  × /digest on: Turn the weekly digest on.
+  × /digest off: Turn the weekly digest off.
+  × /digest here: Send the digest to this group.
+  × /digest log: Send the digest to the log channel (needs a log channel).
+  × /digest now: Preview this week so far with the same rendering as the digest.
 
   The counts are kept per chat and never include message text.
 digest_globally_disabled: "❌ The digest is disabled by the bot operator."
-digest_usage: "Use <code>/digest now</code> to see this chat's activity totals."
-digest_preview_title: "<b>📊 Activity preview</b>"
-digest_preview_today: "<b>Today</b> ({day} UTC)"
-digest_preview_week: "<b>This week</b> (since {day} UTC)"
-digest_preview_messages: "Messages: <b>{count}</b>"
-digest_preview_joins: "Joins: <b>{count}</b>"
-digest_preview_leaves: "Leaves: <b>{count}</b>"
+digest_usage: "Use <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> or <code>/digest now</code>."
+digest_status_title: "<b>📊 Weekly digest</b>"
+digest_status_enabled: "Status: <b>enabled</b>"
+digest_status_disabled: "Status: <b>disabled</b>"
+digest_destination_log: "the log channel"
+digest_destination_group: "this group"
+digest_status_destination_default: "Destination: <b>{destination}</b> (the default)"
+digest_status_destination_set: "Destination: <b>{destination}</b> (set by an admin)"
+digest_status_hint: "Use <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> or <code>/digest now</code>."
+digest_log_unavailable: "❌ This chat has no log channel, so the digest cannot go there. Set one with <code>/setlog</code> or use <code>/digest here</code>."
+digest_message_title: "<b>📊 Weekly digest</b>"
+digest_message_period: "<b>Week of {date}</b> (UTC)"
+digest_message_messages: "Messages: <b>{count}</b> — {change}"
+digest_message_joins: "Joins: <b>{count}</b> — {change}"
+digest_message_leaves: "Leaves: <b>{count}</b> — {change}"
+digest_message_moderation: "Moderation actions: <b>{count}</b> — {change}"
+digest_message_top_action: "Most frequent action: <b>{action}</b>"
+digest_message_empty: "😴 <b>No activity recorded</b>\nNo messages, joins, leaves or moderation actions in this period."
+digest_action_ban: "bans"
+digest_action_kick: "kicks"
+digest_action_mute: "mutes"
+digest_action_unban: "unbans"
+digest_change_up: "▲ {percent}% from the week before"
+digest_change_down: "▼ {percent}% from the week before"
+digest_change_same: "no change from the week before"
+digest_change_new: "new"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Open the dashboard"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2866,7 +2892,7 @@ rules_extend_msg: |
 spamdb_extend_msg: |
   /spamdb — show or toggle the spam database join check, choose its databases, or set its action
 digest_extend_msg: |
-  /digest — preview this chat's daily and weekly activity totals
+  /digest — show the weekly digest state, turn it on or off, choose its destination, or preview it
 warns_extend_msg: |
   /warn — warn a user
   /swarn — warn and delete your command

@@ -1739,21 +1739,47 @@ spamdb_db_lols_warning_idle: "⚠️ O lols.bot lista contas de forma mais agres
 digest_help_msg: |
   <b>📊 Resumo semanal</b>
 
-  O bot conta as mensagens, entradas e saídas deste chat todos os dias, em UTC, e guarda os totais durante um ano. Um resumo semanal irá publicá-los aqui; até lá, os admins podem ver uma prévia.
+  O bot conta as mensagens, entradas e saídas deste chat todos os dias, em UTC, e guarda os totais durante um ano. Os admins podem ativar um resumo semanal que publica os totais da semana anterior, com a variação em relação à semana anterior, toda segunda-feira após as 00:00 UTC. Ele vai para o canal de registro quando este chat tem um; caso contrário, para o grupo.
 
   *Comandos de administrador:*
 
-  × /digest now: Mostra as mensagens, entradas e saídas de hoje e os totais desta semana (desde segunda-feira às 00:00 UTC).
+  × /digest: Mostra se o resumo está ativo e para onde vai.
+  × /digest on: Ativa o resumo semanal.
+  × /digest off: Desativa o resumo semanal.
+  × /digest here: Envia o resumo para este grupo.
+  × /digest log: Envia o resumo para o canal de registro (precisa de um canal de registro).
+  × /digest now: Mostra uma prévia desta semana com o mesmo formato do resumo.
 
   As contagens são guardadas por chat e nunca incluem o texto das mensagens.
 digest_globally_disabled: "❌ O operador do bot desativou o resumo."
-digest_usage: "Use <code>/digest now</code> para ver os totais de atividade deste chat."
-digest_preview_title: "<b>📊 Prévia da atividade</b>"
-digest_preview_today: "<b>Hoje</b> ({day} UTC)"
-digest_preview_week: "<b>Esta semana</b> (desde {day} UTC)"
-digest_preview_messages: "Mensagens: <b>{count}</b>"
-digest_preview_joins: "Entradas: <b>{count}</b>"
-digest_preview_leaves: "Saídas: <b>{count}</b>"
+digest_usage: "Use <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> ou <code>/digest now</code>."
+digest_status_title: "<b>📊 Resumo semanal</b>"
+digest_status_enabled: "Estado: <b>ativado</b>"
+digest_status_disabled: "Estado: <b>desativado</b>"
+digest_destination_log: "o canal de registro"
+digest_destination_group: "este grupo"
+digest_status_destination_default: "Destino: <b>{destination}</b> (o padrão)"
+digest_status_destination_set: "Destino: <b>{destination}</b> (escolhido por um admin)"
+digest_status_hint: "Use <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code> ou <code>/digest now</code>."
+digest_log_unavailable: "❌ Este chat não tem canal de registro, então o resumo não pode ir para lá. Configure um com <code>/setlog</code> ou use <code>/digest here</code>."
+digest_message_title: "<b>📊 Resumo semanal</b>"
+digest_message_period: "<b>Semana de {date}</b> (UTC)"
+digest_message_messages: "Mensagens: <b>{count}</b> — {change}"
+digest_message_joins: "Entradas: <b>{count}</b> — {change}"
+digest_message_leaves: "Saídas: <b>{count}</b> — {change}"
+digest_message_moderation: "Ações de moderação: <b>{count}</b> — {change}"
+digest_message_top_action: "Ação mais frequente: <b>{action}</b>"
+digest_message_empty: "😴 <b>Nenhuma atividade registrada</b>\nNenhuma mensagem, entrada, saída ou ação de moderação neste período."
+digest_action_ban: "banimentos"
+digest_action_kick: "expulsões"
+digest_action_mute: "silenciamentos"
+digest_action_unban: "desbanimentos"
+digest_change_up: "▲ {percent}% em relação à semana anterior"
+digest_change_down: "▼ {percent}% em relação à semana anterior"
+digest_change_same: "sem mudança em relação à semana anterior"
+digest_change_new: "novo"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Abrir o painel"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2818,7 +2844,7 @@ rules_extend_msg: |
 spamdb_extend_msg: |
   /spamdb — mostrar ou alternar a verificação de bases de spam, escolher as bases ou definir sua ação
 digest_extend_msg: |
-  /digest — mostra uma prévia dos totais diários e semanais de atividade deste chat
+  /digest — mostra o estado do resumo semanal, ativa ou desativa, escolhe o destino ou mostra uma prévia
 warns_extend_msg: |
   /warn — advertir um usuário
   /swarn — advertir e apagar seu comando

@@ -7,11 +7,16 @@ description: Complete guide to Digest module commands and features
 
 **📊 Weekly digest**
 
-The bot counts messages, joins and leaves in this chat every day, in UTC, and keeps the totals for a year. A weekly digest will post them here; until then, admins can preview the numbers.
+The bot counts messages, joins and leaves in this chat every day, in UTC, and keeps the totals for a year. Admins can turn on a weekly digest that posts the previous week's totals, with the change from the week before, every Monday after 00:00 UTC. It goes to the log channel when this chat has one, otherwise to the group.
 
 ### Admin commands:
 
-- `/digest now`: Show today's messages, joins and leaves and the totals for this week (since Monday 00:00 UTC).
+- `/digest`: Show whether the digest is on and where it goes.
+- `/digest on`: Turn the weekly digest on.
+- `/digest off`: Turn the weekly digest off.
+- `/digest here`: Send the digest to this group.
+- `/digest log`: Send the digest to the log channel (needs a log channel).
+- `/digest now`: Preview this week so far with the same rendering as the digest.
 
 The counts are kept per chat and never include message text.
 
@@ -20,7 +25,7 @@ The counts are kept per chat and never include message text.
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/digest` | Show today's messages, joins and leaves and the totals for this week (since Monday 00:00 UTC). | ✅ |
+| `/digest` | Show whether the digest is on and where it goes. | ✅ |
 
 ## Usage Examples
 

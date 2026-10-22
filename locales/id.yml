@@ -1767,21 +1767,47 @@ spamdb_db_lols_warning_idle: "⚠️ lols.bot mendaftarkan akun lebih agresif da
 digest_help_msg: |
   <b>📊 Ringkasan mingguan</b>
 
-  Bot menghitung pesan, bergabung, dan keluar di chat ini setiap hari dalam UTC dan menyimpan totalnya selama satu tahun. Ringkasan mingguan akan mengirimkannya di sini; sementara itu, admin dapat melihat pratinjaunya.
+  Bot menghitung pesan, bergabung, dan keluar di chat ini setiap hari dalam UTC dan menyimpan totalnya selama satu tahun. Admin dapat mengaktifkan ringkasan mingguan yang mengirim total minggu sebelumnya, dengan perubahan dari minggu sebelumnya, setiap Senin setelah 00:00 UTC. Ringkasan dikirim ke kanal log jika chat ini memilikinya, jika tidak ke grup.
 
   *Perintah admin:*
 
-  × /digest now: Tampilkan pesan, bergabung, dan keluar hari ini serta total minggu ini (sejak Senin 00:00 UTC).
+  × /digest: Tampilkan apakah ringkasan aktif dan ke mana dikirim.
+  × /digest on: Aktifkan ringkasan mingguan.
+  × /digest off: Nonaktifkan ringkasan mingguan.
+  × /digest here: Kirim ringkasan ke grup ini.
+  × /digest log: Kirim ringkasan ke kanal log (perlu kanal log).
+  × /digest now: Pratinjau minggu ini dengan tampilan yang sama seperti ringkasan.
 
   Hitungan disimpan per chat dan tidak pernah menyertakan teks pesan.
 digest_globally_disabled: "❌ Operator bot menonaktifkan ringkasan."
-digest_usage: "Gunakan <code>/digest now</code> untuk melihat total aktivitas chat ini."
-digest_preview_title: "<b>📊 Pratinjau aktivitas</b>"
-digest_preview_today: "<b>Hari ini</b> ({day} UTC)"
-digest_preview_week: "<b>Minggu ini</b> (sejak {day} UTC)"
-digest_preview_messages: "Pesan: <b>{count}</b>"
-digest_preview_joins: "Bergabung: <b>{count}</b>"
-digest_preview_leaves: "Keluar: <b>{count}</b>"
+digest_usage: "Gunakan <code>/digest</code>, <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code>, atau <code>/digest now</code>."
+digest_status_title: "<b>📊 Ringkasan mingguan</b>"
+digest_status_enabled: "Status: <b>aktif</b>"
+digest_status_disabled: "Status: <b>nonaktif</b>"
+digest_destination_log: "kanal log"
+digest_destination_group: "grup ini"
+digest_status_destination_default: "Tujuan: <b>{destination}</b> (bawaan)"
+digest_status_destination_set: "Tujuan: <b>{destination}</b> (dipilih admin)"
+digest_status_hint: "Gunakan <code>/digest on</code>, <code>/digest off</code>, <code>/digest here</code>, <code>/digest log</code>, atau <code>/digest now</code>."
+digest_log_unavailable: "❌ Chat ini tidak punya kanal log, jadi ringkasan tidak bisa dikirim ke sana. Atur kanal dengan <code>/setlog</code> atau gunakan <code>/digest here</code>."
+digest_message_title: "<b>📊 Ringkasan mingguan</b>"
+digest_message_period: "<b>Minggu {date}</b> (UTC)"
+digest_message_messages: "Pesan: <b>{count}</b> — {change}"
+digest_message_joins: "Bergabung: <b>{count}</b> — {change}"
+digest_message_leaves: "Keluar: <b>{count}</b> — {change}"
+digest_message_moderation: "Tindakan moderasi: <b>{count}</b> — {change}"
+digest_message_top_action: "Tindakan tersering: <b>{action}</b>"
+digest_message_empty: "😴 <b>Tidak ada aktivitas tercatat</b>\nTidak ada pesan, bergabung, keluar, atau tindakan moderasi pada periode ini."
+digest_action_ban: "blokir"
+digest_action_kick: "keluarkan"
+digest_action_mute: "bisu"
+digest_action_unban: "buka blokir"
+digest_change_up: "▲ {percent}% dari minggu sebelumnya"
+digest_change_down: "▼ {percent}% dari minggu sebelumnya"
+digest_change_same: "tidak berubah dari minggu sebelumnya"
+digest_change_new: "baru"
+digest_change_none: "—"
+digest_dashboard_button: "📊 Buka dasbor"
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2845,7 +2871,7 @@ rules_extend_msg: |
 spamdb_extend_msg: |
   /spamdb — tampilkan atau ubah pemeriksaan database spam, pilih database-nya, atau atur tindakannya
 digest_extend_msg: |
-  /digest — pratinjau total aktivitas harian dan mingguan chat ini
+  /digest — tampilkan status ringkasan mingguan, aktifkan atau nonaktifkan, pilih tujuannya, atau lihat pratinjaunya
 warns_extend_msg: |
   /warn — beri peringatan pengguna
   /swarn — beri peringatan dan hapus perintahmu

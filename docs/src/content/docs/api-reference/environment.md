@@ -147,16 +147,34 @@ in full.
 
 ### `ENABLE_DIGEST`
 
-Operator kill switch for the weekly digest and the `/digest now` preview. When
-`false`, `/digest` refuses and no digest is generated; the daily counters keep
-recording because the dashboard overview uses the same data. Chats control
-their own digest settings separately.
+Operator kill switch for the weekly digest and the `/digest` command. When
+`false`, no digest is sent and `/digest` refuses; the daily counters keep
+recording because the dashboard overview uses the same data, and each chat's
+digest settings are left untouched. With it on, a digest still goes only to
+chats whose admins ran `/digest on`.
+
+The scheduler posts the previous week's totals, with the change from the week
+before, after Monday 00:00 UTC. A chat's digest goes to its log channel by
+default and to the group when it has none; admins choose with `/digest here`
+and `/digest log`.
 
 | Property | Value |
 |----------|-------|
 | **Type** | `boolean` |
 | **Required** | No |
 | **Default** | `true` |
+
+### `DIGEST_INTERVAL`
+
+How often the digest scheduler looks for chats due a weekly digest, as a Go
+duration (`30m`, `1h`, `6h`). It is a test and staging knob; leave it unset in
+production. A value that is not a positive duration fails startup.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `duration` |
+| **Required** | No |
+| **Default** | `1h` |
 
 ## 📂 Bot settings
 
@@ -712,6 +730,7 @@ DB_MAX_IDLE_CONNS=# (default: 50)
 DB_MAX_OPEN_CONNS=# (default: 200)
 DEBUG=# enable debug logging (default: false)
 DISABLE_CACHE=# bypass the cache; bot starts without Redis, degraded (default: false)
+DIGEST_INTERVAL=# how often the digest scheduler checks for due chats, Go duration (default: 1h)
 DISPATCHER_MAX_ROUTINES=# (default: 200)
 DROP_PENDING_UPDATES=# (default: false)
 ENABLE_AISPAM=# global AI spam filter kill switch (default: true)

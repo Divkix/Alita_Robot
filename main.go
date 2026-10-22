@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	dbmonitoring "github.com/divkix/Alita_Robot/alita/db/monitoring"
+	"github.com/divkix/Alita_Robot/alita/digest"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/panel"
@@ -161,6 +162,8 @@ func main() {
 
 	stats.StartFlusher()
 
+	digestScheduler := digest.NewScheduler(b)
+
 	registerShutdownDrains(shutdownManager,
 		func() error {
 			log.Info("[Shutdown] Closing database connections...")
@@ -170,7 +173,14 @@ func main() {
 			log.Info("[Shutdown] Flushing daily stats counters...")
 			return stats.StopFlusher()
 		},
+		func() error {
+			log.Info("[Shutdown] Stopping digest scheduler...")
+			digestScheduler.Stop()
+			return nil
+		},
 	)
+	digestScheduler.Start()
+
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")
 		modules.DrainUsersAsyncWrites()

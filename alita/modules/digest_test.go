@@ -13,6 +13,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
+	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
@@ -23,6 +25,28 @@ func withDigestEnabled(t *testing.T, enabled bool) {
 	previous := config.AppConfig.EnableDigest
 	config.AppConfig.EnableDigest = enabled
 	t.Cleanup(func() { config.AppConfig.EnableDigest = previous })
+}
+
+// cleanupDigestChat removes the per-chat rows the command writes.
+func cleanupDigestChat(t *testing.T, chatID int64) {
+	t.Helper()
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.DigestSettings{}).Error; err != nil {
+			t.Errorf("cleanup digest settings: %v", err)
+		}
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.LogChannel{}).Error; err != nil {
+			t.Errorf("cleanup log channel: %v", err)
+		}
+	})
+}
+
+func digestSettingsFor(t *testing.T, chatID int64) *models.DigestSettings {
+	t.Helper()
+	settings, err := digestsettings.Get(chatID)
+	if err != nil {
+		t.Fatalf("digestsettings.Get(%d) error = %v", chatID, err)
+	}
+	return settings
 }
 
 // seedDailyStats writes counter rows and removes them after the test.
@@ -79,7 +103,7 @@ func dispatchDigestUpdate(t *testing.T, dispatcher *ext.Dispatcher, bot *gotgbot
 	}
 }
 
-func TestDigestNowShowsTodayAndWeekTotals(t *testing.T) {
+func TestDigestNowRendersTheWeekThroughTheDigestBuilder(t *testing.T) {
 	useRealLocales(t)
 	withDigestEnabled(t, true)
 
@@ -90,6 +114,7 @@ func TestDigestNowShowsTodayAndWeekTotals(t *testing.T) {
 	t.Cleanup(func() { digestNow = previous })
 
 	f := newAdminChatFixture(t)
+	cleanupDigestChat(t, f.chat.Id)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadDigest(dispatcher)
 
@@ -104,18 +129,27 @@ func TestDigestNowShowsTodayAndWeekTotals(t *testing.T) {
 	reply := lastMessageTo(t, f.client, f.chat.Id)
 
 	tr := i18n.MustNewTranslator("en")
+	newChange, err := tr.GetString("digest_change_new")
+	if err != nil {
+		t.Fatalf("GetString(digest_change_new) error = %v", err)
+	}
+	// The Sunday row is the previous week, so each line compares against it.
+	down := func(percent int64) string {
+		s, _ := tr.GetString("digest_change_down", i18n.TranslationParams{"percent": percent})
+		return s
+	}
+	none, _ := tr.GetString("digest_change_none")
 	for _, want := range []struct {
-		key   string
-		count int64
+		key    string
+		count  int64
+		change string
 	}{
-		{"digest_preview_messages", 5},
-		{"digest_preview_joins", 2},
-		{"digest_preview_leaves", 1},
-		{"digest_preview_messages", 8},
-		{"digest_preview_joins", 3},
-		{"digest_preview_leaves", 4},
+		{"digest_message_messages", 8, down(92)},
+		{"digest_message_joins", 3, down(94)},
+		{"digest_message_leaves", 4, down(92)},
+		{"digest_message_moderation", 0, none},
 	} {
-		line, err := tr.GetString(want.key, i18n.TranslationParams{"count": want.count})
+		line, err := tr.GetString(want.key, i18n.TranslationParams{"count": want.count, "change": want.change})
 		if err != nil {
 			t.Fatalf("GetString(%q) error = %v", want.key, err)
 		}
@@ -123,8 +157,15 @@ func TestDigestNowShowsTodayAndWeekTotals(t *testing.T) {
 			t.Errorf("reply %q does not contain %q", reply, line)
 		}
 	}
-	if !strings.Contains(reply, "2026-10-21") || !strings.Contains(reply, "2026-10-19") {
-		t.Errorf("reply %q does not name today and the week start", reply)
+	outside, err := tr.GetString("digest_message_messages", i18n.TranslationParams{"count": int64(108), "change": newChange})
+	if err != nil {
+		t.Fatalf("GetString(digest_message_messages) error = %v", err)
+	}
+	if strings.Contains(reply, outside) {
+		t.Errorf("reply %q includes the previous Sunday's counters", reply)
+	}
+	if !strings.Contains(reply, "2026-10-19") {
+		t.Errorf("reply %q does not name the week start", reply)
 	}
 }
 
@@ -133,15 +174,16 @@ func TestDigestNowRefusesNonAdmin(t *testing.T) {
 	withDigestEnabled(t, true)
 
 	f := newAdminChatFixture(t)
+	cleanupDigestChat(t, f.chat.Id)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadDigest(dispatcher)
 
 	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.member, 902, "/digest now")
 
 	tr := i18n.MustNewTranslator("en")
-	title, err := tr.GetString("digest_preview_title")
+	title, err := tr.GetString("digest_message_title")
 	if err != nil {
-		t.Fatalf("GetString(digest_preview_title) error = %v", err)
+		t.Fatalf("GetString(digest_message_title) error = %v", err)
 	}
 	for _, text := range spamDBMessagesTo(f.client, f.chat.Id) {
 		if strings.Contains(text, title) {
@@ -171,11 +213,12 @@ func TestDigestNowRefusesWhenGloballyDisabled(t *testing.T) {
 	}
 }
 
-func TestDigestWithoutNowRepliesWithUsage(t *testing.T) {
+func TestDigestBareShowsTheChatsState(t *testing.T) {
 	useRealLocales(t)
 	withDigestEnabled(t, true)
 
 	f := newAdminChatFixture(t)
+	cleanupDigestChat(t, f.chat.Id)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadDigest(dispatcher)
 
@@ -183,22 +226,106 @@ func TestDigestWithoutNowRepliesWithUsage(t *testing.T) {
 	reply := lastMessageTo(t, f.client, f.chat.Id)
 
 	tr := i18n.MustNewTranslator("en")
-	usage, err := tr.GetString("digest_usage")
-	if err != nil {
-		t.Fatalf("GetString(digest_usage) error = %v", err)
+	disabled, _ := tr.GetString("digest_status_disabled")
+	groupDestination, _ := tr.GetString("digest_destination_group")
+	defaultLine, _ := tr.GetString("digest_status_destination_default", i18n.TranslationParams{"destination": groupDestination})
+	if !strings.Contains(reply, disabled) {
+		t.Errorf("reply %q does not show the disabled state", reply)
 	}
-	if !strings.Contains(reply, usage) {
-		t.Errorf("reply %q does not contain %q", reply, usage)
+	if !strings.Contains(reply, defaultLine) {
+		t.Errorf("reply %q does not show the default destination %q", reply, defaultLine)
 	}
-	if !strings.Contains(reply, "/digest now") {
-		t.Errorf("reply %q does not document /digest now", reply)
+	// The chat has no counters, so a preview would be the empty-week message.
+	empty, _ := tr.GetString("digest_message_empty")
+	if strings.Contains(reply, empty) {
+		t.Errorf("reply %q renders the preview for a bare call", reply)
 	}
-	title, err := tr.GetString("digest_preview_title")
-	if err != nil {
-		t.Fatalf("GetString(digest_preview_title) error = %v", err)
+}
+
+func TestDigestTogglesPersistAndShowTheDestination(t *testing.T) {
+	useRealLocales(t)
+	withDigestEnabled(t, true)
+
+	f := newAdminChatFixture(t)
+	cleanupDigestChat(t, f.chat.Id)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadDigest(dispatcher)
+	tr := i18n.MustNewTranslator("en")
+
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 910, "/digest on")
+	enabled, _ := tr.GetString("digest_status_enabled")
+	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, enabled) {
+		t.Fatalf("reply %q does not confirm the digest is on", reply)
 	}
-	if strings.Contains(reply, title) {
-		t.Errorf("reply %q shows the preview for a bare call", reply)
+	if settings := digestSettingsFor(t, f.chat.Id); !settings.Enabled {
+		t.Fatal("the switch was not persisted")
+	}
+
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 911, "/digest off")
+	disabled, _ := tr.GetString("digest_status_disabled")
+	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, disabled) {
+		t.Fatalf("reply %q does not confirm the digest is off", reply)
+	}
+	if settings := digestSettingsFor(t, f.chat.Id); settings.Enabled {
+		t.Fatal("the switch off was not persisted")
+	}
+
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 912, "/digest here")
+	groupDestination, _ := tr.GetString("digest_destination_group")
+	explicitLine, _ := tr.GetString("digest_status_destination_set", i18n.TranslationParams{"destination": groupDestination})
+	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, explicitLine) {
+		t.Fatalf("reply %q does not show the group as the chosen destination", reply)
+	}
+	if settings := digestSettingsFor(t, f.chat.Id); settings.Destination != digestsettings.DestinationGroup {
+		t.Fatalf("destination = %q, want group", settings.Destination)
+	}
+
+	// Without a log channel the command refuses instead of saving a
+	// destination the scheduler would have to fall back from.
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 913, "/digest log")
+	unavailable, _ := tr.GetString("digest_log_unavailable")
+	if reply := lastMessageTo(t, f.client, f.chat.Id); reply != unavailable {
+		t.Fatalf("reply = %q, want %q", reply, unavailable)
+	}
+	if settings := digestSettingsFor(t, f.chat.Id); settings.Destination != digestsettings.DestinationGroup {
+		t.Fatalf("destination = %q after a refused log choice, want group", settings.Destination)
+	}
+
+	// With a log channel the choice saves and the status names it.
+	if err := logchannels.Set(f.chat.Id, f.chat.Title, f.chat.Id+1); err != nil {
+		t.Fatalf("logchannels.Set() error = %v", err)
+	}
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 914, "/digest log")
+	logDestination, _ := tr.GetString("digest_destination_log")
+	explicitLogLine, _ := tr.GetString("digest_status_destination_set", i18n.TranslationParams{"destination": logDestination})
+	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, explicitLogLine) {
+		t.Fatalf("reply %q does not show the log channel as the chosen destination", reply)
+	}
+	if settings := digestSettingsFor(t, f.chat.Id); settings.Destination != digestsettings.DestinationLog {
+		t.Fatalf("destination = %q, want log", settings.Destination)
+	}
+}
+
+func TestDigestRefusesNonAdminChanges(t *testing.T) {
+	useRealLocales(t)
+	withDigestEnabled(t, true)
+
+	f := newAdminChatFixture(t)
+	cleanupDigestChat(t, f.chat.Id)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadDigest(dispatcher)
+
+	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.member, 920, "/digest on")
+
+	tr := i18n.MustNewTranslator("en")
+	title, _ := tr.GetString("digest_status_title")
+	for _, text := range spamDBMessagesTo(f.client, f.chat.Id) {
+		if strings.Contains(text, title) {
+			t.Fatalf("a non-admin received the digest state: %q", text)
+		}
+	}
+	if settings := digestSettingsFor(t, f.chat.Id); settings.Enabled {
+		t.Fatal("a non-admin turned the digest on")
 	}
 }
 
