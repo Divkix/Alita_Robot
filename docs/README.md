@@ -38,6 +38,7 @@ release line such as Node 22 or 24.
 | `bun install`     | Install dependencies                         |
 | `bun run dev`     | Start dev server (hot reload)                |
 | `bun run build`   | Build production site to `./dist/`           |
+| `bun run check:links` | Check that relative links in hand-written pages stay inside the content tree |
 | `bun run preview` | Preview production build locally             |
 
 ## AI features

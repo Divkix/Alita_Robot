@@ -9,6 +9,7 @@
 		"dev": "blume dev",
 		"start": "blume dev",
 		"build": "blume build",
+		"check:links": "bun scripts/check-links.ts",
 		"preview": "blume preview"
 	},
 	"dependencies": {
