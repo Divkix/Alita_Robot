@@ -22,6 +22,7 @@ Make it easy to promote and demote users with the admin module!
 × /anonadmin `<on/off>`: on lets anonymous admins act without confirming; off (default) makes them confirm with a button (group owner only).
 × /admincache: Reload the admin list.
 × /clearadmincache: Clear the cached admin list.
+× /timezone `[name]`: Show or set the chat's timezone as an IANA name such as Asia/Kolkata (default UTC).
 
 **Anonymous Admin Support**
 
@@ -60,6 +61,7 @@ This module can be accessed using the following aliases:
 - `setgtitle`
 - `setgpic`
 - `setgdesc`
+- `timezone`
 
 ## Available Commands
 
@@ -75,6 +77,7 @@ This module can be accessed using the following aliases:
 | `/setgdesc` | Change the group description (no text clears it); aliases `/setgroupdesc`, `/setdescription` | ❌ |
 | `/setgpic` | Set the group photo from a replied-to photo; alias `/setgrouppic` | ❌ |
 | `/setgtitle` | Change the group title; alias `/setgrouptitle` | ❌ |
+| `/timezone` | Show or set the chat's timezone (IANA name, default UTC); needs the change-info right | ❌ |
 | `/title` | Set custom admin title for a user | ❌ |
 
 ## Usage Examples

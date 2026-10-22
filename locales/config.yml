@@ -125,9 +125,11 @@ setgtitle_example: "/setgtitle @mygroup New title"
 setgdesc_example: "/setgdesc -1001234567890 Group rules are pinned"
 admincache_example: "/admincache @mygroup"
 clearadmincache_example: "/clearadmincache @mygroup"
+timezone_example: "/timezone Asia/Kolkata"
+timezone_pm_example: "/timezone @mygroup Asia/Kolkata"
 digest_example: "/digest now"
 alt_names:
-  Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
+  Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc, timezone]
   Approvals: [approval, approve, unapprove]
   AntiRaid: [antiraid, raid]
   Antiflood: [flood, clearflood]

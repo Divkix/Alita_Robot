@@ -81,6 +81,7 @@ func TestMain(m *testing.M) {
 			&models.ChatMemberDailyStat{},
 			&models.ChatMemberCount{},
 			&models.DigestSettings{},
+			&models.ChatTimezone{},
 		)
 		if err != nil {
 			fmt.Printf("AutoMigrate failed: %v\n", err)

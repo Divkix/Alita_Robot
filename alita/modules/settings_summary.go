@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
@@ -375,8 +376,13 @@ func chatSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	if a, ok := readChatSetting[models.AdminSettings](ctx, chatID); ok {
 		anonAdmin = a.AnonAdmin
 	}
+	timezone, err := chattz.NameContext(ctx, chatID)
+	if err != nil {
+		timezone = chattz.DefaultName
+	}
 	return settingsSection{Title: "Chat", Rows: []settingsRow{
 		stringRow("/lang group", language, settingsDefaultLanguage),
+		stringRow("/timezone", timezone, chattz.DefaultName),
 		boolRow("/allowconnect", allowConnect, true),
 		boolRow("/anonadmin", anonAdmin, false),
 	}}

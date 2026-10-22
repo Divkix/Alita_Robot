@@ -127,6 +127,7 @@ var commandHelpModules = map[string]string{
 	"setgdesc":        "admin",
 	"admincache":      "admin",
 	"clearadmincache": "admin",
+	"timezone":        "admin",
 }
 
 // menuCommand is one command of the help menu: the module whose
@@ -154,6 +155,7 @@ var menuCommands = map[string]menuCommand{
 	"setgtitle":       {Module: "admin", AdminOnly: true},
 	"setgpic":         {Module: "admin", AdminOnly: true},
 	"setgdesc":        {Module: "admin", AdminOnly: true},
+	"timezone":        {Module: "admin", AdminOnly: true},
 
 	"aispam": {Module: "aispam", AdminOnly: true},
 

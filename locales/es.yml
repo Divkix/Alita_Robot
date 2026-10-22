@@ -67,7 +67,9 @@ admin_help_msg:
 
   × /admincache: Recarga la lista de administradores.
 
-  × /clearadmincache: Borra la lista de administradores en caché."
+  × /clearadmincache: Borra la lista de administradores en caché.
+
+  × /timezone `[nombre]`: Muestra o establece la zona horaria del chat como un nombre IANA, por ejemplo Asia/Kolkata (UTC por defecto)."
 admin_promote_admin_title_truncated: Título de administrador truncado a 16 caracteres de %d
 admin_promote_is_admin: Esta persona ya es administrador, ¿cómo se supone
   que debo promoverla?
@@ -364,7 +366,7 @@ connections_help_msg:
 
   Desde el privado, el propietario de un grupo también puede usar /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns y /unbanall, y sus administradores /privnote: nombra primero el grupo (su título, @username o ID) o conéctate a él. La confirmación actúa sobre ese grupo y solo su propietario puede pulsarla.
 
-  Desde el privado, los administradores de un grupo también pueden usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache y /clearadmincache: nombra primero el grupo (su título, @username o ID) o conéctate a él. Necesitan los mismos permisos que en el grupo, y la respuesta llega al privado.
+  Desde el privado, los administradores de un grupo también pueden usar /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache y /clearadmincache: nombra primero el grupo (su título, @username o ID) o conéctate a él. Necesitan los mismos permisos que en el grupo, y la respuesta llega al privado.
 
   Desde el privado, los administradores de un grupo también pueden usar /ban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn y /resetwarns: nombra primero el grupo (su título, @username o ID) y luego al usuario (@username, ID o mención), o conéctate al grupo. Con una conexión, solo un @username o ID elige otro grupo. Necesitan los mismos permisos que en el grupo; responder a un mensaje en el privado no indica al usuario, y la respuesta y los botones llegan al privado.
 
@@ -2702,6 +2704,9 @@ admin_setgpic_ok: "Imagen del grupo actualizada."
 admin_setgpic_failed: "No pude cambiar la imagen del grupo."
 admin_setgdesc_ok: "Descripción del grupo actualizada."
 admin_setgdesc_failed: "No pude cambiar la descripción del grupo."
+timezone_status: "La zona horaria de este chat es <b>{timezone}</b> (UTC{offset}); allí son las {time}.\nCámbiala con <code>/timezone &lt;nombre&gt;</code>, un nombre IANA como <code>Europe/Madrid</code>."
+timezone_set: "Zona horaria establecida en <b>{timezone}</b> (UTC{offset}); allí son las {time}."
+timezone_invalid: "No conozco la zona horaria <code>{input}</code>. Usa un nombre IANA como <code>Europe/Madrid</code> o <code>America/Mexico_City</code> (lista: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 misc_stickerid_need_sticker: "Responde a un sticker para obtener su ID de archivo."
 misc_stickerid_result: "ID de archivo del sticker: <code>{id}</code>"
 misc_zombies_scanning: "Buscando cuentas eliminadas…"
@@ -2774,6 +2779,7 @@ admin_extend_msg: |
   /setgtitle — cambiar el título del grupo
   /setgpic — poner la foto respondida como foto del grupo
   /setgdesc — cambiar la descripción del grupo
+  /timezone — ver o cambiar la zona horaria del chat
 aispam_extend_msg: |
   /aispam — ver o activar el filtro de spam con IA
 antiflood_extend_msg: |

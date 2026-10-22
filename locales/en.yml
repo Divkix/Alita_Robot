@@ -63,7 +63,9 @@ admin_help_msg: "Make it easy to promote and demote users with the admin module!
 
   × /admincache: Reload the admin list.
 
-  × /clearadmincache: Clear the cached admin list."
+  × /clearadmincache: Clear the cached admin list.
+
+  × /timezone `[name]`: Show or set the chat's timezone as an IANA name such as Asia/Kolkata (default UTC)."
 admin_promote_admin_title_truncated: Admin title truncated to 16 characters from %d
 admin_promote_is_admin: This person is already an admin, and how am I supposed
   to promote them?
@@ -402,7 +404,7 @@ connections_help_msg:
 
   From PM, the owner of a group can also run /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns and /unbanall, and its admins /privnote: name the group first (its title, @username or ID) or connect to it. The confirmation acts on that group and only its owner can press it.
 
-  From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
+  From PM, a group's admins can also run /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache and /clearadmincache: name the group first (its title, @username or ID) or connect to it. They need the same rights as in the group, and the answer comes to PM.
 
   From PM, a group's admins can also run /ban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn and /resetwarns: name the group first (its title, @username or ID), then the user (@username, ID or mention), or connect to the group. While connected, only an @username or ID picks another group. They need the same rights as in the group; a reply in PM names no user, and the answer and buttons come to PM.
 
@@ -2710,6 +2712,9 @@ admin_setgpic_ok: "Group picture updated."
 admin_setgpic_failed: "I couldn't change the group picture."
 admin_setgdesc_ok: "Group description updated."
 admin_setgdesc_failed: "I couldn't change the group description."
+timezone_status: "This chat's timezone is <b>{timezone}</b> (UTC{offset}); it is {time} there now.\nChange it with <code>/timezone &lt;name&gt;</code>, an IANA name such as <code>Europe/Berlin</code>."
+timezone_set: "Timezone set to <b>{timezone}</b> (UTC{offset}); it is {time} there now."
+timezone_invalid: "I don't know the timezone <code>{input}</code>. Use an IANA name such as <code>Europe/Berlin</code> or <code>America/New_York</code> (list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 misc_stickerid_need_sticker: "Reply to a sticker to get its file ID."
 misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
 misc_zombies_scanning: "Scanning for deleted accounts…"
@@ -2783,6 +2788,7 @@ admin_extend_msg: |
   /setgtitle — change the group title
   /setgpic — set the replied photo as the group picture
   /setgdesc — change the group description
+  /timezone — show or set the chat's timezone
 aispam_extend_msg: |
   /aispam — show or toggle the AI spam filter
 antiflood_extend_msg: |

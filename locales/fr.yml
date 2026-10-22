@@ -21,7 +21,7 @@ admin_errors_err_cannot_promote: "Échec de la promotion ; il se peut que je ne 
 admin_errors_err_set_title: "Échec de la définition du titre d'administrateur personnalisé ; le titre peut être incorrect ou contenir des emojis."
 admin_errors_title_empty: Vous devez me donner un titre d'administrateur à définir.
 admin_errors_admin_cache_failed: "J'ai du mal à accéder à la liste des administrateurs. Veuillez réessayer plus tard."
-admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n*Commandes Utilisateur :*\n× /adminlist : Lister les administrateurs du chat actuel.\n\n*Commandes Admin :*\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` `[titre]` : Promouvoir un utilisateur, avec en option un titre d'administrateur personnalisé (16 caractères max.).\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n× /setgtitle <titre> : Changer le titre du groupe.\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n× /setgdesc [texte] : Changer la description du groupe.\n× /invitelink : Obtenir le lien d'invitation du chat.\n× /anonadmin `<on/off>` : on permet aux administrateurs anonymes d'agir sans confirmation ; off (par défaut) les oblige à confirmer avec un bouton (propriétaire du groupe uniquement).\n× /admincache : Recharger la liste des administrateurs.\n× /clearadmincache : Vider la liste des administrateurs en cache."
+admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n*Commandes Utilisateur :*\n× /adminlist : Lister les administrateurs du chat actuel.\n\n*Commandes Admin :*\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` `[titre]` : Promouvoir un utilisateur, avec en option un titre d'administrateur personnalisé (16 caractères max.).\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n× /setgtitle <titre> : Changer le titre du groupe.\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n× /setgdesc [texte] : Changer la description du groupe.\n× /invitelink : Obtenir le lien d'invitation du chat.\n× /anonadmin `<on/off>` : on permet aux administrateurs anonymes d'agir sans confirmation ; off (par défaut) les oblige à confirmer avec un bouton (propriétaire du groupe uniquement).\n× /admincache : Recharger la liste des administrateurs.\n× /clearadmincache : Vider la liste des administrateurs en cache.\n× /timezone `[nom]` : Afficher ou définir le fuseau horaire du chat, sous forme de nom IANA comme Asia/Kolkata (UTC par défaut)."
 admin_promote_admin_title_truncated: Titre d'administrateur tronqué à 16 caractères depuis %d
 admin_promote_is_admin: "Cette personne est déjà administrateur, comment suis-je censé la promouvoir ?"
 admin_promote_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
@@ -894,7 +894,7 @@ connections_help_msg:
 
   En privé, le propriétaire d'un groupe peut aussi utiliser /clearall, /stopall, /remallbl, /unapproveall, /resetallwarns et /unbanall, et ses administrateurs /privnote : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. La confirmation agit sur ce groupe et seul son propriétaire peut l'utiliser.
 
-  En privé, les administrateurs d'un groupe peuvent aussi utiliser /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache et /clearadmincache : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. Il faut les mêmes droits que dans le groupe, et la réponse arrive en privé.
+  En privé, les administrateurs d'un groupe peuvent aussi utiliser /adminlist, /invitelink, /setgtitle, /setgdesc, /timezone, /admincache et /clearadmincache : nommez d'abord le groupe (son titre, son @username ou son ID) ou connectez-vous à lui. Il faut les mêmes droits que dans le groupe, et la réponse arrive en privé.
 
   En privé, les administrateurs d'un groupe peuvent aussi utiliser /ban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn et /resetwarns : nommez d'abord le groupe (son titre, son @username ou son ID), puis l'utilisateur (@username, ID ou mention), ou connectez-vous au groupe. Une fois connecté, seul un @username ou un ID choisit un autre groupe. Il faut les mêmes droits que dans le groupe ; répondre à un message en privé ne désigne pas l'utilisateur, et la réponse et les boutons arrivent en privé.
 
@@ -2613,6 +2613,9 @@ admin_setgpic_ok: "Image du groupe mise à jour."
 admin_setgpic_failed: "Je n'ai pas pu changer l'image du groupe."
 admin_setgdesc_ok: "Description du groupe mise à jour."
 admin_setgdesc_failed: "Je n'ai pas pu changer la description du groupe."
+timezone_status: "Le fuseau horaire de ce chat est <b>{timezone}</b> (UTC{offset}) ; il y est {time}.\nChangez-le avec <code>/timezone &lt;nom&gt;</code>, un nom IANA comme <code>Europe/Paris</code>."
+timezone_set: "Fuseau horaire défini sur <b>{timezone}</b> (UTC{offset}) ; il y est {time}."
+timezone_invalid: "Je ne connais pas le fuseau horaire <code>{input}</code>. Utilisez un nom IANA comme <code>Europe/Paris</code> ou <code>America/Toronto</code> (liste : https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 misc_stickerid_need_sticker: "Répondez à un sticker pour obtenir son ID de fichier."
 misc_stickerid_result: "ID de fichier du sticker : <code>{id}</code>"
 misc_zombies_scanning: "Recherche des comptes supprimés…"
@@ -2685,6 +2688,7 @@ admin_extend_msg: |
   /setgtitle — changer le titre du groupe
   /setgpic — définir la photo citée comme photo du groupe
   /setgdesc — changer la description du groupe
+  /timezone — afficher ou changer le fuseau horaire du chat
 aispam_extend_msg: |
   /aispam — afficher ou activer le filtre anti-spam IA
 antiflood_extend_msg: |
