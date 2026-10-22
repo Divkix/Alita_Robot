@@ -1,7 +1,7 @@
 import { telegram } from "./api.js";
 import { renderChat, renderSection } from "./screens/chat.js";
 import { renderChats } from "./screens/chats.js";
-import { haptic, supports } from "./ui.js";
+import { blocksLeave, confirmDestructive, haptic, leaveScreen, setLeaveGuard, supports } from "./ui.js";
 
 telegram?.ready();
 telegram?.expand();
@@ -50,6 +50,7 @@ function syncBackButton() {
 }
 
 function render() {
+	leaveScreen();
 	syncBackButton();
 	window.scrollTo(0, 0);
 	const match = routePattern.exec(window.location.hash);
@@ -60,6 +61,44 @@ function render() {
 		return renderChat(root, match[1]);
 	}
 	return renderChats(root);
+}
+
+// currentHash is the route on screen. A hash change away from a screen with
+// unsaved work puts it back and asks first; leaving then follows the user's
+// original target. Putting it back replaces the history entry, which only a
+// browser's own Back can notice: Telegram's Back button pushes a new hash.
+let currentHash = "";
+let confirming = false;
+
+async function navigate() {
+	const target = window.location.hash;
+	if (target === currentHash) {
+		return;
+	}
+	if (blocksLeave()) {
+		history.replaceState(null, "", currentHash || `${window.location.pathname}${window.location.search}`);
+		// Telegram allows one popup at a time; a second Back while it is open
+		// is dropped.
+		if (confirming) {
+			return;
+		}
+		confirming = true;
+		const leave = await confirmDestructive({
+			title: "Discard changes?",
+			message: "You have unsaved changes on this screen. Leaving now loses them.",
+			action: "Discard",
+		}).finally(() => {
+			confirming = false;
+		});
+		if (!leave) {
+			return;
+		}
+		setLeaveGuard(null);
+		window.location.hash = target;
+		return;
+	}
+	currentHash = target;
+	render();
 }
 
 if (root) {
@@ -78,6 +117,7 @@ if (root) {
 			}
 		});
 	}
-	window.addEventListener("hashchange", render);
+	window.addEventListener("hashchange", navigate);
+	currentHash = window.location.hash;
 	render();
 }
