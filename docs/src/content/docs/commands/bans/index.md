@@ -21,6 +21,7 @@ Ban/kick users from your chat, and unban them later on if they're behaving thems
 × /unban <userhandle>: unbans a user. (via handle, or reply)
 × /unbanall: owner-only confirmation to unban known users.
 × /baninfo <userhandle>: shows the ban I recorded for a user: who banned them, when, why, what caused it and until when. (via handle, or reply)
+× /banlist [search]: lists the bans I recorded that are still in force, newest first, 10 per page. A search keeps the users whose ID, username or name matches it.
 
 *Kick Commands* (Admin only):
 × /kick <userhandle>: kicks a user. (via handle, or reply)
@@ -51,6 +52,7 @@ This module can be accessed using the following aliases:
 - `banme`
 - `unbanall`
 - `baninfo`
+- `banlist`
 
 ## Available Commands
 
@@ -58,6 +60,7 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/ban` | Ban a user | ❌ |
 | `/baninfo` | Show the ban the bot recorded for a user | ❌ |
+| `/banlist` | List the open bans the bot recorded, 10 per page, with an optional search | ❌ |
 | `/banme` | Ban yourself from the group | ✅ |
 | `/dban` | Ban a user and delete the replied message | ❌ |
 | `/dkick` | Kick a user and delete the replied message | ❌ |
@@ -88,7 +91,7 @@ For detailed command usage, refer to the commands table above.
 Most commands in this module require **admin permissions** in the group.
 
 - `/unbanall` — Requires the **chat owner**.
-- `/baninfo` — Requires an admin who can ban users; the bot needs no right of its own.
+- `/baninfo`, `/banlist` — Require an admin who can ban users; the bot needs no right of its own.
 - `/kickme`, `/banme` — Available to everyone (disableable).
 
 **Bot Permissions Required:**

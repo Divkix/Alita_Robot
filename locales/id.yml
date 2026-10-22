@@ -179,6 +179,8 @@ bans_help_msg:
 
   × /baninfo <userhandle>: menampilkan ban yang saya catat untuk pengguna: siapa yang memban, kapan, mengapa, apa penyebabnya, dan sampai kapan. (melalui handle, atau balasan)
 
+  × /banlist [pencarian]: menampilkan ban yang saya catat dan masih berlaku, dari yang terbaru, 10 per halaman. Pencarian hanya menyisakan pengguna yang ID, username, atau namanya cocok.
+
 
   *Perintah Pembatasan:* (Admin saja)
 
@@ -359,7 +361,7 @@ connections_help_msg:
 
   Dari obrolan pribadi, admin grup juga dapat menjalankan /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache dan /clearadmincache: sebutkan grupnya dulu (judul, @username, atau ID-nya) atau hubungkan ke grup itu. Hak yang diperlukan sama seperti di grup, dan jawabannya dikirim ke obrolan pribadi.
 
-  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
+  Dari obrolan pribadi, admin grup juga dapat menjalankan /ban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn dan /resetwarns: sebutkan grupnya dulu (judul, @username, atau ID-nya), lalu penggunanya (@username, ID, atau mention), atau hubungkan ke grup itu. Saat terhubung, grup lain hanya dapat dipilih dengan @username atau ID. Hak yang diperlukan sama seperti di grup; membalas pesan di obrolan pribadi tidak menunjuk pengguna, dan jawaban serta tombolnya dikirim ke obrolan pribadi.
 
   Dari obrolan pribadi, anggota grup juga dapat melihat peringatan seorang pengguna di grup itu dengan /warns jika grup mengizinkan anggota terhubung (/allowconnect; jika tidak, hanya adminnya), dan adminnya melihat pengaturan peringatan grup dengan /warnings: sebutkan grupnya dulu (@username atau ID-nya; adminnya juga dapat memakai judulnya), lalu untuk /warns penggunanya, atau hubungkan ke grup itu. Jawabannya dikirim ke obrolan pribadi.
 
@@ -1867,7 +1869,7 @@ admin_extended_docs: |
 
   <b>Perintah yang Didukung:</b>
   Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
+  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Bisu: /mute, /smute, /dmute, /tmute, /unmute
   Pin: /pin, /unpin, /permapin, /unpinall
   Pembersihan: /purge, /del, /purgefrom, /purgeto
@@ -2670,6 +2672,15 @@ bans_baninfo_none: "Saya tidak punya catatan ban untuk {user} di sini. Saya hany
 bans_record_by_bot: "saya, secara otomatis"
 bans_record_by_anonymous: "admin anonim"
 bans_record_read_failed: "Saya tidak dapat membaca catatan ban saat ini. Coba lagi nanti."
+bans_banlist_header: "<b>Ban yang berlaku: {count}</b> (halaman {page} dari {pages})"
+bans_banlist_header_search: "<b>Ban yang berlaku dan cocok dengan</b> <code>{query}</code><b>: {count}</b> (halaman {page} dari {pages})"
+bans_banlist_entry: "{n}. {user} (<code>{id}</code>) · {source} · {date}"
+bans_banlist_entry_until: "{n}. {user} (<code>{id}</code>) · {source} · {date} · sampai {until}"
+bans_banlist_empty: "Tidak ada ban yang saya catat di sini yang masih berlaku. Saya hanya mencatat ban yang saya lakukan."
+bans_banlist_no_match: "Tidak ada ban berlaku yang saya catat di sini yang cocok dengan <code>{query}</code>."
+bans_banlist_expired: "Daftar ini sudah kedaluwarsa. Kirim /banlist lagi."
+bans_banlist_prev: "« Sebelumnya"
+bans_banlist_next: "Berikutnya »"
 admin_setgtitle_need_title: "Berikan saya judul grup yang baru."
 admin_setgtitle_ok: "Judul grup diperbarui."
 admin_setgtitle_failed: "Saya tidak dapat mengubah judul grup. Pastikan saya bisa mengubah info grup."
@@ -2787,6 +2798,7 @@ bans_extend_msg: |
   /unrestrict — pilih unmute atau unban lewat tombol
   /unbanall — buka ban semua pengguna yang dikenal (hanya pemilik)
   /baninfo — lihat catatan ban pengguna
+  /banlist — lihat daftar ban yang berlaku
 blacklists_extend_msg: |
   /blacklists — daftar kata di daftar hitam
   /addblacklist — masukkan kata ke daftar hitam

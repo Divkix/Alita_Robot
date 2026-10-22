@@ -183,6 +183,8 @@ bans_help_msg:
 
   × /baninfo <nombre de usuario>: muestra el baneo que registré de un usuario: quién lo baneó, cuándo, por qué, qué lo causó y hasta cuándo. (vía nombre de usuario, o respuesta)
 
+  × /banlist [búsqueda]: lista los baneos que registré y siguen vigentes, del más reciente al más antiguo, 10 por página. Una búsqueda deja solo los usuarios cuyo ID, nombre de usuario o nombre coincide.
+
 
   *Comandos de Restricción:* (Solo administradores)
 
@@ -364,7 +366,7 @@ connections_help_msg:
 
   Desde el privado, los administradores de un grupo también pueden usar /adminlist, /invitelink, /setgtitle, /setgdesc, /admincache y /clearadmincache: nombra primero el grupo (su título, @username o ID) o conéctate a él. Necesitan los mismos permisos que en el grupo, y la respuesta llega al privado.
 
-  Desde el privado, los administradores de un grupo también pueden usar /ban, /sban, /tban, /unban, /baninfo, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn y /resetwarns: nombra primero el grupo (su título, @username o ID) y luego al usuario (@username, ID o mención), o conéctate al grupo. Con una conexión, solo un @username o ID elige otro grupo. Necesitan los mismos permisos que en el grupo; responder a un mensaje en el privado no indica al usuario, y la respuesta y los botones llegan al privado.
+  Desde el privado, los administradores de un grupo también pueden usar /ban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /skick, /restrict, /unrestrict, /mute, /smute, /tmute, /unmute, /warn, /swarn, /rmwarn y /resetwarns: nombra primero el grupo (su título, @username o ID) y luego al usuario (@username, ID o mención), o conéctate al grupo. Con una conexión, solo un @username o ID elige otro grupo. Necesitan los mismos permisos que en el grupo; responder a un mensaje en el privado no indica al usuario, y la respuesta y los botones llegan al privado.
 
   Desde el privado, los miembros de un grupo también pueden ver las advertencias de un usuario en él con /warns si el grupo permite conectarse a los miembros (/allowconnect; si no, solo sus administradores), y sus administradores la configuración de advertencias del grupo con /warnings: nombra primero el grupo (su @username o ID; sus administradores también pueden usar su título), luego, para /warns, al usuario, o conéctate al grupo. La respuesta llega al privado.
 
@@ -1876,7 +1878,7 @@ admin_extended_docs: |
 
   <b>Comandos compatibles:</b>
   Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
-  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /kick, /dkick, /skick, /restrict, /unrestrict
+  Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
   Purges: /purge, /del, /purgefrom, /purgeto
@@ -2679,6 +2681,15 @@ bans_baninfo_none: "No tengo ningún registro de baneo de {user} aquí. Solo reg
 bans_record_by_bot: "yo, automáticamente"
 bans_record_by_anonymous: "un administrador anónimo"
 bans_record_read_failed: "No pude leer los registros de baneos ahora. Inténtalo más tarde."
+bans_banlist_header: "<b>Baneos vigentes: {count}</b> (página {page} de {pages})"
+bans_banlist_header_search: "<b>Baneos vigentes que coinciden con</b> <code>{query}</code><b>: {count}</b> (página {page} de {pages})"
+bans_banlist_entry: "{n}. {user} (<code>{id}</code>) · {source} · {date}"
+bans_banlist_entry_until: "{n}. {user} (<code>{id}</code>) · {source} · {date} · hasta {until}"
+bans_banlist_empty: "Ningún baneo que registré aquí sigue vigente. Solo registro los baneos que hago yo."
+bans_banlist_no_match: "Ningún baneo vigente que registré aquí coincide con <code>{query}</code>."
+bans_banlist_expired: "Esta lista ha caducado. Envía /banlist de nuevo."
+bans_banlist_prev: "« Anterior"
+bans_banlist_next: "Siguiente »"
 admin_setgtitle_need_title: "Dame un nuevo título para el grupo."
 admin_setgtitle_ok: "Título del grupo actualizado."
 admin_setgtitle_failed: "No pude cambiar el título del grupo. Asegúrate de que puedo cambiar la información del grupo."
@@ -2796,6 +2807,7 @@ bans_extend_msg: |
   /unrestrict — elegir unmute o unban con botones
   /unbanall — desbanear a todos los usuarios conocidos (solo el propietario)
   /baninfo — ver el registro de baneo de un usuario
+  /banlist — ver los baneos vigentes
 blacklists_extend_msg: |
   /blacklists — lista de palabras en la lista negra
   /addblacklist — añadir una palabra a la lista negra

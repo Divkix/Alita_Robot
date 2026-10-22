@@ -7,6 +7,7 @@ sban_example: "/sban @username"
 tban_example: "/tban @username 1d spam"
 unban_example: "/unban @username"
 baninfo_example: "/baninfo @username"
+banlist_example: "/banlist spam"
 kick_example: "/kick @username"
 skick_example: "/skick @username"
 restrict_example: "/restrict @username"
@@ -18,6 +19,7 @@ sban_pm_example: "/sban @mygroup @username"
 tban_pm_example: '/tban "My Group" @username 1d spam'
 unban_pm_example: "/unban @mygroup @username"
 baninfo_pm_example: "/baninfo @mygroup @username"
+banlist_pm_example: "/banlist @mygroup spam"
 kick_pm_example: "/kick -1001234567890 @username"
 skick_pm_example: "/skick @mygroup @username"
 restrict_pm_example: "/restrict @mygroup @username"
@@ -130,7 +132,7 @@ alt_names:
   AntiRaid: [antiraid, raid]
   Antiflood: [flood, clearflood]
   Bans:
-    [ban, kick, dkick, restrict, kickme, unrestrict, sban, dban, tban, unban, skick, banme, unbanall, baninfo]
+    [ban, kick, dkick, restrict, kickme, unrestrict, sban, dban, tban, unban, skick, banme, unbanall, baninfo, banlist]
   Backup: [export, import, reset]
   Blacklists: [blacklist, unblacklist, blocklist, addblocklist]
   Connections: [connection, connect]
