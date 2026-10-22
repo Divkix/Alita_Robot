@@ -314,16 +314,16 @@ func sendRichPMRules(t *testing.T, f adminChatFixture, args string) {
 
 // A rich message carries its text in blocks, not in Text and entities, so a
 // group in it cannot be cut out. Rather than ignore the group and answer for
-// the connected one, the bot asks for the group in a plain message.
+// the connected one, the bot asks for the command as a plain text message.
 func TestRulesInPMRichMessageWithArgumentAsksForGroup(t *testing.T) {
 	f := oneOffFixture(t)
 	f.connectAdmin(t)
 
 	sendRichPMRules(t, f, fmt.Sprint(uniqueModuleChatID()))
 
-	need := strings.TrimSpace(fmt.Sprintf(translated(t, "connections_pm_group_need"), "rules"))
-	if got := sentText(f.client); !strings.Contains(got, need) || strings.Contains(got, "Be kind to each other") {
-		t.Fatalf("rich /rules <group> from PM sent %q, want %q", got, need)
+	plain := strings.TrimSpace(fmt.Sprintf(translated(t, "connections_pm_group_plain_text"), "rules"))
+	if got := sentText(f.client); !strings.Contains(got, plain) || strings.Contains(got, "Be kind to each other") {
+		t.Fatalf("rich /rules <group> from PM sent %q, want %q", got, plain)
 	}
 }
 

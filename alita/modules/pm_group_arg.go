@@ -245,7 +245,7 @@ func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers
 	// cut out; ask for a plain message rather than ignore the group.
 	if msg.RichMessage != nil {
 		if len(strings.Fields(msg.RichMessage.PlainText())) > 1 {
-			text, _ := c.tr.GetString("connections_pm_group_need")
+			text, _ := c.tr.GetString("connections_pm_group_plain_text")
 			_ = c.reply(fmt.Sprintf(text, cmd))
 			return false
 		}

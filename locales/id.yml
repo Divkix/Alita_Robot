@@ -370,7 +370,7 @@ connections_is_user_connected_need_group:
   obrolan, bukan di PM!"
 connections_is_user_connected_user_not_admin: Anda perlu menjadi admin untuk melakukan ini.
 connections_not_connected: Anda tidak terhubung ke obrolan mana pun.
-connections_pm_group_need: "Dari PM, sebutkan grup terlebih dahulu: <code>/%s @namagrup</code> atau ID-nya (kirim /id di grup). Atau hubungkan ke grup dengan /connect."
+connections_pm_group_plain_text: "Saya tidak bisa membaca grup dari pesan berformat. Kirim <code>/%s</code> beserta grupnya sebagai pesan teks biasa."
 connections_pm_group_duplicate: "Beberapa grup Anda bernama <code>%s</code>. Sebutkan yang Anda maksud dengan @username atau ID-nya:"
 connections_pm_group_too_many: "Terlalu banyak grup bernama <code>%s</code> untuk diperiksa semuanya. Sebutkan yang Anda maksud dengan @username atau ID-nya (kirim /id di grup)."
 connections_pm_group_not_found: "Saya tidak menemukan grup <code>%s</code>. Sebutkan judul grup tempat Anda admin, @username, atau ID-nya (kirim /id di grup)."

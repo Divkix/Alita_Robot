@@ -60,7 +60,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   cached list, which outlives a lost `chat_member` update), look the user up once itself), replaces `ctx.EffectiveMessage` with a copy without the group (entities shifted, UTF-16) and
   ends iteration. `ctx.Message` stays the original: read command text only through `ctx.EffectiveMessage` or
   `ctx.Args()`. Enable it per command at registration; outside PM it does nothing, and a rich message with
-  arguments gets `connections_pm_group_need` (blocks cannot be cut). A `WrapCommand` command enables the same through
+  arguments gets `connections_pm_group_plain_text` (blocks cannot be cut). A `WrapCommand` command enables the same through
   `CommandDescriptor.PMGroupArg`: the group is resolved before `RequiredChecks`, so they see it as they would a
   connected group, by the resolver `alita/modules` sets with `helpers.SetPMGroupResolver` in `init()`.
 - A group-only command taken to PM gets its group from `groupOnlyChat` (`alita/modules/pm_group_reset.go`; a

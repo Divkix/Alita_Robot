@@ -901,7 +901,7 @@ connections_is_user_connected_need_group:
   pas en MP !"
 connections_is_user_connected_user_not_admin: Vous devez être admin pour faire cela.
 connections_not_connected: Vous n'êtes connecté à aucun chat.
-connections_pm_group_need: "En privé, indiquez d'abord le groupe : <code>/%s @nomdugroupe</code> ou son ID (envoyez /id dans le groupe). Ou connectez-vous à un groupe avec /connect."
+connections_pm_group_plain_text: "Je ne peux pas lire un groupe dans un message mis en forme. Envoyez <code>/%s</code> avec le groupe en texte brut."
 connections_pm_group_duplicate: "Plusieurs de vos groupes s'appellent <code>%s</code>. Indiquez celui que vous voulez par son @username ou son ID :"
 connections_pm_group_too_many: "Trop de groupes s'appellent <code>%s</code> pour les vérifier tous. Indiquez celui que vous voulez par son @username ou son ID (envoyez /id dans le groupe)."
 connections_pm_group_not_found: "Je n'ai pas trouvé le groupe <code>%s</code>. Indiquez le titre d'un groupe dont vous êtes admin, son @username ou son ID (envoyez /id dans le groupe)."
