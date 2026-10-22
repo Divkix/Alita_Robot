@@ -216,7 +216,7 @@ a {
 	list-style: none;
 }
 
-.group-list > li + li {
+.group-list > * + * {
 	border-top: 0.5px solid var(--separator);
 }
 
@@ -250,7 +250,8 @@ a {
 	overflow-wrap: anywhere;
 }
 
-.nav-subtitle {
+.nav-subtitle,
+.setting-hint {
 	color: var(--subtitle);
 	font-size: 13px;
 }
@@ -295,6 +296,12 @@ a {
 	white-space: nowrap;
 }
 
+.pill.accent {
+	background: color-mix(in srgb, var(--button) 14%, transparent);
+	color: var(--accent);
+	font-weight: 500;
+}
+
 .pill.ok {
 	background: color-mix(in srgb, var(--ok) 16%, transparent);
 	color: var(--ok);
@@ -305,8 +312,7 @@ a {
 	color: var(--warn);
 }
 
-.callout,
-.notice {
+.callout {
 	margin: 0;
 	padding: 12px 16px;
 	border-radius: var(--radius);
@@ -315,18 +321,6 @@ a {
 
 .callout.warn {
 	background: color-mix(in srgb, var(--warn) 14%, var(--card));
-}
-
-.notice.success {
-	background: color-mix(in srgb, var(--ok) 14%, var(--card));
-}
-
-.notice.failure {
-	background: color-mix(in srgb, var(--destructive) 12%, var(--card));
-}
-
-.notice.hidden {
-	display: none;
 }
 
 /* Controls. A plain button is tinted; .primary is the filled main action. */
@@ -362,8 +356,8 @@ button:disabled {
 	cursor: default;
 }
 
-button[hidden] {
-	display: none;
+[hidden] {
+	display: none !important;
 }
 
 input[type="text"],
@@ -416,12 +410,24 @@ textarea {
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-/* Settings. */
+/* Settings. Each module is a grouped card; a row shows the label and hint on
+   the left and the control on the right, with the default and a reset link
+   below once the value differs from it. */
 
 .settings-form {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+}
+
+.settings-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
 }
 
 .settings-module {
@@ -438,29 +444,14 @@ textarea {
 	text-transform: uppercase;
 }
 
-.settings-module > .setting-row:first-of-type {
-	border-top-left-radius: var(--radius);
-	border-top-right-radius: var(--radius);
-}
-
-.settings-module > .setting-row:last-of-type {
-	border-bottom-left-radius: var(--radius);
-	border-bottom-right-radius: var(--radius);
-}
-
 .setting-row {
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
+	gap: 4px;
 	padding: 10px 16px;
-	background: var(--card);
 }
 
-.setting-row + .setting-row {
-	border-top: 0.5px solid var(--separator);
-}
-
-.setting-row.changed {
+.setting-row.dirty {
 	box-shadow: inset 3px 0 0 var(--button);
 }
 
@@ -469,40 +460,129 @@ textarea {
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	min-height: 28px;
+	min-height: 32px;
 }
 
-.setting-name {
+.setting-row.stacked .setting-head {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.setting-text-block {
+	display: flex;
 	flex: 1;
+	flex-direction: column;
+	gap: 2px;
 	min-width: 0;
+}
+
+.setting-value {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 6px;
+	max-width: 55%;
+}
+
+.setting-row.stacked .setting-value {
+	max-width: none;
+}
+
+.setting-row.stacked .setting-value > * {
+	flex: 1;
 }
 
 .setting-row input[type="text"],
 .setting-row input[type="number"],
 .setting-row select {
-	max-width: 50%;
 	min-height: 36px;
 	padding: 6px 10px;
 }
 
+.setting-row select {
+	max-width: 100%;
+}
+
 .setting-row input[type="number"] {
-	width: 7.5em;
+	width: 6.5em;
 	text-align: right;
 }
 
-.setting-row textarea {
-	margin-top: 6px;
+.setting-text {
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: var(--radius-small);
+	background: color-mix(in srgb, var(--hint) 10%, transparent);
+	max-height: 12em;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.setting-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 }
 
 .setting-meta {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
 	color: var(--hint);
 	font-size: 13px;
 }
 
-.setting-list {
-	color: var(--hint);
-	text-align: right;
-	overflow-wrap: anywhere;
+.link-button {
+	min-height: 0;
+	margin-left: auto;
+	padding: 2px 0;
+	background: none;
+	color: var(--link);
+	font-size: 13px;
+}
+
+/* iOS-style switch drawn on a native checkbox, so it keeps keyboard and
+   screen-reader behaviour. */
+.switch {
+	position: relative;
+	flex-shrink: 0;
+	width: 51px;
+	height: 31px;
+	margin: 0;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--hint) 35%, transparent);
+	cursor: pointer;
+	appearance: none;
+	transition: background 0.2s;
+}
+
+.switch::after {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 27px;
+	height: 27px;
+	border-radius: 50%;
+	background: #ffffff;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	content: "";
+	transition: transform 0.2s;
+}
+
+.switch:checked {
+	background: var(--ok);
+}
+
+.switch:checked::after {
+	transform: translateX(20px);
+}
+
+.switch:disabled {
+	opacity: 0.5;
+	cursor: default;
 }
 
 .field-error {
@@ -515,12 +595,57 @@ textarea {
 	display: none;
 }
 
-.settings-save {
-	align-self: stretch;
-	margin-top: 12px;
+/* The save bar sticks to the bottom of the screen while there are changes. */
+.save-bar {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+	display: flex;
+	gap: 8px;
+	margin: 12px -16px 0;
+	padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+	border-top: 0.5px solid var(--separator);
+	background: var(--bg);
+}
+
+.save-bar button {
 	min-height: var(--tap);
-	background: var(--button);
-	color: var(--button-text);
+}
+
+.save-bar .settings-save {
+	flex: 1;
+}
+
+/* Toast: a short outcome above the bottom edge. */
+.toast {
+	position: fixed;
+	left: 50%;
+	bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+	z-index: 10;
+	max-width: calc(100% - 32px);
+	padding: 10px 16px;
+	border-radius: var(--radius);
+	background: color-mix(in srgb, var(--text) 88%, transparent);
+	color: var(--bg);
+	font-size: 14px;
+	transform: translateX(-50%);
+	animation: toast-in 0.2s ease-out;
+}
+
+body.has-save-bar .toast {
+	bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+.toast.error-toast {
+	background: var(--destructive);
+	color: #ffffff;
+}
+
+@keyframes toast-in {
+	from {
+		opacity: 0;
+		transform: translate(-50%, 8px);
+	}
 }
 
 /* Filters, notes, blacklists. */

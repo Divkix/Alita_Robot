@@ -189,3 +189,50 @@ export function relativeTime(value, now = Date.now()) {
 	}
 	return date.toLocaleDateString();
 }
+
+// Screen lifecycle. A screen registers cleanup to run when the user leaves
+// it, and a guard that reports unsaved work; the router asks before leaving
+// while the guard returns true.
+let leaveHandlers = [];
+let leaveGuard = null;
+
+export function onLeave(handler) {
+	leaveHandlers.push(handler);
+}
+
+export function setLeaveGuard(guard) {
+	leaveGuard = guard;
+}
+
+export function blocksLeave() {
+	return Boolean(leaveGuard?.());
+}
+
+export function leaveScreen() {
+	const handlers = leaveHandlers;
+	leaveHandlers = [];
+	leaveGuard = null;
+	for (const handler of handlers) {
+		handler();
+	}
+}
+
+// toast shows a short outcome near the bottom of the screen for a few
+// seconds; kind "error" colours it as a failure.
+let toastTimer = 0;
+export function toast(text, kind) {
+	let node = document.getElementById("toast");
+	if (!node) {
+		node = document.createElement("div");
+		node.id = "toast";
+		node.setAttribute("role", "status");
+		document.body.append(node);
+	}
+	node.textContent = text;
+	node.className = kind === "error" ? "toast error-toast" : "toast";
+	node.hidden = false;
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(() => {
+		node.hidden = true;
+	}, 2600);
+}

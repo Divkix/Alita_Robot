@@ -149,6 +149,11 @@ checked against the bot token on arrival.
   user IDs. Switching the
   window redraws without a page reload, and a chat with no recorded activity
   says so instead of drawing an empty chart.
+- **Settings** groups each module's options under the name the commands use,
+  with switches for on/off values and the default shown (with a reset link)
+  once a value differs from it. Changes are saved together from a bar that
+  appears at the bottom; leaving the screen or closing the panel with unsaved
+  changes asks first (closing asks only on clients with Bot API 6.2 or later).
 - **Warnings** and **Timeline** (admins only) name warned users, issuers,
   actors and targets the same way; a user the bot never stored, or whose name
   it cannot read, is shown by ID.
