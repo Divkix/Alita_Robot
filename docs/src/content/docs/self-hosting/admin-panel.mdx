@@ -199,6 +199,8 @@ a real client and cannot run in CI):
 8. In a group, `/settings` shows two buttons and the panel button opens the
    panel for that group; with `PANEL_ENABLED=false` the second row is gone.
 9. Open **Warnings**: a warning older than the chat's warn expiry is labelled
-   expired, and **Remove newest warning** deletes one entry. Open **Timeline**
+   expired, and **Remove newest warning** asks first, then deletes one entry
+   (Cancel leaves it). Deleting a filter, note or blacklisted word asks the
+   same way. Open **Timeline**
    with more than 50 events and scroll: the next page appends without the list
    jumping, and the action/actor filters return only matching rows.

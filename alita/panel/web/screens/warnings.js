@@ -2,7 +2,7 @@
 // ones labelled, and a remove button that runs the same repository call as
 // /unwarn. Server data reaches the DOM only through textContent.
 import { api } from "../api.js";
-import { relativeTime, textElement, userLabel } from "../ui.js";
+import { confirmDestructive, errorMessage, haptic, relativeTime, textElement, userLabel } from "../ui.js";
 
 const PAGE_SIZE = 50;
 
@@ -110,6 +110,14 @@ export async function renderWarnings(root, chatID, chat) {
 			const remove = textElement("button", "Remove newest warning", "danger");
 			remove.type = "button";
 			remove.addEventListener("click", async () => {
+				const confirmed = await confirmDestructive({
+					title: "Remove warning?",
+					message: `The newest warning of ${userLabel(names, user.user_id)} will be removed, as /rmwarn does.`,
+					action: "Remove",
+				});
+				if (!confirmed) {
+					return;
+				}
 				remove.disabled = true;
 				try {
 					const result = await api(`chats/${encodeURIComponent(chatID)}/warnings`, {
@@ -117,13 +125,15 @@ export async function renderWarnings(root, chatID, chat) {
 						body: { user_id: user.user_id },
 					});
 					await loadPage(true);
+					haptic(result.removed ? "success" : "warning");
 					status.textContent = result.removed
 						? `Removed one warning for ${userLabel(names, user.user_id)}.`
 						: `${userLabel(names, user.user_id)} has no warnings left.`;
 				} catch (error) {
 					remove.disabled = false;
+					haptic("error");
 					status.className = "error";
-					status.textContent = error?.message ?? "Could not remove this warning.";
+					status.textContent = errorMessage(error, "Could not remove this warning.");
 				}
 			});
 			item.append(remove);

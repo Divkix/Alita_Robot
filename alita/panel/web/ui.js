@@ -44,6 +44,36 @@ export function haptic(kind) {
 	}
 }
 
+// clip shortens text to Telegram's popup limits, in code points so an emoji
+// is never split.
+function clip(text, limit) {
+	const chars = Array.from(String(text));
+	return chars.length <= limit ? chars.join("") : `${chars.slice(0, limit - 1).join("")}…`;
+}
+
+// confirmDestructive asks before an action that cannot be undone and resolves
+// true only when the user picks the action. Telegram draws its own popup with
+// a red action button; elsewhere the browser's confirm dialog does.
+export function confirmDestructive({ title, message, action }) {
+	haptic("warning");
+	if (!supports("6.2")) {
+		return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+	}
+	return new Promise((resolve) => {
+		telegram.showPopup(
+			{
+				title: clip(title, 64),
+				message: clip(message, 256),
+				buttons: [
+					{ id: "confirm", type: "destructive", text: clip(action, 64) },
+					{ type: "cancel" },
+				],
+			},
+			(buttonID) => resolve(buttonID === "confirm"),
+		);
+	});
+}
+
 // setHeader shows where the user is: the screen title and, above it, the chat
 // it belongs to.
 export function setHeader(title, context) {
