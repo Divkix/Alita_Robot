@@ -428,16 +428,27 @@ func commandHelpTextWith(tr *i18n.Translator, cmd, errText, example string) stri
 	if !ok {
 		return errText
 	}
+	body := commandHelpBody(tr, module, cmd, example)
+	if body == "" {
+		return errText
+	}
+	return errText + "\n\n" + body
+}
+
+// commandHelpBody is the help for cmd (HTML) from module's help: its own entry
+// and example when the chat's language documents it, else the whole module
+// help. It is "" when the language has no help for module.
+func commandHelpBody(tr *i18n.Translator, module, cmd, example string) string {
 	helpMsg, _ := tr.GetString(module + "_help_msg")
 	if helpMsg == "" {
-		return errText
+		return ""
 	}
 	block := commandHelpBlock(helpMsg, cmd)
 	if block == "" {
 		header, _ := tr.GetString("helpers_module_help_header")
-		return errText + "\n\n" + renderModuleHelp(header, strings.ToUpper(module[:1])+module[1:], helpMsg)
+		return renderModuleHelp(header, strings.ToUpper(module[:1])+module[1:], helpMsg)
 	}
-	text := errText + "\n\n" + formatting.ToTelegramHTML(block)
+	text := formatting.ToTelegramHTML(block)
 	if example != "" {
 		line, _ := tr.GetString("command_help_example", i18n.TranslationParams{
 			"example": "<code>" + html.EscapeString(example) + "</code>",
