@@ -87,7 +87,7 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	case db.TEXT, 0:
 		msg, err = sendText(b, content, opts, parseMode, replyParams)
 	case db.STICKER:
-		msg, err = sendSticker(b, content, opts, replyParams)
+		msg, err = sendSticker(b, content, opts, parseMode, replyParams)
 	case db.DOCUMENT:
 		msg, err = sendDocument(b, content, opts, parseMode, replyParams)
 	case db.PHOTO:
@@ -99,7 +99,7 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	case db.VIDEO:
 		msg, err = sendVideo(b, content, opts, parseMode, replyParams)
 	case db.VIDEO_NOTE:
-		msg, err = sendVideoNote(b, content, opts, replyParams)
+		msg, err = sendVideoNote(b, content, opts, parseMode, replyParams)
 	default:
 		log.Warnf("[Media] Unknown message type %d, falling back to text", content.MsgType)
 		msg, err = sendText(b, content, opts, parseMode, replyParams)
@@ -125,10 +125,10 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 	return resolveSendResult(msg, err, opts.ChatID, "text")
 }
 
-func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendSticker(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for STICKER '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, formatting.HTML, replyParams)
+		return sendText(b, content, opts, parseMode, replyParams)
 	}
 	msg, err := b.SendSticker(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
 		ReplyParameters:     replyParams,
@@ -225,10 +225,10 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "video")
 }
 
-func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for VideoNote '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, formatting.HTML, replyParams)
+		return sendText(b, content, opts, parseMode, replyParams)
 	}
 	msg, err := b.SendVideoNote(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
 		ReplyParameters:     replyParams,
