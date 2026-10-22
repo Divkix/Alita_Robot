@@ -1411,6 +1411,7 @@ captcha_no_pending_messages: "No pending messages found for this user."
 captcha_clear_usage: "Usage: <code>/captchaclear @user</code> or <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Failed to clear stored messages. Please try again."
 captcha_clear_success: "✅ Cleared all stored messages for user %d"
+captcha_bot_cannot_restrict: "⚠️ Captcha is on, but I can't mute new members, so they get the welcome without a captcha. An admin needs to give me the <b>Ban users</b> right."
 
 # Notes module strings
 notes_save_success: "Saved Note <b>%s</b>!\nGet it with <code>#%s</code> or <code>/get %s</code>."

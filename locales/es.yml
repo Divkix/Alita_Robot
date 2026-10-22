@@ -1370,6 +1370,7 @@ captcha_no_pending_messages: "No se encontraron mensajes pendientes para este us
 captcha_clear_usage: "Uso: <code>/captchaclear @user</code> o <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Error al eliminar mensajes almacenados. Inténtalo de nuevo."
 captcha_clear_success: "✅ Se eliminaron todos los mensajes almacenados para el usuario %d"
+captcha_bot_cannot_restrict: "⚠️ El captcha está activado, pero no puedo silenciar a los nuevos miembros, así que reciben la bienvenida sin captcha. Un administrador debe darme el permiso <b>Banear usuarios</b>."
 
 # Notes module strings
 notes_save_success: "¡Nota <b>%s</b> guardada!\nObtenla con <code>#%s</code> o <code>/get %s</code>."

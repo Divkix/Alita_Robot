@@ -135,7 +135,101 @@ var (
 	captchaLifecycleDone bool
 	errCaptchaDisabled   = errors.New("captcha disabled")
 	errCaptchaStopped    = errors.New("captcha lifecycle already stopped")
+	// errCaptchaCannotRestrict means the bot may not mute the newcomer, so the
+	// join gets the welcome instead of a challenge it could not enforce.
+	errCaptchaCannotRestrict = errors.New("captcha skipped: bot cannot restrict members")
 )
+
+// captchaRightsNoticeCooldown is how long a chat goes without a repeat of the
+// notice that captcha needs the bot's "Ban users" right.
+const captchaRightsNoticeCooldown = 6 * time.Hour
+
+// captchaRightsNoticeLocal holds the notice cooldown expiry per chat when
+// Redis is not configured.
+var captchaRightsNoticeLocal sync.Map
+
+func captchaRightsNoticeKey(chatID int64) string {
+	return fmt.Sprintf("alita:captcha:rightsNotice:%d", chatID)
+}
+
+// claimCaptchaRightsNotice reports whether this call may send the missing-right
+// notice in chatID, at most once per captchaRightsNoticeCooldown across
+// replicas. A Redis error sends nothing: a missed notice comes back on a later
+// join, a repeated one is noise.
+func claimCaptchaRightsNotice(chatID int64) bool {
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		claimed, err := rdb.SetNX(cache.Context, captchaRightsNoticeKey(chatID), 1, captchaRightsNoticeCooldown).Result()
+		if err != nil {
+			log.Debugf("[Captcha] Failed to claim the rights notice for chat %d: %v", chatID, err)
+			return false
+		}
+		return claimed
+	}
+	for {
+		now := time.Now()
+		prev, loaded := captchaRightsNoticeLocal.LoadOrStore(chatID, now.Add(captchaRightsNoticeCooldown))
+		if !loaded {
+			return true
+		}
+		if expiry, ok := prev.(time.Time); ok && now.Before(expiry) {
+			return false
+		}
+		if captchaRightsNoticeLocal.CompareAndSwap(chatID, prev, now.Add(captchaRightsNoticeCooldown)) {
+			return true
+		}
+	}
+}
+
+// captchaBotCanRestrict reports whether the bot holds the right to mute
+// members in chat, from the admin cache or one live lookup. It sends nothing.
+// A failed lookup returns its error, so the caller can tell it from a missing
+// right and still try the mute.
+func captchaBotCanRestrict(bot *gotgbot.Bot, chat *gotgbot.Chat) (bool, error) {
+	if found, member := cache.GetAdminCacheUser(chat.Id, bot.Id); found {
+		return member.CanRestrictMembers, nil
+	}
+	member, err := chat.GetMember(bot, bot.Id, nil)
+	if err != nil {
+		return false, err
+	}
+	return member.MergeChatMember().CanRestrictMembers, nil
+}
+
+// isMissingRestrictRightError reports whether a restrictChatMember error means
+// the bot lacks the right to restrict members.
+func isMissingRestrictRightError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "not enough rights to restrict") ||
+		strings.Contains(s, "CHAT_ADMIN_REQUIRED") ||
+		strings.Contains(s, "need administrator rights")
+}
+
+// skipCaptchaWithoutRestrictRight tells the chat's admins, at most once per
+// cooldown, that captcha cannot run until the bot gets the "Ban users" right,
+// and returns errCaptchaCannotRestrict so the join falls through to the
+// welcome.
+func skipCaptchaWithoutRestrictRight(bot *gotgbot.Bot, ctx *ext.Context, cause error) error {
+	chat := ctx.EffectiveChat
+	log.Debugf("[Captcha] Bot cannot restrict members in chat %d, skipping captcha: %v", chat.Id, cause)
+	if claimCaptchaRightsNotice(chat.Id) {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_bot_cannot_restrict")
+		opts := &gotgbot.SendMessageOpts{ParseMode: formatting.HTML}
+		if ctx.EffectiveMessage != nil {
+			opts.MessageThreadId = ctx.EffectiveMessage.MessageThreadId
+		}
+		if _, err := helpers.SendMessageWithErrorHandling(bot, chat.Id, text, opts); err != nil {
+			log.Warnf("[Captcha] Failed to send the missing-right notice in chat %d: %v", chat.Id, err)
+		}
+	}
+	if cause == nil {
+		return errCaptchaCannotRestrict
+	}
+	return fmt.Errorf("%w: %w", errCaptchaCannotRestrict, cause)
+}
 
 // StartCaptchaLifecycle restores persisted attempts and starts the cleanup workers.
 func StartCaptchaLifecycle(bot *gotgbot.Bot) error {
@@ -992,6 +1086,14 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		return errCaptchaDisabled
 	}
 
+	// Check the mute right before any work: without it the challenge cannot be
+	// enforced, and a failed join would also cost the newcomer the welcome.
+	if canRestrict, rightErr := captchaBotCanRestrict(bot, chat); rightErr != nil {
+		log.Debugf("[Captcha] Could not check the restrict right in chat %d, trying the mute: %v", chat.Id, rightErr)
+	} else if !canRestrict {
+		return skipCaptchaWithoutRestrictRight(bot, ctx, nil)
+	}
+
 	var question string
 	var answer string
 	var options []string
@@ -1078,6 +1180,11 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	if _, err = chat.RestrictMember(bot, userID, MutedPermissions, nil); err != nil {
 		if _, delErr := captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, chat.Id); delErr != nil {
 			log.Errorf("[Captcha] Failed to delete attempt %d after mute failure: %v", preAttempt.ID, delErr)
+		} else if isMissingRestrictRightError(err) {
+			// The admin cache said the bot could restrict: drop it so the
+			// next join checks the right afresh.
+			cache.InvalidateAdminCache(chat.Id)
+			return skipCaptchaWithoutRestrictRight(bot, ctx, err)
 		}
 		return fmt.Errorf("mute user for captcha: %w", err)
 	}

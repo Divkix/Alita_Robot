@@ -1364,6 +1364,7 @@ captcha_no_pending_messages: "Tidak ada pesan tertunda untuk pengguna ini."
 captcha_clear_usage: "Penggunaan: <code>/captchaclear @user</code> atau <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Gagal menghapus pesan yang disimpan. Silakan coba lagi."
 captcha_clear_success: "✅ Berhasil menghapus semua pesan yang disimpan untuk pengguna %d"
+captcha_bot_cannot_restrict: "⚠️ Captcha aktif, tetapi saya tidak dapat membisukan anggota baru, jadi mereka menerima pesan sambutan tanpa captcha. Admin perlu memberi saya hak <b>Blokir pengguna</b>."
 
 # Notes module strings
 notes_save_success: "Catatan <b>%s</b> tersimpan!\nDapatkan dengan <code>#%s</code> atau <code>/get %s</code>."

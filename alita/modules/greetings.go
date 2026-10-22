@@ -751,7 +751,9 @@ func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64)
 				ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
 			}
 			if err := SendCaptcha(bot, &ctxCopy, user.Id, user.FirstName); err != nil {
-				if errors.Is(err, errCaptchaDisabled) {
+				// Without the right to mute, the newcomer gets the welcome
+				// as if captcha were off.
+				if errors.Is(err, errCaptchaDisabled) || errors.Is(err, errCaptchaCannotRestrict) {
 					return ErrChallengeDisabled
 				}
 				return err

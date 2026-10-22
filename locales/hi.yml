@@ -974,6 +974,7 @@ captcha_no_pending_messages: "इस उपयोगकर्ता के ल�
 captcha_clear_usage: "उपयोग: <code>/captchaclear @user</code> या <code>/captchaclear user_id</code>"
 captcha_clear_failed: "संग्रहीत संदेश साफ़ करने में विफल। कृपया पुनः प्रयास करें।"
 captcha_clear_success: "✅ उपयोगकर्ता %d के सभी संग्रहीत संदेश साफ़ कर दिए गए"
+captcha_bot_cannot_restrict: "⚠️ कैप्चा चालू है, लेकिन मैं नए सदस्यों को म्यूट नहीं कर सकता, इसलिए उन्हें बिना कैप्चा के स्वागत संदेश मिल रहा है। किसी एडमिन को मुझे <b>उपयोगकर्ताओं को बैन करें</b> का अधिकार देना होगा।"
 captcha_settings_header: "<b>कैप्चा सेटिंग्स:</b>"
 captcha_settings_status: "स्थिति: <code>%s</code>"
 captcha_settings_mode: "मोड: <code>%s</code>"
