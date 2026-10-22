@@ -4,17 +4,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
@@ -26,20 +30,38 @@ type mainBotCall struct {
 
 type mainBotClient struct {
 	calls []mainBotCall
+	// failMethods fails one API method, for refusal and error-path tests.
+	failMethods map[string]error
 }
 
 func (c *mainBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
 	c.calls = append(c.calls, mainBotCall{method: method, params: params})
+	if err := c.failMethods[method]; err != nil {
+		return nil, err
+	}
 	switch method {
 	case "getMe":
 		return json.RawMessage(`{"id":999,"is_bot":true,"first_name":"Alita","username":"AlitaTestBot"}`), nil
 	case "setMyCommands":
+		return json.RawMessage(`true`), nil
+	case "setChatMenuButton":
 		return json.RawMessage(`true`), nil
 	case "sendMessage":
 		return json.RawMessage(`{"message_id":1,"date":1,"chat":{"id":-1001,"type":"supergroup"}}`), nil
 	default:
 		return nil, gotgbot.ErrInvalidTokenFormat
 	}
+}
+
+// callsFor returns the recorded calls of one API method.
+func (c *mainBotClient) callsFor(method string) []mainBotCall {
+	var calls []mainBotCall
+	for _, call := range c.calls {
+		if call.method == method {
+			calls = append(calls, call)
+		}
+	}
+	return calls
 }
 
 func (c *mainBotClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
@@ -145,6 +167,113 @@ func TestPostInitSetsCommandsAndStartupMessage(t *testing.T) {
 	}
 	if got := client.calls[1].params["chat_id"]; got != int64(-100123) {
 		t.Fatalf("startup message chat_id = %#v, want MessageDump", got)
+	}
+	// The panel is disabled by default: postInit must leave the menu button as
+	// it was, so there is no third call at all.
+	if calls := client.callsFor("setChatMenuButton"); len(calls) != 0 {
+		t.Fatalf("setChatMenuButton calls = %d, want none while the panel is disabled", len(calls))
+	}
+}
+
+var mainTestLocalesOnce sync.Once
+
+// initTestLocales loads the embedded locales once, as main() does, so a test
+// compares against the real user-visible labels instead of empty strings.
+func initTestLocales(t *testing.T) {
+	t.Helper()
+	mainTestLocalesOnce.Do(func() {
+		if err := i18n.GetManager().Initialize(&Locales, "locales", i18n.DefaultManagerConfig()); err != nil {
+			t.Fatalf("initialize locales: %v", err)
+		}
+	})
+}
+
+// With the panel enabled the default menu button becomes a Mini App button in
+// every private chat; with it disabled the button is left untouched.
+func TestPanelMenuButtonFollowsPanelConfig(t *testing.T) {
+	previousEnabled, previousURL := config.AppConfig.PanelEnabled, config.AppConfig.PanelPublicURL
+	t.Cleanup(func() {
+		config.AppConfig.PanelEnabled, config.AppConfig.PanelPublicURL = previousEnabled, previousURL
+	})
+	initTestLocales(t)
+	label, err := i18n.MustNewTranslator("en").GetString("panel_open_button")
+	if err != nil || label == "" {
+		t.Fatalf("panel_open_button = %q, %v; want a label", label, err)
+	}
+
+	config.AppConfig.PanelEnabled = false
+	config.AppConfig.PanelPublicURL = "https://panel.example.com"
+	disabled := &mainBotClient{}
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: disabled})
+	if calls := disabled.callsFor("setChatMenuButton"); len(calls) != 0 {
+		t.Fatalf("disabled panel sent %d setChatMenuButton calls, want none", len(calls))
+	}
+
+	config.AppConfig.PanelEnabled = true
+	enabled := &mainBotClient{}
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: enabled})
+	calls := enabled.callsFor("setChatMenuButton")
+	if len(calls) != 1 {
+		t.Fatalf("setChatMenuButton calls = %d, want 1", len(calls))
+	}
+	if got, ok := calls[0].params["chat_id"]; ok {
+		t.Errorf("chat_id = %v, want no chat_id so the default button of every private chat changes", got)
+	}
+	button, ok := calls[0].params["menu_button"].(gotgbot.MenuButtonWebApp)
+	if !ok {
+		t.Fatalf("menu_button type = %T, want MenuButtonWebApp", calls[0].params["menu_button"])
+	}
+	if button.Text != label {
+		t.Errorf("menu button text = %q, want %q", button.Text, label)
+	}
+	if button.WebApp.Url != "https://panel.example.com" {
+		t.Errorf("menu button url = %q, want the configured panel URL", button.WebApp.Url)
+	}
+
+	// A restart repeats the same write, so the button never drifts.
+	restart := &mainBotClient{}
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: restart})
+	again := restart.callsFor("setChatMenuButton")
+	if len(again) != 1 {
+		t.Fatalf("restart setChatMenuButton calls = %d, want 1", len(again))
+	}
+	if got := again[0].params["menu_button"]; got != button {
+		t.Errorf("restart menu button = %#v, want the same value %#v", got, button)
+	}
+}
+
+// A refusal from Telegram is a warning, never a startup failure: the command
+// menu and the group buttons keep working.
+func TestPanelMenuButtonRefusalOnlyWarns(t *testing.T) {
+	initTestLocales(t)
+	previousLevel := log.GetLevel()
+	log.SetLevel(log.DebugLevel)
+	t.Cleanup(func() { log.SetLevel(previousLevel) })
+	hook := logrustest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	previousEnabled, previousURL := config.AppConfig.PanelEnabled, config.AppConfig.PanelPublicURL
+	t.Cleanup(func() {
+		config.AppConfig.PanelEnabled, config.AppConfig.PanelPublicURL = previousEnabled, previousURL
+	})
+	config.AppConfig.PanelEnabled = true
+	config.AppConfig.PanelPublicURL = "https://panel.example.com"
+
+	client := &mainBotClient{failMethods: map[string]error{
+		"setChatMenuButton": errors.New("Bad Request: BUTTON_URL_INVALID"),
+	}}
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: client})
+
+	var warned bool
+	for _, entry := range hook.AllEntries() {
+		if entry.Level <= log.ErrorLevel {
+			t.Fatalf("refusal logged at %s: %q", entry.Level, entry.Message)
+		}
+		if entry.Level == log.WarnLevel && strings.Contains(entry.Message, "menu button") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Fatalf("no warning about the menu button; entries = %v", hook.AllEntries())
 	}
 }
 

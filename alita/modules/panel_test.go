@@ -12,12 +12,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
-func withPanelConfig(t *testing.T, enabled bool, publicURL string) {
+func withPanelConfig(t *testing.T, enabled bool, publicURL string, shortName string) {
 	t.Helper()
 	previous := config.AppConfig
 	config.AppConfig = &config.Config{
-		PanelEnabled:   enabled,
-		PanelPublicURL: publicURL,
+		PanelEnabled:          enabled,
+		PanelPublicURL:        publicURL,
+		PanelMiniAppShortName: shortName,
 	}
 	t.Cleanup(func() { config.AppConfig = previous })
 }
@@ -27,7 +28,7 @@ func TestPanelDeepLinkDisabledFallsBackToUnknownPayload(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 	ctx := newModuleMessageContext(bot, privateChatOf(user), user, "/start panel_-1001234567890")
-	withPanelConfig(t, false, "")
+	withPanelConfig(t, false, "", "")
 
 	if err := HandleDeepLink(bot, ctx, &user, "some_unknown_payload"); err != nil && err != ext.EndGroups {
 		t.Fatalf("HandleDeepLink(unknown) error = %v", err)
@@ -54,7 +55,7 @@ func TestPanelDeepLinkRepliesWithWebAppButton(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 	ctx := newModuleMessageContext(bot, privateChatOf(user), user, "/start panel_-1001234567890")
-	withPanelConfig(t, true, "https://panel.example.com")
+	withPanelConfig(t, true, "https://panel.example.com", "")
 
 	if err := HandleDeepLink(bot, ctx, &user, "panel_-1001234567890"); err != nil && err != ext.EndGroups {
 		t.Fatalf("HandleDeepLink() error = %v", err)
@@ -88,7 +89,7 @@ func TestPanelDeepLinkInvalidChatIDFallsBack(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 	ctx := newModuleMessageContext(bot, privateChatOf(user), user, "/start panel_notanumber")
-	withPanelConfig(t, true, "https://panel.example.com")
+	withPanelConfig(t, true, "https://panel.example.com", "")
 
 	if err := HandleDeepLink(bot, ctx, &user, "unknown_payload"); err != nil && err != ext.EndGroups {
 		t.Fatalf("HandleDeepLink(unknown) error = %v", err)

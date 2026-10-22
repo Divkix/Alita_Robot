@@ -20,6 +20,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/panel"
 )
 
 var (
@@ -588,6 +589,15 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyMsgId = msg.ReplyToMessage.MessageId
 		}
 
+		rows := [][]gotgbot.InlineKeyboardButton{{{Text: pmMeKbText, Url: pmMeKbUri}}}
+		if config.AppConfig.PanelEnabled {
+			panelText, _ := tr.GetString("panel_open_button")
+			rows = append(rows, []gotgbot.InlineKeyboardButton{{
+				Text: panelText,
+				Url:  panel.EntryURL(b.Username, config.AppConfig.PanelMiniAppShortName, chat.Id),
+			}})
+		}
+
 		_, err := msg.Reply(b,
 			moduleHelpString,
 			&gotgbot.SendMessageOpts{
@@ -596,13 +606,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-						{
-							{Text: pmMeKbText, Url: pmMeKbUri},
-						},
-					},
-				},
+				ReplyMarkup: gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows},
 			},
 		)
 		if err != nil {
