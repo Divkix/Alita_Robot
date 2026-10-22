@@ -3,6 +3,7 @@ package notes
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -104,6 +105,36 @@ func GetNotesListContext(ctx context.Context, chatID int64, admin bool) []string
 		}
 	}
 	return out
+}
+
+// ListNotesContext returns the chat's notes ordered by lower-cased name so
+// pages stay stable. query matches the name or the content case-insensitively;
+// limit<=0 means every matching row and offset skips matching rows. Admin-only
+// notes are filtered in the query unless admin is set, so pagination and page
+// counts never include rows the caller cannot read, matching /get.
+func ListNotesContext(ctx context.Context, chatID int64, query string, limit, offset int, admin bool) ([]models.Notes, error) {
+	tx := db.DB.WithContext(ctx).Model(&models.Notes{}).Where("chat_id = ?", chatID)
+	if !admin {
+		tx = tx.Where("admin_only = ?", false)
+	}
+	if query != "" {
+		pattern := "%" + strings.ToLower(query) + "%"
+		tx = tx.Where("(LOWER(note_name) LIKE ? OR LOWER(note_content) LIKE ?)", pattern, pattern)
+	}
+	tx = tx.Order("LOWER(note_name) ASC, note_name ASC")
+	if offset > 0 {
+		tx = tx.Offset(offset)
+	}
+	if limit > 0 {
+		tx = tx.Limit(limit)
+	}
+
+	rows := make([]models.Notes, 0)
+	if err := tx.Find(&rows).Error; err != nil {
+		log.Errorf("[Database] ListNotesContext: %v - %d", err, chatID)
+		return nil, err
+	}
+	return rows, nil
 }
 
 func DoesNoteExists(chatID int64, noteName string) bool {

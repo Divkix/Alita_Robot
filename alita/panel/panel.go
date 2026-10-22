@@ -28,9 +28,10 @@ var webFiles embed.FS
 const (
 	initDataHeader = "X-Telegram-Init-Data"
 
-	// maxRequestBodyBytes caps every mutating panel request. The panel has no
-	// bulk uploads yet; 64 KiB is far above any current JSON body.
-	maxRequestBodyBytes = 64 * 1024
+	// maxRequestBodyBytes caps every mutating panel request. The list screens
+	// import at most 500 entries whose replies may each reach the 4096-rune
+	// filter/note reply cap, so the cap must allow that body.
+	maxRequestBodyBytes = 8 << 20
 
 	sessionCandidateLimit = 50
 )
@@ -110,6 +111,13 @@ func (p *Panel) routes() {
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}", p.handleChat)
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/settings", p.handleSettings)
 	p.mux.HandleFunc("PATCH /panel/api/v1/chats/{id}/settings", p.handleUpdateSettings)
+
+	for _, kind := range listKinds {
+		base := "/panel/api/v1/chats/{id}/" + string(kind)
+		p.mux.HandleFunc("GET "+base, p.handleListGet(kind))
+		p.mux.HandleFunc("POST "+base, p.handleListImport(kind))
+		p.mux.HandleFunc("DELETE "+base, p.handleListDelete(kind))
+	}
 
 	p.mux.Handle("GET /panel/", http.StripPrefix("/panel/", http.FileServer(http.FS(p.web))))
 }
