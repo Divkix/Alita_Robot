@@ -37,30 +37,51 @@ func pmModerationFixture(t *testing.T) (f adminChatFixture, connected int64) {
 
 // pmModerationCase is a moderation command that acts on one user of one
 // group: "/<cmd> <user><args>". acted reports whether it acted on userID in
-// chatID: restricted them, or offered the restriction menu for them. Every
-// command needs the right to restrict members, from the caller and the bot.
+// chatID: restricted them, offered the restriction menu for them, or changed
+// their warns. A command needs the right to restrict members, from the caller
+// and the bot, unless adminOnly: then both need only be admins of the group.
 // protectKey is the refusal for a target protected in the group, "" for a
-// command that protects none (/unban).
+// command that protects none (/unban). prepare, when set, readies @victim in
+// the fixture's group and the connected one before the command. Called in the
+// group without a user, a command answers with its help, or, when
+// noHelpInGroup, with the no-user error alone, as before PM support.
 type pmModerationCase struct {
-	cmd, args  string
-	dispatcher func() *ext.Dispatcher
-	acted      func(t *testing.T, f adminChatFixture, chatID, userID int64) bool
-	protectKey string
+	cmd, args     string
+	dispatcher    func() *ext.Dispatcher
+	acted         func(t *testing.T, f adminChatFixture, chatID, userID int64) bool
+	protectKey    string
+	adminOnly     bool
+	noHelpInGroup bool
+	prepare       func(t *testing.T, f adminChatFixture, connected int64)
 }
 
 var pmModerationCases = []pmModerationCase{
-	{"ban", " spam", bansPMDispatcher, calledOn("banChatMember"), "bans_ban_is_admin"},
-	{"sban", "", bansPMDispatcher, calledOn("banChatMember"), "bans_ban_is_admin"},
-	{"tban", " 2h", bansPMDispatcher, calledOn("banChatMember"), "bans_ban_is_admin"},
-	{"unban", "", bansPMDispatcher, calledOn("unbanChatMember"), ""},
-	{"kick", "", bansPMDispatcher, calledOn("unbanChatMember"), "bans_kick_cannot_kick_admin"},
-	{"skick", "", bansPMDispatcher, calledOn("unbanChatMember"), "bans_kick_cannot_kick_admin"},
-	{"restrict", "", bansPMDispatcher, menuFor("restrict"), "bans_restrict_admin_error"},
-	{"unrestrict", "", bansPMDispatcher, menuFor("unrestrict"), "bans_unrestrict_admin_error"},
-	{"mute", " spam", mutesPMDispatcher, calledOn("restrictChatMember"), "mutes_mute_admin_error"},
-	{"smute", "", mutesPMDispatcher, calledOn("restrictChatMember"), "mutes_mute_admin_error"},
-	{"tmute", " 2h", mutesPMDispatcher, calledOn("restrictChatMember"), "mutes_mute_admin_error"},
-	{"unmute", "", mutesPMDispatcher, calledOn("restrictChatMember"), ""},
+	{cmd: "ban", args: " spam", dispatcher: bansPMDispatcher, acted: calledOn("banChatMember"), protectKey: "bans_ban_is_admin"},
+	{cmd: "sban", dispatcher: bansPMDispatcher, acted: calledOn("banChatMember"), protectKey: "bans_ban_is_admin"},
+	{cmd: "tban", args: " 2h", dispatcher: bansPMDispatcher, acted: calledOn("banChatMember"), protectKey: "bans_ban_is_admin"},
+	{cmd: "unban", dispatcher: bansPMDispatcher, acted: calledOn("unbanChatMember")},
+	{cmd: "kick", dispatcher: bansPMDispatcher, acted: calledOn("unbanChatMember"), protectKey: "bans_kick_cannot_kick_admin"},
+	{cmd: "skick", dispatcher: bansPMDispatcher, acted: calledOn("unbanChatMember"), protectKey: "bans_kick_cannot_kick_admin"},
+	{cmd: "restrict", dispatcher: bansPMDispatcher, acted: menuFor("restrict"), protectKey: "bans_restrict_admin_error"},
+	{cmd: "unrestrict", dispatcher: bansPMDispatcher, acted: menuFor("unrestrict"), protectKey: "bans_unrestrict_admin_error"},
+	{cmd: "mute", args: " spam", dispatcher: mutesPMDispatcher, acted: calledOn("restrictChatMember"), protectKey: "mutes_mute_admin_error"},
+	{cmd: "smute", dispatcher: mutesPMDispatcher, acted: calledOn("restrictChatMember"), protectKey: "mutes_mute_admin_error"},
+	{cmd: "tmute", args: " 2h", dispatcher: mutesPMDispatcher, acted: calledOn("restrictChatMember"), protectKey: "mutes_mute_admin_error"},
+	{cmd: "unmute", dispatcher: mutesPMDispatcher, acted: calledOn("restrictChatMember")},
+	{cmd: "warn", args: " spam", dispatcher: warnsPMDispatcher, acted: warnedNow, protectKey: "warns_admin_warning_error", noHelpInGroup: true, prepare: victimWarns(0)},
+	{cmd: "swarn", dispatcher: warnsPMDispatcher, acted: warnedNow, protectKey: "warns_admin_warning_error", noHelpInGroup: true, prepare: victimWarns(0)},
+	{cmd: "rmwarn", dispatcher: warnsPMDispatcher, acted: seedWarnsLeft(pmSeedWarns - 1), adminOnly: true, noHelpInGroup: true, prepare: victimWarns(pmSeedWarns)},
+	{cmd: "resetwarns", dispatcher: warnsPMDispatcher, acted: seedWarnsLeft(0), adminOnly: true, noHelpInGroup: true, prepare: victimWarns(pmSeedWarns)},
+}
+
+// fixture is pmModerationFixture readied for the command.
+func (tc pmModerationCase) fixture(t *testing.T) (f adminChatFixture, connected int64) {
+	t.Helper()
+	f, connected = pmModerationFixture(t)
+	if tc.prepare != nil {
+		tc.prepare(t, f, connected)
+	}
+	return f, connected
 }
 
 // targetedIn reports whether method was called on userID in chatID.
@@ -170,7 +191,7 @@ func groupLine(t *testing.T, title string, chatID int64) string {
 func TestPMModerationActsOnNamedGroup(t *testing.T) {
 	for _, tc := range pmModerationCases {
 		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
+			f, connected := tc.fixture(t)
 
 			processPM(t, tc.dispatcher(), f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
 
@@ -195,7 +216,7 @@ func TestPMModerationActsOnNamedGroup(t *testing.T) {
 func TestPMModerationNamesGroupInReply(t *testing.T) {
 	for _, tc := range pmModerationCases {
 		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
+			f, connected := tc.fixture(t)
 			// A title with HTML characters: the reply is HTML, so it must be escaped.
 			named := `Tom & <Jerry>`
 			for _, key := range []string{fmt.Sprint(f.chat.Id), "@fixturegroup"} {
@@ -245,7 +266,7 @@ func repliedInHTML(f adminChatFixture, chatID int64, text string) bool {
 func TestPMModerationOnConnection(t *testing.T) {
 	for _, tc := range pmModerationCases {
 		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
+			f, connected := tc.fixture(t)
 
 			processPM(t, tc.dispatcher(), f, f.admin.Id, "/"+tc.cmd+" @victim"+tc.args)
 
@@ -264,7 +285,7 @@ func TestPMModerationOnConnection(t *testing.T) {
 func TestPMModerationRefusesMember(t *testing.T) {
 	for _, tc := range pmModerationCases {
 		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
+			f, connected := tc.fixture(t)
 			if err := connections.ToggleAllowConnect(f.chat.Id, true); err != nil {
 				t.Fatalf("ToggleAllowConnect() error = %v", err)
 			}
@@ -291,8 +312,12 @@ func TestPMModerationRefusesMember(t *testing.T) {
 // are connected to.
 func TestPMModerationRefusesCallerWithoutRight(t *testing.T) {
 	for _, tc := range pmModerationCases {
+		if tc.adminOnly {
+			// No right to lack: an admin of the group may run it.
+			continue
+		}
 		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
+			f, connected := tc.fixture(t)
 			admin := adminMember(f.admin.Id, false)
 			admin.CanRestrictMembers = false
 			seedAdminCache(t, f.chat.Id, adminMember(999, true), admin)
@@ -310,45 +335,59 @@ func TestPMModerationRefusesCallerWithoutRight(t *testing.T) {
 	}
 }
 
-// From PM, a command the bot cannot carry out in the named group gets the
-// answer it gets in that group, in the PM.
+// From PM, a command the bot cannot carry out in the named group, where it is
+// no admin or, for a command that needs the right to restrict, an admin
+// without it, gets the answer it gets in that group, in the PM.
 func TestPMModerationRefusesWhenBotLacksRight(t *testing.T) {
 	for _, tc := range pmModerationCases {
-		t.Run(tc.cmd, func(t *testing.T) {
-			f, connected := pmModerationFixture(t)
-			setup := func() {
-				bot := adminMember(999, true)
-				bot.CanRestrictMembers = false
-				seedAdminCache(t, f.chat.Id, adminMember(f.admin.Id, false), bot)
-				f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)] = json.RawMessage(
-					`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true}`)
+		for _, botRole := range []struct {
+			name  string
+			admin bool
+		}{{"no admin", false}, {"admin without the right", true}} {
+			if botRole.admin && tc.adminOnly {
+				continue
 			}
-			dispatcher := tc.dispatcher()
+			t.Run(tc.cmd+"/"+botRole.name, func(t *testing.T) {
+				f, connected := tc.fixture(t)
+				setup := func() {
+					admins := []gotgbot.MergedChatMember{adminMember(f.admin.Id, false)}
+					member := `{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`
+					if botRole.admin {
+						bot := adminMember(999, true)
+						bot.CanRestrictMembers = false
+						admins = append(admins, bot)
+						member = `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true}`
+					}
+					seedAdminCache(t, f.chat.Id, admins...)
+					f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)] = json.RawMessage(member)
+				}
+				dispatcher := tc.dispatcher()
 
-			setup()
-			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd+" @victim"+tc.args).Update
-			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
-				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
-			}
-			inGroup := f.client.callsFor("sendMessage")
-			if len(inGroup) != 1 || tc.acted(t, f, f.chat.Id, victimID) {
-				t.Fatalf("/%s in the group without the bot's right: want one refusal; sent:\n%s", tc.cmd, sentText(f.client))
-			}
+				setup()
+				update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd+" @victim"+tc.args).Update
+				if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+					t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
+				}
+				inGroup := f.client.callsFor("sendMessage")
+				if len(inGroup) != 1 || tc.acted(t, f, f.chat.Id, victimID) {
+					t.Fatalf("/%s in the group with the bot %s: want one refusal; sent:\n%s", tc.cmd, botRole.name, sentText(f.client))
+				}
 
-			setup()
-			processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
+				setup()
+				processPM(t, dispatcher, f, f.admin.Id, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
 
-			inPM := f.client.callsFor("sendMessage")[1:]
-			if len(inPM) != 1 || fmt.Sprint(inPM[0].Params["text"]) != fmt.Sprint(inGroup[0].Params["text"]) {
-				t.Fatalf("/%s from PM answered differently from the group; sent:\n%s", tc.cmd, sentText(f.client))
-			}
-			if fmt.Sprint(inPM[0].Params["chat_id"]) != fmt.Sprint(f.admin.Id) {
-				t.Fatalf("/%s from PM answered in chat %v, want the PM", tc.cmd, inPM[0].Params["chat_id"])
-			}
-			if tc.acted(t, f, f.chat.Id, victimID) || tc.acted(t, f, connected, victimID) {
-				t.Fatalf("/%s from PM acted though the bot has no right in the named group", tc.cmd)
-			}
-		})
+				inPM := f.client.callsFor("sendMessage")[1:]
+				if len(inPM) != 1 || fmt.Sprint(inPM[0].Params["text"]) != fmt.Sprint(inGroup[0].Params["text"]) {
+					t.Fatalf("/%s from PM answered differently from the group; sent:\n%s", tc.cmd, sentText(f.client))
+				}
+				if fmt.Sprint(inPM[0].Params["chat_id"]) != fmt.Sprint(f.admin.Id) {
+					t.Fatalf("/%s from PM answered in chat %v, want the PM", tc.cmd, inPM[0].Params["chat_id"])
+				}
+				if tc.acted(t, f, f.chat.Id, victimID) || tc.acted(t, f, connected, victimID) {
+					t.Fatalf("/%s from PM acted though the bot is %s of the named group", tc.cmd, botRole.name)
+				}
+			})
+		}
 	}
 }
 
@@ -370,7 +409,7 @@ func TestPMModerationKeepsProtectedTargets(t *testing.T) {
 			{"bot", func(adminChatFixture) int64 { return 999 }},
 		} {
 			t.Run(tc.cmd+"/"+target.name, func(t *testing.T) {
-				f, connected := pmModerationFixture(t)
+				f, connected := tc.fixture(t)
 				seedAdminCache(t, f.chat.Id, adminMember(999, true), adminMember(f.admin.Id, false), adminMember(groupAdminID, false))
 				id := target.id(f)
 
@@ -394,7 +433,7 @@ func TestPMModerationIgnoresReplyInPM(t *testing.T) {
 	bot := gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"}
 	for _, tc := range pmModerationCases {
 		t.Run(tc.cmd+"/to the bot", func(t *testing.T) {
-			f, _ := pmModerationFixture(t)
+			f, _ := tc.fixture(t)
 
 			processPMReply(t, tc.dispatcher(), f, f.admin, bot, "/"+tc.cmd+" @fixturegroup")
 
@@ -406,7 +445,7 @@ func TestPMModerationIgnoresReplyInPM(t *testing.T) {
 			}
 		})
 		t.Run(tc.cmd+"/to own message", func(t *testing.T) {
-			f, _ := pmModerationFixture(t)
+			f, _ := tc.fixture(t)
 
 			processPMReply(t, tc.dispatcher(), f, f.admin, f.admin, "/"+tc.cmd+" @fixturegroup")
 
@@ -418,7 +457,7 @@ func TestPMModerationIgnoresReplyInPM(t *testing.T) {
 			}
 		})
 		t.Run(tc.cmd+"/with a user", func(t *testing.T) {
-			f, _ := pmModerationFixture(t)
+			f, _ := tc.fixture(t)
 
 			processPMReply(t, tc.dispatcher(), f, f.admin, bot, "/"+tc.cmd+" @fixturegroup @victim"+tc.args)
 
@@ -431,12 +470,13 @@ func TestPMModerationIgnoresReplyInPM(t *testing.T) {
 
 // The help a command gives from PM shows a call with a group, both without a
 // group and with the group named but no user: the group's call would act on
-// the connected group, or get the help again without one. The help it gives
-// in the group for a wrong call shows the group's call, as before.
+// the connected group, or get the help again without one. In the group a call
+// without a user gets what it got before: the help with the group's call, or
+// the no-user error alone.
 func TestPMModerationHelpShowsPMExample(t *testing.T) {
 	for _, tc := range pmModerationCases {
 		t.Run(tc.cmd, func(t *testing.T) {
-			f, _ := pmModerationFixture(t)
+			f, _ := tc.fixture(t)
 			useRealLocales(t)
 			dispatcher := tc.dispatcher()
 			pmExample, _ := i18n.MustNewTranslator("config").GetString(tc.cmd + "_pm_example")
@@ -472,6 +512,12 @@ func TestPMModerationHelpShowsPMExample(t *testing.T) {
 				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
 			}
 			inGroup := fmt.Sprint(f.client.callsFor("sendMessage")[before].Params["text"])
+			if tc.noHelpInGroup {
+				if want := translated(t, "common_no_user_specified"); inGroup != want {
+					t.Fatalf("/%s in the group without a user replied %q, want %q alone", tc.cmd, inGroup, want)
+				}
+				return
+			}
 			if !strings.Contains(inGroup, html.EscapeString(groupExample)) || strings.Contains(inGroup, html.EscapeString(pmExample)) {
 				t.Fatalf("/%s help in the group %q, want the example %q only", tc.cmd, inGroup, groupExample)
 			}
