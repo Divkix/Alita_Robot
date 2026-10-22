@@ -21,9 +21,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	dbmonitoring "github.com/divkix/Alita_Robot/alita/db/monitoring"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
+	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -223,6 +225,14 @@ func main() {
 	httpServer.SetMetricsAuthToken(config.AppConfig.MetricsAuthToken)
 	httpServer.RegisterMetrics()
 	httpServer.RegisterDBMetrics()
+
+	if config.AppConfig.PanelEnabled {
+		httpServer.RegisterPanel(panel.New(b, panel.Deps{
+			SessionMaxAge: config.AppConfig.PanelSessionMaxAge,
+			LookupChats:   chats.ListChatsWithUser,
+		}))
+		log.Infof("[Main] Admin panel enabled at %s", config.AppConfig.PanelPublicURL)
+	}
 
 	if config.AppConfig.EnablePPROF {
 		httpServer.RegisterPPROF()

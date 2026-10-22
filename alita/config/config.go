@@ -7,6 +7,8 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -94,6 +96,25 @@ func parseRedisDB() (int, error) {
 		return 0, fmt.Errorf("REDIS_DB must be an integer 0-15")
 	}
 	return v, nil
+}
+
+// DefaultPanelSessionMaxAge is how long a Mini App initData payload is accepted
+// after its auth_date when PANEL_SESSION_MAX_AGE is unset.
+const DefaultPanelSessionMaxAge = 24 * time.Hour
+
+// getPanelSessionMaxAge reads PANEL_SESSION_MAX_AGE as a Go duration. Unlike
+// the lenient integer settings, a typo fails startup: a panel that silently
+// accepted stale initData would be a security regression.
+func getPanelSessionMaxAge() (time.Duration, error) {
+	raw := strings.TrimSpace(os.Getenv("PANEL_SESSION_MAX_AGE"))
+	if raw == "" {
+		return DefaultPanelSessionMaxAge, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive Go duration such as 24h")
+	}
+	return d, nil
 }
 
 func getHTTPPort() int {
@@ -208,6 +229,13 @@ type Config struct {
 	// EnableDigest is the operator's kill switch; it is on unless explicitly
 	// disabled, and the feature stays inert until a chat opts in.
 	EnableDigest bool
+
+	// Admin panel (Telegram Mini App). Disabled by default; when enabled the
+	// bot's own HTTP server serves it under /panel.
+	PanelEnabled          bool
+	PanelPublicURL        string
+	PanelMiniAppShortName string
+	PanelSessionMaxAge    time.Duration
 }
 
 var AppConfig *Config
@@ -270,6 +298,22 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("REDIS_DB must be an integer 0-15")
 	}
 
+	if cfg.PanelSessionMaxAge < 0 {
+		return fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive duration")
+	}
+	if cfg.PanelEnabled {
+		if cfg.PanelPublicURL == "" {
+			return fmt.Errorf("PANEL_PUBLIC_URL is required when PANEL_ENABLED is true")
+		}
+		publicURL, err := url.Parse(cfg.PanelPublicURL)
+		if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
+			return fmt.Errorf("PANEL_PUBLIC_URL must be an absolute URL such as https://panel.example.com")
+		}
+		if publicURL.Scheme != "https" && (!cfg.Debug || publicURL.Scheme != "http") {
+			return fmt.Errorf("PANEL_PUBLIC_URL must use https:// (http:// is allowed only with DEBUG=true)")
+		}
+	}
+
 	return nil
 }
 
@@ -277,6 +321,11 @@ func LoadConfig() (*Config, error) {
 	_ = godotenv.Load()
 
 	redisDB, err := parseRedisDB()
+	if err != nil {
+		return nil, err
+	}
+
+	panelSessionMaxAge, err := getPanelSessionMaxAge()
 	if err != nil {
 		return nil, err
 	}
@@ -350,6 +399,11 @@ func LoadConfig() (*Config, error) {
 		CASAPIKey:    os.Getenv("CAS_API_KEY"),
 
 		EnableDigest: typeConvertor{str: os.Getenv("ENABLE_DIGEST")}.Bool(),
+
+		PanelEnabled:          typeConvertor{str: os.Getenv("PANEL_ENABLED")}.Bool(),
+		PanelPublicURL:        strings.TrimSpace(os.Getenv("PANEL_PUBLIC_URL")),
+		PanelMiniAppShortName: strings.TrimPrefix(strings.TrimSpace(os.Getenv("PANEL_MINIAPP_SHORTNAME")), "@"),
+		PanelSessionMaxAge:    panelSessionMaxAge,
 	}
 
 	cfg.setDefaults()
@@ -480,6 +534,11 @@ func (cfg *Config) setDefaults() {
 	if os.Getenv("ENABLE_DIGEST") == "" {
 		cfg.EnableDigest = true
 	}
+
+	if cfg.PanelSessionMaxAge == 0 {
+		cfg.PanelSessionMaxAge = DefaultPanelSessionMaxAge
+	}
+	cfg.PanelPublicURL = strings.TrimRight(cfg.PanelPublicURL, "/")
 }
 
 // registerConfigSecrets keeps every credential in cfg out of the logs.
