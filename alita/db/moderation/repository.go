@@ -72,3 +72,33 @@ func ListForTarget(userID int64, since time.Time) ([]models.ModerationEvent, err
 	}
 	return rows, nil
 }
+
+// ReputationSignal is the shared reputation aggregate for one user: how many
+// distinct chats banned or kicked them since (inclusive), and whether a human
+// unban was recorded in the same window. Ten bans in one chat still count as
+// one chat; mutes never count, because only ban and kick events feed it.
+//
+// Both reads use the (target_user_id, created_at) index and compare the bound
+// in UTC like Record writes it: SQLite compares the stored text, so a
+// local-zone bound would misorder.
+func ReputationSignal(userID int64, since time.Time) (chats int, unbanned bool, err error) {
+	var chatCount int64
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Where("target_user_id = ? AND created_at >= ? AND action IN ?",
+			userID, since.UTC(), []string{models.ModerationActionBan, models.ModerationActionKick}).
+		Distinct("chat_id").
+		Count(&chatCount).Error
+	if err != nil {
+		return 0, false, fmt.Errorf("count chats that removed a target: %w", err)
+	}
+
+	var unbanCount int64
+	err = db.DB.Model(&models.ModerationEvent{}).
+		Where("target_user_id = ? AND created_at >= ? AND action = ?",
+			userID, since.UTC(), models.ModerationActionUnban).
+		Count(&unbanCount).Error
+	if err != nil {
+		return 0, false, fmt.Errorf("check for a target unban: %w", err)
+	}
+	return int(chatCount), unbanCount > 0, nil
+}

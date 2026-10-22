@@ -94,6 +94,52 @@ become required. The key is redacted from logs.
 | **Type** | `string` |
 | **Required** | No |
 
+## 📂 Shared reputation configuration
+
+### `ENABLE_REPUTATION`
+
+Operator kill switch for the shared reputation lookup. When `false`, the shared
+source is unavailable and a chat cannot enable it. The lookup lists a user that
+at least `REPUTATION_MIN_CHATS` distinct chats banned or kicked inside the
+rolling window, clears the signal on a human unban in that window, and treats a
+failed lookup as not listed so a join is never blocked. Only user IDs and
+moderation actions are aggregated; no message content is stored. The feature is
+off by default and every chat stays opted out until its spam database settings
+enable the shared source.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
+### `REPUTATION_MIN_CHATS`
+
+Number of distinct chats that must have banned or kicked a user inside the
+window before the shared source lists them. Ten bans in one chat still count as
+one chat.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Default** | `3` |
+| **Validation** | integer, at least 2 (a non-integer or a lower value fails startup) |
+
+### `REPUTATION_WINDOW_DAYS`
+
+Rolling window, in days, the shared reputation count looks back. A human unban
+inside the window clears the signal. The maximum is `180`, the moderation event
+retention: older events are deleted, so a longer window could never be observed
+in full.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Default** | `30` |
+| **Validation** | integer, 1-180 (a non-integer or an out-of-range value fails startup) |
+
 ## 📂 Weekly digest configuration
 
 ### `ENABLE_DIGEST`
@@ -672,6 +718,7 @@ ENABLE_DB_MONITORING=# (default: false)
 ENABLE_DIGEST=# operator kill switch for the weekly digest and /digest (default: true)
 ENABLE_PERFORMANCE_MONITORING=# (default: true in prod, false in debug)
 ENABLE_PPROF=# enable pprof endpoints (default: false)
+ENABLE_REPUTATION=# operator kill switch for shared reputation lookups (default: false)
 ENABLE_SPAMDB=# operator kill switch for the /spamdb CAS and lols.bot join check (default: true)
 ENABLED_LOCALES=# comma-separated language codes (default: en)
 HTTP_MAX_IDLE_CONNS=# (default: 100)
@@ -692,6 +739,8 @@ PANEL_SESSION_MAX_AGE=# maximum initData age, Go duration (default: 24h)
 REDIS_DB=# Redis database number (default: 1 with REDIS_ADDRESS; REDIS_URL uses its path, else 0)
 REDIS_PASSWORD=# Redis password
 REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)
+REPUTATION_MIN_CHATS=# distinct chats needed to list a user (default: 3, minimum 2)
+REPUTATION_WINDOW_DAYS=# rolling window in days (default: 30, 1-180)
 RESOURCE_GC_THRESHOLD_MB=# GC threshold in MB (default: 400)
 RESOURCE_MAX_GOROUTINES=# max goroutines (default: 1000)
 RESOURCE_MAX_MEMORY_MB=# max memory in MB (default: 500)

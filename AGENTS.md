@@ -167,9 +167,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Defaults that surprise: `REDIS_DB=1` (with `REDIS_URL` set and `REDIS_DB` unset, the URL path decides; no path
   means DB 0); `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and background stats default
   on only when `DEBUG=false` (an explicit `true` still enables them in debug); `HTTP_PORT` falls back to `PORT` then
-  8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB`, where a
-  non-integer or a value outside 0-15 fails startup. Integers that parse but are out of range (`DB_*`,
-  `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
+  8080. Integer env parsing is lenient: a typo logs a warning and becomes the default, except `REDIS_DB` (a
+  non-integer or a value outside 0-15 fails startup) and the shared-reputation settings `REPUTATION_MIN_CHATS` /
+  `REPUTATION_WINDOW_DAYS` (a non-integer or an out-of-range value fails startup). Integers that parse but are out of
+  range (`DB_*`, `DISPATCHER_MAX_ROUTINES`, `CACHE_LOCAL_*`, `HTTP_PORT`) also fail startup.
 
 ## Testing
 

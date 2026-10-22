@@ -125,6 +125,31 @@ func getHTTPPort() int {
 	return typeConvertor{str: value}.Int()
 }
 
+// Shared reputation network defaults. The window is capped at the 180-day
+// moderation-event retention: a longer window could never be observed in full
+// because older rows are deleted, so it would only look like a wider one.
+const (
+	DefaultReputationMinChats   = 3
+	DefaultReputationWindowDays = 30
+	MaxReputationWindowDays     = 180
+)
+
+// getReputationInt reads one shared-reputation integer setting. Unlike the
+// lenient typeConvertor integers, a typo fails startup: a silently lowered
+// threshold would list users on evidence the operator never chose, and a
+// silently widened window would keep an old mistake alive.
+func getReputationInt(name string, fallback int) (int, error) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer", name)
+	}
+	return v, nil
+}
+
 // Local read-through cache defaults (CACHE_LOCAL_TTL, CACHE_LOCAL_MAX_ENTRIES).
 const (
 	DefaultCacheLocalTTLSeconds = 10
@@ -225,6 +250,14 @@ type Config struct {
 	EnableSpamDB bool
 	CASAPIKey    string
 
+	// Shared reputation network: join-time lookups over moderation_events,
+	// counting distinct chats that removed a user inside a rolling window.
+	// EnableReputation is the operator's kill switch and is off by default;
+	// each chat still opts in through its spam database settings.
+	EnableReputation     bool
+	ReputationMinChats   int
+	ReputationWindowDays int
+
 	// Weekly digest of the daily activity counters and the /digest command.
 	// EnableDigest is the operator's kill switch; it is on unless explicitly
 	// disabled, and the feature stays inert until a chat opts in.
@@ -298,6 +331,13 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("REDIS_DB must be an integer 0-15")
 	}
 
+	if cfg.ReputationMinChats < 2 {
+		return fmt.Errorf("REPUTATION_MIN_CHATS must be an integer of at least 2")
+	}
+	if cfg.ReputationWindowDays < 1 || cfg.ReputationWindowDays > MaxReputationWindowDays {
+		return fmt.Errorf("REPUTATION_WINDOW_DAYS must be an integer between 1 and %d", MaxReputationWindowDays)
+	}
+
 	if cfg.PanelSessionMaxAge < 0 {
 		return fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive duration")
 	}
@@ -326,6 +366,15 @@ func LoadConfig() (*Config, error) {
 	}
 
 	panelSessionMaxAge, err := getPanelSessionMaxAge()
+	if err != nil {
+		return nil, err
+	}
+
+	reputationMinChats, err := getReputationInt("REPUTATION_MIN_CHATS", DefaultReputationMinChats)
+	if err != nil {
+		return nil, err
+	}
+	reputationWindowDays, err := getReputationInt("REPUTATION_WINDOW_DAYS", DefaultReputationWindowDays)
 	if err != nil {
 		return nil, err
 	}
@@ -397,6 +446,10 @@ func LoadConfig() (*Config, error) {
 
 		EnableSpamDB: typeConvertor{str: os.Getenv("ENABLE_SPAMDB")}.Bool(),
 		CASAPIKey:    os.Getenv("CAS_API_KEY"),
+
+		EnableReputation:     typeConvertor{str: os.Getenv("ENABLE_REPUTATION")}.Bool(),
+		ReputationMinChats:   reputationMinChats,
+		ReputationWindowDays: reputationWindowDays,
 
 		EnableDigest: typeConvertor{str: os.Getenv("ENABLE_DIGEST")}.Bool(),
 

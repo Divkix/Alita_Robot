@@ -248,3 +248,119 @@ func TestDeleteExpiredBeforeRemovesOnlyOldEvents(t *testing.T) {
 		t.Fatalf("fresh chat has %d events, want the one inside retention", len(rows))
 	}
 }
+
+// newSignalFixture returns a target user and n chat ids no other test knows,
+// removed when the test ends.
+func newSignalFixture(t *testing.T, n int) (userID int64, chatIDs []int64) {
+	t.Helper()
+	userID = newEventChat()
+	for range n {
+		chatID := newEventChat()
+		deleteEventsFor(t, chatID)
+		chatIDs = append(chatIDs, chatID)
+	}
+	return userID, chatIDs
+}
+
+func seedSignalEvent(t *testing.T, chatID, userID int64, action string, at time.Time) {
+	t.Helper()
+	recordEvent(t, models.ModerationEvent{
+		ChatId: chatID, ActorId: 1, TargetUserId: userID, Action: action, CreatedAt: at,
+	})
+}
+
+func TestReputationSignalCountsDistinctChats(t *testing.T) {
+	now := time.Now().UTC()
+	since := now.Add(-30 * 24 * time.Hour)
+	userID, chats := newSignalFixture(t, 4)
+	otherUserID := newEventChat()
+	// Two bans in the first chat and a kick in the second count as two chats,
+	// never as three removals.
+	seedSignalEvent(t, chats[0], userID, models.ModerationActionBan, now.Add(-5*24*time.Hour))
+	seedSignalEvent(t, chats[0], userID, models.ModerationActionBan, now.Add(-4*24*time.Hour))
+	seedSignalEvent(t, chats[1], userID, models.ModerationActionKick, now.Add(-3*24*time.Hour))
+	// An old removal, another user's removal and a mute are not part of it.
+	seedSignalEvent(t, chats[2], userID, models.ModerationActionBan, now.Add(-31*24*time.Hour))
+	seedSignalEvent(t, chats[3], otherUserID, models.ModerationActionBan, now.Add(-time.Hour))
+	seedSignalEvent(t, chats[2], userID, models.ModerationActionMute, now.Add(-time.Hour))
+
+	gotChats, unbanned, err := ReputationSignal(userID, since)
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 2 {
+		t.Fatalf("ReputationSignal() chats = %d, want the 2 distinct chats of removals", gotChats)
+	}
+	if unbanned {
+		t.Fatal("ReputationSignal() unbanned = true, want false when no unban was recorded")
+	}
+}
+
+func TestReputationSignalIgnoresEventsBeforeTheWindow(t *testing.T) {
+	now := time.Now().UTC()
+	since := now.Add(-30 * 24 * time.Hour)
+	userID, chats := newSignalFixture(t, 3)
+	for _, chatID := range chats {
+		seedSignalEvent(t, chatID, userID, models.ModerationActionBan, now.Add(-31*24*time.Hour))
+	}
+
+	gotChats, unbanned, err := ReputationSignal(userID, since)
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 0 || unbanned {
+		t.Fatalf("ReputationSignal() = %d, %v; want no signal from events older than the window", gotChats, unbanned)
+	}
+}
+
+// /unmute records nothing (C1), and the action CHECK rejects "unmute", so a
+// user's only event can be a mute; it must never count as a removal.
+func TestReputationSignalIgnoresMuteEvents(t *testing.T) {
+	now := time.Now().UTC()
+	userID, chats := newSignalFixture(t, 3)
+	for _, chatID := range chats {
+		seedSignalEvent(t, chatID, userID, models.ModerationActionMute, now.Add(-time.Hour))
+	}
+
+	gotChats, unbanned, err := ReputationSignal(userID, now.Add(-30*24*time.Hour))
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 0 || unbanned {
+		t.Fatalf("ReputationSignal() = %d, %v; want mutes to count as no signal", gotChats, unbanned)
+	}
+}
+
+func TestReputationSignalReportsAnUnbanInsideTheWindow(t *testing.T) {
+	now := time.Now().UTC()
+	userID, chats := newSignalFixture(t, 3)
+	for _, chatID := range chats {
+		seedSignalEvent(t, chatID, userID, models.ModerationActionBan, now.Add(-5*24*time.Hour))
+	}
+	seedSignalEvent(t, chats[0], userID, models.ModerationActionUnban, now.Add(-time.Hour))
+
+	gotChats, unbanned, err := ReputationSignal(userID, now.Add(-30*24*time.Hour))
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 3 || !unbanned {
+		t.Fatalf("ReputationSignal() = %d, %v; want the 3 removals and the unban", gotChats, unbanned)
+	}
+}
+
+func TestReputationSignalIgnoresAnUnbanBeforeTheWindow(t *testing.T) {
+	now := time.Now().UTC()
+	userID, chats := newSignalFixture(t, 3)
+	for _, chatID := range chats {
+		seedSignalEvent(t, chatID, userID, models.ModerationActionBan, now.Add(-5*24*time.Hour))
+	}
+	seedSignalEvent(t, chats[0], userID, models.ModerationActionUnban, now.Add(-31*24*time.Hour))
+
+	gotChats, unbanned, err := ReputationSignal(userID, now.Add(-30*24*time.Hour))
+	if err != nil {
+		t.Fatalf("ReputationSignal() error = %v", err)
+	}
+	if gotChats != 3 || unbanned {
+		t.Fatalf("ReputationSignal() = %d, %v; want the 3 removals and no unban in the window", gotChats, unbanned)
+	}
+}
