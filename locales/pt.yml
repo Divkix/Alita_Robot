@@ -914,7 +914,7 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Define o modo de aviso do chat.
 
-  - /setwarntime <time/off>: Define por quanto tempo um aviso conta, ex. 30d; off os mantém para sempre. Avisos dados antes de o bot registrar o horário nunca expiram; /resetwarn os remove.
+  - /setwarntime <time/off>: Define por quanto tempo um aviso conta, ex. 30d; off os mantém para sempre. Avisos dados antes de o bot registrar o horário nunca expiram; /resetwarns os remove.
 
   - /setwarnlimit <número>: Define o número de avisos antes de usuários serem punidos.
 

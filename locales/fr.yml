@@ -291,7 +291,7 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time] : Définir le mode d'avertissement du chat.
 
-  - /setwarntime <time/off> : Définir combien de temps un avertissement compte, ex. 30d ; off les garde pour toujours. Les avertissements donnés avant que le bot n'enregistre leur heure n'expirent jamais ; /resetwarn les supprime.
+  - /setwarntime <time/off> : Définir combien de temps un avertissement compte, ex. 30d ; off les garde pour toujours. Les avertissements donnés avant que le bot n'enregistre leur heure n'expirent jamais ; /resetwarns les supprime.
 
   - /setwarnlimit <nombre> : Définir le nombre d'avertissements avant sanction.
 

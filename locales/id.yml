@@ -942,7 +942,7 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Atur mode peringatan obrolan.
 
-  - /setwarntime <time/off>: Atur berapa lama peringatan dihitung, mis. 30d; off menyimpannya selamanya. Peringatan yang diberikan sebelum bot mencatat waktunya tidak pernah kedaluwarsa; /resetwarn menghapusnya.
+  - /setwarntime <time/off>: Atur berapa lama peringatan dihitung, mis. 30d; off menyimpannya selamanya. Peringatan yang diberikan sebelum bot mencatat waktunya tidak pernah kedaluwarsa; /resetwarns menghapusnya.
 
   - /setwarnlimit <number>: Atur jumlah peringatan sebelum pengguna dihukum.
 
