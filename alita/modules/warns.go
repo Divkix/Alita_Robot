@@ -587,7 +587,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if userId == 0 {
 		text, _ := tr.GetString("common_no_user_specified")
 		var err error
-		if msg.Chat.Type == "private" {
+		if inPM(msg) {
 			// From PM, show how to name the group and the user.
 			err = replyCommandHelp(b, msg, tr, "warns", text)
 		} else {
@@ -1015,7 +1015,7 @@ var (
 // in that group, /warns answers a member who is no admin there as it does in
 // the group: with nothing.
 func warnsChatCheck(c *helpers.CommandContext) bool {
-	if msg := c.Ctx.EffectiveMessage; msg == nil || msg.Chat.Type != "private" {
+	if !inPM(c.Ctx.EffectiveMessage) {
 		return true
 	}
 	chat := chat_status.IsUserConnected(c.Bot, c.Ctx, false, false)
