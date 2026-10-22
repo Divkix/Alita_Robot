@@ -234,13 +234,18 @@ func TestPMModerationNamesGroupInReply(t *testing.T) {
 				t.Fatalf("/%s from PM on a connection did not name the connected group %q; sent:\n%s", tc.cmd, want, sentText(f.client))
 			}
 
-			before := len(f.client.callsFor("sendMessage"))
-			update := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tc.cmd+" @victim"+tc.args).Update
-			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+			// In the group, on a fresh fixture so nothing from PM counts: the
+			// command acts there and its reply names no group.
+			g, _ := tc.fixture(t)
+			update := newModuleMessageContext(g.bot, g.chat, g.admin, "/"+tc.cmd+" @victim"+tc.args).Update
+			if err := tc.dispatcher().ProcessUpdate(g.bot, update, nil); err != nil {
 				t.Fatalf("ProcessUpdate(/%s) error = %v", tc.cmd, err)
 			}
+			if !tc.acted(t, g, g.chat.Id, victimID) {
+				t.Fatalf("/%s in the group did not act there; sent:\n%s", tc.cmd, sentText(g.client))
+			}
 			prefix := strings.SplitN(translated(t, "connections_pm_group_confirm_target"), "{", 2)[0]
-			for _, call := range f.client.callsFor("sendMessage")[before:] {
+			for _, call := range g.client.callsFor("sendMessage") {
 				if strings.Contains(fmt.Sprint(call.Params["text"]), prefix) {
 					t.Fatalf("/%s in the group named a group: %q", tc.cmd, call.Params["text"])
 				}
