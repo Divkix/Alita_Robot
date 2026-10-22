@@ -139,7 +139,12 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("logs_set_ok")
+	// The reply goes to PM, where "this chat" would read as the PM.
+	name := group.Title
+	if strings.TrimSpace(name) == "" {
+		name = strconv.FormatInt(group.Id, 10)
+	}
+	text, _ := tr.GetString("logs_pm_set_ok", i18n.TranslationParams{"group": html.EscapeString(name)})
 	replyHTML(b, msg, text)
 	actionlog.Settings(b, group, from, "set log channel")
 	return ext.EndGroups

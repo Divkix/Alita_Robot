@@ -107,7 +107,8 @@ func TestSetLogInPMBindsChannel(t *testing.T) {
 	if got == nil || got.LogChannelID != f.channel.Id {
 		t.Fatalf("log channel = %+v, want %d", got, f.channel.Id)
 	}
-	f.requireReplyTo(t, f.admin.Id, translated(t, "logs_set_ok"))
+	// The reply goes to PM, so it names the group rather than "this chat".
+	f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_pm_set_ok", i18n.TranslationParams{"group": html.EscapeString(f.chat.Title)}))
 	// The change is logged to the new channel, under the group.
 	f.requireReplyTo(t, f.channel.Id, fmt.Sprintf(
 		"<b>%s</b> (<code>%d</code>)\n#SETTINGS\nAdmin: %s\nset log channel",
@@ -137,6 +138,7 @@ func TestSetLogInPMOnConnectionBindsChannel(t *testing.T) {
 	if got == nil || got.LogChannelID != f.channel.Id {
 		t.Fatalf("log channel = %+v, want %d", got, f.channel.Id)
 	}
+	f.requireReplyTo(t, f.admin.Id, translatedWith(t, "logs_pm_set_ok", i18n.TranslationParams{"group": html.EscapeString(f.chat.Title)}))
 }
 
 func TestSetLogInPMWithoutChannelAsksForIt(t *testing.T) {
