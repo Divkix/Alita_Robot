@@ -89,8 +89,8 @@ func TestMuteButtonsFromPMActOnNamedGroup(t *testing.T) {
 			pressConfirmInPM(t, dispatcher, f, f.admin, data)
 
 			pressed := f.client.callsFor("restrictChatMember")[calls:]
-			if len(pressed) != 1 || fmt.Sprint(pressed[0].Params["chat_id"]) != fmt.Sprint(f.chat.Id) {
-				t.Fatalf("the unmute button from PM: restrictChatMember calls %+v, want one in the named group", pressed)
+			if len(pressed) != 1 || fmt.Sprint(pressed[0].Params["chat_id"]) != fmt.Sprint(f.chat.Id) || fmt.Sprint(pressed[0].Params["user_id"]) != fmt.Sprint(victimID) {
+				t.Fatalf("the unmute button from PM: restrictChatMember calls %+v, want one for user %d in the named group", pressed, victimID)
 			}
 			if targetedIn(f, "restrictChatMember", connected, victimID) {
 				t.Fatalf("the unmute button from PM acted on the connected group")
