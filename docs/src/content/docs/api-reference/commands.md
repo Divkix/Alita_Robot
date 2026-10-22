@@ -178,6 +178,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/lock` | Lock a permission type | Admin | ❌ | — |
 | `/locks` | Show current lock settings | Admin | ✅ | — |
 | `/locktypes` | List available lock types | Everyone | ✅ | — |
+| `/nightmode` | Apply extra lock types every day between two times | Admin | ❌ | — |
 | `/unlock` | Unlock a permission type | Admin | ❌ | — |
 
 #### 🔇 Mutes
@@ -530,6 +531,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/mute` | Mutes | Mute a user | Admin |
 | `/myfeds` | Federations | List the federations you own or admin | Everyone |
 | `/newfed` | Federations | Create a federation (one per user; PM only) | Everyone |
+| `/nightmode` | Locks | Apply extra lock types every day between two times | Admin |
 | `/nolog` | LogChannels | Disable one or more log categories | Admin |
 | `/notes` | Notes | List all saved notes | Everyone |
 | `/permapin` | Pins | Pin a custom message sent by the bot | Admin |

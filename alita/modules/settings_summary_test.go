@@ -63,6 +63,7 @@ func TestSettingsSummaryFreshChatHasNoChangedRows(t *testing.T) {
 		"notes_settings":      &models.NotesSettings{},
 		"warn_settings":       &models.WarnSettings{},
 		"chat_timezones":      &models.ChatTimezone{},
+		"night_mode_settings": &models.NightModeSettings{},
 	} {
 		if n := db.CountRows(model, "chat_id = ?", chatID); n != 0 {
 			t.Fatalf("summary created %d %s rows, want 0", n, name)

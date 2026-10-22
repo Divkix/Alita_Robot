@@ -773,6 +773,8 @@ locks_help_msg: "*Admin only*:
 
   × /locks: View Chat permission.
 
+  × /nightmode `<start> <end> <types|all>`: Also apply these lock types every day from start to end (24-hour HH:MM in the chat's /timezone; the window may cross midnight). `/nightmode off` turns it off; /nightmode alone shows it.
+
 
   *User Commands:*
 
@@ -1228,6 +1230,15 @@ locks_current_locks_header: "These are the locks in this chat:"
 locks_bot_lock_no_permission: I see a bot, and I've been told to stop them joining... but I'm not admin!
 locks_bot_lock_no_ban_permission: I see a bot, and I've been told to stop them joining... but I don't have permission to ban them!
 locks_bot_only_admins: Only admins and approved users are allowed to add bots to this chat!
+nightmode_status_on: "Night mode is on: every day from <b>{start}</b> to <b>{end}</b> ({timezone} time), these locks also apply: <code>{types}</code>."
+nightmode_now_active: "It is {time} there now, so night mode is in effect."
+nightmode_now_inactive: "It is {time} there now, so night mode is not in effect."
+nightmode_status_off: "Night mode is off. Turn it on with <code>/nightmode 23:00 07:00 media,url</code>; the times are in this chat's timezone (see /timezone)."
+nightmode_disabled: "Night mode is off. The locks set with /lock stay as they are."
+nightmode_invalid_time: "<code>{input}</code> is not a time. Use 24-hour HH:MM, such as <code>23:00</code>."
+nightmode_same_times: "The start and end times must be different."
+nightmode_no_types: "Give a start time, an end time and the lock types to apply at night, such as <code>media,url</code> or <code>all</code> (see /locktypes)."
+nightmode_invalid_type: "<code>{type}</code> is not a lock type night mode can apply. See /locktypes; <code>bots</code> cannot be locked at night."
 
 # Pins module strings
 pins_unpinned_message: Unpinned this message.
@@ -2995,6 +3006,7 @@ locks_extend_msg: |
   /unlock — unlock a message type
   /locks — show current locks
   /locktypes — list lockable types
+  /nightmode — extra locks on a daily schedule
 logchannels_extend_msg: |
   /setlog — set a log channel (send it in the channel)
   /unsetlog — remove the log channel

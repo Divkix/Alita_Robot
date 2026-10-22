@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
+	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -99,6 +100,10 @@ func TestSettingsCommandsInPMWithGroupChangeThatGroup(t *testing.T) {
 		want         any
 	}{
 		{"locks", "/lock @fixturegroup sticker", nil, func(id int64) any { return locks.IsPermLocked(id, "sticker") }, true},
+		{"nightmode", "/nightmode @fixturegroup 23:00 07:00 media", nil, func(id int64) any {
+			settings, err := nightmode.Get(id)
+			return err == nil && settings.Enabled
+		}, true},
 		{"antiflood", "/setflood @fixturegroup 7", nil, func(id int64) any { return antiflood.GetFlood(id).Limit }, 7},
 		{"disabling", "/disable @fixturegroup locks", nil, func(id int64) any { return disabling.IsCommandDisabled(id, "locks") }, true},
 		{"reactions", "/addreaction @fixturegroup hello 👍", nil, func(id int64) any { return reactions.GetReactions(id)["hello"] }, "👍"},

@@ -263,11 +263,12 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 type chatLocksMemoKey struct{ chatID int64 }
 
 // chatLocksForUpdate is locks.GetChatLocks memoised for the current update, so
-// permHandler and restHandler share one lookup. The returned map is shared
-// between them and must be treated as read-only.
+// permHandler and restHandler share one lookup. While the chat's night window
+// is open it also holds the night lock types (withNightLocks). The returned
+// map is shared between them and must be treated as read-only.
 func chatLocksForUpdate(ctx *ext.Context, chatID int64) map[string]bool {
 	return updatememo.Get(updatememo.From(ctx), chatLocksMemoKey{chatID}, func() map[string]bool {
-		return locks.GetChatLocks(chatID)
+		return withNightLocks(chatID, locks.GetChatLocks(chatID))
 	})
 }
 
@@ -465,6 +466,7 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 	helpers.AddCmdToDisableable("locktypes")
 	dispatcher.AddHandler(handlers.NewCommand("locks", withPMGroupArg("locks", helpers.PMGroupArgNone, locksModule.locks)))
 	helpers.AddCmdToDisableable("locks")
+	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)
 	dispatcher.AddHandler(
