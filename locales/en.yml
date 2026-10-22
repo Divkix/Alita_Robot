@@ -3007,6 +3007,7 @@ warns_extend_msg: |
   /setwarntime — how long a warn counts
   /setwarnmode — punishment: ban, kick, mute, tban or tmute
 settings_summary_legend: "<i>• marks a value that differs from the default. Send the command shown to change it.</i>"
+settings_summary_toggle_hint: "<i>Each button below sets the setting it names to the value after the arrow.</i>"
 settings_picker_text: "Choose a group to see its settings. Not in the list? Send /connect &lt;chat id&gt; here or /settings in the group."
 settings_picker_empty: "I could not find groups where you are an admin. I only know groups where you have written since I joined, so send /connect &lt;chat id&gt; here or /settings in the group."
 settings_picker_wait: "⏳ Wait {seconds} s before opening the group list again."
@@ -3014,6 +3015,7 @@ settings_open_in_pm: "Tap the button to see this group’s settings in PM."
 settings_open_in_pm_button: "Open settings in PM"
 settings_btn_refresh: "🔄 Refresh"
 settings_btn_other_group: "↩️ Another group"
+settings_toggle_saved: "✅ Saved: {command} → {value}"
 
 # Admin panel (Telegram Mini App) PM deep link
 panel_open_message: "Tap the button below to open the admin panel for this chat."

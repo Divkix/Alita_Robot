@@ -2713,6 +2713,7 @@ warns_extend_msg: |
   /setwarntime — चेतावनी कितने समय तक गिनी जाए
   /setwarnmode — सज़ा: ban, kick, mute, tban या tmute
 settings_summary_legend: "<i>• डिफ़ॉल्ट से अलग मान को दर्शाता है। इसे बदलने के लिए दिखाया गया कमांड भेजें।</i>"
+settings_summary_toggle_hint: "<i>नीचे का हर बटन अपने नाम वाली सेटिंग को तीर के बाद वाले मान पर सेट करता है।</i>"
 settings_picker_text: "सेटिंग्स देखने के लिए एक समूह चुनें। सूची में नहीं है? यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"
 settings_picker_empty: "मुझे ऐसे समूह नहीं मिले जहाँ आप एडमिन हैं। मैं केवल वे समूह जानता हूँ जहाँ आपने मेरे जुड़ने के बाद लिखा है, इसलिए यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"
 settings_picker_wait: "⏳ समूह सूची फिर से खोलने से पहले {seconds} सेकंड प्रतीक्षा करें।"
@@ -2720,6 +2721,7 @@ settings_open_in_pm: "इस समूह की सेटिंग्स नि
 settings_open_in_pm_button: "निजी चैट में सेटिंग्स खोलें"
 settings_btn_refresh: "🔄 रीफ़्रेश"
 settings_btn_other_group: "↩️ दूसरा समूह"
+settings_toggle_saved: "✅ सहेजा गया: {command} → {value}"
 
 # Admin panel (Telegram Mini App) PM deep link
 panel_open_message: "इस समूह का एडमिन पैनल खोलने के लिए नीचे दिए गए बटन को दबाएँ।"

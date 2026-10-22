@@ -2989,6 +2989,7 @@ warns_extend_msg: |
   /setwarntime — berapa lama peringatan dihitung
   /setwarnmode — hukuman: ban, kick, mute, tban atau tmute
 settings_summary_legend: "<i>• menandai nilai yang berbeda dari bawaan. Kirim perintah yang ditampilkan untuk mengubahnya.</i>"
+settings_summary_toggle_hint: "<i>Setiap tombol di bawah mengubah pengaturan yang disebutnya ke nilai setelah panah.</i>"
 settings_picker_text: "Pilih grup untuk melihat pengaturannya. Tidak ada di daftar? Kirim /connect &lt;chat id&gt; di sini atau /settings di grup."
 settings_picker_empty: "Saya tidak menemukan grup tempat Anda menjadi admin. Saya hanya tahu grup tempat Anda menulis sejak saya bergabung, jadi kirim /connect &lt;chat id&gt; di sini atau /settings di grup."
 settings_picker_wait: "⏳ Tunggu {seconds} detik sebelum membuka daftar grup lagi."
@@ -2996,6 +2997,7 @@ settings_open_in_pm: "Ketuk tombol untuk melihat pengaturan grup ini di obrolan 
 settings_open_in_pm_button: "Buka pengaturan di obrolan pribadi"
 settings_btn_refresh: "🔄 Segarkan"
 settings_btn_other_group: "↩️ Grup lain"
+settings_toggle_saved: "✅ Tersimpan: {command} → {value}"
 
 # Admin panel (Telegram Mini App) PM deep link
 panel_open_message: "Ketuk tombol di bawah untuk membuka panel admin untuk grup ini."

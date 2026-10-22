@@ -345,14 +345,15 @@ func settingsPickerLoadPanicked(err error) bool {
 }
 
 func settingsSummaryView(ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) (string, gotgbot.InlineKeyboardMarkup) {
-	text := renderSettingsSummary(tr, chat.Title, collectChatSettings(tracing.UpdateContext(ctx), chat.Id))
+	sections := collectChatSettings(tracing.UpdateContext(ctx), chat.Id)
+	text := renderSettingsSummary(tr, chat.Title, sections)
 	refresh, _ := tr.GetString("settings_btn_refresh")
 	other, _ := tr.GetString("settings_btn_other_group")
-	kb := gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
+	rows := append(settingsToggleRows(chat.Id, sections), []gotgbot.InlineKeyboardButton{
 		{Text: refresh, CallbackData: encodeCallbackData("settings", map[string]string{"a": "r", "c": strconv.FormatInt(chat.Id, 10)})},
 		{Text: other, CallbackData: encodeCallbackData("settings", map[string]string{"a": "l"})},
-	}}}
-	return text, kb
+	})
+	return text, gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows}
 }
 
 // connectForSettings re-checks that the user may manage chatID, connects them
@@ -411,6 +412,8 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 		text, kb = settingsSummaryView(ctx, tr, chat)
+	case "t":
+		return settingsTogglePress(b, ctx, tr, query, decoded)
 	case "l":
 		if notice, wait := settingsPickerWait(tr, query.From.Id); wait {
 			// The button sits on a summary, so the user picked a group since the
@@ -427,6 +430,13 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		return answerInvalidCallback(b, ctx, query)
 	}
 
+	editSettingsMessage(b, msg, text, kb)
+	_, _ = query.Answer(b, nil)
+	return ext.EndGroups
+}
+
+// editSettingsMessage shows text and kb on the message a settings button sits on.
+func editSettingsMessage(b *gotgbot.Bot, msg gotgbot.MaybeInaccessibleMessage, text string, kb gotgbot.InlineKeyboardMarkup) {
 	if _, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
 		// Refresh with nothing changed re-sends identical content.
 		if strings.Contains(err.Error(), "message is not modified") {
@@ -435,8 +445,6 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 		}
 	}
-	_, _ = query.Answer(b, nil)
-	return ext.EndGroups
 }
 
 func settingsDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {

@@ -158,6 +158,7 @@ Actions (field `a`):
 - `a=p&c=<chat_id>`: picks a group from the `/settings` list. Re-checks that the presser may connect to it and is an admin there, connects them to it and shows the settings summary.
 - `a=r&c=<chat_id>`: **Refresh**. Re-checks admin rights and redraws the summary.
 - `a=l`: **Another group**. Shows the group list again. During the picker cooldown it shows the stored list, or answers with the wait notice when there is none.
+- `a=t&c=<chat_id>&k=<key>&v=<value>`: a summary toggle (`settings_toggles.go`). Sets the setting `k` names to `v` after the checks its command runs (admin, bot admin, and change-info, creator or federation membership where the command needs them), writing through the command's repository function, then redraws the summary. A refused tap answers with an alert and changes nothing; an unknown key, or a value the command does not take, is answered as an invalid callback.
 
 Works only in a private chat. A press anywhere else, or a payload that does not decode, is answered as an invalid callback.
 
