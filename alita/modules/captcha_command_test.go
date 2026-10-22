@@ -1093,8 +1093,15 @@ func TestSendCaptchaRejectsInvalidChatDataAfterValidation(t *testing.T) {
 	if err := SendCaptcha(bot, ctx, 42, "Member"); err == nil {
 		t.Fatal("SendCaptcha(invalid chat) error = nil, want invalid chat data error")
 	}
-	if calls := client.callsFor("getChatMember"); len(calls) != 1 {
-		t.Fatalf("getChatMember calls = %d, want Telegram user validation before chat rejection", len(calls))
+	// The bot's own lookup is the restrict-right check; count the member's.
+	memberLookups := 0
+	for _, call := range client.callsFor("getChatMember") {
+		if fmt.Sprint(call.Params["user_id"]) == "42" {
+			memberLookups++
+		}
+	}
+	if memberLookups != 1 {
+		t.Fatalf("getChatMember calls for the member = %d, want Telegram user validation before chat rejection", memberLookups)
 	}
 	if calls := client.callsFor("sendPhoto"); len(calls) != 0 {
 		t.Fatalf("sendPhoto calls = %d, want no challenge for invalid chat", len(calls))

@@ -557,6 +557,7 @@ captcha_no_pending_messages: "Aucun message en attente trouvé pour cet utilisat
 captcha_clear_usage: "Utilisation : <code>/captchaclear @user</code> ou <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Échec de la suppression des messages stockés. Veuillez réessayer."
 captcha_clear_success: "✅ Tous les messages stockés pour l'utilisateur %d ont été supprimés"
+captcha_bot_cannot_restrict: "⚠️ Le captcha est activé, mais je ne peux pas rendre muets les nouveaux membres : ils reçoivent donc le message de bienvenue sans captcha. Un administrateur doit m'accorder le droit <b>Bannir des utilisateurs</b>."
 captcha_invalid_mode_error: "mode captcha invalide : doit être 'math' ou 'text'"
 captcha_timeout_range_error: "le délai doit être entre 1 et 10 minutes"
 captcha_invalid_action_error: "action d'échec invalide : doit être 'kick', 'ban' ou 'mute'"

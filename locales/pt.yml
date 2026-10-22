@@ -1336,6 +1336,7 @@ captcha_no_pending_messages: "Nenhuma mensagem pendente encontrada para este usu
 captcha_clear_usage: "Uso: <code>/captchaclear @user</code> ou <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Falha ao limpar mensagens armazenadas. Tente novamente."
 captcha_clear_success: "✅ Limpas todas as mensagens armazenadas para o usuário %d"
+captcha_bot_cannot_restrict: "⚠️ O captcha está ativado, mas não consigo mutar novos membros, então eles recebem as boas-vindas sem captcha. Um administrador precisa me dar a permissão <b>Banir usuários</b>."
 
 # Notes module strings
 notes_save_success: "Nota <b>%s</b> salva!\nObtenha-a com <code>#%s</code> ou <code>/get %s</code>."

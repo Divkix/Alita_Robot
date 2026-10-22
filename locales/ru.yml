@@ -1190,6 +1190,7 @@ captcha_no_pending_messages: "Нет ожидающих сообщений дл�
 captcha_clear_usage: "Использование: <code>/captchaclear @user</code> или <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Не удалось очистить сохранённые сообщения. Пожалуйста, попробуйте снова."
 captcha_clear_success: "✅ Очищены все сохранённые сообщения для пользователя %d"
+captcha_bot_cannot_restrict: "⚠️ Капча включена, но я не могу заглушать новых участников, поэтому они получают приветствие без капчи. Администратор должен выдать мне право <b>Бан пользователей</b>."
 
 # Notes module strings
 notes_save_success: "Заметка <b>%s</b> сохранена!\nПолучите её с помощью <code>#%s</code> или <code>/get %s</code>."
