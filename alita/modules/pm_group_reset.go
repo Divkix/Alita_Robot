@@ -80,22 +80,35 @@ func confirmData(namespace, action string, chat *gotgbot.Chat) string {
 	return encodeCallbackData(namespace, map[string]string{"a": action, "c": strconv.FormatInt(chat.Id, 10)})
 }
 
-// ownerConfirmChat returns the chat a reset confirmation acts on, once the
-// presser is shown to own it: the group its "c" field names or, on a button
-// without one, the chat the button is in. On refusal it has answered the
-// query and returns nil.
-func ownerConfirmChat(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.CallbackQuery, decoded *callbackcodec.Decoded) *gotgbot.Chat {
-	var chat *gotgbot.Chat
-	if raw, ok := decoded.Field("c"); ok {
-		chatID, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil {
-			_ = answerInvalidCallback(b, ctx, query)
-			return nil
+// buttonChat returns the group a button sent by a bans or reset command acts
+// on: the one its "c" field names or, on a button without one, the chat the
+// button is in (nil when Telegram did not include its message). ok is false
+// when "c" is malformed.
+func buttonChat(ctx *ext.Context, decoded *callbackcodec.Decoded) (chat *gotgbot.Chat, ok bool) {
+	if decoded != nil {
+		if raw, named := decoded.Field("c"); named {
+			chatID, err := strconv.ParseInt(raw, 10, 64)
+			if err != nil {
+				return nil, false
+			}
+			return &gotgbot.Chat{Id: chatID}, true
 		}
-		chat = &gotgbot.Chat{Id: chatID}
-	} else if query.Message != nil {
+	}
+	if query := ctx.CallbackQuery; query != nil && query.Message != nil {
 		shown := query.Message.GetChat()
-		chat = &shown
+		return &shown, true
+	}
+	return nil, true
+}
+
+// ownerConfirmChat returns the chat a reset confirmation acts on (buttonChat),
+// once the presser is shown to own it. On refusal it has answered the query
+// and returns nil.
+func ownerConfirmChat(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.CallbackQuery, decoded *callbackcodec.Decoded) *gotgbot.Chat {
+	chat, ok := buttonChat(ctx, decoded)
+	if !ok {
+		_ = answerInvalidCallback(b, ctx, query)
+		return nil
 	}
 	if chat == nil || !chat_status.RequireUserOwner(b, ctx, chat, query.From.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())

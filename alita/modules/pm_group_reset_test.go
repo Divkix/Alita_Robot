@@ -391,6 +391,83 @@ func TestPMGroupLineEscapesOnlyHTMLReplies(t *testing.T) {
 	}
 }
 
+// A bans button or reset confirmation without a "c" field, as sent before PM
+// support or in a group, acts on the chat it is pressed in.
+func TestModerationButtonWithoutGroupFieldActsOnItsChat(t *testing.T) {
+	for _, tc := range []struct {
+		name, data string
+		acted      func(f adminChatFixture) bool
+	}{
+		{"restrict", encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(victimID)}),
+			func(f adminChatFixture) bool { return targetedIn(f, "banChatMember", f.chat.Id, victimID) }},
+		{"unrestrict", encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(victimID)}),
+			func(f adminChatFixture) bool { return targetedIn(f, "unbanChatMember", f.chat.Id, victimID) }},
+		{"reset", encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
+			func(f adminChatFixture) bool { return len(filters.GetFiltersList(f.chat.Id)) == 0 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, _ := pmBansFixture(t)
+			f.makeOwner()
+			if err := filters.AddFilter(f.chat.Id, "hello", "Hi there", "", nil, db.TEXT); err != nil {
+				t.Fatalf("AddFilter() error = %v", err)
+			}
+
+			update := newModuleCallbackContext(f.bot, f.chat, f.admin, tc.data).Update
+			if err := pmResetDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate(callback %q) error = %v", tc.data, err)
+			}
+
+			if !tc.acted(f) {
+				t.Fatalf("the %s button without a group did not act on its chat; calls:\n%s", tc.name, sentText(f.client))
+			}
+		})
+	}
+}
+
+// A bans button or reset confirmation whose "c" field is no chat ID is
+// answered as invalid, in PM or in the group, and acts nowhere.
+func TestModerationButtonWithMalformedGroupFieldIsRejected(t *testing.T) {
+	for _, tc := range []struct {
+		name, data, answerKey string
+	}{
+		{"restrict", encodeCallbackData("restrict", map[string]string{"a": "ban", "c": "x", "u": fmt.Sprint(victimID)}), "bans_invalid_callback_data"},
+		{"unrestrict", encodeCallbackData("unrestrict", map[string]string{"a": "unban", "c": "x", "u": fmt.Sprint(victimID)}), "bans_invalid_callback_data"},
+		{"reset", encodeCallbackData("rmAllFilters", map[string]string{"a": "yes", "c": "x"}), "common_callback_invalid_request"},
+	} {
+		for _, where := range []string{"pm", "group"} {
+			t.Run(tc.name+"/"+where, func(t *testing.T) {
+				f, _ := pmBansFixture(t)
+				f.makeOwner()
+				if err := filters.AddFilter(f.chat.Id, "hello", "Hi there", "", nil, db.TEXT); err != nil {
+					t.Fatalf("AddFilter() error = %v", err)
+				}
+				chat := f.chat
+				if where == "pm" {
+					chat = privateChatOf(f.admin)
+				}
+
+				update := newModuleCallbackContext(f.bot, chat, f.admin, tc.data).Update
+				if err := pmResetDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+					t.Fatalf("ProcessUpdate(callback %q) error = %v", tc.data, err)
+				}
+
+				for _, method := range []string{"banChatMember", "unbanChatMember"} {
+					if len(f.client.callsFor(method)) != 0 {
+						t.Fatalf("the %s button with a malformed group called %s", tc.name, method)
+					}
+				}
+				if len(filters.GetFiltersList(f.chat.Id)) == 0 {
+					t.Fatalf("the %s button with a malformed group cleared the filters", tc.name)
+				}
+				answers := f.client.callsFor("answerCallbackQuery")
+				if len(answers) != 1 || fmt.Sprint(answers[0].Params["text"]) != translated(t, tc.answerKey) {
+					t.Fatalf("the %s button with a malformed group answered %+v, want one %s", tc.name, answers, tc.answerKey)
+				}
+			})
+		}
+	}
+}
+
 // A confirmation asked in PM names the group it resets, whether the group was
 // named or connected; asked in the group, it does not.
 func TestResetConfirmationInPMNamesGroup(t *testing.T) {

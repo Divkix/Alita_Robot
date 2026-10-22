@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -526,7 +525,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	decoded, decodedOK := decodeCallbackData(query.Data, "restrict")
-	chat, chatOK := moderationButtonChat(ctx, decoded)
+	chat, chatOK := buttonChat(ctx, decoded)
 	if chatOK && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
@@ -718,7 +717,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	}
 
 	decoded, decodedOK := decodeCallbackData(query.Data, "unrestrict")
-	chat, chatOK := moderationButtonChat(ctx, decoded)
+	chat, chatOK := buttonChat(ctx, decoded)
 	if chatOK && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
@@ -1048,22 +1047,6 @@ func unrestrictButton(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.C
 		Text:         trS(tr, labelKey),
 		CallbackData: moderationButtonData("unrestrict", msg, chat, map[string]string{"a": action, "u": strconv.FormatInt(userID, 10)}),
 	}
-}
-
-// moderationButtonChat returns the group a bans button acts on: the one its
-// "c" field names or, on a button without one, the chat the button is in. ok
-// is false when "c" is malformed.
-func moderationButtonChat(ctx *ext.Context, decoded *callbackcodec.Decoded) (chat *gotgbot.Chat, ok bool) {
-	if decoded != nil {
-		if raw, named := decoded.Field("c"); named {
-			chatID, err := strconv.ParseInt(raw, 10, 64)
-			if err != nil {
-				return nil, false
-			}
-			return &gotgbot.Chat{Id: chatID}, true
-		}
-	}
-	return ctx.EffectiveChat, true
 }
 
 // From PM, the commands that act on a user named after the group take the
