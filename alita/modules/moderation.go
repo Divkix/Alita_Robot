@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"html"
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/moderation"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -159,6 +162,10 @@ type moderationCommand struct {
 	module    *moduleStruct
 	logAction string
 	logUser   bool
+	// eventAction is the moderation_events action recorded after execute
+	// succeeds. Variants set their base action; empty (unmute, kickme, banme,
+	// restrict) records nothing.
+	eventAction string
 }
 
 // buildModerationCtx creates the common decomposed context from a gotgbot update.
@@ -206,6 +213,12 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
+	// The action happened: record its evidence row before the reply, so a
+	// reply failure cannot lose it. The write never affects the command.
+	if cmd.eventAction != "" {
+		recordModerationEvent(mc, &tgt, cmd.eventAction)
+	}
+
 	// Build and send the success reply.
 	if cmd.reply != nil {
 		if err := cmd.reply(mc, &tgt); err != nil {
@@ -222,6 +235,26 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	return ext.EndGroups
+}
+
+// recordModerationEvent appends the moderation_events row for an action that
+// already succeeded. It returns nothing on purpose: a database error is
+// logged and never changes the reply or the action's success.
+func recordModerationEvent(c *moderationCtx, t *target, action string) {
+	err := moderation.Record(models.ModerationEvent{
+		ChatId:       c.Chat.Id,
+		ActorId:      c.User.Id,
+		TargetUserId: t.userID,
+		Action:       action,
+		Reason:       t.reason,
+		CreatedAt:    time.Now().UTC(),
+	})
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"chat_id": c.Chat.Id,
+			"action":  action,
+		}).Error("[Moderation] Failed to record the event")
+	}
 }
 
 // Sentinel errors used by moderation command templates.

@@ -494,6 +494,7 @@ func TestMain(m *testing.M) {
 		&models.ReportChatSettings{},
 		&models.ReportUserSettings{},
 		&models.Report{},
+		&models.ModerationEvent{},
 		&db.AntifloodSettings{},
 		&models.AntiRaidSettings{},
 		&db.DevSettings{},

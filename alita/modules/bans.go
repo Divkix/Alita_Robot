@@ -14,6 +14,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -83,8 +84,9 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 			}
 			return kickMember(c.Bot, c.Chat.Id, t.userID)
 		},
-		reply:     kickReply,
-		logAction: "dkick",
+		reply:       kickReply,
+		logAction:   "dkick",
+		eventAction: models.ModerationActionKick,
 	}
 }
 
@@ -125,7 +127,8 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 			}
 			return nil
 		},
-		logAction: "tban",
+		logAction:   "tban",
+		eventAction: models.ModerationActionBan,
 	}
 }
 
@@ -219,7 +222,8 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 			}
 			return nil
 		},
-		logAction: "ban",
+		logAction:   "ban",
+		eventAction: models.ModerationActionBan,
 	}
 }
 
@@ -232,8 +236,9 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			return kickMember(c.Bot, c.Chat.Id, t.userID)
 		},
-		reply:     kickReply,
-		logAction: "kick",
+		reply:       kickReply,
+		logAction:   "kick",
+		eventAction: models.ModerationActionKick,
 	}
 }
 
@@ -283,8 +288,9 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 			_, err = c.Msg.Delete(c.Bot, nil)
 			return err
 		},
-		reply:     nil,
-		logAction: "sban",
+		reply:       nil,
+		logAction:   "sban",
+		eventAction: models.ModerationActionBan,
 	}
 }
 
@@ -316,8 +322,9 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 			_, err = c.Chat.BanMember(c.Bot, t.userID, nil)
 			return err
 		},
-		reply:     banReplyWithButton,
-		logAction: "dban",
+		reply:       banReplyWithButton,
+		logAction:   "dban",
+		eventAction: models.ModerationActionBan,
 	}
 }
 
@@ -392,7 +399,8 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 			}
 			return nil
 		},
-		logAction: "unban",
+		logAction:   "unban",
+		eventAction: models.ModerationActionUnban,
 	}
 }
 
@@ -831,8 +839,9 @@ func moderationSkick(m *moduleStruct) *moderationCommand {
 			_, err := c.Msg.Delete(c.Bot, nil)
 			return err
 		},
-		reply:     nil,
-		logAction: "skick",
+		reply:       nil,
+		logAction:   "skick",
+		eventAction: models.ModerationActionKick,
 	}
 }
 
@@ -1018,6 +1027,7 @@ func initBanDescs() {
 func LoadBans(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(bansModule.moduleName, true)
 	initBanDescs()
+	startModerationEventRetentionSweeper()
 
 	helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))
 	helpers.WrapCommand(dispatcher, sbanDesc, pipelineHandler(bansModule.sBan))
