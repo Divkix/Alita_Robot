@@ -172,10 +172,25 @@ func commandExample(cmd string) string {
 	return text
 }
 
+// commandPMExample returns the sample call for cmd shown in PM help without a
+// group: <cmd>_pm_example when the group's call (commandExample) names no
+// group, else commandExample.
+func commandPMExample(cmd string) string {
+	if text, _ := i18n.MustNewTranslator("config").GetString(cmd + "_pm_example"); text != "" {
+		return text
+	}
+	return commandExample(cmd)
+}
+
 // commandHelpText puts errText (HTML) above the help for cmd: its own entry
 // and example when the chat's language documents it, else the whole module
 // help.
 func commandHelpText(tr *i18n.Translator, cmd, errText string) string {
+	return commandHelpTextWith(tr, cmd, errText, commandExample(cmd))
+}
+
+// commandHelpTextWith is commandHelpText with example as the sample call.
+func commandHelpTextWith(tr *i18n.Translator, cmd, errText, example string) string {
 	module, ok := commandHelpModules[cmd]
 	if !ok {
 		return errText
@@ -190,7 +205,7 @@ func commandHelpText(tr *i18n.Translator, cmd, errText string) string {
 		return errText + "\n\n" + renderModuleHelp(header, strings.ToUpper(module[:1])+module[1:], helpMsg)
 	}
 	text := errText + "\n\n" + formatting.ToTelegramHTML(block)
-	if example := commandExample(cmd); example != "" {
+	if example != "" {
 		line, _ := tr.GetString("command_help_example", i18n.TranslationParams{
 			"example": "<code>" + html.EscapeString(example) + "</code>",
 		})
@@ -202,8 +217,13 @@ func commandHelpText(tr *i18n.Translator, cmd, errText string) string {
 }
 
 // replyCommandHelp answers a call that cmd cannot run as given with errText
-// (HTML) and the help that shows how to call it.
+// (HTML) and the help that shows how to call it: from PM, with the PM example
+// (commandPMExample).
 func replyCommandHelp(b *gotgbot.Bot, msg *gotgbot.Message, tr *i18n.Translator, cmd, errText string) error {
-	_, err := msg.Reply(b, commandHelpText(tr, cmd, errText), formatting.Shtml())
+	example := commandExample(cmd)
+	if msg.Chat.Type == "private" {
+		example = commandPMExample(cmd)
+	}
+	_, err := msg.Reply(b, commandHelpTextWith(tr, cmd, errText, example), formatting.Shtml())
 	return err
 }

@@ -246,7 +246,7 @@ func assertPMGroupHelp(t *testing.T, text, cmd string, groups ...gotgbot.Chat) {
 	if !strings.Contains(text, formatting.ToTelegramHTML(block)) {
 		t.Fatalf("reply %q lacks the /%s help entry %q", text, cmd, block)
 	}
-	if example := commandExample(cmd); example == "" || !strings.Contains(text, html.EscapeString(example)) {
+	if example := commandPMExample(cmd); example == "" || !strings.Contains(text, html.EscapeString(example)) {
 		t.Fatalf("reply %q lacks the /%s example %q", text, cmd, example)
 	}
 	for _, group := range groups {

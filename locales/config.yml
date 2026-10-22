@@ -10,6 +10,16 @@ kick_example: "/kick @username"
 skick_example: "/skick @username"
 restrict_example: "/restrict @username"
 unrestrict_example: "/unrestrict @username"
+# <cmd>_pm_example: the sample call shown in PM help without a group, for
+# commands whose example above is the group's call.
+ban_pm_example: "/ban @mygroup @username spam"
+sban_pm_example: "/sban @mygroup @username"
+tban_pm_example: '/tban "My Group" @username 1d spam'
+unban_pm_example: "/unban @mygroup @username"
+kick_pm_example: "/kick -1001234567890 @username"
+skick_pm_example: "/skick @mygroup @username"
+restrict_pm_example: "/restrict @mygroup @username"
+unrestrict_pm_example: "/unrestrict @mygroup @username"
 mute_example: "/mute @username"
 smute_example: "/smute @username"
 tmute_example: "/tmute @username 30m"

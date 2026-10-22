@@ -178,7 +178,7 @@ func funcName(f any) string {
 }
 
 // Every command that takes its group from PM answers a call without a group
-// with the help entry and example of a command in commandHelpModules, so a
+// with the help entry and PM example of a command in commandHelpModules, so a
 // new command or alias without an entry fails here. Every withPMGroupArg
 // command must ask for the group; a WrapCommand command asks only when its
 // descriptor sets PMGroupArg.
@@ -211,7 +211,7 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 		asked = append(asked, cmd.Command)
 		text := fmt.Sprint(replies[0].Params["text"])
 		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules)), func(help string) bool {
-			example := commandExample(help)
+			example := commandPMExample(help)
 			return example != "" && strings.Contains(text, html.EscapeString(example))
 		}) {
 			t.Errorf("/%s from PM answers without a help entry; add its command to commandHelpModules", cmd.Command)
