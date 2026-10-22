@@ -264,6 +264,13 @@ func processAISpam(task aispamTask) {
 	// fails: the next check still sees it.
 	recent, lastHour := observeAISpamSender(task.chatID, task.userID, task.messageID, aispamTruncate(task.text, aispamHistoryTextLen), time.Now())
 
+	// Past the operator's daily cap the check is not made: counted as shed,
+	// and not a failure, so the chat's breaker is untouched.
+	if !aispamClaimDailyCheck() {
+		aispamShed.Add(1)
+		return
+	}
+
 	verdict, err := aispamJevDecide(context.Background(), config.AppConfig.TypeSafeAPIKey, task.state(recent, lastHour))
 	if err != nil {
 		aispamFailed.Add(1)

@@ -95,6 +95,10 @@ Checks run on a bounded worker queue. When the queue is full — a raid, or a
 provider brownout — checks are shed rather than queued unbounded. A shed check
 means "not checked", and antiflood still owns floods.
 
+When the operator sets `AISPAM_DAILY_LIMIT`, checks past that many in a UTC
+day are skipped the same way until the next UTC day. A skipped check is not a
+failure: it does not pause the chat.
+
 ## Required Permissions
 
 | Command | Permissions |
@@ -114,5 +118,6 @@ does not check the bot's own rights; see above.
 |----------|---------|
 | `TYPESAFE_API_KEY` | TypeSafe API key used for every check. One credential for the whole bot; chats cannot bring their own. Empty disables the feature. |
 | `ENABLE_AISPAM` | Global kill switch. Default `true`; the filter still stays off in chats that never enabled it. |
+| `AISPAM_DAILY_LIMIT` | Most checks per UTC day across every chat, shared through Redis. Unset means no cap. |
 
 The key is registered with `logredact`, so it never appears in logs.

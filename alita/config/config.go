@@ -169,6 +169,23 @@ func getReputationInt(name string, fallback int) (int, error) {
 	return v, nil
 }
 
+// getAISpamDailyLimit reads AISPAM_DAILY_LIMIT; unset means no cap. Like the
+// reputation settings, and unlike the lenient typeConvertor integers, a typo
+// or a value below 1 fails startup: a cap that silently became no cap would
+// let a spam wave run up the bill the operator set it to bound. 0 is refused
+// rather than read as "no checks", which is what ENABLE_AISPAM=false is for.
+func getAISpamDailyLimit() (int, error) {
+	raw := strings.TrimSpace(os.Getenv("AISPAM_DAILY_LIMIT"))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v < 1 {
+		return 0, fmt.Errorf("AISPAM_DAILY_LIMIT must be a positive integer (unset it for no cap)")
+	}
+	return v, nil
+}
+
 // Local read-through cache defaults (CACHE_LOCAL_TTL, CACHE_LOCAL_MAX_ENTRIES).
 const (
 	DefaultCacheLocalTTLSeconds = 10
@@ -261,6 +278,9 @@ type Config struct {
 	// feature is inert without TypeSafeAPIKey.
 	EnableAISpam   bool
 	TypeSafeAPIKey string
+	// AISpamDailyLimit caps the Jev checks made per UTC day across every chat
+	// and replica; 0 (AISPAM_DAILY_LIMIT unset) means no cap.
+	AISpamDailyLimit int
 
 	// Join-time CAS (cas.chat) and lols.bot spam database check. EnableSpamDB
 	// is the operator's kill switch; each chat still opts in with /spamdb on.
@@ -360,6 +380,10 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("REPUTATION_WINDOW_DAYS must be an integer between 1 and %d", MaxReputationWindowDays)
 	}
 
+	if cfg.AISpamDailyLimit < 0 {
+		return fmt.Errorf("AISPAM_DAILY_LIMIT must be a positive integer (unset it for no cap)")
+	}
+
 	if cfg.PanelSessionMaxAge < 0 {
 		return fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive duration")
 	}
@@ -400,6 +424,10 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 	reputationWindowDays, err := getReputationInt("REPUTATION_WINDOW_DAYS", DefaultReputationWindowDays)
+	if err != nil {
+		return nil, err
+	}
+	aispamDailyLimit, err := getAISpamDailyLimit()
 	if err != nil {
 		return nil, err
 	}
@@ -470,8 +498,9 @@ func LoadConfig() (*Config, error) {
 
 		MetricsAuthToken: os.Getenv("METRICS_AUTH_TOKEN"),
 
-		EnableAISpam:   typeConvertor{str: os.Getenv("ENABLE_AISPAM")}.Bool(),
-		TypeSafeAPIKey: os.Getenv("TYPESAFE_API_KEY"),
+		EnableAISpam:     typeConvertor{str: os.Getenv("ENABLE_AISPAM")}.Bool(),
+		TypeSafeAPIKey:   os.Getenv("TYPESAFE_API_KEY"),
+		AISpamDailyLimit: aispamDailyLimit,
 
 		EnableSpamDB: typeConvertor{str: os.Getenv("ENABLE_SPAMDB")}.Bool(),
 		CASAPIKey:    os.Getenv("CAS_API_KEY"),
