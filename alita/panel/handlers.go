@@ -132,3 +132,18 @@ func (p *Panel) chatRequest(w http.ResponseWriter, r *http.Request) (Session, ch
 	}
 	return session, access, true
 }
+
+// requireWritable rejects a write unless the caller is an admin and the bot
+// can act in the chat. Reads never call it: a non-admin, or a chat where the
+// bot lost its rights, still sees values read-only.
+func requireWritable(w http.ResponseWriter, access chatAccess) bool {
+	if access.Role != RoleAdmin {
+		writeJSONError(w, http.StatusForbidden, "not_admin", "only chat admins can change this")
+		return false
+	}
+	if !access.BotAdmin {
+		writeJSONError(w, http.StatusConflict, "bot_not_admin", "the bot is not an admin in this chat, so changes are disabled")
+		return false
+	}
+	return true
+}

@@ -46,6 +46,10 @@ type Deps struct {
 	// Now is the clock used for initData validation, memo expiry and rate
 	// limiting. Nil means time.Now.
 	Now func() time.Time
+	// DisableCaptcha runs the cleanup /captcha off runs after the panel turns
+	// captcha off: pending users are unmuted. Production wires
+	// modules.DisableCaptchaForChat; nil skips it.
+	DisableCaptcha func(bot *gotgbot.Bot, chatID int64) error
 }
 
 // panelRequestTimeout bounds one panel request below the HTTP server's 10 s
@@ -104,6 +108,8 @@ type Panel struct {
 func (p *Panel) routes() {
 	p.mux.HandleFunc("POST /panel/api/v1/session", p.handleSession)
 	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}", p.handleChat)
+	p.mux.HandleFunc("GET /panel/api/v1/chats/{id}/settings", p.handleSettings)
+	p.mux.HandleFunc("PATCH /panel/api/v1/chats/{id}/settings", p.handleUpdateSettings)
 
 	p.mux.Handle("GET /panel/", http.StripPrefix("/panel/", http.FileServer(http.FS(p.web))))
 }

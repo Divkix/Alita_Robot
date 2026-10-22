@@ -28,7 +28,17 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testdb.Run(m))
+	os.Exit(testdb.Run(m,
+		&models.GreetingSettings{},
+		&models.RulesSettings{},
+		&models.CaptchaSettings{},
+		&models.AntifloodSettings{},
+		&models.AntiRaidSettings{},
+		&models.SpamDBSettings{},
+		&models.AISpamSettings{},
+		&models.LockSettings{},
+		&models.LogChannel{},
+	))
 }
 
 var panelChatSequence atomic.Int64
@@ -117,6 +127,11 @@ func (c *panelFakeClient) RequestWithContext(ctx context.Context, _ string, meth
 		}
 		status := "member"
 		if userID == 999 && c.botAdmin {
+			status = "administrator"
+		}
+		// Telegram reports a listed admin's real status even when the bot
+		// itself is not an admin and the admin cache falls back to this call.
+		if userID != 999 && strings.Contains(string(c.admins[chatID]), fmt.Sprintf(`"id":%d,`, userID)) {
 			status = "administrator"
 		}
 		return json.RawMessage(fmt.Sprintf(`{"status":%q,"user":{"id":%d,"is_bot":%t,"first_name":"Fake"}}`, status, userID, userID == 999)), nil

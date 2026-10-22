@@ -27,8 +27,9 @@ export async function renderSection(root, chatID, key) {
 	const back = document.createElement("a");
 	back.href = `#/chats/${encodeURIComponent(chatID)}`;
 	back.textContent = `← ${chat.title || String(chat.id)}`;
-	root.append(back, textElement("h2", section.label));
-	await section.render(root, chatID, chat);
+	const content = document.createElement("div");
+	root.append(back, textElement("h2", section.label), content);
+	await section.render(content, chatID, chat);
 }
 
 export async function renderChat(root, chatID) {
