@@ -291,20 +291,20 @@ captcha_help_msg:
   Jika mereka gagal atau batas waktu habis, tindakan yang dikonfigurasi akan diambil."
 commonstrings_admin_cache_cache_reloaded: Berhasil memuat ulang cache admin.
 connections_allow_connect_currently_off:
-  "Koneksi pengguna saat ini dimatikan <b>off</b>.
+  "Koneksi pengguna saat ini <b>nonaktif</b>.
 
   Pengguna tidak dapat menghubungkan obrolan ini ke PM mereka!"
 connections_allow_connect_currently_on:
-  "Koneksi pengguna saat ini dihidupkan <b>on</b>.
+  "Koneksi pengguna saat ini <b>aktif</b>.
 
   Pengguna dapat menghubungkan obrolan ini ke PM mereka!"
 connections_allow_connect_turned_off:
-  "Mematikan <b>off</b> Koneksi pengguna ke
+  "Menonaktifkan <b>koneksi pengguna</b> ke
   obrolan ini!
 
   Pengguna tidak dapat menghubungkan obrolan ke PM mereka!"
 connections_allow_connect_turned_on:
-  "Menghidupkan <b>on</b> Koneksi pengguna ke obrolan ini!
+  "Mengaktifkan <b>koneksi pengguna</b> ke obrolan ini!
 
   Pengguna sekarang dapat menghubungkan obrolan ke PM mereka!"
 connections_connect_connected: Anda sekarang terhubung ke <b>%s</b>!
