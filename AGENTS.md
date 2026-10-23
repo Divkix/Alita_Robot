@@ -25,7 +25,8 @@ Update this file in the same commit as any change that invalidates a rule below.
 
 ```bash
 make test                 # the only valid full test run (tags, race, coverage, skip gate)
-make lint                 # golangci-lint v2 (forbidigo/depguard enforce bans below)
+make lint                 # golangci-lint v2, whole codebase (forbidigo/depguard enforce bans below; dupl/gocyclo gate new code in CI only)
+make nilaway              # nil-panic analysis, gated in CI; it has no suppression comments: make the nil flow explicit
 make check-translations   # missing locale keys; values copied from en.yml (allowlist: scripts/check_translations/identical_allowlist.txt)
 make check-docs           # generated-docs drift; fix with `make generate-docs`
 make check-formal         # TLC on the TLA+ models in formal/ (Docker)

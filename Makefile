@@ -1,8 +1,12 @@
-.PHONY: run tidy vendor build bump-version lint test test-postgres-integrity check-translations check-formal check-duplicates psql-migrate psql-status psql-reset generate-docs check-docs inventory docs-dev validate-db backup-db
+.PHONY: run tidy vendor build bump-version lint nilaway test test-postgres-integrity check-translations check-formal check-duplicates psql-migrate psql-status psql-reset generate-docs check-docs inventory docs-dev validate-db backup-db
 
 GO_CMD = go
 GORELEASER_CMD = goreleaser
 GOLANGCI_LINT_CMD = golangci-lint
+# nilaway has no tagged releases; pinned to a pseudo-version so every run
+# reports the same thing. Recheck when upstream tags a release or a new Go
+# version breaks the analyzer.
+NILAWAY_VERSION = v0.0.0-20260918162853-acb8859b9031
 
 # PostgreSQL Migration Variables
 PSQL_SCRIPT = scripts/migrate_psql.sh
@@ -30,6 +34,10 @@ bump-version:
 lint:
 	@which $(GOLANGCI_LINT_CMD) > /dev/null || (echo "golangci-lint not found, install it from https://golangci-lint.run/usage/install/" && exit 1)
 	$(GOLANGCI_LINT_CMD) run
+
+# Static nil-panic analysis of production code (golangci-lint ships no nilaway).
+nilaway:
+	$(GO_CMD) run go.uber.org/nilaway/cmd/nilaway@$(NILAWAY_VERSION) -include-pkgs=github.com/divkix/Alita_Robot -test=false ./...
 
 test: SHELL := /bin/bash
 test: .SHELLFLAGS := -o pipefail -c

@@ -64,14 +64,13 @@ jobs:
           category: gosec
 
       - name: Run govulncheck
-        continue-on-error: true
         uses: golang/govulncheck-action@v1
 
   # Code quality - run on stable only (lint results don't vary by Go version)
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -91,8 +90,13 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          # Own key family: the security and build jobs save under go-* in the
+          # same run, and only the first save of a key wins, so nilaway's
+          # module and analysis cache would rarely be kept.
+          key: go-lint-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
           restore-keys: |
+            go-lint-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-lint-${{ runner.os }}-
             go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
             go-${{ runner.os }}-
 
@@ -102,8 +106,9 @@ jobs:
           version: v2.15.0
           install-mode: binary
           args: --timeout 10m
-          # Only report new issues to allow gradual improvement of existing codebase
-          only-new-issues: true
+
+      - name: Run nilaway
+        run: make nilaway
 
       - name: Technical Debt Tracking
         run: |
@@ -142,14 +147,14 @@ jobs:
             echo "**Note:** Please ensure TODO/FIXME comments reference an issue (e.g., TODO(#123))"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run duplicate code detection
+      - name: Run duplicate code and complexity detection
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
           install-mode: binary
-          # Only run dupl linter, disable all other linters
-          args: --enable-only dupl --timeout 10m
-          # Only report new issues to allow gradual improvement
+          # dupl and gocyclo are left out of the main run (.golangci.yml) so
+          # their existing backlog does not fail it; new code must pass them.
+          args: --enable-only dupl,gocyclo --timeout 10m
           only-new-issues: true
 
       - name: Cyclomatic Complexity Analysis
