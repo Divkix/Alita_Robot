@@ -113,7 +113,7 @@ func main() {
 	b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
 			Client: http.Client{
-				Transport: transport,
+				Transport: tracing.BotAPITransport(transport),
 				Timeout:   constants.LongTimeout,
 			},
 			UseTestEnvironment: false,
