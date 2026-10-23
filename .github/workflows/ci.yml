@@ -103,6 +103,9 @@ jobs:
           install-mode: binary
           args: --timeout 10m
 
+      - name: Run nilaway
+        run: make nilaway
+
       - name: Technical Debt Tracking
         run: |
           # Count TODO, FIXME, HACK, XXX comments in Go files. grep -c exits 1
