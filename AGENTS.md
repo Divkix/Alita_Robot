@@ -28,6 +28,7 @@ make test                 # the only valid full test run (tags, race, coverage, 
 make lint                 # golangci-lint v2
 make check-translations   # missing locale keys; values copied from en.yml (allowlist: scripts/check_translations/identical_allowlist.txt)
 make check-docs           # generated-docs drift; fix with `make generate-docs`
+make check-formal         # TLC on the TLA+ models in formal/ (Docker)
 make bump-version TAG=vX.Y.Z   # the only way to change version strings
 go test -tags testtools -race -count=1 -run '^TestName$' ./alita/db/warns   # one test
 CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2 + Docker
@@ -280,6 +281,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Handler tests act as `newAdminChatFixture`'s admin, not 777000/1087968824: those skip the admin cache. Use them
   only to test those IDs.
 - In CI, keep the migration-chain step before `make test`; its `schema_migrations` rows back the checksum test.
+- A TLA+ model added to `formal/` needs an entry in `MODELS` in `scripts/check_formal.sh`: `pass`, or the invariant a
+  model of the old, buggy code must violate. The Lean proofs there are not built in CI.
 
 ## Commits
 
