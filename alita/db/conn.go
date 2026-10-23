@@ -37,6 +37,35 @@ func isCliModeActive() bool {
 	return false
 }
 
+// newGormLogger logs slow and failed statements without row values, which
+// carry chat and user content, as logs are exported over OTLP:
+// ParameterizedQueries keeps the SQL as placeholders, and safeWriter drops
+// the error text, which Postgres and pgx fill with values.
+func newGormLogger(w logger.Writer) logger.Interface {
+	return logger.New(safeWriter{w}, logger.Config{
+		SlowThreshold:             time.Second,
+		LogLevel:                  logger.Warn,
+		IgnoreRecordNotFoundError: true,
+		ParameterizedQueries:      true,
+		Colorful:                  false,
+	})
+}
+
+// safeWriter writes each error argument as safeQueryError does. It wraps the
+// writer, not the logger, so GORM still reports the caller's file and line.
+type safeWriter struct {
+	logger.Writer
+}
+
+func (w safeWriter) Printf(format string, args ...any) {
+	for i, arg := range args {
+		if err, ok := arg.(error); ok {
+			_, args[i] = safeQueryError(err)
+		}
+	}
+	w.Writer.Printf(format, args...)
+}
+
 func init() {
 	if isCliModeActive() {
 		return
@@ -47,15 +76,7 @@ func init() {
 
 	var err error
 
-	gormLogger := logger.New(
-		log.StandardLogger(),
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logger.Warn,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  false,
-		},
-	)
+	gormLogger := newGormLogger(log.StandardLogger())
 
 	dsn := config.AppConfig.DatabaseURL
 	if dsn == "" {

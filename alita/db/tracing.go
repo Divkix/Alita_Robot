@@ -90,22 +90,31 @@ func endQuerySpan(tx *gorm.DB) {
 // recordQueryError marks span failed without the error's text, which can
 // quote row values: Postgres messages and details, and pgx encode errors,
 // include them. The span keeps the SQLSTATE, or the Go type when there is
-// none, while the full error still reaches the logs, which are scrubbed.
+// none.
 func recordQueryError(span trace.Span, err error) {
 	if err == nil {
 		return
 	}
+	code, safe := safeQueryError(err)
+	if code != "" {
+		span.SetAttributes(semconv.DBResponseStatusCode(code))
+	}
+	tracing.RecordError(span, safe)
+}
+
+// safeQueryError returns the SQLSTATE of err, if any, and err with its text
+// replaced by that SQLSTATE, or by its Go type when it has none. Errors with
+// fixed text are kept.
+func safeQueryError(err error) (string, error) {
 	var pgErr *pgconn.PgError
 	switch {
 	case errors.As(err, &pgErr):
-		span.SetAttributes(semconv.DBResponseStatusCode(pgErr.Code))
-		err = queryError("postgres error SQLSTATE " + pgErr.Code)
+		return pgErr.Code, queryError("postgres error SQLSTATE " + pgErr.Code)
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled), errors.Is(err, gorm.ErrRecordNotFound):
-		// Fixed text, safe to keep.
+		return "", err
 	default:
-		err = queryError(fmt.Sprintf("database error %T", err))
+		return "", queryError(fmt.Sprintf("database error %T", err))
 	}
-	tracing.RecordError(span, err)
 }
 
 // queryError stands in for a database error on a span.
