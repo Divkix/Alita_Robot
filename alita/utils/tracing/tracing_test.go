@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 )
@@ -230,5 +232,43 @@ func TestIsBotProcessSkipsTestBinaries(t *testing.T) {
 	ensureAppConfig(t)
 	if isBotProcess() {
 		t.Fatal("isBotProcess() = true in a test binary")
+	}
+}
+
+func TestNewResourceNamesVersionAndTakesEnvLast(t *testing.T) {
+	t.Setenv("OTEL_SERVICE_NAME", "")
+	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "deployment.environment.name=staging,service.version=override")
+	res, err := newResource(context.Background(), "2.18.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.SchemaURL() != semconv.SchemaURL {
+		t.Fatalf("schema URL = %q, want %q", res.SchemaURL(), semconv.SchemaURL)
+	}
+	attrs := res.Set()
+	for key, want := range map[attribute.Key]string{
+		semconv.ServiceNameKey:               "alita_robot",
+		semconv.ServiceVersionKey:            "override",
+		semconv.DeploymentEnvironmentNameKey: "staging",
+		semconv.TelemetrySDKLanguageKey:      "go",
+	} {
+		if got, ok := attrs.Value(key); !ok || got.AsString() != want {
+			t.Fatalf("%s = %q, want %q", key, got.AsString(), want)
+		}
+	}
+
+	// A malformed entry is reported, and the rest of the resource still holds.
+	t.Setenv("OTEL_SERVICE_NAME", "alita_staging")
+	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "typo")
+	if res, err = newResource(context.Background(), "2.18.2"); err == nil {
+		t.Fatal("want an error for the malformed entry")
+	}
+	for key, want := range map[attribute.Key]string{
+		semconv.ServiceNameKey:    "alita_staging",
+		semconv.ServiceVersionKey: "2.18.2",
+	} {
+		if got, _ := res.Set().Value(key); got.AsString() != want {
+			t.Fatalf("%s = %q, want %q", key, got.AsString(), want)
+		}
 	}
 }
