@@ -5,15 +5,21 @@ run:
   timeout: 5m
   build-tags: ["testtools"]
 
-# Linters to enable
+# Linters to enable, on top of the standard set (errcheck, govet, ineffassign,
+# staticcheck, unused). These gate the whole codebase. dupl and gocyclo are
+# configured below but run only in CI's new-issues step (ci.yml), so the
+# existing complexity backlog does not fail every run.
 linters:
   enable:
     - godox      # Detects TODO, FIXME, and other keywords
-    - dupl       # Detects duplicate code fragments
-    - gocyclo    # Cyclomatic complexity analysis
     - forbidigo  # Calls AGENTS.md forbids in production code or the panel
     - depguard   # Imports AGENTS.md forbids
+    - exhaustive # Switches over enum-like constants must name every case
+    - errorlint  # errors.Is/As instead of ==/type assertions on errors
   settings:
+    exhaustive:
+      # A default: case is how this codebase handles "everything else".
+      default-signifies-exhaustive: true
     depguard:
       rules:
         no-mocks:
@@ -50,6 +56,11 @@ linters:
         linters:
           - gocyclo
           - dupl
+      # Tests compare handler results with ext.EndGroups/ContinueGroups, which
+      # are returned unwrapped by contract.
+      - path: _test\.go
+        linters:
+          - errorlint
       # AutoMigrate is how test fixtures build their schema
       - path: (_test\.go$|^internal/testdb/)
         linters:
@@ -73,9 +84,6 @@ linters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  # Only fail on new issues - allows gradual improvement of existing codebase
-  # Remove this once existing complexity issues are addressed
-  new: true
 
 # Imports: stdlib, third-party, internal, separated by blank lines (AGENTS.md)
 formatters:

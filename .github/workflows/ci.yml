@@ -102,8 +102,6 @@ jobs:
           version: v2.15.0
           install-mode: binary
           args: --timeout 10m
-          # Only report new issues to allow gradual improvement of existing codebase
-          only-new-issues: true
 
       - name: Technical Debt Tracking
         run: |
@@ -142,14 +140,14 @@ jobs:
             echo "**Note:** Please ensure TODO/FIXME comments reference an issue (e.g., TODO(#123))"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run duplicate code detection
+      - name: Run duplicate code and complexity detection
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
           install-mode: binary
-          # Only run dupl linter, disable all other linters
-          args: --enable-only dupl --timeout 10m
-          # Only report new issues to allow gradual improvement
+          # dupl and gocyclo are left out of the main run (.golangci.yml) so
+          # their existing backlog does not fail it; new code must pass them.
+          args: --enable-only dupl,gocyclo --timeout 10m
           only-new-issues: true
 
       - name: Cyclomatic Complexity Analysis
