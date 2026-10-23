@@ -105,6 +105,11 @@ Besides the Go runtime metrics, the bot exports:
 | `go_sql_*` | gauge/counter | `db_name` | Connection pool stats: open, in-use and idle connections, waits |
 | `alita_telegram_api_request_duration_seconds` | histogram | `method` | Bot API request latency (`sendMessage`, `getChatMember`, ...); `getUpdates` is left out, as it long-polls |
 | `alita_telegram_api_errors_total` | counter | `method`, `code` | Failed Bot API requests: HTTP status, or `transport` when no response came back |
+| `alita_webhook_queue_depth` | gauge | none | Webhook updates accepted and waiting for a dispatcher worker |
+| `alita_webhook_rejected_total` | counter | `reason` | Webhook updates answered with 503: `queue_full` or `stopped` |
+| `alita_job_runs_total` | counter | `job` | Background job ticks run (`digestSchedulerTick`, `captchaCleanup`, ...) |
+| `alita_job_failures_total` | counter | `job` | Job ticks that returned an error or panicked |
+| `alita_job_duration_seconds` | histogram | `job` | Time spent on one job tick |
 | `alita_cache_local_hits_total` | counter | none | Read-through cache lookups served by the in-process layer (`CACHE_LOCAL_TTL`) |
 | `alita_cache_local_misses_total` | counter | none | Read-through cache lookups that missed the in-process layer and fell through to Redis |
 
