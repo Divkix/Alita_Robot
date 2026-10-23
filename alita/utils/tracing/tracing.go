@@ -2,6 +2,7 @@ package tracing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -98,6 +99,13 @@ func InitTracing() error {
 		return nil
 	}
 
+	if otlpEndpoint != "" {
+		registerHeaderSecrets()
+		if err := initOTLPSignals(ctx, res, otlpEndpoint, otlpInsecure, serviceName); err != nil {
+			return errors.Join(err, exporter.Shutdown(ctx))
+		}
+	}
+
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
@@ -123,7 +131,7 @@ func InitTracing() error {
 
 func Shutdown(ctx context.Context) error {
 	if tracerProvider == nil {
-		return nil
+		return shutdownOTLPSignals(ctx)
 	}
 
 	log.Info("[Tracing] Shutting down tracer provider...")
@@ -131,11 +139,11 @@ func Shutdown(ctx context.Context) error {
 	defer cancel()
 
 	if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("failed to shutdown tracer provider: %w", err)
+		return errors.Join(fmt.Errorf("failed to shutdown tracer provider: %w", err), shutdownOTLPSignals(shutdownCtx))
 	}
 
 	log.Info("[Tracing] Tracer provider shut down successfully")
-	return nil
+	return shutdownOTLPSignals(shutdownCtx)
 }
 
 func GetPropagator() propagation.TextMapPropagator {
