@@ -465,6 +465,15 @@ Milliseconds between OTLP metric exports.
 | **Required** | No |
 | **Default** | `60000` |
 
+### `OTEL_RESOURCE_ATTRIBUTES`
+
+Comma-separated `key=value` resource attributes added to every trace, log and metric, e.g. `deployment.environment.name=production`. The bot already sets `service.name`, `service.version` (the bot version), `host.name`, `container.id` (when the cgroup file exposes it) and the `telemetry.sdk.*` attributes; values given here override them, and `OTEL_SERVICE_NAME` overrides `service.name` from both. A malformed entry is logged as a warning and skipped. Only used when tracing is on.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
 ### `OTEL_SERVICE_NAME`
 
 Service name for trace identification.
@@ -818,6 +827,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint for traces, logs and metrics (e
 OTEL_EXPORTER_OTLP_HEADERS=# OTLP headers, e.g. authorization=<ingestion key>
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
+OTEL_RESOURCE_ATTRIBUTES=# extra resource attributes, e.g. deployment.environment.name=production
 OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
 OTEL_LOGS_EXPORTER=# none disables OTLP log export
 OTEL_METRICS_EXPORTER=# none disables OTLP metric export

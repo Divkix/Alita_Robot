@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -38,6 +38,8 @@ var (
 // exitFlushTimeout bounds the flush before the process exits: enough for one
 // export round trip, short enough not to hold up a restart.
 const exitFlushTimeout = 5 * time.Second
+
+const defaultServiceName = "alita_robot"
 
 // init starts telemetry as soon as config has loaded and before alita/db's
 // init (which imports this package) connects to Postgres, so the connection
@@ -64,11 +66,6 @@ func isBotProcess() bool {
 func InitTracing() error {
 	ctx := context.Background()
 
-	serviceName := os.Getenv("OTEL_SERVICE_NAME")
-	if serviceName == "" {
-		serviceName = "alita_robot"
-	}
-
 	sampleRate := 1.0
 	if sampleRateEnv := os.Getenv("OTEL_TRACES_SAMPLE_RATE"); sampleRateEnv != "" {
 		if _, err := fmt.Sscanf(sampleRateEnv, "%f", &sampleRate); err != nil {
@@ -84,15 +81,16 @@ func InitTracing() error {
 		}
 	}
 
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			attribute.String("bot.version", config.AppConfig.BotVersion),
-		),
-	)
+	res, err := newResource(ctx, config.AppConfig.BotVersion)
 	if err != nil {
-		return fmt.Errorf("failed to create resource: %w", err)
+		// resource.New still returns what it detected, e.g. after a malformed
+		// OTEL_RESOURCE_ATTRIBUTES entry; a typo there shouldn't turn tracing off.
+		log.Warnf("[Tracing] Resource is incomplete: %v", err)
 	}
+	// Take the name from the resource, so the tracer, the log hook and every
+	// signal agree on it whichever variable set it.
+	serviceNameValue, _ := res.Set().Value(semconv.ServiceNameKey)
+	serviceName := serviceNameValue.AsString()
 
 	var exporter sdktrace.SpanExporter
 	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -227,6 +225,21 @@ func GetPropagator() propagation.TextMapPropagator {
 		)
 	}
 	return propagator
+}
+
+// newResource describes this process to every signal. OTEL_SERVICE_NAME and
+// OTEL_RESOURCE_ATTRIBUTES are applied last, so they can set
+// deployment.environment.name or override any default or detected value.
+// Process attributes are left out: the command line can carry secrets.
+func newResource(ctx context.Context, version string) (*resource.Resource, error) {
+	return resource.New(ctx,
+		resource.WithSchemaURL(semconv.SchemaURL),
+		resource.WithTelemetrySDK(),
+		resource.WithHost(),
+		resource.WithContainer(),
+		resource.WithAttributes(semconv.ServiceName(defaultServiceName), semconv.ServiceVersion(version)),
+		resource.WithFromEnv(),
+	)
 }
 
 func WorkingModeAttribute() attribute.KeyValue {
