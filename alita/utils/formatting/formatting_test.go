@@ -130,8 +130,12 @@ func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
 		t.Fatalf("buttons without rules = %#v, want none", noRulesButtons)
 	}
 
-	rules.SetChatRules(chat.Id, "Keep it tidy.")
-	rules.SetChatRulesButton(chat.Id, "Read Rules")
+	if err := rules.SetChatRules(chat.Id, "Keep it tidy."); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
+	if err := rules.SetChatRulesButton(chat.Id, "Read Rules"); err != nil {
+		t.Fatalf("rules.SetChatRulesButton() error = %v", err)
+	}
 
 	got, buttons := FormattingReplacer(
 		bot,

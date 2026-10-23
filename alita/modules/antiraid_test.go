@@ -136,7 +136,9 @@ func TestAntiRaidStateMachine(t *testing.T) {
 		t.Fatal("expected raid to be inactive initially")
 	}
 
-	antiRaidModule.enableRaid(chatID, 3600)
+	if _, err := antiRaidModule.enableRaid(chatID, 3600); err != nil {
+		t.Fatalf("antiRaidModule.enableRaid() error = %v", err)
+	}
 	if !antiRaidModule.isRaidActive(chatID) {
 		t.Fatal("expected raid to be active after enable")
 	}
@@ -292,7 +294,9 @@ func TestAntiRaidExtend(t *testing.T) {
 
 	chatID := time.Now().UnixNano() + 2
 
-	antiRaidModule.enableRaid(chatID, 3600)
+	if _, err := antiRaidModule.enableRaid(chatID, 3600); err != nil {
+		t.Fatalf("antiRaidModule.enableRaid() error = %v", err)
+	}
 	st := getRaidState(chatID)
 	originalExpiry := st.ExpiresAt
 

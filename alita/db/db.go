@@ -130,11 +130,7 @@ func ChatExists(chatID int64) bool {
 
 func ChatExistsContext(ctx context.Context, chatID int64) bool {
 	chatExists := &Chat{}
-	err := GetRecordContext(ctx, chatExists, Chat{ChatId: chatID})
-	if err != nil {
-		return false
-	}
-	return true
+	return GetRecordContext(ctx, chatExists, Chat{ChatId: chatID}) == nil
 }
 
 // TableRowCount returns an estimated row count for the given table.

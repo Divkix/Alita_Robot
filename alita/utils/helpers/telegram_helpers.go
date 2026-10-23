@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	stderrors "errors"
 	"fmt"
 	"strings"
 	"time"
@@ -163,7 +164,8 @@ func LogHandlerError(ctx *ext.Context, err error) {
 		"update_id":  updateID,
 		"error_type": fmt.Sprintf("%T", err),
 	}
-	if wrappedErr, ok := err.(*errors.WrappedError); ok {
+	var wrappedErr *errors.WrappedError
+	if stderrors.As(err, &wrappedErr) {
 		fields["file"] = wrappedErr.File
 		fields["line"] = wrappedErr.Line
 		fields["function"] = wrappedErr.Function

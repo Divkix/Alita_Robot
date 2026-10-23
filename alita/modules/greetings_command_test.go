@@ -553,7 +553,9 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 	}
 
 	_ = newServiceJoinContext(bot, chat, admin, []gotgbot.User{member})
-	processSingleNewMember(bot, &chat, 0, gotgbot.User{Id: bot.Id, FirstName: "Alita", IsBot: true}, false)
+	if err := processSingleNewMember(bot, &chat, 0, gotgbot.User{Id: bot.Id, FirstName: "Alita", IsBot: true}, false); err != nil {
+		t.Fatalf("processSingleNewMember() error = %v", err)
+	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
 		t.Fatalf("sendMessage calls = %d, want none for bot join", len(calls))
 	}
@@ -562,7 +564,9 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 	if !claimRecentJoinProcessing(chat.Id, member.Id) {
 		t.Fatal("claimRecentJoinProcessing setup returned false")
 	}
-	processSingleNewMember(bot, &chat, 0, member, false)
+	if err := processSingleNewMember(bot, &chat, 0, member, false); err != nil {
+		t.Fatalf("processSingleNewMember() error = %v", err)
+	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
 		t.Fatalf("sendMessage calls = %d, want none for duplicate join", len(calls))
 	}
@@ -598,7 +602,9 @@ func TestProcessSingleNewMemberCaptchaSuccessSkipsWelcome(t *testing.T) {
 
 	_ = newServiceJoinContext(bot, chat, admin, []gotgbot.User{member})
 	clearRecentJoinProcessing(chat.Id, member.Id)
-	processSingleNewMember(bot, &chat, 0, member, true)
+	if err := processSingleNewMember(bot, &chat, 0, member, true); err != nil {
+		t.Fatalf("processSingleNewMember() error = %v", err)
+	}
 
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
 		t.Fatalf("restrictChatMember calls = %d, want initial mute", len(calls))
