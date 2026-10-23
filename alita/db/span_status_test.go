@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -18,17 +19,20 @@ func TestRecordNotFoundLeavesDBSpanSuccessful(t *testing.T) {
 	recorder := tracing.RecordSpansForTest(t)
 	missing := LockSettings{ChatId: time.Now().UnixNano(), LockType: "sticker"}
 
-	err := UpdateRecord(&LockSettings{}, missing, map[string]any{"locked": true})
+	ctx, parent := tracing.StartSpan(context.Background(), "update")
+
+	err := updateRecordInternal(ctx, &LockSettings{}, missing, map[string]any{"locked": true}, "test")
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("update error = %v, want ErrRecordNotFound", err)
 	}
-	if err := GetRecord(&LockSettings{}, missing); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := GetRecordContext(ctx, &LockSettings{}, missing); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("get error = %v, want ErrRecordNotFound", err)
 	}
+	parent.End()
 
 	spans := recorder.Ended()
-	if len(spans) != 2 {
-		t.Fatalf("ended spans = %d, want 2", len(spans))
+	if len(spans) != 3 {
+		t.Fatalf("ended spans = %d, want db.update, db.get and their parent", len(spans))
 	}
 	for _, span := range spans {
 		if span.Status().Code == codes.Error {

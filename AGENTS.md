@@ -248,6 +248,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Every fire-and-forget goroutine starts with `defer error_handling.RecoverFromPanic(...)`. Async user/chat writers
   join the WaitGroup drained by `DrainUsersAsyncWrites`.
 - Register every new secret with `logredact.RegisterSecret` (≥6 chars), or it is logged verbatim.
+- Bot API, GORM and Redis calls get trace spans only when they run on the update context
+  (`tracing.UpdateContext(ctx)` passed to `*WithContext` methods or `DB.WithContext`). Spans never carry message
+  text, SQL, bound values, Redis arguments or the Bot API URL (it holds the token).
 - A missing i18n key returns `""` with an error callers ignore; a typo'd key in Go ships an empty message. Copy key
   names from `locales/en.yml`. `locales/config.yml` is the help alt-name pseudo-locale, not a language.
 - The docs generator takes help and `*_docs` text only from `locales/en.yml` (other languages are ignored), Module

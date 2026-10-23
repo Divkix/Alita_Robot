@@ -93,6 +93,9 @@ func init() {
 	if err := registerQueryMetrics(DB); err != nil {
 		log.Fatalf("[Database][Metrics] Failed to register query metrics: %v", err)
 	}
+	if err := registerQueryTracing(DB); err != nil {
+		log.Fatalf("[Database][Tracing] Failed to register query tracing: %v", err)
+	}
 
 	sqlDB, err := DB.DB()
 	if err != nil {
