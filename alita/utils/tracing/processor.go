@@ -7,7 +7,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/utils/metrics"
@@ -60,8 +59,12 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 
 	// Webhook updates arrive with the server's deadline and span already set.
 	if _, exists := ctx.Data[ContextDataKey]; exists {
-		annotateUpdate(trace.SpanFromContext(UpdateContext(ctx)), ctx)
-		return tp.BaseProcessor.ProcessUpdate(d, b, ctx)
+		span := trace.SpanFromContext(UpdateContext(ctx))
+		defer recordPanic(span)
+		annotateUpdate(span, ctx)
+		err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
+		RecordError(span, err)
+		return err
 	}
 
 	// The 30-second deadline is load-bearing: tracing.UpdateContext hands this
@@ -72,20 +75,23 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	baseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	traceCtx, span := StartSpan(baseCtx, "dispatcher.processUpdate")
-	returned := false
-	defer func() {
-		switch {
-		case !returned: // a panic on its way to the dispatcher's recover
-			span.SetStatus(codes.Error, "panic")
-		case err != nil:
-			span.SetStatus(codes.Error, err.Error())
-		}
-		span.End()
-	}()
+	// Not deferred directly: End recovers and records a panic itself, which
+	// recordPanic has already done.
+	defer func() { span.End() }()
+	defer recordPanic(span)
 	ctx.Data[ContextDataKey] = traceCtx
 	annotateUpdate(span, ctx)
 
 	err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
-	returned = true
+	RecordError(span, err)
 	return err
+}
+
+// recordPanic records a panic on its way to the dispatcher's recover on the
+// update's span, with the stack that panicked, then lets it continue.
+func recordPanic(span trace.Span) {
+	if r := recover(); r != nil {
+		RecordPanic(span, r)
+		panic(r)
+	}
 }

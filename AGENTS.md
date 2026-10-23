@@ -41,6 +41,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `AUTO_MIGRATE=true`. Never add DB access to an `init()` that can run before `alita/db`'s.
 - `--version`, `--health`, and `*.test` binaries (unless `ALITA_TEST_DATABASE=true`) skip DB init. Guard new pre-`main`
   side effects with `isCliModeActive`.
+- `alita/utils/tracing` `init()` starts telemetry between `alita/config`'s init and `alita/db`'s, so DB startup logs
+  are exported. A logrus exit handler flushes it: exit through `log.Fatal*` or `log.StandardLogger().Exit`, never `os.Exit`, once
+  config has loaded.
 - Shutdown runs LIFO within 60 s. Register new drains *after* DB-close so they run before it.
 - Deploy manifests set `AUTO_MIGRATE=true`; the code default is `false`. Never call `gorm.AutoMigrate` in production code.
 

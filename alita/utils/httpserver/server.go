@@ -276,7 +276,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 			"trace_id": span.SpanContext().TraceID().String(),
 		}).Error("[HTTPServer] Failed to read request body: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
-		span.SetStatus(codes.Error, "failed to read body")
+		tracing.RecordError(span, err)
 		return
 	}
 	defer func() {
@@ -291,7 +291,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 			"trace_id": span.SpanContext().TraceID().String(),
 		}).Error("[HTTPServer] Failed to parse update: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
-		span.SetStatus(codes.Error, "failed to parse update")
+		tracing.RecordError(span, err)
 		return
 	}
 
@@ -366,8 +366,8 @@ func (s *Server) processWebhookUpdate(update webhookUpdate) {
 	ctx, span := tracing.StartSpan(ctx, "dispatcher.processUpdate")
 	defer span.End()
 	if err := s.dispatcher.ProcessUpdate(s.bot, &update.update, map[string]any{tracing.ContextDataKey: ctx}); err != nil {
+		// The processor has recorded the error or panic on the span.
 		log.WithField("trace_id", span.SpanContext().TraceID().String()).Error("[HTTPServer] Failed to process update: ", err)
-		span.SetStatus(codes.Error, "failed to process update")
 	}
 }
 

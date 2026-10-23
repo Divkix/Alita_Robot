@@ -5,9 +5,11 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +40,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
+	"github.com/divkix/Alita_Robot/alita/utils/slogrus"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -71,10 +74,14 @@ func main() {
 		os.Exit(0)
 	}
 
+	// gotgbot's dispatcher and updater log panics and polling errors through
+	// slog; send them, and the standard log package, through logrus.
+	slog.SetDefault(slog.New(slogrus.Handler{}))
+
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("[Main] Panic recovered: %v", r)
-			os.Exit(1)
+			log.Errorf("[Main] Panic recovered: %v\nStack trace:\n%s", r, debug.Stack())
+			log.StandardLogger().Exit(1) // flushes telemetry first
 		}
 	}()
 
@@ -94,12 +101,6 @@ func main() {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
 	}
 	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
-
-	if err := tracing.InitTracing(); err != nil {
-		log.Warnf("Failed to initialize tracing: %v - continuing without distributed tracing", err)
-	} else {
-		log.Info("Distributed tracing initialized successfully")
-	}
 
 	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
 	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost

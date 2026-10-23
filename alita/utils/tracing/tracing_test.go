@@ -3,6 +3,10 @@ package tracing
 import (
 	"context"
 	"testing"
+	"time"
+
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 )
@@ -199,5 +203,32 @@ func TestInitTracingConsoleExporterEnablesTracingAndShutdown(t *testing.T) {
 
 	if err := Shutdown(context.Background()); err != nil {
 		t.Fatalf("Shutdown() error = %v", err)
+	}
+}
+
+func TestFlushExportsBufferedSpansUntilShutdown(t *testing.T) {
+	resetTracingState(t)
+	exporter := tracetest.NewInMemoryExporter()
+	tracerProvider = sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter, sdktrace.WithBatchTimeout(time.Hour)))
+	tracer = tracerProvider.Tracer("test")
+	enabled = true
+
+	_, span := StartSpan(context.Background(), "before-exit")
+	span.End()
+	Flush()
+	if got := len(exporter.GetSpans()); got != 1 {
+		t.Fatalf("exported spans after Flush = %d, want 1", got)
+	}
+
+	if err := Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+	Flush() // a log.Fatal after shutdown must not block or panic
+}
+
+func TestIsBotProcessSkipsTestBinaries(t *testing.T) {
+	ensureAppConfig(t)
+	if isBotProcess() {
+		t.Fatal("isBotProcess() = true in a test binary")
 	}
 }

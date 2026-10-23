@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -26,7 +28,38 @@ var (
 	tracerProvider *sdktrace.TracerProvider
 	propagator     propagation.TextMapPropagator
 	enabled        bool
+
+	// providersMu guards Shutdown's clearing of the providers against a
+	// concurrent Flush from a log.Fatal on another goroutine.
+	providersMu       sync.Mutex
+	registerExitFlush sync.Once
 )
+
+// exitFlushTimeout bounds the flush before the process exits: enough for one
+// export round trip, short enough not to hold up a restart.
+const exitFlushTimeout = 5 * time.Second
+
+// init starts telemetry as soon as config has loaded and before alita/db's
+// init (which imports this package) connects to Postgres, so the connection
+// and migration logs are exported, a fatal failure there included.
+func init() {
+	if !isBotProcess() {
+		return
+	}
+	if err := InitTracing(); err != nil {
+		log.Warnf("[Tracing] Failed to initialize: %v - continuing without telemetry", err)
+	}
+}
+
+// isBotProcess reports whether this process runs the bot. Config's init
+// leaves BotToken empty in --version and --health mode and without a
+// configuration; test binaries start telemetry themselves.
+func isBotProcess() bool {
+	if strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test") {
+		return false
+	}
+	return config.AppConfig != nil && config.AppConfig.BotToken != ""
+}
 
 func InitTracing() error {
 	ctx := context.Background()
@@ -103,6 +136,7 @@ func InitTracing() error {
 	}
 
 	if otlpEndpoint != "" {
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(handleSDKError))
 		registerHeaderSecrets()
 		if err := initOTLPSignals(ctx, res, otlpEndpoint, otlpInsecure, serviceName); err != nil {
 			return errors.Join(err, exporter.Shutdown(ctx))
@@ -126,6 +160,7 @@ func InitTracing() error {
 
 	tracer = otel.Tracer(serviceName)
 	enabled = true
+	registerExitFlush.Do(func() { log.RegisterExitHandler(Flush) })
 
 	log.Infof("[Tracing] Initialized with service name: %s, sample rate: %.2f", serviceName, sampleRate)
 
@@ -133,7 +168,11 @@ func InitTracing() error {
 }
 
 func Shutdown(ctx context.Context) error {
-	if tracerProvider == nil {
+	providersMu.Lock()
+	tp := tracerProvider
+	tracerProvider = nil
+	providersMu.Unlock()
+	if tp == nil {
 		return shutdownOTLPSignals(ctx)
 	}
 
@@ -141,12 +180,40 @@ func Shutdown(ctx context.Context) error {
 	shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
+	if err := tp.Shutdown(shutdownCtx); err != nil {
 		return errors.Join(fmt.Errorf("failed to shutdown tracer provider: %w", err), shutdownOTLPSignals(shutdownCtx))
 	}
 
 	log.Info("[Tracing] Tracer provider shut down successfully")
 	return shutdownOTLPSignals(shutdownCtx)
+}
+
+// Flush exports the spans, metrics and logs still buffered, giving up after
+// exitFlushTimeout. logrus runs it before every log.Fatal* exit; exit with
+// log.StandardLogger().Exit rather than os.Exit so a dying process keeps its last telemetry.
+// It does nothing once Shutdown has run.
+func Flush() {
+	ctx, cancel := context.WithTimeout(context.Background(), exitFlushTimeout)
+	defer cancel()
+	var flushes []func(context.Context) error
+	providersMu.Lock()
+	if tracerProvider != nil {
+		flushes = append(flushes, tracerProvider.ForceFlush)
+	}
+	if meterProvider != nil {
+		flushes = append(flushes, meterProvider.ForceFlush)
+	}
+	if loggerProvider != nil {
+		flushes = append(flushes, loggerProvider.ForceFlush)
+	}
+	providersMu.Unlock()
+	// In parallel, so a signal whose export hangs does not use up the time
+	// of the others (the fatal log entry is the one most wanted).
+	var wg sync.WaitGroup
+	for _, flush := range flushes {
+		wg.Go(func() { _ = flush(ctx) })
+	}
+	wg.Wait()
 }
 
 func GetPropagator() propagation.TextMapPropagator {

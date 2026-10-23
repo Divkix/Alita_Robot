@@ -136,20 +136,34 @@ func newMeterProvider(ctx context.Context, res *resource.Resource, endpoint stri
 }
 
 func shutdownOTLPSignals(ctx context.Context) error {
+	providersMu.Lock()
+	mp, lp := meterProvider, loggerProvider
+	meterProvider, loggerProvider = nil, nil
+	providersMu.Unlock()
+
 	var errs []error
-	if meterProvider != nil {
-		if err := meterProvider.Shutdown(ctx); err != nil {
+	if mp != nil {
+		if err := mp.Shutdown(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("failed to shutdown meter provider: %w", err))
 		}
-		meterProvider = nil
 	}
-	if loggerProvider != nil {
-		if err := loggerProvider.Shutdown(ctx); err != nil {
+	if lp != nil {
+		if err := lp.Shutdown(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("failed to shutdown logger provider: %w", err))
 		}
-		loggerProvider = nil
 	}
 	return errors.Join(errs...)
+}
+
+// sdkErrorField marks the SDK's own errors, which stay out of the OTLP log
+// export: a failing export would otherwise queue a log record per failure.
+const sdkErrorField = "otel_sdk_error"
+
+// handleSDKError logs an OpenTelemetry SDK error (a failed export, usually)
+// to stdout only. The SDK's default handler writes to the standard log
+// package, which main sends through logrus and so back into the export.
+func handleSDKError(err error) {
+	log.WithField(sdkErrorField, true).Warnf("[Tracing] OpenTelemetry SDK error: %v", err)
 }
 
 // logHook gives otellogrus a non-nil context: most log calls are made without
@@ -160,6 +174,9 @@ type logHook struct {
 }
 
 func (h logHook) Fire(entry *log.Entry) error {
+	if _, internal := entry.Data[sdkErrorField]; internal {
+		return nil
+	}
 	if entry.Context == nil {
 		entry.Context = context.Background()
 	}

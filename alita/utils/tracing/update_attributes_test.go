@@ -29,12 +29,8 @@ func recordSpans(t *testing.T) *tracetest.SpanRecorder {
 
 func spanAttributes(t *testing.T, recorder *tracetest.SpanRecorder) map[attribute.Key]attribute.Value {
 	t.Helper()
-	spans := recorder.Ended()
-	if len(spans) != 1 {
-		t.Fatalf("ended spans = %d, want 1", len(spans))
-	}
 	attrs := make(map[attribute.Key]attribute.Value)
-	for _, kv := range spans[0].Attributes() {
+	for _, kv := range onlySpan(t, recorder).Attributes() {
 		attrs[kv.Key] = kv.Value
 	}
 	return attrs

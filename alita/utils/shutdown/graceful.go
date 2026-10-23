@@ -22,9 +22,10 @@ type Manager struct {
 }
 
 var (
-	notifySignals   = signal.Notify
-	stopSignals     = signal.Stop
-	exitProcess     = os.Exit
+	notifySignals = signal.Notify
+	stopSignals   = signal.Stop
+	// Runs logrus's exit handlers first, which flush telemetry.
+	exitProcess     = log.StandardLogger().Exit
 	shutdownTimeout = 60 * time.Second
 )
 
