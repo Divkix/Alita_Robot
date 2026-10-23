@@ -5,11 +5,10 @@ import (
 	"slices"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"

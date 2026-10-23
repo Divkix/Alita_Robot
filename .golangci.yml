@@ -78,3 +78,14 @@ issues:
   # Only fail on new issues - allows gradual improvement of existing codebase
   # Remove this once existing complexity issues are addressed
   new: true
+
+# Imports: stdlib, third-party, internal, separated by blank lines (AGENTS.md)
+formatters:
+  enable:
+    - gci
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/divkix/Alita_Robot)

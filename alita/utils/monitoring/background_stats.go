@@ -7,10 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
-	log "github.com/sirupsen/logrus"
 )
 
 var globalCollector atomic.Value

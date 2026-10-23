@@ -9,8 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 type Manager struct {

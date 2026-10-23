@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/models"
-	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestGetChatDisabledCMDsCachedDoesNotCacheDatabaseErrors(t *testing.T) {

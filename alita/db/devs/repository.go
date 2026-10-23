@@ -3,11 +3,12 @@ package devs
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 	"runtime"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"

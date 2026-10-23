@@ -5,11 +5,12 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 func GetChannelSettings(channelId int64) (channelSrc *models.ChannelSettings) {

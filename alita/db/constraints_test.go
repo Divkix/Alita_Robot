@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func testIntRangeConstraint(t *testing.T, chatID int64, fieldName string, validValues []int, invalidValues []int, createFunc func(int64, int) error) {

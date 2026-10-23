@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"reflect"
 
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // ExportModuleData exports one module. botID is the exporting bot's own id;

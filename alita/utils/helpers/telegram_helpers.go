@@ -7,9 +7,10 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 func DeleteMessageWithErrorHandling(bot *gotgbot.Bot, chatId, messageId int64) error {
