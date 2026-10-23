@@ -31,8 +31,8 @@ var (
 
 	// providersMu guards Shutdown's clearing of the providers against a
 	// concurrent Flush from a log.Fatal on another goroutine.
-	providersMu       sync.Mutex
-	registerExitFlush sync.Once
+	providersMu      sync.Mutex
+	registerLogHooks sync.Once
 )
 
 // exitFlushTimeout bounds the flush before the process exits: enough for one
@@ -160,7 +160,10 @@ func InitTracing() error {
 
 	tracer = otel.Tracer(serviceName)
 	enabled = true
-	registerExitFlush.Do(func() { log.RegisterExitHandler(Flush) })
+	registerLogHooks.Do(func() {
+		log.RegisterExitHandler(Flush)
+		log.AddHook(traceFieldsHook{})
+	})
 
 	log.Infof("[Tracing] Initialized with service name: %s, sample rate: %.2f", serviceName, sampleRate)
 

@@ -270,9 +270,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
-		log.WithFields(log.Fields{
-			"trace_id": span.SpanContext().TraceID().String(),
-		}).Error("[HTTPServer] Failed to read request body: ", err)
+		log.WithContext(ctx).Error("[HTTPServer] Failed to read request body: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		tracing.RecordError(span, err)
 		return
@@ -285,9 +283,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	var update gotgbot.Update
 	if err := json.Unmarshal(body, &update); err != nil {
-		log.WithFields(log.Fields{
-			"trace_id": span.SpanContext().TraceID().String(),
-		}).Error("[HTTPServer] Failed to parse update: ", err)
+		log.WithContext(ctx).Error("[HTTPServer] Failed to parse update: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		tracing.RecordError(span, err)
 		return
@@ -365,7 +361,7 @@ func (s *Server) processWebhookUpdate(update webhookUpdate) {
 	defer span.End()
 	if err := s.dispatcher.ProcessUpdate(s.bot, &update.update, map[string]any{tracing.ContextDataKey: ctx}); err != nil {
 		// The processor has recorded the error or panic on the span.
-		log.WithField("trace_id", span.SpanContext().TraceID().String()).Error("[HTTPServer] Failed to process update: ", err)
+		log.WithContext(ctx).Error("[HTTPServer] Failed to process update: ", err)
 	}
 }
 

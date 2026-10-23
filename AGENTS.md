@@ -247,6 +247,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Never discard a DB error on a state-changing path.
 - Every fire-and-forget goroutine starts with `defer error_handling.RecoverFromPanic(...)`. Async user/chat writers
   join the WaitGroup drained by `DrainUsersAsyncWrites`.
+- Run each tick of a background job that does I/O through `jobs.Run(ctx, "fixedName", fn)`: it gives the tick its
+  own root trace and recovers panics. Log with `log.WithContext(ctx)` where a ctx exists, so lines carry `trace_id`.
 - Register every new secret with `logredact.RegisterSecret` (≥6 chars), or it is logged verbatim.
 - Bot API, GORM and Redis calls get trace spans only when they run on the update context
   (`tracing.UpdateContext(ctx)` passed to `*WithContext` methods or `DB.WithContext`). Spans never carry message
