@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	_ "net/http/pprof" // #nosec G108 -- pprof gated behind ENABLE_PPROF env var
+	"strconv"
 	"sync"
 	"time"
 
@@ -16,9 +17,9 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -31,7 +32,12 @@ import (
 
 // maxRequestBodySize defines the maximum allowed request body size (10MB)
 // This prevents DoS attacks where attackers send gigabytes of data to cause OOM
-const maxRequestBodySize = 10 * 1024 * 1024
+const (
+	maxRequestBodySize = 10 * 1024 * 1024
+
+	webhookRoute    = "/webhook"
+	webhookSpanName = http.MethodPost + " " + webhookRoute
+)
 
 type Server struct {
 	mux              *http.ServeMux
@@ -220,7 +226,7 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 	s.secret = secret
 	s.webhookEnabled = true
 
-	webhookPath := "/webhook"
+	webhookPath := webhookRoute
 	s.mux.HandleFunc(webhookPath, s.webhookHandler)
 
 	webhookURL := fmt.Sprintf("%s%s", domain, webhookPath)
@@ -260,19 +266,32 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	ctx, span := tracing.StartSpan(
 		ctx,
-		"webhook.request",
+		webhookSpanName,
+		trace.WithSpanKind(trace.SpanKindServer),
 		trace.WithAttributes(
-			attribute.String("http.method", r.Method),
-			attribute.String("http.route", "/webhook"),
+			semconv.HTTPRequestMethodPost,
+			semconv.HTTPRoute(webhookRoute),
+			semconv.URLPath(webhookRoute),
+			semconv.URLScheme(requestScheme(r)),
 			tracing.WorkingModeAttribute(),
 		))
-	defer span.End()
+	// Server spans mark only 5xx as errors; 4xx gets error.type alone.
+	status := http.StatusOK
+	defer func() {
+		if span.IsRecording() {
+			span.SetAttributes(semconv.HTTPResponseStatusCode(status))
+			if status >= http.StatusBadRequest {
+				span.SetAttributes(semconv.ErrorTypeKey.String(strconv.Itoa(status)))
+			}
+		}
+		span.End()
+	}()
 
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
 		log.WithContext(ctx).Error("[HTTPServer] Failed to read request body: ", err)
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		tracing.RecordError(span, err)
+		status = http.StatusBadRequest
+		http.Error(w, "Bad request", status)
 		return
 	}
 	defer func() {
@@ -284,31 +303,15 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	var update gotgbot.Update
 	if err := json.Unmarshal(body, &update); err != nil {
 		log.WithContext(ctx).Error("[HTTPServer] Failed to parse update: ", err)
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		tracing.RecordError(span, err)
+		status = http.StatusBadRequest
+		http.Error(w, "Bad request", status)
 		return
-	}
-
-	if update.Message != nil {
-		text := update.Message.Text
-		attrs := []attribute.KeyValue{
-			attribute.Int64("message.chat_id", update.Message.Chat.Id),
-			attribute.Int("message.text_length", len(text)),
-		}
-		if update.Message.From != nil {
-			attrs = append(attrs, attribute.Int64("message.from_id", update.Message.From.Id))
-		}
-		span.SetAttributes(attrs...)
-	} else if update.CallbackQuery != nil {
-		span.SetAttributes(
-			attribute.String("callback_query.id", update.CallbackQuery.Id),
-			attribute.Int64("callback_query.from_id", update.CallbackQuery.From.Id),
-		)
 	}
 
 	if !s.enqueueUpdate(webhookUpdate{ctx: context.WithoutCancel(ctx), update: update}) {
 		w.Header().Set("Retry-After", "1")
-		http.Error(w, "Update queue unavailable", http.StatusServiceUnavailable)
+		status = http.StatusServiceUnavailable
+		http.Error(w, "Update queue unavailable", status)
 		span.SetStatus(codes.Error, "update queue unavailable")
 		return
 	}
@@ -394,7 +397,7 @@ func (s *Server) Start() error {
 		endpoints = append(endpoints, "/debug/pprof/*")
 	}
 	if s.webhookEnabled {
-		endpoints = append(endpoints, "/webhook")
+		endpoints = append(endpoints, webhookRoute)
 	}
 	log.Infof("[HTTPServer] Starting unified HTTP server on port %d with endpoints: %v", s.port, endpoints)
 
@@ -455,4 +458,13 @@ func (s *Server) Stop() error {
 
 	log.Info("[HTTPServer] Server stopped gracefully")
 	return nil
+}
+
+// requestScheme is the scheme of the hop that reached this server; a TLS
+// proxy in front of it shows up as http.
+func requestScheme(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
 }

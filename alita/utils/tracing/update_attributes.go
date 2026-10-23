@@ -2,12 +2,14 @@ package tracing
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
@@ -29,7 +31,7 @@ func annotateUpdate(span trace.Span, ctx *ext.Context) {
 		attrs = append(attrs, attribute.Int64("chat.id", chat.Id), attribute.String("chat.type", chat.Type))
 	}
 	if user := ctx.EffectiveUser; user != nil {
-		attrs = append(attrs, attribute.Int64("user.id", user.Id))
+		attrs = append(attrs, semconv.UserID(strconv.FormatInt(user.Id, 10)))
 	}
 	if msg := ctx.EffectiveMessage; msg != nil {
 		if cmd := commandName(msg); cmd != "" {
@@ -83,7 +85,7 @@ func RecordUpdateError(ctx *ext.Context, err error, expected bool) {
 		return
 	}
 	span.SetAttributes(
-		attribute.String("error.type", fmt.Sprintf("%T", err)),
+		semconv.ErrorTypeKey.String(fmt.Sprintf("%T", err)),
 		attribute.String("error.message", logredact.Scrub(err.Error())),
 	)
 }
