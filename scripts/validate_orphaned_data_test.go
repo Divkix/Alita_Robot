@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/divkix/Alita_Robot/alita/db"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/divkix/Alita_Robot/alita/db"
 )
 
 func TestFindOrphanReportsCleanDatabase(t *testing.T) {

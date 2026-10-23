@@ -1,8 +1,9 @@
 package modules
 
 import (
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // logJoinOperationError logs a join/greeting operation failure at debug level

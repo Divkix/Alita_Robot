@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
-	"gorm.io/gorm"
 )
 
 func TestGetUserBasicInfo_NilDB(t *testing.T) {

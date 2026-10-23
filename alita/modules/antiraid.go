@@ -14,9 +14,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/eko/gocache/lib/v4/store"
 	"github.com/redis/go-redis/v9"
-	"github.com/vmihailenco/msgpack/v5"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/lang"

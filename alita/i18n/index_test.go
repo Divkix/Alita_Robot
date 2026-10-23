@@ -3,13 +3,12 @@
 package i18n
 
 import (
+	"embed"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
-
-	"embed"
 )
 
 // localeKeyPaths enumerates every dot-path a locale map can resolve to.

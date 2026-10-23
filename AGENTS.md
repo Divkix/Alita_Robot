@@ -25,7 +25,7 @@ Update this file in the same commit as any change that invalidates a rule below.
 
 ```bash
 make test                 # the only valid full test run (tags, race, coverage, skip gate)
-make lint                 # golangci-lint v2
+make lint                 # golangci-lint v2 (forbidigo/depguard enforce bans below)
 make check-translations   # missing locale keys; values copied from en.yml (allowlist: scripts/check_translations/identical_allowlist.txt)
 make check-docs           # generated-docs drift; fix with `make generate-docs`
 make check-formal         # TLC on the TLA+ models in formal/ (Docker)
@@ -163,7 +163,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
-- Entity offsets are UTF-16: slice with `extractEntityText`, and match against both `Entities` and `CaptionEntities`.
+- Entity offsets are UTF-16: slice with `extraction.ExtractEntityText`, and match against both `Entities` and `CaptionEntities`.
 - Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages (type, text,
   file_id) and deletes the originals. Nothing is replayed: a correct answer deletes the stored rows with the attempt
   and posts only a type/count summary (`captcha_stored_messages_summary`, removed after 30 s). Admins list or clear

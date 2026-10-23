@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 
+	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 func GetAdminSettings(chatID int64) *models.AdminSettings {

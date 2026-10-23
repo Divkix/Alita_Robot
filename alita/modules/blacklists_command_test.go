@@ -12,6 +12,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
@@ -21,7 +23,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-	logrustest "github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {

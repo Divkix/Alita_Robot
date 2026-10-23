@@ -3,11 +3,10 @@
 package i18n
 
 import (
+	"embed"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"embed"
 )
 
 // benchManager builds a LocaleManager over the real English locale file so the
