@@ -25,7 +25,7 @@ Update this file in the same commit as any change that invalidates a rule below.
 
 ```bash
 make test                 # the only valid full test run (tags, race, coverage, skip gate)
-make lint                 # golangci-lint v2
+make lint                 # golangci-lint v2; forbidigo/depguard enforce the AutoMigrate, panel chat_status and mock bans
 make check-translations   # missing locale keys; values copied from en.yml (allowlist: scripts/check_translations/identical_allowlist.txt)
 make check-docs           # generated-docs drift; fix with `make generate-docs`
 make bump-version TAG=vX.Y.Z   # the only way to change version strings

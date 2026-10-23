@@ -11,7 +11,32 @@ linters:
     - godox      # Detects TODO, FIXME, and other keywords
     - dupl       # Detects duplicate code fragments
     - gocyclo    # Cyclomatic complexity analysis
+    - forbidigo  # Calls AGENTS.md forbids in production code or the panel
+    - depguard   # Imports AGENTS.md forbids
   settings:
+    depguard:
+      rules:
+        no-mocks:
+          list-mode: lax
+          files:
+            - $all
+          deny:
+            - pkg: github.com/stretchr/testify/mock
+              desc: "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
+            - pkg: github.com/golang/mock
+              desc: "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
+            - pkg: go.uber.org/mock
+              desc: "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
+    forbidigo:
+      # Match by real package name, so an aliased import is still caught.
+      analyze-types: true
+      forbid:
+        - pattern: '^gorm\.DB\.AutoMigrate$'
+          msg: "automigrate: migrations/*.sql is the schema; AutoMigrate belongs in tests only"
+        - pattern: '^chat_status\.(Can|Require)\w*$'
+          msg: "panel-chat-status: these helpers reply into the chat"
+        - pattern: '^chat_status\.IsUserConnected$'
+          msg: "panel-chat-status: IsUserConnected sends its own refusals"
     dupl:
       threshold: 100
     gocyclo:
@@ -27,6 +52,16 @@ linters:
         linters:
           - gocyclo
           - dupl
+      # AutoMigrate is how test fixtures build their schema
+      - path: (_test\.go|^internal/testdb/)
+        linters:
+          - forbidigo
+        text: "automigrate:"
+      # The chat_status reply ban applies to the admin panel only
+      - path-except: ^alita/panel/
+        linters:
+          - forbidigo
+        text: "panel-chat-status:"
       # Exclude generated files
       - path: scripts/generate_docs/
         linters:
