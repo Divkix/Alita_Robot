@@ -7,6 +7,7 @@ package metrics
 
 import (
 	"context"
+	"path"
 	"strings"
 	"sync/atomic"
 
@@ -51,6 +52,38 @@ var (
 		Name: "alita_db_queries_total",
 		Help: "Database statements executed, by GORM operation.",
 	}, []string{"operation"})
+
+	// DBQueryDuration observes GORM statement latency by callback operation.
+	DBQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "alita_db_query_duration_seconds",
+		Help:    "Database statement latency, by GORM operation.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"operation"})
+
+	// DBQueryErrors counts failed GORM statements by callback operation,
+	// including errors GORM raises before running SQL and cancelled
+	// contexts. A lookup that finds no row is not a failure.
+	DBQueryErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_db_query_errors_total",
+		Help: "Database statements that failed, by GORM operation.",
+	}, []string{"operation"})
+
+	// TelegramRequestDuration observes Bot API request latency, up to the
+	// response headers, by method (see BotAPIMethod). getUpdates is left out:
+	// it long-polls.
+	TelegramRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "alita_telegram_api_request_duration_seconds",
+		Help:    "Bot API request latency, by method.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"method"})
+
+	// TelegramRequestErrors counts failed Bot API requests by method and
+	// code: the HTTP status (429 is a rate limit), or "transport" when no
+	// response came back.
+	TelegramRequestErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_telegram_api_errors_total",
+		Help: "Failed Bot API requests, by method and HTTP status or \"transport\".",
+	}, []string{"method", "code"})
 
 	// CacheLocalHits counts read-through lookups served from process memory.
 	CacheLocalHits = promauto.NewCounter(prometheus.CounterOpts{
@@ -151,4 +184,20 @@ func (RedisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Proce
 		}
 		return next(ctx, cmds)
 	}
+}
+
+// BotAPIMethod returns the method from a /bot<token>/<method> path, or
+// "unknown" when the last segment is not a plain method name, so a malformed
+// path can neither leak the token nor grow a label's cardinality.
+func BotAPIMethod(p string) string {
+	method := path.Base(p)
+	if len(method) > 64 {
+		return "unknown"
+	}
+	for _, c := range method {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') {
+			return "unknown"
+		}
+	}
+	return method
 }

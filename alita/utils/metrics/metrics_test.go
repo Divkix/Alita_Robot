@@ -41,3 +41,19 @@ func TestRedisHookCountsCommandsAndPipelines(t *testing.T) {
 		t.Fatalf("del commands delta = %v, want 1", got)
 	}
 }
+
+func TestBotAPIMethod(t *testing.T) {
+	const token = "123456789:AAEhBP0av28tj9l6fsa7nyOTaVtnhcjpRBE"
+	for path, want := range map[string]string{
+		"/bot" + token + "/sendMessage":     "sendMessage",
+		"/bot" + token + "/test/getUpdates": "getUpdates",
+		"/bot" + token + "/":                "unknown",
+		"/bot" + token + "/send%20message":  "unknown",
+		"/bot" + token + "/" + token:        "unknown",
+		"/prefix/bot" + token + "/getChat":  "getChat",
+	} {
+		if got := BotAPIMethod(path); got != want {
+			t.Errorf("BotAPIMethod(%q) = %q, want %q", path, got, want)
+		}
+	}
+}

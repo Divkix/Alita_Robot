@@ -101,6 +101,9 @@ func init() {
 	if err != nil {
 		log.Fatalf("[Database][SQL DB]: %v", err)
 	}
+	if err := registerPoolMetrics(sqlDB); err != nil {
+		log.Fatalf("[Database][Metrics] Failed to register pool metrics: %v", err)
+	}
 
 	sqlDB.SetMaxIdleConns(config.AppConfig.DBMaxIdleConns)
 	sqlDB.SetMaxOpenConns(config.AppConfig.DBMaxOpenConns)

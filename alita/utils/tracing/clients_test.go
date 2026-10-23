@@ -2,6 +2,7 @@ package tracing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,10 +10,13 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 const testBotToken = "123456789:AAEhBP0av28tj9l6fsa7nyOTaVtnhcjpRBE"
@@ -161,18 +165,31 @@ func TestRedisHookRecordsCommandsWithoutArguments(t *testing.T) {
 	}
 }
 
-func TestBotAPIMethod(t *testing.T) {
-	for path, want := range map[string]string{
-		"/bot" + testBotToken + "/sendMessage":     "sendMessage",
-		"/bot" + testBotToken + "/test/getUpdates": "getUpdates",
-		"/bot" + testBotToken + "/":                "unknown",
-		"/bot" + testBotToken + "/send%20message":  "unknown",
-		"/bot" + testBotToken + "/" + testBotToken: "unknown",
-		"/prefix/bot" + testBotToken + "/getChat":  "getChat",
-	} {
-		if got := botAPIMethod(path); got != want {
-			t.Errorf("botAPIMethod(%q) = %q, want %q", path, got, want)
-		}
+func TestBotAPITransportCountsFailuresWithoutASpan(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	limited := metrics.TelegramRequestErrors.WithLabelValues("sendMessage", "429")
+	refused := metrics.TelegramRequestErrors.WithLabelValues("getMe", "transport")
+	limitedBefore, refusedBefore := testutil.ToFloat64(limited), testutil.ToFloat64(refused)
+
+	resp, err := (&http.Client{Transport: BotAPITransport(http.DefaultTransport)}).Post(srv.URL+"/bot"+testBotToken+"/sendMessage", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	failing := roundTripFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("refused") })
+	req, _ := http.NewRequest(http.MethodPost, "https://api.telegram.org/bot"+testBotToken+"/getMe", nil)
+	if _, err := BotAPITransport(failing).RoundTrip(req); err == nil {
+		t.Fatal("want the transport error back")
+	}
+
+	if got := testutil.ToFloat64(limited) - limitedBefore; got != 1 {
+		t.Fatalf("429 errors delta = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(refused) - refusedBefore; got != 1 {
+		t.Fatalf("transport errors delta = %v, want 1", got)
 	}
 }
 

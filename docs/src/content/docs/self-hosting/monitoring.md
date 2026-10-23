@@ -100,6 +100,11 @@ Besides the Go runtime metrics, the bot exports:
 | `alita_handler_errors_total` | counter | `module`, `expected` | Errors handlers returned; `expected` is `true` for expected Telegram API errors |
 | `alita_redis_commands_total` | counter | `command` | Redis commands sent (`get`, `set`, `del`, ...) |
 | `alita_db_queries_total` | counter | `operation` | Database statements (`query`, `create`, `update`, `delete`, `row`, `raw`) |
+| `alita_db_query_duration_seconds` | histogram | `operation` | Database statement latency |
+| `alita_db_query_errors_total` | counter | `operation` | Failed database statements (a lookup that finds no row is not a failure) |
+| `go_sql_*` | gauge/counter | `db_name` | Connection pool stats: open, in-use and idle connections, waits |
+| `alita_telegram_api_request_duration_seconds` | histogram | `method` | Bot API request latency (`sendMessage`, `getChatMember`, ...); `getUpdates` is left out, as it long-polls |
+| `alita_telegram_api_errors_total` | counter | `method`, `code` | Failed Bot API requests: HTTP status, or `transport` when no response came back |
 | `alita_cache_local_hits_total` | counter | none | Read-through cache lookups served by the in-process layer (`CACHE_LOCAL_TTL`) |
 | `alita_cache_local_misses_total` | counter | none | Read-through cache lookups that missed the in-process layer and fell through to Redis |
 
@@ -122,6 +127,12 @@ Per-update cost:
 ```promql
 sum(rate(alita_redis_commands_total[5m])) / sum(rate(alita_updates_processed_total[5m]))
 sum(rate(alita_db_queries_total[5m])) / sum(rate(alita_updates_processed_total[5m]))
+```
+
+Bot API rate limiting:
+
+```promql
+sum by (method) (rate(alita_telegram_api_errors_total{code="429"}[5m]))
 ```
 
 In-process cache hit ratio:

@@ -5,14 +5,16 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 var noopSpan = trace.SpanFromContext(context.Background())
@@ -29,9 +31,10 @@ func StartClientSpan(ctx context.Context, name string, attrs ...attribute.KeyVal
 	return StartSpan(ctx, name, trace.WithSpanKind(trace.SpanKindClient), trace.WithAttributes(attrs...))
 }
 
-// BotAPITransport traces Bot API requests made under a recorded span. The
-// request URL carries the bot token, so spans name the method only and never
-// record the URL, and no trace context is sent to Telegram.
+// BotAPITransport measures every Bot API request and traces those made under
+// a recorded span. The request URL carries the bot token, so metrics and
+// spans name the method only and never record the URL, and no trace context
+// is sent to Telegram.
 func BotAPITransport(base http.RoundTripper) http.RoundTripper {
 	return botAPITransport{base: base}
 }
@@ -41,10 +44,27 @@ type botAPITransport struct {
 }
 
 func (t botAPITransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	method := metrics.BotAPIMethod(r.URL.Path)
+	start := time.Now()
+	resp, err := t.traceRoundTrip(r, method)
+	// getUpdates long-polls, so its latency is the poll timeout, not Telegram's.
+	if method != "getUpdates" {
+		metrics.TelegramRequestDuration.WithLabelValues(method).Observe(time.Since(start).Seconds())
+	}
+	switch {
+	case err != nil:
+		metrics.TelegramRequestErrors.WithLabelValues(method, "transport").Inc()
+	case resp.StatusCode >= http.StatusBadRequest:
+		metrics.TelegramRequestErrors.WithLabelValues(method, strconv.Itoa(resp.StatusCode)).Inc()
+	}
+	return resp, err
+}
+
+func (t botAPITransport) traceRoundTrip(r *http.Request, method string) (*http.Response, error) {
 	if !trace.SpanFromContext(r.Context()).IsRecording() {
 		return t.base.RoundTrip(r)
 	}
-	name := r.Method + " /bot{token}/" + botAPIMethod(r.URL.Path)
+	name := r.Method + " /bot{token}/" + method
 	_, span := StartClientSpan(r.Context(), name,
 		semconv.HTTPRequestMethodKey.String(r.Method),
 		semconv.URLTemplate(name[len(r.Method)+1:]),
@@ -64,22 +84,6 @@ func (t botAPITransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		span.SetStatus(codes.Error, "")
 	}
 	return resp, nil
-}
-
-// botAPIMethod returns the method from a /bot<token>/<method> path, or
-// "unknown" when the last segment is not a plain method name, so a malformed
-// path can neither leak into the span nor grow its cardinality.
-func botAPIMethod(p string) string {
-	method := path.Base(p)
-	if len(method) > 64 {
-		return "unknown"
-	}
-	for _, c := range method {
-		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') {
-			return "unknown"
-		}
-	}
-	return method
 }
 
 func serverPort(u *url.URL) int {
