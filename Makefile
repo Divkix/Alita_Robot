@@ -1,4 +1,4 @@
-.PHONY: run tidy vendor build bump-version lint test test-postgres-integrity check-translations check-duplicates psql-migrate psql-status psql-reset generate-docs check-docs inventory docs-dev validate-db backup-db
+.PHONY: run tidy vendor build bump-version lint test test-postgres-integrity check-translations check-formal check-duplicates psql-migrate psql-status psql-reset generate-docs check-docs inventory docs-dev validate-db backup-db
 
 GO_CMD = go
 GORELEASER_CMD = goreleaser
@@ -45,6 +45,10 @@ test-postgres-integrity:
 check-translations:
 	@echo "🔍 Checking for missing translations..."
 	@cd scripts/check_translations && $(GO_CMD) mod tidy && $(GO_CMD) run main.go
+
+check-formal:
+	@echo "🔍 Model-checking formal specs..."
+	@scripts/check_formal.sh
 
 check-duplicates:
 	@echo "🔍 Checking for duplicate code..."

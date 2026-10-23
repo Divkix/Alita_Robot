@@ -417,6 +417,18 @@ jobs:
         working-directory: docs
         run: bun run check:links
 
+  formal:
+    name: Formal Models
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Model-check TLA+ specs
+        run: make check-formal
+
   # Docker build verification (single arch, fast)
   docker-verify:
     name: Docker Build Test
@@ -517,7 +529,7 @@ jobs:
     name: CI Success
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [security, lint, build, test, docs-check, docker-verify, docker-publish]
+    needs: [security, lint, build, test, docs-check, formal, docker-verify, docker-publish]
     if: always()
     steps:
       - name: Check all jobs status
@@ -528,6 +540,7 @@ jobs:
              [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.docs-check.result }}" != "success" ] || \
+             [ "${{ needs.formal.result }}" != "success" ] || \
              [ "${{ needs.docker-verify.result }}" != "success" ]; then
             echo "One or more CI jobs failed!"
             exit 1
