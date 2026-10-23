@@ -67,6 +67,9 @@ func InitTracing() error {
 	otlpInsecure := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") == "true"
 
 	if otlpEndpoint != "" {
+		if otlpEndpoint, otlpInsecure, err = otlpTarget(otlpEndpoint, otlpInsecure); err != nil {
+			return err
+		}
 		log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
 		opts := []otlptracegrpc.Option{
 			otlptracegrpc.WithEndpoint(otlpEndpoint),

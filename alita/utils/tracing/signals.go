@@ -33,6 +33,26 @@ func signalEnabled(envName string) bool {
 	return !strings.EqualFold(strings.TrimSpace(os.Getenv(envName)), "none")
 }
 
+// otlpTarget turns OTEL_EXPORTER_OTLP_ENDPOINT into the gRPC host:port and
+// whether to skip TLS. It accepts the bare "host:4317" form and the spec's
+// "http(s)://host:4317": a scheme decides TLS, so the insecure flag only
+// applies to the bare form. A path in the URL is dropped, as gRPC ignores it.
+func otlpTarget(endpoint string, insecure bool) (string, bool, error) {
+	if !strings.Contains(endpoint, "://") {
+		return endpoint, insecure, nil
+	}
+	const invalid = "invalid OTEL_EXPORTER_OTLP_ENDPOINT: want host:port or http(s)://host:port"
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		// The parse error quotes the raw URL, credentials included.
+		return "", false, errors.New(invalid)
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", false, fmt.Errorf("%s, got %q", invalid, u.Redacted())
+	}
+	return u.Host, u.Scheme == "http", nil
+}
+
 // otlpHeaderEnvs are the variables the OTLP exporters read headers from.
 var otlpHeaderEnvs = []string{
 	"OTEL_EXPORTER_OTLP_HEADERS",
