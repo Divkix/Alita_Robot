@@ -70,7 +70,7 @@ func TestProcessUpdateTagsCommandChatAndUser(t *testing.T) {
 		"bot.command": attribute.StringValue("/ban"),
 		"chat.id":     attribute.Int64Value(-100123),
 		"chat.type":   attribute.StringValue("supergroup"),
-		"user.id":     attribute.Int64Value(42),
+		"user.id":     attribute.StringValue("42"),
 	}
 	for key, value := range want {
 		if attrs[key] != value {
