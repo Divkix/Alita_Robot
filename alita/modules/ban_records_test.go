@@ -102,6 +102,42 @@ func TestBanMeRecordsTheBanAsTheUsersOwn(t *testing.T) {
 	}
 }
 
+// A button without a "c" field acts on the chat it is in; when Telegram sends
+// no message with the press there is no chat, and nothing is moderated. The
+// bans buttons answer it as invalid; rmWarn has nowhere to answer.
+func TestModerationButtonsWithoutAChatTakeNoAction(t *testing.T) {
+	f := newAdminChatFixture(t)
+	user := fmt.Sprint(f.member.Id)
+	cases := []struct {
+		name    string
+		data    string
+		handler func(*gotgbot.Bot, *ext.Context) error
+		answers int
+	}{
+		{"restrict", encodeCallbackData("restrict", map[string]string{"a": "ban", "u": user}), bansModule.restrictButtonHandler, 1},
+		{"unrestrict", encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": user}), bansModule.unrestrictButtonHandler, 1},
+		{"rmWarn", encodeCallbackData("rmWarn", map[string]string{"u": user}), warnsModule.rmWarnButton, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			query := &gotgbot.CallbackQuery{Id: "callback-1", From: f.admin, Data: tc.data, ChatInstance: "test-chat-instance"}
+			ctx := ext.NewContext(f.bot, &gotgbot.Update{UpdateId: 2, CallbackQuery: query}, nil)
+			before := len(f.client.callsFor("answerCallbackQuery"))
+			if err := tc.handler(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tc.name, err)
+			}
+			if got := len(f.client.callsFor("answerCallbackQuery")) - before; got != tc.answers {
+				t.Fatalf("answerCallbackQuery calls = %d, want %d", got, tc.answers)
+			}
+			for _, method := range []string{"banChatMember", "unbanChatMember", "restrictChatMember"} {
+				if calls := f.client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s called %d times without a chat", method, len(calls))
+				}
+			}
+		})
+	}
+}
+
 func TestRestrictBanButtonRecordsTheBan(t *testing.T) {
 	f := newAdminChatFixture(t)
 	data := encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(f.member.Id)})

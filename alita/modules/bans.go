@@ -544,7 +544,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	decoded, decodedOK := decodeCallbackData(query.Data, "restrict")
 	chat, chatOK := buttonChat(ctx, decoded)
-	if chatOK && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+	if chatOK && chat != nil && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
@@ -555,7 +555,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
 	}
-	if !chatOK || action == "" || userIDRaw == "" {
+	if !chatOK || chat == nil || action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed restrict callback data")
 		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -740,7 +740,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 
 	decoded, decodedOK := decodeCallbackData(query.Data, "unrestrict")
 	chat, chatOK := buttonChat(ctx, decoded)
-	if chatOK && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+	if chatOK && chat != nil && !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
@@ -751,7 +751,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
 	}
-	if !chatOK || action == "" || userIDRaw == "" {
+	if !chatOK || chat == nil || action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed unrestrict callback data")
 		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
