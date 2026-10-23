@@ -399,7 +399,7 @@ Enable pprof endpoints for performance profiling (development only)
 
 ### `OTEL_EXPORTER_OTLP_ENDPOINT`
 
-OTLP gRPC endpoint (e.g., `localhost:4317`). When set, the bot sends traces, logs and its Prometheus metrics to this endpoint. Each update's span carries `update.type`, `chat.id`, `chat.type`, `user.id`, `bot.command` (the first word of a message starting with `/`) and `callback.namespace`; a handler error sets the span to Error with `error.type` and `error.message` (expected Telegram errors only set `error.expected=true`). Log records are scrubbed by the same redaction as stdout logs.
+OTLP gRPC endpoint, as `host:port` (e.g., `localhost:4317`) or a URL (e.g., `https://collector.example.com:4317`). With a URL, the scheme decides TLS (`http` means no TLS) and `OTEL_EXPORTER_OTLP_INSECURE` is ignored. When set, the bot sends traces, logs and its Prometheus metrics to this endpoint. Each update's span carries `update.type`, `chat.id`, `chat.type`, `user.id`, `bot.command` (the first word of a message starting with `/`) and `callback.namespace`; a handler error sets the span to Error with `error.type` and `error.message` (expected Telegram errors only set `error.expected=true`). Log records are scrubbed by the same redaction as stdout logs.
 
 | Property | Value |
 |----------|-------|
@@ -418,7 +418,7 @@ Enable console exporter for debugging traces (outputs to stderr). Only the exact
 
 ### `OTEL_EXPORTER_OTLP_INSECURE`
 
-Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Only `true` (any letter case) enables it; unlike other boolean variables, `1` and `yes` are ignored.
+Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set as `host:port`; a URL's scheme decides TLS instead. Only `true` (any letter case) enables it; unlike other boolean variables, `1` and `yes` are ignored.
 
 | Property | Value |
 |----------|-------|
@@ -814,7 +814,7 @@ INACTIVITY_THRESHOLD_DAYS=# days before marking inactive (default: 30)
 METRICS_AUTH_TOKEN=# protects /metrics and /db_metrics
 MIGRATIONS_PATH=# path to migration files (default: migrations)
 OTEL_EXPORTER_CONSOLE=# enable console trace exporter (default: false)
-OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint for traces, logs and metrics (e.g., localhost:4317)
+OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint for traces, logs and metrics (e.g., localhost:4317 or https://host:4317)
 OTEL_EXPORTER_OTLP_HEADERS=# OTLP headers, e.g. authorization=<ingestion key>
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)

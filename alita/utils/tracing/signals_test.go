@@ -101,3 +101,38 @@ func TestRegisterHeaderSecretsRedactsHeaderValues(t *testing.T) {
 		}
 	}
 }
+
+func TestOTLPTargetAcceptsBareAndURLEndpoints(t *testing.T) {
+	cases := []struct {
+		endpoint     string
+		insecure     bool
+		wantTarget   string
+		wantInsecure bool
+	}{
+		{"otel-collector:4317", true, "otel-collector:4317", true},
+		{"otel-collector:4317", false, "otel-collector:4317", false},
+		{"http://otel-collector:4317", false, "otel-collector:4317", true},
+		{"https://in-otel.hyperdx.io:4317/", true, "in-otel.hyperdx.io:4317", false},
+	}
+	for _, c := range cases {
+		target, insecure, err := otlpTarget(c.endpoint, c.insecure)
+		if err != nil {
+			t.Fatalf("otlpTarget(%q) error: %v", c.endpoint, err)
+		}
+		if target != c.wantTarget || insecure != c.wantInsecure {
+			t.Errorf("otlpTarget(%q, %v) = %q, %v; want %q, %v", c.endpoint, c.insecure, target, insecure, c.wantTarget, c.wantInsecure)
+		}
+	}
+}
+
+func TestOTLPTargetRejectsUnsupportedURLs(t *testing.T) {
+	for _, endpoint := range []string{"grpc://user:hunter2@otel-collector:4317", "http://", "http://user:hunter2@%zz"} {
+		_, _, err := otlpTarget(endpoint, false)
+		if err == nil {
+			t.Fatalf("otlpTarget(%q) accepted an unsupported endpoint", endpoint)
+		}
+		if strings.Contains(err.Error(), "hunter2") {
+			t.Errorf("otlpTarget(%q) error leaks the password: %v", endpoint, err)
+		}
+	}
+}
