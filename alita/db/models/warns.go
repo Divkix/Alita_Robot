@@ -105,11 +105,14 @@ func ReconcileWarnEntries(w *Warns, stored []WarnEntry) (entries []WarnEntry, ke
 	if w.NumWarns <= 0 {
 		return nil, 0
 	}
-	for kept < len(stored) && kept < len(w.Reasons) && stored[kept].Reason == w.Reasons[kept] {
+	entries = make([]WarnEntry, 0, len(w.Reasons))
+	for _, entry := range stored {
+		if kept == len(w.Reasons) || entry.Reason != w.Reasons[kept] {
+			break
+		}
+		entries = append(entries, entry)
 		kept++
 	}
-	entries = make([]WarnEntry, 0, len(w.Reasons))
-	entries = append(entries, stored[:kept]...)
 	for _, reason := range w.Reasons[kept:] {
 		entries = append(entries, WarnEntry{UserId: w.UserId, ChatId: w.ChatId, Reason: reason})
 	}

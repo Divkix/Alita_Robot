@@ -159,7 +159,7 @@ func rowsFromDeltas(deltas map[statKey]int64) []models.ChatDailyStat {
 		day    string
 	}
 
-	order := make([]rowKey, 0, len(deltas))
+	order := make([]*models.ChatDailyStat, 0, len(deltas))
 	byRow := make(map[rowKey]*models.ChatDailyStat, len(deltas))
 	for key, delta := range deltas {
 		rk := rowKey{chatID: key.chatID, day: key.day}
@@ -167,7 +167,7 @@ func rowsFromDeltas(deltas map[statKey]int64) []models.ChatDailyStat {
 		if !ok {
 			row = &models.ChatDailyStat{ChatID: key.chatID, Day: key.day}
 			byRow[rk] = row
-			order = append(order, rk)
+			order = append(order, row)
 		}
 		switch key.metric {
 		case metricMessages:
@@ -180,8 +180,8 @@ func rowsFromDeltas(deltas map[statKey]int64) []models.ChatDailyStat {
 	}
 
 	rows := make([]models.ChatDailyStat, 0, len(order))
-	for _, rk := range order {
-		rows = append(rows, *byRow[rk])
+	for _, row := range order {
+		rows = append(rows, *row)
 	}
 	return rows
 }

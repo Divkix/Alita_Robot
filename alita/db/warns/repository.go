@@ -199,7 +199,8 @@ func syncEntriesWithReasons(tx *gorm.DB, warnrc *models.Warns) error {
 		return err
 	}
 	entries, kept := models.ReconcileWarnEntries(warnrc, stored)
-	if stale := stored[kept:]; len(stale) > 0 {
+	if len(stored) > kept {
+		stale := stored[kept:]
 		ids := make([]uint, len(stale))
 		for i, e := range stale {
 			ids[i] = e.ID
@@ -208,7 +209,8 @@ func syncEntriesWithReasons(tx *gorm.DB, warnrc *models.Warns) error {
 			return err
 		}
 	}
-	if missing := entries[kept:]; len(missing) > 0 {
+	if len(entries) > kept {
+		missing := entries[kept:]
 		return tx.Create(&missing).Error
 	}
 	return nil

@@ -53,10 +53,6 @@ func OverrideLocalesForTest(locales map[string]string) (restore func(), err erro
 		localeMaps:  maps,
 		localeFS:    &dummyFS,
 	}
-	// Ensure managerOnce.Do has already fired before we overwrite managerInstance.
-	// If we set managerInstance first and Then GetManager() is called, Once.Do would
-	// fire and overwrite our value with the empty default singleton.
-	_ = GetManager()
 	prev := managerInstance
 	managerInstance = lm
 	return func() { managerInstance = prev }, nil
