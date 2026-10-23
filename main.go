@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,6 +39,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
+	"github.com/divkix/Alita_Robot/alita/utils/slogrus"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -70,6 +72,10 @@ func main() {
 		fmt.Println(version)
 		os.Exit(0)
 	}
+
+	// gotgbot's dispatcher and updater log panics and polling errors through
+	// slog; send them, and the standard log package, through logrus.
+	slog.SetDefault(slog.New(slogrus.Handler{}))
 
 	defer func() {
 		if r := recover(); r != nil {

@@ -103,6 +103,7 @@ func InitTracing() error {
 	}
 
 	if otlpEndpoint != "" {
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(handleSDKError))
 		registerHeaderSecrets()
 		if err := initOTLPSignals(ctx, res, otlpEndpoint, otlpInsecure, serviceName); err != nil {
 			return errors.Join(err, exporter.Shutdown(ctx))

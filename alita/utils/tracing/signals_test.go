@@ -80,6 +80,24 @@ func TestLogHookExportsWarnSeverityText(t *testing.T) {
 	}
 }
 
+func TestLogHookSkipsSDKErrors(t *testing.T) {
+	exporter := &recordingLogExporter{}
+	provider := sdklog.NewLoggerProvider(sdklog.WithProcessor(sdklog.NewSimpleProcessor(exporter)))
+	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	logger.AddHook(logHook{otellogrus.NewHook("test", otellogrus.WithLoggerProvider(provider))})
+
+	// A failed export must not queue another record to export.
+	logger.WithField(sdkErrorField, true).Warn("exporter failed")
+	logger.Info("bot started")
+
+	if len(exporter.records) != 1 || exporter.records[0].Body().AsString() != "bot started" {
+		t.Fatalf("exported records = %d, want only the bot's own entry", len(exporter.records))
+	}
+}
+
 func TestSignalEnabledHonoursNone(t *testing.T) {
 	t.Setenv("OTEL_LOGS_EXPORTER", " None ")
 	if signalEnabled("OTEL_LOGS_EXPORTER") {
