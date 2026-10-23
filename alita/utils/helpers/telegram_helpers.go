@@ -152,10 +152,10 @@ func IsExpectedTelegramError(err error) bool {
 }
 
 // LogHandlerError logs an error a handler returned: Warn for an expected
-// Telegram API error, Error otherwise, with the update id, the error type and,
-// for a WrappedError, where it was wrapped. The dispatcher's error handler and
-// WrapCommand (after a chat swap, when it ends groups instead) both log
-// through it, so the two paths produce the same entry.
+// Telegram API error, Error otherwise, with the update id, chat id, the error
+// type and, for a WrappedError, where it was wrapped. The dispatcher's error
+// handler and WrapCommand (after a chat swap, when it ends groups instead) both
+// log through it, so the two paths produce the same entry.
 func LogHandlerError(ctx *ext.Context, err error) {
 	updateID := int64(-1)
 	if ctx != nil && ctx.UpdateId != 0 {
@@ -164,6 +164,9 @@ func LogHandlerError(ctx *ext.Context, err error) {
 	fields := log.Fields{
 		"update_id":  updateID,
 		"error_type": fmt.Sprintf("%T", err),
+	}
+	if ctx != nil && ctx.EffectiveChat != nil {
+		fields["chat_id"] = ctx.EffectiveChat.Id
 	}
 	var wrappedErr *errors.WrappedError
 	if stderrors.As(err, &wrappedErr) {

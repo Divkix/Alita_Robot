@@ -653,6 +653,9 @@ func TestWrapCommandLogsErrorAfterChatSwapLikeDispatcher(t *testing.T) {
 			if got := fmt.Sprint(entry.Data["update_id"]); got != "77" {
 				t.Errorf("update_id = %s, want 77", got)
 			}
+			if got := fmt.Sprint(entry.Data["chat_id"]); got != "-1001" {
+				t.Errorf("chat_id = %s, want -1001", got)
+			}
 			if got := fmt.Sprint(entry.Data["error_type"]); got != tc.errorType {
 				t.Errorf("error_type = %s, want %s", got, tc.errorType)
 			}
