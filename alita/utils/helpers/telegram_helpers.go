@@ -151,11 +151,12 @@ func IsExpectedTelegramError(err error) bool {
 	return false
 }
 
-// LogHandlerError logs an error a handler returned: Warn for an expected
-// Telegram API error, Error otherwise, with the update id, chat id, the error
-// type and, for a WrappedError, where it was wrapped. The dispatcher's error
-// handler and WrapCommand (after a chat swap, when it ends groups instead) both
-// log through it, so the two paths produce the same entry.
+// LogHandlerError records an error a handler returned on the update's span and
+// metrics, and logs it: Warn for an expected Telegram API error, Error
+// otherwise, with the update id, chat id, the error type and, for a
+// WrappedError, where it was wrapped. The dispatcher's error handler and
+// WrapCommand (after a chat swap, when it ends groups instead) both log
+// through it, so the two paths produce the same entry.
 func LogHandlerError(ctx *ext.Context, err error) {
 	updateID := int64(-1)
 	if ctx != nil && ctx.UpdateId != 0 {
@@ -175,9 +176,11 @@ func LogHandlerError(ctx *ext.Context, err error) {
 		fields["function"] = wrappedErr.Function
 	}
 
+	expected := IsExpectedTelegramError(err)
+	tracing.RecordUpdateError(ctx, err, expected)
 	// The update's context ties the log record to its trace.
 	entry := log.WithContext(tracing.UpdateContext(ctx)).WithFields(fields)
-	if IsExpectedTelegramError(err) {
+	if expected {
 		entry.Warnf("Expected Telegram API error: %v", err)
 		return
 	}

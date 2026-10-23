@@ -10,6 +10,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/modules"
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 func ListModules() string {
@@ -33,6 +34,7 @@ func InitialChecks(b *gotgbot.Bot) error {
 
 func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.ResetHelpRegistry()
+	metrics.SetCommandModules(modules.CommandModules())
 
 	defer modules.LoadHelp(dispatcher)
 

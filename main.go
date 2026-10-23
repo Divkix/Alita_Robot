@@ -430,7 +430,6 @@ func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.Dis
 		return ext.DispatcherActionNoop
 	}
 
-	tracing.RecordUpdateError(ctx, err, helpers.IsExpectedTelegramError(err))
 	helpers.LogHandlerError(ctx, err)
 	return ext.DispatcherActionNoop
 }

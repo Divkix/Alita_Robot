@@ -48,9 +48,18 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	runOnProcessUpdateCallback()
 
 	start := time.Now()
+	returned := false
 	defer func() {
-		metrics.UpdatesProcessed.Inc()
-		metrics.UpdateDuration.Observe(time.Since(start).Seconds())
+		outcome, _ := ctx.Data[outcomeDataKey].(metrics.Outcome)
+		switch {
+		case !returned:
+			outcome = metrics.OutcomePanic
+		case err != nil:
+			outcome = max(outcome, metrics.OutcomeError)
+		}
+		kind := updateType(ctx.Update)
+		metrics.UpdatesProcessed.WithLabelValues(kind, outcome.String(), metrics.CommandLabel(updateCommand(ctx))).Inc()
+		metrics.UpdateDuration.WithLabelValues(kind, outcome.String()).Observe(time.Since(start).Seconds())
 	}()
 	if ctx.Data == nil {
 		ctx.Data = make(map[string]any)
@@ -63,6 +72,7 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 		defer recordPanic(span)
 		annotateUpdate(span, ctx)
 		err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
+		returned = true
 		RecordError(span, err)
 		return err
 	}
@@ -83,6 +93,7 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	annotateUpdate(span, ctx)
 
 	err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
+	returned = true
 	RecordError(span, err)
 	return err
 }

@@ -492,3 +492,13 @@ func replyCommandHelp(b *gotgbot.Bot, msg *gotgbot.Message, tr *i18n.Translator,
 	_, err := msg.Reply(b, commandHelpTextWith(tr, cmd, errText, example), formatting.Shtml())
 	return err
 }
+
+// CommandModules maps each help-menu command to its module, the bounded
+// command set metrics label updates with.
+func CommandModules() map[string]string {
+	out := make(map[string]string, len(menuCommands))
+	for cmd, entry := range menuCommands {
+		out[cmd] = entry.Module
+	}
+	return out
+}

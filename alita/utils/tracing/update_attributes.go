@@ -14,6 +14,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/logredact"
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 // maxCommandLen bounds the command attribute: the first word is user text.
@@ -46,6 +47,16 @@ func annotateUpdate(span trace.Span, ctx *ext.Context) {
 	span.SetAttributes(attrs...)
 }
 
+// updateCommand returns the command a new message starts with, without its
+// "/", or "". A callback's EffectiveMessage is the bot's own message, so only
+// Update.Message counts.
+func updateCommand(ctx *ext.Context) string {
+	if ctx == nil || ctx.Update == nil || ctx.Message == nil {
+		return ""
+	}
+	return strings.TrimPrefix(commandName(ctx.Message), "/")
+}
+
 func updateType(u *gotgbot.Update) string {
 	if u == nil {
 		return "unknown"
@@ -70,13 +81,43 @@ func commandName(msg *gotgbot.Message) string {
 	return strings.ToLower(cmd)
 }
 
-// RecordUpdateError marks the update's span as failed. Handler errors end in
-// the dispatcher's error handler and never reach the processor, so it is
-// called from there. Expected Telegram errors are tagged but leave the span
+// outcomeDataKey holds the worst metrics.Outcome a handler gave the update,
+// for the processor to label it with.
+const outcomeDataKey = "alita.updateOutcome"
+
+// markOutcome raises the update's outcome to o, never lowering it.
+func markOutcome(ctx *ext.Context, o metrics.Outcome) {
+	if ctx == nil || ctx.Data == nil {
+		return
+	}
+	if current, _ := ctx.Data[outcomeDataKey].(metrics.Outcome); o > current {
+		ctx.Data[outcomeDataKey] = o
+	}
+}
+
+// MarkUpdatePanic labels the update's metrics as a panic. Call it where a
+// handler's panic is recovered before it reaches the processor.
+func MarkUpdatePanic(ctx *ext.Context) {
+	markOutcome(ctx, metrics.OutcomePanic)
+}
+
+// RecordUpdateError counts a handler error and marks the update's span as
+// failed. Handler errors never reach the processor, so it is called where
+// they are logged. Expected Telegram errors are tagged but leave the span
 // successful.
 func RecordUpdateError(ctx *ext.Context, err error, expected bool) {
+	if err == nil {
+		return
+	}
+	outcome := metrics.OutcomeError
+	if expected {
+		outcome = metrics.OutcomeExpectedError
+	}
+	markOutcome(ctx, outcome)
+	metrics.HandlerErrors.WithLabelValues(metrics.CommandModule(updateCommand(ctx)), strconv.FormatBool(expected)).Inc()
+
 	span := trace.SpanFromContext(UpdateContext(ctx))
-	if err == nil || !span.IsRecording() {
+	if !span.IsRecording() {
 		return
 	}
 	span.SetAttributes(attribute.Bool("error.expected", expected))
