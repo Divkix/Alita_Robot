@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/utils/logredact"
@@ -41,6 +40,6 @@ func recordException(span trace.Span, errorType, exceptionType, message string) 
 		semconv.ExceptionMessage(message),
 		semconv.ExceptionStacktrace(string(debug.Stack())),
 	))
-	span.SetAttributes(attribute.String("error.type", errorType))
+	span.SetAttributes(semconv.ErrorTypeKey.String(errorType))
 	span.SetStatus(codes.Error, message)
 }

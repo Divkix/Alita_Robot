@@ -244,8 +244,21 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 }
 
 func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		log.Error("[HTTPServer] Invalid request method: ", r.Method)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Trace only requests that carry the secret, so an unauthenticated
+	// caller can neither open traces nor attach spans to one it names.
+	if !s.validateWebhook(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	ctx := tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-	_, span := tracing.StartSpan(
+	ctx, span := tracing.StartSpan(
 		ctx,
 		"webhook.request",
 		trace.WithAttributes(
@@ -254,21 +267,6 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 			tracing.WorkingModeAttribute(),
 		))
 	defer span.End()
-
-	if r.Method != http.MethodPost {
-		log.WithFields(log.Fields{
-			"trace_id": span.SpanContext().TraceID().String(),
-		}).Error("[HTTPServer] Invalid request method: ", r.Method)
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		span.SetStatus(codes.Error, "invalid method")
-		return
-	}
-
-	if !s.validateWebhook(r) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		span.SetStatus(codes.Error, "unauthorized")
-		return
-	}
 
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {

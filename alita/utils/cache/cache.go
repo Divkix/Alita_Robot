@@ -16,6 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/metrics"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var (
@@ -120,6 +121,7 @@ func InitCache() error {
 		return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, pingErr)
 	}
 	client.AddHook(metrics.RedisHook{})
+	client.AddHook(tracing.RedisHook{})
 
 	if config.AppConfig.ClearCacheOnStartup {
 		clearOnStartup(client)
