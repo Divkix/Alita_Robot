@@ -85,6 +85,44 @@ var (
 		Help: "Failed Bot API requests, by method and HTTP status or \"transport\".",
 	}, []string{"method", "code"})
 
+	// WebhookQueueDepth is the number of webhook updates accepted but not yet
+	// picked up by a dispatcher worker.
+	WebhookQueueDepth = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "alita_webhook_queue_depth",
+		Help: "Webhook updates waiting for a dispatcher worker.",
+	})
+
+	// WebhookRejected counts webhook updates answered with 503, by reason:
+	// "queue_full" or "stopped".
+	WebhookRejected = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_webhook_rejected_total",
+		Help: "Webhook updates rejected with 503, by reason.",
+	}, []string{"reason"})
+
+	// WebhookQueueFull and WebhookStopped are WebhookRejected's two series,
+	// created up front so alerts see a zero before the first rejection.
+	WebhookQueueFull = WebhookRejected.WithLabelValues("queue_full")
+	WebhookStopped   = WebhookRejected.WithLabelValues("stopped")
+
+	// JobRuns counts background job ticks by job name (a fixed string).
+	JobRuns = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_job_runs_total",
+		Help: "Background job ticks run, by job.",
+	}, []string{"job"})
+
+	// JobFailures counts job ticks that returned an error or panicked.
+	JobFailures = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_job_failures_total",
+		Help: "Background job ticks that failed or panicked, by job.",
+	}, []string{"job"})
+
+	// JobDuration observes how long one job tick took.
+	JobDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "alita_job_duration_seconds",
+		Help:    "Time spent on one background job tick, by job.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"job"})
+
 	// CacheLocalHits counts read-through lookups served from process memory.
 	CacheLocalHits = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "alita_cache_local_hits_total",

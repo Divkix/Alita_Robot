@@ -17,12 +17,14 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	gocache "github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/store"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 func TestWebhookLimitsProcessingAndRejectsOverflow(t *testing.T) {
@@ -54,6 +56,8 @@ func TestWebhookLimitsProcessingAndRejectsOverflow(t *testing.T) {
 		s.mux.ServeHTTP(rr, req)
 		return rr.Code
 	}
+	depthBefore := testutil.ToFloat64(metrics.WebhookQueueDepth)
+	queueFullBefore, stoppedBefore := testutil.ToFloat64(metrics.WebhookQueueFull), testutil.ToFloat64(metrics.WebhookStopped)
 	if status := send(1); status != http.StatusOK {
 		t.Fatalf("first update: %d", status)
 	}
@@ -67,6 +71,12 @@ func TestWebhookLimitsProcessingAndRejectsOverflow(t *testing.T) {
 	}
 	if status := send(3); status != http.StatusServiceUnavailable {
 		t.Fatalf("overflow update: got %d, want 503", status)
+	}
+	if got := testutil.ToFloat64(metrics.WebhookQueueDepth) - depthBefore; got != 1 {
+		t.Fatalf("queue depth delta = %v, want 1 waiting update", got)
+	}
+	if got := testutil.ToFloat64(metrics.WebhookQueueFull) - queueFullBefore; got != 1 {
+		t.Fatalf("queue_full rejections delta = %v, want 1", got)
 	}
 	select {
 	case <-started:
@@ -84,6 +94,12 @@ func TestWebhookLimitsProcessingAndRejectsOverflow(t *testing.T) {
 	}
 	if status := send(4); status != http.StatusServiceUnavailable {
 		t.Fatalf("update after shutdown: got %d, want 503", status)
+	}
+	if got := testutil.ToFloat64(metrics.WebhookQueueDepth) - depthBefore; got != 0 {
+		t.Fatalf("queue depth delta after drain = %v, want 0", got)
+	}
+	if got := testutil.ToFloat64(metrics.WebhookStopped) - stoppedBefore; got != 1 {
+		t.Fatalf("stopped rejections delta = %v, want 1", got)
 	}
 }
 

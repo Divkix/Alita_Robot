@@ -7,9 +7,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -56,5 +58,22 @@ func TestRunRecordsErrorsAndPanics(t *testing.T) {
 	}
 	if got := spans[1].Status().Description; got != "panic: bad tick" {
 		t.Fatalf("panic status = %q", got)
+	}
+}
+
+func TestRunCountsTicksAndFailures(t *testing.T) {
+	runs := metrics.JobRuns.WithLabelValues("metricsProbe")
+	failures := metrics.JobFailures.WithLabelValues("metricsProbe")
+	runsBefore, failuresBefore := testutil.ToFloat64(runs), testutil.ToFloat64(failures)
+
+	Run(context.Background(), "metricsProbe", func(context.Context) error { return nil })
+	Run(context.Background(), "metricsProbe", func(context.Context) error { return errors.New("boom") })
+	Run(context.Background(), "metricsProbe", func(context.Context) error { panic("boom") })
+
+	if got := testutil.ToFloat64(runs) - runsBefore; got != 3 {
+		t.Fatalf("job runs delta = %v, want 3", got)
+	}
+	if got := testutil.ToFloat64(failures) - failuresBefore; got != 2 {
+		t.Fatalf("job failures delta = %v, want 2 (an error and a panic)", got)
 	}
 }

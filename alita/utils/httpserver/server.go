@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -326,6 +327,7 @@ func (s *Server) enqueueUpdate(update webhookUpdate) bool {
 	s.dispatchMu.Lock()
 	defer s.dispatchMu.Unlock()
 	if s.dispatchStopped || s.dispatcher == nil {
+		metrics.WebhookStopped.Inc()
 		return false
 	}
 	if s.dispatchQueue == nil {
@@ -339,6 +341,7 @@ func (s *Server) enqueueUpdate(update webhookUpdate) bool {
 			go func() {
 				defer s.dispatchWG.Done()
 				for update := range s.dispatchQueue {
+					metrics.WebhookQueueDepth.Dec()
 					if s.dispatchContext.Err() == nil {
 						s.processWebhookUpdate(update)
 					}
@@ -346,10 +349,14 @@ func (s *Server) enqueueUpdate(update webhookUpdate) bool {
 			}()
 		}
 	}
+	// Counted before the send, so a worker's Dec never runs first.
+	metrics.WebhookQueueDepth.Inc()
 	select {
 	case s.dispatchQueue <- update:
 		return true
 	default:
+		metrics.WebhookQueueDepth.Dec()
+		metrics.WebhookQueueFull.Inc()
 		return false
 	}
 }
