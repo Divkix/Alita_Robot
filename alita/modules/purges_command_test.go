@@ -1,12 +1,15 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
@@ -314,5 +317,62 @@ func TestPurgeFromToValidationBranches(t *testing.T) {
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want no deletion for validation branches", len(calls))
+	}
+}
+
+// A deletion worker whose delete panics must not take the process down: the
+// panic is logged and counted as a failed deletion, the other messages are
+// still deleted, and the purge is announced.
+func TestPurgeSurvivesPanicInDeletionWorker(t *testing.T) {
+	f := newAdminChatFixture(t)
+	panicked := map[string]bool{"110": true, "120": true}
+	f.bot.BotClient = &scriptedTelegramClient{
+		moduleBotClient: f.client,
+		chatID:          fmt.Sprint(f.chat.Id),
+		script: func(method string, params map[string]any) (json.RawMessage, bool) {
+			if method == "deleteMessage" && panicked[fmt.Sprint(params["message_id"])] {
+				panic("delete transport exploded")
+			}
+			return nil, false
+		},
+	}
+
+	logger := log.StandardLogger()
+	previous := logger.ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { logger.ReplaceHooks(previous) })
+	hook := logtest.NewLocal(logger)
+
+	// Replying to 101 from 131 purges 101..130, past the 10-message worker threshold.
+	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/purge", 131, 101)
+	if err := purgesModule.purge(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("purge() error = %v, want EndGroups", err)
+	}
+
+	var survivors []int64
+	for id := int64(101); id <= 131; id++ {
+		if !panicked[fmt.Sprint(id)] {
+			survivors = append(survivors, id)
+		}
+	}
+	assertDeleted(t, f.client, f.chat.Id, survivors...)
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the purge notification", len(calls))
+	}
+
+	var panicLogs int
+	failedCount := -1
+	for _, entry := range hook.AllEntries() {
+		if entry.Level <= log.ErrorLevel && strings.Contains(entry.Message, "delete transport exploded") {
+			panicLogs++
+		}
+		if entry.Message == "Some messages could not be deleted during purge" {
+			failedCount, _ = entry.Data["error_count"].(int)
+		}
+	}
+	if panicLogs != len(panicked) {
+		t.Fatalf("panic log entries = %d, want %d", panicLogs, len(panicked))
+	}
+	if failedCount != len(panicked) {
+		t.Fatalf("failed deletions reported = %d, want %d", failedCount, len(panicked))
 	}
 }
