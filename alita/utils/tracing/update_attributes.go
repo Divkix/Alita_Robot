@@ -8,7 +8,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
@@ -78,13 +77,13 @@ func RecordUpdateError(ctx *ext.Context, err error, expected bool) {
 	if err == nil || !span.IsRecording() {
 		return
 	}
-	message := logredact.Scrub(err.Error())
+	span.SetAttributes(attribute.Bool("error.expected", expected))
+	if !expected {
+		RecordError(span, err)
+		return
+	}
 	span.SetAttributes(
 		attribute.String("error.type", fmt.Sprintf("%T", err)),
-		attribute.String("error.message", message),
-		attribute.Bool("error.expected", expected),
+		attribute.String("error.message", logredact.Scrub(err.Error())),
 	)
-	if !expected {
-		span.SetStatus(codes.Error, message)
-	}
 }

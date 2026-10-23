@@ -69,7 +69,7 @@ func CreateRecordContext(ctx context.Context, model any) error {
 		result := DB.WithContext(ctx).Create(model)
 		if result.Error != nil {
 			log.Errorf("[Database][CreateRecord]: %v", result.Error)
-			span.SetStatus(codes.Error, result.Error.Error())
+			tracing.RecordError(span, result.Error)
 			return result.Error
 		}
 		span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
@@ -92,7 +92,7 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
 		log.Errorf("[Database][%s]: %v", logPrefix, result.Error)
-		span.SetStatus(codes.Error, result.Error.Error())
+		tracing.RecordError(span, result.Error)
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
@@ -116,7 +116,7 @@ func GetRecordContext(ctx context.Context, model any, where any) error {
 				return result.Error
 			}
 			log.Errorf("[Database][GetRecord]: %v", result.Error)
-			span.SetStatus(codes.Error, result.Error.Error())
+			tracing.RecordError(span, result.Error)
 			return result.Error
 		}
 		span.SetAttributes(attribute.Bool("db.record_found", true))
@@ -196,7 +196,7 @@ func GetRecordsContext(ctx context.Context, models any, where any) error {
 		result := DB.WithContext(ctx).Where(where).Find(models)
 		if result.Error != nil {
 			log.Errorf("[Database][GetRecords]: %v", result.Error)
-			span.SetStatus(codes.Error, result.Error.Error())
+			tracing.RecordError(span, result.Error)
 			return result.Error
 		}
 		span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
