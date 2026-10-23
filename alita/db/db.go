@@ -7,7 +7,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
@@ -96,7 +95,8 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		span.SetStatus(codes.Error, "record not found")
+		// Callers expect a miss; it is not a failed query.
+		span.SetAttributes(attribute.Bool("db.record_found", false))
 		return gorm.ErrRecordNotFound
 	}
 	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
