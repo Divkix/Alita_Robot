@@ -237,11 +237,12 @@ func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) 
 	return tracer.Start(ctx, name, opts...)
 }
 
-// StartDBSpan starts a database span. Attribute construction happens only when
-// tracing is enabled, so the disabled path stays allocation-free.
+// StartDBSpan starts a database span under a span ctx already records, as
+// StartClientSpan does. Attributes are built only then, so the common path
+// stays allocation-free.
 func StartDBSpan(ctx context.Context, name string, model any) (context.Context, trace.Span) {
-	if !enabled {
-		return ctx, trace.SpanFromContext(ctx)
+	if !trace.SpanFromContext(ctx).IsRecording() {
+		return ctx, noopSpan
 	}
 
 	attrs := make([]attribute.KeyValue, 0, 2)
