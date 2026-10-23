@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
@@ -59,6 +60,7 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 
 	// Webhook updates arrive with the server's deadline and span already set.
 	if _, exists := ctx.Data[ContextDataKey]; exists {
+		annotateUpdate(trace.SpanFromContext(UpdateContext(ctx)), ctx)
 		return tp.BaseProcessor.ProcessUpdate(d, b, ctx)
 	}
 
@@ -70,14 +72,20 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	baseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	traceCtx, span := StartSpan(baseCtx, "dispatcher.processUpdate")
+	returned := false
 	defer func() {
-		if err != nil {
+		switch {
+		case !returned: // a panic on its way to the dispatcher's recover
+			span.SetStatus(codes.Error, "panic")
+		case err != nil:
 			span.SetStatus(codes.Error, err.Error())
 		}
 		span.End()
 	}()
 	ctx.Data[ContextDataKey] = traceCtx
+	annotateUpdate(span, ctx)
 
 	err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
+	returned = true
 	return err
 }
