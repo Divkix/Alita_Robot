@@ -1,10 +1,12 @@
 package modules
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 // startRetentionSweeper runs sweep every interval in one background goroutine,
@@ -17,10 +19,10 @@ func startRetentionSweeper(once *sync.Once, name string, interval time.Duration,
 			ticker := time.NewTicker(interval)
 			defer ticker.Stop()
 			for range ticker.C {
-				func() {
-					defer error_handling.RecoverFromPanic(name+"Tick", "retention")
+				jobs.Run(context.Background(), name, func(context.Context) error {
 					sweep(time.Now())
-				}()
+					return nil
+				})
 			}
 		}()
 	})

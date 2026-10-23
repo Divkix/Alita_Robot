@@ -37,6 +37,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
@@ -2183,15 +2184,10 @@ func cleanupExpiredCaptchaAttempts(ctx context.Context, bot *gotgbot.Bot) error 
 	return cleanupErr
 }
 
-func runCaptchaCleanupTick(baseCtx context.Context, bot *gotgbot.Bot) {
-	defer error_handling.RecoverFromPanic("CaptchaCleanup", "captcha")
-
+func runCaptchaCleanupTick(baseCtx context.Context, bot *gotgbot.Bot) error {
 	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
 	defer cancel()
-
-	if err := cleanupExpiredCaptchaAttempts(ctx, bot); err != nil {
-		log.Errorf("[CaptchaCleanup] Cleanup error: %v", err)
-	}
+	return cleanupExpiredCaptchaAttempts(ctx, bot)
 }
 
 func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
@@ -2255,7 +2251,9 @@ func startCaptchaWorkers(bot *gotgbot.Bot) {
 		for {
 			select {
 			case <-ticker.C:
-				runCaptchaCleanupTick(ctx, bot)
+				jobs.Run(ctx, "captchaCleanup", func(ctx context.Context) error {
+					return runCaptchaCleanupTick(ctx, bot)
+				})
 			case <-ctx.Done():
 				return
 			}
@@ -2268,10 +2266,10 @@ func startCaptchaWorkers(bot *gotgbot.Bot) {
 		for {
 			select {
 			case <-ticker.C:
-				func() {
-					defer error_handling.RecoverFromPanic("CaptchaUnmute", "captcha")
+				jobs.Run(ctx, "captchaUnmute", func(context.Context) error {
 					unmuteExpiredCaptchaUsers(bot)
-				}()
+					return nil
+				})
 			case <-ctx.Done():
 				return
 			}

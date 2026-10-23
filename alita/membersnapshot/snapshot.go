@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
@@ -80,10 +81,10 @@ func (s *Snapshotter) Start() {
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					func() {
-						defer error_handling.RecoverFromPanic("memberSnapshotterTick", "membersnapshot")
+					jobs.Run(ctx, "memberSnapshotterTick", func(ctx context.Context) error {
 						s.runDue(ctx, s.now())
-					}()
+						return nil
+					})
 				}
 			}
 		}()

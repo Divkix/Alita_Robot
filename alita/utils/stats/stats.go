@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 const (
@@ -242,12 +243,9 @@ func StartFlusher() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				func() {
-					defer error_handling.RecoverFromPanic("statsFlush", "stats")
-					if err := Flush(); err != nil {
-						log.Errorf("[Stats] daily counter flush failed: %v", err)
-					}
-				}()
+				jobs.Run(ctx, "statsFlush", func(context.Context) error {
+					return Flush()
+				})
 			}
 		}
 	}()
