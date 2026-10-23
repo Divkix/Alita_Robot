@@ -18,25 +18,23 @@ linters:
       rules:
         no-mocks:
           list-mode: lax
-          files:
-            - $all
           deny:
             - pkg: github.com/stretchr/testify/mock
-              desc: "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
+              desc: &no-mocks "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
             - pkg: github.com/golang/mock
-              desc: "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
+              desc: *no-mocks
             - pkg: go.uber.org/mock
-              desc: "use real fixtures (internal/testdb, miniredis, hand-written fakes), not mock libraries"
+              desc: *no-mocks
     forbidigo:
       # Match by real package name, so an aliased import is still caught.
       analyze-types: true
+      # Each msg prefix ("automigrate:", "panel-chat-status:") is matched by
+      # an exclusions rule below; rename both together.
       forbid:
-        - pattern: '^gorm\.DB\.AutoMigrate$'
+        - pattern: '^gorm\.(DB|Migrator)\.AutoMigrate$'
           msg: "automigrate: migrations/*.sql is the schema; AutoMigrate belongs in tests only"
-        - pattern: '^chat_status\.(Can|Require)\w*$'
-          msg: "panel-chat-status: these helpers reply into the chat"
-        - pattern: '^chat_status\.IsUserConnected$'
-          msg: "panel-chat-status: IsUserConnected sends its own refusals"
+        - pattern: '^chat_status\.(Can\w+|IsUserConnected|UserHasPermissionForUpdate)$'
+          msg: "panel-chat-status: never call chat_status Can* or reply-sending helpers from the panel"
     dupl:
       threshold: 100
     gocyclo:
@@ -53,7 +51,7 @@ linters:
           - gocyclo
           - dupl
       # AutoMigrate is how test fixtures build their schema
-      - path: (_test\.go|^internal/testdb/)
+      - path: (_test\.go$|^internal/testdb/)
         linters:
           - forbidigo
         text: "automigrate:"
