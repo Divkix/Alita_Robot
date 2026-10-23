@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -32,6 +33,17 @@ type PurgeWorker struct {
 	errors     []error
 	errorCount int
 	mu         sync.Mutex
+}
+
+var errPurgeDeletePanicked = errors.New("message deletion panicked")
+
+// purgeDeleteMessage deletes one message for a purge worker. A panic in the
+// delete is logged and returned as errPurgeDeletePanicked, so it counts as a
+// failed deletion and the worker moves on to the next message.
+func purgeDeleteMessage(bot *gotgbot.Bot, chatID, messageID int64) (err error) {
+	err = errPurgeDeletePanicked
+	defer error_handling.RecoverFromPanic("purgeDeleteMessage", "purges")
+	return helpers.DeleteMessageWithErrorHandling(bot, chatID, messageID)
 }
 
 func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, msgId, deleteTo int64) bool {
@@ -93,8 +105,9 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer error_handling.RecoverFromPanic("purgeMsgsConcurrent", "purges")
 			for messageID := range jobs {
-				if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, messageID); err != nil {
+				if err := purgeDeleteMessage(bot, chat.Id, messageID); err != nil {
 					worker.mu.Lock()
 					worker.errorCount++
 					if worker.errorCount <= 5 {
