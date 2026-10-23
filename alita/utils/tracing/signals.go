@@ -13,6 +13,7 @@ import (
 	prombridge "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -76,7 +77,7 @@ func initOTLPSignals(ctx context.Context, res *resource.Resource, endpoint strin
 	}
 	if loggerProvider != nil {
 		// Added after logredact's hook, so entries arrive already scrubbed.
-		log.AddHook(logHook{otellogrus.NewHook(serviceName, otellogrus.WithLoggerProvider(loggerProvider))})
+		log.AddHook(logHook{otellogrus.NewHook(serviceName, otellogrus.WithLoggerProvider(warnTextProvider{loggerProvider}))})
 		log.Info("[Tracing] Exporting logs over OTLP")
 	}
 	return nil
@@ -143,4 +144,25 @@ func (h logHook) Fire(entry *log.Entry) error {
 		entry.Context = context.Background()
 	}
 	return h.Hook.Fire(entry)
+}
+
+// warnTextProvider exports logrus's "warning" severity text as "warn", matching
+// the short names of the other levels ("info", "error").
+type warnTextProvider struct {
+	otellog.LoggerProvider
+}
+
+func (p warnTextProvider) Logger(name string, opts ...otellog.LoggerOption) otellog.Logger {
+	return warnTextLogger{p.LoggerProvider.Logger(name, opts...)}
+}
+
+type warnTextLogger struct {
+	otellog.Logger
+}
+
+func (l warnTextLogger) Emit(ctx context.Context, record otellog.Record) {
+	if record.SeverityText() == log.WarnLevel.String() {
+		record.SetSeverityText("warn")
+	}
+	l.Logger.Emit(ctx, record)
 }

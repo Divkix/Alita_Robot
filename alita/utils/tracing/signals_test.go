@@ -9,6 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/bridges/otellogrus"
+	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 
 	"github.com/divkix/Alita_Robot/alita/utils/logredact"
@@ -50,6 +51,32 @@ func TestLogHookExportsScrubbedEntriesLoggedWithoutContext(t *testing.T) {
 	body := exporter.records[0].Body().AsString()
 	if body == "" || strings.Contains(body, "hunter2secret") {
 		t.Fatalf("exported body = %q, want it scrubbed by logredact", body)
+	}
+}
+
+func TestLogHookExportsWarnSeverityText(t *testing.T) {
+	exporter := &recordingLogExporter{}
+	provider := sdklog.NewLoggerProvider(sdklog.WithProcessor(sdklog.NewSimpleProcessor(exporter)))
+	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	logger.AddHook(logHook{otellogrus.NewHook("test", otellogrus.WithLoggerProvider(warnTextProvider{provider}))})
+
+	logger.Warn("slow query")
+	logger.Error("query failed")
+
+	want := []string{"warn", "error"}
+	if len(exporter.records) != len(want) {
+		t.Fatalf("exported records = %d, want %d", len(exporter.records), len(want))
+	}
+	for i, w := range want {
+		if got := exporter.records[i].SeverityText(); got != w {
+			t.Errorf("record %d severity text = %q, want %q", i, got, w)
+		}
+	}
+	if got := exporter.records[0].Severity(); got != otellog.SeverityWarn {
+		t.Errorf("warn record severity = %v, want %v", got, otellog.SeverityWarn)
 	}
 }
 
