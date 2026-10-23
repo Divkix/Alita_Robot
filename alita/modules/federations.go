@@ -123,7 +123,7 @@ func (moduleStruct) renameFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	fed, err := federations.RenameFederation(from.Id, name)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			text, _ := tr.GetString("feds_no_fed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups

@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"strconv"
@@ -285,7 +286,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 			continue
 		}
 		if err := logchannels.SetCategory(chat.Id, name, enable); err != nil {
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				text, _ := tr.GetString("logs_not_set")
 				replyHTML(b, msg, text)
 				return ext.EndGroups
