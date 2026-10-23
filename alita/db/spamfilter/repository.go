@@ -476,7 +476,7 @@ func loadShared(ctx context.Context) ([]SharedSample, error) {
 	shared := make([]SharedSample, 0, min(len(hashes), MaxSharedSamples))
 	for _, hash := range hashes {
 		group := byHash[hash]
-		if !hasUnrelatedPair(group) {
+		if len(group) < 2 || !hasUnrelatedPair(group) {
 			continue
 		}
 		newest := group[0]

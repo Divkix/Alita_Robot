@@ -17,15 +17,9 @@ type BackupRateLimiter struct {
 	mu sync.RWMutex
 }
 
-var (
-	backupLimiter *BackupRateLimiter
-	once          = &sync.Once{}
-)
+var backupLimiter = &BackupRateLimiter{}
 
 func GetBackupRateLimiter() *BackupRateLimiter {
-	once.Do(func() {
-		backupLimiter = &BackupRateLimiter{}
-	})
 	return backupLimiter
 }
 

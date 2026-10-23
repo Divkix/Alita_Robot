@@ -3,21 +3,14 @@ package i18n
 import (
 	"embed"
 	"fmt"
-	"sync"
 )
 
-var (
-	managerInstance *LocaleManager
-	managerOnce     sync.Once
-)
+var managerInstance = &LocaleManager{
+	localeMaps:  make(map[string]map[string]any),
+	defaultLang: "en",
+}
 
 func GetManager() *LocaleManager {
-	managerOnce.Do(func() {
-		managerInstance = &LocaleManager{
-			localeMaps:  make(map[string]map[string]any),
-			defaultLang: "en",
-		}
-	})
 	return managerInstance
 }
 

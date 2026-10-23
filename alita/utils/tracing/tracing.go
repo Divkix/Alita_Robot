@@ -153,7 +153,7 @@ func WorkingModeAttribute() attribute.KeyValue {
 }
 
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-	if !enabled {
+	if !enabled || tracer == nil {
 		return ctx, trace.SpanFromContext(ctx)
 	}
 	return tracer.Start(ctx, name, opts...)

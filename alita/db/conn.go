@@ -86,7 +86,7 @@ func init() {
 			time.Sleep(time.Duration(1<<attempt) * time.Second)
 		}
 	}
-	if err != nil {
+	if err != nil || DB == nil {
 		log.Fatalf("[Database][Connection] Failed after %d attempts: %v", maxRetries, err)
 	}
 

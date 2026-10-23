@@ -709,6 +709,10 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	// checked there.
 	decoded, decodedOK := decodeCallbackData(query.Data, "rmWarn")
 	chat, chatOK := buttonChat(ctx, decoded)
+	if chatOK && chat == nil {
+		// Telegram sent no message with the press: no chat to act or answer in.
+		return ext.EndGroups
+	}
 	if chatOK && !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -722,7 +726,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	if decodedOK {
 		userMatch, _ = decoded.Field("u")
 	}
-	if !chatOK || userMatch == "" {
+	if !chatOK || chat == nil || userMatch == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
 		return answerInvalidCallback(b, ctx, query)
 	}

@@ -27,7 +27,6 @@ func benchManager(b *testing.B) *LocaleManager {
 		localeMaps:  map[string]map[string]any{"en": data},
 		localeFS:    &dummy,
 	}
-	_ = GetManager()
 	managerInstance = lm
 	return lm
 }

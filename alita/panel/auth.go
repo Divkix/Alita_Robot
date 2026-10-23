@@ -85,11 +85,11 @@ func VerifyInitData(raw string, botToken string, now time.Time, maxAge time.Dura
 	if err := checkInitDataHash(values, botToken, received); err != nil {
 		return Session{}, err
 	}
-	authDate, err := checkAuthDate(values["auth_date"][0], now, maxAge)
+	authDate, err := checkAuthDate(values.Get("auth_date"), now, maxAge)
 	if err != nil {
 		return Session{}, err
 	}
-	user, err := decodeUser(values["user"][0])
+	user, err := decodeUser(values.Get("user"))
 	if err != nil {
 		return Session{}, err
 	}
@@ -166,7 +166,7 @@ func checkInitDataHash(values url.Values, botToken string, received []byte) erro
 
 	pairs := make([]string, len(keys))
 	for i, key := range keys {
-		pairs[i] = key + "=" + values[key][0]
+		pairs[i] = key + "=" + values.Get(key)
 	}
 
 	secret := hmac.New(sha256.New, []byte("WebAppData"))

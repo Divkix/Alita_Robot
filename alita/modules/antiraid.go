@@ -91,12 +91,12 @@ func joinsKey(chatID int64) string {
 }
 
 func trackJoin(chatID, userID int64) (count int, err error) {
-	if !cache.IsRedisAvailable() {
+	rdb := cache.GetRedisClient()
+	if rdb == nil {
 		return 0, fmt.Errorf("cache not initialized")
 	}
 	now := time.Now().Unix()
 	ctx := cache.Context
-	rdb := cache.GetRedisClient()
 	member := fmt.Sprintf("%d:%d:%d", userID, now, time.Now().UnixNano())
 	window := antiraidJoinWindowSeconds
 	cutoff := now - int64(antiraidJoinWindowSeconds)
@@ -108,12 +108,11 @@ func trackJoin(chatID, userID int64) (count int, err error) {
 }
 
 func clearJoinTracking(chatID int64) {
-	if !cache.IsRedisAvailable() {
+	rdb := cache.GetRedisClient()
+	if rdb == nil {
 		return
 	}
-	ctx := cache.Context
-	rdb := cache.GetRedisClient()
-	_ = rdb.Del(ctx, joinsKey(chatID)).Err()
+	_ = rdb.Del(cache.Context, joinsKey(chatID)).Err()
 }
 
 func getRaidState(chatID int64) *raidState {

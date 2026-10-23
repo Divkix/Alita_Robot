@@ -91,6 +91,9 @@ func GetGreetingSettings(chatID int64) *models.GreetingSettings {
 	if err != nil || settings == nil {
 		settings, _ = checkGreetingSettings(chatID)
 	}
+	if settings == nil {
+		return defaultGreetingSettings(chatID)
+	}
 	return settings
 }
 
