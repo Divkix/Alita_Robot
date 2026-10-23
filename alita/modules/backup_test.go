@@ -829,7 +829,9 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
-	rules.SetChatRules(chat.Id, "rules before reset")
+	if err := rules.SetChatRules(chat.Id, "rules before reset"); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
 	token, err := storePendingReset(chat.Id, []string{"rules"})
 	require.NoError(t, err)
 	t.Cleanup(func() {

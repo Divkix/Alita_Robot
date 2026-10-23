@@ -48,7 +48,9 @@ func TestSetRulesWithoutTextDoesNotOverwriteExistingRules(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	rules.SetChatRules(chatID, "existing rules")
+	if err := rules.SetChatRules(chatID, "existing rules"); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/setrules")
@@ -66,9 +68,15 @@ func TestSendRulesUsesPrivateButtonWhenEnabled(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	rules.SetChatRules(chatID, "Read before posting")
-	rules.SetPrivateRules(chatID, true)
-	rules.SetChatRulesButton(chatID, "Read rules")
+	if err := rules.SetChatRules(chatID, "Read before posting"); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
+	if err := rules.SetPrivateRules(chatID, true); err != nil {
+		t.Fatalf("rules.SetPrivateRules() error = %v", err)
+	}
+	if err := rules.SetChatRulesButton(chatID, "Read rules"); err != nil {
+		t.Fatalf("rules.SetChatRulesButton() error = %v", err)
+	}
 
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Member"}
@@ -199,7 +207,9 @@ func TestClearRulesRemovesStoredRules(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	rules.SetChatRules(chatID, "existing rules")
+	if err := rules.SetChatRules(chatID, "existing rules"); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/clearrules")

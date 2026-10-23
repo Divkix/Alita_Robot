@@ -32,7 +32,9 @@ func TestConnectChat(t *testing.T) {
 		t.Fatal("Connection() returned nil")
 	}
 
-	ConnectId(userID, chatID)
+	if err := ConnectId(userID, chatID); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
 
 	got := Connection(userID)
 	if got == nil {
@@ -58,7 +60,9 @@ func TestConnectIdAcceptsTelegramGroupIDs(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.ConnectionChatSettings{})
 	})
 
-	ConnectId(userID, chatID)
+	if err := ConnectId(userID, chatID); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
 
 	got := Connection(userID)
 	if got == nil || !got.Connected {
@@ -88,14 +92,18 @@ func TestDisconnectChat(t *testing.T) {
 	})
 
 	_ = Connection(userID)
-	ConnectId(userID, chatID)
+	if err := ConnectId(userID, chatID); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
 
 	got := Connection(userID)
 	if !got.Connected {
 		t.Fatal("expected Connected=true after ConnectId")
 	}
 
-	DisconnectId(userID)
+	if err := DisconnectId(userID); err != nil {
+		t.Fatalf("DisconnectId() error = %v", err)
+	}
 
 	got = Connection(userID)
 	if got.Connected {
@@ -144,13 +152,17 @@ func TestSetAllowConnect(t *testing.T) {
 		t.Fatal("GetChatConnectionSetting() returned nil")
 	}
 
-	ToggleAllowConnect(chatID, true)
+	if err := ToggleAllowConnect(chatID, true); err != nil {
+		t.Fatalf("ToggleAllowConnect() error = %v", err)
+	}
 	settings = GetChatConnectionSetting(chatID)
 	if !settings.AllowConnect {
 		t.Fatal("expected AllowConnect=true after ToggleAllowConnect(true)")
 	}
 
-	ToggleAllowConnect(chatID, false)
+	if err := ToggleAllowConnect(chatID, false); err != nil {
+		t.Fatalf("ToggleAllowConnect() error = %v", err)
+	}
 	settings = GetChatConnectionSetting(chatID)
 	if settings.AllowConnect {
 		t.Fatal("expected AllowConnect=false after ToggleAllowConnect(false)")
@@ -166,7 +178,9 @@ func TestToggleAllowConnectCreatesMissingSettings(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	ToggleAllowConnect(chatID, true)
+	if err := ToggleAllowConnect(chatID, true); err != nil {
+		t.Fatalf("ToggleAllowConnect() error = %v", err)
+	}
 
 	settings := GetChatConnectionSetting(chatID)
 	if settings == nil {
@@ -191,13 +205,17 @@ func TestGetConnectedChats(t *testing.T) {
 
 	// Connect to two separate chats sequentially (each ConnectId updates the single record)
 	_ = Connection(userID)
-	ConnectId(userID, chatID1)
+	if err := ConnectId(userID, chatID1); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
 	got := Connection(userID)
 	if got.ChatId != chatID1 {
 		t.Fatalf("expected ChatId=%d, got %d", chatID1, got.ChatId)
 	}
 
-	ConnectId(userID, chatID2)
+	if err := ConnectId(userID, chatID2); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
 	got = Connection(userID)
 	if got.ChatId != chatID2 {
 		t.Fatalf("expected ChatId=%d after second connect, got %d", chatID2, got.ChatId)
@@ -255,7 +273,9 @@ func TestDisconnectId(t *testing.T) {
 	})
 
 	_ = Connection(userID)
-	ConnectId(userID, chatID)
+	if err := ConnectId(userID, chatID); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
 
 	got := Connection(userID)
 	if !got.Connected {
@@ -265,7 +285,9 @@ func TestDisconnectId(t *testing.T) {
 		t.Fatalf("expected ChatId=%d after ConnectId, got %d", chatID, got.ChatId)
 	}
 
-	DisconnectId(userID)
+	if err := DisconnectId(userID); err != nil {
+		t.Fatalf("DisconnectId() error = %v", err)
+	}
 
 	got = Connection(userID)
 	if got == nil {

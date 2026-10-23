@@ -193,11 +193,19 @@ func TestHandleDeepLinkRoutesConnectAndRulesDeepLinks(t *testing.T) {
 	if err := chats.EnsureChatInDb(chatID, "Deep Link Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	connections.ToggleAllowConnect(chatID, true)
-	rules.SetChatRules(chatID, "Be kind.")
+	if err := connections.ToggleAllowConnect(chatID, true); err != nil {
+		t.Fatalf("connections.ToggleAllowConnect() error = %v", err)
+	}
+	if err := rules.SetChatRules(chatID, "Be kind."); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
 	t.Cleanup(func() {
-		connections.ToggleAllowConnect(chatID, false)
-		rules.SetChatRules(chatID, "")
+		if err := connections.ToggleAllowConnect(chatID, false); err != nil {
+			t.Errorf("connections.ToggleAllowConnect() error = %v", err)
+		}
+		if err := rules.SetChatRules(chatID, ""); err != nil {
+			t.Errorf("rules.SetChatRules() error = %v", err)
+		}
 	})
 
 	connectCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start connect_%d", chatID))
@@ -505,12 +513,16 @@ func TestDeepLinkNonMemberDenied(t *testing.T) {
 	if err := chats.EnsureChatInDb(chatID, "Secure Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	rules.SetChatRules(chatID, "No spam.")
+	if err := rules.SetChatRules(chatID, "No spam."); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
 	if err := notes.AddNote(chatID, "secret", "Secret content", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(secret) error = %v", err)
 	}
 	t.Cleanup(func() {
-		rules.SetChatRules(chatID, "")
+		if err := rules.SetChatRules(chatID, ""); err != nil {
+			t.Errorf("rules.SetChatRules() error = %v", err)
+		}
 		_ = notes.RemoveNote(chatID, "secret")
 	})
 
@@ -577,12 +589,16 @@ func TestDeepLinkMemberAllowed(t *testing.T) {
 	if err := chats.EnsureChatInDb(chatID, "Open Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	rules.SetChatRules(chatID, "Be nice.")
+	if err := rules.SetChatRules(chatID, "Be nice."); err != nil {
+		t.Fatalf("rules.SetChatRules() error = %v", err)
+	}
 	if err := notes.AddNote(chatID, "welcome", "Welcome note", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(welcome) error = %v", err)
 	}
 	t.Cleanup(func() {
-		rules.SetChatRules(chatID, "")
+		if err := rules.SetChatRules(chatID, ""); err != nil {
+			t.Errorf("rules.SetChatRules() error = %v", err)
+		}
 		_ = notes.RemoveNote(chatID, "welcome")
 	})
 

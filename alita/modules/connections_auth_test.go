@@ -52,7 +52,9 @@ func TestCanUserConnectToChatDeniesNonAdminWhenDisabled(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
 	_ = connections.GetChatConnectionSetting(chatID)
-	connections.ToggleAllowConnect(chatID, false)
+	if err := connections.ToggleAllowConnect(chatID, false); err != nil {
+		t.Fatalf("connections.ToggleAllowConnect() error = %v", err)
+	}
 
 	allowed, denyKey := canUserConnectToChat(bot, chatID, 42)
 	if allowed {
@@ -145,7 +147,9 @@ func TestAllowConnectHandlesInvalidOptionAndNonAdminNoop(t *testing.T) {
 	}
 
 	memberCtx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, "/allowconnect on")
-	connections.ToggleAllowConnect(chatID, false)
+	if err := connections.ToggleAllowConnect(chatID, false); err != nil {
+		t.Fatalf("connections.ToggleAllowConnect() error = %v", err)
+	}
 	if err := ConnectionsModule.allowConnect(bot, memberCtx); err != ext.EndGroups {
 		t.Fatalf("allowConnect(non-admin) error = %v, want EndGroups", err)
 	}
@@ -162,7 +166,9 @@ func TestDisconnectPrivateClearsConnection(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4242, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	connections.ConnectId(user.Id, chatID)
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleMessageContext(bot, privateChat, user, "/disconnect")
@@ -182,7 +188,9 @@ func TestDisconnectInGroupDoesNotClearConnection(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4243, FirstName: "Member"}
 	connectedChatID := uniqueModuleChatID()
-	connections.ConnectId(user.Id, connectedChatID)
+	if err := connections.ConnectId(user.Id, connectedChatID); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
 
 	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connections Chat"}
 	ctx := newModuleMessageContext(bot, groupChat, user, "/disconnect")
@@ -199,7 +207,9 @@ func TestConnectionReportsConnectedChat(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4244, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	connections.ConnectId(user.Id, chatID)
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleMessageContext(bot, privateChat, user, "/connection")
@@ -307,7 +317,9 @@ func TestConnectionReportsNotConnectedAndLookupErrors(t *testing.T) {
 	lookupClient := newModuleBotClient()
 	lookupClient.errors["getChat"] = fmt.Errorf("telegram unavailable")
 	lookupBot := newModuleTestBot(lookupClient)
-	connections.ConnectId(user.Id, uniqueModuleChatID())
+	if err := connections.ConnectId(user.Id, uniqueModuleChatID()); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
 	lookupCtx := newModuleMessageContext(lookupBot, privateChat, user, "/connection")
 	if err := ConnectionsModule.connection(lookupBot, lookupCtx); err != ext.EndGroups {
 		t.Fatalf("connection(lookup error) error = %v, want EndGroups", err)
@@ -343,7 +355,11 @@ func TestConnectPrivateEstablishesConnectionAndHandlesMissingChat(t *testing.T) 
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 42441, FirstName: "Member"}
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
-	t.Cleanup(func() { connections.DisconnectId(user.Id) })
+	t.Cleanup(func() {
+		if err := connections.DisconnectId(user.Id); err != nil {
+			t.Errorf("connections.DisconnectId() error = %v", err)
+		}
+	})
 
 	missingCtx := newModuleMessageContext(bot, privateChat, user, "/connect")
 	if err := ConnectionsModule.connect(bot, missingCtx); err != ext.EndGroups {
@@ -353,7 +369,9 @@ func TestConnectPrivateEstablishesConnectionAndHandlesMissingChat(t *testing.T) 
 		t.Fatal("missing chat id connected the user")
 	}
 
-	connections.ToggleAllowConnect(-1001, true)
+	if err := connections.ToggleAllowConnect(-1001, true); err != nil {
+		t.Fatalf("connections.ToggleAllowConnect() error = %v", err)
+	}
 	connectCtx := newModuleMessageContext(bot, privateChat, user, "/connect -1001")
 	if err := ConnectionsModule.connect(bot, connectCtx); err != ext.EndGroups {
 		t.Fatalf("connect(private) error = %v, want EndGroups", err)
@@ -371,8 +389,12 @@ func TestReconnectPrivateRestoresPreviousChat(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4245, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	connections.ConnectId(user.Id, chatID)
-	connections.DisconnectId(user.Id)
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
+	if err := connections.DisconnectId(user.Id); err != nil {
+		t.Fatalf("connections.DisconnectId() error = %v", err)
+	}
 	if err := connections.ToggleAllowConnect(chatID, true); err != nil {
 		t.Fatalf("ToggleAllowConnect() error = %v", err)
 	}
@@ -410,8 +432,12 @@ func TestReconnectPrivateHandlesNoLastChatAndLookupFailure(t *testing.T) {
 	lookupClient := newModuleBotClient()
 	lookupClient.errors["getChat"] = fmt.Errorf("telegram unavailable")
 	lookupBot := newModuleTestBot(lookupClient)
-	connections.ConnectId(user.Id, uniqueModuleChatID())
-	connections.DisconnectId(user.Id)
+	if err := connections.ConnectId(user.Id, uniqueModuleChatID()); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
+	if err := connections.DisconnectId(user.Id); err != nil {
+		t.Fatalf("connections.DisconnectId() error = %v", err)
+	}
 	lookupCtx := newModuleMessageContext(lookupBot, privateChat, user, "/reconnect")
 	if err := ConnectionsModule.reconnect(lookupBot, lookupCtx); err != ext.EndGroups {
 		t.Fatalf("reconnect(lookup error) error = %v, want EndGroups", err)
@@ -565,7 +591,9 @@ func TestConnectionButtonsRenderAdminCommandsAndAnswerCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4247, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	connections.ConnectId(user.Id, chatID)
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleCallbackContext(bot, privateChat, user, encodeCallbackData("connbtns", map[string]string{"t": "Admin"}))
@@ -585,7 +613,9 @@ func TestConnectionButtonsRenderUserAndMainViews(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 42470, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	connections.ConnectId(user.Id, chatID)
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("connections.ConnectId() error = %v", err)
+	}
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	for _, data := range []string{

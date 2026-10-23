@@ -162,7 +162,9 @@ func TestRunOrphanedCaptchaRecoveryAppliesMuteAction(t *testing.T) {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
 
-	runOrphanedCaptchaRecovery(bot)
+	if err := runOrphanedCaptchaRecovery(bot); err != nil {
+		t.Fatalf("runOrphanedCaptchaRecovery() error = %v", err)
+	}
 
 	var remaining int64
 	if err := db.DB.Model(&db.CaptchaAttempts{}).Where("chat_id = ?", chatID).Count(&remaining).Error; err != nil {
@@ -203,7 +205,9 @@ func TestRunOrphanedCaptchaRecoverySkipsMessageDeleteWhenMessageIDZero(t *testin
 		t.Fatalf("create captcha attempt error = %v", err)
 	}
 
-	runOrphanedCaptchaRecovery(bot)
+	if err := runOrphanedCaptchaRecovery(bot); err != nil {
+		t.Fatalf("runOrphanedCaptchaRecovery() error = %v", err)
+	}
 
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want none when MessageID is zero", len(calls))
@@ -286,7 +290,9 @@ func TestRunOrphanedCaptchaRecoveryUsesDefaultKickAction(t *testing.T) {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
 
-	runOrphanedCaptchaRecovery(bot)
+	if err := runOrphanedCaptchaRecovery(bot); err != nil {
+		t.Fatalf("runOrphanedCaptchaRecovery() error = %v", err)
+	}
 
 	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
 		t.Fatalf("unbanChatMember calls = %d, want default kick action", len(calls))
@@ -301,7 +307,9 @@ func TestRunOrphanedCaptchaRecoveryNoPendingAttempts(t *testing.T) {
 		t.Fatalf("captcha attempt cleanup setup error = %v", err)
 	}
 
-	runOrphanedCaptchaRecovery(bot)
+	if err := runOrphanedCaptchaRecovery(bot); err != nil {
+		t.Fatalf("runOrphanedCaptchaRecovery() error = %v", err)
+	}
 
 	var remainingAttempts int64
 	if err := db.DB.Model(&db.CaptchaAttempts{}).Count(&remainingAttempts).Error; err != nil {
@@ -377,7 +385,9 @@ func TestRunOrphanedCaptchaRecoveryResumesValidAttempts(t *testing.T) {
 		}
 	}
 
-	runOrphanedCaptchaRecovery(bot)
+	if err := runOrphanedCaptchaRecovery(bot); err != nil {
+		t.Fatalf("runOrphanedCaptchaRecovery() error = %v", err)
+	}
 
 	var remainingAttempts int64
 	if err := db.DB.Model(&db.CaptchaAttempts{}).Count(&remainingAttempts).Error; err != nil {
