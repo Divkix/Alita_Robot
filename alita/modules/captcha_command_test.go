@@ -536,11 +536,13 @@ func TestRunCaptchaCleanupTickHandlesEmptyAndCancelledContexts(t *testing.T) {
 	}
 
 	bot := newModuleTestBot(newModuleBotClient())
-	runCaptchaCleanupTick(context.Background(), bot)
+	if err := runCaptchaCleanupTick(context.Background(), bot); err != nil {
+		t.Fatalf("cleanup with no attempts: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	runCaptchaCleanupTick(ctx, bot)
+	_ = runCaptchaCleanupTick(ctx, bot)
 }
 
 func TestUnmuteExpiredCaptchaUsersGrantsPermissionsAndCleansRecords(t *testing.T) {

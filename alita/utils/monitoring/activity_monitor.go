@@ -10,6 +10,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 type ActivityMonitor struct {
@@ -91,10 +92,10 @@ func (am *ActivityMonitor) monitorLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			func() {
-				defer error_handling.RecoverFromPanic("performActivityCheck", "ActivityMonitor")
+			jobs.Run(am.ctx, "activityCheck", func(context.Context) error {
 				am.performActivityCheck()
-			}()
+				return nil
+			})
 		case <-am.ctx.Done():
 			return
 		}
