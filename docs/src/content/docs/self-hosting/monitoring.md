@@ -95,18 +95,33 @@ Besides the Go runtime metrics, the bot exports:
 
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
-| `alita_updates_processed_total` | counter | none | Telegram updates processed |
-| `alita_update_duration_seconds` | histogram | none | Time to process one update |
+| `alita_updates_processed_total` | counter | `update_type`, `outcome`, `command` | Telegram updates processed |
+| `alita_update_duration_seconds` | histogram | `update_type`, `outcome` | Time to process one update |
+| `alita_handler_errors_total` | counter | `module`, `expected` | Errors handlers returned; `expected` is `true` for expected Telegram API errors |
 | `alita_redis_commands_total` | counter | `command` | Redis commands sent (`get`, `set`, `del`, ...) |
 | `alita_db_queries_total` | counter | `operation` | Database statements (`query`, `create`, `update`, `delete`, `row`, `raw`) |
 | `alita_cache_local_hits_total` | counter | none | Read-through cache lookups served by the in-process layer (`CACHE_LOCAL_TTL`) |
 | `alita_cache_local_misses_total` | counter | none | Read-through cache lookups that missed the in-process layer and fell through to Redis |
 
+`outcome` is the worst of `ok`, `expected_error`, `error` and `panic` any
+handler gave the update. `panic` counts panics recovered by command handlers
+or the dispatcher; a module's own recover hides its panic. `command` is the
+command a new message starts with, without `/`, when it is a help-menu
+command, `other` for any other command, and empty otherwise. `module` is the
+help module of that command, or `other`, even when a different handler on the
+message failed.
+
+Error rate:
+
+```promql
+sum(rate(alita_updates_processed_total{outcome=~"error|panic"}[5m])) / sum(rate(alita_updates_processed_total[5m]))
+```
+
 Per-update cost:
 
 ```promql
-sum(rate(alita_redis_commands_total[5m])) / rate(alita_updates_processed_total[5m])
-sum(rate(alita_db_queries_total[5m])) / rate(alita_updates_processed_total[5m])
+sum(rate(alita_redis_commands_total[5m])) / sum(rate(alita_updates_processed_total[5m]))
+sum(rate(alita_db_queries_total[5m])) / sum(rate(alita_updates_processed_total[5m]))
 ```
 
 In-process cache hit ratio:

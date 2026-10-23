@@ -11,7 +11,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
-	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 type CommandContext struct {
@@ -90,7 +89,7 @@ func WrapCommand(
 	handler func(c *CommandContext) error,
 ) {
 	h := func(b *gotgbot.Bot, ctx *ext.Context) (result error) {
-		defer error_handling.RecoverFromPanicContext(tracing.UpdateContext(ctx), "command_pipeline", "WrapCommand")
+		defer error_handling.RecoverFromUpdatePanic(ctx, "command_pipeline", "WrapCommand")
 		// Runs before the recover above, so a panic after a swap ends groups too.
 		defer func() { result = endGroupsAfterChatSwap(ctx, result) }()
 		if desc.PMGroupArg != PMGroupArgOff {

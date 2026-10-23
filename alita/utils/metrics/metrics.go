@@ -8,6 +8,7 @@ package metrics
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -15,18 +16,29 @@ import (
 )
 
 var (
-	// UpdatesProcessed counts top-level Telegram updates handled by the dispatcher.
-	UpdatesProcessed = promauto.NewCounter(prometheus.CounterOpts{
+	// UpdatesProcessed counts top-level Telegram updates handled by the
+	// dispatcher, by update type, outcome and command (see CommandLabel).
+	UpdatesProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "alita_updates_processed_total",
-		Help: "Telegram updates processed by the dispatcher.",
-	})
+		Help: "Telegram updates processed by the dispatcher, by update type, outcome and command.",
+	}, []string{"update_type", "outcome", "command"})
 
-	// UpdateDuration observes how long one update took to process.
-	UpdateDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+	// UpdateDuration observes how long one update took to process. It has
+	// no command label: per command, the buckets would multiply the series
+	// by ~200.
+	UpdateDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "alita_update_duration_seconds",
-		Help:    "Time spent processing one Telegram update.",
+		Help:    "Time spent processing one Telegram update, by update type and outcome.",
 		Buckets: prometheus.DefBuckets,
-	})
+	}, []string{"update_type", "outcome"})
+
+	// HandlerErrors counts errors handlers returned, by the module of the
+	// command that failed ("other" for non-command updates) and whether the
+	// error is an expected Telegram one.
+	HandlerErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_handler_errors_total",
+		Help: "Errors returned by update handlers, by module and whether the error was expected.",
+	}, []string{"module", "expected"})
 
 	// RedisCommands counts Redis commands sent, labelled by lower-case command name.
 	RedisCommands = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -53,6 +65,67 @@ var (
 		Help: "Read-through cache lookups that missed the in-process layer.",
 	})
 )
+
+// Outcome is how an update's handling ended, ordered from best to worst.
+type Outcome int
+
+const (
+	OutcomeOK Outcome = iota
+	OutcomeExpectedError
+	OutcomeError
+	OutcomePanic
+)
+
+var outcomeLabels = [...]string{"ok", "expected_error", "error", "panic"}
+
+// String returns the outcome's label value.
+func (o Outcome) String() string {
+	if o < 0 || int(o) >= len(outcomeLabels) {
+		return Other
+	}
+	return outcomeLabels[o]
+}
+
+// Other is the label for a command or module outside the known set: label
+// values must not come straight from user text.
+const Other = "other"
+
+var commandModules atomic.Pointer[map[string]string]
+
+// SetCommandModules sets the known commands (without "/") and the module of
+// each. Commands outside it are labelled Other.
+func SetCommandModules(modules map[string]string) {
+	commandModules.Store(&modules)
+}
+
+// CommandLabel returns cmd if it is a known command, "" for no command, and
+// Other for anything else.
+func CommandLabel(cmd string) string {
+	if cmd == "" {
+		return ""
+	}
+	if _, ok := lookupModule(cmd); ok {
+		return cmd
+	}
+	return Other
+}
+
+// CommandModule returns the module of a known command, or Other.
+func CommandModule(cmd string) string {
+	if module, ok := lookupModule(cmd); ok {
+		return module
+	}
+	return Other
+}
+
+func lookupModule(cmd string) (string, bool) {
+	modules := commandModules.Load()
+	if modules == nil {
+		return "", false
+	}
+	module, ok := (*modules)[cmd]
+	return module, ok
+}
 
 // RedisHook is a go-redis hook that counts every command, including each
 // command inside a pipeline.

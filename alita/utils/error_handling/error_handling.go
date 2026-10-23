@@ -5,6 +5,7 @@ import (
 	"runtime/debug"
 	"sync/atomic"
 
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 
@@ -29,6 +30,18 @@ func RecoverFromPanicContext(ctx context.Context, funcName, modName string) {
 	if r := recover(); r != nil {
 		tracing.RecordPanic(trace.SpanFromContext(ctx), r)
 		handlePanic(ctx, funcName, modName, r)
+	}
+}
+
+// RecoverFromUpdatePanic is RecoverFromPanicContext for a handler: it also
+// labels the update's metrics as a panic, which the processor cannot see once
+// the panic is recovered here.
+func RecoverFromUpdatePanic(ctx *ext.Context, funcName, modName string) {
+	if r := recover(); r != nil {
+		updateCtx := tracing.UpdateContext(ctx)
+		tracing.RecordPanic(trace.SpanFromContext(updateCtx), r)
+		tracing.MarkUpdatePanic(ctx)
+		handlePanic(updateCtx, funcName, modName, r)
 	}
 }
 
