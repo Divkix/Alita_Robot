@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -79,8 +80,8 @@ func main() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("[Main] Panic recovered: %v", r)
-			os.Exit(1)
+			log.Errorf("[Main] Panic recovered: %v\nStack trace:\n%s", r, debug.Stack())
+			log.StandardLogger().Exit(1) // flushes telemetry first
 		}
 	}()
 
@@ -100,12 +101,6 @@ func main() {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
 	}
 	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
-
-	if err := tracing.InitTracing(); err != nil {
-		log.Warnf("Failed to initialize tracing: %v - continuing without distributed tracing", err)
-	} else {
-		log.Info("Distributed tracing initialized successfully")
-	}
 
 	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
 	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost

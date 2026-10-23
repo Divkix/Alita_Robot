@@ -136,18 +136,21 @@ func newMeterProvider(ctx context.Context, res *resource.Resource, endpoint stri
 }
 
 func shutdownOTLPSignals(ctx context.Context) error {
+	providersMu.Lock()
+	mp, lp := meterProvider, loggerProvider
+	meterProvider, loggerProvider = nil, nil
+	providersMu.Unlock()
+
 	var errs []error
-	if meterProvider != nil {
-		if err := meterProvider.Shutdown(ctx); err != nil {
+	if mp != nil {
+		if err := mp.Shutdown(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("failed to shutdown meter provider: %w", err))
 		}
-		meterProvider = nil
 	}
-	if loggerProvider != nil {
-		if err := loggerProvider.Shutdown(ctx); err != nil {
+	if lp != nil {
+		if err := lp.Shutdown(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("failed to shutdown logger provider: %w", err))
 		}
-		loggerProvider = nil
 	}
 	return errors.Join(errs...)
 }
