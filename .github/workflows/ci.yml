@@ -64,7 +64,6 @@ jobs:
           category: gosec
 
       - name: Run govulncheck
-        continue-on-error: true
         uses: golang/govulncheck-action@v1
 
   # Code quality - run on stable only (lint results don't vary by Go version)
