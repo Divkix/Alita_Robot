@@ -12,6 +12,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 func DeleteMessageWithErrorHandling(bot *gotgbot.Bot, chatId, messageId int64) error {
@@ -171,9 +172,11 @@ func LogHandlerError(ctx *ext.Context, err error) {
 		fields["function"] = wrappedErr.Function
 	}
 
+	// The update's context ties the log record to its trace.
+	entry := log.WithContext(tracing.UpdateContext(ctx)).WithFields(fields)
 	if IsExpectedTelegramError(err) {
-		log.WithFields(fields).Warnf("Expected Telegram API error: %v", err)
+		entry.Warnf("Expected Telegram API error: %v", err)
 		return
 	}
-	log.WithFields(fields).Errorf("Handler error occurred: %v", err)
+	entry.Errorf("Handler error occurred: %v", err)
 }

@@ -395,11 +395,11 @@ Enable pprof endpoints for performance profiling (development only)
 | **Required** | No |
 | **Default** | `false` |
 
-## 📂 OpenTelemetry tracing configuration
+## 📂 OpenTelemetry configuration
 
 ### `OTEL_EXPORTER_OTLP_ENDPOINT`
 
-OTLP gRPC endpoint for trace export (e.g., `localhost:4317`). When set, the bot sends traces to this endpoint.
+OTLP gRPC endpoint (e.g., `localhost:4317`). When set, the bot sends traces, logs and its Prometheus metrics to this endpoint. Each update's span carries `update.type`, `chat.id`, `chat.type`, `user.id`, `bot.command` (the first word of a message starting with `/`) and `callback.namespace`; a handler error sets the span to Error with `error.type` and `error.message` (expected Telegram errors only set `error.expected=true`). Log records are scrubbed by the same redaction as stdout logs.
 
 | Property | Value |
 |----------|-------|
@@ -425,6 +425,45 @@ Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_E
 | **Type** | `boolean` |
 | **Required** | No |
 | **Default** | `false` |
+
+### `OTEL_EXPORTER_OTLP_HEADERS`
+
+Headers sent with every OTLP export, as `key1=value1,key2=value2` (for ClickStack/HyperDX: `authorization=<ingestion API key>`). Values are redacted from logs.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+### `OTEL_LOGS_EXPORTER`
+
+Set to `none` to stop exporting logs over OTLP while traces and metrics keep flowing. Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+| **Default** | `otlp` |
+
+### `OTEL_METRICS_EXPORTER`
+
+Set to `none` to stop exporting the Prometheus registry over OTLP. Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; `/metrics` is unaffected.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+| **Default** | `otlp` |
+
+### `OTEL_METRIC_EXPORT_INTERVAL`
+
+Milliseconds between OTLP metric exports.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `int` |
+| **Required** | No |
+| **Default** | `60000` |
 
 ### `OTEL_SERVICE_NAME`
 
@@ -775,10 +814,14 @@ INACTIVITY_THRESHOLD_DAYS=# days before marking inactive (default: 30)
 METRICS_AUTH_TOKEN=# protects /metrics and /db_metrics
 MIGRATIONS_PATH=# path to migration files (default: migrations)
 OTEL_EXPORTER_CONSOLE=# enable console trace exporter (default: false)
-OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint (e.g., localhost:4317)
+OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint for traces, logs and metrics (e.g., localhost:4317)
+OTEL_EXPORTER_OTLP_HEADERS=# OTLP headers, e.g. authorization=<ingestion key>
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
 OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
+OTEL_LOGS_EXPORTER=# none disables OTLP log export
+OTEL_METRICS_EXPORTER=# none disables OTLP metric export
+OTEL_METRIC_EXPORT_INTERVAL=# ms between OTLP metric exports (default: 60000)
 PANEL_ENABLED=# enable the Telegram Mini App admin panel (default: false)
 PANEL_MINIAPP_SHORTNAME=# optional BotFather Mini App short name for direct group links
 PANEL_PUBLIC_URL=# public HTTPS URL Telegram opens for the panel, e.g. https://host/panel; required when PANEL_ENABLED=true

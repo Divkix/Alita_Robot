@@ -170,6 +170,13 @@ func main() {
 	memberSnapshotter := membersnapshot.New(b)
 	recurringScheduler := recurring.NewScheduler(b)
 
+	// Registered first so it runs last: every other handler's logs and spans
+	// are exported before the providers close.
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Shutting down tracer provider...")
+		return tracing.Shutdown(context.Background())
+	})
+
 	registerShutdownDrains(shutdownManager,
 		func() error {
 			log.Info("[Shutdown] Closing database connections...")
@@ -225,11 +232,6 @@ func main() {
 			return nil
 		})
 	}
-
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Shutting down tracer provider...")
-		return tracing.Shutdown(context.Background())
-	})
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping captcha lifecycle...")
@@ -427,6 +429,7 @@ func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.Dis
 		return ext.DispatcherActionNoop
 	}
 
+	tracing.RecordUpdateError(ctx, err, helpers.IsExpectedTelegramError(err))
 	helpers.LogHandlerError(ctx, err)
 	return ext.DispatcherActionNoop
 }
