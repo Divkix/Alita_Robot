@@ -694,7 +694,11 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// The list is cached, so it can still name a note whose row is gone.
 	noteData := notes.GetNote(chat.Id, strings.ToLower(noteName))
+	if noteData == nil {
+		return ext.ContinueGroups
+	}
 
 	if noteData.NoteContent == "" && noteData.FileID == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -809,7 +813,12 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	noteName := args[0]
 
-	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteName)) {
+	// The list is cached, so it can still name a note whose row is gone.
+	var noteData *db.Notes
+	if slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteName)) {
+		noteData = notes.GetNote(chat.Id, strings.ToLower(noteName))
+	}
+	if noteData == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_does_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -819,8 +828,6 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	}
-
-	noteData := notes.GetNote(chat.Id, strings.ToLower(noteName))
 
 	if noteData.NoteContent == "" && noteData.FileID == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

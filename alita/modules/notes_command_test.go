@@ -13,6 +13,7 @@ import (
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 )
 
@@ -590,6 +591,43 @@ func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	}
 	if got := calls[0].Params["text"]; got != "be kind" {
 		t.Fatalf("note text = %q, want be kind", got)
+	}
+}
+
+// The notes list is read through the cache, so it can still name a note whose
+// row is gone (deleted on another replica inside the cache TTL). Neither
+// #note nor /get may then dereference the missing row.
+func TestNoteMissingBehindCachedListIsTreatedAsAbsent(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	if err := notes.AddNote(f.chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+	if list := notes.GetNotesList(f.chat.Id, true); len(list) != 1 {
+		t.Fatalf("cached notes list = %v, want the saved note", list)
+	}
+	if err := db.DB.Where("chat_id = ? AND note_name = ?", f.chat.Id, "rules").Delete(&models.Notes{}).Error; err != nil {
+		t.Fatalf("delete note row: %v", err)
+	}
+
+	watchCtx := newModuleMessageContext(f.bot, f.chat, f.member, "#rules")
+	if err := notesModule.notesWatcher(f.bot, watchCtx); err != ext.ContinueGroups {
+		t.Fatalf("notesWatcher() error = %v, want ContinueGroups", err)
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("notesWatcher sent %d messages for a missing note, want none", len(calls))
+	}
+
+	getCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/get rules")
+	if err := notesModule.getNotes(f.bot, getCtx); err != ext.EndGroups {
+		t.Fatalf("getNotes() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the missing-note reply", len(calls))
+	}
+	if got, want := calls[0].Params["text"], translated(t, "notes_does_not_exist"); got != want {
+		t.Fatalf("reply = %q, want %q", got, want)
 	}
 }
 
