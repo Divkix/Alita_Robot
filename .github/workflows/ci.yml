@@ -70,7 +70,7 @@ jobs:
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -90,8 +90,13 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          # Own key family: the security and build jobs save under go-* in the
+          # same run, and only the first save of a key wins, so nilaway's
+          # module and analysis cache would rarely be kept.
+          key: go-lint-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
           restore-keys: |
+            go-lint-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-lint-${{ runner.os }}-
             go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
             go-${{ runner.os }}-
 
