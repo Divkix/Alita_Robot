@@ -107,41 +107,40 @@ jobs:
 
       - name: Technical Debt Tracking
         run: |
-          echo "## 📋 Technical Debt Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Find all TODO, FIXME, HACK, XXX comments in Go files
-          echo "### Detected Technical Debt Markers" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Count markers
-          TODO_COUNT=$(grep -r -n "TODO" --include="*.go" . 2>/dev/null | grep -v "godot\|godoc" | wc -l)
+          # Count TODO, FIXME, HACK, XXX comments in Go files. grep -c exits 1
+          # on a zero count, which would fail the step under bash -e.
+          TODO_COUNT=$(grep -r -n "TODO" --include="*.go" . 2>/dev/null | grep -c -v "godot\|godoc" || true)
           FIXME_COUNT=$(grep -r -n "FIXME" --include="*.go" . 2>/dev/null | wc -l)
           HACK_COUNT=$(grep -r -n "HACK" --include="*.go" . 2>/dev/null | wc -l)
           XXX_COUNT=$(grep -r -n "XXX" --include="*.go" . 2>/dev/null | wc -l)
-
-          echo "| Marker | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| TODO | $TODO_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| FIXME | $FIXME_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| HACK | $HACK_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| XXX | $XXX_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
           TOTAL=$((TODO_COUNT + FIXME_COUNT + HACK_COUNT + XXX_COUNT))
-          echo "**Total Technical Debt Markers: $TOTAL**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Show details if any markers found
-          if [ "$TOTAL" -gt 0 ]; then
-            echo "### Details" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -r -n -E "(TODO|FIXME|HACK|XXX)" --include="*.go" . 2>/dev/null | head -50 >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## 📋 Technical Debt Report"
+            echo ""
+            echo "### Detected Technical Debt Markers"
+            echo ""
+            echo "| Marker | Count |"
+            echo "|--------|-------|"
+            echo "| TODO | $TODO_COUNT |"
+            echo "| FIXME | $FIXME_COUNT |"
+            echo "| HACK | $HACK_COUNT |"
+            echo "| XXX | $XXX_COUNT |"
+            echo ""
+            echo "**Total Technical Debt Markers: $TOTAL**"
+            echo ""
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** Please ensure TODO/FIXME comments reference an issue (e.g., TODO(#123))" >> $GITHUB_STEP_SUMMARY
+            # Show details if any markers found
+            if [ "$TOTAL" -gt 0 ]; then
+              echo "### Details"
+              echo '```'
+              grep -r -n -E "(TODO|FIXME|HACK|XXX)" --include="*.go" . 2>/dev/null | head -50
+              echo '```'
+            fi
+
+            echo ""
+            echo "**Note:** Please ensure TODO/FIXME comments reference an issue (e.g., TODO(#123))"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run duplicate code detection
         uses: golangci/golangci-lint-action@v9
@@ -155,45 +154,47 @@ jobs:
 
       - name: Cyclomatic Complexity Analysis
         run: |
-          echo "## 📊 Cyclomatic Complexity Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
           # Install gocyclo for complexity analysis
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-
-          # Run complexity analysis with threshold 15
-          echo "### Functions with Complexity > 15" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
 
           # Get high complexity functions
           HIGH_COMPLEX=$(gocyclo -over 15 . 2>/dev/null | grep -v "could not get file info" | sort -t= -k2 -nr || true)
 
-          if [ -n "$HIGH_COMPLEX" ]; then
-            echo "| Complexity | Function | Location |" >> $GITHUB_STEP_SUMMARY
-            echo "|------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
-            echo "$HIGH_COMPLEX" | while read line; do
-              # Parse the gocyclo output format: complexity package function file:line
-              COMPLEX=$(echo "$line" | awk '{print $1}')
-              PKG=$(echo "$line" | awk '{print $2}')
-              FUNC=$(echo "$line" | awk '{print $3}')
-              LOC=$(echo "$line" | awk '{print $4}')
-              echo "| $COMPLEX | $PKG.$FUNC | $LOC |" >> $GITHUB_STEP_SUMMARY
-            done
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **Warning:** Functions with high cyclomatic complexity should be refactored for better maintainability." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "✅ No functions with cyclomatic complexity > 15 detected." >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## 📊 Cyclomatic Complexity Report"
+            echo ""
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Complexity Statistics" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+            # Run complexity analysis with threshold 15
+            echo "### Functions with Complexity > 15"
+            echo ""
 
-          # Get top 10 most complex functions
-          echo "**Top 10 Most Complex Functions:**" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          gocyclo . 2>/dev/null | grep -v "could not get file info" | sort -t= -k2 -nr | head -10 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+            if [ -n "$HIGH_COMPLEX" ]; then
+              echo "| Complexity | Function | Location |"
+              echo "|------------|----------|----------|"
+              echo "$HIGH_COMPLEX" | while read -r line; do
+                # Parse the gocyclo output format: complexity package function file:line
+                COMPLEX=$(echo "$line" | awk '{print $1}')
+                PKG=$(echo "$line" | awk '{print $2}')
+                FUNC=$(echo "$line" | awk '{print $3}')
+                LOC=$(echo "$line" | awk '{print $4}')
+                echo "| $COMPLEX | $PKG.$FUNC | $LOC |"
+              done
+              echo ""
+              echo "⚠️ **Warning:** Functions with high cyclomatic complexity should be refactored for better maintainability."
+            else
+              echo "✅ No functions with cyclomatic complexity > 15 detected."
+            fi
+
+            echo ""
+            echo "### Complexity Statistics"
+            echo ""
+
+            # Get top 10 most complex functions
+            echo "**Top 10 Most Complex Functions:**"
+            echo '```'
+            gocyclo . 2>/dev/null | grep -v "could not get file info" | sort -t= -k2 -nr | head -10
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # Build verification - run in parallel with other checks
   build:
@@ -308,7 +309,7 @@ jobs:
 
       - name: Wait for PostgreSQL
         run: |
-          for i in {1..30}; do
+          for _ in {1..30}; do
             (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && exit 0
             sleep 2
           done
@@ -317,7 +318,7 @@ jobs:
 
       - name: Wait for Redis
         run: |
-          for i in {1..30}; do
+          for _ in {1..30}; do
             (echo > /dev/tcp/127.0.0.1/6379) >/dev/null 2>&1 && exit 0
             sleep 2
           done
@@ -346,14 +347,16 @@ jobs:
           echo "Test suite duration: ${duration}s"
 
           # Add to job summary
-          echo "## 🧪 Test Suite Performance" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Total Duration:** ${duration} seconds" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 🧪 Test Suite Performance"
+            echo ""
+            echo "**Total Duration:** ${duration} seconds"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Re-exit with test failure status if tests failed
           if [ -n "${test_exit}" ]; then
-            exit ${test_exit}
+            exit "${test_exit}"
           fi
 
       - name: Check coverage threshold
@@ -367,20 +370,22 @@ jobs:
           THRESHOLD=78
           COVERAGE=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
 
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Total Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
-          echo "**Minimum Threshold:** ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Coverage Report"
+            echo ""
+            echo "**Total Coverage:** ${COVERAGE}%"
+            echo "**Minimum Threshold:** ${THRESHOLD}%"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Use awk for float comparison (bc may not be available)
           BELOW=$(awk "BEGIN {print ($COVERAGE < $THRESHOLD) ? 1 : 0}")
           if [ "$BELOW" -eq 1 ]; then
-            echo "FAIL: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            echo "FAIL: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
             echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
             exit 1
           else
-            echo "PASS: Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            echo "PASS: Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload coverage reports
@@ -469,7 +474,7 @@ jobs:
 
       - name: Extract short commit SHA
         id: short-sha
-        run: echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+        run: echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
         id: meta
@@ -504,13 +509,15 @@ jobs:
 
       - name: Add build info to job summary
         run: |
-          echo "## 🐳 Docker Build Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Main Branch Build**" >> $GITHUB_STEP_SUMMARY
-          echo "- **Latest Dev:** \`ghcr.io/${{ github.repository }}:dev\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit Build:** \`ghcr.io/${{ github.repository }}:${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 🐳 Docker Build Complete"
+            echo ""
+            echo "**Main Branch Build**"
+            echo "- **Latest Dev:** \`ghcr.io/${{ github.repository }}:dev\`"
+            echo "- **Commit Build:** \`ghcr.io/${{ github.repository }}:${{ steps.short-sha.outputs.short_sha }}\`"
+            echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`"
+            echo "- **Platforms:** \`linux/amd64\`, \`linux/arm64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # CI success gate
   ci-success:
