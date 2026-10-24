@@ -136,19 +136,25 @@ func ChatExistsContext(ctx context.Context, chatID int64) bool {
 // TableRowCount returns an estimated row count for the given table.
 // On PostgreSQL it reads pg_stat_user_tables.n_live_tup (O(1), updated by the
 // stats collector on every insert and delete), avoiding the full-table-scan
-// that COUNT(*) requires under MVCC. pg_class.reltuples only moves on ANALYZE,
-// which autoanalyze may not run for weeks on a large table whose writes are
-// throttled, so it is only the fallback for tables the collector has no row
-// for yet. COUNT(*) backs both up, as it does on SQLite in tests.
+// that COUNT(*) requires under MVCC. n_live_tup covers the whole table only
+// once a VACUUM or ANALYZE has run since the stats were last reset (a crash or
+// failover resets them); until then it counts just the rows inserted since,
+// so the estimate is pg_class.reltuples (as of the last VACUUM or ANALYZE)
+// plus the net inserts since the reset. A table never vacuumed or analyzed
+// (reltuples -1) has no estimate: COUNT(*) gives it, as it does on SQLite in
+// tests.
 func TableRowCount(tableName string) int64 {
 	if DB == nil {
 		return 0
 	}
 	var count int64
-	if err := DB.Raw("SELECT n_live_tup FROM pg_stat_user_tables WHERE relname = ?", tableName).Scan(&count).Error; err == nil && count > 0 {
-		return count
-	}
-	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil && count >= 0 {
+	estimate := DB.Raw(`SELECT CASE
+		WHEN coalesce(s.last_vacuum, s.last_autovacuum, s.last_analyze, s.last_autoanalyze) IS NOT NULL THEN s.n_live_tup
+		ELSE greatest(c.reltuples::bigint + coalesce(s.n_tup_ins - s.n_tup_del, 0), 0)
+	END
+	FROM pg_class c LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+	WHERE c.oid = to_regclass(?) AND c.reltuples >= 0`, tableName).Scan(&count)
+	if estimate.Error == nil && estimate.RowsAffected > 0 {
 		return count
 	}
 	DB.Table(tableName).Count(&count)
