@@ -24,6 +24,7 @@ func TestCheckResultsRejectsFailuresAndUnexpectedSkips(t *testing.T) {
 
 func TestCheckResultsAllowsPostgresOnlySkipsOutsidePostgres(t *testing.T) {
 	skips := []string{
+		`{"Action":"skip","Package":"github.com/divkix/Alita_Robot/alita/db","Test":"TestTableRowCountSurvivesStatsReset"}`,
 		`{"Action":"skip","Package":"github.com/divkix/Alita_Robot/alita/db/chats","Test":"TestUpdateChat"}`,
 		`{"Action":"skip","Package":"github.com/divkix/Alita_Robot/alita/db/chats","Test":"TestListChatsWithUser"}`,
 		`{"Action":"skip","Package":"github.com/divkix/Alita_Robot/alita/db/backup","Test":"TestWarnsImportAndClearWaitForTheChatLock"}`,

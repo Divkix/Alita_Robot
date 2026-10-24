@@ -58,6 +58,8 @@ func postgresSkip(event testEvent) bool {
 		return false
 	}
 	switch event.Package {
+	case "github.com/divkix/Alita_Robot/alita/db":
+		return event.Test == "TestTableRowCountSurvivesStatsReset"
 	case "github.com/divkix/Alita_Robot/alita/db/chats":
 		return event.Test == "TestUpdateChat" || event.Test == "TestListChatsWithUser"
 	case "github.com/divkix/Alita_Robot/alita/db/backup":
