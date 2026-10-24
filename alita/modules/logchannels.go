@@ -204,11 +204,11 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	prev := logchannels.Get(chat.Id)
 	if err := logchannels.Unset(chat.Id); err != nil {
 		text, _ := tr.GetString("logs_not_set")
-		replyHTML(b, msg, text)
+		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_unset_ok")
-	replyHTML(b, msg, text)
+	replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 	actionlog.SettingsTo(b, chat, prev, from, "unset log channel")
 	return ext.EndGroups
 }
@@ -226,13 +226,13 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	settings := logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id)
 	if settings == nil {
 		text, _ := tr.GetString("logs_not_set")
-		replyHTML(b, msg, text)
+		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_current", i18n.TranslationParams{
 		"id": strconv.FormatInt(settings.LogChannelID, 10),
 	})
-	replyHTML(b, msg, text)
+	replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 	return ext.EndGroups
 }
 
@@ -268,13 +268,13 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	}
 	if logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id) == nil {
 		text, _ := tr.GetString("logs_not_set")
-		replyHTML(b, msg, text)
+		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
 		text, _ := tr.GetString("logs_usage")
-		replyHTML(b, msg, text)
+		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
 	var unknown []string
@@ -288,7 +288,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		if err := logchannels.SetCategory(chat.Id, name, enable); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				text, _ := tr.GetString("logs_not_set")
-				replyHTML(b, msg, text)
+				replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 				return ext.EndGroups
 			}
 			log.Error(err)
@@ -298,7 +298,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	}
 	if len(unknown) > 0 && len(changed) == 0 {
 		text, _ := tr.GetString("logs_unknown_category")
-		replyHTML(b, msg, text)
+		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
 	key := "logs_disabled"
@@ -308,7 +308,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	text, _ := tr.GetString(key, i18n.TranslationParams{
 		"cats": strings.Join(changed, ", "),
 	})
-	replyHTML(b, msg, text)
+	replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 	actionlog.Settings(b, chat, from, key+" "+strings.Join(changed, ", "))
 	return ext.EndGroups
 }
