@@ -35,6 +35,8 @@ end
 return n
 `)
 
+// aispamDailyKey is shared by replicas for one UTC day's AISPAM_DAILY_LIMIT count.
+// It is operational state outside alita:cache:, so CLEAR_CACHE_ON_STARTUP leaves it intact.
 func aispamDailyKey(day string) string {
 	return "alita:aispam:daily:" + day
 }

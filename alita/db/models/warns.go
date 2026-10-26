@@ -77,6 +77,9 @@ func (Warns) TableName() string {
 // nil WarnedAt is a warn from before entries existed. Anonymous hides the
 // issuer, who was an anonymous admin; WarnedBy still records the real account,
 // which a backup export drops.
+// Entries cascade from chats and users, but have no foreign key to warns_users.
+// Deleting warns_users must also delete matching entries in the same transaction, holding
+// the chat's FOR UPDATE row lock first so a concurrent first warn cannot lose its entry.
 type WarnEntry struct {
 	ID        uint       `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64      `gorm:"column:user_id;not null" json:"user_id,omitempty"`

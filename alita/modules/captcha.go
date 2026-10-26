@@ -429,6 +429,7 @@ func secureShuffleStrings(values []string) error {
 	return nil
 }
 
+// viewPendingMessages lets admins list a user's stored messages with /captchapending.
 func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	if chat_status.RequireUser(bot, ctx) == nil {
@@ -487,6 +488,7 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 	return err
 }
 
+// clearPendingMessages lets admins delete a user's stored messages with /captchaclear.
 func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	if chat_status.RequireUser(bot, ctx) == nil {
@@ -1142,6 +1144,7 @@ func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, option
 }
 
 // SendCaptcha sends a captcha challenge to a new member.
+// There is one pending attempt per (user, chat); creating a challenge replaces the old one.
 //
 //nolint:gocyclo // The ordered mute/send/persist rollback state machine is intentionally cohesive.
 func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName string) (err error) {
@@ -1606,6 +1609,9 @@ func restoreCaptchaPermissions(bot *gotgbot.Bot, chatID, userID int64) error {
 	return captcha.DeleteMutedUser(userID, chatID)
 }
 
+// captchaVerifyCallback completes a correct answer by deleting the attempt and its stored rows.
+// It never replays stored messages: their only replacement is a type/count summary using
+// captcha_stored_messages_summary, removed after 30 seconds.
 func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -2046,6 +2052,8 @@ func captchaAttemptForUpdate(ctx *ext.Context, userID, chatID int64) (*models.Ca
 	return r.attempt, r.err
 }
 
+// handlePendingCaptchaMessage runs in dispatcher group -10, stores pending users' message
+// types, text, file IDs and captions, and deletes the originals rather than replaying them.
 func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat

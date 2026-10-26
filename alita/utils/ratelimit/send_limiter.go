@@ -74,7 +74,8 @@ func NewSendLimiter(rate, burst int) *SendLimiter {
 var globalSendLimiter = NewSendLimiter(DefaultSendRate, DefaultSendBurst)
 
 // GlobalSendLimiter returns the process-wide limiter every background
-// fan-out shares.
+// fan-out shares. Route new scheduled sends through its Do method, not a
+// separate limiter; the bucket is per replica and is not shared through Redis.
 func GlobalSendLimiter() *SendLimiter {
 	return globalSendLimiter
 }
@@ -143,6 +144,7 @@ func (l *SendLimiter) Pause(d time.Duration) {
 
 // PausedFor returns how long the current flood-wait pause still runs, or 0.
 // A fan-out checks it before claiming work it could not send in time.
+// End the tick when it exceeds MaxSendRetryAfter, before taking another claim.
 func (l *SendLimiter) PausedFor() time.Duration {
 	l.mu.Lock()
 	defer l.mu.Unlock()

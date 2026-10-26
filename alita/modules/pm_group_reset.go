@@ -71,6 +71,8 @@ func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *g
 
 // confirmData is the callback data of a reset confirmation for chat. "c"
 // names the group, so a confirmation sent in PM acts on it.
+// Confirmations always include "c", even when sent in a group, and their
+// handlers must resolve and authorize that target through ownerConfirmChat.
 func confirmData(namespace, action string, chat *gotgbot.Chat) string {
 	return encodeCallbackData(namespace, map[string]string{"a": action, "c": strconv.FormatInt(chat.Id, 10)})
 }
@@ -91,6 +93,9 @@ func confirmKeyboard(tr *i18n.Translator, namespace string, chat *gotgbot.Chat) 
 // on: the one its "c" field names or, on a button without one, the chat the
 // button is in (nil when Telegram did not include its message). ok is false
 // when "c" is malformed.
+// This fallback also supports buttons sent before PM support. Bans and
+// unrestrict handlers must check the presser's rights against the returned chat,
+// never against the PM where the button was pressed.
 func buttonChat(ctx *ext.Context, decoded *callbackcodec.Decoded) (chat *gotgbot.Chat, ok bool) {
 	if decoded != nil {
 		if raw, named := decoded.Field("c"); named {

@@ -266,6 +266,7 @@ func expiredWarn(e models.WarnEntry, expiry int, now time.Time) bool {
 // pruneExpiredEntries deletes the user's expired entries and takes them off
 // the count and the reasons column. It runs with the user's warns row locked,
 // and the caller saves warnrc.
+// Only WarnUser and RemoveWarn prune expired entries, under their row locks.
 func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, error) {
 	if expiry <= 0 || warnrc.NumWarns == 0 {
 		return false, nil
@@ -428,6 +429,8 @@ func GetWarns(userId, chatId int64) (int, []models.WarnEntry) {
 	return GetWarnsContext(context.Background(), userId, chatId)
 }
 
+// GetWarnsContext subtracts expired entries from num_warns after reading the cache.
+// It filters the returned entries without pruning storage; a NULL warned_at never expires.
 func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []models.WarnEntry) {
 	// Reasons keeps its pre-entries field name on purpose: a value cached by an
 	// older release ([]string) then fails to decode and is reloaded, where a

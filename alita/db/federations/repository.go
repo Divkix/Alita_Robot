@@ -541,6 +541,8 @@ func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.F
 }
 
 // GetFedBanE is GetFedBanContext that returns a failed lookup instead of nil.
+// Results are cached per (fedID, userID), including a negative sentinel for a missing ban.
+// Every ban or unban write must invalidate that key after the write succeeds.
 func GetFedBanE(ctx context.Context, fedID string, userID int64) (*models.FederationBan, error) {
 	result, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey(cachePrefixFedBan, fedID, userID),

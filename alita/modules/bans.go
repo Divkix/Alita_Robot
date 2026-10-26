@@ -1065,6 +1065,7 @@ func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat
 // pmButtonChatID is the group a button a moderation command sends in reply to
 // msg names: chat, the group it acts on, when msg came from PM, whose chat
 // names no group; else 0, so the button acts on the chat it is pressed in.
+// Pass this value to keyboard.UnrestrictButton for unban and unmute buttons.
 func pmButtonChatID(msg *gotgbot.Message, chat *gotgbot.Chat) int64 {
 	if inPM(msg) {
 		return chat.Id
@@ -1074,6 +1075,7 @@ func pmButtonChatID(msg *gotgbot.Message, chat *gotgbot.Chat) int64 {
 
 // moderationButtonData is the callback data of a button a bans command sends
 // in reply to msg, naming the group in its "c" field when pmButtonChatID does.
+// In groups it adds no "c"; buttonChat then falls back to the button's chat.
 func moderationButtonData(namespace string, msg *gotgbot.Message, chat *gotgbot.Chat, fields map[string]string) string {
 	if chatID := pmButtonChatID(msg, chat); chatID != 0 {
 		fields["c"] = strconv.FormatInt(chatID, 10)

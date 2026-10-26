@@ -68,6 +68,8 @@ var spamCorpora = struct {
 
 // spamCorpusForget drops this replica's copy of the chat's samples and of
 // the shared corpus, after a write that changed them.
+// Every sample mutation must call this or spamCorpusForgetAll after the repository has
+// invalidated its own sample cache.
 func spamCorpusForget(chatID int64) {
 	spamCorpora.mu.Lock()
 	delete(spamCorpora.chats, chatID)
@@ -133,7 +135,8 @@ func spamChatCorpus(ctx context.Context, chatID int64, now time.Time) (spamCorpu
 	return corpus, nil
 }
 
-// spamSharedCorpus returns the texts unrelated chats flagged.
+// spamSharedCorpus returns texts flagged by two unrelated chats via spamfilter.Shared.
+// Both owners must be known and different, with no shared human admin.
 func spamSharedCorpus(ctx context.Context, now time.Time) (spamCorpus, error) {
 	spamCorpora.mu.Lock()
 	corpus := spamCorpora.shared
@@ -178,7 +181,7 @@ func bestSpamMatch(entries []spamCorpusEntry, v spamtext.Vector, floor float64) 
 	return best
 }
 
-// spamFilterMatch compares v with the chat's spam and the shared corpus. A
+// spamFilterMatch compares v only with the chat's own spam and the shared corpus. A
 // message matches when its closest spam text is at least threshold similar
 // and closer than any text the chat called ham.
 func spamFilterMatch(ctx context.Context, chatID int64, v spamtext.Vector, threshold float64, now time.Time) (spamMatch, bool, error) {
@@ -203,12 +206,11 @@ func spamFilterMatch(ctx context.Context, chatID int64, v spamtext.Vector, thres
 	return best, true, nil
 }
 
-// spamFilterCheck matches a message the AI check would see against the
-// chat's samples, before the AI check, and reports whether it deleted the
-// message, in which case the AI check is skipped. A chat with the filter off
-// costs one cached settings read. In a dry run, and in the first days after
-// the filter is turned on, a match is logged and the message kept, so the AI
-// check still runs.
+// spamFilterCheck runs in the aispam watcher before any Jev call and reports whether
+// it deleted the message, in which case the AI check is skipped. The filter defaults
+// to off, costing one cached settings read. In dryrun mode and for seven days after
+// the chat enables the filter, a match is only logged and the message kept,
+// so the AI check still runs.
 func spamFilterCheck(b *gotgbot.Bot, ctx *ext.Context, text string) bool {
 	chat, msg, user := ctx.EffectiveChat, ctx.EffectiveMessage, ctx.EffectiveUser
 	reqCtx := tracing.UpdateContext(ctx)

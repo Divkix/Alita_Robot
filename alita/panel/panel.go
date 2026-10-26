@@ -1,6 +1,15 @@
 // Package panel serves the Telegram Mini App admin dashboard. The handler owns
 // authentication, routing, JSON encoding, security headers and rate limiting;
 // the HTTP server only mounts it.
+//
+// The panel is disabled unless PANEL_ENABLED is true and authenticates only through VerifyInitData.
+// Every /chats/{id} endpoint starts with chatRequest: only current group members have access, and
+// non-admins are read-only. Each write uses requirePermission with the Telegram rights checked by
+// the equivalent bot command. Never use chat_status reply-sending helpers here; the linter enforces
+// this boundary so panel refusals do not send messages into the chat.
+//
+// The embedded frontend in web is plain HTML, CSS and vanilla JavaScript with no build step.
+// Render server data with DOM APIs, never innerHTML.
 package panel
 
 import (

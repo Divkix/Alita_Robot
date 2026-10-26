@@ -20,6 +20,8 @@ import (
 //
 // Other replicas can serve a value for up to CACHE_LOCAL_TTL seconds after a
 // write; the replica that wrote evicts its own copy in DeleteCache.
+// CACHE_LOCAL_TTL defaults to 10 seconds. Tests that write rows directly must call
+// ResetLocalForTest or DeleteCache before reading through GetFromCacheOrLoad.
 
 // localLayer binds the LRU to the marshaler it mirrors. When the backing
 // store is swapped (InitCache, tests), the LRU is purged so it never serves

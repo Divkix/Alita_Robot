@@ -1,3 +1,9 @@
+// Package main gates make test by reading go test -json output and rejecting failures,
+// unexpected test skips, and streams without a pass event.
+// Legitimate PostgreSQL-only skips must be allowlisted in postgresSkip by package and test name
+// and covered in main_test.go; they are rejected when ALITA_TEST_DATABASE=true.
+// Migration-package skips are allowed only when neither ALITA_TEST_MIGRATION_CHAIN nor
+// ALITA_TEST_DATABASE is true. Package-level skip events without a test name are ignored.
 package main
 
 import (

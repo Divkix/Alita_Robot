@@ -5,6 +5,8 @@
 # the name of the invariant the model must violate (a model of the old, buggy
 # code). A buggy model that stops failing means the spec no longer describes
 # the bug it was written for.
+# Add every new TLA+ model in formal/ to MODELS; the array is not discovered automatically.
+# Lean proofs in formal/ are not built in CI.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
