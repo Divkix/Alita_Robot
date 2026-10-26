@@ -44,11 +44,20 @@ test: .SHELLFLAGS := -o pipefail -c
 test:
 	$(GO_CMD) test -tags testtools -json -race -coverprofile=coverage.out -coverpkg=$$(go list ./alita/... | paste -sd, -) -count=1 -timeout 10m ./... | $(GO_CMD) run ./scripts/check_test_results
 
+# Postgres-only integrity tests, one alternation. go test passes when -run matches nothing, so a
+# renamed test would silently drop out: the target first fails on any name no package lists.
+POSTGRES_INTEGRITY_TESTS = TestAllModulesRoundTripEveryMeaningfulField|TestImportChatDataRollsBackEarlierModules|TestImportWarnsCreatesMissingParents|TestLegacyBackupPreservesFieldsThatVersionDidNotExport|TestDeleteCaptchaAttemptByIDAtomicSingleClaim|TestCreateMutedUserUpdatesExistingSchedule|TestCreateCaptchaAttemptReplacesExistingChallenge|TestCreateCaptchaAttemptIfEnabledRejectsDisabledChat|TestCaptchaAttemptClaimsSchedulePermissionRestore|TestDeleteMutedUserIfUnchangedPreservesNewerSchedule|TestIncrementCaptchaAttemptsRejectsRefreshedChallenge|TestUpdateChannelClearsAndReassignsNormalizedUsername|TestConnectChat|TestAddAndGetFiltersList|TestAddNotePreservesExistingUntilExplicitUpdate|TestReportSettingsCRUD|TestCreateDedupesSameReporterOnSameMessage|TestCreateRejectsUnknownStatus|TestDeleteExpiredBeforeDropsOldReports|TestConcurrentResolveHasOneWinner|TestConcurrentResolveAndSetAdminMessage|TestWarnUserCreatesMissingParentRows|TestWarnUserDropsExpiredWarns|TestConcurrentWarnAndRemovePreserveCount|TestWarnsImportAndClearWaitForTheChatLock|TestResetsWaitForTheChatLock|TestUpdateChat|TestListChatsWithUser|TestTableRowCountSurvivesStatsReset
+POSTGRES_INTEGRITY_PKGS = ./alita/db ./alita/db/backup ./alita/db/captcha ./alita/db/channels ./alita/db/connections \
+	./alita/db/filters ./alita/db/notes ./alita/db/reports ./alita/db/warns ./alita/db/chats
+
+test-postgres-integrity: SHELL := /bin/bash
+test-postgres-integrity: .SHELLFLAGS := -o pipefail -c
 test-postgres-integrity:
+	@missing=$$(comm -23 <(tr '|' '\n' <<< '$(POSTGRES_INTEGRITY_TESTS)' | sort -u) \
+		<($(GO_CMD) test -tags testtools -list . $(POSTGRES_INTEGRITY_PKGS) | grep '^Test' | sort -u)) || exit 1; \
+	if [ -n "$$missing" ]; then echo "test-postgres-integrity: no test named $$missing" | paste -sd' ' - >&2; exit 1; fi
 	$(GO_CMD) test -tags testtools -v -race -p 1 -count=1 -timeout 10m \
-		-run '^(TestAllModulesRoundTripEveryMeaningfulField|TestImportChatDataRollsBackEarlierModules|TestImportWarnsCreatesMissingParents|TestLegacyBackupPreservesFieldsThatVersionDidNotExport|TestDeleteCaptchaAttemptByIDAtomicSingleClaim|TestCreateMutedUserUpdatesExistingSchedule|TestCreateCaptchaAttemptReplacesExistingChallenge|TestCreateCaptchaAttemptIfEnabledRejectsDisabledChat|TestCaptchaAttemptClaimsSchedulePermissionRestore|TestDeleteMutedUserIfUnchangedPreservesNewerSchedule|TestIncrementCaptchaAttemptsRejectsRefreshedChallenge|TestUpdateChannelClearsAndReassignsNormalizedUsername|TestConnectChat|TestAddAndGetFiltersList|TestAddNotePreservesExistingUntilExplicitUpdate|TestReportSettingsCRUD|TestCreateDedupesSameReporterOnSameMessage|TestCreateRejectsUnknownStatus|TestDeleteExpiredBeforeDropsOldReports|TestConcurrentResolveHasOneWinner|TestConcurrentResolveAndSetAdminMessage|TestWarnUserCreatesMissingParentRows|TestWarnUserDropsExpiredWarns|TestConcurrentWarnAndRemovePreserveCount|TestWarnsImportAndClearWaitForTheChatLock|TestResetsWaitForTheChatLock|TestUpdateChat|TestListChatsWithUser|TestTableRowCountSurvivesStatsReset)$$' \
-		./alita/db ./alita/db/backup ./alita/db/captcha ./alita/db/channels ./alita/db/connections \
-		./alita/db/filters ./alita/db/notes ./alita/db/reports ./alita/db/warns ./alita/db/chats
+		-run '^($(POSTGRES_INTEGRITY_TESTS))$$' $(POSTGRES_INTEGRITY_PKGS)
 
 check-translations:
 	@echo "🔍 Checking for missing translations..."
