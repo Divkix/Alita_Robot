@@ -8,6 +8,7 @@ import (
 	"html"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -172,7 +173,8 @@ func TestSpamCommandDeletesBansRecordsAndStoresSample(t *testing.T) {
 	if got.Text != spamFilterSpamText || got.SenderID != spammer.Id || got.AddedBy != f.admin.Id {
 		t.Fatalf("sample = %+v, want the replied text from %d added by %d", got, spammer.Id, f.admin.Id)
 	}
-	if !strings.Contains(got.AdminIDs, fmt.Sprint(f.admin.Id)) || strings.Contains(got.AdminIDs, "999") {
+	ids := strings.Split(got.AdminIDs, ",")
+	if !slices.Contains(ids, fmt.Sprint(f.admin.Id)) || slices.Contains(ids, fmt.Sprint(f.bot.Id)) {
 		t.Fatalf("sample admin_ids = %q, want the human admin %d and not the bot", got.AdminIDs, f.admin.Id)
 	}
 }
