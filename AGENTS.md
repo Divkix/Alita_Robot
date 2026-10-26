@@ -4,7 +4,8 @@ Alita Robot: Telegram group-management bot. Go module `github.com/divkix/Alita_R
 
 This file holds only rules that span packages. A rule about one package lives in the doc comment of that package
 or of the symbol it governs, so it changes in the same diff as the code: read the doc comments of the files you
-touch, and put a new package rule there.
+touch, and put a new package rule there. `internal/agentsmd` fails `make test` when a name or path in this file no
+longer exists, or when the file outgrows its budget.
 
 ## Product
 
