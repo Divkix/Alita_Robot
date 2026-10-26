@@ -115,6 +115,9 @@ func clearJoinTracking(chatID int64) {
 	_ = rdb.Del(cache.Context, joinsKey(chatID)).Err()
 }
 
+// getRaidState reads Redis-only raid state. Without Redis, raids remain inactive and join
+// tracking cannot run; there is no in-process fallback.
+// The alita:antiraid: keys are outside alita:cache: and survive CLEAR_CACHE_ON_STARTUP.
 func getRaidState(chatID int64) *raidState {
 	m := cache.GetMarshal()
 	if m == nil {

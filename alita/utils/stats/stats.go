@@ -10,6 +10,10 @@
 // database, and the digest only needs approximate numbers.
 //
 // No Redis is involved, so a cache-less deployment still counts.
+//
+// Day and hour keys are UTC. Member counters are capped per flush by
+// memberCounterLimit. Joins count only after claimRecentJoinProcessing wins;
+// leaves count in leftMember. Shutdown must flush before closing the database.
 package stats
 
 import (

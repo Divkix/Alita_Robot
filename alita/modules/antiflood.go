@@ -72,6 +72,7 @@ type floodKey struct {
 	userId int64
 }
 
+// antifloodStruct keeps flood counters in process; each replica counts independently.
 type antifloodStruct struct {
 	moduleStruct
 	syncHelperMap       sync.Map

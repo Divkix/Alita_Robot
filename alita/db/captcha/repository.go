@@ -236,6 +236,8 @@ func captchaPendingCacheKey(chatID int64) string {
 // HasPendingCaptchaAttemptsContext reports whether the chat has any unexpired
 // captcha attempt. A stale true is harmless (callers fall through to the
 // per-user query); a false is invalidated by every attempt creation.
+// The per-chat flag is alita:cache:captcha_pending:<chat>. Any code inserting into
+// captcha_attempts must DeleteCache that key after commit, not inside the transaction.
 func HasPendingCaptchaAttemptsContext(ctx context.Context, chatID int64) (bool, error) {
 	return cache.GetFromCacheOrLoad(ctx, captchaPendingCacheKey(chatID), captchaPendingCacheTTL, func(ctx context.Context) (bool, error) {
 		var ids []uint

@@ -125,6 +125,7 @@ func sendCommandsMenu(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, use
 // picker's pause and scan). During the pause with no list kept it returns
 // the picker's wait notice instead. Examples name the linked group, else the
 // connected one.
+// Reuse that picker lookup rather than introducing a separate admin-group scan.
 func commandsViewFor(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID, linkedGroup int64) (commandsView, string) {
 	view := commandsView{group: linkedGroup}
 	if linkedGroup != 0 && chat_status.IsUserAdmin(b, linkedGroup, userID) {

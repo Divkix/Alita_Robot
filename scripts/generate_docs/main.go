@@ -1,5 +1,10 @@
 // Package main provides a documentation generator for Alita Robot.
 // It parses the codebase and generates Markdown documentation for Blume.
+// Help and *_docs text come only from locales/en.yml; other languages are ignored.
+// Module aliases come from alt_names in locales/config.yml, while command tables and lock types
+// come from alita/modules. Run make generate-docs after changing these sources.
+// Pages with <!-- MANUALLY MAINTAINED: do not regenerate --> in their first 512 bytes are frozen,
+// except api-reference/lock-types.md, which is regenerated regardless of that marker.
 package main
 
 import (

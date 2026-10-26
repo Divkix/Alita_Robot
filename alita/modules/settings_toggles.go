@@ -41,6 +41,7 @@ type settingsToggle struct {
 	botAdmin bool
 	// right checks what the command needs beyond admin status and returns the
 	// i18n key to refuse with, or "". Nil when admin status is enough.
+	// It sends nothing; settingsTogglePress presents the refusal.
 	right func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string
 	// set writes value and returns the i18n key to answer with when it fails.
 	set func(b *gotgbot.Bot, chatID int64, value string) string
@@ -120,6 +121,10 @@ func inFedRight(_ *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, _ int64) s
 }
 
 // settingsToggles are the summary rows with a button.
+// Each matches its summary row's Command and cycles exactly the values that row shows.
+// Keep botAdmin, right, repository writes and command side effects in sync with the command;
+// /captcha off also calls DisableCaptchaForChat. Reuse greetingToggleConfig and pinToggleConfig
+// setters where available so the panel and command do not acquire different behavior.
 var settingsToggles = []settingsToggle{
 	{key: "cp", command: "/captcha", values: settingsOnOff, botAdmin: true, set: setCaptchaToggle},
 	valueToggle("cm", "/captchamode", []string{"math", "text"}, false, captcha.SetCaptchaMode),

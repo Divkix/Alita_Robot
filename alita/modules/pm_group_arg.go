@@ -212,6 +212,11 @@ func replyPMGroupHelp(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cmd
 // of the saved connection and with the group cut from its message. A call
 // with no usable group gets the command's help and the user's groups. Outside
 // PM the command runs unchanged.
+// Enable this wrapper per command at registration and add the command to
+// commandHelpModules so missing or unknown groups have help to show. Handlers
+// must read command text through ctx.EffectiveMessage or ctx.Args(), since
+// ctx.Message remains the original message. A resolved one-off group ends
+// handler-group iteration, so later groups never see the stripped message.
 func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) handlers.Response {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !resolvePMGroupArg(b, ctx, cmd, arg) {
@@ -230,6 +235,9 @@ func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) han
 // group that passes the /connect checks, it stores the group with
 // chat_status.SetOneOffGroup and cuts it from ctx.EffectiveMessage. It
 // returns false when it has answered the call itself.
+// alita/modules installs this resolver through helpers.SetPMGroupResolver in
+// init; WrapCommand runs it before RequiredChecks. Rich messages with arguments
+// receive connections_pm_group_plain_text because their blocks cannot be cut.
 func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers.PMGroupArg) bool {
 	msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
 	if user == nil || !inPM(msg) {
@@ -281,6 +289,9 @@ func (c pmGroupCall) replyHelp(errText string) {
 // group finds the group the call names. runAsIs is true when the command runs
 // as it came, on the saved connection; a nil group otherwise means the call
 // has been answered.
+// With a saved connection, no first argument runs unchanged. PMGroupArgOwn also
+// leaves an argument unchanged unless its @username or ID resolves to a group;
+// it never interprets that argument as a title while connected.
 func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmGroupToken, runAsIs bool) {
 	conn := connections.Connection(c.ctx.EffectiveUser.Id)
 	connected := conn.Connected && conn.ChatId != 0
@@ -322,6 +333,11 @@ func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmG
 // keeps the help's list built from that scan; inside the pause it looks the
 // title up among the groups the scan that took the pause found, or asks the
 // user to wait when that scan kept none.
+// The scan is kept under settingsScanKey, not the picker's filtered button list.
+// With no retained scan a paused call gets settings_picker_wait. A title with
+// no match gets command help and the last retained picker list, or the wait
+// notice if the pause has no list. More than pmGroupTitleCheckLimit (3) title
+// matches get connections_pm_group_too_many without any admin checks.
 func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Chat {
 	userID := c.ctx.EffectiveUser.Id
 	var entries []settingsPickerEntry
@@ -378,6 +394,8 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 // group and scanned, the settingsCandidateLimit groups the user posted in most
 // recently. Only groups with that title are checked, so the /settings picker's
 // button cap and live budget do not hide a group.
+// settingsCandidateChats supplies these 50 recent groups without a query cache.
+// A group outside that scan and the connection must be named by @username or ID.
 func (c pmGroupCall) titleCandidates(scanned []settingsPickerEntry) []settingsPickerEntry {
 	var entries []settingsPickerEntry
 	if conn := connections.Connection(c.ctx.EffectiveUser.Id); conn.Connected && conn.ChatId != 0 {
@@ -414,6 +432,11 @@ func (c pmGroupCall) adminGroupsTitled(entries []settingsPickerEntry, title stri
 // useGroup checks the group like /connect, then puts it in place of the saved
 // connection for this update and cuts tok from the message. It returns false
 // after refusing the group.
+// Every SetOneOffGroup caller must first run checkUserConnectToChat and perform
+// a live membership lookup if memberChecked is false: a cached admin list may
+// outlive a lost chat_member update. IsUserConnected prefers the one-off group
+// over the saved connection and checks only chatAdmin/botAdmin there, never
+// membership; failed one-off checks must not disconnect the saved connection.
 func (c pmGroupCall) useGroup(group *gotgbot.Chat, tok pmGroupToken) bool {
 	userID := c.ctx.EffectiveUser.Id
 	allowed, key, memberChecked := checkUserConnectToChat(c.b, group.Id, userID)

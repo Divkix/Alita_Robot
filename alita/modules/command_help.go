@@ -16,6 +16,10 @@ import (
 // (/warn, /swarn, /rmwarn, /resetwarns, /warns) do so only from PM: in a group
 // they answer a call without a user with common_no_user_specified alone, as
 // before PM support.
+// Keep one × /cmd entry per command in all seven locales, with continuation lines
+// ending at a blank line or the next entry, no double quotes or unknown HTML tags,
+// and /cmd in en.yml's <module>_extend_msg.
+// TestEveryHelpCommandHasItsLineInEveryLocale enforces the locale contract.
 var commandHelpModules = map[string]string{
 	"ban":        "bans",
 	"sban":       "bans",
@@ -149,6 +153,9 @@ type menuCommand struct {
 // own language, /invitelink answers a member in a public group, and the
 // federation commands are gated by federation roles, not group admin rights.
 // Dev commands have no help module, so they are not listed.
+// Change this map in the same commit as an extend-list addition or removal;
+// TestMenuCommandsMatchExtendLists enforces parity. Every listed module needs a
+// one-line <module>_section_desc in all seven locales.
 var menuCommands = map[string]menuCommand{
 	"adminlist":       {Module: "admin"},
 	"promote":         {Module: "admin", AdminOnly: true},
@@ -426,14 +433,17 @@ func startsHelpEntry(line string) bool {
 
 // commandExample returns the sample call for cmd from locales/config.yml, or ""
 // when the command has none.
+// Each commandHelpModules command needs a <cmd>_example starting with "/<cmd> ",
+// except the replyOnlyCommands /dban, /dkick, /dmute and /spam, which must have none.
+// TestEveryHelpCommandHasAnExample enforces this contract.
 func commandExample(cmd string) string {
 	text, _ := i18n.MustNewTranslator("config").GetString(cmd + "_example")
 	return text
 }
 
 // commandPMExample returns the sample call for cmd shown in PM help without a
-// group: <cmd>_pm_example when the group's call (commandExample) names no
-// group, else commandExample.
+// group. An optional <cmd>_pm_example names the group first and replaces
+// commandExample; otherwise commandExample is used.
 func commandPMExample(cmd string) string {
 	if text, _ := i18n.MustNewTranslator("config").GetString(cmd + "_pm_example"); text != "" {
 		return text

@@ -274,6 +274,11 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 // recordModerationEvent appends the moderation_events row for an action that
 // already succeeded. It returns nothing on purpose: a database error is
 // logged and never changes the reply or the action's success.
+// Commands and inline moderation buttons record each successful human action only here.
+// Automated spamdb, captcha, antiraid, locks, blacklist, warn-limit and report auto-mute
+// actions never enter this table: the shared-reputation join check reads it, so a blocked
+// join must not feed its own signal back. A human unban reverses the reputation signal only
+// when the same chat recorded a ban or kick of that user earlier in the reputation window.
 func recordModerationEvent(chatID, actorID, targetID int64, action, reason string) {
 	err := moderation.Record(models.ModerationEvent{
 		ChatId:       chatID,

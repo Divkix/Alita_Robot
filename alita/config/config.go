@@ -1,3 +1,17 @@
+// Package config loads and validates the bot's environment configuration.
+//
+// REDIS_DB defaults to 1 for address-based connections. With REDIS_URL and no REDIS_DB override,
+// the Redis client uses the URL path instead; an absent path selects DB 0. REDIS_ADDRESS takes
+// precedence over REDIS_URL. ENABLE_AISPAM defaults to true but is inert without TYPESAFE_API_KEY.
+// Performance monitoring and background stats default on only outside DEBUG; explicit true values
+// still enable them in debug mode. HTTP_PORT falls back to PORT, then to 8080.
+//
+// Integer conversion generally logs malformed values and returns zero, which receives a default
+// where one exists; required IDs still fail validation. REDIS_DB, REPUTATION_MIN_CHATS,
+// REPUTATION_WINDOW_DAYS and AISPAM_DAILY_LIMIT reject malformed or out-of-range values instead.
+// An unset AISPAM_DAILY_LIMIT means no cap; an explicit value must be positive. Parsed values
+// outside the validated DB_*, DISPATCHER_MAX_ROUTINES, CACHE_LOCAL_* and HTTP_PORT ranges fail
+// startup, while zero retains the default where supported.
 package config
 
 import (
