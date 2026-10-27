@@ -230,13 +230,14 @@ func GetPropagator() propagation.TextMapPropagator {
 // newResource describes this process to every signal. OTEL_SERVICE_NAME and
 // OTEL_RESOURCE_ATTRIBUTES are applied last, so they can set
 // deployment.environment.name or override any default or detected value.
-// Process attributes are left out: the command line can carry secrets.
+// Process attributes are left out: the command line can carry secrets. Host and
+// container detectors are left out too: each deploy gets a fresh container ID
+// and hostname, which would start a new set of metric series per deploy.
+// OTEL_RESOURCE_ATTRIBUTES can set a stable host.name where one is wanted.
 func newResource(ctx context.Context, version string) (*resource.Resource, error) {
 	return resource.New(ctx,
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithTelemetrySDK(),
-		resource.WithHost(),
-		resource.WithContainer(),
 		resource.WithAttributes(semconv.ServiceName(defaultServiceName), semconv.ServiceVersion(version)),
 		resource.WithFromEnv(),
 	)
