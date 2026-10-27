@@ -3,12 +3,15 @@ package tracing
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/bridges/otellogrus"
+	"go.opentelemetry.io/otel"
 	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 
@@ -152,5 +155,69 @@ func TestOTLPTargetRejectsUnsupportedURLs(t *testing.T) {
 		if strings.Contains(err.Error(), "hunter2") {
 			t.Errorf("otlpTarget(%q) error leaks the password: %v", endpoint, err)
 		}
+	}
+}
+
+func TestInitTracingHTTPProtocolExportsAllSignalsUnderBasePath(t *testing.T) {
+	var mu sync.Mutex
+	got := map[string]string{} // path -> authorization header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got[r.URL.Path] = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	// Grafana Cloud's endpoint is a base URL with a path, like this one.
+	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", srv.URL+"/otlp")
+	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=Basic%20dGVzdDp0b2tlbg==")
+	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
+	t.Setenv("OTEL_LOGS_EXPORTER", "")
+	t.Setenv("OTEL_METRICS_EXPORTER", "")
+	ensureAppConfig(t)
+	resetTracingState(t)
+	origHooks := logrus.StandardLogger().ReplaceHooks(make(logrus.LevelHooks))
+	origHandler := otel.GetErrorHandler()
+	t.Cleanup(func() {
+		logrus.StandardLogger().ReplaceHooks(origHooks)
+		otel.SetErrorHandler(origHandler)
+	})
+
+	if err := InitTracing(); err != nil {
+		t.Fatalf("InitTracing() error = %v", err)
+	}
+	_, span := StartSpan(context.Background(), "http-export-test")
+	span.End()
+	logrus.Warn("http export test")
+	if err := Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, path := range []string{"/otlp/v1/traces", "/otlp/v1/logs", "/otlp/v1/metrics"} {
+		auth, ok := got[path]
+		if !ok {
+			t.Errorf("nothing exported to %s; got %v", path, got)
+		} else if auth != "Basic dGVzdDp0b2tlbg==" {
+			t.Errorf("%s Authorization = %q, want the configured header", path, auth)
+		}
+	}
+}
+
+func TestOTLPUsesHTTPRefusesBadSettings(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+	if _, err := otlpUsesHTTP("otel-collector:4318"); err == nil {
+		t.Error("http/protobuf accepted a host:port endpoint, which the HTTP exporters cannot use")
+	}
+	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/json")
+	if _, err := otlpUsesHTTP("https://collector:4318"); err == nil {
+		t.Error("unsupported protocol http/json accepted")
+	}
+	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "")
+	if useHTTP, err := otlpUsesHTTP("otel-collector:4317"); err != nil || useHTTP {
+		t.Errorf("unset protocol = %v, %v; want gRPC as before", useHTTP, err)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -96,20 +97,30 @@ func InitTracing() error {
 	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	useConsole := os.Getenv("OTEL_EXPORTER_CONSOLE") == "true"
 	otlpInsecure := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") == "true"
+	var useHTTP bool
 
 	if otlpEndpoint != "" {
+		if useHTTP, err = otlpUsesHTTP(otlpEndpoint); err != nil {
+			return err
+		}
 		if otlpEndpoint, otlpInsecure, err = otlpTarget(otlpEndpoint, otlpInsecure); err != nil {
 			return err
 		}
-		log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
-		opts := []otlptracegrpc.Option{
-			otlptracegrpc.WithEndpoint(otlpEndpoint),
+		if useHTTP {
+			log.Infof("[Tracing] Using OTLP/HTTP exporter with endpoint: %s", otlpEndpoint)
+			// Endpoint, headers and TLS come from the standard variables.
+			exporter, err = otlptracehttp.New(ctx)
+		} else {
+			log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
+			opts := []otlptracegrpc.Option{
+				otlptracegrpc.WithEndpoint(otlpEndpoint),
+			}
+			if otlpInsecure {
+				log.Warn("[Tracing] Using insecure OTLP gRPC connection (no TLS)")
+				opts = append(opts, otlptracegrpc.WithInsecure())
+			}
+			exporter, err = otlptracegrpc.New(ctx, opts...)
 		}
-		if otlpInsecure {
-			log.Warn("[Tracing] Using insecure OTLP gRPC connection (no TLS)")
-			opts = append(opts, otlptracegrpc.WithInsecure())
-		}
-		exporter, err = otlptracegrpc.New(ctx, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to create OTLP exporter: %w", err)
 		}
@@ -136,7 +147,7 @@ func InitTracing() error {
 	if otlpEndpoint != "" {
 		otel.SetErrorHandler(otel.ErrorHandlerFunc(handleSDKError))
 		registerHeaderSecrets()
-		if err := initOTLPSignals(ctx, res, otlpEndpoint, otlpInsecure, serviceName); err != nil {
+		if err := initOTLPSignals(ctx, res, otlpEndpoint, otlpInsecure, useHTTP, serviceName); err != nil {
 			return errors.Join(err, exporter.Shutdown(ctx))
 		}
 	}

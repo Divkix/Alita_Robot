@@ -399,12 +399,22 @@ Enable pprof endpoints for performance profiling (development only)
 
 ### `OTEL_EXPORTER_OTLP_ENDPOINT`
 
-OTLP gRPC endpoint, as `host:port` (e.g., `localhost:4317`) or a URL (e.g., `https://collector.example.com:4317`). With a URL, the scheme decides TLS (`http` means no TLS) and `OTEL_EXPORTER_OTLP_INSECURE` is ignored. When set, the bot sends traces, logs and its Prometheus metrics to this endpoint. Each update's span carries `update.type`, `chat.id`, `chat.type`, `user.id`, `bot.command` (the first word of a message starting with `/`) and `callback.namespace`; a handler error sets the span to Error with `error.type` and `error.message` (expected Telegram errors only set `error.expected=true`). Log records are scrubbed by the same redaction as stdout logs.
+OTLP endpoint. With the default gRPC protocol: `host:port` (e.g., `localhost:4317`) or a URL (e.g., `https://collector.example.com:4317`); with a URL, the scheme decides TLS (`http` means no TLS) and `OTEL_EXPORTER_OTLP_INSECURE` is ignored. With `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`: a base URL (e.g., `https://otlp-gateway-prod-us-east-0.grafana.net/otlp`) to which `/v1/traces`, `/v1/logs` and `/v1/metrics` are appended. When set, the bot sends traces, logs and its Prometheus metrics to this endpoint. Each update's span carries `update.type`, `chat.id`, `chat.type`, `user.id`, `bot.command` (the first word of a message starting with `/`) and `callback.namespace`; a handler error sets the span to Error with `error.type` and `error.message` (expected Telegram errors only set `error.expected=true`). Log records are scrubbed by the same redaction as stdout logs.
 
 | Property | Value |
 |----------|-------|
 | **Type** | `string` |
 | **Required** | No |
+
+### `OTEL_EXPORTER_OTLP_PROTOCOL`
+
+OTLP transport: `grpc` or `http/protobuf`. Use `http/protobuf` for backends that accept only OTLP/HTTP, such as Grafana Cloud; it needs `OTEL_EXPORTER_OTLP_ENDPOINT` as an `http(s)://` URL. Any other value stops telemetry from starting.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+| **Default** | `grpc` |
 
 ### `OTEL_EXPORTER_CONSOLE`
 
@@ -823,7 +833,8 @@ INACTIVITY_THRESHOLD_DAYS=# days before marking inactive (default: 30)
 METRICS_AUTH_TOKEN=# protects /metrics and /db_metrics
 MIGRATIONS_PATH=# path to migration files (default: migrations)
 OTEL_EXPORTER_CONSOLE=# enable console trace exporter (default: false)
-OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint for traces, logs and metrics (e.g., localhost:4317 or https://host:4317)
+OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP endpoint for traces, logs and metrics (gRPC: localhost:4317 or https://host:4317; HTTP: base URL)
+OTEL_EXPORTER_OTLP_PROTOCOL=# grpc or http/protobuf (default: grpc)
 OTEL_EXPORTER_OTLP_HEADERS=# OTLP headers, e.g. authorization=<ingestion key>
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
