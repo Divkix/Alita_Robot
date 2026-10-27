@@ -2,9 +2,12 @@ package tracing
 
 import (
 	"context"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -161,17 +164,26 @@ func TestOTLPTargetRejectsUnsupportedURLs(t *testing.T) {
 func TestInitTracingHTTPProtocolExportsAllSignalsUnderBasePath(t *testing.T) {
 	var mu sync.Mutex
 	got := map[string]string{} // path -> authorization header
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		got[r.URL.Path] = r.Header.Get("Authorization")
 		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	if err := os.WriteFile(caFile, caPEM, 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	// Grafana Cloud's endpoint is a base URL with a path, like this one.
 	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", srv.URL+"/otlp")
+	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caFile)
+	// A leftover insecure flag must not downgrade an https endpoint to
+	// plaintext: the TLS server would see no export at all.
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=Basic%20dGVzdDp0b2tlbg==")
 	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
 	t.Setenv("OTEL_LOGS_EXPORTER", "")

@@ -37,9 +37,8 @@ func signalEnabled(envName string) bool {
 
 // otlpUsesHTTP reads OTEL_EXPORTER_OTLP_PROTOCOL. gRPC stays the default so
 // existing host:4317 setups keep working; http/protobuf is for backends that
-// take only OTLP/HTTP, such as Grafana Cloud. The HTTP exporters read the
-// endpoint (a base URL, "/v1/<signal>" appended), headers and TLS from the
-// standard variables, so the endpoint must be a URL.
+// take only OTLP/HTTP, such as Grafana Cloud. The endpoint is then a base URL
+// that otlpSignalURL extends, so it must be a URL.
 func otlpUsesHTTP(endpoint string) (bool, error) {
 	switch protocol := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))); protocol {
 	case "", "grpc":
@@ -52,6 +51,19 @@ func otlpUsesHTTP(endpoint string) (bool, error) {
 	default:
 		return false, fmt.Errorf("unsupported OTEL_EXPORTER_OTLP_PROTOCOL %q: want grpc or http/protobuf", protocol)
 	}
+}
+
+// otlpSignalURL appends "/v1/<signal>" to the base URL. The HTTP exporters
+// get it as an explicit option so its scheme decides TLS: left to the
+// environment, OTEL_EXPORTER_OTLP_INSECURE=true would turn https into
+// plaintext and send the Authorization header unencrypted.
+func otlpSignalURL(base, signal string) (string, error) {
+	u, err := url.JoinPath(base, "v1", signal)
+	if err != nil {
+		// The parse error quotes the raw URL, credentials included.
+		return "", errors.New("invalid OTEL_EXPORTER_OTLP_ENDPOINT URL")
+	}
+	return u, nil
 }
 
 // otlpTarget turns OTEL_EXPORTER_OTLP_ENDPOINT into the gRPC host:port and
@@ -128,7 +140,11 @@ func newLoggerProvider(ctx context.Context, res *resource.Resource, endpoint str
 	var exporter sdklog.Exporter
 	var err error
 	if useHTTP {
-		exporter, err = otlploghttp.New(ctx)
+		var logURL string
+		if logURL, err = otlpSignalURL(endpoint, "logs"); err != nil {
+			return nil, err
+		}
+		exporter, err = otlploghttp.New(ctx, otlploghttp.WithEndpointURL(logURL))
 	} else {
 		opts := []otlploggrpc.Option{otlploggrpc.WithEndpoint(endpoint)}
 		if insecure {
@@ -149,7 +165,11 @@ func newMeterProvider(ctx context.Context, res *resource.Resource, endpoint stri
 	var exporter sdkmetric.Exporter
 	var err error
 	if useHTTP {
-		exporter, err = otlpmetrichttp.New(ctx)
+		var metricURL string
+		if metricURL, err = otlpSignalURL(endpoint, "metrics"); err != nil {
+			return nil, err
+		}
+		exporter, err = otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(metricURL))
 	} else {
 		opts := []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpoint(endpoint)}
 		if insecure {

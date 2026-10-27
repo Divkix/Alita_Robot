@@ -103,14 +103,20 @@ func InitTracing() error {
 		if useHTTP, err = otlpUsesHTTP(otlpEndpoint); err != nil {
 			return err
 		}
-		if otlpEndpoint, otlpInsecure, err = otlpTarget(otlpEndpoint, otlpInsecure); err != nil {
+		var target string
+		if target, otlpInsecure, err = otlpTarget(otlpEndpoint, otlpInsecure); err != nil {
 			return err
 		}
 		if useHTTP {
-			log.Infof("[Tracing] Using OTLP/HTTP exporter with endpoint: %s", otlpEndpoint)
-			// Endpoint, headers and TLS come from the standard variables.
-			exporter, err = otlptracehttp.New(ctx)
+			log.Infof("[Tracing] Using OTLP/HTTP exporter with endpoint: %s", target)
+			var traceURL string
+			if traceURL, err = otlpSignalURL(otlpEndpoint, "traces"); err != nil {
+				return err
+			}
+			// Headers come from the standard variables.
+			exporter, err = otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(traceURL))
 		} else {
+			otlpEndpoint = target
 			log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
 			opts := []otlptracegrpc.Option{
 				otlptracegrpc.WithEndpoint(otlpEndpoint),
