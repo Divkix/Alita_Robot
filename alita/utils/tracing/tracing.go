@@ -118,14 +118,10 @@ func InitTracing() error {
 		} else {
 			otlpEndpoint = target
 			log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
-			opts := []otlptracegrpc.Option{
-				otlptracegrpc.WithEndpoint(otlpEndpoint),
-			}
 			if otlpInsecure {
 				log.Warn("[Tracing] Using insecure OTLP gRPC connection (no TLS)")
-				opts = append(opts, otlptracegrpc.WithInsecure())
 			}
-			exporter, err = otlptracegrpc.New(ctx, opts...)
+			exporter, err = otlptracegrpc.New(ctx, otlptracegrpc.WithEndpointURL(grpcEndpointURL(otlpEndpoint, otlpInsecure)))
 		}
 		if err != nil {
 			return fmt.Errorf("failed to create OTLP exporter: %w", err)

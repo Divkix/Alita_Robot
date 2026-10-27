@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/pem"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/bridges/otellogrus"
@@ -185,21 +188,8 @@ func TestInitTracingHTTPProtocolExportsAllSignalsUnderBasePath(t *testing.T) {
 	// plaintext: the TLS server would see no export at all.
 	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=Basic%20dGVzdDp0b2tlbg==")
-	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
-	t.Setenv("OTEL_LOGS_EXPORTER", "")
-	t.Setenv("OTEL_METRICS_EXPORTER", "")
-	ensureAppConfig(t)
-	resetTracingState(t)
-	origHooks := logrus.StandardLogger().ReplaceHooks(make(logrus.LevelHooks))
-	origHandler := otel.GetErrorHandler()
-	t.Cleanup(func() {
-		logrus.StandardLogger().ReplaceHooks(origHooks)
-		otel.SetErrorHandler(origHandler)
-	})
+	startTracingForExportTest(t)
 
-	if err := InitTracing(); err != nil {
-		t.Fatalf("InitTracing() error = %v", err)
-	}
 	_, span := StartSpan(context.Background(), "http-export-test")
 	span.End()
 	logrus.Warn("http export test")
@@ -216,6 +206,78 @@ func TestInitTracingHTTPProtocolExportsAllSignalsUnderBasePath(t *testing.T) {
 		} else if auth != "Basic dGVzdDp0b2tlbg==" {
 			t.Errorf("%s Authorization = %q, want the configured header", path, auth)
 		}
+	}
+}
+
+func TestInitTracingGRPCHTTPSEndpointKeepsTLSWhenInsecureIsSet(t *testing.T) {
+	// A TLS client opens with a handshake record (0x16); plaintext gRPC opens
+	// with the HTTP/2 preface ("PRI * ..."). No certificate is configured:
+	// OTEL_EXPORTER_OTLP_CERTIFICATE would win over INSECURE and hide a downgrade.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	var tlsConns, plaintext atomic.Int32
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			first := make([]byte, 1)
+			_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+			if _, err := io.ReadFull(conn, first); err == nil {
+				if first[0] == 0x16 {
+					tlsConns.Add(1)
+				} else {
+					plaintext.Add(1)
+				}
+			}
+			_ = conn.Close()
+		}
+	}()
+
+	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://"+ln.Addr().String())
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+	t.Setenv("OTEL_EXPORTER_OTLP_LOGS_INSECURE", "true")
+	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "")
+	startTracingForExportTest(t)
+
+	_, span := StartSpan(context.Background(), "grpc-export-test")
+	span.End()
+	logrus.Warn("grpc export test")
+	// The listener speaks no gRPC, so exports fail and retry until this ends.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = Shutdown(ctx)
+
+	if n := plaintext.Load(); n > 0 {
+		t.Errorf("%d connection(s) to the https endpoint skipped TLS", n)
+	}
+	if tlsConns.Load() == 0 {
+		t.Error("no exporter connected over TLS")
+	}
+}
+
+// startTracingForExportTest starts tracing with all three signals on, after
+// the test has set the endpoint variables, and restores global state after.
+func startTracingForExportTest(t *testing.T) {
+	t.Helper()
+	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
+	t.Setenv("OTEL_LOGS_EXPORTER", "")
+	t.Setenv("OTEL_METRICS_EXPORTER", "")
+	ensureAppConfig(t)
+	resetTracingState(t)
+	origHooks := logrus.StandardLogger().ReplaceHooks(make(logrus.LevelHooks))
+	origHandler := otel.GetErrorHandler()
+	t.Cleanup(func() {
+		logrus.StandardLogger().ReplaceHooks(origHooks)
+		otel.SetErrorHandler(origHandler)
+	})
+	if err := InitTracing(); err != nil {
+		t.Fatalf("InitTracing() error = %v", err)
 	}
 }
 

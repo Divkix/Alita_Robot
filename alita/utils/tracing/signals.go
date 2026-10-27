@@ -86,6 +86,17 @@ func otlpTarget(endpoint string, insecure bool) (string, bool, error) {
 	return u.Host, u.Scheme == "http", nil
 }
 
+// grpcEndpointURL gives the gRPC exporters their target as a URL whose
+// scheme states TLS. The exporters apply it after the environment, so
+// neither OTEL_EXPORTER_OTLP_INSECURE nor a per-signal *_INSECURE can drop
+// TLS from an https endpoint; a bare host:port only sets the address.
+func grpcEndpointURL(target string, insecure bool) string {
+	if insecure {
+		return "http://" + target
+	}
+	return "https://" + target
+}
+
 // otlpHeaderEnvs are the variables the OTLP exporters read headers from.
 var otlpHeaderEnvs = []string{
 	"OTEL_EXPORTER_OTLP_HEADERS",
@@ -146,11 +157,7 @@ func newLoggerProvider(ctx context.Context, res *resource.Resource, endpoint str
 		}
 		exporter, err = otlploghttp.New(ctx, otlploghttp.WithEndpointURL(logURL))
 	} else {
-		opts := []otlploggrpc.Option{otlploggrpc.WithEndpoint(endpoint)}
-		if insecure {
-			opts = append(opts, otlploggrpc.WithInsecure())
-		}
-		exporter, err = otlploggrpc.New(ctx, opts...)
+		exporter, err = otlploggrpc.New(ctx, otlploggrpc.WithEndpointURL(grpcEndpointURL(endpoint, insecure)))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP log exporter: %w", err)
@@ -171,11 +178,7 @@ func newMeterProvider(ctx context.Context, res *resource.Resource, endpoint stri
 		}
 		exporter, err = otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(metricURL))
 	} else {
-		opts := []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpoint(endpoint)}
-		if insecure {
-			opts = append(opts, otlpmetricgrpc.WithInsecure())
-		}
-		exporter, err = otlpmetricgrpc.New(ctx, opts...)
+		exporter, err = otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpointURL(grpcEndpointURL(endpoint, insecure)))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
