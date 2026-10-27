@@ -467,7 +467,7 @@ Milliseconds between OTLP metric exports.
 
 ### `OTEL_RESOURCE_ATTRIBUTES`
 
-Comma-separated `key=value` resource attributes added to every trace, log and metric, e.g. `deployment.environment.name=production`. The bot already sets `service.name`, `service.version` (the bot version), `host.name`, `container.id` (when the cgroup file exposes it) and the `telemetry.sdk.*` attributes; values given here override them, and `OTEL_SERVICE_NAME` overrides `service.name` from both. A malformed entry is logged as a warning and skipped. Only used when tracing is on.
+Comma-separated `key=value` resource attributes added to every trace, log and metric, e.g. `deployment.environment.name=production`. The bot already sets `service.name`, `service.version` (the bot version) and the `telemetry.sdk.*` attributes; values given here override them, and `OTEL_SERVICE_NAME` overrides `service.name` from both. The container hostname and ID are not attached, because each deploy changes them and would start a new set of metric series; set a stable `host.name` here if you want one. A malformed entry is logged as a warning and skipped. Only used when tracing is on.
 
 | Property | Value |
 |----------|-------|

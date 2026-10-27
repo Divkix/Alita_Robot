@@ -257,6 +257,13 @@ func TestNewResourceNamesVersionAndTakesEnvLast(t *testing.T) {
 		}
 	}
 
+	// Per-deploy identifiers would give every metric a new series on each deploy.
+	for _, key := range []attribute.Key{semconv.HostNameKey, semconv.ContainerIDKey} {
+		if got, ok := attrs.Value(key); ok {
+			t.Fatalf("%s = %q, want it unset", key, got.AsString())
+		}
+	}
+
 	// A malformed entry is reported, and the rest of the resource still holds.
 	t.Setenv("OTEL_SERVICE_NAME", "alita_staging")
 	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "typo")
