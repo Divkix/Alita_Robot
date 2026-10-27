@@ -1234,6 +1234,11 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 			return fmt.Errorf("user %d does not exist or is not accessible: %w", userID, err)
 		}
 	}
+	// The admin cache can miss a fresh admin; Telegram refuses to mute one, so
+	// greet them as if captcha were off.
+	if s := userMember.GetStatus(); s == "administrator" || s == "creator" {
+		return errCaptchaDisabled
+	}
 
 	validatedUser := userMember.GetUser()
 	validatedUserName := userName

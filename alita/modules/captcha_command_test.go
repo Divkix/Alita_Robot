@@ -1093,6 +1093,29 @@ func TestSendCaptchaSkipsDisabledSettings(t *testing.T) {
 	}
 }
 
+func TestSendCaptchaSkipsChatAdmins(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	client.membersByChat = map[string]json.RawMessage{
+		fmt.Sprintf("%d|42", chat.Id): json.RawMessage(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Admin"}}`),
+	}
+	ctx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 777000, FirstName: "Telegram"}, "join")
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+
+	if err := SendCaptcha(bot, ctx, 42, "Admin"); !errors.Is(err, errCaptchaDisabled) {
+		t.Fatalf("SendCaptcha(admin) error = %v, want %v", err, errCaptchaDisabled)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want no mute for an admin", len(calls))
+	}
+	if attempt, _ := captcha.GetCaptchaAttempt(42, chat.Id); attempt != nil {
+		t.Fatal("captcha attempt created for an admin")
+	}
+}
+
 func TestSendCaptchaRejectsInvalidChatDataAfterValidation(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
