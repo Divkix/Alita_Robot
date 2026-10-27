@@ -36,9 +36,9 @@ func signalEnabled(envName string) bool {
 }
 
 // otlpUsesHTTP reads OTEL_EXPORTER_OTLP_PROTOCOL. gRPC stays the default so
-// existing host:4317 setups keep working; http/protobuf is for backends that
-// take only OTLP/HTTP, such as Grafana Cloud. The endpoint is then a base URL
-// that otlpSignalURL extends, so it must be a URL.
+// existing host:4317 setups keep working; http/protobuf is for endpoints that
+// take only OTLP/HTTP, such as Grafana Cloud's OTLP gateway. The endpoint is
+// then a base URL that otlpSignalURL extends, so it must be a URL.
 func otlpUsesHTTP(endpoint string) (bool, error) {
 	switch protocol := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))); protocol {
 	case "", "grpc":

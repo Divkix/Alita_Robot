@@ -408,7 +408,7 @@ OTLP endpoint. With the default gRPC protocol: `host:port` (e.g., `localhost:431
 
 ### `OTEL_EXPORTER_OTLP_PROTOCOL`
 
-OTLP transport: `grpc` or `http/protobuf`. Use `http/protobuf` for backends that accept only OTLP/HTTP, such as Grafana Cloud; it needs `OTEL_EXPORTER_OTLP_ENDPOINT` as an `http(s)://` URL. Any other value stops telemetry from starting.
+OTLP transport: `grpc` or `http/protobuf`. Use `http/protobuf` for endpoints that accept only OTLP/HTTP, such as Grafana Cloud's OTLP gateway (the one endpoint that takes traces, logs and metrics); it needs `OTEL_EXPORTER_OTLP_ENDPOINT` as an `http(s)://` URL. Any other value stops telemetry from starting.
 
 | Property | Value |
 |----------|-------|
