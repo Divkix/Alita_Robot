@@ -12,7 +12,9 @@ import (
 	"go.opentelemetry.io/contrib/bridges/otellogrus"
 	prombridge "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -33,6 +35,37 @@ func signalEnabled(envName string) bool {
 	return !strings.EqualFold(strings.TrimSpace(os.Getenv(envName)), "none")
 }
 
+// otlpUsesHTTP reads OTEL_EXPORTER_OTLP_PROTOCOL. gRPC stays the default so
+// existing host:4317 setups keep working; http/protobuf is for endpoints that
+// take only OTLP/HTTP, such as Grafana Cloud's OTLP gateway. The endpoint is
+// then a base URL that otlpSignalURL extends, so it must be a URL.
+func otlpUsesHTTP(endpoint string) (bool, error) {
+	switch protocol := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))); protocol {
+	case "", "grpc":
+		return false, nil
+	case "http/protobuf":
+		if !strings.Contains(endpoint, "://") {
+			return false, errors.New("OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf needs OTEL_EXPORTER_OTLP_ENDPOINT as an http(s):// URL")
+		}
+		return true, nil
+	default:
+		return false, fmt.Errorf("unsupported OTEL_EXPORTER_OTLP_PROTOCOL %q: want grpc or http/protobuf", protocol)
+	}
+}
+
+// otlpSignalURL appends "/v1/<signal>" to the base URL. The HTTP exporters
+// get it as an explicit option so its scheme decides TLS: left to the
+// environment, OTEL_EXPORTER_OTLP_INSECURE=true would turn https into
+// plaintext and send the Authorization header unencrypted.
+func otlpSignalURL(base, signal string) (string, error) {
+	u, err := url.JoinPath(base, "v1", signal)
+	if err != nil {
+		// The parse error quotes the raw URL, credentials included.
+		return "", errors.New("invalid OTEL_EXPORTER_OTLP_ENDPOINT URL")
+	}
+	return u, nil
+}
+
 // otlpTarget turns OTEL_EXPORTER_OTLP_ENDPOINT into the gRPC host:port and
 // whether to skip TLS. It accepts the bare "host:4317" form and the spec's
 // "http(s)://host:4317": a scheme decides TLS, so the insecure flag only
@@ -51,6 +84,17 @@ func otlpTarget(endpoint string, insecure bool) (string, bool, error) {
 		return "", false, fmt.Errorf("%s, got %q", invalid, u.Redacted())
 	}
 	return u.Host, u.Scheme == "http", nil
+}
+
+// grpcEndpointURL gives the gRPC exporters their target as a URL whose
+// scheme states TLS. The exporters apply it after the environment, so
+// neither OTEL_EXPORTER_OTLP_INSECURE nor a per-signal *_INSECURE can drop
+// TLS from an https endpoint; a bare host:port only sets the address.
+func grpcEndpointURL(target string, insecure bool) string {
+	if insecure {
+		return "http://" + target
+	}
+	return "https://" + target
 }
 
 // otlpHeaderEnvs are the variables the OTLP exporters read headers from.
@@ -82,15 +126,15 @@ func registerHeaderSecrets() {
 // initOTLPSignals exports logs and the Prometheus registry over the same OTLP
 // endpoint as traces, so a single collector receives all three. On error
 // nothing is left running.
-func initOTLPSignals(ctx context.Context, res *resource.Resource, endpoint string, insecure bool, serviceName string) error {
+func initOTLPSignals(ctx context.Context, res *resource.Resource, endpoint string, insecure, useHTTP bool, serviceName string) error {
 	var err error
 	if signalEnabled("OTEL_LOGS_EXPORTER") {
-		if loggerProvider, err = newLoggerProvider(ctx, res, endpoint, insecure); err != nil {
+		if loggerProvider, err = newLoggerProvider(ctx, res, endpoint, insecure, useHTTP); err != nil {
 			return err
 		}
 	}
 	if signalEnabled("OTEL_METRICS_EXPORTER") {
-		if meterProvider, err = newMeterProvider(ctx, res, endpoint, insecure); err != nil {
+		if meterProvider, err = newMeterProvider(ctx, res, endpoint, insecure, useHTTP); err != nil {
 			return errors.Join(err, shutdownOTLPSignals(ctx))
 		}
 		log.Info("[Tracing] Exporting Prometheus metrics over OTLP")
@@ -103,12 +147,18 @@ func initOTLPSignals(ctx context.Context, res *resource.Resource, endpoint strin
 	return nil
 }
 
-func newLoggerProvider(ctx context.Context, res *resource.Resource, endpoint string, insecure bool) (*sdklog.LoggerProvider, error) {
-	opts := []otlploggrpc.Option{otlploggrpc.WithEndpoint(endpoint)}
-	if insecure {
-		opts = append(opts, otlploggrpc.WithInsecure())
+func newLoggerProvider(ctx context.Context, res *resource.Resource, endpoint string, insecure, useHTTP bool) (*sdklog.LoggerProvider, error) {
+	var exporter sdklog.Exporter
+	var err error
+	if useHTTP {
+		var logURL string
+		if logURL, err = otlpSignalURL(endpoint, "logs"); err != nil {
+			return nil, err
+		}
+		exporter, err = otlploghttp.New(ctx, otlploghttp.WithEndpointURL(logURL))
+	} else {
+		exporter, err = otlploggrpc.New(ctx, otlploggrpc.WithEndpointURL(grpcEndpointURL(endpoint, insecure)))
 	}
-	exporter, err := otlploggrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP log exporter: %w", err)
 	}
@@ -118,12 +168,18 @@ func newLoggerProvider(ctx context.Context, res *resource.Resource, endpoint str
 	), nil
 }
 
-func newMeterProvider(ctx context.Context, res *resource.Resource, endpoint string, insecure bool) (*sdkmetric.MeterProvider, error) {
-	opts := []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpoint(endpoint)}
-	if insecure {
-		opts = append(opts, otlpmetricgrpc.WithInsecure())
+func newMeterProvider(ctx context.Context, res *resource.Resource, endpoint string, insecure, useHTTP bool) (*sdkmetric.MeterProvider, error) {
+	var exporter sdkmetric.Exporter
+	var err error
+	if useHTTP {
+		var metricURL string
+		if metricURL, err = otlpSignalURL(endpoint, "metrics"); err != nil {
+			return nil, err
+		}
+		exporter, err = otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(metricURL))
+	} else {
+		exporter, err = otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpointURL(grpcEndpointURL(endpoint, insecure)))
 	}
-	exporter, err := otlpmetricgrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
 	}
