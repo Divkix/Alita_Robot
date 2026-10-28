@@ -47,7 +47,6 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	}
 	runOnProcessUpdateCallback()
 
-	start := time.Now()
 	returned := false
 	defer func() {
 		outcome, _ := ctx.Data[outcomeDataKey].(metrics.Outcome)
@@ -59,7 +58,6 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 		}
 		kind := updateType(ctx.Update)
 		metrics.UpdatesProcessed.WithLabelValues(kind, outcome.String(), metrics.CommandLabel(updateCommand(ctx))).Inc()
-		metrics.UpdateDuration.WithLabelValues(kind, outcome.String()).Observe(time.Since(start).Seconds())
 	}()
 	if ctx.Data == nil {
 		ctx.Data = make(map[string]any)

@@ -3,7 +3,6 @@ package jobs
 
 import (
 	"context"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -17,8 +16,8 @@ import (
 // Run runs one tick of the background job name as the root span of its own
 // trace, so the database, Redis and Bot API calls it makes on ctx become
 // child spans. It logs and records an error fn returns, and recovers a panic
-// as error_handling.RecoverFromPanic does, and counts and times the tick in
-// the alita_job_* metrics. name must be a fixed string: it names the span and
+// as error_handling.RecoverFromPanic does, and counts the tick in the
+// alita_job_* metrics. name must be a fixed string: it names the span and
 // labels the metrics.
 func Run(ctx context.Context, name string, fn func(context.Context) error) {
 	ctx, span := tracing.StartSpan(ctx, "job "+name,
@@ -26,11 +25,9 @@ func Run(ctx context.Context, name string, fn func(context.Context) error) {
 		trace.WithAttributes(attribute.String("job.name", name)),
 	)
 	defer span.End()
-	start := time.Now()
 	succeeded := false
 	defer func() {
 		metrics.JobRuns.WithLabelValues(name).Inc()
-		metrics.JobDuration.WithLabelValues(name).Observe(time.Since(start).Seconds())
 		if !succeeded {
 			metrics.JobFailures.WithLabelValues(name).Inc()
 		}

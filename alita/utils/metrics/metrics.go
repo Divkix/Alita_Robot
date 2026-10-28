@@ -24,15 +24,6 @@ var (
 		Help: "Telegram updates processed by the dispatcher, by update type, outcome and command.",
 	}, []string{"update_type", "outcome", "command"})
 
-	// UpdateDuration observes how long one update took to process. It has
-	// no command label: per command, the buckets would multiply the series
-	// by ~200.
-	UpdateDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "alita_update_duration_seconds",
-		Help:    "Time spent processing one Telegram update, by update type and outcome.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"update_type", "outcome"})
-
 	// HandlerErrors counts errors handlers returned, by the module of the
 	// command that failed ("other" for non-command updates) and whether the
 	// error is an expected Telegram one.
@@ -114,13 +105,6 @@ var (
 	JobFailures = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "alita_job_failures_total",
 		Help: "Background job ticks that failed or panicked, by job.",
-	}, []string{"job"})
-
-	// JobDuration observes how long one job tick took.
-	JobDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "alita_job_duration_seconds",
-		Help:    "Time spent on one background job tick, by job.",
-		Buckets: prometheus.DefBuckets,
 	}, []string{"job"})
 
 	// CacheLocalHits counts read-through lookups served from process memory.

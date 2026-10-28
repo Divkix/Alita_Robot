@@ -96,7 +96,6 @@ Besides the Go runtime metrics, the bot exports:
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
 | `alita_updates_processed_total` | counter | `update_type`, `outcome`, `command` | Telegram updates processed |
-| `alita_update_duration_seconds` | histogram | `update_type`, `outcome` | Time to process one update |
 | `alita_handler_errors_total` | counter | `module`, `expected` | Errors handlers returned; `expected` is `true` for expected Telegram API errors |
 | `alita_redis_commands_total` | counter | `command` | Redis commands sent (`get`, `set`, `del`, ...) |
 | `alita_db_queries_total` | counter | `operation` | Database statements (`query`, `create`, `update`, `delete`, `row`, `raw`) |
@@ -109,7 +108,6 @@ Besides the Go runtime metrics, the bot exports:
 | `alita_webhook_rejected_total` | counter | `reason` | Webhook updates answered with 503: `queue_full` or `stopped` |
 | `alita_job_runs_total` | counter | `job` | Background job ticks run (`digestSchedulerTick`, `captchaCleanup`, ...) |
 | `alita_job_failures_total` | counter | `job` | Job ticks that returned an error or panicked |
-| `alita_job_duration_seconds` | histogram | `job` | Time spent on one job tick |
 | `alita_cache_local_hits_total` | counter | none | Read-through cache lookups served by the in-process layer (`CACHE_LOCAL_TTL`) |
 | `alita_cache_local_misses_total` | counter | none | Read-through cache lookups that missed the in-process layer and fell through to Redis |
 
