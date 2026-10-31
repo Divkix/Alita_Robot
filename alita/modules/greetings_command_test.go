@@ -577,7 +577,7 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 	}
 
 	clearRecentJoinProcessing(chat.Id, member.Id)
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	client.errors["restrictChatMember"] = errors.New("telegram: bot lacks restrict permission")
@@ -598,7 +598,7 @@ func TestProcessSingleNewMemberCaptchaSuccessSkipsWelcome(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4646, FirstName: "CaptchaPass"}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
@@ -637,7 +637,7 @@ func TestProcessSingleNewMemberSkipsCaptchaForApprovedUser(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	member := gotgbot.User{Id: 4696, FirstName: "Approved"}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	if err := approvals.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
@@ -674,7 +674,7 @@ func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4747, FirstName: "CaptchaFallback"}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
@@ -752,7 +752,7 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 			member := gotgbot.User{Id: uniqueModuleChatID(), FirstName: "NewCaptcha"}
-			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+			if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 				t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 			}
 			if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
@@ -797,7 +797,7 @@ func TestCaptchaDeliveryRollbackFailureReachesDispatcher(t *testing.T) {
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 			member := gotgbot.User{Id: 4848, FirstName: "CaptchaMember"}
 			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+			if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 				t.Fatalf("SetCaptchaEnabled() error = %v", err)
 			}
 			if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {

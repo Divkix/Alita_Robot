@@ -29,7 +29,7 @@ func captchaJoinsFixture(t *testing.T, joinsOn bool) (*moduleBotClient, *gotgbot
 			t.Fatalf("SetCategory(joins) error = %v", err)
 		}
 	}
-	if err := captcha.SetCaptchaMaxAttempts(chat.Id, 3); err != nil {
+	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, 3); err != nil {
 		t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
 	}
 	attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)

@@ -331,7 +331,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saved, failed := applySettingsChanges(access.ChatID, updates)
+	saved, failed := applySettingsChanges(access.ChatID, access.Title, updates)
 	if enabled, ok := updates["captcha.enabled"].(bool); ok && !enabled && slices.Contains(saved, "captcha.enabled") && p.deps.DisableCaptcha != nil {
 		// Same cleanup /captcha off runs: unmute users still pending a captcha.
 		if err := p.deps.DisableCaptcha(p.bot, access.ChatID); err != nil {
@@ -586,7 +586,7 @@ func plainText(text string) string {
 // use, so each one invalidates the caches its command would. Boolean enables
 // run before disables so switching the spam databases can proceed in either
 // direction without tripping the last-database constraint.
-func applySettingsChanges(chatID int64, updates map[string]any) ([]string, map[string]string) {
+func applySettingsChanges(chatID int64, chatName string, updates map[string]any) ([]string, map[string]string) {
 	keys := make([]string, 0, len(updates))
 	for key := range updates {
 		keys = append(keys, key)
@@ -611,7 +611,7 @@ func applySettingsChanges(chatID int64, updates map[string]any) ([]string, map[s
 	saved := make([]string, 0, len(keys))
 	failed := make(map[string]string)
 	for _, key := range ordered {
-		if err := applySettingChange(chatID, key, updates[key]); err != nil {
+		if err := applySettingChange(chatID, chatName, key, updates[key]); err != nil {
 			log.WithError(err).Warnf("[Panel] save %s for chat %d", key, chatID)
 			failed[key] = err.Error()
 			continue
@@ -621,7 +621,7 @@ func applySettingsChanges(chatID int64, updates map[string]any) ([]string, map[s
 	return saved, failed
 }
 
-func applySettingChange(chatID int64, key string, value any) error {
+func applySettingChange(chatID int64, chatName, key string, value any) error {
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
 	case "language":
@@ -631,7 +631,7 @@ func applySettingChange(chatID int64, key string, value any) error {
 	case "rules":
 		return rules.SetPrivateRules(chatID, value.(bool))
 	case "captcha":
-		return applyCaptchaChange(chatID, fieldKey, value)
+		return applyCaptchaChange(chatID, chatName, fieldKey, value)
 	case "antiflood":
 		return applyAntifloodChange(chatID, fieldKey, value)
 	case "antispam":
@@ -658,18 +658,18 @@ func applyGreetingChange(chatID int64, field string, value any) error {
 	return fmt.Errorf("unknown greeting setting %q", field)
 }
 
-func applyCaptchaChange(chatID int64, field string, value any) error {
+func applyCaptchaChange(chatID int64, chatName, field string, value any) error {
 	switch field {
 	case "enabled":
-		return captcha.SetCaptchaEnabled(chatID, value.(bool))
+		return captcha.SetCaptchaEnabled(chatID, chatName, value.(bool))
 	case "mode":
-		return captcha.SetCaptchaMode(chatID, value.(string))
+		return captcha.SetCaptchaMode(chatID, chatName, value.(string))
 	case "timeout":
-		return captcha.SetCaptchaTimeout(chatID, value.(int))
+		return captcha.SetCaptchaTimeout(chatID, chatName, value.(int))
 	case "action":
-		return captcha.SetCaptchaFailureAction(chatID, value.(string))
+		return captcha.SetCaptchaFailureAction(chatID, chatName, value.(string))
 	case "max_attempts":
-		return captcha.SetCaptchaMaxAttempts(chatID, value.(int))
+		return captcha.SetCaptchaMaxAttempts(chatID, chatName, value.(int))
 	}
 	return fmt.Errorf("unknown captcha setting %q", field)
 }

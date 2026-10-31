@@ -620,7 +620,7 @@ func (moduleStruct) captchaJoinEnableCallback(bot *gotgbot.Bot, ctx *ext.Context
 		removeButton("")
 		return ext.EndGroups
 	}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		answer("captcha_enable_failed")
 		return err
 	}
@@ -669,7 +669,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "on", "enable", "yes":
-		err := captcha.SetCaptchaEnabled(chat.Id, true)
+		err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true)
 		if err != nil {
 			text, _ := tr.GetString("captcha_enable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
@@ -682,7 +682,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 
 	case "off", "disable", "no":
-		err := captcha.SetCaptchaEnabled(chat.Id, false)
+		err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, false)
 		if err != nil {
 			text, _ := tr.GetString("captcha_disable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
@@ -770,7 +770,7 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		return err
 	}
 
-	err := captcha.SetCaptchaMode(chat.Id, mode)
+	err := captcha.SetCaptchaMode(chat.Id, chat.Title, mode)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidCaptchaMode) {
@@ -818,7 +818,7 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	}
 	timeout := int(timeout64)
 
-	err = captcha.SetCaptchaTimeout(chat.Id, timeout)
+	err = captcha.SetCaptchaTimeout(chat.Id, chat.Title, timeout)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidTimeout) {
@@ -859,7 +859,7 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 		return err
 	}
 
-	err := captcha.SetCaptchaFailureAction(chat.Id, action)
+	err := captcha.SetCaptchaFailureAction(chat.Id, chat.Title, action)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidFailureAction) {
@@ -906,7 +906,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 	}
 	attempts := int(attempts64)
 
-	if err := captcha.SetCaptchaMaxAttempts(chat.Id, attempts); err != nil {
+	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, attempts); err != nil {
 		log.Errorf("Failed to set captcha max attempts: %v", err)
 		text, _ := tr.GetString("captcha_internal_error")
 		_, err := msg.Reply(bot, text, formatting.Shtml())

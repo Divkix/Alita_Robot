@@ -74,7 +74,7 @@ func TestSettingsSummaryFreshChatHasNoChangedRows(t *testing.T) {
 func TestSettingsSummaryMarksExactlyChangedFields(t *testing.T) {
 	chatID := newSettingsTestChat(t)
 
-	if err := captcha.SetCaptchaEnabled(chatID, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
 	if err := warns.SetWarnLimit(chatID, 5); err != nil {

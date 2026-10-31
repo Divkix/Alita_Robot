@@ -20,7 +20,7 @@ import (
 func newCaptchaJoinChat(t *testing.T) gotgbot.Chat {
 	t.Helper()
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Rights Chat"}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {

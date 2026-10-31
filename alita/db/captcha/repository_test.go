@@ -154,7 +154,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected default CaptchaMode='math', got %q", settings.CaptchaMode)
 	}
 
-	if err := SetCaptchaEnabled(chatID, true); err != nil {
+	if err := SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
 		t.Fatalf("SetCaptchaEnabled(true) error = %v", err)
 	}
 
@@ -175,7 +175,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Enabled=true after SetCaptchaEnabled(true)")
 	}
 
-	if err := SetCaptchaEnabled(chatID, false); err != nil {
+	if err := SetCaptchaEnabled(chatID, "Captcha Chat", false); err != nil {
 		t.Fatalf("SetCaptchaEnabled(false) error = %v", err)
 	}
 	settings, err = GetCaptchaSettings(chatID)
@@ -186,7 +186,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Enabled=false after SetCaptchaEnabled(false)")
 	}
 
-	if err := SetCaptchaMode(chatID, "text"); err != nil {
+	if err := SetCaptchaMode(chatID, "Captcha Chat", "text"); err != nil {
 		t.Fatalf("SetCaptchaMode() error = %v", err)
 	}
 	settings, err = GetCaptchaSettings(chatID)
@@ -197,7 +197,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected CaptchaMode='text', got %q", settings.CaptchaMode)
 	}
 
-	if err := SetCaptchaTimeout(chatID, 5); err != nil {
+	if err := SetCaptchaTimeout(chatID, "Captcha Chat", 5); err != nil {
 		t.Fatalf("SetCaptchaTimeout() error = %v", err)
 	}
 	settings, err = GetCaptchaSettings(chatID)
@@ -208,7 +208,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Timeout=5, got %d", settings.Timeout)
 	}
 
-	if err := SetCaptchaMaxAttempts(chatID, 7); err != nil {
+	if err := SetCaptchaMaxAttempts(chatID, "Captcha Chat", 7); err != nil {
 		t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
 	}
 	settings, err = GetCaptchaSettings(chatID)
@@ -219,7 +219,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected MaxAttempts=7, got %d", settings.MaxAttempts)
 	}
 
-	if err := SetCaptchaFailureAction(chatID, "ban"); err != nil {
+	if err := SetCaptchaFailureAction(chatID, "Captcha Chat", "ban"); err != nil {
 		t.Fatalf("SetCaptchaFailureAction() error = %v", err)
 	}
 	settings, err = GetCaptchaSettings(chatID)
@@ -232,42 +232,53 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 
 }
 
-// A group can have no chats row yet when an admin first configures captcha,
-// for example through the enable button the bot posts on joining. Each setter
-// must create that row instead of failing fk_captcha_settings_chat.
+// A group's first captcha write must anchor its foreign key and retain its
+// title, including when a previous writer stored an empty chat name.
 func TestCaptchaSettersCreateMissingChat(t *testing.T) {
 	skipIfNoDb(t)
 
 	setters := []struct {
 		name string
-		set  func(chatID int64) error
+		set  func(chatID int64, chatName string) error
 	}{
-		{"enabled", func(id int64) error { return SetCaptchaEnabled(id, true) }},
-		{"mode", func(id int64) error { return SetCaptchaMode(id, "text") }},
-		{"timeout", func(id int64) error { return SetCaptchaTimeout(id, 5) }},
-		{"max_attempts", func(id int64) error { return SetCaptchaMaxAttempts(id, 7) }},
-		{"failure_action", func(id int64) error { return SetCaptchaFailureAction(id, "ban") }},
+		{"enabled", func(id int64, title string) error { return SetCaptchaEnabled(id, title, true) }},
+		{"mode", func(id int64, title string) error { return SetCaptchaMode(id, title, "text") }},
+		{"timeout", func(id int64, title string) error { return SetCaptchaTimeout(id, title, 5) }},
+		{"max_attempts", func(id int64, title string) error { return SetCaptchaMaxAttempts(id, title, 7) }},
+		{"failure_action", func(id int64, title string) error { return SetCaptchaFailureAction(id, title, "ban") }},
 	}
 	base := time.Now().UnixNano()
 	for i, tc := range setters {
-		chatID := base + int64(i)
-		t.Run(tc.name, func(t *testing.T) {
-			t.Cleanup(func() {
-				_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaSettings{}).Error
-				_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.Chat{}).Error
-				dbcache.DeleteCache(dbcache.CacheKey("captcha_settings", chatID))
+		for j, existingBlank := range []bool{false, true} {
+			chatID := base + int64(i*2+j)
+			t.Run(fmt.Sprintf("%s/existingBlank=%t", tc.name, existingBlank), func(t *testing.T) {
+				t.Cleanup(func() {
+					_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaSettings{}).Error
+					_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.Chat{}).Error
+					dbcache.DeleteCache(dbcache.CacheKey("captcha_settings", chatID))
+					dbcache.DeleteCache(dbcache.CacheKey("chat", chatID))
+				})
+				if existingBlank {
+					if err := db.DB.Create(&dbmodels.Chat{ChatId: chatID}).Error; err != nil {
+						t.Fatalf("create empty-name chat: %v", err)
+					}
+				}
+				title := "Captcha " + tc.name
+				if err := tc.set(chatID, title); err != nil {
+					t.Fatalf("setter on missing or empty-name chat: %v", err)
+				}
+				var chat dbmodels.Chat
+				if err := db.DB.Where("chat_id = ?", chatID).Take(&chat).Error; err != nil {
+					t.Fatalf("chats row after setter: %v", err)
+				}
+				if chat.ChatName != title {
+					t.Fatalf("chat name = %q, want %q", chat.ChatName, title)
+				}
+				if err := db.DB.Where("chat_id = ?", chatID).Take(&dbmodels.CaptchaSettings{}).Error; err != nil {
+					t.Fatalf("captcha_settings row after setter: %v", err)
+				}
 			})
-
-			if err := tc.set(chatID); err != nil {
-				t.Fatalf("setter on a chat with no chats row: %v", err)
-			}
-			if err := db.DB.Where("chat_id = ?", chatID).Take(&dbmodels.Chat{}).Error; err != nil {
-				t.Fatalf("chats row after setter: %v", err)
-			}
-			if err := db.DB.Where("chat_id = ?", chatID).Take(&dbmodels.CaptchaSettings{}).Error; err != nil {
-				t.Fatalf("captcha_settings row after setter: %v", err)
-			}
-		})
+		}
 	}
 }
 
@@ -566,13 +577,13 @@ func TestCreateCaptchaAttemptIfEnabledRejectsDisabledChat(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaSettings{}).Error
 	})
 
-	if err := SetCaptchaEnabled(chatID, true); err != nil {
+	if err := SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
 		t.Fatalf("SetCaptchaEnabled(true) error = %v", err)
 	}
 	if _, err := CreateCaptchaAttemptPreMessageIfEnabled(userID, chatID, "42", 2); err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessageIfEnabled(enabled) error = %v", err)
 	}
-	if err := SetCaptchaEnabled(chatID, false); err != nil {
+	if err := SetCaptchaEnabled(chatID, "Captcha Chat", false); err != nil {
 		t.Fatalf("SetCaptchaEnabled(false) error = %v", err)
 	}
 	if _, err := CreateCaptchaAttemptPreMessageIfEnabled(userID, chatID, "42", 2); !errors.Is(err, ErrCaptchaDisabled) {

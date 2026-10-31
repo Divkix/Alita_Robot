@@ -176,7 +176,7 @@ func TestRaidSwitchedOnByJoinStillChallengesNewcomersItDidNotBan(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
-	require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+	require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 3))
 	t.Cleanup(func() {
 		_, _ = antiRaidModule.disableRaid(chat.Id)
@@ -240,7 +240,7 @@ func TestJoinGuardBanThatFailsStillChallengesNewcomer(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
 			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
-			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 			guard.setup(t, chat, member)
 			clearRecentJoinProcessing(chat.Id, member.Id)
 
@@ -286,7 +286,7 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 				chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
 				member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
 				require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
-				require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, captchaOn))
+				require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, captchaOn))
 				guard.setup(t, chat, member)
 				clearRecentJoinProcessing(chat.Id, member.Id)
 
@@ -335,7 +335,7 @@ func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
 			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
 			require.NoError(t, err)
 			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
-			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 			clearRecentJoinProcessing(chat.Id, member.Id)
 			withUnreachableRedis(t)
 
@@ -422,7 +422,7 @@ func TestFedBanEnforcedOnEveryJoinUpdateExactlyOnce(t *testing.T) {
 					chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
 					member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
 					require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
-					require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+					require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 					ownerID := uniquePositiveUserID()
 					fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
 					require.NoError(t, err)
@@ -491,7 +491,7 @@ func TestFedBanOnJoinPostsOneNoticeWhenServiceMessageFollowsTheKick(t *testing.T
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
 			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
 			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
-			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 			ownerID := uniquePositiveUserID()
 			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
 			require.NoError(t, err)
@@ -649,7 +649,7 @@ func TestFedBanOnJoinRetriesAShortFloodWait(t *testing.T) {
 			bot.BotClient = client
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
 			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
-			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, true))
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 			ownerID := uniquePositiveUserID()
 			fed, err := federations.CreateFederation(ownerID, "Join Guard Fed")
 			require.NoError(t, err)

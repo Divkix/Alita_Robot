@@ -25,6 +25,17 @@ func captchaSettingsRows(t *testing.T, chatID int64) int64 {
 	return count
 }
 
+func assertCaptchaChatTitle(t *testing.T, chat gotgbot.Chat) {
+	t.Helper()
+	var stored models.Chat
+	if err := db.DB.Where("chat_id = ?", chat.Id).Take(&stored).Error; err != nil {
+		t.Fatalf("load captcha chat: %v", err)
+	}
+	if stored.ChatName != chat.Title {
+		t.Fatalf("captcha chat name = %q, want %q", stored.ChatName, chat.Title)
+	}
+}
+
 // joinMessageButtons returns the callback data of every button on the join
 // message the bot sent.
 func joinMessageButtons(t *testing.T, client *moduleBotClient) []string {
@@ -80,7 +91,7 @@ func TestBotJoinedSupergroupWithCaptchaOnOffersNoButton(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Rejoined Group"}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	ctx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, "bot joined")
@@ -110,6 +121,7 @@ func TestCaptchaJoinButtonEnablesCaptchaForAdmin(t *testing.T) {
 	}
 
 	pressCaptchaJoinButton(t, f.bot, f.chat, f.admin, data)
+	assertCaptchaChatTitle(t, f.chat)
 
 	if rows := captchaSettingsRows(t, f.chat.Id); rows != 1 {
 		t.Fatalf("captcha_settings rows = %d, want the row the press created", rows)

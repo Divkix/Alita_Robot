@@ -352,6 +352,50 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	}
 }
 
+func TestSettingsPatchCaptchaPreservesTelegramTitle(t *testing.T) {
+	for _, change := range []struct {
+		key, value string
+	}{
+		{"captcha.enabled", "true"},
+		{"captcha.mode", `"text"`},
+		{"captcha.timeout", "5"},
+		{"captcha.action", `"ban"`},
+		{"captcha.max_attempts", "7"},
+	} {
+		for _, existingBlank := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/existingBlank=%t", change.key, existingBlank), func(t *testing.T) {
+				fixture, chatID := newSettingsFixture(t)
+				if existingBlank {
+					if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).Update("chat_name", "").Error; err != nil {
+						t.Fatalf("clear stored chat title: %v", err)
+					}
+				} else if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
+					t.Fatalf("remove seeded chat: %v", err)
+				}
+				recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
+					fmt.Sprintf(`{"changes":{%q:%s}}`, change.key, change.value), "application/json")
+				if recorder.Code != http.StatusOK {
+					t.Fatalf("PATCH status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+				}
+				var response settingsPatchResponse
+				if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+					t.Fatalf("decode patch: %v", err)
+				}
+				if !containsString(response.Saved, change.key) {
+					t.Fatalf("saved = %v, want %s", response.Saved, change.key)
+				}
+				var chat models.Chat
+				if err := db.DB.Where("chat_id = ?", chatID).Take(&chat).Error; err != nil {
+					t.Fatalf("load captcha chat: %v", err)
+				}
+				if title := fmt.Sprintf("Panel Chat %d", chatID); chat.ChatName != title {
+					t.Fatalf("captcha chat name = %q, want Telegram title %q", chat.ChatName, title)
+				}
+			})
+		}
+	}
+}
+
 func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	fixture := newPanelFixture(t)
 	chatID := uniquePanelChatID()
@@ -580,7 +624,7 @@ func TestSettingsPatchReportsPartialFailure(t *testing.T) {
 func TestSettingsPatchCaptchaOffRunsTheCommandCleanup(t *testing.T) {
 	fixture, chatID := newSettingsFixture(t)
 	raw := readFixture(t, "initdata_main.txt")
-	if err := captcha.SetCaptchaEnabled(chatID, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
 
@@ -609,7 +653,7 @@ func TestSettingsPatchCaptchaOffRunsTheCommandCleanup(t *testing.T) {
 		t.Fatalf("cleanup ran for %v, want once for %d", cleaned, chatID)
 	}
 
-	if err := captcha.SetCaptchaEnabled(chatID, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
 	cleanupErr = fmt.Errorf("telegram refused the unmute")
