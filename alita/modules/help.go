@@ -670,7 +670,6 @@ func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	helpModule := parts[1]
 	_, err := sendHelpkb(b, ctx, helpModule, DefaultHelpRegistry())
 	if err != nil {
-		log.Errorf("[Start]: %v", err)
 		return err
 	}
 	return ext.EndGroups
@@ -695,7 +694,6 @@ func aboutDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

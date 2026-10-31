@@ -174,10 +174,11 @@ func TestHelpAndStartPropagateSendFailures(t *testing.T) {
 }
 
 func TestStartBlockedUserIsLoggedOnceByDispatcher(t *testing.T) {
+	useRealLocales(t)
 	previousHooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previousHooks) })
 	hook := logrustest.NewGlobal()
-	for _, text := range []string{"/start", "/start unknown_deeplink_test"} {
+	for _, text := range []string{"/start", "/start unknown_deeplink_test", "/start help_help", "/start about", "/start extend"} {
 		t.Run(text, func(t *testing.T) {
 			hook.Reset()
 			client := newModuleBotClient()
