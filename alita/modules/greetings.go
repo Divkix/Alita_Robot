@@ -737,7 +737,6 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func membershipDepsForJoin(bot *gotgbot.Bot, ctx *ext.Context) MembershipDeps {
-	chat := ctx.EffectiveChat
 	return MembershipDeps{
 		Claim: claimRecentJoinProcessing,
 		IsApproved: func(chatID, userID int64) bool {
