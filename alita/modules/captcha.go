@@ -139,6 +139,9 @@ var (
 	// errCaptchaCannotRestrict means the bot may not mute the newcomer, so the
 	// join gets the welcome instead of a challenge it could not enforce.
 	errCaptchaCannotRestrict = errors.New("captcha skipped: bot cannot restrict members")
+	// errCaptchaDeliverySkipped is returned only after a failed send has been
+	// rolled back and the newcomer's permissions restored.
+	errCaptchaDeliverySkipped = errors.New("captcha skipped: delivery failed and permissions restored")
 )
 
 // captchaRightsNoticeCooldown is how long a chat goes without a repeat of the
@@ -1145,6 +1148,8 @@ func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, option
 
 // SendCaptcha sends a captcha challenge to a new member.
 // There is one pending attempt per (user, chat); creating a challenge replaces the old one.
+// Delivery failure skips the challenge only after rollback succeeds; cleanup
+// failures remain errors and retain the durable permission-restoration retry.
 //
 //nolint:gocyclo // The ordered mute/send/persist rollback state machine is intentionally cohesive.
 func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName string) (err error) {
@@ -1223,11 +1228,11 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		}
 	}
 
-	userMember, err := bot.GetChatMember(chat.Id, userID, nil)
+	userMember, err := bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 	if err != nil {
 		if isTransientMemberError(err) {
 			time.Sleep(captchaMemberRetryDelay)
-			userMember, err = bot.GetChatMember(chat.Id, userID, nil)
+			userMember, err = bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 		}
 		if err != nil {
 			log.Errorf("Failed to validate user %d via Telegram API: %v", userID, err)
@@ -1346,8 +1351,16 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		if err == nil {
 			err = errors.New("telegram returned no captcha message")
 		}
-		log.Errorf("Failed to send captcha: %v", err)
-		return errors.Join(err, rollbackCaptchaAttempt(bot, preAttempt))
+		sendErr := fmt.Errorf("deliver captcha to user %d in chat %d: %w", userID, chat.Id, err)
+		if rollbackErr := rollbackCaptchaAttempt(bot, preAttempt); rollbackErr != nil {
+			return errors.Join(sendErr, fmt.Errorf("roll back captcha for user %d in chat %d: %w", userID, chat.Id, rollbackErr))
+		}
+		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{
+			"chat_id":   chat.Id,
+			"user_id":   userID,
+			"update_id": ctx.UpdateId,
+		}).Warnf("[Captcha] Skipping challenge after delivery failed and permissions were restored: %v", err)
+		return errors.Join(errCaptchaDeliverySkipped, sendErr)
 	}
 
 	err = captcha.UpdateCaptchaAttemptMessageID(preAttempt.ID, sent.MessageId)

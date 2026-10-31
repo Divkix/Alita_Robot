@@ -238,6 +238,11 @@ Captcha startup recovery releases incomplete attempts, finalizes expired
 attempts, and reschedules still-valid attempts. It then starts the periodic
 attempt-cleanup and scheduled-unmute workers. A recovery failure aborts startup
 instead of accepting updates with an unknown captcha state.
+Challenge photo/text delivery failures use the same rollback: release the attempt
+and restore permissions, without retrying the send or generating a replacement.
+Only successful cleanup marks that challenge skipped, logs one warning on the
+update context, and lets the join continue to welcome. Cleanup failures propagate
+to the dispatcher and retain the durable scheduled-unmute retry.
 
 Registered modules, in priority order: BotUpdates, AISpam, SpamDB, Languages, Admin, Approvals, Pins, LogChannels, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, AntiRaid, Federations, Blacklists, Reactions, Formatting, Backup. Help loads last.
 

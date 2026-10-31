@@ -1777,6 +1777,65 @@ func TestSendCaptchaPropagatesGotgbotRequestErrors(t *testing.T) {
 	}
 }
 
+func TestSendCaptchaPhotoTimeoutRollsBackBeforeSkipping(t *testing.T) {
+	for _, unmuteFails := range []bool{false, true} {
+		t.Run(fmt.Sprintf("unmuteFails=%t", unmuteFails), func(t *testing.T) {
+			client := newModuleBotClient()
+			requestErr := errors.New("http2: timeout awaiting response headers")
+			restoreErr := errors.New("temporary Telegram failure")
+			client.errors["sendPhoto"] = requestErr
+			if unmuteFails {
+				client.errors["getChat"] = restoreErr
+			}
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+				t.Fatalf("SetCaptchaEnabled() error = %v", err)
+			}
+			started := time.Now()
+			err := SendCaptcha(bot, newModuleMessageContext(bot, chat, gotgbot.User{Id: 777000}, "join"), 42, "Member")
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("SendCaptcha() error = %v, want original timeout", err)
+			}
+			if errors.Is(err, errCaptchaDeliverySkipped) == unmuteFails {
+				t.Fatalf("SendCaptcha() error = %v, skipped must require successful restoration", err)
+			}
+			if errors.Is(err, errCaptchaDisabled) || errors.Is(err, errCaptchaCannotRestrict) {
+				t.Fatalf("SendCaptcha() error = %v, delivery failure is not a disabled captcha", err)
+			}
+			attempt, getErr := captcha.GetCaptchaAttempt(42, chat.Id)
+			if getErr != nil || attempt != nil {
+				t.Fatalf("GetCaptchaAttempt() = (%+v, %v), want no attempt", attempt, getErr)
+			}
+			users, getErr := captcha.GetMutedUsersForChat(chat.Id)
+			if getErr != nil {
+				t.Fatalf("GetMutedUsersForChat() error = %v", getErr)
+			}
+			wantRestricts := 2
+			if unmuteFails {
+				wantRestricts = 1
+				if !errors.Is(err, restoreErr) {
+					t.Fatalf("SendCaptcha() error = %v, want restoration error", err)
+				}
+				if len(users) != 1 || users[0].UserID != 42 || users[0].UnmuteAt.Before(started) || users[0].UnmuteAt.After(time.Now()) {
+					t.Fatalf("scheduled unmute = %+v, want immediate retry", users)
+				}
+			} else if len(users) != 0 {
+				t.Fatalf("scheduled unmutes = %+v, want none after restoration", users)
+			}
+			if calls := client.callsFor("restrictChatMember"); len(calls) != wantRestricts {
+				t.Fatalf("restrictChatMember calls = %d, want %d", len(calls), wantRestricts)
+			}
+			if calls := client.callsFor("sendPhoto"); len(calls) != 1 {
+				t.Fatalf("sendPhoto calls = %d, want no retry", len(calls))
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("sendMessage calls = %d, want no fallback regeneration", len(calls))
+			}
+		})
+	}
+}
+
 func TestSendCaptchaRejectsNilTelegramMessageAndCleansAttempt(t *testing.T) {
 	client := newModuleBotClient()
 	client.responses["sendPhoto"] = []byte(`null`)

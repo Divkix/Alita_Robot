@@ -657,17 +657,12 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	newMember := ctx.ChatMember.NewChatMember.MergeChatMember().User
-	var threadID int64
-	if ctx.EffectiveMessage != nil {
-		threadID = ctx.EffectiveMessage.MessageThreadId
-	}
-	chatCopy := *chat
 	captchaSettings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 		captchaSettings = &db.CaptchaSettings{Enabled: false}
 	}
-	if err := processSingleNewMember(bot, &chatCopy, threadID, newMember, captchaSettings != nil && captchaSettings.Enabled); err != nil {
+	if err := processSingleNewMember(bot, ctx, newMember, captchaSettings != nil && captchaSettings.Enabled); err != nil {
 		return err
 	}
 	return ext.EndGroups
@@ -741,21 +736,19 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64) MembershipDeps {
+func membershipDepsForJoin(bot *gotgbot.Bot, ctx *ext.Context) MembershipDeps {
+	chat := ctx.EffectiveChat
 	return MembershipDeps{
 		Claim: claimRecentJoinProcessing,
 		IsApproved: func(chatID, userID int64) bool {
 			return chat_status.IsApproved(bot, chatID, userID)
 		},
 		Challenge: func(user gotgbot.User) error {
-			ctxCopy := ext.Context{EffectiveChat: chat}
-			if threadID != 0 {
-				ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
-			}
+			ctxCopy := *ctx
 			if err := SendCaptcha(bot, &ctxCopy, user.Id, user.FirstName); err != nil {
-				// Without the right to mute, the newcomer gets the welcome
-				// as if captcha were off.
-				if errors.Is(err, errCaptchaDisabled) || errors.Is(err, errCaptchaCannotRestrict) {
+				// Only unenforceable challenges or fully rolled-back delivery
+				// failures fall through to the newcomer's welcome.
+				if errors.Is(err, errCaptchaDisabled) || errors.Is(err, errCaptchaCannotRestrict) || errors.Is(err, errCaptchaDeliverySkipped) {
 					return ErrChallengeDisabled
 				}
 				return err
@@ -766,19 +759,16 @@ func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64)
 			startProbation(context.Background(), chatID, user)
 		},
 		Welcome: func(user gotgbot.User) error {
-			ctxCopy := ext.Context{EffectiveChat: chat}
-			if threadID != 0 {
-				ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
-			}
+			ctxCopy := *ctx
 			return SendWelcomeMessage(bot, &ctxCopy, user.Id, user.FirstName)
 		},
 	}
 }
 
-func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
-	outcome, err := ProcessSingleJoin(chat.Id, bot.Id, newMember, captchaEnabled, membershipDepsForJoin(bot, chat, threadID))
+func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbot.User, captchaEnabled bool) error {
+	chat := ctx.EffectiveChat
+	outcome, err := ProcessSingleJoin(chat.Id, bot.Id, newMember, captchaEnabled, membershipDepsForJoin(bot, ctx))
 	if err != nil {
-		logJoinOperationError("Failed to process new member join", err)
 		return err
 	}
 	if outcome == JoinIgnore && newMember.Id != bot.Id {
@@ -807,19 +797,12 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		captchaEnabled := captchaSettings != nil && captchaSettings.Enabled
 
-		var threadID int64
-		if msg != nil {
-			threadID = msg.MessageThreadId
+		var joinErr error
+		for _, member := range msg.NewChatMembers {
+			joinErr = errors.Join(joinErr, processSingleNewMember(bot, ctx, member, captchaEnabled))
 		}
-		chatCopyBase := *chat
-
-		if len(msg.NewChatMembers) > 0 {
-			deps := membershipDepsForJoin(bot, &chatCopyBase, threadID)
-			for _, outcome := range ProcessJoins(chat.Id, bot.Id, msg.NewChatMembers, captchaEnabled, deps) {
-				if outcome == JoinIgnore {
-					continue
-				}
-			}
+		if joinErr != nil {
+			return joinErr
 		}
 	}
 
