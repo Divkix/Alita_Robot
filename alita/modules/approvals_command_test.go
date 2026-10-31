@@ -245,7 +245,9 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 
 func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	admin := f.admin
 
 	for _, tt := range []struct {
 		name   string
@@ -328,6 +330,8 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
 			if tt.setup != nil {
@@ -345,7 +349,9 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 
 func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	owner := f.admin
 
 	noCallbackClient := newModuleBotClient()
 	noCallbackBot := newModuleTestBot(noCallbackClient)
@@ -377,6 +383,8 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
 			if err := approvals.AddApprovedUser(chat.Id, 42, owner.Id, "trusted"); err != nil {

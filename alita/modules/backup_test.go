@@ -310,8 +310,9 @@ func TestDownloadBackupFileReportsHTTPStatusFailure(t *testing.T) {
 }
 
 func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	chat, owner := f.chat, f.admin
 	backup := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules", "notes"})
 	backup.Data["rules"] = map[string]interface{}{
 		"settings": map[string]interface{}{"rules": "imported rules"},
@@ -340,11 +341,11 @@ func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 		dropPendingImport(chat.Id)
 	})
 
-	client := newModuleBotClient()
+	client := f.client
 	client.responses["getFile"] = json.RawMessage(
 		`{"file_id":"backup-file-id","file_path":"backups/chat.json"}`,
 	)
-	bot := newModuleTestBot(client)
+	bot := f.bot
 	ctx := newModuleMessageContext(bot, chat, owner, "/import rules invalid rules")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
 		MessageId: 333,
@@ -369,8 +370,9 @@ func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 }
 
 func TestImportHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	chat, owner := f.chat, f.admin
 	bkp := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"})
 	bkp.Data["rules"] = map[string]interface{}{"settings": map[string]interface{}{"rules": "test"}}
 	backupData, err := bkp.ToJSON()
@@ -392,12 +394,12 @@ func TestImportHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
 		dropPendingImport(chat.Id)
 	})
 
-	client := newModuleBotClient()
+	client := f.client
 	client.responses["getFile"] = json.RawMessage(
 		`{"file_id":"backup-file-id","file_path":"backups/chat.json"}`,
 	)
 	client.errors["sendMessage"] = errors.New("confirmation send failed")
-	bot := newModuleTestBot(client)
+	bot := f.bot
 	ctx := newModuleMessageContext(bot, chat, owner, "/import")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
 		MessageId: 333,
@@ -638,10 +640,10 @@ func TestPendingResetRejectsStaleAndExpiredTokens(t *testing.T) {
 }
 
 func TestImportHandlerRequiresReplyDocument(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, owner, "/import")
 
 	err := backupModule.importHandler(bot, ctx)
@@ -650,10 +652,10 @@ func TestImportHandlerRequiresReplyDocument(t *testing.T) {
 }
 
 func TestImportHandlerRejectsInvalidReplyDocument(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, owner, "/import")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
 		MessageId: 333,
@@ -672,10 +674,10 @@ func TestImportHandlerRejectsInvalidReplyDocument(t *testing.T) {
 }
 
 func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 	require.NoError(t, notes.AddNote(chat.Id, "welcome", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
 
@@ -688,11 +690,11 @@ func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
 
 func TestExportHandlerReportsFailureWhenDocumentSendFails(t *testing.T) {
 	useRealLocales(t)
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
 	client.errors["sendDocument"] = fmt.Errorf("document upload failed")
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	chat, owner := f.chat, f.admin
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 	require.NoError(t, notes.AddNote(chat.Id, "fallback", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
 
@@ -718,10 +720,10 @@ func TestExportAndResetListValidModulesForUnknownNames(t *testing.T) {
 		{text: "/reset bogus", run: backupModule.resetHandler},
 	} {
 		t.Run(tt.text, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-			owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			f := newAdminChatFixture(t)
+			f.makeOwner()
+			client, bot := f.client, f.bot
+			chat, owner := f.chat, f.admin
 			t.Cleanup(func() { dropPendingReset(chat.Id) })
 
 			ctx := newModuleMessageContext(bot, chat, owner, tt.text)
@@ -754,10 +756,10 @@ func TestValidateImportRequestRejectsNonOwner(t *testing.T) {
 }
 
 func TestResetHandlerStoresPendingModulesAndRepliesWithConfirmation(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, owner, "/reset rules notes invalid rules")
 	t.Cleanup(func() {
 		dropPendingReset(chat.Id)
@@ -772,11 +774,11 @@ func TestResetHandlerStoresPendingModulesAndRepliesWithConfirmation(t *testing.T
 }
 
 func TestResetHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
 	client.errors["sendMessage"] = errors.New("confirmation send failed")
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	chat, owner := f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, owner, "/reset rules")
 	t.Cleanup(func() { dropPendingReset(chat.Id) })
 
@@ -789,10 +791,10 @@ func TestResetHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
 }
 
 func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 
 	backup := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"})
@@ -824,10 +826,10 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 }
 
 func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 	if err := rules.SetChatRules(chat.Id, "rules before reset"); err != nil {
 		t.Fatalf("rules.SetChatRules() error = %v", err)
@@ -852,10 +854,10 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 }
 
 func TestBackupCallbackHandlerIgnoresWrongChatConfirmation(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	token, err := storePendingReset(chat.Id, []string{"rules"})
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -876,10 +878,10 @@ func TestBackupCallbackHandlerIgnoresWrongChatConfirmation(t *testing.T) {
 }
 
 func TestBackupCallbackHandlerRejectsInvalidCallbackData(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	for _, data := range []string{
 		"not-a-backup-callback",
 		encodeCallbackData("backup", map[string]string{
@@ -959,10 +961,10 @@ func TestBackupConfirmHandlersReportExpiredState(t *testing.T) {
 }
 
 func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 
 	importToken, err := storePendingImport(chat.Id, backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"}), []string{"rules"})
 	require.NoError(t, err)

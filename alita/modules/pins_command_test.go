@@ -618,7 +618,9 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 
 func TestPinCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	user := f.admin
 
 	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"})
 	for _, tt := range []struct {
@@ -633,6 +635,8 @@ func TestPinCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
 			ctx := newModuleCallbackContext(bot, chat, user, tt.data)

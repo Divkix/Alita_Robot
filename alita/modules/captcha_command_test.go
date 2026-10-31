@@ -1851,6 +1851,7 @@ func TestSendCaptchaPropagatesGotgbotRequestErrors(t *testing.T) {
 }
 
 func TestSendCaptchaPhotoTimeoutRollsBackBeforeSkipping(t *testing.T) {
+	useRealLocales(t)
 	for _, unmuteFails := range []bool{false, true} {
 		t.Run(fmt.Sprintf("unmuteFails=%t", unmuteFails), func(t *testing.T) {
 			client := newModuleBotClient()

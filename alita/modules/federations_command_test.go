@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -102,15 +103,16 @@ func TestNewFedCreatesFederation(t *testing.T) {
 }
 
 func TestJoinFedAndFban(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	bot := f.bot
+	owner := f.admin
 	fed, err := federations.CreateFederation(owner.Id, "Join Test Fed")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
 
-	chatID := uniqueModuleChatID()
-	group := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Fed Chat"}
+	group := f.chat
+	chatID := group.Id
 	joinCtx := newModuleMessageContext(bot, group, owner, "/joinfed "+fed.FedID)
 	if err := federationsModule.joinFed(bot, joinCtx); err != ext.EndGroups {
 		t.Fatalf("joinFed() error = %v, want EndGroups", err)
@@ -197,8 +199,9 @@ func TestParseToggleAndFedIDHelpers(t *testing.T) {
 }
 
 func TestFedLifecycleCommands(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	bot := f.bot
 	ownerID := uniquePositiveUserID()
 	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
 	fed, err := federations.CreateFederation(ownerID, "Lifecycle Fed")
@@ -206,8 +209,7 @@ func TestFedLifecycleCommands(t *testing.T) {
 	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
 
 	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
-	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Fed Group"}
-	creator := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	group, creator := f.chat, f.admin
 
 	if err := federationsModule.newFed(bot, newModuleMessageContext(bot, group, owner, "/newfed x")); err != ext.EndGroups {
 		t.Fatalf("newFed group-only: %v", err)
@@ -370,15 +372,15 @@ func TestFbanAndUnfbanLogNoticesAreTranslated(t *testing.T) {
 }
 
 func TestUnfbanAndFedStat(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	bot := f.bot
 	owner := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner"}
 	fed, err := federations.CreateFederation(owner.Id, "Ban Fed")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
 
-	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	creator := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	group, creator := f.chat, f.admin
 	require.NoError(t, federations.JoinFed(group.Id, group.Title, fed.FedID))
 	require.NoError(t, federations.PromoteFedAdmin(fed.FedID, creator.Id))
 
@@ -550,16 +552,20 @@ func TestUnfbanOfUserWithoutFbanRepliesNotBannedAndUnbansNowhere(t *testing.T) {
 // state: this pins the policy (the walk sends the unban in a chat whose admin
 // banned the user), not that the bot tells the two bans apart.
 func TestUnfbanSendsUnbanEvenWhereAChatAdminBannedTheUser(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
 	owner := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner"}
 	fed, err := federations.CreateFederation(owner.Id, "Local Ban Fed")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
 
 	target := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Member"}
-	chat := seedFedChat(t, fed.FedID, target.Id)
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	chat, admin := f.chat, f.admin
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chat.Id).Delete(&models.Chat{}).Error })
+	require.NoError(t, db.DB.Model(&models.Chat{}).Where("chat_id = ?", chat.Id).
+		Update("users", models.Int64Array{target.Id}).Error)
+	require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
 	if err := bansModule.ban(bot, newBanReplyContext(bot, chat, admin, target, "/ban spam")); err != ext.EndGroups {
 		t.Fatalf("ban: %v", err)
 	}
@@ -908,7 +914,9 @@ func TestFbanlistCooldownStartsOnlyAfterADeliveredExport(t *testing.T) {
 }
 
 func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
-	bot := newModuleTestBot(newModuleBotClient())
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	bot := f.bot
 	first, err := federations.CreateFederation(uniquePositiveUserID(), "First")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(first.FedID) })
@@ -916,8 +924,7 @@ func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(second.FedID) })
 
-	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Two Feds"}
-	creator := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	group, creator := f.chat, f.admin
 	require.NoError(t, federations.JoinFed(group.Id, group.Title, first.FedID))
 	if err := federationsModule.joinFed(bot, newModuleMessageContext(bot, group, creator, "/joinfed "+second.FedID)); err != ext.EndGroups {
 		t.Fatalf("joinFed other: %v", err)
@@ -928,18 +935,21 @@ func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
 }
 
 func TestFedCommandErrorPaths(t *testing.T) {
-	bot := newModuleTestBot(newModuleBotClient())
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	bot := f.bot
 	ownerID := uniquePositiveUserID()
 	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
 	fed, err := federations.CreateFederation(ownerID, "Errors Fed")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
 	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
-	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Err Group"}
+	group, creator := f.chat, f.admin
 	quietGroup := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Quiet Group"}
+	f.client.adminsByChat[strconv.FormatInt(quietGroup.Id, 10)] = f.client.adminsByChat[strconv.FormatInt(group.Id, 10)]
+	t.Cleanup(func() { cache.InvalidateAdminCache(quietGroup.Id) })
 	require.NoError(t, federations.JoinFed(quietGroup.Id, quietGroup.Title, fed.FedID))
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	creator := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	cases := []struct {
 		name string

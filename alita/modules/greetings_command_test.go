@@ -133,10 +133,8 @@ func TestGreetingToggleRejectsNonAdminUsers(t *testing.T) {
 }
 
 func TestSetAndResetGreetingTextCommands(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
 
 	setWelcomeCtx := newGreetingMessageContext(bot, chat, admin, "/setwelcome Hello {first}")
 	if err := greetingsModule.setWelcome(bot, setWelcomeCtx); err != ext.EndGroups {
@@ -191,10 +189,8 @@ func TestSetGreetingCommandsRejectMissingContent(t *testing.T) {
 }
 
 func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
 
 	cleanWelcomeCtx := newGreetingMessageContext(bot, chat, admin, "/cleanwelcome on")
 	if err := greetingsModule.cleanWelcome(bot, cleanWelcomeCtx); err != ext.EndGroups {
@@ -668,6 +664,7 @@ func TestProcessSingleNewMemberSkipsCaptchaForApprovedUser(t *testing.T) {
 }
 
 func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	client.errors["sendPhoto"] = errors.New("http2: timeout awaiting response headers")
 	bot := newModuleTestBot(client)
@@ -723,6 +720,7 @@ func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T
 }
 
 func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
+	useRealLocales(t)
 	for _, tt := range []struct {
 		name         string
 		sendPhotoErr bool
@@ -786,6 +784,7 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 }
 
 func TestCaptchaDeliveryRollbackFailureReachesDispatcher(t *testing.T) {
+	useRealLocales(t)
 	for _, serviceMessage := range []bool{false, true} {
 		t.Run(fmt.Sprintf("serviceMessage=%t", serviceMessage), func(t *testing.T) {
 			client := newModuleBotClient()
@@ -944,11 +943,9 @@ func TestPendingJoinRequestAndCallbacks(t *testing.T) {
 }
 
 func TestJoinRequestDeclineClearsPendingSuppression(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	client.responses["getChat"] = []byte(`{"id":5151,"type":"private","first_name":"Applicant"}`)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	greetingsModule.setPendingJoins(chat.Id, 5151)
 	data := encodeCallbackData("join_request", map[string]string{"a": "decline", "u": "5151"})
@@ -1048,11 +1045,9 @@ func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := newModuleBotClient()
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 			client.responses["getChat"] = []byte(`{"id":7171,"type":"private","first_name":"Applicant"}`)
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 			ctx := newModuleCallbackContext(bot, chat, admin, tt.data)
 			if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
@@ -1077,10 +1072,12 @@ func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
 	}
 
 	t.Run("invalid callback data is answered without lookup", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+		seedCallbackAdmins(t, chat.Id,
+			gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: bot.Id, IsBot: true}, CanInviteUsers: true, CanRestrictMembers: true},
+			gotgbot.MergedChatMember{Status: "administrator", User: admin, CanInviteUsers: true, CanRestrictMembers: true},
+		)
 
 		ctx := newModuleCallbackContext(bot, chat, admin, "join_request.invalid")
 		if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
@@ -1095,10 +1092,12 @@ func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
 	})
 
 	t.Run("invalid join user id is answered without lookup", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+		seedCallbackAdmins(t, chat.Id,
+			gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: bot.Id, IsBot: true}, CanInviteUsers: true, CanRestrictMembers: true},
+			gotgbot.MergedChatMember{Status: "administrator", User: admin, CanInviteUsers: true, CanRestrictMembers: true},
+		)
 
 		data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "nan"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
@@ -1114,10 +1113,12 @@ func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
 	})
 
 	t.Run("unknown action is answered without lookup", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+		seedCallbackAdmins(t, chat.Id,
+			gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: bot.Id, IsBot: true}, CanInviteUsers: true, CanRestrictMembers: true},
+			gotgbot.MergedChatMember{Status: "administrator", User: admin, CanInviteUsers: true, CanRestrictMembers: true},
+		)
 
 		data := encodeCallbackData("join_request", map[string]string{"a": "crafted", "u": "5151"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
@@ -1159,7 +1160,7 @@ func TestAutoApproveJoinRequestSkipsAdminNotice(t *testing.T) {
 
 func TestGreetingCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 
 	for _, tt := range []struct {
 		name string
@@ -1184,6 +1185,11 @@ func TestGreetingCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			bot := newModuleTestBot(client)
 			client.errors["sendMessage"] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+			client.responses["getChatMember"] = []byte(fmt.Sprintf(`{"status":"creator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, admin.Id))
+			seedCallbackAdmins(t, chat.Id,
+				gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: bot.Id, IsBot: true}, CanChangeInfo: true, CanDeleteMessages: true, CanInviteUsers: true, CanRestrictMembers: true},
+				gotgbot.MergedChatMember{Status: "creator", User: admin},
+			)
 			ctx := newGreetingMessageContext(bot, chat, admin, tt.text)
 
 			err := tt.run(bot, ctx)
@@ -1196,7 +1202,7 @@ func TestGreetingCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 
 func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 	applicant := gotgbot.User{Id: 5151, FirstName: "Applicant"}
 
 	for _, tt := range []struct {
@@ -1286,6 +1292,11 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			bot := newModuleTestBot(client)
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+			client.responses["getChatMember"] = []byte(fmt.Sprintf(`{"status":"creator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, admin.Id))
+			seedCallbackAdmins(t, chat.Id,
+				gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: bot.Id, IsBot: true}, CanInviteUsers: true, CanRestrictMembers: true},
+				gotgbot.MergedChatMember{Status: "creator", User: admin},
+			)
 
 			err := tt.run(bot, tt.build(bot, chat))
 			if !errors.Is(err, requestErr) {
@@ -1365,7 +1376,7 @@ func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
 }
 
 func TestJoinRequestHandlerReportsRequestsHandledElsewhere(t *testing.T) {
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	useRealLocales(t)
 	tr := i18n.MustNewTranslator("en")
 	gone, _ := tr.GetString("greetings_join_request_already_handled")
 	banned, _ := tr.GetString("greetings_join_request_banned")
@@ -1379,11 +1390,10 @@ func TestJoinRequestHandlerReportsRequestsHandledElsewhere(t *testing.T) {
 		{"ban", "declineChatJoinRequest", "Bad Request: HIDE_REQUESTER_MISSING", banned},
 	} {
 		t.Run(tt.action+"/"+tt.telegramErr, func(t *testing.T) {
-			client := newModuleBotClient()
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 			client.responses["getChat"] = []byte(`{"id":5151,"type":"private","first_name":"Applicant"}`)
 			client.errors[tt.method] = errors.New(tt.telegramErr)
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 
 			greetingsModule.setPendingJoins(chat.Id, 5151)
 			data := encodeCallbackData("join_request", map[string]string{"a": tt.action, "u": "5151"})

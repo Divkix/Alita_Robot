@@ -19,10 +19,9 @@ import (
 )
 
 func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	addCtx := newModuleMessageContext(bot, chat, admin, "/filter hello Hi there")
@@ -62,10 +61,9 @@ func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
 
 func TestFiltersWatcherDoesNotLoadFullFiltersWithoutMatch(t *testing.T) {
 	withMiniredis(t)
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	addCtx := newModuleMessageContext(bot, chat, admin, "/filter hello Hi there")
@@ -102,10 +100,9 @@ func TestFiltersWatcherDoesNotLoadFullFiltersWithoutMatch(t *testing.T) {
 }
 
 func TestFilterCommandValidationBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 
 	replyWithoutKeyword := newModuleMessageContext(bot, chat, admin, "/filter")
 	replyWithoutKeyword.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
@@ -153,10 +150,9 @@ func TestFilterCommandValidationBranches(t *testing.T) {
 
 func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
 	t.Run("limit exceeded", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		bot := f.bot
+		chat, admin := f.chat, f.admin
 		for i := 0; i < 150; i++ {
 			if err := filters.AddFilter(chat.Id, "word"+strconv.Itoa(i), "reply", "", nil, db.TEXT); err != nil {
 				t.Fatalf("AddFilter setup %d error = %v", i, err)
@@ -189,10 +185,9 @@ func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
 }
 
 func TestRemoveAndListFilterValidationBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 
 	for _, text := range []string{"/stop", "/stop missing"} {
 		ctx := newModuleMessageContext(bot, chat, admin, text)
@@ -222,10 +217,9 @@ func TestRemoveAndListFilterValidationBranches(t *testing.T) {
 }
 
 func TestFiltersWatcherNoFormatPathRequiresAdmin(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	if err := filters.AddFilter(chat.Id, "raw", "<b>Raw</b>", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
@@ -253,10 +247,9 @@ func TestFiltersWatcherNoFormatPathRequiresAdmin(t *testing.T) {
 }
 
 func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 	if err := filters.AddFilter(chat.Id, "hello", "old reply", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
@@ -292,10 +285,9 @@ func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {
 }
 
 func TestFilterOverwriteCallbackCancelAndExpired(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 
 	cancelData := encodeCallbackData("filters_overwrite", map[string]string{"a": "cancel"})
 	cancelCtx := newModuleCallbackContext(bot, chat, admin, cancelData)
@@ -318,10 +310,10 @@ func TestFilterOverwriteCallbackCancelAndExpired(t *testing.T) {
 }
 
 func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 	if err := filters.AddFilter(chat.Id, "one", "1", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
@@ -349,10 +341,10 @@ func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 }
 
 func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
 
 	emptyCtx := newModuleMessageContext(bot, chat, owner, "/stopall")
 	if err := filtersModule.rmAllFilters(bot, emptyCtx); err != ext.EndGroups {
@@ -390,7 +382,7 @@ func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
 
 func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	for _, tt := range []struct {
@@ -480,10 +472,14 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
+			f := newAdminChatFixture(t)
+			f.admin = admin
+			f.makeOwner()
+			client, bot := f.client, f.bot
 			client.errors["sendMessage"] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+			client.adminsByChat[strconv.FormatInt(chat.Id, 10)] = client.adminsByChat[strconv.FormatInt(f.chat.Id, 10)]
+			t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
 			if tt.setup != nil {
 				tt.setup(t, chat)
 			}
@@ -499,7 +495,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 
 func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 
 	for _, tt := range []struct {
 		name   string
@@ -578,10 +574,14 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
+			f := newAdminChatFixture(t)
+			f.admin = admin
+			f.makeOwner()
+			client, bot := f.client, f.bot
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+			client.adminsByChat[strconv.FormatInt(chat.Id, 10)] = client.adminsByChat[strconv.FormatInt(f.chat.Id, 10)]
+			t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
 			if tt.setup != nil {
 				tt.setup(t, chat)
 			}
@@ -596,10 +596,9 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 }
 
 func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 
 	// A press without its message (and without "c") has no chat in gotgbot.
 	rmAllCtx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 2, CallbackQuery: &gotgbot.CallbackQuery{
