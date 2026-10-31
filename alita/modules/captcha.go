@@ -1233,11 +1233,11 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 
 	userMember, err := bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 	if err != nil {
-		if isTransientMemberError(err) && !chat_status.IsMissingChatMemberError(err) {
+		if isTransientMemberError(err) && !error_handling.IsMissingChatMemberError(err) {
 			time.Sleep(captchaMemberRetryDelay)
 			userMember, err = bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 		}
-		if chat_status.IsMissingChatMemberError(err) {
+		if error_handling.IsMissingChatMemberError(err) {
 			return errors.Join(errCaptchaDisabled, err)
 		}
 		if err != nil {
@@ -1504,7 +1504,7 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 
 	// Missing or departed members need no moderation. In particular, kicking
 	// someone already banned by another guard would lift that guard's ban.
-	if chat_status.IsMissingChatMemberError(err) || (err == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
+	if error_handling.IsMissingChatMemberError(err) || (err == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
 		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
 			log.Errorf("[Captcha] Failed to clear fallback unmute for departed user %d: %v", userID, err)
 		}
