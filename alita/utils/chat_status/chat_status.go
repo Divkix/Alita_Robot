@@ -74,6 +74,43 @@ func CallbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
 	return update.CallbackQuery, true
 }
 
+const confirmedAnonymousAdminDataKey = "confirmedAnonymousAdmin"
+
+type confirmedAnonymousAdmin struct {
+	chatID, userID int64
+}
+
+// SetConfirmedAnonymousAdmin records the actor for command replay without
+// replacing the original anonymous message sender. Call only after verifying
+// the confirmation callback and retrieving its original command. Real admins
+// still need their own rights; only the existing service-admin shortcut skips
+// a member lookup, and confirmation never grants ownership.
+func SetConfirmedAnonymousAdmin(ctx *ext.Context, chatID, userID int64) {
+	if ctx == nil || !IsValidUserId(userID) || (IsSystemUser(userID) && !slices.Contains(tgAdminList, userID)) {
+		return
+	}
+	if ctx.Data == nil {
+		ctx.Data = make(map[string]any)
+	}
+	ctx.Data[confirmedAnonymousAdminDataKey] = confirmedAnonymousAdmin{chatID, userID}
+}
+
+func confirmedAnonymousAdminUser(ctx *ext.Context, chatID int64) *gotgbot.User {
+	if ctx == nil || ctx.EffectiveUser == nil {
+		return nil
+	}
+	proof, ok := ctx.Data[confirmedAnonymousAdminDataKey].(confirmedAnonymousAdmin)
+	if !ok || proof.chatID != chatID || proof.userID != ctx.EffectiveUser.Id {
+		return nil
+	}
+	return ctx.EffectiveUser
+}
+
+func isConfirmedAnonymousAdmin(ctx *ext.Context, chatID, userID int64) bool {
+	user := confirmedAnonymousAdminUser(ctx, chatID)
+	return user != nil && user.Id == userID && slices.Contains(tgAdminList, userID)
+}
+
 func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
 	if sender == nil || !sender.IsAnonymousAdmin() {
 		return false, false
@@ -427,9 +464,17 @@ func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg
 	if b == nil || ctx == nil {
 		return false, false
 	}
+	var user *gotgbot.User
+	if msg != nil {
+		user = msg.From
+	}
+	if confirmed := confirmedAnonymousAdminUser(ctx, chat.Id); confirmed != nil {
+		user = confirmed
+	}
 	sender := ctx.EffectiveSender
 	if sender == nil || !sender.IsAnonymousAdmin() {
-		if msg == nil || msg.From == nil || !IsValidUserId(msg.From.Id) || IsSystemUser(msg.From.Id) {
+		if user == nil || !IsValidUserId(user.Id) ||
+			(IsSystemUser(user.Id) && !isConfirmedAnonymousAdmin(ctx, chat.Id, user.Id)) {
 			return false, false
 		}
 	}
@@ -448,14 +493,16 @@ func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
 		return isAdmin, !isAdmin && msg != nil
 	}
+	if ctx.EffectiveUser != nil && isConfirmedAnonymousAdmin(ctx, chat.Id, ctx.EffectiveUser.Id) {
+		return true, false
+	}
 
-	// msg.From can be nil for channel posts
-	if msg == nil || msg.From == nil {
+	// The original message sender stays anonymous during confirmed replay.
+	if user == nil {
 		return false, false
 	}
 
-	userid := msg.From.Id
-	userMember, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, userid, "CanInvite")
+	userMember, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, user.Id, "CanInvite")
 	if !ok {
 		return false, false
 	}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -974,6 +975,7 @@ func TestAnonymousAdminSetGroupCommandsAreRouted(t *testing.T) {
 }
 
 func TestAdminMembershipMissDeniesBeforeMutation(t *testing.T) {
+	useRealLocales(t)
 	for _, tc := range []struct {
 		name, command, action string
 		targetAdmin           bool
@@ -1056,5 +1058,102 @@ func TestDirectAdminMemberRequestsKeepUpdateTrace(t *testing.T) {
 		if !observed.Equal(parent) {
 			t.Errorf("member request parent = %v, want %v", observed, parent)
 		}
+	}
+}
+
+func TestAnonymousAdminProofRejectsNonAdminBeforeReplay(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	original := newAnonAdminCommandContext(t, f, "/ban 42").Msg
+	key := chat_status.AnonAdminCacheKey(f.chat.Id, original.MessageId)
+	if err := cache.GetMarshal().Set(cache.Context, key, original); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmtInt(f.chat.Id),
+		"m": fmtInt(original.MessageId),
+	})
+	ctx := newModuleCallbackContext(f.bot, f.chat, f.member, data)
+	if err := verifyAnonymousAdmin(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unprivileged confirmation returned %v", err)
+	}
+	if calls := f.client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("unprivileged confirmation mutated membership: %+v", calls)
+	}
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("unprivileged confirmation consumed the proof button: %+v", calls)
+	}
+	if chat_status.CanUserRestrict(f.bot, ctx, &f.chat, f.member.Id) {
+		t.Fatal("rejected confirmation retained restriction permission")
+	}
+}
+
+func TestAdminMembershipFailurePropagatesBeforeMutation(t *testing.T) {
+	useRealLocales(t)
+	for _, tc := range []struct {
+		name, command, action string
+		targetAdmin           bool
+		run                   func(*helpers.CommandContext) error
+	}{
+		{"promote", "/promote 42", "promoteChatMember", false, adminModule.promote},
+		{"demote", "/demote 42", "promoteChatMember", true, adminModule.demote},
+		{"title", "/title 42 Captain", "setChatAdministratorCustomTitle", true, adminModule.setTitle},
+	} {
+		for _, lookupErr := range []error{
+			errors.New("telegram transport failed"),
+			errors.New("Bad Request: user not found"),
+			&gotgbot.TelegramError{Method: "getChatMember", Code: 403, Description: "Forbidden"},
+			&gotgbot.TelegramError{Method: "getChatMember", Code: 500, Description: "Internal Server Error"},
+		} {
+			t.Run(tc.name+"/"+lookupErr.Error(), func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				if tc.targetAdmin {
+					f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Target"},"can_promote_members":true}`)
+				}
+				cache.LoadAdminCache(f.bot, f.chat.Id)
+				f.client.errors["getChatMember"] = lookupErr
+				c, err := helpers.BuildCommandContext(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, tc.command))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := tc.run(c); !errors.Is(err, lookupErr) {
+					t.Fatalf("member lookup returned %v, want %v", err, lookupErr)
+				}
+				if calls := f.client.callsFor(tc.action); len(calls) != 0 {
+					t.Fatalf("failed lookup caused %s: %+v", tc.action, calls)
+				}
+			})
+		}
+	}
+}
+
+func TestAnonymousAdminProofPreservesMessageSender(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	original := newAnonAdminCommandContext(t, f, "/ban 42").Msg
+	key := chat_status.AnonAdminCacheKey(f.chat.Id, original.MessageId)
+	if err := cache.GetMarshal().Set(cache.Context, key, original); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmtInt(f.chat.Id),
+		"m": fmtInt(original.MessageId),
+	})
+	ctx := newModuleCallbackContext(f.bot, f.chat, f.admin, data)
+	if err := verifyAnonymousAdmin(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("admin confirmation returned %v", err)
+	}
+	f.client.onlyCall(t, "banChatMember")
+	if ctx.EffectiveUser == nil || ctx.EffectiveUser.Id != f.admin.Id {
+		t.Fatal("confirmation lost the authorizing admin")
+	}
+	if ctx.EffectiveMessage == nil || ctx.EffectiveMessage.From == nil ||
+		ctx.EffectiveMessage.From.Id != chat_status.GroupAnonymousBotID {
+		t.Fatal("confirmation exposed the original anonymous sender")
+	}
+	if !chat_status.CanInvite(f.bot, ctx, &f.chat, ctx.EffectiveMessage) {
+		t.Fatal("original anonymous sender masked the confirming admin's invite right")
 	}
 }

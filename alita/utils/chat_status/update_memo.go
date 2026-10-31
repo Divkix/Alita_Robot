@@ -71,6 +71,9 @@ func UserHasPermissionForUpdate(
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, ctx.EffectiveMessage, ctx.EffectiveSender); shouldReturn {
 		return isAdmin
 	}
+	if isConfirmedAnonymousAdmin(ctx, chat.Id, userId) {
+		return true
+	}
 
 	userMember, ok := getUserMemberWithCacheForUpdate(b, ctx, chat, userId, "hasUserPermission")
 	if !ok {

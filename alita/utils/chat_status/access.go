@@ -28,6 +28,9 @@ func hasUserPermission(
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
 		return isAdmin
 	}
+	if isConfirmedAnonymousAdmin(ctx, chat.Id, userId) {
+		return true
+	}
 
 	userMember, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, userId, "hasUserPermission")
 	if !ok {

@@ -223,6 +223,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	parts := strings.SplitN(text, " ", 2)
 	command := strings.SplitN(parts[0][1:], "@", 2)[0]
+	chat_status.SetConfirmedAnonymousAdmin(ctx, chatId, query.From.Id)
 
 	if err := HandleAnonymousAdmin(b, ctx, command); err != nil {
 		return ext.EndGroups

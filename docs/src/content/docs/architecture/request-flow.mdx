@@ -510,6 +510,9 @@ also counts unexpected HTTP errors on requests without a trace context.
 
 Membership probes reject chat IDs and Telegram's synthetic sender accounts
 before contacting the API; the existing anonymous-admin proof rules still apply.
+After a valid anonymous-admin confirmation, permissions use the confirming
+admin for that chat only. The original message sender remains anonymous so
+warning records do not disclose the confirming admin.
 Shared admin-cache loads retain the originating trace but use independent
 timeouts, so one canceled waiter cannot cancel other callers' lookup.
 
