@@ -43,8 +43,9 @@ type settingsToggle struct {
 	// i18n key to refuse with, or "". Nil when admin status is enough.
 	// It sends nothing; settingsTogglePress presents the refusal.
 	right func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string
-	// set writes value and returns the i18n key to answer with when it fails.
-	set func(b *gotgbot.Bot, chatID int64, value string) string
+	// set receives the title for captcha writes; other repositories only need
+	// the ID. It returns the i18n key to answer with when the write fails.
+	set func(b *gotgbot.Bot, chatID int64, chatName, value string) string
 }
 
 // next is the value after current, or the first one when current is not one
@@ -58,7 +59,7 @@ var settingsOnOff = []string{"off", "on"}
 // boolToggle is an on/off row whose command writes it with set.
 func boolToggle(key, command string, botAdmin bool, set func(chatID int64, on bool) error) settingsToggle {
 	return settingsToggle{key: key, command: command, values: settingsOnOff, botAdmin: botAdmin,
-		set: func(_ *gotgbot.Bot, chatID int64, value string) string {
+		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
 			return settingsSaveFailed(command, chatID, set(chatID, value == "on"))
 		}}
 }
@@ -66,7 +67,7 @@ func boolToggle(key, command string, botAdmin bool, set func(chatID int64, on bo
 // valueToggle is a row of a few named values whose command writes it with set.
 func valueToggle(key, command string, values []string, botAdmin bool, set func(chatID int64, value string) error) settingsToggle {
 	return settingsToggle{key: key, command: command, values: values, botAdmin: botAdmin,
-		set: func(_ *gotgbot.Bot, chatID int64, value string) string {
+		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
 			return settingsSaveFailed(command, chatID, set(chatID, value))
 		}}
 }
@@ -127,8 +128,14 @@ func inFedRight(_ *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, _ int64) s
 // setters where available so the panel and command do not acquire different behavior.
 var settingsToggles = []settingsToggle{
 	{key: "cp", command: "/captcha", values: settingsOnOff, botAdmin: true, set: setCaptchaToggle},
-	valueToggle("cm", "/captchamode", []string{"math", "text"}, false, captcha.SetCaptchaMode),
-	valueToggle("ca", "/captchaaction", []string{"kick", "ban", "mute"}, false, captcha.SetCaptchaFailureAction),
+	{key: "cm", command: "/captchamode", values: []string{"math", "text"},
+		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
+			return settingsSaveFailed("/captchamode", chatID, captcha.SetCaptchaMode(chatID, chatName, value))
+		}},
+	{key: "ca", command: "/captchaaction", values: []string{"kick", "ban", "mute"},
+		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
+			return settingsSaveFailed("/captchaaction", chatID, captcha.SetCaptchaFailureAction(chatID, chatName, value))
+		}},
 	valueToggle("fm", "/setfloodmode", []string{"mute", "ban", "kick"}, true, antiflood.SetFloodMode),
 	boolToggle("fd", "/delflood", true, antiflood.SetFloodMsgDel),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
@@ -166,13 +173,13 @@ var settingsTogglesByKey, settingsTogglesByCommand = func() (byKey, byCommand ma
 
 // setCaptchaToggle is /captcha on|off: turning it off also releases the
 // users a pending captcha holds.
-func setCaptchaToggle(b *gotgbot.Bot, chatID int64, value string) string {
+func setCaptchaToggle(b *gotgbot.Bot, chatID int64, chatName, value string) string {
 	on := value == "on"
 	failKey := "captcha_disable_failed"
 	if on {
 		failKey = "captcha_enable_failed"
 	}
-	if err := captcha.SetCaptchaEnabled(chatID, on); err != nil {
+	if err := captcha.SetCaptchaEnabled(chatID, chatName, on); err != nil {
 		log.Errorf("[Settings] toggle /captcha failed for chat %d: %v", chatID, err)
 		return failKey
 	}
@@ -188,7 +195,7 @@ func setCaptchaToggle(b *gotgbot.Bot, chatID int64, value string) string {
 
 // setAntiRaidToggle is /antiraid on|off: on starts raid mode for the chat's
 // raid time. A raid already in the state asked for counts as done.
-func setAntiRaidToggle(_ *gotgbot.Bot, chatID int64, value string) string {
+func setAntiRaidToggle(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
 	var err error
 	if value == "on" {
 		_, err = antiRaidModule.enableRaid(chatID, antiraid.GetAntiRaidSettings(chatID).RaidTime)
@@ -204,7 +211,7 @@ func setAntiRaidToggle(_ *gotgbot.Bot, chatID int64, value string) string {
 
 // setAISpamToggle is /aispam on|off, which refuses to turn the filter on
 // when the operator has not set it up.
-func setAISpamToggle(_ *gotgbot.Bot, chatID int64, value string) string {
+func setAISpamToggle(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
 	on := value == "on"
 	if refusal := aispamEnableRefusalKey(); on && refusal != "" {
 		return refusal
@@ -261,7 +268,7 @@ func settingsTogglePress(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, 
 	}
 	// The summary is drawn again even when the write fails: one that fails
 	// half way (captcha off, then the release fails) has changed the row.
-	failKey := toggle.set(b, chat.Id, value)
+	failKey := toggle.set(b, chat.Id, chat.Title, value)
 	text, kb := settingsSummaryView(ctx, tr, chat)
 	editSettingsMessage(b, query.Message, text, kb)
 	answer := &gotgbot.AnswerCallbackQueryOpts{}

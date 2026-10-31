@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -392,9 +393,15 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		return err
 	}
 
-	chatMember, err := chat.GetMember(b, userId, nil)
+	if !chat_status.IsValidUserId(userId) || chat_status.IsSystemUser(userId) {
+		return ext.EndGroups
+	}
+	chatMember, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userId, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		replyHTML(b, msg, trS(tr, "common_user_not_in_chat"))
+		return ext.EndGroups
+	}
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

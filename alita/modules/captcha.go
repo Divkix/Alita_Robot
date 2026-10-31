@@ -139,6 +139,9 @@ var (
 	// errCaptchaCannotRestrict means the bot may not mute the newcomer, so the
 	// join gets the welcome instead of a challenge it could not enforce.
 	errCaptchaCannotRestrict = errors.New("captcha skipped: bot cannot restrict members")
+	// errCaptchaDeliverySkipped is returned only after a failed send has been
+	// rolled back and the newcomer's permissions restored.
+	errCaptchaDeliverySkipped = errors.New("captcha skipped: delivery failed and permissions restored")
 )
 
 // captchaRightsNoticeCooldown is how long a chat goes without a repeat of the
@@ -617,7 +620,7 @@ func (moduleStruct) captchaJoinEnableCallback(bot *gotgbot.Bot, ctx *ext.Context
 		removeButton("")
 		return ext.EndGroups
 	}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		answer("captcha_enable_failed")
 		return err
 	}
@@ -666,7 +669,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "on", "enable", "yes":
-		err := captcha.SetCaptchaEnabled(chat.Id, true)
+		err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true)
 		if err != nil {
 			text, _ := tr.GetString("captcha_enable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
@@ -679,7 +682,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 
 	case "off", "disable", "no":
-		err := captcha.SetCaptchaEnabled(chat.Id, false)
+		err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, false)
 		if err != nil {
 			text, _ := tr.GetString("captcha_disable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
@@ -767,7 +770,7 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		return err
 	}
 
-	err := captcha.SetCaptchaMode(chat.Id, mode)
+	err := captcha.SetCaptchaMode(chat.Id, chat.Title, mode)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidCaptchaMode) {
@@ -815,7 +818,7 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	}
 	timeout := int(timeout64)
 
-	err = captcha.SetCaptchaTimeout(chat.Id, timeout)
+	err = captcha.SetCaptchaTimeout(chat.Id, chat.Title, timeout)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidTimeout) {
@@ -856,7 +859,7 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 		return err
 	}
 
-	err := captcha.SetCaptchaFailureAction(chat.Id, action)
+	err := captcha.SetCaptchaFailureAction(chat.Id, chat.Title, action)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidFailureAction) {
@@ -903,7 +906,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 	}
 	attempts := int(attempts64)
 
-	if err := captcha.SetCaptchaMaxAttempts(chat.Id, attempts); err != nil {
+	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, attempts); err != nil {
 		log.Errorf("Failed to set captcha max attempts: %v", err)
 		text, _ := tr.GetString("captcha_internal_error")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
@@ -1145,9 +1148,14 @@ func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, option
 
 // SendCaptcha sends a captcha challenge to a new member.
 // There is one pending attempt per (user, chat); creating a challenge replaces the old one.
+// Delivery failure skips the challenge only after rollback succeeds; cleanup
+// failures remain errors and retain the durable permission-restoration retry.
 //
 //nolint:gocyclo // The ordered mute/send/persist rollback state machine is intentionally cohesive.
 func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName string) (err error) {
+	if userID <= 0 || chat_status.IsSystemUser(userID) {
+		return errCaptchaDisabled
+	}
 	var preAttempt *db.CaptchaAttempts
 	muted := false
 	defer func() {
@@ -1223,11 +1231,14 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		}
 	}
 
-	userMember, err := bot.GetChatMember(chat.Id, userID, nil)
+	userMember, err := bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 	if err != nil {
-		if isTransientMemberError(err) {
+		if isTransientMemberError(err) && !error_handling.IsMissingChatMemberError(err) {
 			time.Sleep(captchaMemberRetryDelay)
-			userMember, err = bot.GetChatMember(chat.Id, userID, nil)
+			userMember, err = bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
+		}
+		if error_handling.IsMissingChatMemberError(err) {
+			return errors.Join(errCaptchaDisabled, err)
 		}
 		if err != nil {
 			log.Errorf("Failed to validate user %d via Telegram API: %v", userID, err)
@@ -1346,8 +1357,16 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		if err == nil {
 			err = errors.New("telegram returned no captcha message")
 		}
-		log.Errorf("Failed to send captcha: %v", err)
-		return errors.Join(err, rollbackCaptchaAttempt(bot, preAttempt))
+		sendErr := fmt.Errorf("deliver captcha to user %d in chat %d: %w", userID, chat.Id, err)
+		if rollbackErr := rollbackCaptchaAttempt(bot, preAttempt); rollbackErr != nil {
+			return errors.Join(sendErr, fmt.Errorf("roll back captcha for user %d in chat %d: %w", userID, chat.Id, rollbackErr))
+		}
+		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{
+			"chat_id":   chat.Id,
+			"user_id":   userID,
+			"update_id": ctx.UpdateId,
+		}).Warnf("[Captcha] Skipping challenge after delivery failed and permissions were restored: %v", err)
+		return errors.Join(errCaptchaDeliverySkipped, sendErr)
 	}
 
 	err = captcha.UpdateCaptchaAttemptMessageID(preAttempt.ID, sent.MessageId)
@@ -1483,14 +1502,13 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		userName = "User"
 	}
 
-	// Another guard (spamdb, antiraid, fed-ban) banned the newcomer while the
-	// captcha was pending. The kick is unbanChatMember, which would lift that
-	// ban, so leave the member as it is and drop any pending unmute.
-	if err == nil && member.GetStatus() == "kicked" {
+	// Missing or departed members need no moderation. In particular, kicking
+	// someone already banned by another guard would lift that guard's ban.
+	if error_handling.IsMissingChatMemberError(err) || (err == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
 		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
-			log.Errorf("[Captcha] Failed to clear fallback unmute for banned user %d: %v", userID, err)
+			log.Errorf("[Captcha] Failed to clear fallback unmute for departed user %d: %v", userID, err)
 		}
-		log.Infof("[Captcha] User %d is already banned in chat %d; skipping %s", userID, chatID, action)
+		log.Debugf("[Captcha] User %d is no longer a member of chat %d; skipping %s", userID, chatID, action)
 		return true, false
 	}
 

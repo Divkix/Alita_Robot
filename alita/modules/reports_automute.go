@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
@@ -13,8 +14,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // reportAutoMuteDuration caps a report auto-mute. Telegram ends the mute at
@@ -28,7 +31,7 @@ const reportAutoMuteDuration = 24 * time.Hour
 // channel sender, or a member another restriction already applies to, and
 // mutes a user once until an admin decides. Telegram's until_date ends the
 // mute after reportAutoMuteDuration. Failures are logged.
-func autoMuteReported(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, reported *gotgbot.Message, threshold int) {
+func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat, reported *gotgbot.Message, threshold int) {
 	if threshold <= 0 {
 		return
 	}
@@ -64,7 +67,7 @@ func autoMuteReported(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, r
 
 	// Only a plain member: an admin is never muted, and a restriction set
 	// by an admin must not be replaced by one that ends sooner.
-	member, err := b.GetChatMember(chat.Id, target.Id, nil)
+	member, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, target.Id, nil)
 	if err != nil || member.GetStatus() != gotgbot.ChatMemberStatusMember {
 		if err != nil {
 			log.Debugf("[Reports] cannot check %d in %d before auto-mute: %v", target.Id, chat.Id, err)
@@ -82,7 +85,7 @@ func autoMuteReported(b *gotgbot.Bot, tr *i18n.Translator, chat *gotgbot.Chat, r
 	// An admin who decided while the mute was being applied found no
 	// restriction to lift and dropped the record: lift it now.
 	if current, err := reports.GetAutoMute(chat.Id, target.Id); err == nil && current == nil {
-		liftReportAutoMute(b, chat.Id, target.Id, until)
+		liftReportAutoMute(b, ctx, chat.Id, target.Id, until)
 		return
 	}
 
@@ -121,7 +124,7 @@ func autoMuteTarget(b *gotgbot.Bot, chatID int64, reported *gotgbot.Message) *go
 // threshold. A ban, kick or mute is the admins' own action: the record is
 // dropped and the member left as the action put them. Only a mute this
 // feature applied is ever lifted: never one an admin set or changed since.
-func settleReportAutoMute(b *gotgbot.Bot, chatID, userID int64, status string) {
+func settleReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64, status string) {
 	switch status {
 	case models.ReportStatusDismissed, models.ReportStatusDeleted:
 	default:
@@ -157,13 +160,19 @@ func settleReportAutoMute(b *gotgbot.Bot, chatID, userID int64, status string) {
 	if muted == nil || !muted.MutedUntil.After(time.Now()) {
 		return
 	}
-	liftReportAutoMute(b, chatID, userID, muted.MutedUntil)
+	liftReportAutoMute(b, ctx, chatID, userID, muted.MutedUntil)
 }
 
 // liftReportAutoMute restores the chat's default permissions to userID if
 // the member still carries the auto-mute that ends at until.
-func liftReportAutoMute(b *gotgbot.Bot, chatID, userID int64, until time.Time) {
-	member, err := b.GetChatMember(chatID, userID, nil)
+func liftReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64, until time.Time) {
+	if !chat_status.IsValidUserId(userID) || chat_status.IsSystemUser(userID) {
+		return
+	}
+	member, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), chatID, userID, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		return
+	}
 	if err != nil {
 		log.Warnf("[Reports] cannot check %d in %d to lift the auto-mute: %v", userID, chatID, err)
 		return

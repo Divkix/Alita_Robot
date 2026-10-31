@@ -3,6 +3,8 @@ package chat_status
 import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 func hasUserPermission(
@@ -26,8 +28,11 @@ func hasUserPermission(
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
 		return isAdmin
 	}
+	if isConfirmedAnonymousAdmin(ctx, chat.Id, userId) {
+		return true
+	}
 
-	userMember, ok := getUserMemberWithCache(b, chat, userId, "hasUserPermission")
+	userMember, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, userId, "hasUserPermission")
 	if !ok {
 		return false
 	}
@@ -85,7 +90,7 @@ func hasBotPermission(
 		return false
 	}
 
-	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "hasBotPermission")
+	botMember, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, b.Id, "hasBotPermission")
 	if !ok {
 		return false
 	}
@@ -137,7 +142,7 @@ func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 	if chat == nil {
 		return false
 	}
-	return IsUserAdmin(b, chat.Id, userId)
+	return isUserAdminForContext(b, ctx, chat.Id, userId)
 }
 
 func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
@@ -146,7 +151,7 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 		return false
 	}
 
-	mem, err := chat.GetMember(b, userId, nil)
+	mem, err := getChatMember(tracing.UpdateContext(ctx), b, chat.Id, userId)
 	if err != nil || mem == nil {
 		return false
 	}

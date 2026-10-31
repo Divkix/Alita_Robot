@@ -238,6 +238,17 @@ Captcha startup recovery releases incomplete attempts, finalizes expired
 attempts, and reschedules still-valid attempts. It then starts the periodic
 attempt-cleanup and scheduled-unmute workers. A recovery failure aborts startup
 instead of accepting updates with an unknown captcha state.
+Challenge photo/text delivery failures use the same rollback: release the attempt
+and restore permissions, without retrying the send or generating a replacement.
+Only successful cleanup marks that challenge skipped, logs one warning on the
+update context, and lets the join continue to welcome. Cleanup failures propagate
+to the dispatcher and retain the durable scheduled-unmute retry.
+Captcha setting writes also ensure their foreign-key chat row with the Telegram
+title supplied by commands, settings callbacks, or panel access, enriching
+previously empty chat names without a second chat write.
+Synthetic member IDs never trigger captcha membership lookups; known missing
+members skip the join challenge, and missing/left/banned members receive no
+timeout moderation or fallback unmute.
 
 Registered modules, in priority order: BotUpdates, AISpam, SpamDB, Languages, Admin, Approvals, Pins, LogChannels, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, AntiRaid, Federations, Blacklists, Reactions, Formatting, Backup. Help loads last.
 
@@ -470,9 +481,9 @@ Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
 ### Common Error Patterns
 
 ```go
-// Log and return error (propagates to dispatcher)
+// Return to the dispatcher, which classifies and logs the error once.
+// Do not also log it in the command or its deep-link helpers.
 if err != nil {
-    log.Error(err)
     return err
 }
 
@@ -488,6 +499,27 @@ _, _ = msg.Delete(b, nil)  // Ignore delete errors
 :::tip[Expected Telegram errors]
 The `helpers.IsExpectedTelegramError()` function filters common non-actionable errors like "bot is not an admin", "chat was deleted", and "message to delete not found". These are logged at Warn level instead of Error to reduce noise.
 :::
+
+The Bot API transport counts unexpected HTTP failures by method and status.
+`getChatMember` responses identifying a missing user/member are negative
+membership lookups, not operational errors; permission and chat-access errors
+still count. Failed responses on traced calls carry a bounded
+`telegram.error.reason` category, never the raw description or request text.
+The bounded `alita_telegram_api_error_reasons_total{method,code,reason}` counter
+also counts unexpected HTTP errors on requests without a trace context.
+
+Membership probes reject chat IDs and Telegram's synthetic sender accounts
+before contacting the API; the existing anonymous-admin proof rules still apply.
+After a valid anonymous-admin confirmation, permissions use the confirming
+admin for that chat only. The original message sender remains anonymous so
+warning records do not disclose the confirming admin.
+Shared admin-cache loads retain the originating trace but use independent
+timeouts, so one canceled waiter cannot cancel other callers' lookup.
+
+The production BotClient enables `AllowSendingWithoutReply` for ordinary
+same-chat text replies, including commands with nil or custom reply options.
+Deleting the triggering message therefore does not discard the response.
+Cross-chat and ephemeral replies retain Telegram's stricter reply semantics.
 
 ## Next Steps
 

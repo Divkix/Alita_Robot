@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
@@ -19,7 +20,7 @@ import (
 func newCaptchaJoinChat(t *testing.T) gotgbot.Chat {
 	t.Helper()
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Rights Chat"}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
 	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
@@ -79,7 +80,7 @@ func TestCaptchaJoinWithoutRestrictRightSendsWelcomeAndOneNotice(t *testing.T) {
 
 	first := gotgbot.User{Id: 4801, FirstName: "First"}
 	clearRecentJoinProcessing(chat.Id, first.Id)
-	if err := processSingleNewMember(bot, &chat, 0, first, true); err != nil {
+	if err := processSingleNewMember(bot, &ext.Context{EffectiveChat: &chat}, first, true); err != nil {
 		t.Fatalf("processSingleNewMember(first) error = %v", err)
 	}
 
@@ -97,7 +98,7 @@ func TestCaptchaJoinWithoutRestrictRightSendsWelcomeAndOneNotice(t *testing.T) {
 
 	second := gotgbot.User{Id: 4802, FirstName: "Second"}
 	clearRecentJoinProcessing(chat.Id, second.Id)
-	if err := processSingleNewMember(bot, &chat, 0, second, true); err != nil {
+	if err := processSingleNewMember(bot, &ext.Context{EffectiveChat: &chat}, second, true); err != nil {
 		t.Fatalf("processSingleNewMember(second) error = %v", err)
 	}
 	assertNoCaptchaAttempt(t, second.Id, chat.Id)
@@ -121,7 +122,7 @@ func TestCaptchaJoinWhenMuteLacksRightSendsWelcome(t *testing.T) {
 	notice := rightsNoticeText(t)
 
 	clearRecentJoinProcessing(chat.Id, member.Id)
-	if err := processSingleNewMember(bot, &chat, 0, member, true); err != nil {
+	if err := processSingleNewMember(bot, &ext.Context{EffectiveChat: &chat}, member, true); err != nil {
 		t.Fatalf("processSingleNewMember() error = %v", err)
 	}
 

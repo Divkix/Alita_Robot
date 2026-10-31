@@ -6,12 +6,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 type errorBotClient struct {
@@ -723,5 +729,199 @@ func TestIsUserAdminCachedEmptyListInPrivateChatIsNotAdmin(t *testing.T) {
 			t.Errorf("API calls = %v, want no getChatMember in a private chat", rec.calls)
 			break
 		}
+	}
+}
+
+func TestMembershipPredicatesRejectInvalidTargetsWithoutRequests(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	chat := &gotgbot.Chat{Id: -7001, Type: "supergroup"}
+	ctx := makeCtxWithMessage("supergroup")
+	for _, userID := range []int64{0, -1, -1001234567890, GroupAnonymousBotID, TelegramUserID, SendAsChannelBotID} {
+		t.Run(fmt.Sprint(userID), func(t *testing.T) {
+			client := &recordingChatStatusClient{}
+			bot := newRecordingChatStatusBot(999, client)
+			if IsUserInChat(bot, chat, userID) {
+				t.Error("invalid target reported as a member")
+			}
+			if member, err := IsUserInChatWithError(bot, chat, userID); member || err != nil {
+				t.Errorf("invalid membership = %v, %v, want false, nil", member, err)
+			}
+			if RequireUserOwner(bot, ctx, chat, userID) {
+				t.Error("invalid target reported as an owner")
+			}
+			if CanUserRestrict(bot, ctx, chat, userID) ||
+				UserHasPermissionForUpdate(bot, ctx, chat, userID, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers }) {
+				t.Error("invalid target received a user permission")
+			}
+			msg := &gotgbot.Message{From: &gotgbot.User{Id: userID}}
+			if CanInvite(bot, ctx, chat, msg) {
+				t.Error("invalid target received invite permission")
+			}
+			// Only the two pre-existing trusted synthetic admins retain the
+			// admin-only shortcut; membership/owner checks never grant it.
+			wantAdmin := userID == GroupAnonymousBotID || userID == TelegramUserID
+			if got := IsUserAdmin(bot, chat.Id, userID); got != wantAdmin {
+				t.Errorf("IsUserAdmin = %v, want %v", got, wantAdmin)
+			}
+			if got, known := IsUserAdminCached(chat.Id, userID); got != wantAdmin || !known {
+				t.Errorf("IsUserAdminCached = %v, %v, want %v, true", got, known, wantAdmin)
+			}
+			if len(client.calls) != 0 {
+				t.Fatalf("invalid target caused requests: %v", client.calls)
+			}
+		})
+	}
+	for _, botID := range []int64{0, -1, GroupAnonymousBotID, TelegramUserID, SendAsChannelBotID} {
+		client := &recordingChatStatusClient{}
+		bot := newRecordingChatStatusBot(botID, client)
+		if IsBotAdmin(bot, ctx, chat) || IsBotAdminForUpdate(bot, ctx, chat) || CanBotRestrict(bot, ctx, chat) {
+			t.Errorf("invalid bot ID %d received admin permissions", botID)
+		}
+		if len(client.calls) != 0 {
+			t.Errorf("invalid bot ID %d caused requests: %v", botID, client.calls)
+		}
+	}
+}
+
+func TestMissingChatMemberErrorIsNarrowlyScoped(t *testing.T) {
+	for _, description := range []string{"Bad Request: user not found", "Bad Request: member not found", "Bad Request: PARTICIPANT_ID_INVALID", "Bad Request: USER_ID_INVALID"} {
+		err := &gotgbot.TelegramError{Method: "getChatMember", Code: http.StatusBadRequest, Description: description}
+		if !error_handling.IsMissingChatMemberError(fmt.Errorf("wrapped: %w", err)) {
+			t.Errorf("missing-member error not recognized: %v", err)
+		}
+	}
+	for _, err := range []error{
+		nil,
+		fmt.Errorf("Bad Request: user not found"),
+		&gotgbot.TelegramError{Method: "getChat", Code: 400, Description: "Bad Request: user not found"},
+		&gotgbot.TelegramError{Method: "getChatMember", Code: 403, Description: "Bad Request: user not found"},
+		&gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: chat not found"},
+		&gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: CHAT_ADMIN_REQUIRED"},
+		&gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: not enough rights to get chat member"},
+	} {
+		if error_handling.IsMissingChatMemberError(err) {
+			t.Errorf("non-membership error classified as absence: %v", err)
+		}
+	}
+}
+
+func TestMembershipAbsenceIsQuietAndUnexpectedFailuresFailClosed(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	logger := log.StandardLogger()
+	previous := logger.ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { logger.ReplaceHooks(previous) })
+	hook := logtest.NewLocal(logger)
+	for _, tc := range []struct {
+		name string
+		err  error
+		warn bool
+	}{
+		{"user absent", &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: user not found"}, false},
+		{"member absent", &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: member not found"}, false},
+		{"participant absent", &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: PARTICIPANT_ID_INVALID"}, false},
+		{"user id absent", &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: USER_ID_INVALID"}, false},
+		{"permission denied", &gotgbot.TelegramError{Method: "getChatMember", Code: 403, Description: "Forbidden: bot is not a member of the supergroup chat"}, true},
+		{"unknown bad request", &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: unexpected"}, true},
+		{"server failure", &gotgbot.TelegramError{Method: "getChatMember", Code: 500, Description: "Internal Server Error"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const chatID, userID = int64(-7002), int64(701)
+			bot := &gotgbot.Bot{
+				User:      gotgbot.User{Id: 9910},
+				BotClient: &fallbackErrBotClient{botID: 9910, chatID: chatID, userID: userID, userErr: tc.err},
+			}
+			chat := &gotgbot.Chat{Id: chatID, Type: "supergroup"}
+			// Force only the target's direct fallback, not a list load.
+			if err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", chatID), cache.AdminCache{ChatId: chatID, Cached: true, Negative: true}); err != nil {
+				t.Fatal(err)
+			}
+			for name, predicate := range map[string]func() bool{
+				"admin":      func() bool { return IsUserAdmin(bot, chatID, userID) },
+				"member":     func() bool { return IsUserInChat(bot, chat, userID) },
+				"permission": func() bool { return CanUserRestrict(bot, makeCtxWithMessage("supergroup"), chat, userID) },
+			} {
+				hook.Reset()
+				if predicate() {
+					t.Errorf("%s granted access after lookup failure", name)
+				}
+				warned := false
+				for _, entry := range hook.AllEntries() {
+					warned = warned || entry.Level <= log.WarnLevel
+				}
+				if warned != tc.warn {
+					t.Errorf("%s warned = %v, want %v", name, warned, tc.warn)
+				}
+			}
+			if member, err := IsUserInChatWithError(bot, chat, userID); member || (err != nil) != tc.warn {
+				t.Errorf("membership with error = %v, %v, want false and unexpected errors only", member, err)
+			}
+		})
+	}
+}
+
+type membershipContextClient struct {
+	gotgbot.BotClient
+	observed []trace.SpanContext
+}
+
+func (c *membershipContextClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	c.observed = append(c.observed, trace.SpanContextFromContext(ctx))
+	return c.BotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func TestSharedMembershipLookupsKeepUpdateTraceParent(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	parent := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: trace.TraceID{1}, SpanID: trace.SpanID{2}, TraceFlags: trace.FlagsSampled,
+	})
+	for name, predicate := range map[string]func(*gotgbot.Bot, *ext.Context, *gotgbot.Chat) bool{
+		"admin": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return RequireUserAdmin(b, ctx, chat, 701)
+		},
+		"memoized admin": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return IsUserAdminForUpdate(b, ctx, chat.Id, 701)
+		},
+		"bot admin":          IsBotAdmin,
+		"memoized bot admin": IsBotAdminForUpdate,
+		"user permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return CanUserRestrict(b, ctx, chat, 701)
+		},
+		"memoized user permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return UserHasPermissionForUpdate(b, ctx, chat, 701, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers })
+		},
+		"bot permission": CanBotRestrict,
+		"memoized bot permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return BotHasPermissionForUpdate(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers })
+		},
+		"owner": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return RequireUserOwner(b, ctx, chat, 701)
+		},
+		"invite": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return CanInvite(b, ctx, chat, ctx.EffectiveMessage)
+		},
+		"ban protection": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return IsUserBanProtected(b, ctx, chat, 701)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			const chatID = int64(-7003)
+			cache.InvalidateAdminCache(chatID)
+			if err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", chatID), cache.AdminCache{ChatId: chatID, Cached: true, Negative: true}); err != nil {
+				t.Fatal(err)
+			}
+			client := &membershipContextClient{BotClient: chatStatusBotClient{}}
+			bot := &gotgbot.Bot{User: gotgbot.User{Id: 999}, BotClient: client}
+			ctx := makeCtxWithMessage("supergroup")
+			ctx.Data = map[string]any{tracing.ContextDataKey: trace.ContextWithSpanContext(context.Background(), parent)}
+			predicate(bot, ctx, &gotgbot.Chat{Id: chatID, Type: "supergroup"})
+			if len(client.observed) == 0 {
+				t.Fatal("predicate made no membership requests")
+			}
+			for _, observed := range client.observed {
+				if !observed.Equal(parent) {
+					t.Errorf("request parent = %v, want %v", observed, parent)
+				}
+			}
+		})
 	}
 }

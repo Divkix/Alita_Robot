@@ -60,8 +60,8 @@ var (
 	}, []string{"operation"})
 
 	// TelegramRequestDuration observes Bot API request latency, up to the
-	// response headers, by method (see BotAPIMethod). getUpdates is left out:
-	// it long-polls.
+	// response headers (before any error-envelope inspection), by method
+	// (see BotAPIMethod). getUpdates is left out: it long-polls.
 	TelegramRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "alita_telegram_api_request_duration_seconds",
 		Help:    "Bot API request latency, by method.",
@@ -70,11 +70,22 @@ var (
 
 	// TelegramRequestErrors counts failed Bot API requests by method and
 	// code: the HTTP status (429 is a rate limit), or "transport" when no
-	// response came back.
+	// response came back. Known getChatMember HTTP 400 missing-member replies
+	// are expected negative lookups and excluded; missing chats, missing rights
+	// and the same descriptions from other methods remain failures.
 	TelegramRequestErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "alita_telegram_api_errors_total",
 		Help: "Failed Bot API requests, by method and HTTP status or \"transport\".",
 	}, []string{"method", "code"})
+
+	// TelegramRequestErrorReasons counts unexpected HTTP error responses even
+	// without a recorded trace parent. reason is a fixed category, never a raw
+	// Telegram description; expected membership negatives are excluded as above.
+	// Transport failures remain only in TelegramRequestErrors.
+	TelegramRequestErrorReasons = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_telegram_api_error_reasons_total",
+		Help: "Unexpected Bot API HTTP errors, by method, HTTP status and normalized reason.",
+	}, []string{"method", "code", "reason"})
 
 	// WebhookQueueDepth is the number of webhook updates accepted but not yet
 	// picked up by a dispatcher worker.

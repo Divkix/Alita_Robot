@@ -8,10 +8,12 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 func TestStartCommandRepliesInPrivateAndGroup(t *testing.T) {
@@ -166,6 +168,42 @@ func TestHelpAndStartPropagateSendFailures(t *testing.T) {
 			err := tt.run(bot, ctx)
 			if !errors.Is(err, requestErr) {
 				t.Fatalf("%s error = %v, want request error", tt.name, err)
+			}
+		})
+	}
+}
+
+func TestStartBlockedUserIsLoggedOnceByDispatcher(t *testing.T) {
+	useRealLocales(t)
+	previousHooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previousHooks) })
+	hook := logrustest.NewGlobal()
+	for _, text := range []string{"/start", "/start unknown_deeplink_test", "/start help_help", "/start about", "/start extend"} {
+		t.Run(text, func(t *testing.T) {
+			hook.Reset()
+			client := newModuleBotClient()
+			blocked := &gotgbot.TelegramError{
+				Method: "sendMessage", Code: 403,
+				Description: "Forbidden: bot was blocked by the user",
+			}
+			client.errors["sendMessage"] = blocked
+			bot := newModuleTestBot(client)
+			user := gotgbot.User{Id: 4314, FirstName: "Helper"}
+			chat := gotgbot.Chat{Id: user.Id, Type: "private"}
+			ctx := newModuleMessageContext(bot, chat, user, text)
+
+			err := DefaultHelpRegistry().start(bot, ctx)
+			if !errors.Is(err, blocked) {
+				t.Fatalf("start error = %v, want blocked error", err)
+			}
+			if entries := hook.AllEntries(); len(entries) != 0 {
+				t.Fatalf("handler logged before dispatcher: %v", entries)
+			}
+			helpers.LogHandlerError(ctx, err)
+			entries := hook.AllEntries()
+			if len(entries) != 1 || entries[0].Level != log.WarnLevel ||
+				!strings.Contains(entries[0].Message, "Expected Telegram API error:") {
+				t.Fatalf("want one expected warning, got %v", entries)
 			}
 		})
 	}

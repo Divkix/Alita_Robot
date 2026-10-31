@@ -21,7 +21,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // 1087968824 - Group Anonymous Bot (For anonymous users)
@@ -70,6 +72,43 @@ func CallbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
 		return nil, false
 	}
 	return update.CallbackQuery, true
+}
+
+const confirmedAnonymousAdminDataKey = "confirmedAnonymousAdmin"
+
+type confirmedAnonymousAdmin struct {
+	chatID, userID int64
+}
+
+// SetConfirmedAnonymousAdmin records the actor for command replay without
+// replacing the original anonymous message sender. Call only after verifying
+// the confirmation callback and retrieving its original command. Real admins
+// still need their own rights; only the existing service-admin shortcut skips
+// a member lookup, and confirmation never grants ownership.
+func SetConfirmedAnonymousAdmin(ctx *ext.Context, chatID, userID int64) {
+	if ctx == nil || !IsValidUserId(userID) || (IsSystemUser(userID) && !slices.Contains(tgAdminList, userID)) {
+		return
+	}
+	if ctx.Data == nil {
+		ctx.Data = make(map[string]any)
+	}
+	ctx.Data[confirmedAnonymousAdminDataKey] = confirmedAnonymousAdmin{chatID, userID}
+}
+
+func confirmedAnonymousAdminUser(ctx *ext.Context, chatID int64) *gotgbot.User {
+	if ctx == nil || ctx.EffectiveUser == nil {
+		return nil
+	}
+	proof, ok := ctx.Data[confirmedAnonymousAdminDataKey].(confirmedAnonymousAdmin)
+	if !ok || proof.chatID != chatID || proof.userID != ctx.EffectiveUser.Id {
+		return nil
+	}
+	return ctx.EffectiveUser
+}
+
+func isConfirmedAnonymousAdmin(ctx *ext.Context, chatID, userID int64) bool {
+	user := confirmedAnonymousAdminUser(ctx, chatID)
+	return user != nil && user.Id == userID && slices.Contains(tgAdminList, userID)
 }
 
 func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
@@ -131,14 +170,34 @@ func chatFromUpdate(update *gotgbot.Update) *gotgbot.Chat {
 	return nil
 }
 
-func getUserMemberWithCache(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64, funcName string) (gotgbot.MergedChatMember, bool) {
+// Synthetic sender users identify messages sent on behalf of chats, not
+// queryable members. Anonymous-admin authorization remains in checkAnonAdmin
+// and the existing tgAdminList shortcut, never in a membership lookup.
+func getChatMember(ctx context.Context, b *gotgbot.Bot, chatID, userID int64) (gotgbot.ChatMember, error) {
+	if b == nil || !IsValidUserId(userID) || IsSystemUser(userID) {
+		return nil, nil
+	}
+	member, err := b.GetChatMemberWithContext(ctx, chatID, userID, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		return nil, nil
+	}
+	return member, err
+}
+
+func getUserMemberWithCache(ctx context.Context, b *gotgbot.Bot, chat *gotgbot.Chat, userId int64, funcName string) (gotgbot.MergedChatMember, bool) {
+	if b == nil || chat == nil || !IsValidUserId(userId) || IsSystemUser(userId) {
+		return gotgbot.MergedChatMember{}, false
+	}
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if found {
 		return userMember, true
 	}
-	tmpUserMember, err := chat.GetMember(b, userId, nil)
+	tmpUserMember, err := getChatMember(ctx, b, chat.Id, userId)
 	if err != nil {
-		log.Errorf("[%s] GetMember failed for user %d in chat %d: %v", funcName, userId, chat.Id, err)
+		log.WithContext(ctx).Errorf("[%s] GetMember failed for user %d in chat %d: %v", funcName, userId, chat.Id, err)
+		return gotgbot.MergedChatMember{}, false
+	}
+	if tmpUserMember == nil {
 		return gotgbot.MergedChatMember{}, false
 	}
 	return tmpUserMember.MergeChatMember(), true
@@ -203,6 +262,9 @@ func userAdminFromCache(chatID, userId int64) (isAdmin, known, noAdmins bool) {
 	if slices.Contains(tgAdminList, userId) {
 		return true, true, false
 	}
+	if IsSystemUser(userId) {
+		return false, true, false
+	}
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
 	if !adminsAvail || !admins.Cached || admins.Negative || len(admins.UserInfo) == 0 {
 		return false, false, adminsAvail && admins.Cached && len(admins.UserInfo) == 0
@@ -217,6 +279,12 @@ func userAdminFromCache(chatID, userId int64) (isAdmin, known, noAdmins bool) {
 
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	isAdmin, err := IsUserAdminWithContext(context.Background(), b, chatID, userId)
+	cache.RethrowAdminLoadPanic(err)
+	return isAdmin
+}
+
+func isUserAdminForContext(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
+	isAdmin, err := IsUserAdminWithContext(tracing.UpdateContext(ctx), b, chatID, userID)
 	cache.RethrowAdminLoadPanic(err)
 	return isAdmin
 }
@@ -302,7 +370,7 @@ func isUserAdminByMember(ctx context.Context, b *gotgbot.Bot, chatID, userId int
 
 	ctxMember, cancelMember := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelMember()
-	member, err := b.GetChatMemberWithContext(ctxMember, chatID, userId, nil)
+	member, err := getChatMember(ctxMember, b, chatID, userId)
 	if err != nil {
 		if ctx.Err() != nil {
 			return false, ctx.Err()
@@ -335,6 +403,9 @@ func isUserAdminByMember(ctx context.Context, b *gotgbot.Bot, chatID, userId int
 		}
 		return false, nil
 	}
+	if member == nil {
+		return false, nil
+	}
 
 	status := member.GetStatus()
 	isAdmin := status == "administrator" || status == "creator"
@@ -359,8 +430,11 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if chat.Type == "private" {
 		return true
 	}
+	if b == nil {
+		return false
+	}
 
-	mem, ok := getUserMemberWithCache(b, chat, b.Id, "IsBotAdmin")
+	mem, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, b.Id, "IsBotAdmin")
 	if !ok {
 		return false
 	}
@@ -387,27 +461,48 @@ func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg
 	if chat.Username != "" {
 		return true, false
 	}
-	botChatMember, err := chat.GetMember(b, b.Id, nil)
+	if b == nil || ctx == nil {
+		return false, false
+	}
+	var user *gotgbot.User
+	if msg != nil {
+		user = msg.From
+	}
+	if confirmed := confirmedAnonymousAdminUser(ctx, chat.Id); confirmed != nil {
+		user = confirmed
+	}
+	sender := ctx.EffectiveSender
+	if sender == nil || !sender.IsAnonymousAdmin() {
+		if user == nil || !IsValidUserId(user.Id) ||
+			(IsSystemUser(user.Id) && !isConfirmedAnonymousAdmin(ctx, chat.Id, user.Id)) {
+			return false, false
+		}
+	}
+	botChatMember, err := getChatMember(tracing.UpdateContext(ctx), b, chat.Id, b.Id)
 	if err != nil {
-		log.Errorf("[CanInvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		log.WithContext(tracing.UpdateContext(ctx)).Errorf("[CanInvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		return false, false
+	}
+	if botChatMember == nil {
 		return false, false
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
 		return false, false
 	}
-	sender := ctx.EffectiveSender
 
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
 		return isAdmin, !isAdmin && msg != nil
 	}
+	if ctx.EffectiveUser != nil && isConfirmedAnonymousAdmin(ctx, chat.Id, ctx.EffectiveUser.Id) {
+		return true, false
+	}
 
-	// msg.From can be nil for channel posts
-	if msg.From == nil {
+	// The original message sender stays anonymous during confirmed replay.
+	if user == nil {
 		return false, false
 	}
 
-	userid := msg.From.Id
-	userMember, ok := getUserMemberWithCache(b, chat, userid, "CanInvite")
+	userMember, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, user.Id, "CanInvite")
 	if !ok {
 		return false, false
 	}
@@ -421,10 +516,10 @@ func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg
 // IsUserInChatWithError reports definitive membership separately from Telegram
 // lookup failures so callers do not destroy persisted state on transient errors.
 func IsUserInChatWithError(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) (bool, error) {
-	if b == nil || chat == nil || userId == TelegramUserID {
+	if chat == nil {
 		return false, nil
 	}
-	member, err := chat.GetMember(b, userId, nil)
+	member, err := getChatMember(context.Background(), b, chat.Id, userId)
 	if err != nil {
 		return false, err
 	}
@@ -501,7 +596,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 			}
 
 			_chat := chatFullInfo.ToChat()
-			if chatAdmin && IsUserAdmin(b, _chat.Id, user.Id) {
+			if chatAdmin && isUserAdminForContext(b, ctx, _chat.Id, user.Id) {
 				userAdminVerified = true
 			} else {
 				isMember, err := IsUserInChatWithError(b, &_chat, user.Id)
@@ -549,7 +644,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 		chat = ctx.EffectiveChat
 	}
 	if botAdmin {
-		if !IsUserAdmin(b, chat.Id, b.Id) {
+		if !isUserAdminForContext(b, ctx, chat.Id, b.Id) {
 			text, _ := tr.GetString("connections_is_user_connected_bot_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
@@ -561,7 +656,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 		}
 	}
 	if chatAdmin {
-		if !userAdminVerified && !IsUserAdmin(b, chat.Id, user.Id) {
+		if !userAdminVerified && !isUserAdminForContext(b, ctx, chat.Id, user.Id) {
 			text, _ := tr.GetString("connections_is_user_connected_user_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
@@ -586,7 +681,7 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 		return true
 	}
 
-	return IsUserAdmin(b, chat.Id, userId) || slices.Contains(tgAdminList, userId)
+	return isUserAdminForContext(b, ctx, chat.Id, userId) || slices.Contains(tgAdminList, userId)
 }
 
 // AnonAdminCacheKey is the operational Redis key holding the message behind an

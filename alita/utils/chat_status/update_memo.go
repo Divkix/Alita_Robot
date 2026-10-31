@@ -4,6 +4,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
 
@@ -26,7 +27,7 @@ func getUserMemberWithCacheForUpdate(
 	funcName string,
 ) (gotgbot.MergedChatMember, bool) {
 	lookup := updatememo.Get(updatememo.From(ctx), memberMemoKey{chat.Id, userId}, func() memberLookup {
-		member, ok := getUserMemberWithCache(b, chat, userId, funcName)
+		member, ok := getUserMemberWithCache(tracing.UpdateContext(ctx), b, chat, userId, funcName)
 		return memberLookup{member: member, ok: ok}
 	})
 	return lookup.member, lookup.ok
@@ -40,6 +41,9 @@ func IsBotAdminForUpdate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) b
 	}
 	if chat.Type == "private" {
 		return true
+	}
+	if b == nil {
+		return false
 	}
 	mem, ok := getUserMemberWithCacheForUpdate(b, ctx, chat, b.Id, "IsBotAdmin")
 	if !ok {
@@ -66,6 +70,9 @@ func UserHasPermissionForUpdate(
 
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, ctx.EffectiveMessage, ctx.EffectiveSender); shouldReturn {
 		return isAdmin
+	}
+	if isConfirmedAnonymousAdmin(ctx, chat.Id, userId) {
+		return true
 	}
 
 	userMember, ok := getUserMemberWithCacheForUpdate(b, ctx, chat, userId, "hasUserPermission")
@@ -108,7 +115,7 @@ func CanBotDeleteForUpdate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat)
 // changes any state: the result is not refreshed afterwards.
 func IsUserAdminForUpdate(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
 	return updatememo.Get(updatememo.From(ctx), adminMemoKey{chatID, userID}, func() bool {
-		return IsUserAdmin(b, chatID, userID)
+		return isUserAdminForContext(b, ctx, chatID, userID)
 	})
 }
 

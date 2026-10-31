@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,10 +12,15 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 type testError struct {
@@ -398,7 +404,7 @@ func TestSetTitleReplyEscapesNameAndTitle(t *testing.T) {
 	f.addAdmins(targetJSON)
 	bot, chat, admin := f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "<x & y>"}
-	ctx := newBanReplyContext(bot, chat, admin, target, "/title Captain")
+	ctx := newBanReplyContext(bot, chat, admin, target, "/title <x & y>")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
 		t.Fatalf("BuildCommandContext failed: %v", err)
@@ -791,7 +797,7 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 
 func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := gotgbot.User{Id: 800001, FirstName: "Admin"}
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	adminMemberResponse := []byte(
@@ -846,6 +852,9 @@ func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = map[string]json.RawMessage{
+				fmt.Sprint(admin.Id): json.RawMessage(`{"status":"administrator","user":{"id":800001,"is_bot":false,"first_name":"Admin"},"can_promote_members":true}`),
+			}
 			client.errors[tt.method] = requestErr
 			if tt.setup != nil {
 				tt.setup(client)
@@ -962,5 +971,189 @@ func TestAnonymousAdminSetGroupCommandsAreRouted(t *testing.T) {
 			}
 			f.client.onlyCall(t, "sendMessage")
 		})
+	}
+}
+
+func TestAdminMembershipMissDeniesBeforeMutation(t *testing.T) {
+	useRealLocales(t)
+	for _, tc := range []struct {
+		name, command, action string
+		targetAdmin           bool
+		run                   func(*helpers.CommandContext) error
+	}{
+		{"promote", "/promote 42", "promoteChatMember", false, adminModule.promote},
+		{"demote", "/demote 42", "promoteChatMember", true, adminModule.demote},
+		{"title", "/title 42 Captain", "setChatAdministratorCustomTitle", true, adminModule.setTitle},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if tc.targetAdmin {
+				f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Target"},"can_promote_members":true}`)
+			}
+			cache.LoadAdminCache(f.bot, f.chat.Id)
+			f.client.errors["getChatMember"] = &gotgbot.TelegramError{
+				Method: "getChatMember", Code: 400, Description: "Bad Request: user not found",
+			}
+			logger := log.StandardLogger()
+			previous := logger.ReplaceHooks(make(log.LevelHooks))
+			t.Cleanup(func() { logger.ReplaceHooks(previous) })
+			hook := logtest.NewLocal(logger)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tc.command)
+			c, err := helpers.BuildCommandContext(f.bot, ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := tc.run(c); err != ext.EndGroups {
+				t.Fatalf("missing target returned %v, want a normal denial", err)
+			}
+			if calls := f.client.callsFor(tc.action); len(calls) != 0 {
+				t.Fatalf("missing target caused %s: %v", tc.action, calls)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			if got, want := fmt.Sprint(call.Params["text"]), trS(c.Tr, "common_user_not_in_chat"); got != want {
+				t.Errorf("denial = %q, want %q", got, want)
+			}
+			for _, entry := range hook.AllEntries() {
+				if entry.Level <= log.WarnLevel {
+					t.Errorf("normal absence logged at %s: %s", entry.Level, entry.Message)
+				}
+			}
+		})
+	}
+}
+
+type adminMembershipContextClient struct {
+	gotgbot.BotClient
+	parents []trace.SpanContext
+}
+
+func (c *adminMembershipContextClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatMember" {
+		c.parents = append(c.parents, trace.SpanContextFromContext(ctx))
+	}
+	return c.BotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func TestDirectAdminMemberRequestsKeepUpdateTrace(t *testing.T) {
+	f := newAdminChatFixture(t)
+	cache.LoadAdminCache(f.bot, f.chat.Id)
+	client := &adminMembershipContextClient{BotClient: f.client}
+	f.bot.BotClient = client
+	ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/promote 42")
+	parent := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: trace.TraceID{1}, SpanID: trace.SpanID{2}, TraceFlags: trace.FlagsSampled,
+	})
+	ctx.Data = map[string]any{tracing.ContextDataKey: trace.ContextWithSpanContext(context.Background(), parent)}
+	c, err := helpers.BuildCommandContext(f.bot, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adminModule.promote(c); err != ext.EndGroups {
+		t.Fatal(err)
+	}
+	if len(client.parents) < 3 {
+		t.Fatalf("observed %d member requests, want target, promoter and bot", len(client.parents))
+	}
+	for _, observed := range client.parents {
+		if !observed.Equal(parent) {
+			t.Errorf("member request parent = %v, want %v", observed, parent)
+		}
+	}
+}
+
+func TestAnonymousAdminProofRejectsNonAdminBeforeReplay(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	original := newAnonAdminCommandContext(t, f, "/ban 42").Msg
+	key := chat_status.AnonAdminCacheKey(f.chat.Id, original.MessageId)
+	if err := cache.GetMarshal().Set(cache.Context, key, original); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmtInt(f.chat.Id),
+		"m": fmtInt(original.MessageId),
+	})
+	ctx := newModuleCallbackContext(f.bot, f.chat, f.member, data)
+	if err := verifyAnonymousAdmin(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unprivileged confirmation returned %v", err)
+	}
+	if calls := f.client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("unprivileged confirmation mutated membership: %+v", calls)
+	}
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("unprivileged confirmation consumed the proof button: %+v", calls)
+	}
+	if chat_status.CanUserRestrict(f.bot, ctx, &f.chat, f.member.Id) {
+		t.Fatal("rejected confirmation retained restriction permission")
+	}
+}
+
+func TestAdminMembershipFailurePropagatesBeforeMutation(t *testing.T) {
+	useRealLocales(t)
+	for _, tc := range []struct {
+		name, command, action string
+		targetAdmin           bool
+		run                   func(*helpers.CommandContext) error
+	}{
+		{"promote", "/promote 42", "promoteChatMember", false, adminModule.promote},
+		{"demote", "/demote 42", "promoteChatMember", true, adminModule.demote},
+		{"title", "/title 42 Captain", "setChatAdministratorCustomTitle", true, adminModule.setTitle},
+	} {
+		for _, lookupErr := range []error{
+			errors.New("telegram transport failed"),
+			errors.New("Bad Request: user not found"),
+			&gotgbot.TelegramError{Method: "getChatMember", Code: 403, Description: "Forbidden"},
+			&gotgbot.TelegramError{Method: "getChatMember", Code: 500, Description: "Internal Server Error"},
+		} {
+			t.Run(tc.name+"/"+lookupErr.Error(), func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				if tc.targetAdmin {
+					f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Target"},"can_promote_members":true}`)
+				}
+				cache.LoadAdminCache(f.bot, f.chat.Id)
+				f.client.errors["getChatMember"] = lookupErr
+				c, err := helpers.BuildCommandContext(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, tc.command))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := tc.run(c); !errors.Is(err, lookupErr) {
+					t.Fatalf("member lookup returned %v, want %v", err, lookupErr)
+				}
+				if calls := f.client.callsFor(tc.action); len(calls) != 0 {
+					t.Fatalf("failed lookup caused %s: %+v", tc.action, calls)
+				}
+			})
+		}
+	}
+}
+
+func TestAnonymousAdminProofPreservesMessageSender(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	original := newAnonAdminCommandContext(t, f, "/ban 42").Msg
+	key := chat_status.AnonAdminCacheKey(f.chat.Id, original.MessageId)
+	if err := cache.GetMarshal().Set(cache.Context, key, original); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmtInt(f.chat.Id),
+		"m": fmtInt(original.MessageId),
+	})
+	ctx := newModuleCallbackContext(f.bot, f.chat, f.admin, data)
+	if err := verifyAnonymousAdmin(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("admin confirmation returned %v", err)
+	}
+	f.client.onlyCall(t, "banChatMember")
+	if ctx.EffectiveUser == nil || ctx.EffectiveUser.Id != f.admin.Id {
+		t.Fatal("confirmation lost the authorizing admin")
+	}
+	if ctx.EffectiveMessage == nil || ctx.EffectiveMessage.From == nil ||
+		ctx.EffectiveMessage.From.Id != chat_status.GroupAnonymousBotID {
+		t.Fatal("confirmation exposed the original anonymous sender")
+	}
+	if !chat_status.CanInvite(f.bot, ctx, &f.chat, ctx.EffectiveMessage) {
+		t.Fatal("original anonymous sender masked the confirming admin's invite right")
 	}
 }

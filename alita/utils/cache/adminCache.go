@@ -73,7 +73,7 @@ var (
 
 // runAdminLoad fills load and wakes its callers. A panic goes to the callers
 // that receive it; the loader logs it only when no caller is waiting.
-func runAdminLoad(load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
+func runAdminLoad(ctx context.Context, load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
 	defer error_handling.RecoverFromPanic("runAdminLoad", "cache")
 	var result AdminCache
 	var panicErr *AdminLoadPanicError
@@ -106,7 +106,7 @@ func runAdminLoad(load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
 				panicErr = &AdminLoadPanicError{Value: r, Stack: debug.Stack()}
 			}
 		}()
-		result = loadAdminCacheFromTelegram(b, chatId)
+		result = loadAdminCacheFromTelegram(ctx, b, chatId)
 	}()
 	returned = true
 }
@@ -114,12 +114,16 @@ func runAdminLoad(load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
 // LoadAdminCacheWithContext is LoadAdminCache that stops waiting when ctx ends
 // and then returns ctx.Err() with an empty, uncached list. A panic in the load
 // comes back as an *AdminLoadPanicError. The Telegram load is
-// shared with concurrent callers and runs detached from ctx, so one caller's
-// deadline never cuts it short for the others or caches a failure; it finishes
-// in the background and stores its result for the next lookup.
+// shared with concurrent callers and keeps the initiating caller's context
+// values (including its trace) without its cancellation or deadline, so one
+// waiter cannot cut it short for others. Each Telegram request still has its
+// own timeout; the completed load stores its result for the next lookup.
 func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64) (AdminCache, error) {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
+		return AdminCache{}, nil
+	}
+	if b.Id <= 0 {
 		return AdminCache{}, nil
 	}
 
@@ -134,7 +138,7 @@ func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64
 	load.waiters++
 	adminLoadsMu.Unlock()
 	if !running {
-		go runAdminLoad(load, key, b, chatId)
+		go runAdminLoad(context.WithoutCancel(ctx), load, key, b, chatId)
 	}
 
 	select {
@@ -177,7 +181,7 @@ func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64
 	return ac, nil
 }
 
-func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
+func loadAdminCacheFromTelegram(ctx context.Context, b *gotgbot.Bot, chatId int64) AdminCache {
 	generation := adminCacheGeneration.Load()
 	const negativeAdminCacheTTL = 2 * time.Minute
 	const botStatusErrorAdminCacheTTL = 30 * time.Second
@@ -202,15 +206,17 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 		return storeWithTTL(ac, negativeAdminCacheTTL)
 	}
 
-	botCtx, botCancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
+	botCtx, botCancel := context.WithTimeout(ctx, constants.DefaultTimeout)
 	botMember, botErr := b.GetChatMemberWithContext(botCtx, chatId, b.Id, nil)
 	botCancel()
 	if botErr != nil {
-		log.WithFields(log.Fields{
-			"chatId": chatId,
-			"botId":  b.Id,
-			"error":  botErr,
-		}).Warning("LoadAdminCache: Could not verify bot admin status")
+		if !error_handling.IsMissingChatMemberError(botErr) {
+			log.WithContext(ctx).WithFields(log.Fields{
+				"chatId": chatId,
+				"botId":  b.Id,
+				"error":  botErr,
+			}).Warning("LoadAdminCache: Could not verify bot admin status")
+		}
 		return storeWithTTL(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
@@ -239,7 +245,7 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 	var err error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		attemptCtx, attemptCancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, constants.DefaultTimeout)
 		adminList, err = b.GetChatAdministratorsWithContext(
 			attemptCtx,
 			chatId,

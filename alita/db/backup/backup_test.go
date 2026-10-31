@@ -694,7 +694,7 @@ func TestClearChatData_AllModules(t *testing.T) {
 	if err := rules.SetChatRules(chatID, "rules text"); err != nil {
 		t.Fatalf("rules.SetChatRules() error = %v", err)
 	}
-	require.NoError(t, captcha.SetCaptchaEnabled(chatID, true))
+	require.NoError(t, captcha.SetCaptchaEnabled(chatID, "test_clear_all", true))
 	_ = pins.GetPinData(chatID)
 	require.NoError(t, pins.SetAntiChannelPin(chatID, true))
 	_ = reports.GetChatReportSettings(chatID)
@@ -778,7 +778,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	assert.True(t, reports.GetChatReportSettings(chatID).Enabled)
 
 	_, _ = captcha.GetCaptchaSettings(chatID)
-	_ = captcha.SetCaptchaEnabled(chatID, true)
+	_ = captcha.SetCaptchaEnabled(chatID, "test_clear_individual", true)
 	require.NoError(t, ClearModuleData(chatID, BackupModuleCaptcha))
 	captchaSettings, _ := captcha.GetCaptchaSettings(chatID)
 	if captchaSettings != nil {
@@ -877,7 +877,7 @@ func TestExportChatData_Full(t *testing.T) {
 	if err := rules.SetChatRules(chatID, "Be kind"); err != nil {
 		t.Fatalf("rules.SetChatRules() error = %v", err)
 	}
-	require.NoError(t, captcha.SetCaptchaEnabled(chatID, true))
+	require.NoError(t, captcha.SetCaptchaEnabled(chatID, "test_export_chat_full", true))
 
 	backup, err := ExportChatData(chatID, "Test Chat", 1, []string{
 		BackupModuleAdmin,

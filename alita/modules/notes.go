@@ -22,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -460,13 +461,15 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	mem, err := chat.GetMember(b, user.Id, nil)
-	if err != nil {
-		log.Error(err)
+	if !chat_status.IsValidUserId(user.Id) || chat_status.IsSystemUser(user.Id) {
+		return ext.EndGroups
+	}
+	mem, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, user.Id, nil)
+	if err != nil && !error_handling.IsMissingChatMemberError(err) {
 		return err
 	}
 
-	if mem.MergeChatMember().Status == "creator" {
+	if mem != nil && mem.GetStatus() == "creator" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		clearAllText, _ := tr.GetString("notes_clear_all_confirm")
 		clearAllText = confirmText(ctx, tr, clearAllText, chat)

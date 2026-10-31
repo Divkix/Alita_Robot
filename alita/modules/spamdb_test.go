@@ -261,7 +261,7 @@ func withSpamDBGreetings(t *testing.T, dispatcher *ext.Dispatcher, chat gotgbot.
 	if err := greetings.SetWelcomeToggle(chat.Id, true); err != nil {
 		t.Fatalf("SetWelcomeToggle() error = %v", err)
 	}
-	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
 }

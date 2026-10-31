@@ -139,7 +139,7 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			source: models.BanSourceReport, reason: rep.Reason,
 		})
 	}
-	settleReportAutoMute(b, rep.ChatId, rep.ReportedUserId, action.status)
+	settleReportAutoMute(b, ctx, rep.ChatId, rep.ReportedUserId, action.status)
 
 	closeReportCard(b, card, action.status, user)
 	return answer(action.successKey)

@@ -223,10 +223,10 @@ func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
 		want:       []string{"ban", "wrong answers"},
 		failMethod: "banChatMember",
 		run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
-			if err := captcha.SetCaptchaFailureAction(chat.Id, "ban"); err != nil {
+			if err := captcha.SetCaptchaFailureAction(chat.Id, chat.Title, "ban"); err != nil {
 				t.Fatalf("SetCaptchaFailureAction() error = %v", err)
 			}
-			if err := captcha.SetCaptchaMaxAttempts(chat.Id, 1); err != nil {
+			if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, 1); err != nil {
 				t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
 			}
 			attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
@@ -246,10 +246,10 @@ func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
 		want:       []string{"kick", "timeout", "Automated Log Chat"},
 		failMethod: "unbanChatMember",
 		run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
-			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+			if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 				t.Fatalf("SetCaptchaEnabled() error = %v", err)
 			}
-			if err := captcha.SetCaptchaFailureAction(chat.Id, "kick"); err != nil {
+			if err := captcha.SetCaptchaFailureAction(chat.Id, chat.Title, "kick"); err != nil {
 				t.Fatalf("SetCaptchaFailureAction() error = %v", err)
 			}
 			attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)

@@ -571,7 +571,9 @@ func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
 
 func TestWarnCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	admin := f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	for _, tt := range []struct {
@@ -609,6 +611,8 @@ func TestWarnCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors["sendMessage"] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 			if tt.setup != nil {
@@ -708,12 +712,16 @@ func TestRmWarnButtonRejectsMalformedAndInvalidUserCallbacks(t *testing.T) {
 
 func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	admin := f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	t.Run("remove warn edit failure", func(t *testing.T) {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
+		client.membersByUser = f.client.membersByUser
+		client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 		client.errors["editMessageText"] = requestErr
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 		_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "button"})
@@ -729,6 +737,8 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 	t.Run("remove warn answer failure", func(t *testing.T) {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
+		client.membersByUser = f.client.membersByUser
+		client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 		client.errors["answerCallbackQuery"] = requestErr
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 		_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "button"})
@@ -765,6 +775,8 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 			_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "first"})

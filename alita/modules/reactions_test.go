@@ -17,10 +17,9 @@ func TestReactionCommandsManageDBRows(t *testing.T) {
 		t.Skip("requires database connection")
 	}
 
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 	t.Cleanup(func() {
 		_ = reactions.ResetReactions(chat.Id)
 	})
@@ -65,10 +64,9 @@ func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
 		t.Skip("requires database connection")
 	}
 
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot := f.client, f.bot
+	chat, admin := f.chat, f.admin
 	t.Cleanup(func() {
 		_ = reactions.ResetReactions(chat.Id)
 	})
@@ -228,10 +226,9 @@ func TestReactionCommandsWorkWithNilCacheMarshal(t *testing.T) {
 		cache.SetMarshal(orig)
 	})
 
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot := f.bot
+	chat, admin := f.chat, f.admin
 	t.Cleanup(func() {
 		_ = reactions.ResetReactions(chat.Id)
 	})

@@ -2,9 +2,13 @@ package error_handling
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync/atomic"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -53,5 +57,23 @@ func handlePanic(ctx context.Context, funcName, modName string, r any) {
 
 	if cb, ok := onErrorCallback.Load().(func()); ok && cb != nil {
 		cb()
+	}
+}
+
+// IsMissingChatMemberError recognizes only getChatMember's known HTTP 400
+// absence replies. Missing chats, denied permissions and other failures remain
+// errors; Telegram only guarantees other-user lookups when the bot is an admin.
+// https://core.telegram.org/bots/api/methods/getchatmember.md
+func IsMissingChatMemberError(err error) bool {
+	var telegramErr *gotgbot.TelegramError
+	if !errors.As(err, &telegramErr) || telegramErr.Method != "getChatMember" || telegramErr.Code != http.StatusBadRequest {
+		return false
+	}
+	description := strings.TrimSpace(strings.TrimPrefix(strings.ToLower(telegramErr.Description), "bad request:"))
+	switch description {
+	case "user not found", "member not found", "participant_id_invalid", "user_id_invalid":
+		return true
+	default:
+		return false
 	}
 }

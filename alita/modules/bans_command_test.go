@@ -937,7 +937,8 @@ func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	admin := f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
 	channelReplyContext := func(bot *gotgbot.Bot, text string) *ext.Context {
@@ -1114,6 +1115,8 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors[tt.method] = requestErr
 
 			err := tt.run(bot, tt.ctx(bot))
@@ -1158,7 +1161,8 @@ func TestModerationHelpersValidateExtractionAndTargets(t *testing.T) {
 func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	admin := f.admin
 
 	restrictData := encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"})
 	unrestrictData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"})
@@ -1251,6 +1255,8 @@ func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T)
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
+			client.membersByUser = f.client.membersByUser
+			client.responses["getChatAdministrators"] = f.client.adminsByChat[fmt.Sprint(f.chat.Id)]
 			client.errors[tt.method] = requestErr
 
 			err := tt.run(bot, tt.ctx(bot))

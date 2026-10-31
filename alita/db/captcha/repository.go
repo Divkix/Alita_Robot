@@ -54,18 +54,18 @@ func GetCaptchaSettingsContext(ctx context.Context, chatID int64) (*models.Captc
 	})
 }
 
-// Every setter below first creates the chats row that fk_captcha_settings_chat
-// needs. Captcha can be configured before anything else has stored the chat:
-// the enable button the bot posts on joining a group is often the first thing
-// an admin presses there.
+// Every setter below ensures the chats row that fk_captcha_settings_chat needs
+// in one write, using the caller's title to enrich missing or empty chat names.
+// Captcha can be configured before anything else has stored the chat: the enable
+// button the bot posts on joining a group is often the first admin action.
 
-func SetCaptchaEnabled(chatID int64, enabled bool) error {
+func SetCaptchaEnabled(chatID int64, chatName string, enabled bool) error {
 	updates := map[string]any{
 		"chat_id": chatID,
 		"enabled": enabled,
 	}
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
 	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
@@ -79,7 +79,7 @@ func SetCaptchaEnabled(chatID int64, enabled bool) error {
 	return nil
 }
 
-func SetCaptchaMode(chatID int64, mode string) error {
+func SetCaptchaMode(chatID int64, chatName, mode string) error {
 	if mode != "math" && mode != "text" {
 		return ErrInvalidCaptchaMode
 	}
@@ -89,7 +89,7 @@ func SetCaptchaMode(chatID int64, mode string) error {
 		"captcha_mode": mode,
 	}
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
 	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
@@ -103,7 +103,7 @@ func SetCaptchaMode(chatID int64, mode string) error {
 	return nil
 }
 
-func SetCaptchaTimeout(chatID int64, timeout int) error {
+func SetCaptchaTimeout(chatID int64, chatName string, timeout int) error {
 	if timeout < 1 || timeout > 10 {
 		return ErrInvalidTimeout
 	}
@@ -113,7 +113,7 @@ func SetCaptchaTimeout(chatID int64, timeout int) error {
 		"timeout": timeout,
 	}
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
 	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
@@ -127,12 +127,12 @@ func SetCaptchaTimeout(chatID int64, timeout int) error {
 	return nil
 }
 
-func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
+func SetCaptchaMaxAttempts(chatID int64, chatName string, maxAttempts int) error {
 	if maxAttempts < 1 || maxAttempts > 10 {
 		return ErrInvalidMaxAttempts
 	}
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
 	}
 	err := db.DB.Clauses(clause.OnConflict{
@@ -148,7 +148,7 @@ func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
 	return nil
 }
 
-func SetCaptchaFailureAction(chatID int64, action string) error {
+func SetCaptchaFailureAction(chatID int64, chatName, action string) error {
 	if action != "kick" && action != "ban" && action != "mute" {
 		return ErrInvalidFailureAction
 	}
@@ -158,7 +158,7 @@ func SetCaptchaFailureAction(chatID int64, action string) error {
 		"failure_action": action,
 	}
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
 	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error

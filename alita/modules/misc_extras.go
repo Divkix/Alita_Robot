@@ -85,10 +85,10 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 	cleaned := 0
 	users, _ := chats.GetChatUsersCachedContext(tracing.UpdateContext(ctx), chat.Id)
 	for _, userID := range users {
-		if !chat_status.IsValidUserId(userID) || userID == b.Id {
+		if !chat_status.IsValidUserId(userID) || chat_status.IsSystemUser(userID) || userID == b.Id {
 			continue
 		}
-		member, err := b.GetChatMember(chat.Id, userID, nil)
+		member, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 		if err != nil || member == nil {
 			continue
 		}

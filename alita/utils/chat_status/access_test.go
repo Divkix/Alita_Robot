@@ -662,6 +662,30 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
 		t.Fatalf("calls with anon verification = %+v, want one sendMessage", client.calls)
 	}
+
+	msg.From = &gotgbot.User{Id: GroupAnonymousBotID, IsBot: true}
+	msg.SenderChat = chat
+	ctx := ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+	client.calls = nil
+	if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
+		t.Fatal(err)
+	}
+	if !CanUserRestrict(bot, ctx, chat, GroupAnonymousBotID) ||
+		!UserHasPermissionForUpdate(bot, ctx, chat, GroupAnonymousBotID, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers }) {
+		t.Fatal("anonymous-admin bypass was lost before the membership guard")
+	}
+	if len(client.calls) != 0 {
+		t.Fatalf("anonymous-admin bypass queried Telegram: %+v", client.calls)
+	}
+	if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
+		t.Fatal(err)
+	}
+	if CanUserRestrict(bot, ctx, chat, GroupAnonymousBotID) {
+		t.Fatal("anonymous admin was authorized without its proof")
+	}
+	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
+		t.Fatalf("anonymous admin requests = %+v, want only the proof keyboard", client.calls)
+	}
 }
 
 func TestMembershipAndProtectionHelpers(t *testing.T) {
@@ -961,5 +985,60 @@ func TestIsUserBanProtectedChecksTheGivenChat(t *testing.T) {
 	}
 	if IsUserBanProtected(bot, ctx, chatA, adminOfB) {
 		t.Fatal("admin of the context chat B only is protected in A, want not protected")
+	}
+}
+
+func TestConfirmedAnonymousAdminPermissionsStayScoped(t *testing.T) {
+	for _, userID := range []int64{GroupAnonymousBotID, TelegramUserID, SendAsChannelBotID, 11} {
+		t.Run(fmt.Sprint(userID), func(t *testing.T) {
+			client := &paramRecordingChatStatusClient{}
+			bot := &gotgbot.Bot{User: gotgbot.User{Id: 999}, BotClient: client}
+			chat := &gotgbot.Chat{Id: -1007004, Type: "supergroup"}
+			ctx := ext.NewContext(bot, &gotgbot.Update{Message: &gotgbot.Message{
+				Chat: *chat, From: &gotgbot.User{Id: userID}, Text: "/ban 42",
+			}}, nil)
+			canRestrict := func() bool {
+				return UserHasPermissionForUpdate(bot, ctx, chat, userID, func(m *gotgbot.MergedChatMember) bool {
+					return m.CanRestrictMembers
+				})
+			}
+			if CanUserRestrict(bot, ctx, chat, userID) || canRestrict() || CanInvite(bot, ctx, chat, ctx.EffectiveMessage) {
+				t.Fatal("unconfirmed sender gained permission")
+			}
+			if IsSystemUser(userID) && len(client.calls) != 0 {
+				t.Fatalf("unconfirmed system sender caused requests: %+v", client.calls)
+			}
+			SetConfirmedAnonymousAdmin(ctx, chat.Id, userID)
+			// Replay retains the source's anonymous sender, not the actor who
+			// confirmed it; permission checks still use that confirming actor.
+			ctx.EffectiveMessage.From = &gotgbot.User{Id: GroupAnonymousBotID}
+			want := userID == GroupAnonymousBotID || userID == TelegramUserID
+			if got := CanUserRestrict(bot, ctx, chat, userID); got != want {
+				t.Errorf("confirmed permission = %v, want %v", got, want)
+			}
+			if got := canRestrict(); got != want {
+				t.Errorf("memoized confirmed permission = %v, want %v", got, want)
+			}
+			if got := CanInvite(bot, ctx, chat, ctx.EffectiveMessage); got != want {
+				t.Errorf("confirmed invite permission = %v, want %v", got, want)
+			}
+			if RequireUserOwner(bot, ctx, chat, userID) {
+				t.Error("confirmation granted ownership")
+			}
+			otherChat := &gotgbot.Chat{Id: chat.Id - 1, Type: "supergroup"}
+			if CanUserRestrict(bot, ctx, otherChat, userID) {
+				t.Error("confirmation authorized another chat")
+			}
+			if CanUserRestrict(bot, ctx, chat, SendAsChannelBotID) {
+				t.Error("confirmation authorized another sender")
+			}
+			if IsSystemUser(userID) {
+				for _, call := range client.calls {
+					if call.method == "getChatMember" && fmt.Sprint(call.params["user_id"]) != "999" {
+						t.Errorf("system membership caused a request: %+v", call)
+					}
+				}
+			}
+		})
 	}
 }
