@@ -5,7 +5,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -65,7 +64,6 @@ func sendDefaultHelp(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User) error
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

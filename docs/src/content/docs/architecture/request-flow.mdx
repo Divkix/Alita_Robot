@@ -470,9 +470,9 @@ Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
 ### Common Error Patterns
 
 ```go
-// Log and return error (propagates to dispatcher)
+// Return to the dispatcher, which classifies and logs the error once.
+// Do not also log it in the command or its deep-link helpers.
 if err != nil {
-    log.Error(err)
     return err
 }
 

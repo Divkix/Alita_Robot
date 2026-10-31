@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"errors"
 	"fmt"
 	"html"
 	"net/url"
@@ -393,15 +392,11 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		} else if len(args) == 2 {
 			err := HandleDeepLink(b, ctx, user, args[1])
 			if err != nil {
-				if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
-					log.Error(err)
-				}
 				return err
 			}
 		} else {
@@ -412,7 +407,6 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("help_pm_questions")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
