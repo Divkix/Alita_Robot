@@ -246,8 +246,9 @@ func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {
 }
 
 // IsUserAdminCached answers IsUserAdmin from the stored admin list without
-// calling Telegram. known is false when the list is missing, negative or empty;
-// callers that need an answer then must fall back to IsUserAdmin.
+// calling Telegram. known is false when the list is missing, empty or negative
+// (unless Telegram refused member lookups there); callers that need an answer
+// then must fall back to IsUserAdmin.
 func IsUserAdminCached(chatID, userId int64) (isAdmin, known bool) {
 	isAdmin, known, _ = userAdminFromCache(chatID, userId)
 	return isAdmin, known
@@ -266,6 +267,9 @@ func userAdminFromCache(chatID, userId int64) (isAdmin, known, noAdmins bool) {
 		return false, true, false
 	}
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
+	if adminsAvail && admins.Negative && admins.MemberLookupForbidden {
+		return false, true, false
+	}
 	if !adminsAvail || !admins.Cached || admins.Negative || len(admins.UserInfo) == 0 {
 		return false, false, adminsAvail && admins.Cached && len(admins.UserInfo) == 0
 	}
@@ -388,6 +392,7 @@ func isUserAdminByMember(ctx context.Context, b *gotgbot.Bot, chatID, userId int
 				"chatID": chatID,
 				"userID": userId,
 			}).Debug("IsUserAdmin: Bot lacks admin rights for GetChatMember fallback")
+			cache.MarkMemberLookupForbidden(chatID)
 		} else if strings.Contains(errStr, "invalid user_id specified") {
 			log.WithFields(log.Fields{
 				"chatID": chatID,

@@ -79,6 +79,11 @@ type AdminCache struct {
 	// Negative marks an authoritative empty result (bot not admin). Transient
 	// failures leave Cached=false so callers fall back to per-user GetChatMember.
 	Negative bool
+	// MemberLookupForbidden marks a Negative list after Telegram refused a
+	// member lookup with CHAT_ADMIN_REQUIRED: until the list expires or the
+	// bot's rights change, nobody's status can be read, so IsUserAdmin
+	// answers false without asking again.
+	MemberLookupForbidden bool
 }
 
 func InitCache() error {

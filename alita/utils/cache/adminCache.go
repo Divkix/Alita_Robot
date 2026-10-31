@@ -19,6 +19,8 @@ import (
 
 var adminCacheGeneration atomic.Uint64
 
+const negativeAdminCacheTTL = 2 * time.Minute
+
 func adminCacheKey(chatId int64) string {
 	return fmt.Sprintf("%sadminCache:%d", DataCachePrefix, chatId)
 }
@@ -183,7 +185,6 @@ func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64
 
 func loadAdminCacheFromTelegram(ctx context.Context, b *gotgbot.Bot, chatId int64) AdminCache {
 	generation := adminCacheGeneration.Load()
-	const negativeAdminCacheTTL = 2 * time.Minute
 	const botStatusErrorAdminCacheTTL = 30 * time.Second
 
 	storeWithTTL := func(adminCache AdminCache, ttl time.Duration) AdminCache {
@@ -354,6 +355,29 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 func InvalidateAdminCache(chatId int64) {
 	if err := ClearAdminCache(chatId); err != nil {
 		log.Debugf("[AdminCache] Failed to invalidate cache for chat %d: %v", chatId, err)
+	}
+}
+
+// MarkMemberLookupForbidden records on the chat's Negative admin list that
+// Telegram refused a member lookup there. A missing or non-Negative list is
+// left alone: the bot's rights changed since it was stored.
+func MarkMemberLookupForbidden(chatId int64) {
+	m := GetMarshal()
+	if m == nil {
+		return
+	}
+	generation := adminCacheGeneration.Load()
+	found, adminCache := GetAdminCacheList(chatId)
+	if !found || !adminCache.Negative || adminCache.MemberLookupForbidden {
+		return
+	}
+	adminCache.MemberLookupForbidden = true
+	if err := m.Set(Context, adminCacheKey(chatId), adminCache, store.WithExpiration(negativeAdminCacheTTL)); err != nil {
+		log.WithFields(log.Fields{"chatId": chatId, "error": err}).Debug("[AdminCache] Failed to mark member lookups forbidden")
+		return
+	}
+	if generation != adminCacheGeneration.Load() {
+		InvalidateAdminCache(chatId)
 	}
 }
 
