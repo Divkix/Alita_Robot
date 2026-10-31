@@ -751,7 +751,7 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-			member := gotgbot.User{Id: uniqueModuleChatID(), FirstName: "NewCaptcha"}
+			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "NewCaptcha"}
 			if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 				t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 			}

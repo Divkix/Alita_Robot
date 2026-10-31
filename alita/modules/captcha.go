@@ -1153,6 +1153,9 @@ func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, option
 //
 //nolint:gocyclo // The ordered mute/send/persist rollback state machine is intentionally cohesive.
 func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName string) (err error) {
+	if userID <= 0 || chat_status.IsSystemUser(userID) {
+		return errCaptchaDisabled
+	}
 	var preAttempt *db.CaptchaAttempts
 	muted := false
 	defer func() {
@@ -1230,9 +1233,12 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 
 	userMember, err := bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
 	if err != nil {
-		if isTransientMemberError(err) {
+		if isTransientMemberError(err) && !chat_status.IsMissingChatMemberError(err) {
 			time.Sleep(captchaMemberRetryDelay)
 			userMember, err = bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
+		}
+		if chat_status.IsMissingChatMemberError(err) {
+			return errors.Join(errCaptchaDisabled, err)
 		}
 		if err != nil {
 			log.Errorf("Failed to validate user %d via Telegram API: %v", userID, err)
@@ -1496,14 +1502,13 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		userName = "User"
 	}
 
-	// Another guard (spamdb, antiraid, fed-ban) banned the newcomer while the
-	// captcha was pending. The kick is unbanChatMember, which would lift that
-	// ban, so leave the member as it is and drop any pending unmute.
-	if err == nil && member.GetStatus() == "kicked" {
+	// Missing or departed members need no moderation. In particular, kicking
+	// someone already banned by another guard would lift that guard's ban.
+	if chat_status.IsMissingChatMemberError(err) || (err == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
 		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
-			log.Errorf("[Captcha] Failed to clear fallback unmute for banned user %d: %v", userID, err)
+			log.Errorf("[Captcha] Failed to clear fallback unmute for departed user %d: %v", userID, err)
 		}
-		log.Infof("[Captcha] User %d is already banned in chat %d; skipping %s", userID, chatID, action)
+		log.Debugf("[Captcha] User %d is no longer a member of chat %d; skipping %s", userID, chatID, action)
 		return true, false
 	}
 
