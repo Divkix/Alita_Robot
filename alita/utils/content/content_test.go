@@ -286,7 +286,7 @@ func TestExtractNoteAndFilterDirectBodyKeepsFormatting(t *testing.T) {
 		t.Parallel()
 		var rawText string
 		msg := &gotgbot.Message{Text: "/filter\nhello body"}
-		setRawText(msg, strings.Fields(msg.Text)[1:], &rawText)
+		setRawText(msg, commandArgs(msg.Text), &rawText)
 		if rawText != "hello body" {
 			t.Fatalf("rawText = %q, want %q", rawText, "hello body")
 		}
@@ -341,6 +341,23 @@ func TestExtractWelcomeNoContent(t *testing.T) {
 	}
 	if result.ErrorMsg == "" {
 		t.Fatal("expected errorMsg for no content")
+	}
+}
+
+// The command handler matches a command sent as a media caption, so Text is
+// empty; extraction must answer with the no-content error, not panic.
+func TestExtractCaptionCommandWithoutText(t *testing.T) {
+	t.Parallel()
+
+	photo := []gotgbot.PhotoSize{{FileId: "p", Width: 100, Height: 100}}
+	for _, caption := range []string{"/setwelcome", "/setwelcome hello"} {
+		msg := &gotgbot.Message{Caption: caption, Photo: photo}
+		if got := ExtractWelcome(msg, "welcome", "en"); got.DataType != -1 || got.ErrorMsg == "" {
+			t.Errorf("ExtractWelcome(caption %q) = {DataType:%d ErrorMsg:%q}, want no-content error", caption, got.DataType, got.ErrorMsg)
+		}
+		if got := ExtractNoteAndFilter(msg, false, "en"); got.DataType != -1 || got.ErrorMsg == "" {
+			t.Errorf("ExtractNoteAndFilter(caption %q) = {DataType:%d ErrorMsg:%q}, want no-content error", caption, got.DataType, got.ErrorMsg)
+		}
 	}
 }
 
@@ -504,11 +521,7 @@ func TestSetRawText(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var rawText string
-			var args []string
-			if tc.msg.Text != "" {
-				args = strings.Fields(tc.msg.Text)[1:]
-			}
-			setRawText(tc.msg, args, &rawText)
+			setRawText(tc.msg, commandArgs(tc.msg.Text), &rawText)
 			if rawText != tc.want {
 				t.Fatalf("expected %q, got %q", tc.want, rawText)
 			}
