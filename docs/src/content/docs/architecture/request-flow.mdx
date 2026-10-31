@@ -495,6 +495,11 @@ membership lookups, not operational errors; permission and chat-access errors
 still count. Failed responses on traced calls carry a bounded
 `telegram.error.reason` category, never the raw description or request text.
 
+The production BotClient enables `AllowSendingWithoutReply` for ordinary
+same-chat text replies, including commands with nil or custom reply options.
+Deleting the triggering message therefore does not discard the response.
+Cross-chat and ephemeral replies retain Telegram's stricter reply semantics.
+
 ## Next Steps
 
 - [Module Pattern](/architecture/module-pattern) - Creating new feature modules

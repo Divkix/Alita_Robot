@@ -111,15 +111,17 @@ func main() {
 
 	log.Info("[Main] Initializing bot with optimized HTTP client (connection pooling enabled)")
 	b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
-		BotClient: &gotgbot.BaseBotClient{
-			Client: http.Client{
-				Transport: tracing.BotAPITransport(transport),
-				Timeout:   constants.LongTimeout,
-			},
-			UseTestEnvironment: false,
-			DefaultRequestOpts: &gotgbot.RequestOpts{
-				Timeout: time.Duration(constants.LongTimeout),
-				APIURL:  resolveBotAPIURL(config.AppConfig.ApiServer),
+		BotClient: &helpers.ReplySafeBotClient{
+			BotClient: &gotgbot.BaseBotClient{
+				Client: http.Client{
+					Transport: tracing.BotAPITransport(transport),
+					Timeout:   constants.LongTimeout,
+				},
+				UseTestEnvironment: false,
+				DefaultRequestOpts: &gotgbot.RequestOpts{
+					Timeout: time.Duration(constants.LongTimeout),
+					APIURL:  resolveBotAPIURL(config.AppConfig.ApiServer),
+				},
 			},
 		},
 	})
