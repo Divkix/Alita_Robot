@@ -489,6 +489,12 @@ _, _ = msg.Delete(b, nil)  // Ignore delete errors
 The `helpers.IsExpectedTelegramError()` function filters common non-actionable errors like "bot is not an admin", "chat was deleted", and "message to delete not found". These are logged at Warn level instead of Error to reduce noise.
 :::
 
+The Bot API transport counts unexpected HTTP failures by method and status.
+`getChatMember` responses identifying a missing user/member are negative
+membership lookups, not operational errors; permission and chat-access errors
+still count. Failed responses on traced calls carry a bounded
+`telegram.error.reason` category, never the raw description or request text.
+
 ## Next Steps
 
 - [Module Pattern](/architecture/module-pattern) - Creating new feature modules
