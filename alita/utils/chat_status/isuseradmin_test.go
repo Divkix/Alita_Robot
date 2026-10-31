@@ -827,7 +827,7 @@ func TestMembershipAbsenceIsQuietAndUnexpectedFailuresFailClosed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const chatID, userID = int64(-7002), int64(701)
 			bot := &gotgbot.Bot{
-				User: gotgbot.User{Id: 9910},
+				User:      gotgbot.User{Id: 9910},
 				BotClient: &fallbackErrBotClient{botID: 9910, chatID: chatID, userID: userID, userErr: tc.err},
 			}
 			chat := &gotgbot.Chat{Id: chatID, Type: "supergroup"}
@@ -836,8 +836,8 @@ func TestMembershipAbsenceIsQuietAndUnexpectedFailuresFailClosed(t *testing.T) {
 				t.Fatal(err)
 			}
 			for name, predicate := range map[string]func() bool{
-				"admin": func() bool { return IsUserAdmin(bot, chatID, userID) },
-				"member": func() bool { return IsUserInChat(bot, chat, userID) },
+				"admin":      func() bool { return IsUserAdmin(bot, chatID, userID) },
+				"member":     func() bool { return IsUserInChat(bot, chat, userID) },
 				"permission": func() bool { return CanUserRestrict(bot, makeCtxWithMessage("supergroup"), chat, userID) },
 			} {
 				hook.Reset()
@@ -875,11 +875,17 @@ func TestSharedMembershipLookupsKeepUpdateTraceParent(t *testing.T) {
 		TraceID: trace.TraceID{1}, SpanID: trace.SpanID{2}, TraceFlags: trace.FlagsSampled,
 	})
 	for name, predicate := range map[string]func(*gotgbot.Bot, *ext.Context, *gotgbot.Chat) bool{
-		"admin": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool { return RequireUserAdmin(b, ctx, chat, 701) },
-		"memoized admin": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool { return IsUserAdminForUpdate(b, ctx, chat.Id, 701) },
-		"bot admin": IsBotAdmin,
+		"admin": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return RequireUserAdmin(b, ctx, chat, 701)
+		},
+		"memoized admin": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return IsUserAdminForUpdate(b, ctx, chat.Id, 701)
+		},
+		"bot admin":          IsBotAdmin,
 		"memoized bot admin": IsBotAdminForUpdate,
-		"user permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool { return CanUserRestrict(b, ctx, chat, 701) },
+		"user permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return CanUserRestrict(b, ctx, chat, 701)
+		},
 		"memoized user permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 			return UserHasPermissionForUpdate(b, ctx, chat, 701, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers })
 		},
@@ -887,9 +893,15 @@ func TestSharedMembershipLookupsKeepUpdateTraceParent(t *testing.T) {
 		"memoized bot permission": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 			return BotHasPermissionForUpdate(b, ctx, chat, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers })
 		},
-		"owner": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool { return RequireUserOwner(b, ctx, chat, 701) },
-		"invite": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool { return CanInvite(b, ctx, chat, ctx.EffectiveMessage) },
-		"ban protection": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool { return IsUserBanProtected(b, ctx, chat, 701) },
+		"owner": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return RequireUserOwner(b, ctx, chat, 701)
+		},
+		"invite": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return CanInvite(b, ctx, chat, ctx.EffectiveMessage)
+		},
+		"ban protection": func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+			return IsUserBanProtected(b, ctx, chat, 701)
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			const chatID = int64(-7003)
