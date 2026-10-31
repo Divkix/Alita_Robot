@@ -87,6 +87,7 @@ func (t botAPITransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		if !expected {
 			code := strconv.Itoa(resp.StatusCode)
 			metrics.TelegramRequestErrors.WithLabelValues(method, code).Inc()
+			metrics.TelegramRequestErrorReasons.WithLabelValues(method, code, reason).Inc()
 			span.SetAttributes(semconv.ErrorTypeKey.String(code))
 			span.SetStatus(codes.Error, "")
 		}
@@ -127,6 +128,8 @@ func telegramErrorReason(resp *http.Response) string {
 	switch description {
 	case "user not found", "member not found", "participant_id_invalid", "user_id_invalid":
 		return "missing_member"
+	case "invalid user_id specified":
+		return "invalid_user"
 	case "message to be replied not found", "message to be replied to not found", "reply message not found":
 		return "reply_not_found"
 	case "chat not found":

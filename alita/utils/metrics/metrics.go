@@ -78,6 +78,15 @@ var (
 		Help: "Failed Bot API requests, by method and HTTP status or \"transport\".",
 	}, []string{"method", "code"})
 
+	// TelegramRequestErrorReasons counts unexpected HTTP error responses even
+	// without a recorded trace parent. reason is a fixed category, never a raw
+	// Telegram description; expected membership negatives are excluded as above.
+	// Transport failures remain only in TelegramRequestErrors.
+	TelegramRequestErrorReasons = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "alita_telegram_api_error_reasons_total",
+		Help: "Unexpected Bot API HTTP errors, by method, HTTP status and normalized reason.",
+	}, []string{"method", "code", "reason"})
+
 	// WebhookQueueDepth is the number of webhook updates accepted but not yet
 	// picked up by a dispatcher worker.
 	WebhookQueueDepth = promauto.NewGauge(prometheus.GaugeOpts{

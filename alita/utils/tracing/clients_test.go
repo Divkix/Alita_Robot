@@ -213,10 +213,12 @@ func TestBotAPITransportClassifiesErrorResponses(t *testing.T) {
 		{"missing chat", "getChatMember", 400, "Bad Request: chat not found", "chat_not_found", false},
 		{"missing rights", "getChatMember", 400, "Bad Request: not enough rights to get chat member", "forbidden", false},
 		{"different missing user", "getChatMember", 400, "Bad Request: user not found in another operation", "unknown", false},
+		{"invalid lookup user id", "getChatMember", 400, "Bad Request: invalid user_id specified", "invalid_user", false},
 		{"send missing user", "sendMessage", 400, "Bad Request: user not found", "missing_member", false},
 		{"send missing member", "sendMessage", 400, "Bad Request: member not found", "missing_member", false},
 		{"send invalid participant", "sendMessage", 400, "Bad Request: PARTICIPANT_ID_INVALID", "missing_member", false},
 		{"send invalid user", "sendMessage", 400, "Bad Request: user_id_invalid", "missing_member", false},
+		{"invalid send user id", "sendMessage", 400, "Bad Request: invalid user_id specified", "invalid_user", false},
 		{"missing reply", "sendMessage", 400, "Bad Request: message to be replied not found", "reply_not_found", false},
 		{"invalid entities", "sendMessage", 400, "Bad Request: can't parse entities: private-response-text at byte offset 42", "entity_parse", false},
 		{"forbidden", "getChatMember", 403, "Forbidden: bot was blocked by the user", "forbidden", false},
@@ -247,6 +249,8 @@ func TestBotAPITransportClassifiesErrorResponses(t *testing.T) {
 				}))}
 				counter := metrics.TelegramRequestErrors.WithLabelValues(tt.method, fmt.Sprint(tt.status))
 				before := testutil.ToFloat64(counter)
+				reasonCounter := metrics.TelegramRequestErrorReasons.WithLabelValues(tt.method, fmt.Sprint(tt.status), tt.reason)
+				reasonBefore := testutil.ToFloat64(reasonCounter)
 				ctx := context.Background()
 				var parent trace.Span
 				if recorded {
@@ -279,6 +283,9 @@ func TestBotAPITransportClassifiesErrorResponses(t *testing.T) {
 				}
 				if delta := testutil.ToFloat64(counter) - before; delta != wantErrors {
 					t.Fatalf("error counter delta = %v, want %v", delta, wantErrors)
+				}
+				if delta := testutil.ToFloat64(reasonCounter) - reasonBefore; delta != wantErrors {
+					t.Fatalf("reason counter delta = %v, want %v", delta, wantErrors)
 				}
 				if !recorded {
 					if spans := recorder.Ended(); len(spans) != 0 {
