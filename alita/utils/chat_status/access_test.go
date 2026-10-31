@@ -662,6 +662,30 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
 		t.Fatalf("calls with anon verification = %+v, want one sendMessage", client.calls)
 	}
+
+	msg.From = &gotgbot.User{Id: GroupAnonymousBotID, IsBot: true}
+	msg.SenderChat = chat
+	ctx := ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+	client.calls = nil
+	if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
+		t.Fatal(err)
+	}
+	if !CanUserRestrict(bot, ctx, chat, GroupAnonymousBotID) ||
+		!UserHasPermissionForUpdate(bot, ctx, chat, GroupAnonymousBotID, func(m *gotgbot.MergedChatMember) bool { return m.CanRestrictMembers }) {
+		t.Fatal("anonymous-admin bypass was lost before the membership guard")
+	}
+	if len(client.calls) != 0 {
+		t.Fatalf("anonymous-admin bypass queried Telegram: %+v", client.calls)
+	}
+	if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
+		t.Fatal(err)
+	}
+	if CanUserRestrict(bot, ctx, chat, GroupAnonymousBotID) {
+		t.Fatal("anonymous admin was authorized without its proof")
+	}
+	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
+		t.Fatalf("anonymous admin requests = %+v, want only the proof keyboard", client.calls)
+	}
 }
 
 func TestMembershipAndProtectionHelpers(t *testing.T) {

@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var adminModule = moduleStruct{moduleName: "Admin"}
@@ -95,7 +96,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 	userId := extraction.ExtractUser(c.Bot, c.Ctx)
 	if userId == -1 {
 		return 0, ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
+	} else if userId < 0 || chat_status.IsSystemUser(userId) {
 		text, _ := c.Tr.GetString("common_anonymous_user_error")
 		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
@@ -145,6 +146,19 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 }
 
 func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) error {
+	userMember, err := c.Bot.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, userId, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, "common_user_not_in_chat"))
+		return ext.EndGroups
+	}
+	if err != nil {
+		return err
+	}
+	if userMember == nil {
+		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
+		return err
+	}
+
 	bb, err := c.Chat.PromoteMember(c.Bot,
 		userId,
 		&gotgbot.PromoteChatMemberOpts{
@@ -170,17 +184,6 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 	}
 
 	cache.InvalidateAdminCache(c.Chat.Id)
-
-	userMember, err := c.Chat.GetMember(c.Bot, userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	if userMember == nil {
-		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
-		log.Error(err)
-		return err
-	}
 
 	mem := userMember.MergeChatMember().User
 	_, err = c.Msg.Reply(c.Bot,
@@ -212,7 +215,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 	userId, customTitle := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 	if userId == -1 {
 		return 0, "", ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
+	} else if userId < 0 || chat_status.IsSystemUser(userId) {
 		text, _ := c.Tr.GetString("common_anonymous_user_error")
 		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
@@ -333,37 +336,50 @@ func (m moduleStruct) promote(c *helpers.CommandContext) error {
 	if err != nil {
 		return err
 	}
+	if c.User == nil {
+		return ext.EndGroups
+	}
+	if !chat_status.IsValidUserId(c.User.Id) || chat_status.IsSystemUser(c.User.Id) {
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, "common_anonymous_user_error"))
+		return ext.EndGroups
+	}
 
-	userMember, err := c.Chat.GetMember(c.Bot, userId, nil)
+	userMember, err := c.Bot.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, userId, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, "common_user_not_in_chat"))
+		return ext.EndGroups
+	}
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	if userMember == nil {
 		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
-		log.Error(err)
 		return err
 	}
 
-	promoterMember, err := c.Chat.GetMember(c.Bot, c.User.Id, nil)
+	promoterMember, err := c.Bot.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, c.User.Id, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, "chat_status_user_admin_cmd_error"))
+		return ext.EndGroups
+	}
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	if promoterMember == nil {
 		err := fmt.Errorf("GetMember returned nil for promoterId %d", c.User.Id)
-		log.Error(err)
 		return err
 	}
 
-	botMember, err := c.Chat.GetMember(c.Bot, c.Bot.Id, nil)
+	botMember, err := c.Bot.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, c.Bot.Id, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, "chat_status_bot_not_admin"))
+		return ext.EndGroups
+	}
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	if botMember == nil {
 		err := fmt.Errorf("GetMember returned nil for botId %d", c.Bot.Id)
-		log.Error(err)
 		return err
 	}
 
@@ -473,7 +489,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	userId, customTitle := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
+	} else if userId < 0 || chat_status.IsSystemUser(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(c.Bot, text, nil)
 		if err != nil {
@@ -537,7 +553,20 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		customTitle = string(runes[:16])
 	}
 
-	_, err := chat.SetAdministratorCustomTitle(c.Bot,
+	userMember, err := c.Bot.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), chat.Id, userId, nil)
+	if error_handling.IsMissingChatMemberError(err) {
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, "common_user_not_in_chat"))
+		return ext.EndGroups
+	}
+	if err != nil {
+		return err
+	}
+	if userMember == nil {
+		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
+		return err
+	}
+
+	_, err = chat.SetAdministratorCustomTitle(c.Bot,
 		userId,
 		customTitle,
 		nil,
@@ -549,21 +578,10 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		return err
 	}
 
-	userMember, err := chat.GetMember(c.Bot, userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	if userMember == nil {
-		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
-		log.Error(err)
-		return err
-	}
-
 	mem := userMember.MergeChatMember()
 
 	_, err = msg.Reply(c.Bot,
-		trSprintf(tr, strings.ToLower(m.moduleName)+"_title_success_set", formatting.HtmlEscape(mem.User.FirstName), formatting.HtmlEscape(mem.CustomTitle))+extraText,
+		trSprintf(tr, strings.ToLower(m.moduleName)+"_title_success_set", formatting.HtmlEscape(mem.User.FirstName), formatting.HtmlEscape(customTitle))+extraText,
 		formatting.Shtml(),
 	)
 	if err != nil {
@@ -666,19 +684,23 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	userMember, err := chat.GetMember(b, user.Id, nil)
-	if err != nil {
-		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
-		errorText, _ := c.Tr.GetString("admin_check_status_failed")
-		_, _ = msg.Reply(b, errorText, formatting.Shtml())
-		return ext.EndGroups
+	// Preserve the two existing trusted synthetic admins without querying
+	// Telegram for their non-member sender identities.
+	isAdmin := user.Id == chat_status.GroupAnonymousBotID || user.Id == chat_status.TelegramUserID
+	if !isAdmin && chat_status.IsValidUserId(user.Id) && !chat_status.IsSystemUser(user.Id) {
+		userMember, lookupErr := b.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), chat.Id, user.Id, nil)
+		if lookupErr != nil && !error_handling.IsMissingChatMemberError(lookupErr) {
+			log.WithContext(tracing.UpdateContext(c.Ctx)).Errorf("[Admin] Failed to get member %d: %v", user.Id, lookupErr)
+			errorText, _ := c.Tr.GetString("admin_check_status_failed")
+			_, _ = msg.Reply(b, errorText, formatting.Shtml())
+			return ext.EndGroups
+		}
+		if userMember != nil {
+			status := userMember.GetStatus()
+			isAdmin = status == "administrator" || status == "creator"
+		}
 	}
-	mem := userMember.MergeChatMember()
-	// Check the live status, not the admin cache this command refreshes.
-	// GroupAnonymousBot and Telegram count as admins, as in chat_status's
-	// tgAdminList.
-	if mem.Status != "administrator" && mem.Status != "creator" &&
-		user.Id != chat_status.GroupAnonymousBotID && user.Id != chat_status.TelegramUserID {
+	if !isAdmin {
 		errorText, _ := c.Tr.GetString("admin_need_admin")
 		_, err = msg.Reply(b, errorText, nil)
 		if err != nil {

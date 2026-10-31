@@ -264,7 +264,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	// reply failed.
 	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
 	if storeErr == nil && created {
-		autoMuteReported(b, tr, chat, msg.ReplyToMessage, reportprefs.MuteThreshold)
+		autoMuteReported(b, ctx, tr, chat, msg.ReplyToMessage, reportprefs.MuteThreshold)
 	}
 	if err != nil {
 		return err
@@ -639,7 +639,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
-	settleReportAutoMute(b, chat.Id, userId, status)
+	settleReportAutoMute(b, ctx, chat.Id, userId, status)
 	if legacy {
 		// Close any report stored while the action ran, so its card stops
 		// acting.

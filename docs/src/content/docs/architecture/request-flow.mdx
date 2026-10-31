@@ -508,6 +508,11 @@ still count. Failed responses on traced calls carry a bounded
 The bounded `alita_telegram_api_error_reasons_total{method,code,reason}` counter
 also counts unexpected HTTP errors on requests without a trace context.
 
+Membership probes reject chat IDs and Telegram's synthetic sender accounts
+before contacting the API; the existing anonymous-admin proof rules still apply.
+Shared admin-cache loads retain the originating trace but use independent
+timeouts, so one canceled waiter cannot cancel other callers' lookup.
+
 The production BotClient enables `AllowSendingWithoutReply` for ordinary
 same-chat text replies, including commands with nil or custom reply options.
 Deleting the triggering message therefore does not discard the response.

@@ -123,13 +123,13 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 	}
 	// The bot first: Telegram answers getChatMember in a channel only to an
 	// admin bot, so without that the user lookup below would fail too.
-	if !canPostInChannel(b, channel.Id, b.Id) {
+	if !canPostInChannel(b, ctx, channel.Id, b.Id) {
 		text, _ := tr.GetString("logs_pm_bot_cannot_post")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	// As with a /setlog post in the channel, the user must be able to post there.
-	if !canPostInChannel(b, channel.Id, from.Id) {
+	if !canPostInChannel(b, ctx, channel.Id, from.Id) {
 		text, _ := tr.GetString("logs_pm_user_not_channel_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
@@ -153,8 +153,11 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 
 // canPostInChannel reports whether userID owns the channel or is an admin of
 // it that can post messages.
-func canPostInChannel(b *gotgbot.Bot, channelID, userID int64) bool {
-	member, err := b.GetChatMember(channelID, userID, nil)
+func canPostInChannel(b *gotgbot.Bot, ctx *ext.Context, channelID, userID int64) bool {
+	if !chat_status.IsValidUserId(userID) || chat_status.IsSystemUser(userID) {
+		return false
+	}
+	member, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), channelID, userID, nil)
 	if err != nil {
 		log.WithFields(log.Fields{"channelId": channelID, "userId": userID, "error": err}).Debug("[LogChannels] channel member lookup failed")
 		return false

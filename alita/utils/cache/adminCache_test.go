@@ -18,6 +18,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestAdminCacheHelpersHandleNilMarshal(t *testing.T) {
@@ -42,6 +43,7 @@ func TestAdminCacheHelpersHandleNilMarshal(t *testing.T) {
 
 type adminCacheBotClient struct {
 	responses           map[string]json.RawMessage
+	errors              map[string]error
 	lastAdminListParams map[string]any
 }
 
@@ -58,6 +60,9 @@ func newAdminCacheBot(client *adminCacheBotClient) *gotgbot.Bot {
 }
 
 func (c *adminCacheBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if err := c.errors[method]; err != nil {
+		return nil, err
+	}
 	if method == "getChatAdministrators" {
 		c.lastAdminListParams = params
 	}
@@ -803,5 +808,143 @@ func TestLoadAdminCacheSurvivesALoadEndedByGoexit(t *testing.T) {
 	}
 	if len(got.UserInfo) != 1 || got.UserInfo[0].User.Id != 42 {
 		t.Fatalf("next lookup got %+v, want admin 42", got.UserInfo)
+	}
+}
+
+type adminRequestContextClient struct {
+	gotgbot.BotClient
+	contexts chan context.Context
+}
+
+func (c *adminRequestContextClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	c.contexts <- ctx
+	return c.BotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func TestLoadAdminCacheKeepsTraceAfterInitiatingWaiterCancels(t *testing.T) {
+	withMemoryMarshaler(t)
+	const chatID = int64(-100979)
+	parent := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: trace.TraceID{1}, SpanID: trace.SpanID{2}, TraceFlags: trace.FlagsSampled,
+	})
+	hung := &hungBotStatusClient{
+		inner: &adminCacheBotClient{responses: map[string]json.RawMessage{
+			"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+			"getChatAdministrators": json.RawMessage(`[{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Admin"}}]`),
+		}},
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+		stall:   10 * time.Second,
+	}
+	client := &adminRequestContextClient{BotClient: hung, contexts: make(chan context.Context, 2)}
+	bot := newAdminCacheBot(hung.inner)
+	bot.BotClient = client
+	release := sync.OnceFunc(func() { close(hung.release) })
+	t.Cleanup(release)
+
+	ctx, cancel := context.WithCancel(trace.ContextWithSpanContext(context.Background(), parent))
+	defer cancel()
+	first := make(chan error, 1)
+	go func() {
+		_, err := LoadAdminCacheWithContext(ctx, bot, chatID)
+		first <- err
+	}()
+	select {
+	case <-hung.started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("bot-status request did not start")
+	}
+	requestCtx := <-client.contexts
+	cancel()
+	select {
+	case err := <-first:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("initiating waiter error = %v, want context.Canceled", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("initiating waiter did not stop after cancellation")
+	}
+	if requestCtx.Err() != nil {
+		t.Fatalf("shared bot-status request canceled with its waiter: %v", requestCtx.Err())
+	}
+	if _, bounded := requestCtx.Deadline(); !bounded {
+		t.Fatal("detached bot-status request lost its own timeout")
+	}
+	if got := trace.SpanContextFromContext(requestCtx); !got.Equal(parent) {
+		t.Fatalf("bot-status trace parent = %v, want %v", got, parent)
+	}
+
+	load := runningAdminLoad(adminCacheKey(chatID))
+	if load == nil {
+		t.Fatal("cancellation forgot the shared load")
+	}
+	second := make(chan AdminCache, 1)
+	go func() { second <- LoadAdminCache(bot, chatID) }()
+	waitForAdminLoadTest(t, "second waiter to join detached load", func() bool { return adminLoadWaiters(load) == 1 })
+	release()
+	select {
+	case result := <-second:
+		if len(result.UserInfo) != 1 || result.UserInfo[0].User.Id != 42 {
+			t.Fatalf("shared result = %+v, want admin 42", result)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("shared load did not finish for its remaining waiter")
+	}
+	if got := trace.SpanContextFromContext(<-client.contexts); !got.Equal(parent) {
+		t.Fatalf("admin-list trace parent = %v, want initiating update %v", got, parent)
+	}
+	if found, stored := GetAdminCacheList(chatID); !found || len(stored.UserInfo) != 1 {
+		t.Fatalf("completed shared load was not cached: %v %+v", found, stored)
+	}
+}
+
+func TestLoadAdminCacheMissingBotIsQuietButUnexpectedErrorsWarn(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		code        int
+		description string
+		warn        bool
+	}{
+		{"missing", 400, "Bad Request: user not found", false},
+		{"forbidden", 403, "Forbidden: bot was kicked from the supergroup chat", true},
+		{"unknown bad request", 400, "Bad Request: unexpected", true},
+		{"server failure", 500, "Internal Server Error", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withMemoryMarshaler(t)
+			hook := captureErrorLogs(t)
+			client := &adminCacheBotClient{errors: map[string]error{
+				"getChatMember": &gotgbot.TelegramError{Method: "getChatMember", Code: tc.code, Description: tc.description},
+			}}
+			result := LoadAdminCache(newAdminCacheBot(client), -100980)
+			if len(result.UserInfo) != 0 {
+				t.Fatalf("failed bot membership returned admins: %+v", result)
+			}
+			warned := false
+			for _, entry := range hook.AllEntries() {
+				warned = warned || entry.Level <= log.WarnLevel
+			}
+			if warned != tc.warn {
+				t.Errorf("warning/error logged = %v, want %v", warned, tc.warn)
+			}
+		})
+	}
+}
+
+func TestLoadAdminCacheRejectsNonPositiveBotIDsWithoutRequests(t *testing.T) {
+	for _, botID := range []int64{0, -1} {
+		inner := &adminCacheBotClient{}
+		client := &adminRequestContextClient{BotClient: inner, contexts: make(chan context.Context, 1)}
+		bot := newAdminCacheBot(inner)
+		bot.Id = botID
+		bot.BotClient = client
+		if result := LoadAdminCache(bot, -100981); result.Cached || len(result.UserInfo) != 0 {
+			t.Errorf("bot ID %d returned a cached result: %+v", botID, result)
+		}
+		select {
+		case <-client.contexts:
+			t.Errorf("bot ID %d caused a membership request", botID)
+		default:
+		}
 	}
 }
