@@ -79,7 +79,7 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 
 	var (
 		rawText string
-		args    = strings.Fields(msg.Text)[1:]
+		args    = commandArgs(msg.Text)
 	)
 	_buttons := make([]tgmd2html.ButtonV2, 0)
 	replyMsg := msg.ReplyToMessage
@@ -181,6 +181,17 @@ func dropFirstToken(s string) string {
 	return strings.TrimLeftFunc(s[i:], unicode.IsSpace)
 }
 
+// commandArgs returns the words after the command. The command handler also
+// matches a command sent as a media caption, which leaves Text empty, so
+// there may be no command word to drop.
+func commandArgs(text string) []string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields[1:]
+}
+
 func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType int) {
 	if replyMsg == nil {
 		return "", -1
@@ -219,7 +230,7 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	}
 	var (
 		rawText string
-		args    = strings.Fields(msg.Text)[1:]
+		args    = commandArgs(msg.Text)
 	)
 	_buttons := make([]tgmd2html.ButtonV2, 0)
 	replyMsg := msg.ReplyToMessage
