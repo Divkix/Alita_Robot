@@ -266,7 +266,7 @@ func TestBotAPITransportClassifiesErrorResponses(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer resp.Body.Close()
+				t.Cleanup(func() { _ = resp.Body.Close() })
 				if observed.closes != 0 {
 					t.Fatal("transport closed the response body before the decoder")
 				}
@@ -362,7 +362,7 @@ func TestBotAPITransportBoundsErrorInspection(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer resp.Body.Close()
+			t.Cleanup(func() { _ = resp.Body.Close() })
 			if observed.bytesRead > maxTelegramErrorBody+1 {
 				t.Fatalf("inspection read %d bytes, limit %d", observed.bytesRead, maxTelegramErrorBody+1)
 			}
@@ -474,7 +474,7 @@ func TestBotAPITransportPreservesErrorBodyReadFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 	got, err := io.ReadAll(resp.Body)
 	if string(got) != body || !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("body read = %q, %v; want original bytes and unexpected EOF", got, err)
