@@ -462,6 +462,55 @@ func TestIsUserAdminFallbackGetChatMemberErrors(t *testing.T) {
 	}
 }
 
+// forbiddenMemberClient is a chat where the bot is a plain member and Telegram
+// refuses every lookup of another user with CHAT_ADMIN_REQUIRED.
+type forbiddenMemberClient struct {
+	fallbackErrBotClient
+	userLookups int
+}
+
+func (c *forbiddenMemberClient) RequestWithContext(
+	ctx context.Context, token, method string,
+	params map[string]any, opts *gotgbot.RequestOpts,
+) (json.RawMessage, error) {
+	if method == "getChatMember" && fmt.Sprint(params["user_id"]) != fmt.Sprint(c.botID) {
+		c.userLookups++
+		return nil, &gotgbot.TelegramError{Method: method, Code: 400, Description: "Bad Request: CHAT_ADMIN_REQUIRED"}
+	}
+	return c.fallbackErrBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// Production asked Telegram on every message in such a chat (~1,200 refused
+// lookups a day). One refusal now answers for everyone until the bot's rights
+// change.
+func TestIsUserAdminStopsAskingAfterMemberLookupRefused(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	chatID := int64(-6100)
+	client := &forbiddenMemberClient{fallbackErrBotClient: fallbackErrBotClient{botID: 9920, chatID: chatID}}
+	bot := &gotgbot.Bot{Token: "9920:forbidden", BotClient: client, User: gotgbot.User{Id: 9920, IsBot: true}}
+
+	for _, userID := range []int64{701, 702, 701} {
+		if IsUserAdmin(bot, chatID, userID) {
+			t.Fatalf("IsUserAdmin(%d) = true, want false when Telegram refuses the lookup", userID)
+		}
+	}
+	if client.userLookups != 1 {
+		t.Fatalf("member lookups = %d, want 1: later checks must reuse the refusal", client.userLookups)
+	}
+	if isAdmin, known := IsUserAdminCached(chatID, 703); isAdmin || !known {
+		t.Fatalf("IsUserAdminCached = (%v, %v), want (false, true)", isAdmin, known)
+	}
+
+	// A change in the bot's rights clears the list, so the next check asks again.
+	cache.InvalidateAdminCache(chatID)
+	if IsUserAdmin(bot, chatID, 702) {
+		t.Fatal("IsUserAdmin after invalidation = true, want false")
+	}
+	if client.userLookups != 2 {
+		t.Fatalf("member lookups after invalidation = %d, want 2", client.userLookups)
+	}
+}
+
 // fallbackErrBotClient handles the three-call sequence in IsUserAdmin's fallback:
 //
 //  1. getChat → valid supergroup
