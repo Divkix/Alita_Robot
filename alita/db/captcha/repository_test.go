@@ -137,6 +137,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaSettings{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.Chat{}).Error
 		if m := cache.GetMarshal(); m != nil {
 			_ = m.Delete(cache.Context, dbcache.CacheKey("captcha_settings", chatID))
 		}
@@ -229,6 +230,45 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected FailureAction='ban', got %q", settings.FailureAction)
 	}
 
+}
+
+// A group can have no chats row yet when an admin first configures captcha,
+// for example through the enable button the bot posts on joining. Each setter
+// must create that row instead of failing fk_captcha_settings_chat.
+func TestCaptchaSettersCreateMissingChat(t *testing.T) {
+	skipIfNoDb(t)
+
+	setters := []struct {
+		name string
+		set  func(chatID int64) error
+	}{
+		{"enabled", func(id int64) error { return SetCaptchaEnabled(id, true) }},
+		{"mode", func(id int64) error { return SetCaptchaMode(id, "text") }},
+		{"timeout", func(id int64) error { return SetCaptchaTimeout(id, 5) }},
+		{"max_attempts", func(id int64) error { return SetCaptchaMaxAttempts(id, 7) }},
+		{"failure_action", func(id int64) error { return SetCaptchaFailureAction(id, "ban") }},
+	}
+	base := time.Now().UnixNano()
+	for i, tc := range setters {
+		chatID := base + int64(i)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaSettings{}).Error
+				_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.Chat{}).Error
+				dbcache.DeleteCache(dbcache.CacheKey("captcha_settings", chatID))
+			})
+
+			if err := tc.set(chatID); err != nil {
+				t.Fatalf("setter on a chat with no chats row: %v", err)
+			}
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&dbmodels.Chat{}).Error; err != nil {
+				t.Fatalf("chats row after setter: %v", err)
+			}
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&dbmodels.CaptchaSettings{}).Error; err != nil {
+				t.Fatalf("captcha_settings row after setter: %v", err)
+			}
+		})
+	}
 }
 
 func TestCaptchaAttempt_Lifecycle(t *testing.T) {

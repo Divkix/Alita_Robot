@@ -12,6 +12,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
@@ -53,12 +54,20 @@ func GetCaptchaSettingsContext(ctx context.Context, chatID int64) (*models.Captc
 	})
 }
 
+// Every setter below first creates the chats row that fk_captcha_settings_chat
+// needs. Captcha can be configured before anything else has stored the chat:
+// the enable button the bot posts on joining a group is often the first thing
+// an admin presses there.
+
 func SetCaptchaEnabled(chatID int64, enabled bool) error {
 	updates := map[string]any{
 		"chat_id": chatID,
 		"enabled": enabled,
 	}
 
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database][SetCaptchaEnabled]: %v", err)
@@ -80,6 +89,9 @@ func SetCaptchaMode(chatID int64, mode string) error {
 		"captcha_mode": mode,
 	}
 
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database][SetCaptchaMode]: %v", err)
@@ -101,6 +113,9 @@ func SetCaptchaTimeout(chatID int64, timeout int) error {
 		"timeout": timeout,
 	}
 
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database][SetCaptchaTimeout]: %v", err)
@@ -117,6 +132,9 @@ func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
 		return ErrInvalidMaxAttempts
 	}
 
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoUpdates: clause.Assignments(map[string]any{"max_attempts": maxAttempts}),
@@ -140,6 +158,9 @@ func SetCaptchaFailureAction(chatID int64, action string) error {
 		"failure_action": action,
 	}
 
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
 	err := db.DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&models.CaptchaSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database][SetCaptchaFailureAction]: %v", err)
