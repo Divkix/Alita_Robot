@@ -100,6 +100,11 @@ jobs:
             go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
             go-${{ runner.os }}-
 
+      # GoReleaser runs `go mod tidy` before building a release and refuses a
+      # dirty tree, so an untidy go.mod must fail here, before it is tagged.
+      - name: Verify go.mod is tidy
+        run: go mod tidy -diff
+
       - name: Run linting
         uses: golangci/golangci-lint-action@v9
         with:
