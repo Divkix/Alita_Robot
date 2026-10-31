@@ -359,8 +359,11 @@ func InvalidateAdminCache(chatId int64) {
 }
 
 // MarkMemberLookupForbidden records on the chat's Negative admin list that
-// Telegram refused a member lookup there. A missing or non-Negative list is
-// left alone: the bot's rights changed since it was stored.
+// Telegram refused a member lookup there, and keeps the list as long as a
+// stored admin list (AdminCacheTTL). The refusal holds until the bot's rights
+// change, and any change in the bot's admin status clears the list at once
+// (adminCacheAutoUpdate). A missing or non-Negative list is left alone: the
+// bot's rights changed since it was stored.
 func MarkMemberLookupForbidden(chatId int64) {
 	m := GetMarshal()
 	if m == nil {
@@ -372,7 +375,7 @@ func MarkMemberLookupForbidden(chatId int64) {
 		return
 	}
 	adminCache.MemberLookupForbidden = true
-	if err := m.Set(Context, adminCacheKey(chatId), adminCache, store.WithExpiration(negativeAdminCacheTTL)); err != nil {
+	if err := m.Set(Context, adminCacheKey(chatId), adminCache, store.WithExpiration(constants.AdminCacheTTL)); err != nil {
 		log.WithFields(log.Fields{"chatId": chatId, "error": err}).Debug("[AdminCache] Failed to mark member lookups forbidden")
 		return
 	}
