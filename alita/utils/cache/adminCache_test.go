@@ -148,6 +148,29 @@ func TestLoadAdminCacheHandlesNilBotNonAdminBotAndEmptyAdminList(t *testing.T) {
 	}
 }
 
+// Production asked Telegram again each time the 2-minute "bot is not admin"
+// list expired. A recorded refusal must last as long as a stored admin list.
+func TestMarkMemberLookupForbiddenOutlivesTheNegativeTTL(t *testing.T) {
+	withMemoryMarshaler(t)
+	const chatID = int64(-100126)
+	client := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999": json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+	}}
+	LoadAdminCache(newAdminCacheBot(client), chatID)
+	MarkMemberLookupForbidden(chatID)
+
+	if found, ac := GetAdminCacheList(chatID); !found || !ac.Negative || !ac.MemberLookupForbidden {
+		t.Fatalf("stored list = (%v, %+v), want a Negative list marked forbidden", found, ac)
+	}
+	_, ttl, err := GetCacheManager().GetWithTTL(Context, adminCacheKey(chatID))
+	if err != nil {
+		t.Fatalf("GetWithTTL: %v", err)
+	}
+	if ttl <= negativeAdminCacheTTL {
+		t.Fatalf("refusal TTL = %v, want longer than the %v negative TTL", ttl, negativeAdminCacheTTL)
+	}
+}
+
 type delayedAdminCacheClient struct {
 	inner            *adminCacheBotClient
 	adminListStarted chan struct{}
