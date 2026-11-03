@@ -3,6 +3,9 @@
 GO_CMD = go
 GORELEASER_CMD = goreleaser
 GOLANGCI_LINT_CMD = golangci-lint
+# Optional test selection and raw JSON capture; defaults keep the full local suite.
+TEST_ARGS ?=
+TEST_OUTPUT ?= /dev/null
 # nilaway has no tagged releases; pinned to a pseudo-version so every run
 # reports the same thing. Recheck when upstream tags a release or a new Go
 # version breaks the analyzer.
@@ -42,7 +45,7 @@ nilaway:
 test: SHELL := /bin/bash
 test: .SHELLFLAGS := -o pipefail -c
 test:
-	$(GO_CMD) test -tags testtools -json -race -coverprofile=coverage.out -coverpkg=$$(go list ./alita/... | paste -sd, -) -count=1 -timeout 10m ./... | $(GO_CMD) run ./scripts/check_test_results
+	$(GO_CMD) test -tags testtools -json -race -coverprofile=coverage.out -coverpkg=$$(go list ./alita/... | paste -sd, -) -count=1 -timeout 10m $(TEST_ARGS) ./... | tee "$(TEST_OUTPUT)" | $(GO_CMD) run ./scripts/check_test_results
 
 # Postgres-only integrity tests, one alternation. go test passes when -run matches nothing, so a
 # renamed test would silently drop out: the target first fails on any name no package lists.
