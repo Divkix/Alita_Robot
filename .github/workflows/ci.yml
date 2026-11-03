@@ -447,7 +447,17 @@ jobs:
         run: |
           profiles=(coverage-shard-*/coverage.out)
           test "${#profiles[@]}" -eq "${{ needs.test-shards.outputs.shard-count }}"
-          go run ./scripts/merge_coverage "${profiles[@]}" > coverage.out
+          for profile in "${profiles[@]}"; do
+            test -s "$profile"
+            IFS= read -r mode < "$profile"
+            test "$mode" = "mode: atomic"
+          done
+          {
+            echo "mode: atomic"
+            for profile in "${profiles[@]}"; do
+              tail -n +2 "$profile"
+            done
+          } > coverage.out
 
       - name: Check coverage threshold
         if: success()

@@ -147,8 +147,8 @@ CGO_ENABLED=0 go build ./...   # compile check
 - Release: `make bump-version` on a PR branch, merge, then tag `vX.Y.Z[-pre]`. `release.yml` runs no checks of its
   own and waits for `ci.yml` on the tagged commit, so a new release gate goes in `ci.yml`.
 - CI statically shards top-level names with `scripts/test_shard.sh`; the last shard runs the remainder, including
-  discovery misses. `Test Suite` keeps race/skip gates and sums atomic blocks with `scripts/merge_coverage` before
-  enforcing 78%. PostgreSQL integrity runs alongside.
+  discovery misses. `Test Suite` keeps race/skip gates and concatenates atomic profiles for `go tool cover` to
+  merge before enforcing 78%. PostgreSQL integrity runs alongside.
   Go cache families separate race/coverage, integrity, lint, build, security and docs; only main pushes save them.
 - `gosec.yml` scans main pushes and weekly outside PR CI; govulncheck remains a PR gate.
 - `.env` in cwd auto-loads without overriding real env: run `--version` smoke checks from `/tmp`. Surprising config
