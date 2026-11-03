@@ -29,6 +29,7 @@ jobs:
   build-and-deploy:
     name: Build and Deploy Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       deployments: write
@@ -41,7 +42,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: stable
-          cache: true
+          cache: false # the small docs generator does not need the full Go build cache
 
       - name: Generate documentation
         run: make generate-docs
@@ -63,6 +64,7 @@ jobs:
         run: bun run build
 
       - name: Install wrangler v4
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           bun install wrangler@4
 
