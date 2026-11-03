@@ -56,7 +56,7 @@ jobs:
           go-version-input: ${{ steps.go.outputs.go-version }}
 
       - name: Save Go module and build cache
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'ci/fast')) && steps.go-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -203,7 +203,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save Go module and build cache
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'ci/fast')) && steps.go-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -258,7 +258,7 @@ jobs:
           retention-days: 7
 
       - name: Save Go module and build cache
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'ci/fast')) && steps.go-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -340,7 +340,7 @@ jobs:
         run: make test-postgres-integrity
 
       - name: Save Go module and build cache
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'ci/fast')) && steps.go-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -414,7 +414,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
       - name: Save Go module and build cache
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'ci/fast')) && matrix.shard == 0 && steps.go-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.shard == 0 && steps.go-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -517,7 +517,7 @@ jobs:
         working-directory: docs
         run: bun run check:links
       - name: Save Go module and build cache
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'ci/fast')) && steps.go-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
