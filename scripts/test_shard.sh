@@ -11,30 +11,31 @@ index=$1
 count=$2
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# Reuse make test so discovery and execution compile identical race/coverage binaries.
+# Static discovery avoids compiling/linking every test binary just to list names.
+# Missed names are safe: the last shard runs everything earlier shards did not select.
 discovery_start=$SECONDS
-if ! listed=$(make --no-print-directory test TEST_ARGS='-list .'); then
-    printf '%s\n' "$listed" >&2
-    exit 1
-fi
-echo "Test discovery (compile and TestMain): $((SECONDS - discovery_start))s"
-if ! names=$(printf '%s\n' "$listed" | grep -E '^(Test|Example|Fuzz)[^[:space:]]*$' | LC_ALL=C sort -u); then
-    echo "test_shard: no top-level tests found" >&2
-    exit 1
-fi
+listed=$(LC_ALL=C grep -rhE --include='*_test.go' \
+    --exclude-dir=vendor --exclude-dir=node_modules --exclude-dir=.worktrees \
+    '^[[:space:]]*func[[:space:]]+(Test|Example|Fuzz)[[:alnum:]_]*[[:space:]]*\(' . ||
+    [[ $? -eq 1 ]])
+names=$(printf '%s\n' "$listed" |
+    LC_ALL=C sed -E 's/^[[:space:]]*func[[:space:]]+((Test|Example|Fuzz)[[:alnum:]_]*)[[:space:]]*\(.*/\1/' |
+    LC_ALL=C sort -u)
+echo "Static test discovery: $((SECONDS - discovery_start))s"
 
 selected=''
+flag=-run
+if (( index == count - 1 )); then
+    flag=-skip
+fi
 position=0
 while IFS= read -r name; do
-    if (( position % count == index )); then
+    if (( (index < count - 1 && position % count == index) ||
+        (index == count - 1 && position % count != index) )); then
         selected+="${selected:+|}${name}"
     fi
     position=$((position + 1))
 done <<< "$names"
-if [[ -z $selected ]]; then
-    echo "test_shard: shard $index/$count selected no tests" >&2
-    exit 1
-fi
 
 # Make consumes one dollar sign; the resulting Go regexp matches whole top-level names.
-make --no-print-directory test TEST_ARGS="-run '^(${selected})\$\$'" TEST_OUTPUT=test-results.json
+make --no-print-directory test TEST_ARGS="${flag} '^(${selected})\$\$'" TEST_OUTPUT=test-results.json
