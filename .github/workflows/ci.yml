@@ -356,6 +356,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [0, 1, 2]
+    outputs:
+      shard-count: ${{ strategy.job-total }}
     env:
       BOT_TOKEN: test-token
       OWNER_ID: "1"
@@ -442,7 +444,10 @@ jobs:
         with:
           pattern: coverage-shard-*
       - name: Merge atomic coverage profiles
-        run: go run ./scripts/merge_coverage coverage-shard-*/coverage.out > coverage.out
+        run: |
+          profiles=(coverage-shard-*/coverage.out)
+          test "${#profiles[@]}" -eq "${{ needs.test-shards.outputs.shard-count }}"
+          go run ./scripts/merge_coverage "${profiles[@]}" > coverage.out
 
       - name: Check coverage threshold
         if: success()
