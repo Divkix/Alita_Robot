@@ -149,6 +149,7 @@ CGO_ENABLED=0 go build ./...   # compile check
 - CI shards top-level tests with `scripts/test_shard.sh`, preserving `make test`'s race and skip gates; `Test Suite`
   sums atomic coverage blocks with `scripts/merge_coverage` before enforcing 78%. PostgreSQL integrity runs alongside.
   Go cache families separate race/coverage, integrity, lint, build, security and docs; only main pushes save them.
+- `gosec.yml` scans main pushes and weekly outside PR CI; govulncheck remains a PR gate.
 - `.env` in cwd auto-loads without overriding real env: run `--version` smoke checks from `/tmp`. Surprising config
   defaults are listed in the `alita/config` package doc.
 

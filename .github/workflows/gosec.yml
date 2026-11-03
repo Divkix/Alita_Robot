@@ -1,0 +1,63 @@
+name: Gosec
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: gosec-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gosec:
+    name: Gosec Security Scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        id: go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Restore Go module and build cache
+        id: go-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-gosec-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: go-gosec-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
+      - name: Run Gosec Security Scanner
+        run: |
+          archive="$RUNNER_TEMP/gosec_2.29.0_linux_amd64.tar.gz"
+          curl --fail --location --output "$archive" https://github.com/securego/gosec/releases/download/v2.29.0/gosec_2.29.0_linux_amd64.tar.gz
+          echo "6431b119741c1f4a50fdfcf94e782e16b9e642afc8c7fa9b5d39d48bf3003095  $archive" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gosec
+          "$RUNNER_TEMP/gosec" -no-fail -fmt sarif -out gosec.sarif ./...
+      - name: Upload Gosec SARIF
+        continue-on-error: true # Gosec may produce SARIF with null artifactChanges which fails validation
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: gosec.sarif
+          category: gosec
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}

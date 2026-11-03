@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -25,7 +24,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -48,20 +46,6 @@ jobs:
             ~/.cache/go-build
           key: go-security-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go') }}
           restore-keys: go-security-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
-
-      - name: Run Gosec Security Scanner
-        run: |
-          # gosec on the runner (not the docker action) so it reuses the cached
-          # type information instead of re-analysing from a cold container cache
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
-          "$(go env GOPATH)/bin/gosec" -no-fail -fmt sarif -out gosec.sarif ./...
-
-      - name: Upload Gosec SARIF
-        continue-on-error: true # Gosec may produce SARIF with null artifactChanges which fails validation
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: gosec.sarif
-          category: gosec
 
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1
