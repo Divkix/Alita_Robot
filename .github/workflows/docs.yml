@@ -29,6 +29,7 @@ jobs:
   build-and-deploy:
     name: Build and Deploy Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       deployments: write
@@ -38,10 +39,21 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: stable
-          cache: true
+          cache: false
+
+      # ci.yml's Docs & Translations job seeds this family on main.
+      - name: Restore Go docs cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-docs-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: go-docs-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-
 
       - name: Generate documentation
         run: make generate-docs
@@ -63,6 +75,7 @@ jobs:
         run: bun run build
 
       - name: Install wrangler v4
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           bun install wrangler@4
 

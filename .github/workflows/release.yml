@@ -78,7 +78,7 @@ jobs:
           args: build --clean
 
       # The tag must sit on a main commit, and CI on main runs a superset of the
-      # release checks (gosec, govulncheck, lint, build, migration chain, Postgres
+      # release checks (govulncheck, lint, build, migration chain, Postgres
       # integrity, full tests, coverage, docs and translations). Reuse that verdict
       # instead of re-running it. CI cancels superseded main runs, so a cancelled or
       # missing run is replaced by dispatching CI on the tag itself.

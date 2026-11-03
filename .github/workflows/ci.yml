@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -25,7 +24,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -33,38 +31,38 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: false
 
       - name: Restore Go module and build cache
-        uses: actions/cache@v6
+        id: go-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
-          restore-keys: |
-            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-${{ runner.os }}-
-
-      - name: Run Gosec Security Scanner
-        run: |
-          # gosec on the runner (not the docker action) so it reuses the cached
-          # type information instead of re-analysing from a cold container cache
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
-          "$(go env GOPATH)/bin/gosec" -no-fail -fmt sarif -out gosec.sarif ./...
-
-      - name: Upload Gosec SARIF
-        continue-on-error: true # Gosec may produce SARIF with null artifactChanges which fails validation
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: gosec.sarif
-          category: gosec
+          key: go-security-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: go-security-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
 
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1
+        with:
+          repo-checkout: false
+          cache: false
+          check-latest: false
+          go-version-input: ${{ steps.go.outputs.go-version }}
+
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
   # Code quality - run on stable only (lint results don't vary by Go version)
   lint:
@@ -76,29 +74,25 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: false
 
       - name: Restore Go module and build cache
-        uses: actions/cache@v6
+        id: go-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          # Own key family: the security and build jobs save under go-* in the
-          # same run, and only the first save of a key wins, so nilaway's
-          # module and analysis cache would rarely be kept.
-          key: go-lint-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
-          restore-keys: |
-            go-lint-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-lint-${{ runner.os }}-
-            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-${{ runner.os }}-
+          key: go-lint-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go', '.golangci.yml', 'Makefile') }}
+          restore-keys: go-lint-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
 
       # GoReleaser runs `go mod tidy` before building a release and refuses a
       # dirty tree, so an untidy go.mod must fail here, before it is tagged.
@@ -110,6 +104,7 @@ jobs:
         with:
           version: v2.15.0
           install-mode: binary
+          skip-save-cache: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           args: --timeout 10m
 
       - name: Run nilaway
@@ -157,6 +152,7 @@ jobs:
         with:
           version: v2.15.0
           install-mode: binary
+          skip-save-cache: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           # dupl and gocyclo are left out of the main run (.golangci.yml) so
           # their existing backlog does not fail it; new code must pass them.
           args: --enable-only dupl,gocyclo --timeout 10m
@@ -206,6 +202,15 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
+
   # Build verification - run in parallel with other checks
   build:
     name: Build Verification
@@ -222,21 +227,21 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go ${{ matrix.go-version }}
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
           cache: false
 
       - name: Restore Go module and build cache
-        uses: actions/cache@v6
+        id: go-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
-          restore-keys: |
-            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-${{ runner.os }}-
+          key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: go-build-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
 
       - name: Build Go binary
         run: |
@@ -252,34 +257,20 @@ jobs:
           path: /tmp/alita_robot
           retention-days: 7
 
-  # Automated regression tests
-  test:
-    name: Test Suite
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
+
+  # Integrity checks run alongside the race/coverage shards.
+  postgres-integrity:
+    name: PostgreSQL Integrity
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: alita_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d alita_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:8
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 15
     env:
       BOT_TOKEN: test-token
       OWNER_ID: "1"
@@ -291,36 +282,39 @@ jobs:
       DEBUG: "false"
       CGO_ENABLED: "1"
     steps:
+      - name: Start PostgreSQL and Redis
+        run: |
+          docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=alita_test postgres:18 &
+          postgres_pid=$!
+          docker run -d --name redis -p 6379:6379 redis:8
+          wait "$postgres_pid"
+
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: false
 
       - name: Restore Go module and build cache
-        uses: actions/cache@v6
+        id: go-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          # Own key family: -race/-coverpkg objects are disjoint from the plain
-          # build objects the other jobs use, and only one job per run_id can
-          # save under a key (the first to finish wins) — sharing a family with
-          # the plain-build jobs would leave this one permanently cold.
-          key: go-race-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
-          restore-keys: |
-            go-race-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-race-${{ runner.os }}-
+          key: go-integrity-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go', 'Makefile') }}
+          restore-keys: go-integrity-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
 
       - name: Wait for PostgreSQL
         run: |
           for _ in {1..30}; do
-            (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && exit 0
+            docker exec postgres pg_isready -h 127.0.0.1 -U postgres -d alita_test && exit 0
             sleep 2
           done
           echo "PostgreSQL did not become ready in time"
@@ -329,7 +323,7 @@ jobs:
       - name: Wait for Redis
         run: |
           for _ in {1..30}; do
-            (echo > /dev/tcp/127.0.0.1/6379) >/dev/null 2>&1 && exit 0
+            [ "$(docker exec redis redis-cli ping)" = PONG ] && exit 0
             sleep 2
           done
           echo "Redis did not become ready in time"
@@ -345,29 +339,125 @@ jobs:
           ALITA_TEST_DATABASE: "true"
         run: make test-postgres-integrity
 
-      - name: Run test suite
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
+
+  test-shards:
+    name: Test shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    outputs:
+      shard-count: ${{ strategy.job-total }}
+    env:
+      BOT_TOKEN: test-token
+      OWNER_ID: "1"
+      MESSAGE_DUMP: "1"
+      REDIS_ADDRESS: "localhost:6379"
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable"
+      AUTO_MIGRATE: "false"
+      USE_WEBHOOKS: "false"
+      DEBUG: "false"
+      CGO_ENABLED: "1"
+    steps:
+      - name: Start PostgreSQL and Redis
         run: |
-          # Run tests and capture timing (capture exit status to track duration even on failure)
-          start_time=$(date +%s)
-          make test || test_exit=$?
-          end_time=$(date +%s)
-          duration=$((end_time - start_time))
+          docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=alita_test postgres:18 &
+          postgres_pid=$!
+          docker run -d --name redis -p 6379:6379 redis:8
+          wait "$postgres_pid"
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        id: go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Restore Go module and build cache
+        id: go-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-race-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('**/*.go', 'Makefile', 'scripts/test_shard.sh') }}
+          restore-keys: go-race-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}-
+      - name: Wait for test services
+        run: |
+          for _ in {1..30}; do
+            if docker exec postgres pg_isready -h 127.0.0.1 -U postgres -d alita_test && [ "$(docker exec redis redis-cli ping)" = PONG ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Run test suite shard
+        run: scripts/test_shard.sh "${{ matrix.shard }}" "${{ strategy.job-total }}"
+      - name: Upload shard coverage and timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-shard-${{ matrix.shard }}
+          path: |
+            coverage.out
+            test-results.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.shard == 0 && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
-          # Print duration to logs
-          echo "Test suite duration: ${duration}s"
-
-          # Add to job summary
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [test-shards, postgres-integrity]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Download shard coverage
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-shard-*
+      - name: Merge atomic coverage profiles
+        run: |
+          profiles=(coverage-shard-*/coverage.out)
+          test "${#profiles[@]}" -eq "${{ needs.test-shards.outputs.shard-count }}"
+          for profile in "${profiles[@]}"; do
+            test -s "$profile"
+            IFS= read -r mode < "$profile"
+            test "$mode" = "mode: atomic"
+          done
           {
-            echo "## 🧪 Test Suite Performance"
-            echo ""
-            echo "**Total Duration:** ${duration} seconds"
-            echo ""
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          # Re-exit with test failure status if tests failed
-          if [ -n "${test_exit}" ]; then
-            exit "${test_exit}"
-          fi
+            echo "mode: atomic"
+            for profile in "${profiles[@]}"; do
+              tail -n +2 "$profile"
+            done
+          } > coverage.out
 
       - name: Check coverage threshold
         if: success()
@@ -418,10 +508,20 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: stable
-          cache: true
+          cache: false
+      - name: Restore Go module and build cache
+        id: go-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-docs-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: go-docs-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-
       - name: Check translations
         run: make check-translations
       - name: Check generated docs drift
@@ -431,6 +531,14 @@ jobs:
       - name: Check hand-written docs links
         working-directory: docs
         run: bun run check:links
+      - name: Save Go module and build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
   formal:
     name: Formal Models
@@ -455,10 +563,19 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
       - name: Build Docker image (amd64 only)
-        run: |
-          docker build -f docker/alpine -t test-build:latest .
-          docker images | grep test-build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/alpine
+          platforms: linux/amd64
+          load: true
+          tags: test-build:latest
+          cache-from: type=gha,scope=main
+      - name: Verify Docker image
+        run: docker image inspect test-build:latest
 
   # Publish Docker images for main branch pushes
   docker-publish:
@@ -546,7 +663,7 @@ jobs:
     name: CI Success
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [security, lint, build, test, docs-check, formal, docker-verify, docker-publish]
+    needs: [security, lint, build, test-shards, postgres-integrity, test, docs-check, formal, docker-verify, docker-publish]
     if: always()
     steps:
       - name: Check all jobs status
@@ -556,6 +673,8 @@ jobs:
              [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.test-shards.result }}" != "success" ] || \
+             [ "${{ needs.postgres-integrity.result }}" != "success" ] || \
              [ "${{ needs.docs-check.result }}" != "success" ] || \
              [ "${{ needs.formal.result }}" != "success" ] || \
              [ "${{ needs.docker-verify.result }}" != "success" ]; then

@@ -22,6 +22,7 @@ We will respond within 48 hours and work with you to understand and resolve the 
 ## Security Measures
 
 - All dependencies are automatically updated via Dependabot
-- Security scanning with gosec and govulncheck on every PR
+- govulncheck scans dependencies on every PR
+- gosec scans main pushes and weekly, uploading SARIF to code scanning
 - Docker images scanned with Trivy before release
 - Supply chain attestation on all release artifacts
