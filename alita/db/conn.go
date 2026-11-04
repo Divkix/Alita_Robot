@@ -66,6 +66,27 @@ func (w safeWriter) Printf(format string, args ...any) {
 	w.Writer.Printf(format, args...)
 }
 
+// newGormConfig is the production GORM configuration.
+//
+// QueryFields makes every generated SELECT name the model's columns instead
+// of `*`. Statements are prepared (PrepareStmt here, and by PgBouncer with
+// max_prepared_statements on the server connections it shares across bot
+// processes), and Postgres refuses a prepared `SELECT *` once a migration adds
+// a column ("cached plan must not change result type", SQLSTATE 0A000). A
+// named column list keeps the result type fixed across ADD COLUMN.
+func newGormConfig(gormLogger logger.Interface) *gorm.Config {
+	return &gorm.Config{
+		Logger:      gormLogger,
+		PrepareStmt: true,
+		QueryFields: true,
+		// Single statements are already atomic in Postgres; multi-statement writes use explicit db.DB.Transaction.
+		SkipDefaultTransaction: true,
+		NowFunc: func() time.Time {
+			return time.Now().UTC()
+		},
+	}
+}
+
 func init() {
 	if isCliModeActive() {
 		return
@@ -85,15 +106,7 @@ func init() {
 
 	maxRetries := 5
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-			Logger:      gormLogger,
-			PrepareStmt: true,
-			// Single statements are already atomic in Postgres; multi-statement writes use explicit db.DB.Transaction.
-			SkipDefaultTransaction: true,
-			NowFunc: func() time.Time {
-				return time.Now().UTC()
-			},
-		})
+		DB, err = gorm.Open(postgres.Open(dsn), newGormConfig(gormLogger))
 		if err == nil {
 			break
 		}
