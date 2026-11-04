@@ -185,6 +185,25 @@ checked against the bot token on arrival.
 - A user with no groups sees an empty state explaining how to add the bot or how
   to `/connect` a group.
 
+### Warning settings
+
+The **Warnings** group in **Settings** configures what happens when a member
+reaches the warning limit; the separate **Warnings** screen lists their warnings.
+
+| Setting | Default | Accepted values |
+|---------|---------|-----------------|
+| `warns.limit` | `3` | `1`–`100` warnings. |
+| `warns.mode` | `mute` | `ban`, `kick`, `mute`, `tban` (temporary ban), or `tmute` (temporary mute). |
+| `warns.action_time` | `0` (unset) | Punishment duration in seconds, `60`–`31622400` (366 days), for `tban` or `tmute`. |
+| `warns.expiry` | `0` (never) | How long a warning counts, in seconds: `0` to disable expiry, or `60`–`31622400` (366 days). |
+
+Choosing `tban` or `tmute` requires a usable duration in the same save or one
+already stored. Switching between timed modes keeps that duration; choosing
+`ban`, `kick`, or `mute` clears it. A duration cannot be saved on its own while
+the mode is untimed: save the timed mode and duration together. An invalid
+setting prevents the entire batch from being saved, including changes to other
+modules. Opening Settings does not create a warning settings row.
+
 ## Failure modes
 
 | Symptom | Cause | Fix |

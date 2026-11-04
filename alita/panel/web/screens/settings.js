@@ -45,6 +45,10 @@ const fieldInfo = {
 	"antiraid.raid_time": { label: "Raid mode lasts", unit: "s", duration: true },
 	"antiraid.raid_action_time": { label: "Raid temp-ban length", unit: "s", duration: true },
 	"antiraid.auto_threshold": { label: "Auto raid mode at", unit: "joins/min", hint: "0 turns the automatic trigger off" },
+	"warns.limit": { label: "Warning limit", hint: "Warnings before acting: 1 to 100", min: 1, max: 100 },
+	"warns.mode": { label: "Warning action", hint: "Temp-ban and temp-mute need an action duration" },
+	"warns.action_time": { label: "Warning action duration", unit: "s", duration: true, hint: "For tban or tmute only: 1 minute to 366 days" },
+	"warns.expiry": { label: "Warnings expire after", unit: "s", duration: true, hint: "0 means never; otherwise 1 minute to 366 days" },
 	"locks.active": { label: "Locked", hint: "Change them with /lock and /unlock in the group" },
 	"log_channel.bound": { label: "Log channel connected", hint: "Set one with /setlog" },
 };
