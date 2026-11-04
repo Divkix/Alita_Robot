@@ -49,6 +49,8 @@ const fieldInfo = {
 	"warns.mode": { label: "Warning action", hint: "Temp-ban and temp-mute need an action duration" },
 	"warns.action_time": { label: "Warning action duration", unit: "s", duration: true, hint: "For tban or tmute only: 1 minute to 366 days" },
 	"warns.expiry": { label: "Warnings expire after", unit: "s", duration: true, hint: "0 means never; otherwise 1 minute to 366 days" },
+	"digest.enabled": { label: "Weekly digest", hint: "Requires the operator's ENABLE_DIGEST switch" },
+	"digest.destination": { label: "Digest destination", hint: "Default uses the log channel if connected, otherwise the group" },
 	"locks.active": { label: "Locked", hint: "Change them with /lock and /unlock in the group" },
 	"log_channel.bound": { label: "Log channel connected", hint: "Set one with /setlog" },
 };
@@ -74,6 +76,9 @@ const languageNames = {
 function optionLabel(moduleKey, option) {
 	if (moduleKey === "language") {
 		return languageNames[option] ?? option;
+	}
+	if (moduleKey === "digest" && option === "") {
+		return "Default";
 	}
 	return capitalize(option);
 }

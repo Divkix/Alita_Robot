@@ -24,8 +24,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
@@ -121,7 +123,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatalf("read_only = %v/%q, want writable for an admin with a bot admin", body.ReadOnly, body.ReadOnlyReason)
 	}
 
-	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "locks", "log_channel"}
+	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "locks", "log_channel"}
 	if len(body.Modules) != len(wantModules) {
 		t.Fatalf("modules = %d, want %d", len(body.Modules), len(wantModules))
 	}
@@ -197,6 +199,19 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 			t.Fatalf("warn modes = %v, missing %q", options, mode)
 		}
 	}
+	if fieldBool(t, body, "digest.enabled") || fieldString(t, body, "digest.destination") != "" {
+		t.Fatalf("digest defaults = %+v", body.Modules[8])
+	}
+	for _, key := range []string{"digest.enabled", "digest.destination"} {
+		field := findSettingsField(t, body, key)
+		if !field.Writable || field.Changed || field.Default != field.Value {
+			t.Fatalf("%s metadata = %+v, want writable and unchanged at its default", key, field)
+		}
+	}
+	destinationOptions := findSettingsField(t, body, "digest.destination").Options
+	if len(destinationOptions) != 3 || destinationOptions[0] != "" || destinationOptions[1] != "log" || destinationOptions[2] != "group" {
+		t.Fatalf("digest destinations = %v, want default, log and group", destinationOptions)
+	}
 	if findSettingsField(t, body, "locks.active").Writable || findSettingsField(t, body, "log_channel.bound").Writable {
 		t.Fatal("locks and log channel summaries must be read-only")
 	}
@@ -209,6 +224,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"antiflood":   &models.AntifloodSettings{},
 		"antiraid":    &models.AntiRaidSettings{},
 		"warns":       &models.WarnSettings{},
+		"digest":      &models.DigestSettings{},
 		"warn_users":  &models.Warns{},
 		"warn_entry":  &models.WarnEntry{},
 		"spam_db":     &models.SpamDBSettings{},
@@ -276,6 +292,14 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "warn expiry wrong type", body: `{"changes":{"warns.expiry":false}}`, wantKeys: []string{"warns.expiry"}},
 		{name: "invalid warn blocks other modules", body: `{"changes":{"greetings.welcome_enabled":false,"warns.limit":7,"warns.mode":"tban","warns.expiry":60}}`, wantKeys: []string{"warns.mode"}},
 		{name: "invalid module blocks valid warns", body: `{"changes":{"captcha.timeout":99,"warns.limit":7,"warns.mode":"tban","warns.action_time":60,"warns.expiry":60}}`, wantKeys: []string{"captcha.timeout"}},
+		{name: "digest enabled wrong type", body: `{"changes":{"digest.enabled":"true"}}`, wantKeys: []string{"digest.enabled"}},
+		{name: "digest enabled null", body: `{"changes":{"digest.enabled":null}}`, wantKeys: []string{"digest.enabled"}},
+		{name: "digest destination unknown", body: `{"changes":{"digest.destination":"default"}}`, wantKeys: []string{"digest.destination"}},
+		{name: "digest destination wrong type", body: `{"changes":{"digest.destination":true}}`, wantKeys: []string{"digest.destination"}},
+		{name: "digest destination null", body: `{"changes":{"digest.destination":null}}`, wantKeys: []string{"digest.destination"}},
+		{name: "digest log without log channel", body: `{"changes":{"digest.destination":"log"}}`, wantKeys: []string{"digest.destination"}},
+		{name: "invalid digest blocks other settings", body: `{"changes":{"greetings.welcome_enabled":false,"digest.enabled":false,"digest.destination":"default"}}`, wantKeys: []string{"digest.destination"}},
+		{name: "invalid module blocks valid digest", body: `{"changes":{"captcha.timeout":99,"digest.enabled":false,"digest.destination":"group"}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
 	for _, test := range tests {
@@ -291,6 +315,9 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 			if body.Error == nil || body.Error.Code != "invalid_settings" {
 				t.Fatalf("error = %+v, want invalid_settings", body.Error)
 			}
+			if len(body.Saved) != 0 || len(body.Failed) != 0 {
+				t.Fatalf("saved = %v, failed = %v, want no attempted writes", body.Saved, body.Failed)
+			}
 			for _, key := range test.wantKeys {
 				if body.Errors[key] == "" {
 					t.Fatalf("errors = %v, want an entry for %q", body.Errors, key)
@@ -304,6 +331,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 				"captcha":   &models.CaptchaSettings{},
 				"antiflood": &models.AntifloodSettings{},
 				"warns":     &models.WarnSettings{},
+				"digest":    &models.DigestSettings{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {
 					t.Fatalf("%s: %d %s rows written", test.name, count, name)
@@ -455,6 +483,80 @@ func TestSettingsPatchWarnsValidationPreservesStoredSettings(t *testing.T) {
 			}
 			if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
 				t.Fatalf("refused PATCH created %d greeting rows", count)
+			}
+		})
+	}
+}
+
+func TestSettingsPatchDigestAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	target := settingsPath(chatID)
+	restore := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = restore })
+	config.AppConfig.EnableDigest = true
+	// A log destination needs a bound log channel, as /digest log does.
+	if err := logchannels.Set(chatID, "panel digest", -1_009_999_000_001); err != nil {
+		t.Fatalf("bind log channel: %v", err)
+	}
+
+	// Warm the shared digest cache before each setter, so another setting's
+	// write cannot hide a missing invalidation.
+	for _, test := range []struct {
+		name        string
+		key         string
+		value       any
+		enabled     bool
+		destination string
+	}{
+		{"enable", "digest.enabled", true, true, ""},
+		{"log channel", "digest.destination", "log", true, "log"},
+		{"group", "digest.destination", "group", true, "group"},
+		{"disable preserves destination", "digest.enabled", false, false, "group"},
+		{"reset destination", "digest.destination", "", false, ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := digestsettings.GetContext(context.Background(), chatID); err != nil {
+				t.Fatalf("warm digest cache: %v", err)
+			}
+			payload, err := json.Marshal(map[string]any{"changes": map[string]any{test.key: test.value}})
+			if err != nil {
+				t.Fatalf("encode changes: %v", err)
+			}
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, string(payload), "application/json")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var patch settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if len(patch.Saved) != 1 || patch.Saved[0] != test.key || len(patch.Failed) != 0 {
+				t.Fatalf("saved = %v, failed = %v, want %s saved", patch.Saved, patch.Failed, test.key)
+			}
+
+			var stored models.DigestSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load digest settings: %v", err)
+			}
+			settings, err := digestsettings.GetContext(context.Background(), chatID)
+			if err != nil {
+				t.Fatalf("get digest settings: %v", err)
+			}
+			for source, settings := range map[string]*models.DigestSettings{"database": &stored, "getter": settings} {
+				if settings.Enabled != test.enabled || settings.Destination != test.destination {
+					t.Fatalf("%s digest = %+v, want enabled=%t destination=%q", source, settings, test.enabled, test.destination)
+				}
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+			if fieldBool(t, after, "digest.enabled") != test.enabled || fieldString(t, after, "digest.destination") != test.destination {
+				t.Fatal("GET digest does not reflect the saved settings")
+			}
+			if field := findSettingsField(t, after, "digest.enabled"); field.Default != false || field.Changed != test.enabled {
+				t.Fatalf("digest.enabled metadata = %+v, want default false and changed=%t", field, test.enabled)
+			}
+			if field := findSettingsField(t, after, "digest.destination"); field.Default != "" || field.Changed != (test.destination != "") {
+				t.Fatalf("digest.destination metadata = %+v, want default empty and changed=%t", field, test.destination != "")
 			}
 		})
 	}
@@ -723,6 +825,12 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	if count := countChatRows(t, &models.WarnSettings{}, chatID); count != 0 {
 		t.Fatalf("non-admin write created %d warn settings rows", count)
 	}
+	digestWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"digest.enabled":true,"digest.destination":"group"}}`, "application/json")
+	requireAPIError(t, digestWrite, http.StatusForbidden, "not_admin")
+	if count := countChatRows(t, &models.DigestSettings{}, chatID); count != 0 {
+		t.Fatalf("non-admin write created %d digest settings rows", count)
+	}
 }
 
 func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
@@ -752,6 +860,12 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	requireAPIError(t, warnWrite, http.StatusConflict, "bot_not_admin")
 	if count := countChatRows(t, &models.WarnSettings{}, chatID); count != 0 {
 		t.Fatalf("refused write created %d warn settings rows", count)
+	}
+	digestWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"digest.enabled":true,"digest.destination":"log"}}`, "application/json")
+	requireAPIError(t, digestWrite, http.StatusConflict, "bot_not_admin")
+	if count := countChatRows(t, &models.DigestSettings{}, chatID); count != 0 {
+		t.Fatalf("refused write created %d digest settings rows", count)
 	}
 }
 
@@ -794,6 +908,51 @@ func TestSettingsPatchRefusesGloballyDisabledFeatures(t *testing.T) {
 	assertFieldRefusal(t, recorder, "antispam.spamdb_enabled", "switched it off")
 	if count := countChatRows(t, &models.SpamDBSettings{}, chatID); count != 0 {
 		t.Fatalf("refused spam database write created %d rows", count)
+	}
+	config.AppConfig.EnableDigest = false
+	for _, missingConfig := range []bool{false, true} {
+		t.Run(fmt.Sprintf("digest/config_missing=%t", missingConfig), func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			target := settingsPath(chatID)
+			if missingConfig {
+				previous := config.AppConfig
+				config.AppConfig = nil
+				t.Cleanup(func() { config.AppConfig = previous })
+			}
+			refused := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+				`{"changes":{"greetings.welcome_enabled":false,"digest.enabled":true,"digest.destination":"log"}}`, "application/json")
+			assertFieldRefusal(t, refused, "digest.enabled", "The digest is disabled by the bot operator.")
+			for name, model := range map[string]any{
+				"greetings": &models.GreetingSettings{},
+				"digest":    &models.DigestSettings{},
+			} {
+				if count := countChatRows(t, model, chatID); count != 0 {
+					t.Fatalf("refused digest batch created %d %s rows", count, name)
+				}
+			}
+
+			// The operator's kill switch blocks enabling, not disabling or
+			// choosing where a future digest should go.
+			if err := digestsettings.SetEnabled(chatID, true); err != nil {
+				t.Fatalf("seed digest: %v", err)
+			}
+			off := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+				`{"changes":{"digest.enabled":false,"digest.destination":"group"}}`, "application/json")
+			if off.Code != http.StatusOK {
+				t.Fatalf("disable digest status = %d, want 200 (body %s)", off.Code, off.Body.String())
+			}
+			settings, err := digestsettings.GetContext(context.Background(), chatID)
+			if err != nil {
+				t.Fatalf("get disabled digest settings: %v", err)
+			}
+			if settings.Enabled || settings.Destination != "group" {
+				t.Fatalf("digest after disabling = %+v, want disabled with group destination", settings)
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+			if fieldBool(t, after, "digest.enabled") || fieldString(t, after, "digest.destination") != "group" {
+				t.Fatal("globally disabled GET digest does not reflect saved settings")
+			}
+		})
 	}
 
 	// Turning the feature off is never refused by the kill switch.

@@ -204,6 +204,26 @@ the mode is untimed: save the timed mode and duration together. An invalid
 setting prevents the entire batch from being saved, including changes to other
 modules. Opening Settings does not create a warning settings row.
 
+### Weekly digest settings
+
+The **Weekly digest** group in **Settings** controls the chat's weekly activity
+summary. It is off until an admin enables it.
+
+| Setting | Default | Accepted values |
+|---------|---------|-----------------|
+| `digest.enabled` | `false` | On or off for this chat. |
+| `digest.destination` | **Default** (`""`) | **Default** (`""`), **Log channel** (`log`), or **Group** (`group`). |
+
+**Default** sends to the chat's log channel when one is bound, otherwise to the
+group. Resetting the destination saves an empty string, not the word `default`.
+**Log channel** is refused while the chat has no log channel, as `/digest log` is.
+Opening Settings only reads the digest choice; it does not create a settings row.
+
+The operator's `ENABLE_DIGEST` kill switch defaults to `true`. With
+`ENABLE_DIGEST=false`, no digests are sent and the panel refuses to enable them
+with “The digest is disabled by the bot operator.” Admins can still view the
+stored choice, turn it off, or change its destination.
+
 ## Failure modes
 
 | Symptom | Cause | Fix |
