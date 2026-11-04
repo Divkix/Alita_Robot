@@ -23,7 +23,7 @@ func GetAntifloodSettingsContext(ctx context.Context, chatID int64) (*models.Ant
 
 	var settings models.AntifloodSettings
 	err := db.DB.WithContext(ctx).Model(&models.AntifloodSettings{}).
-		Select("id, chat_id, flood_limit, action, delete_antiflood_message").
+		Select("id, chat_id, flood_limit, action, flood_action_time, delete_antiflood_message").
 		Where("chat_id = ?", chatID).
 		First(&settings).Error
 

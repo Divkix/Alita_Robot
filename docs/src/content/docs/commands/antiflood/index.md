@@ -8,14 +8,14 @@ description: Complete guide to Antiflood module commands and features
 
 You know how sometimes, people join, send 100 messages, and ruin your chat? With antiflood, that happens no more!
 
-Antiflood allows you to take action on users that send more than x messages with no gap longer than 60 seconds between them (other members' messages don't reset the count). Actions are: ban/kick/mute
+Antiflood allows you to take action on users that send more than x messages with no gap longer than 60 seconds between them (other members' messages don't reset the count). Actions are: ban/kick/mute/tban/tmute.
 
 *User commands*:
 × /flood: Get the current antiflood settings.
 
 *Admin commands*:
 × /setflood `<number/off/no>`: Set the number of messages after which to take action on a user. Valid range is **3-100**. Set to '0', 'off', 'no', or 'false' to disable.
-× /setfloodmode `<action type>`: Choose which action to take on a user who has been flooding. Options: ban/kick/mute
+× /setfloodmode `<action type> [duration]`: Choose which action to take on a user who has been flooding. Options: ban/kick/mute/tban/tmute. Temporary actions require a duration, such as `/setfloodmode tmute 10m` or `/setfloodmode tban 1d`.
 × /delflood `<yes/no/on/off>`: If you want bot to delete messages flooded by user.
 
 ## Module Aliases
@@ -45,6 +45,9 @@ This module can be accessed using the following aliases:
 /delflood
 /flood
 /setflood
+/setfloodmode tmute 10m
+/setfloodmode tban 1d
+/setfloodmode ban
 ```
 
 For detailed command usage, refer to the commands table above.
@@ -56,8 +59,8 @@ Most commands in this module require **admin permissions** in the group.
 **Bot Permissions Required:**
 
 - Delete messages
-- Ban users (for kick/ban actions)
-- Restrict users (for mute action)
+- Ban users (for kick/ban/tban actions)
+- Restrict users (for mute/tmute actions)
 
 **Command Permissions:**
 - `/setflood`, `/setfloodmode`, `/delflood` (`/clearflood`) — Require admin permission
@@ -66,6 +69,8 @@ Most commands in this module require **admin permissions** in the group.
 **Defaults:**
 - Flood action defaults to **mute** if not explicitly set
 - Message deletion on flood (`/delflood`) defaults to **off**; when off, only the message that triggers antiflood is deleted, and when on, every tracked message of the flood is deleted
+- Temporary actions require a duration from **1 minute to 366 days**, using `m`, `h`, `d`, or `w`. Switching to ban, kick, or mute clears the duration.
+- Older temporary-action settings without a usable duration keep the **one-hour** fallback. Temporary actions do not punish channel senders.
 
 ## Technical Notes
 

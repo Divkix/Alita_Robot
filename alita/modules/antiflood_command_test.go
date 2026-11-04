@@ -12,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -61,6 +62,111 @@ func TestAntifloodCommandsUpdateSettingsAndDisplay(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
 		t.Fatalf("sendMessage calls = %d, want one reply per command", len(calls))
+	}
+}
+
+func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
+	useEnglishLocale(t)
+	for _, tc := range []struct {
+		mode     string
+		duration string
+		seconds  int
+		method   string
+		label    string
+	}{
+		{"tmute", "10m", 600, "restrictChatMember", "muted for 10m"},
+		{"tban", "1d", 86400, "banChatMember", "banned for 1d"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			resetAntifloodState(t)
+			f := newAdminChatFixture(t)
+			if err := antiflood.SetFlood(f.chat.Id, 1); err != nil {
+				t.Fatalf("SetFlood() error = %v", err)
+			}
+			command := "/setfloodmode " + tc.mode + " " + tc.duration
+			if err := antifloodModule.setFloodMode(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, command)); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", command, err)
+			}
+			if s := antiflood.GetFlood(f.chat.Id); s.Action != tc.mode || s.FloodActionTime != tc.seconds {
+				t.Fatalf("flood settings = %+v, want %s %d", s, tc.mode, tc.seconds)
+			}
+			if got, want := lastReply(t, f.client), fmt.Sprintf(translated(t, "antiflood_mode_"+tc.mode), tc.duration); got != want {
+				t.Fatalf("mode reply = %q, want %q", got, want)
+			}
+			if err := antifloodModule.flood(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/flood")); err != ext.EndGroups {
+				t.Fatalf("flood() error = %v, want EndGroups", err)
+			}
+			if text := lastReply(t, f.client); !strings.Contains(text, tc.label) {
+				t.Fatalf("/flood reply = %q, want %q", text, tc.label)
+			}
+
+			before := time.Now().Unix()
+			for i, text := range []string{"one", "two"} {
+				ctx := newModuleMessageContext(f.bot, f.chat, f.member, text)
+				ctx.EffectiveMessage.MessageId = int64(500 + i)
+				if err := antifloodModule.checkFlood(f.bot, ctx); err != ext.ContinueGroups {
+					t.Fatalf("checkFlood(%s) error = %v, want ContinueGroups", text, err)
+				}
+			}
+			after := time.Now().Unix()
+			call := f.client.onlyCall(t, tc.method)
+			assertParams(t, call, targetParams(f.chat.Id, f.member.Id))
+			if until := untilDateParam(t, call); until < before+int64(tc.seconds) || until > after+int64(tc.seconds) {
+				t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, tc.seconds, before+int64(tc.seconds), after+int64(tc.seconds))
+			}
+			if text := lastReply(t, f.client); !strings.Contains(text, tc.label) {
+				t.Fatalf("flood notice = %q, want %q", text, tc.label)
+			}
+
+			if err := antifloodModule.setFloodMode(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/setfloodmode ban")); err != ext.EndGroups {
+				t.Fatalf("setFloodMode(ban) error = %v, want EndGroups", err)
+			}
+			if s := antiflood.GetFlood(f.chat.Id); s.Action != "ban" || s.FloodActionTime != 0 {
+				t.Fatalf("flood settings = %+v, want ban with cleared duration", s)
+			}
+		})
+	}
+}
+
+func TestSetFloodModeRejectsMissingInvalidAndOutOfRangeDurationsWithoutWrites(t *testing.T) {
+	useEnglishLocale(t)
+	for _, existing := range []bool{false, true} {
+		for _, mode := range []string{"tban", "tmute"} {
+			for _, tc := range []struct {
+				duration string
+				replyKey string
+			}{
+				{"", "extraction_no_time_specified"},
+				{"0h", "extraction_invalid_time_amount"},
+				{"-1m", "extraction_invalid_time_amount"},
+				{"367d", "extraction_time_limit_exceeded"},
+				{"1d extra", "extraction_invalid_time_format"},
+			} {
+				t.Run(fmt.Sprintf("existing=%t/%s/%s", existing, mode, tc.duration), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					if existing {
+						if err := antiflood.SetFloodMode(f.chat.Id, "tmute", 600); err != nil {
+							t.Fatalf("SetFloodMode() error = %v", err)
+						}
+					}
+					before := *antiflood.GetFlood(f.chat.Id)
+					rows := db.CountRows(&models.AntifloodSettings{}, "chat_id = ?", f.chat.Id)
+					text := strings.TrimSpace("/setfloodmode " + mode + " " + tc.duration)
+					if err := antifloodModule.setFloodMode(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, text)); err != ext.EndGroups {
+						t.Fatalf("%s error = %v, want EndGroups", text, err)
+					}
+					if after := antiflood.GetFlood(f.chat.Id); *after != before {
+						t.Fatalf("rejected command changed settings: before=%+v after=%+v", before, after)
+					}
+					if after := db.CountRows(&models.AntifloodSettings{}, "chat_id = ?", f.chat.Id); after != rows {
+						t.Fatalf("rejected command changed row count from %d to %d", rows, after)
+					}
+					if got, want := lastReply(t, f.client), translated(t, tc.replyKey); got != want {
+						t.Fatalf("duration refusal = %q, want %q", got, want)
+					}
+				})
+			}
+		}
 	}
 }
 
@@ -160,7 +266,7 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := antiflood.SetFloodMode(chat.Id, "mute"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "mute", 0); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 
@@ -198,7 +304,7 @@ func TestAntifloodWatcherIgnoresLinkedChannelPosts(t *testing.T) {
 			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
-			if err := antiflood.SetFloodMode(chat.Id, action); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, action, 0); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 
@@ -247,7 +353,7 @@ func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
 			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
-			if err := antiflood.SetFloodMode(chat.Id, tt.action); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, tt.action, 0); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 
@@ -280,7 +386,7 @@ func TestAntifloodWatcherBulkDeletesTrackedMessages(t *testing.T) {
 	if err := antiflood.SetFlood(chat.Id, 4); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := antiflood.SetFloodMode(chat.Id, "ban"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "ban", 0); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 	if err := antiflood.SetFloodMsgDel(chat.Id, true); err != nil {
@@ -376,7 +482,7 @@ func TestAntifloodWatcherTrustsCachedNonAdminWithoutSemaphore(t *testing.T) {
 	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := antiflood.SetFloodMode(chat.Id, "ban"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "ban", 0); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 
@@ -459,7 +565,7 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
-			if err := antiflood.SetFloodMode(chat.Id, "mute"); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, "mute", 0); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 			tt.setup(t, chat.Id, client)
@@ -515,7 +621,7 @@ func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := antiflood.SetFloodMode(chat.Id, "ban"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "ban", 0); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 	if err := antiflood.SetFloodMsgDel(chat.Id, true); err != nil {
@@ -592,18 +698,21 @@ func TestSetFloodModeEscapesUnknownType(t *testing.T) {
 	}
 }
 
-// /setfloodmode cannot store tban/tmute, but the action CHECK allows them, so
-// rows restored from a backup or older versions carry them.
+// Legacy zero and unusable stored durations retain the one-hour fallback.
 func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
+	useEnglishLocale(t)
 	for _, tt := range []struct {
-		action    string
-		method    string
-		wantLabel string
+		action     string
+		method     string
+		wantLabel  string
+		actionTime int
 	}{
 		{action: "tban", method: "banChatMember", wantLabel: "banned for 1h"},
 		{action: "tmute", method: "restrictChatMember", wantLabel: "muted for 1h"},
+		{action: "tban", method: "banChatMember", wantLabel: "banned for 1h", actionTime: 30},
+		{action: "tmute", method: "restrictChatMember", wantLabel: "muted for 1h", actionTime: 366*86400 + 1},
 	} {
-		t.Run(tt.action, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/%d", tt.action, tt.actionTime), func(t *testing.T) {
 			resetAntifloodState(t)
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
@@ -612,7 +721,7 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
-			if err := antiflood.SetFloodMode(chat.Id, tt.action); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, tt.action, tt.actionTime); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 
@@ -652,6 +761,38 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 	}
 }
 
+func TestAntifloodWatcherDoesNotPunishChannelForTimedAction(t *testing.T) {
+	for _, mode := range []string{"tban", "tmute"} {
+		t.Run(mode, func(t *testing.T) {
+			resetAntifloodState(t)
+			f := newAdminChatFixture(t)
+			if err := antiflood.SetFlood(f.chat.Id, 1); err != nil {
+				t.Fatalf("SetFlood() error = %v", err)
+			}
+			if err := antiflood.SetFloodMode(f.chat.Id, mode, 600); err != nil {
+				t.Fatalf("SetFloodMode() error = %v", err)
+			}
+			channel := gotgbot.Chat{Id: -1001234567892, Type: "channel", Title: "Flood Channel"}
+			for i := range 2 {
+				ctx := newModuleMessageContext(f.bot, f.chat, f.member, "channel flood")
+				ctx.EffectiveMessage.MessageId = int64(600 + i)
+				ctx.EffectiveMessage.From = nil
+				ctx.EffectiveMessage.SenderChat = &channel
+				ctx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: f.chat.Id}
+				if err := antifloodModule.checkFlood(f.bot, ctx); err != ext.ContinueGroups {
+					t.Fatalf("checkFlood() error = %v, want ContinueGroups", err)
+				}
+			}
+			assertDeleted(t, f.client, f.chat.Id, 601)
+			for _, method := range []string{"banChatSenderChat", "banChatMember", "restrictChatMember", "sendMessage"} {
+				if calls := f.client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
+				}
+			}
+		})
+	}
+}
+
 // warn passes the action CHECK but has no antiflood handler: the bot must not
 // announce a punishment it did not apply.
 func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
@@ -663,7 +804,7 @@ func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
 	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := antiflood.SetFloodMode(chat.Id, "warn"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "warn", 0); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 
@@ -697,11 +838,12 @@ func TestFloodActionLabelFollowsTheChatLanguage(t *testing.T) {
 	for _, langCode := range []string{"es", "fr", "hi", "id", "pt", "ru"} {
 		tr := i18n.MustNewTranslator(langCode)
 		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute", ""} {
-			got := floodActionLabel(tr, action)
+			settings := &models.AntifloodSettings{Action: action}
+			got := floodActionLabel(tr, settings)
 			if got == "" {
 				t.Fatalf("floodActionLabel(%s, %q) is empty", langCode, action)
 			}
-			if got == floodActionLabel(en, action) {
+			if got == floodActionLabel(en, settings) {
 				t.Errorf("floodActionLabel(%s, %q) = %q, same as English", langCode, action, got)
 			}
 			if (action == "tban" || action == "tmute") && !strings.Contains(got, "1h") {

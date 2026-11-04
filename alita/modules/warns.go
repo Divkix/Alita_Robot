@@ -52,7 +52,7 @@ func isTimedWarnMode(mode string) bool {
 }
 
 func warnActionTime(settings *models.WarnSettings) int {
-	if !models.ValidWarnActionTime(settings.WarnActionTime) {
+	if !models.ValidActionTime(settings.WarnActionTime) {
 		return defaultWarnActionTime
 	}
 	return settings.WarnActionTime

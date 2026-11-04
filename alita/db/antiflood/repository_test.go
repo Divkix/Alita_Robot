@@ -70,7 +70,7 @@ func TestFloodSettersPropagateReadFailure(t *testing.T) {
 	}
 	for name, set := range map[string]func() error{
 		"disable": func() error { return SetFlood(-1001, 0) },
-		"mode":    func() error { return SetFloodMode(-1001, "mute") },
+		"mode":    func() error { return SetFloodMode(-1001, "mute", 0) },
 		"delete":  func() error { return SetFloodMsgDel(-1001, false) },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -170,7 +170,7 @@ func TestSetFloodMode(t *testing.T) {
 			}
 		})
 
-		if err := SetFloodMode(chatID, "ban"); err != nil {
+		if err := SetFloodMode(chatID, "ban", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
@@ -191,10 +191,10 @@ func TestSetFloodMode(t *testing.T) {
 			}
 		})
 
-		if err := SetFloodMode(chatID, "kick"); err != nil {
+		if err := SetFloodMode(chatID, "kick", 0); err != nil {
 			t.Fatalf("initial SetFloodMode failed: %v", err)
 		}
-		if err := SetFloodMode(chatID, "warn"); err != nil {
+		if err := SetFloodMode(chatID, "warn", 0); err != nil {
 			t.Fatalf("update SetFloodMode failed: %v", err)
 		}
 
@@ -215,10 +215,10 @@ func TestSetFloodMode(t *testing.T) {
 			}
 		})
 
-		if err := SetFloodMode(chatID, "tban"); err != nil {
+		if err := SetFloodMode(chatID, "tban", 0); err != nil {
 			t.Fatalf("initial SetFloodMode failed: %v", err)
 		}
-		if err := SetFloodMode(chatID, "tban"); err != nil {
+		if err := SetFloodMode(chatID, "tban", 0); err != nil {
 			t.Fatalf("no-op SetFloodMode failed: %v", err)
 		}
 
@@ -240,7 +240,7 @@ func TestSetFloodMode(t *testing.T) {
 		})
 
 		// Default action is "mute"; on a fresh chat this should be a no-op
-		if err := SetFloodMode(chatID, "mute"); err != nil {
+		if err := SetFloodMode(chatID, "mute", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
@@ -261,7 +261,7 @@ func TestSetFloodMode(t *testing.T) {
 			}
 		})
 
-		err := SetFloodMode(chatID, "invalid")
+		err := SetFloodMode(chatID, "invalid", 0)
 		if err == nil {
 			t.Fatalf("expected error for invalid mode, got nil")
 		}
@@ -296,7 +296,7 @@ func TestLoadAntifloodStats(t *testing.T) {
 		if err := SetFlood(chat1, 5); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}
-		if err := SetFloodMode(chat1, "ban"); err != nil {
+		if err := SetFloodMode(chat1, "ban", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
@@ -307,14 +307,14 @@ func TestLoadAntifloodStats(t *testing.T) {
 		if err := SetFlood(chat2, 0); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}
-		if err := SetFloodMode(chat2, "mute"); err != nil {
+		if err := SetFloodMode(chat2, "mute", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
 		if err := SetFlood(chat3, 10); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}
-		if err := SetFloodMode(chat3, "kick"); err != nil {
+		if err := SetFloodMode(chat3, "kick", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
@@ -342,7 +342,7 @@ func TestLoadAntifloodStats(t *testing.T) {
 		if err := SetFlood(chat1, 0); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}
-		if err := SetFloodMode(chat1, "mute"); err != nil {
+		if err := SetFloodMode(chat1, "mute", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
@@ -352,7 +352,7 @@ func TestLoadAntifloodStats(t *testing.T) {
 		if err := SetFlood(chat2, 0); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}
-		if err := SetFloodMode(chat2, "ban"); err != nil {
+		if err := SetFloodMode(chat2, "ban", 0); err != nil {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
@@ -367,7 +367,7 @@ func TestFloodSettersOnFreshChatKeepAntifloodDisabled(t *testing.T) {
 	skipIfNoDb(t)
 
 	for name, set := range map[string]func(chatID int64) error{
-		"mode":   func(chatID int64) error { return SetFloodMode(chatID, "ban") },
+		"mode":   func(chatID int64) error { return SetFloodMode(chatID, "ban", 0) },
 		"delete": func(chatID int64) error { return SetFloodMsgDel(chatID, true) },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -393,7 +393,7 @@ func TestFloodSettersPreserveExistingLimit(t *testing.T) {
 	skipIfNoDb(t)
 
 	for name, set := range map[string]func(chatID int64) error{
-		"mode":   func(chatID int64) error { return SetFloodMode(chatID, "ban") },
+		"mode":   func(chatID int64) error { return SetFloodMode(chatID, "ban", 0) },
 		"delete": func(chatID int64) error { return SetFloodMsgDel(chatID, true) },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -422,5 +422,81 @@ func TestFloodSettersPreserveExistingLimit(t *testing.T) {
 				t.Fatalf("expected DeleteAntifloodMessage=true, got false")
 			}
 		})
+	}
+}
+
+func TestFloodActionTimePersistsAndInvalidatesCache(t *testing.T) {
+	skipIfNoDb(t)
+	utilsCache.SetupTestMemoryMarshaler(t)
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntifloodSettings{}).Error; err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Prime the default cache before creating the row.
+	_ = GetFlood(chatID)
+	for _, step := range []struct {
+		mode       string
+		actionTime int
+		wantTime   int
+	}{
+		{mode: "tmute", actionTime: 600, wantTime: 600},
+		{mode: "tmute", actionTime: 1200, wantTime: 1200},
+		{mode: "tban", actionTime: 7200, wantTime: 7200},
+		{mode: "ban", actionTime: 7200, wantTime: 0},
+		{mode: "tban", actionTime: 0, wantTime: 0},
+	} {
+		if err := SetFloodModeContext(context.Background(), chatID, step.mode, step.actionTime); err != nil {
+			t.Fatal(err)
+		}
+		cached := GetFlood(chatID)
+		if cached.Action != step.mode || cached.FloodActionTime != step.wantTime || cached.Limit != 0 {
+			t.Fatalf("cached settings = %+v, want %s/%d with antiflood disabled", cached, step.mode, step.wantTime)
+		}
+		var stored models.AntifloodSettings
+		if err := db.DB.Where("chat_id = ?", chatID).First(&stored).Error; err != nil {
+			t.Fatal(err)
+		}
+		if stored.Action != step.mode || stored.FloodActionTime != step.wantTime || stored.Limit != 0 {
+			t.Fatalf("stored settings = %+v, want %s/%d with antiflood disabled", stored, step.mode, step.wantTime)
+		}
+	}
+	if err := SetFlood(chatID, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetFloodMsgDel(chatID, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetFloodMode(chatID, "tmute", 600); err != nil {
+		t.Fatal(err)
+	}
+	settings := GetFlood(chatID)
+	if settings.Limit != 7 || !settings.DeleteAntifloodMessage || settings.FloodActionTime != 600 {
+		t.Fatalf("mode update changed unrelated settings: %+v", settings)
+	}
+}
+
+func TestFloodModeFailedWriteKeepsActionAndDuration(t *testing.T) {
+	skipIfNoDb(t)
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntifloodSettings{}).Error; err != nil {
+			t.Fatal(err)
+		}
+	})
+	if err := SetFloodMode(chatID, "tban", 600); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetFloodMode(chatID, "tmute", -1); err == nil {
+		t.Fatal("negative duration was accepted")
+	}
+	var stored models.AntifloodSettings
+	if err := db.DB.Where("chat_id = ?", chatID).First(&stored).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Action != "tban" || stored.FloodActionTime != 600 {
+		t.Fatalf("failed write changed action or duration: %+v", stored)
 	}
 }

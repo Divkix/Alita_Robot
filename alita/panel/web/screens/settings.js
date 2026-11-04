@@ -26,6 +26,7 @@ const fieldInfo = {
 	"captcha.max_attempts": { label: "Attempts allowed", hint: "1 to 10", min: 1, max: 10 },
 	"antiflood.limit": { label: "Flood limit", unit: "msgs", hint: "Messages in a row before acting: 3 to 100, or 0 for off", max: 100 },
 	"antiflood.action": { label: "Flood action" },
+	"antiflood.action_time": { label: "Flood temp-ban/mute length", unit: "s", duration: true, hint: "60 seconds to 366 days; required for tban/tmute, cleared for other actions", max: 31622400 },
 	"antiflood.delete_messages": { label: "Delete flood messages" },
 	"antispam.aispam_enabled": { label: "AI spam detection" },
 	"antispam.spamdb_enabled": { label: "Check joins against spam databases" },

@@ -648,7 +648,7 @@ func TestImportAdminIgnoresUnusableBlacklistMode(t *testing.T) {
 			require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_admin_blacklist_mode"))
 			t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 			require.NoError(t, blacklists.AddBlacklist(chatID, "spam"))
-			require.NoError(t, blacklists.SetBlacklistAction(chatID, "mute"))
+			require.NoError(t, blacklists.SetBlacklistAction(chatID, "mute", 0))
 
 			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleAdmin})
 			backup.Data[BackupModuleAdmin] = map[string]interface{}{"blacklist_mode": tc.mode}

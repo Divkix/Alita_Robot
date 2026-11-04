@@ -163,6 +163,14 @@ checked against the bot token on arrival.
   once a value differs from it. Changes are saved together from a bar that
   appears at the bottom; leaving the screen or closing the panel with unsaved
   changes asks first (closing asks only on clients with Bot API 6.2 or later).
+  Antiflood offers `ban`, `kick`, `mute`, `tban` and `tmute`. For `tban` or
+  `tmute`, set **Flood temp-ban/mute length** in seconds (60 to 31,622,400,
+  or 1 minute to 366 days). A usable saved duration can be reused when switching
+  between temporary actions. Changing to an untimed action clears the duration;
+  changing only the duration while the action is untimed is refused. The API
+  exposes this value as `antiflood.action_time`, defaulting to `0` (unset), and
+  saves the action and duration together. Invalid settings reject the whole
+  batch before any values are written.
 - **Filters**, **Notes** and **Blacklists** search as you type, and admins
   can delete entries or bulk-import them from a folded import box that
   reports each line's result. Read-only viewers do not see the import box.

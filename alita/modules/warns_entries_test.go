@@ -246,7 +246,7 @@ func TestBlacklistWarnIsMarkedAutomatic(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist() error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "warn"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "warn", 0); err != nil {
 		t.Fatalf("SetBlacklistAction() error = %v", err)
 	}
 

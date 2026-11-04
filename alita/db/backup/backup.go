@@ -554,6 +554,10 @@ func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	}
 	if data.AntifloodSettings != nil {
 		data.AntifloodSettings.ChatId = chatID
+		if !models.ValidActionTime(data.AntifloodSettings.FloodActionTime) ||
+			data.AntifloodSettings.Action != "tban" && data.AntifloodSettings.Action != "tmute" {
+			data.AntifloodSettings.FloodActionTime = 0
+		}
 	}
 	if data.CaptchaSettings != nil {
 		data.CaptchaSettings.ChatID = chatID
@@ -579,7 +583,10 @@ func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	if models.ValidBlacklistAction(data.BlacklistMode) {
 		if err := tx.Model(&models.BlacklistSettings{}).
 			Where("chat_id = ?", chatID).
-			Update("action", data.BlacklistMode).Error; err != nil {
+			Updates(map[string]any{
+				"action":      data.BlacklistMode,
+				"action_time": gorm.Expr("CASE WHEN action = ? THEN action_time ELSE 0 END", data.BlacklistMode),
+			}).Error; err != nil {
 			return nil, fmt.Errorf("restore blacklist mode: %w", err)
 		}
 	}
@@ -601,6 +608,10 @@ func importAntiflood(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 		data.Settings.ChatId = chatID
 		if data.Settings.Limit < 0 {
 			return nil, fmt.Errorf("invalid antiflood limit %d", data.Settings.Limit)
+		}
+		if !models.ValidActionTime(data.Settings.FloodActionTime) ||
+			data.Settings.Action != "tban" && data.Settings.Action != "tmute" {
+			data.Settings.FloodActionTime = 0
 		}
 	}
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
@@ -665,6 +676,11 @@ func importBlacklists(tx *gorm.DB, chatID int64, payload interface{}) ([]string,
 		data.Entries[i].ChatId = chatID
 		if !models.ValidBlacklistAction(data.Entries[i].Action) {
 			data.Entries[i].Action = mode
+			data.Entries[i].ActionTime = 0
+		}
+		if !models.ValidActionTime(data.Entries[i].ActionTime) ||
+			data.Entries[i].Action != "tban" && data.Entries[i].Action != "tmute" {
+			data.Entries[i].ActionTime = 0
 		}
 	}
 	if err := replaceChatRows(tx, chatID, data.Entries); err != nil {
@@ -884,7 +900,7 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		}
 		// An unusable duration becomes "not set" so the bot's one-hour
 		// fallback applies, instead of failing the whole import on the column.
-		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
+		if !models.ValidActionTime(data.WarnSettings.WarnActionTime) {
 			data.WarnSettings.WarnActionTime = 0
 		}
 		// Likewise an unusable expiry turns expiry off.
@@ -1063,7 +1079,7 @@ func clearAdmin(tx *gorm.DB, chatID int64) ([]string, error) {
 	}
 	if err := tx.Model(&models.BlacklistSettings{}).
 		Where("chat_id = ?", chatID).
-		Update("action", "warn").Error; err != nil {
+		Updates(map[string]any{"action": "warn", "action_time": 0}).Error; err != nil {
 		return nil, err
 	}
 	return []string{

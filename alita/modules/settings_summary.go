@@ -174,7 +174,7 @@ func antifloodSettingsSection(chatID int64) settingsSection {
 	}
 	return settingsSection{Title: "Antiflood", Rows: []settingsRow{
 		limit,
-		stringRow("/setfloodmode", f.Action, settingsDefaultFloodAction),
+		stringRow("/setfloodmode", floodModeLabel(f), settingsDefaultFloodAction),
 		boolRow("/delflood", f.DeleteAntifloodMessage, false),
 	}}
 }
@@ -267,7 +267,7 @@ func blacklistSettingsSection(chatID int64) settingsSection {
 	bl := blacklists.GetBlacklistSettings(chatID)
 	action := settingsDefaultBlacklistAction
 	if len(bl) > 0 && bl.Action() != "" {
-		action = bl.Action()
+		action = blacklistModeLabel(bl)
 	}
 	return settingsSection{Title: "Blacklists", Rows: []settingsRow{
 		countRow("/blacklists", len(bl)),

@@ -112,7 +112,7 @@ func TestSetBlacklistAction(t *testing.T) {
 		t.Fatalf("AddBlacklist() error = %v", err)
 	}
 
-	err := SetBlacklistAction(chatID, "ban")
+	err := SetBlacklistAction(chatID, "ban", 0)
 	if err != nil {
 		t.Fatalf("SetBlacklistAction() error = %v", err)
 	}
@@ -137,7 +137,7 @@ func TestAddBlacklistKeepsChatAction(t *testing.T) {
 	if err := AddBlacklist(chatID, "word1"); err != nil {
 		t.Fatalf("AddBlacklist() error = %v", err)
 	}
-	if err := SetBlacklistAction(chatID, "ban"); err != nil {
+	if err := SetBlacklistAction(chatID, "ban", 0); err != nil {
 		t.Fatalf("SetBlacklistAction() error = %v", err)
 	}
 	if err := AddBlacklist(chatID, "word2"); err != nil {

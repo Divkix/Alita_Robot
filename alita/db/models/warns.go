@@ -30,19 +30,6 @@ func ValidWarnMode(mode string) bool {
 	return slices.Contains(warnModes, mode)
 }
 
-// Bounds for WarnActionTime, in seconds. Telegram reads an until_date less
-// than 30 s or more than 366 days away as forever; the 60 s floor absorbs
-// second rounding and request latency.
-const (
-	MinWarnActionTime = 60
-	MaxWarnActionTime = 366 * 24 * 60 * 60
-)
-
-// ValidWarnActionTime reports whether seconds is a usable tban/tmute duration.
-func ValidWarnActionTime(seconds int) bool {
-	return seconds >= MinWarnActionTime && seconds <= MaxWarnActionTime
-}
-
 // Bounds for WarnExpiry, in seconds: the range /setwarntime accepts.
 const (
 	MinWarnExpiry = 60

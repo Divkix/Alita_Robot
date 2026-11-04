@@ -12,7 +12,7 @@ description: Complete guide to Blacklists module commands and features
 *Admin Commands:*
 × /addblacklist `<trigger>`: Blacklists the word in the current chat.
 × /rmblacklist `<trigger>`: Removes the word from current Blacklisted Words in Chat.
-× /blaction `<mute/kick/ban/warn/none>`: Sets the action to be performed by bot when a blacklist word is detected.
+× /blaction `<mute/kick/ban/warn/none/tban/tmute> [duration]`: Sets the action to be performed by bot when a blacklist word is detected. Temporary actions require a duration, such as `/blaction tban 1d` or `/blaction tmute 2h`. With no arguments, shows the current action and duration.
 × /blacklistaction: Same as above
 
 *Owner Only:*
@@ -28,11 +28,15 @@ The following actions can be set using `/blaction`:
 - `mute` - Deletes message and mutes the user
 - `kick` - Deletes message and kicks the user (they can rejoin)
 - `ban` - Deletes message and permanently bans the user
+- `tban` - Deletes message and bans the user for the required duration
+- `tmute` - Deletes message and mutes the user for the required duration
+
+Temporary durations range from **1 minute to 366 days**, using `m`, `h`, `d`, or `w`. The action and duration apply to every word, including words added later. Switching to an untimed action clears the duration. Older temporary-action settings without a usable duration keep the **one-hour** fallback; temporary actions do not punish channel senders.
 
 **Commands:**
 - `/addblacklist &lt;trigger&gt;` - Blacklists the word in the current chat
 - `/rmblacklist &lt;trigger&gt;` - Removes the word from current Blacklisted Words in Chat
-- `/blaction &lt;mute/kick/ban/warn/none&gt;` - Sets the action to be performed by bot when a blacklist word is detected
+- `/blaction &lt;mute/kick/ban/warn/none/tban/tmute&gt; [duration]` - Sets the action to be performed by bot when a blacklist word is detected
 - `/remallbl` / `/rmallbl` / `/rmblocklistall` / `/rmallblocklist` - Removes all the blacklisted words from chat (Owner Only)
 
 
@@ -72,9 +76,10 @@ This module can be accessed using the following aliases:
 ### Basic Usage
 
 ```
-/addblacklist
-/blacklist
-/blacklistaction
+/addblacklist spam
+/blaction tban 1d
+/blaction tmute 2h
+/blaction
 ```
 
 For detailed command usage, refer to the commands table above.

@@ -113,7 +113,7 @@ antiflood_help_msg:
   tu chat? ¡Con antiflood, eso ya no sucede!
 
 
-  Antiflood te permite tomar acción contra usuarios que envían más de x mensajes sin una pausa de más de 60 segundos entre ellos (los mensajes de otros miembros no reinician la cuenta). Las acciones son: ban/kick/mute
+  Antiflood te permite tomar acción contra usuarios que envían más de x mensajes sin una pausa de más de 60 segundos entre ellos (los mensajes de otros miembros no reinician la cuenta). Las acciones son: ban/kick/mute/tban/tmute
 
 
   *Comandos de usuario*:
@@ -126,8 +126,8 @@ antiflood_help_msg:
   × /setflood `<número/off/no>`: Establecer el número de mensajes después del cual tomar acción
   contra un usuario. Establecer en '0', 'off', o 'no' para deshabilitar.
 
-  × /setfloodmode `<tipo de acción>`: Elegir qué acción tomar contra un usuario que ha estado
-  haciendo flood. Opciones: ban/kick/mute
+  × /setfloodmode `<ban/kick/mute/tban/tmute> [duración]`: Elige la acción contra un usuario que hace
+  flood. La duración es obligatoria para tban/tmute, p. ej. `/setfloodmode tban 1d` o `/setfloodmode tmute 10m`.
 
   × /delflood `<yes/no/on/off>`: Si quieres que el bot elimine los mensajes de flood del usuario."
 antiflood_setflood_disabled: "De acuerdo.
@@ -135,10 +135,12 @@ antiflood_setflood_disabled: "De acuerdo.
   No advertiré a los usuarios por hacer flood."
 antiflood_setflood_success: El límite de flood se ha establecido en <b>%d</b> mensajes.
 antiflood_setfloodmode_specify_action:
-  "Necesitas especificar una acción a tomar ante
-  el flood. Los modos actuales son: `ban`/`kick`/`mute`"
+  "Necesitas especificar una acción ante
+  el flood. Usa ban/kick/mute, o tban/tmute con una duración (p. ej. tban 1d o tmute 10m)."
 antiflood_setfloodmode_success: El modo de flood se ha establecido en %s.
-antiflood_setfloodmode_unknown_type: "Tipo desconocido '%s'. Por favor usa uno de: ban/kick/mute"
+antiflood_mode_tban: "El modo de flood se ha establecido en tban durante %s."
+antiflood_mode_tmute: "El modo de flood se ha establecido en tmute durante %s."
+antiflood_setfloodmode_unknown_type: "Tipo desconocido '%s'. Usa ban/kick/mute, o tban/tmute con una duración (p. ej. tban 1d o tmute 10m)."
 bans_ban_ban_reason: <b>Razón:</b> %s
 bans_ban_dban_no_reply: ¡Necesitas responder a un mensaje para eliminarlo y banear al usuario!
 bans_ban_is_admin: ¿Por qué banearía a un administrador? Eso suena como una idea bastante tonta.
@@ -228,8 +230,8 @@ blacklists_help_msg: "*Comandos de Usuario:*
 
   × /rmblacklist `<disparador>`: Elimina la palabra de las Palabras en Lista Negra actuales en el Chat.
 
-  × /blaction `<mute/kick/ban/warn/none>`: Establece la acción a realizar por el bot
-  cuando se detecta una palabra de la lista negra.
+  × /blaction `<mute/kick/ban/warn/none/tban/tmute> [duración]`: Establece la acción al detectar una palabra
+  de la lista negra. La duración es obligatoria para tban/tmute, p. ej. `/blaction tban 1d` o `/blaction tmute 2h`.
 
   × /blacklistaction: Igual que arriba
 
@@ -253,7 +255,9 @@ blacklists_rm_all_bl_button_handler_no:
   ❌
 blacklists_rm_all_bl_button_handler_yes: Eliminadas todas las Listas Negras de este Chat ✅
 blacklists_set_bl_action_changed_mode: "Modo de lista negra cambiado exitosamente a: *%s*"
-blacklists_set_bl_action_choose_correct_option: Por favor elige una opción de <mute/kick/ban/warn/none>
+blist_action_tban: "Modo de lista negra cambiado a: tban durante %s"
+blist_action_tmute: "Modo de lista negra cambiado a: tmute durante %s"
+blacklists_set_bl_action_choose_correct_option: "Elige mute/kick/ban/warn/none, o tban/tmute con una duración (p. ej. tban 1d o tmute 2h)."
 blacklists_set_bl_action_current_mode:
   "El modo de lista negra actual para este chat es:
   %s"
@@ -2353,6 +2357,8 @@ blacklists_extended_docs: |
   • <code>mute</code> - Elimina el mensaje y silencia al usuario
   • <code>kick</code> - Elimina el mensaje y expulsa al usuario (puede volver a unirse)
   • <code>ban</code> - Elimina el mensaje y banea permanentemente al usuario
+  • <code>tban &lt;duración&gt;</code> - Elimina el mensaje y banea al usuario durante la duración obligatoria indicada (p. ej. <code>/blaction tban 1d</code>)
+  • <code>tmute &lt;duración&gt;</code> - Elimina el mensaje y silencia al usuario durante la duración obligatoria indicada (p. ej. <code>/blaction tmute 2h</code>)
 
   <b>Nota:</b>
   El modo predeterminado de Blacklist es <b>warn</b>, que eliminará el mensaje y emitirá una advertencia al usuario.
@@ -2360,7 +2366,7 @@ blacklists_extended_docs: |
   <b>Comandos:</b>
   • <code>/addblacklist &lt;disparador&gt;</code> - Añade una palabra a la lista negra en el chat actual
   • <code>/rmblacklist &lt;disparador&gt;</code> - Elimina la palabra de las palabras en lista negra del chat actual
-  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Define la acción que realizará el bot cuando detecte una palabra en lista negra
+  • <code>/blaction &lt;mute/kick/ban/warn/none/tban/tmute&gt; [duración]</code> - Define la acción al detectar una palabra en lista negra; tban/tmute requieren una duración
   • <code>/remallbl</code> - Elimina todas las palabras de la lista negra del chat (solo propietario)
 
 # Extended documentation locale keys - Disabling module
@@ -2931,7 +2937,7 @@ aispam_extend_msg: |
 antiflood_extend_msg: |
   /flood — ver la configuración antiflood
   /setflood — mensajes permitidos (sin pausas de más de 60 s) antes de actuar (off para desactivar)
-  /setfloodmode — acción contra el flood: ban, kick o mute
+  /setfloodmode — acción contra el flood: ban, kick, mute o tban/tmute con duración obligatoria (p. ej. tmute 10m)
   /delflood — borrar también los mensajes de flood
 antiraid_extend_msg: |
   /antiraid — ver, activar o desactivar el modo antiraid
@@ -2968,7 +2974,7 @@ blacklists_extend_msg: |
   /blacklists — lista de palabras en la lista negra
   /addblacklist — añadir una palabra a la lista negra
   /rmblacklist — quitar una palabra de la lista negra
-  /blaction — acción ante una palabra prohibida: mute, kick, ban, warn o none
+  /blaction — acción ante una palabra prohibida: mute, kick, ban, warn, none o tban/tmute con duración obligatoria (p. ej. tban 1d)
   /blacklistaction — igual que /blaction
   /remallbl — vaciar la lista negra
 captcha_extend_msg: |

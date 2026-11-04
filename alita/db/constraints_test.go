@@ -87,6 +87,38 @@ func TestAntifloodSettingsConstraint_ValidActionsIntegration(t *testing.T) {
 	assert.Error(t, err, "Creating antiflood settings with invalid action should fail due to CHECK constraint")
 }
 
+func TestTimedActionDurationConstraints(t *testing.T) {
+	skipIfNoDb(t)
+	for _, model := range []struct {
+		name   string
+		row    any
+		column string
+	}{
+		{name: "antiflood", row: &models.AntifloodSettings{}, column: "flood_action_time"},
+		{name: "blacklists", row: &models.BlacklistSettings{}, column: "action_time"},
+	} {
+		t.Run(model.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			t.Cleanup(func() {
+				require.NoError(t, DB.Where("chat_id = ?", chatID).Delete(model.row).Error)
+			})
+			values := map[string]any{"chat_id": chatID, "action": "tmute"}
+			if model.name == "blacklists" {
+				values["word"] = "spam"
+			}
+			require.NoError(t, DB.Model(model.row).Create(values).Error)
+			var duration int
+			require.NoError(t, DB.Model(model.row).Select(model.column).Where("chat_id = ?", chatID).Scan(&duration).Error)
+			assert.Zero(t, duration, "new rows default to an unset duration")
+			require.NoError(t, DB.Model(model.row).Where("chat_id = ?", chatID).Update(model.column, 600).Error)
+			require.Error(t, DB.Model(model.row).Where("chat_id = ?", chatID).Update(model.column, -1).Error)
+			require.NoError(t, DB.Model(model.row).Select(model.column).Where("chat_id = ?", chatID).Scan(&duration).Error)
+			assert.Equal(t, 600, duration, "a rejected update leaves the stored duration intact")
+			require.Error(t, DB.Model(model.row).Where("chat_id = ?", chatID).Update(model.column, nil).Error)
+		})
+	}
+}
+
 func TestCaptchaSettingsConstraint_TimeoutRangeIntegration(t *testing.T) {
 	skipIfNoDb(t)
 

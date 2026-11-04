@@ -94,6 +94,7 @@ func checkAutomatedLog(t *testing.T, tc automatedLogCase) {
 func TestAntifloodLogsItsActionToTheLogChannel(t *testing.T) {
 	for _, tt := range []struct {
 		action     string
+		actionTime int
 		failMethod string
 		want       []string
 	}{
@@ -102,9 +103,13 @@ func TestAntifloodLogsItsActionToTheLogChannel(t *testing.T) {
 		{action: "ban", failMethod: "banChatMember"},
 		{action: "tban", failMethod: "banChatMember", want: []string{"1h"}},
 		{action: "tmute", failMethod: "restrictChatMember", want: []string{"1h"}},
+		{action: "tban", actionTime: 86400, failMethod: "banChatMember", want: []string{"1d"}},
+		{action: "tmute", actionTime: 600, failMethod: "restrictChatMember", want: []string{"10m"}},
+		{action: "tban", actionTime: 30, failMethod: "banChatMember", want: []string{"1h"}},
+		{action: "tmute", actionTime: 366*86400 + 1, failMethod: "restrictChatMember", want: []string{"1h"}},
 	} {
 		checkAutomatedLog(t, automatedLogCase{
-			name:       tt.action,
+			name:       fmt.Sprintf("%s/%d", tt.action, tt.actionTime),
 			tag:        "ANTIFLOOD",
 			userID:     61,
 			want:       append([]string{tt.action}, tt.want...),
@@ -114,7 +119,7 @@ func TestAntifloodLogsItsActionToTheLogChannel(t *testing.T) {
 				if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 					t.Fatalf("SetFlood() error = %v", err)
 				}
-				if err := antiflood.SetFloodMode(chat.Id, tt.action); err != nil {
+				if err := antiflood.SetFloodMode(chat.Id, tt.action, tt.actionTime); err != nil {
 					t.Fatalf("SetFloodMode() error = %v", err)
 				}
 				member := gotgbot.User{Id: 61, FirstName: "Flooder"}
@@ -130,6 +135,7 @@ func TestAntifloodLogsItsActionToTheLogChannel(t *testing.T) {
 func TestBlacklistLogsItsActionToTheLogChannel(t *testing.T) {
 	for _, tt := range []struct {
 		action     string
+		actionTime int
 		failMethod string
 		want       []string
 	}{
@@ -138,9 +144,13 @@ func TestBlacklistLogsItsActionToTheLogChannel(t *testing.T) {
 		{action: "ban", failMethod: "banChatMember"},
 		{action: "tban", failMethod: "banChatMember", want: []string{"1h"}},
 		{action: "tmute", failMethod: "restrictChatMember", want: []string{"1h"}},
+		{action: "tban", actionTime: 86400, failMethod: "banChatMember", want: []string{"1d"}},
+		{action: "tmute", actionTime: 600, failMethod: "restrictChatMember", want: []string{"10m"}},
+		{action: "tban", actionTime: 30, failMethod: "banChatMember", want: []string{"1h"}},
+		{action: "tmute", actionTime: 366*86400 + 1, failMethod: "restrictChatMember", want: []string{"1h"}},
 	} {
 		checkAutomatedLog(t, automatedLogCase{
-			name:       tt.action,
+			name:       fmt.Sprintf("%s/%d", tt.action, tt.actionTime),
 			tag:        "BLACKLIST",
 			userID:     62,
 			want:       append([]string{tt.action, "spam"}, tt.want...),
@@ -149,7 +159,7 @@ func TestBlacklistLogsItsActionToTheLogChannel(t *testing.T) {
 				if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 					t.Fatalf("AddBlacklist() error = %v", err)
 				}
-				if err := blacklists.SetBlacklistAction(chat.Id, tt.action); err != nil {
+				if err := blacklists.SetBlacklistAction(chat.Id, tt.action, tt.actionTime); err != nil {
 					t.Fatalf("SetBlacklistAction() error = %v", err)
 				}
 				member := gotgbot.User{Id: 62, FirstName: "Spammer"}
@@ -173,7 +183,7 @@ func TestBlacklistWarnAtTheLimitLogsTheWarnAction(t *testing.T) {
 			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 				t.Fatalf("AddBlacklist() error = %v", err)
 			}
-			if err := blacklists.SetBlacklistAction(chat.Id, "warn"); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, "warn", 0); err != nil {
 				t.Fatalf("SetBlacklistAction() error = %v", err)
 			}
 			if err := warns.SetWarnMode(chat.Id, "ban", 0); err != nil {

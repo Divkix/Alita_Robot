@@ -12,37 +12,38 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-// chatBlacklistAction returns the action a new word inherits: /blaction
-// writes the action into every word row, so it is copied from the oldest
-// existing row; a chat without words starts at "warn".
-func chatBlacklistAction(chatId int64) (string, error) {
-	var actions []string
-	if err := db.DB.Model(&models.BlacklistSettings{}).
+// chatBlacklistAction returns the action and duration a new word inherits:
+// /blaction writes both into every word row, so they are copied from the oldest
+// existing row; a chat without words starts at "warn" with no duration.
+func chatBlacklistAction(chatId int64) (string, int, error) {
+	var settings models.BlacklistSettings
+	if err := db.DB.Select("action", "action_time").
 		Where("chat_id = ?", chatId).
 		Order("id").
 		Limit(1).
-		Pluck("action", &actions).Error; err != nil {
+		Find(&settings).Error; err != nil {
 		log.Errorf("[Database] chatBlacklistAction: %v - %d", err, chatId)
-		return "", err
+		return "", 0, err
 	}
-	if len(actions) > 0 && actions[0] != "" {
-		return actions[0], nil
+	if settings.Action != "" {
+		return settings.Action, settings.ActionTime, nil
 	}
-	return "warn", nil
+	return "warn", 0, nil
 }
 
-// AddBlacklist stores a new word with the chat's current action.
+// AddBlacklist stores a new word with the chat's current action and duration.
 func AddBlacklist(chatId int64, trigger string) error {
-	action, err := chatBlacklistAction(chatId)
+	action, actionTime, err := chatBlacklistAction(chatId)
 	if err != nil {
 		return err
 	}
 
 	blacklist := &models.BlacklistSettings{
-		ChatId: chatId,
-		Word:   strings.ToLower(trigger),
-		Action: action,
-		Reason: models.DefaultBlacklistReason,
+		ChatId:     chatId,
+		Word:       strings.ToLower(trigger),
+		Action:     action,
+		ActionTime: actionTime,
+		Reason:     models.DefaultBlacklistReason,
 	}
 
 	err = db.CreateRecord(blacklist)
@@ -57,8 +58,8 @@ func AddBlacklist(chatId int64, trigger string) error {
 
 // AddBlacklistBulk inserts every trigger the chat does not have yet in one
 // statement and invalidates the blacklist cache once. It keeps the single-word
-// semantics: words are lower-cased, copies of the chat's current action and
-// carry the default reason; words already present are skipped.
+// semantics: words are lower-cased, copy the chat's current action and duration,
+// and carry the default reason; words already present are skipped.
 func AddBlacklistBulk(chatId int64, triggers []string) error {
 	words := make([]string, 0, len(triggers))
 	seen := make(map[string]struct{}, len(triggers))
@@ -74,7 +75,7 @@ func AddBlacklistBulk(chatId int64, triggers []string) error {
 		return nil
 	}
 
-	action, err := chatBlacklistAction(chatId)
+	action, actionTime, err := chatBlacklistAction(chatId)
 	if err != nil {
 		return err
 	}
@@ -97,10 +98,11 @@ func AddBlacklistBulk(chatId int64, triggers []string) error {
 			continue
 		}
 		rows = append(rows, models.BlacklistSettings{
-			ChatId: chatId,
-			Word:   word,
-			Action: action,
-			Reason: models.DefaultBlacklistReason,
+			ChatId:     chatId,
+			Word:       word,
+			Action:     action,
+			ActionTime: actionTime,
+			Reason:     models.DefaultBlacklistReason,
 		})
 	}
 	if len(rows) == 0 {
@@ -142,10 +144,15 @@ func RemoveAllBlacklist(chatId int64) error {
 // ErrNoBlacklistWords means the chat has no words to store an action on.
 var ErrNoBlacklistWords = errors.New("chat has no blacklisted words")
 
-// SetBlacklistAction writes the action into every word row of the chat. With
-// no rows there is nowhere to keep it, so it returns ErrNoBlacklistWords.
-func SetBlacklistAction(chatId int64, action string) error {
-	result := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action))
+// SetBlacklistAction writes the action and duration into every word row of the
+// chat. With no rows there is nowhere to keep them, so it returns ErrNoBlacklistWords.
+func SetBlacklistAction(chatId int64, action string, actionTime int) error {
+	action = strings.ToLower(action)
+	if action != "tban" && action != "tmute" {
+		actionTime = 0
+	}
+	result := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).
+		Updates(map[string]any{"action": action, "action_time": actionTime})
 	if result.Error != nil {
 		log.Errorf("[Database] SetBlacklistAction: %v - %d", result.Error, chatId)
 		return result.Error

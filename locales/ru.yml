@@ -64,7 +64,7 @@ antiflood_help_msg:
     ваш чат? С антифлудом это больше не происходит!
   
   
-    Антифлуд позволяет вам принимать меры против пользователей, которые отправляют более x сообщений без перерыва дольше 60 секунд между ними (сообщения других участников не сбрасывают счётчик). Действия: ban/kick/mute
+    Антифлуд позволяет вам принимать меры против пользователей, которые отправляют более x сообщений без перерыва дольше 60 секунд между ними (сообщения других участников не сбрасывают счётчик). Действия: ban/kick/mute/tban/tmute
   
   
     *Пользовательские команды*:
@@ -76,15 +76,17 @@ antiflood_help_msg:
   
     × /setflood `<number/off/no>`: Установить количество сообщений, после которого принимать меры против пользователя. Установите '0', 'off' или 'no' для отключения.
   
-    × /setfloodmode `<action type>`: Выбрать, какое действие применять к пользователю, совершающему флуд. Варианты: ban/kick/mute
+    × /setfloodmode `<ban/kick/mute/tban/tmute> [срок]`: Выбрать действие при флуде. Для tban/tmute обязательно укажите срок, например `/setfloodmode tban 1d` или `/setfloodmode tmute 10m`.
   
     × /delflood `<yes/no/on/off>`: Если вы хотите, чтобы бот удалял сообщения, создаваемые пользователем при флуде."
 antiflood_setflood_disabled: "Хорошо.\nЯ не буду предупреждать пользователей за флуд."
 antiflood_setflood_success: Лимит флуда установлен на <b>%d</b> сообщений.
 antiflood_setfloodmode_specify_action:
-  "Вам нужно указать действие для применения при флуде. Текущие режимы: `ban`/`kick`/`mute`"
+  "Укажите действие при флуде. Используйте ban/kick/mute или tban/tmute со сроком (например, tban 1d или tmute 10m)."
 antiflood_setfloodmode_success: Режим флуда установлен на %s.
-antiflood_setfloodmode_unknown_type: "Неизвестный тип '%s'. Пожалуйста, используйте один из: ban/kick/mute"
+antiflood_mode_tban: "Режим антифлуда установлен на tban сроком на %s."
+antiflood_mode_tmute: "Режим антифлуда установлен на tmute сроком на %s."
+antiflood_setfloodmode_unknown_type: "Неизвестный тип '%s'. Используйте ban/kick/mute или tban/tmute со сроком (например, tban 1d или tmute 10m)."
 bans_ban_ban_reason: "<b>Причина:</b> %s"
 bans_ban_dban_no_reply: Вам нужно ответить на сообщение, чтобы удалить его и забанить пользователя!
 bans_ban_is_admin: Зачем мне банить администратора? Это звучит как довольно глупая идея.
@@ -156,7 +158,7 @@ blacklists_blacklist_added_bl: "Добавлены следующие слова
 blacklists_blacklist_already_blacklisted: "Эти слова уже в чёрном списке:"
 blacklists_blacklist_give_bl_word: Пожалуйста, дайте мне слово для добавления в чёрный список!
 blacklists_blacklist_word_too_long: "Эти слова слишком длинные (максимум 100 символов): %s"
-blacklists_help_msg: "*Пользовательские команды:*\n× /blacklists: Проверить все чёрные списки в чате.\n\n*Команды администратора:*\n× /addblacklist `<trigger>`: Добавляет слово в чёрный список в текущем чате.\n× /rmblacklist `<trigger>`: Удаляет слово из чёрного списка в текущем чате.\n× /blaction `<mute/kick/ban/warn/none>`: Устанавливает действие, выполняемое ботом при обнаружении слова из чёрного списка.\n× /blacklistaction: То же, что и выше\n\n*Только для владельца:*\n× /remallbl: Удаляет все слова из чёрного списка чата\n\n*Примечание:*\nРежим по умолчанию для Чёрного списка *warn*, который удаляет сообщение и выдаёт предупреждение пользователю."
+blacklists_help_msg: "*Пользовательские команды:*\n× /blacklists: Проверить все чёрные списки в чате.\n\n*Команды администратора:*\n× /addblacklist `<trigger>`: Добавляет слово в чёрный список в текущем чате.\n× /rmblacklist `<trigger>`: Удаляет слово из чёрного списка в текущем чате.\n× /blaction `<mute/kick/ban/warn/none/tban/tmute> [срок]`: Устанавливает действие при обнаружении слова из чёрного списка. Для tban/tmute обязательно укажите срок, например `/blaction tban 1d` или `/blaction tmute 2h`.\n× /blacklistaction: То же, что и выше\n\n*Только для владельца:*\n× /remallbl: Удаляет все слова из чёрного списка чата\n\n*Примечание:*\nРежим по умолчанию для Чёрного списка *warn*, который удаляет сообщение и выдаёт предупреждение пользователю."
 blacklists_ls_bl_list_bl: "Эти слова в чёрном списке в этом чате:"
 blacklists_ls_bl_no_blacklisted: В этом чате нет слов в чёрном списке.
 blacklists_rm_all_bl_ask: |
@@ -165,7 +167,9 @@ blacklists_rm_all_bl_button_handler_no: |
   Отменено удаление всех чёрных списков этого чата ❌
 blacklists_rm_all_bl_button_handler_yes: Удалены все чёрные списки из этого чата ✅
 blacklists_set_bl_action_changed_mode: "Успешно изменён режим чёрного списка на: *%s*"
-blacklists_set_bl_action_choose_correct_option: Пожалуйста, выберите вариант из <mute/kick/ban/warn/none>
+blist_action_tban: "Режим чёрного списка изменён на tban сроком на %s."
+blist_action_tmute: "Режим чёрного списка изменён на tmute сроком на %s."
+blacklists_set_bl_action_choose_correct_option: "Выберите mute/kick/ban/warn/none или tban/tmute со сроком (например, tban 1d или tmute 2h)."
 blacklists_set_bl_action_current_mode:
   "Текущий режим чёрного списка для этого чата:
     %s"
@@ -2126,6 +2130,8 @@ blacklists_extended_docs: |
   • <code>mute</code> - Удаляет сообщение и заглушает пользователя
   • <code>kick</code> - Удаляет сообщение и выгоняет пользователя (они могут переприсоединиться)
   • <code>ban</code> - Удаляет сообщение и навсегда банит пользователя
+  • <code>tban &lt;срок&gt;</code> - Удаляет сообщение и банит пользователя на указанный срок; срок обязателен (например, <code>/blaction tban 1d</code>)
+  • <code>tmute &lt;срок&gt;</code> - Удаляет сообщение и запрещает пользователю писать на указанный срок; срок обязателен (например, <code>/blaction tmute 2h</code>)
 
   <b>Примечание:</b>
   Режим по умолчанию для Чёрного списка <b>warn</b>, который удалит сообщение и выдаст предупреждение пользователю.
@@ -2133,7 +2139,7 @@ blacklists_extended_docs: |
   <b>Команды:</b>
   • <code>/addblacklist &lt;trigger&gt;</code> - Добавляет слово в чёрный список в текущем чате
   • <code>/rmblacklist &lt;trigger&gt;</code> - Удаляет слово из чёрного списка в текущем чате
-  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Устанавливает действие, выполняемое ботом при обнаружении слова из чёрного списка
+  • <code>/blaction &lt;mute/kick/ban/warn/none/tban/tmute&gt; [срок]</code> - Устанавливает действие при обнаружении слова из чёрного списка; для tban/tmute срок обязателен
   • <code>/remallbl</code> - Удаляет все слова из чёрного списка чата (Только для владельца)
 
 # Extended documentation locale keys - Disabling module
@@ -2705,7 +2711,7 @@ aispam_extend_msg: |
 antiflood_extend_msg: |
   /flood — настройки антифлуда
   /setflood — сколько сообщений можно отправить (без перерыва дольше 60 с) до наказания (off — выключить)
-  /setfloodmode — наказание за флуд: ban, kick или mute
+  /setfloodmode — наказание за флуд: ban, kick, mute или tban/tmute с обязательным сроком (например, tmute 10m)
   /delflood — удалять и сами флуд-сообщения
 antiraid_extend_msg: |
   /antiraid — показать, включить или выключить режим рейда
@@ -2742,7 +2748,7 @@ blacklists_extend_msg: |
   /blacklists — чёрный список слов
   /addblacklist — добавить слово в чёрный список
   /rmblacklist — убрать слово из чёрного списка
-  /blaction — действие на слово: mute, kick, ban, warn или none
+  /blaction — действие на слово: mute, kick, ban, warn, none или tban/tmute с обязательным сроком (например, tban 1d)
   /blacklistaction — то же, что /blaction
   /remallbl — очистить чёрный список
 captcha_extend_msg: |

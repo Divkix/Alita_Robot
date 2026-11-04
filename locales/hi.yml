@@ -141,7 +141,7 @@ button_rules_default: "नियम"
 antiflood_help_msg: "क्या आप जानते हैं कि कभी-कभी लोग जुड़ते हैं, 100 संदेश भेजते हैं, और आपकी चैट को बर्बाद कर देते हैं? Antiflood के साथ, अब ऐसा नहीं होगा!
 
 
-  Antiflood आपको उन उपयोगकर्ताओं पर कार्रवाई करने की अनुमति देता है जो बीच में 60 सेकंड से अधिक का अंतराल दिए बिना x से अधिक संदेश भेजते हैं (दूसरे सदस्यों के संदेश गिनती रीसेट नहीं करते)। कार्रवाई हैं: ban/kick/mute
+  Antiflood आपको उन उपयोगकर्ताओं पर कार्रवाई करने की अनुमति देता है जो बीच में 60 सेकंड से अधिक का अंतराल दिए बिना x से अधिक संदेश भेजते हैं (दूसरे सदस्यों के संदेश गिनती रीसेट नहीं करते)। कार्रवाइयां हैं: ban/kick/mute/tban/tmute
 
 
   *उपयोगकर्ता कमांड*:
@@ -153,7 +153,7 @@ antiflood_help_msg: "क्या आप जानते हैं कि कभ
 
   × /setflood `<number/off/no>`: संदेशों की संख्या सेट करें जिसके बाद उपयोगकर्ता पर कार्रवाई की जाएगी। अक्षम करने के लिए '0', 'off', या 'no' सेट करें।
 
-  × /setfloodmode `<action type>`: चुनें कि flooding करने वाले उपयोगकर्ता पर कौन सी कार्रवाई की जाए। विकल्प: ban/kick/mute
+  × /setfloodmode `<ban/kick/mute/tban/tmute> [अवधि]`: फ़्लड करने वाले उपयोगकर्ता पर कार्रवाई चुनें। tban/tmute के लिए अवधि देना अनिवार्य है, जैसे `/setfloodmode tban 1d` या `/setfloodmode tmute 10m`।
 
   × /delflood `<yes/no/on/off>`: यदि आप चाहते हैं कि बॉट उपयोगकर्ता द्वारा flood किए गए संदेशों को हटाए।"
 
@@ -211,7 +211,7 @@ blacklists_help_msg: "*उपयोगकर्ता कमांड:*
 
   × /rmblacklist `<trigger>`: चैट में ब्लैकलिस्ट किए गए शब्दों से शब्द हटाएं।
 
-  × /blaction `<mute/kick/ban/warn/none>`: ब्लैकलिस्ट शब्द का पता चलने पर बॉट द्वारा की जाने वाली कार्रवाई सेट करें।
+  × /blaction `<mute/kick/ban/warn/none/tban/tmute> [अवधि]`: ब्लैकलिस्ट शब्द मिलने पर कार्रवाई सेट करें। tban/tmute के लिए अवधि देना अनिवार्य है, जैसे `/blaction tban 1d` या `/blaction tmute 2h`।
 
   × /blacklistaction: ऊपर जैसा ही
 
@@ -956,9 +956,11 @@ antiflood_flood_disabled: यह चैट वर्तमान में फ�
 antiflood_flood_show_settings: "यह चैट वर्तमान में %d संदेशों के बाद फ़्लड नियंत्रण लागू कर रहा है। उस मात्रा से अधिक संदेश भेजने वाले किसी भी उपयोगकर्ता को %s कर दिया जाएगा।"
 antiflood_setflood_disabled: "ठीक है।\n\nमैं फ़्लडिंग के लिए उपयोगकर्ताओं को चेतावनी नहीं दूंगा।"
 antiflood_setflood_success: Flood सीमा <b>%d</b> संदेशों पर सेट की गई है।
-antiflood_setfloodmode_specify_action: "आपको flooding पर की जाने वाली कार्रवाई निर्दिष्ट करनी होगी। वर्तमान मोड हैं: `ban`/`kick`/`mute`"
+antiflood_setfloodmode_specify_action: "फ़्लड होने पर की जाने वाली कार्रवाई बताएं। ban/kick/mute चुनें, या अवधि के साथ tban/tmute चुनें (जैसे tban 1d या tmute 10m)।"
 antiflood_setfloodmode_success: Flood मोड %s पर सेट किया गया है।
-antiflood_setfloodmode_unknown_type: "अज्ञात प्रकार '%s'। कृपया इनमें से एक का उपयोग करें: ban/kick/mute"
+antiflood_mode_tban: "फ़्लड मोड %s के लिए tban पर सेट किया गया है।"
+antiflood_mode_tmute: "फ़्लड मोड %s के लिए tmute पर सेट किया गया है।"
+antiflood_setfloodmode_unknown_type: "अज्ञात प्रकार '%s'। ban/kick/mute चुनें, या अवधि के साथ tban/tmute चुनें (जैसे tban 1d या tmute 10m)।"
 antiflood_button_unban_admins: "अनबैन (केवल एडमिन)"
 antiflood_action_muted: "म्यूट"
 antiflood_action_banned: "बैन"
@@ -1024,7 +1026,9 @@ blacklists_rm_all_bl_ask: "क्या आप वाकई इस चैट स
 blacklists_rm_all_bl_button_handler_no: "इस चैट की सभी ब्लैकलिस्ट को हटाना रद्द किया गया ❌"
 blacklists_rm_all_bl_button_handler_yes: "इस चैट से सभी ब्लैकलिस्ट हटा दी गईं ✅"
 blacklists_set_bl_action_changed_mode: "ब्लैकलिस्ट मोड सफलतापूर्वक बदल दिया गया: *%s*"
-blacklists_set_bl_action_choose_correct_option: "कृपया <mute/kick/ban/warn/none> में से एक विकल्प चुनें"
+blist_action_tban: "ब्लैकलिस्ट मोड %s के लिए tban पर सेट किया गया है।"
+blist_action_tmute: "ब्लैकलिस्ट मोड %s के लिए tmute पर सेट किया गया है।"
+blacklists_set_bl_action_choose_correct_option: "mute/kick/ban/warn/none चुनें, या अवधि के साथ tban/tmute चुनें (जैसे tban 1d या tmute 2h)।"
 blacklists_set_bl_action_current_mode: "इस चैट के लिए वर्तमान ब्लैकलिस्ट मोड है: %s"
 blacklists_unblacklist_give_bl_word: कृपया मुझे ब्लैकलिस्ट से हटाने के लिए एक शब्द दें!
 blacklists_unblacklist_no_removed_bl: "दिए गए शब्दों में से कोई भी ब्लैकलिस्ट में नहीं था जिसे हटाया जा सके!"
@@ -1037,6 +1041,8 @@ blacklists_extended_docs: |
   • <code>mute</code> - संदेश को हटाता है और उपयोगकर्ता को म्यूट करता है
   • <code>kick</code> - संदेश को हटाता है और उपयोगकर्ता को किक करता है (वे फिर से शामिल हो सकते हैं)
   • <code>ban</code> - संदेश को हटाता है और उपयोगकर्ता को स्थायी रूप से बैन करता है
+  • <code>tban &lt;अवधि&gt;</code> - संदेश हटाकर उपयोगकर्ता को दी गई अवधि के लिए बैन करता है; अवधि देना अनिवार्य है (जैसे <code>/blaction tban 1d</code>)
+  • <code>tmute &lt;अवधि&gt;</code> - संदेश हटाकर उपयोगकर्ता को दी गई अवधि के लिए म्यूट करता है; अवधि देना अनिवार्य है (जैसे <code>/blaction tmute 2h</code>)
 
   <b>नोट:</b>
   ब्लैकलिस्ट के लिए डिफ़ॉल्ट मोड <b>warn</b> है, जो संदेश को हटाएगा और उपयोगकर्ता को चेतावनी देगा।
@@ -1044,7 +1050,7 @@ blacklists_extended_docs: |
   <b>कमांड:</b>
   • <code>/addblacklist &lt;trigger&gt;</code> - वर्तमान चैट में शब्द को ब्लैकलिस्ट करें
   • <code>/rmblacklist &lt;trigger&gt;</code> - चैट में ब्लैकलिस्ट किए गए शब्दों से शब्द हटाएं
-  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - ब्लैकलिस्ट शब्द का पता चलने पर बॉट द्वारा की जाने वाली कार्रवाई सेट करें
+  • <code>/blaction &lt;mute/kick/ban/warn/none/tban/tmute&gt; [अवधि]</code> - ब्लैकलिस्ट शब्द मिलने पर कार्रवाई सेट करें; tban/tmute के लिए अवधि देना अनिवार्य है
   • <code>/remallbl</code> - चैट से सभी ब्लैकलिस्ट किए गए शब्दों को हटाएं (केवल मालिक)
 
 # Captcha module strings
@@ -2644,7 +2650,7 @@ aispam_extend_msg: |
 antiflood_extend_msg: |
   /flood — एंटीफ़्लड सेटिंग देखें
   /setflood — कार्रवाई से पहले अनुमत संदेशों की संख्या, बीच में 60 सेकंड से लंबे अंतराल के बिना (बंद करने के लिए off)
-  /setfloodmode — फ़्लड करने वालों पर कार्रवाई: ban, kick या mute
+  /setfloodmode — फ़्लड करने वालों पर कार्रवाई: ban, kick, mute या अनिवार्य अवधि के साथ tban/tmute (जैसे tmute 10m)
   /delflood — फ़्लड वाले संदेश भी हटाएँ
 antiraid_extend_msg: |
   /antiraid — रेड मोड देखें, चालू या बंद करें
@@ -2681,7 +2687,7 @@ blacklists_extend_msg: |
   /blacklists — ब्लैकलिस्ट किए गए शब्दों की सूची
   /addblacklist — शब्द को ब्लैकलिस्ट करें
   /rmblacklist — शब्द को ब्लैकलिस्ट से हटाएँ
-  /blaction — ब्लैकलिस्ट शब्द पर कार्रवाई: mute, kick, ban, warn या none
+  /blaction — ब्लैकलिस्ट शब्द पर कार्रवाई: mute, kick, ban, warn, none या अनिवार्य अवधि के साथ tban/tmute (जैसे tban 1d)
   /blacklistaction — /blaction के समान
   /remallbl — ब्लैकलिस्ट खाली करें
 captcha_extend_msg: |
