@@ -282,6 +282,9 @@ captcha_help_msg:
 
   × /captcha `<on/off>`: Aktifkan atau nonaktifkan verifikasi captcha
 
+  × /captchajoin `<on/off>`: Verifikasi permintaan bergabung melalui pesan pribadi (nonaktif secara default; tanpa argumen menampilkan status).
+  Terpisah dari /captcha, dengan batas waktu maksimal 5 menit.
+
   × /captchamode `<math/text>`: Atur tipe captcha (masalah matematika atau pengenalan teks)
 
   × /captchatime `<1-10>`: Atur batas waktu dalam menit (default: 2)
@@ -1674,6 +1677,19 @@ captcha_settings_mode: "Modus: <code>%s</code>"
 captcha_settings_timeout: "Batas Waktu: <code>%d menit</code>"
 captcha_settings_failure_action: "Tindakan Kegagalan: <code>%s</code>"
 captcha_settings_max_attempts: "Maks Percobaan: <code>%d</code>"
+captcha_settings_join_requests: "Permintaan bergabung melalui pesan pribadi: <code>{status}</code>"
+captcha_join_requests_current: "Captcha pribadi untuk permintaan bergabung <b>{status}</b>."
+captcha_join_requests_enabled: "Captcha pribadi untuk permintaan bergabung diaktifkan. Jawaban yang benar menyetujui permintaan meskipun /autoapprove nonaktif."
+captcha_join_requests_disabled: "Captcha pribadi untuk permintaan bergabung dinonaktifkan. Permintaan mengikuti alur persetujuan otomatis atau tombol admin seperti sebelumnya."
+captcha_join_requests_usage: "Gunakan <code>/captchajoin on</code> atau <code>/captchajoin off</code>. Gunakan <code>/captchajoin</code> untuk melihat status saat ini."
+captcha_join_request_prompt: "Untuk bergabung dengan <b>{group}</b>, selesaikan captcha ini:\n\nBatas waktu: <b>{timeout} menit</b>. Percobaan yang diizinkan: <b>{attempts}</b>."
+captcha_join_request_approved: "Permintaan Anda untuk bergabung dengan <b>{group}</b> telah disetujui."
+captcha_join_request_declined: "Permintaan Anda untuk bergabung dengan <b>{group}</b> ditolak karena terlalu banyak jawaban salah."
+captcha_join_request_declined_alert: "Permintaan Anda untuk bergabung ditolak setelah terlalu banyak jawaban salah."
+captcha_join_request_timeout: "Permintaan Anda untuk bergabung dengan <b>{group}</b> ditolak karena batas waktu captcha habis."
+captcha_join_request_wrong: "Jawaban salah. Sisa percobaan: {remaining}."
+captcha_join_request_expired: "Captcha permintaan bergabung ini telah kedaluwarsa atau permintaannya sudah ditangani."
+captcha_join_request_wrong_user: "Captcha permintaan bergabung ini bukan untuk Anda."
 captcha_status_enabled: "diaktifkan"
 captcha_status_disabled: "dinonaktifkan"
 
@@ -2970,6 +2986,7 @@ blacklists_extend_msg: |
   /remallbl — kosongkan daftar hitam
 captcha_extend_msg: |
   /captcha — aktifkan atau nonaktifkan captcha untuk anggota baru
+  /captchajoin — aktifkan atau nonaktifkan captcha pribadi untuk permintaan bergabung
   /captchamode — jenis captcha: math atau text
   /captchatime — menit untuk menyelesaikan captcha
   /captchaaction — tindakan jika gagal: kick, ban atau mute

@@ -492,6 +492,7 @@ func TestMain(m *testing.M) {
 		&models.GreetingSettings{},
 		&db.CaptchaSettings{},
 		&db.CaptchaAttempts{},
+		&models.JoinRequestCaptcha{},
 		&models.StoredMessages{},
 		&models.CaptchaMutedUsers{},
 		&db.ApprovedUsers{},

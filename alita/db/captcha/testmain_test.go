@@ -12,6 +12,7 @@ func TestMain(m *testing.M) {
 	os.Exit(testdb.Run(m,
 		&models.CaptchaSettings{},
 		&models.CaptchaAttempts{},
+		&models.JoinRequestCaptcha{},
 		&models.StoredMessages{},
 		&models.CaptchaMutedUsers{},
 	))

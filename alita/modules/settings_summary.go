@@ -159,6 +159,7 @@ func captchaSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	}
 	return settingsSection{Title: "Captcha", Rows: []settingsRow{
 		boolRow("/captcha", s.Enabled, false),
+		boolRow("/captchajoin", s.JoinRequests, false),
 		stringRow("/captchamode", s.CaptchaMode, settingsDefaultCaptchaMode),
 		intRow("/captchatime", s.Timeout, settingsDefaultCaptchaTimeout),
 		stringRow("/captchaaction", s.FailureAction, settingsDefaultCaptchaAction),

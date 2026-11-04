@@ -242,6 +242,9 @@ captcha_help_msg: "CAPTCHA सत्यापन के साथ अपने �
 
   × /captcha `<on/off>`: कैप्चा सत्यापन सक्षम या अक्षम करें
 
+  × /captchajoin `<on/off>`: जुड़ने के अनुरोधों को निजी संदेश में सत्यापित करें (डिफ़ॉल्ट: बंद; बिना तर्क के स्थिति दिखाता है)।
+  यह /captcha से स्वतंत्र है और समय सीमा अधिकतम 5 मिनट है।
+
   × /captchamode `<math/text>`: कैप्चा प्रकार सेट करें (गणित की समस्याएं या टेक्स्ट पहचान)
 
   × /captchatime `<1-10>`: टाइमआउट मिनटों में सेट करें (डिफ़ॉल्ट: 2)
@@ -1130,6 +1133,19 @@ captcha_settings_mode: "मोड: <code>%s</code>"
 captcha_settings_timeout: "टाइमआउट: <code>%d मिनट</code>"
 captcha_settings_failure_action: "विफलता कार्रवाई: <code>%s</code>"
 captcha_settings_max_attempts: "अधिकतम प्रयास: <code>%d</code>"
+captcha_settings_join_requests: "निजी संदेश में जुड़ने के अनुरोध: <code>{status}</code>"
+captcha_join_requests_current: "जुड़ने के अनुरोधों के लिए निजी कैप्चा <b>{status}</b> है।"
+captcha_join_requests_enabled: "जुड़ने के अनुरोधों के लिए निजी कैप्चा सक्षम है। सही उत्तर देने पर अनुरोध स्वीकार होता है, भले ही /autoapprove बंद हो।"
+captcha_join_requests_disabled: "जुड़ने के अनुरोधों के लिए निजी कैप्चा अक्षम है। अनुरोध पहले की तरह स्वतः स्वीकृति या एडमिन बटन के माध्यम से संभाले जाएंगे।"
+captcha_join_requests_usage: "<code>/captchajoin on</code> या <code>/captchajoin off</code> का उपयोग करें। वर्तमान स्थिति देखने के लिए <code>/captchajoin</code> का उपयोग करें।"
+captcha_join_request_prompt: "<b>{group}</b> में जुड़ने के लिए यह कैप्चा हल करें:\n\nसमय सीमा: <b>{timeout} मिनट</b>। अनुमत प्रयास: <b>{attempts}</b>।"
+captcha_join_request_approved: "<b>{group}</b> में जुड़ने का आपका अनुरोध स्वीकार कर लिया गया है।"
+captcha_join_request_declined: "बहुत अधिक गलत उत्तरों के कारण <b>{group}</b> में जुड़ने का आपका अनुरोध अस्वीकार कर दिया गया।"
+captcha_join_request_declined_alert: "बहुत अधिक गलत उत्तरों के कारण आपका शामिल होने का अनुरोध अस्वीकार कर दिया गया।"
+captcha_join_request_timeout: "कैप्चा की समय सीमा समाप्त होने के कारण <b>{group}</b> में जुड़ने का आपका अनुरोध अस्वीकार कर दिया गया।"
+captcha_join_request_wrong: "गलत उत्तर। शेष प्रयास: {remaining}।"
+captcha_join_request_expired: "जुड़ने के अनुरोध का यह कैप्चा समाप्त हो गया है या अनुरोध पहले ही संभाला जा चुका है।"
+captcha_join_request_wrong_user: "जुड़ने के अनुरोध का यह कैप्चा आपके लिए नहीं है।"
 captcha_status_enabled: "सक्षम"
 captcha_status_disabled: "अक्षम"
 captcha_invalid_mode_error: "अमान्य कैप्चा मोड: 'math' या 'text' होना चाहिए"
@@ -2692,6 +2708,7 @@ blacklists_extend_msg: |
   /remallbl — ब्लैकलिस्ट खाली करें
 captcha_extend_msg: |
   /captcha — नए सदस्यों के लिए कैप्चा चालू या बंद करें
+  /captchajoin — जुड़ने के अनुरोधों के लिए निजी कैप्चा चालू या बंद करें
   /captchamode — कैप्चा का प्रकार: math या text
   /captchatime — कैप्चा हल करने के लिए मिनट
   /captchaaction — विफल होने पर कार्रवाई: kick, ban या mute

@@ -18,6 +18,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
@@ -130,7 +131,7 @@ func TestPostInitSetsCommandsAndStartupMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open captcha lifecycle test database: %v", err)
 	}
-	if err := testDB.AutoMigrate(&db.CaptchaAttempts{}); err != nil {
+	if err := testDB.AutoMigrate(&db.CaptchaAttempts{}, &models.JoinRequestCaptcha{}); err != nil {
 		t.Fatalf("migrate captcha lifecycle test database: %v", err)
 	}
 	db.DB = testDB

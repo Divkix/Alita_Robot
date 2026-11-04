@@ -480,6 +480,9 @@ captcha_help_msg:
 
   × /captcha `<on/off>` : Activer ou désactiver la vérification captcha
 
+  × /captchajoin `<on/off>` : Vérifier les demandes d'adhésion en privé (désactivé par défaut ; sans argument, affiche l'état).
+  Indépendant de /captcha, avec un délai maximal de 5 minutes.
+
   × /captchamode `<math/text>` : Définir le type de captcha (problèmes mathématiques ou reconnaissance de texte)
 
   × /captchatime `<1-10>` : Définir le délai en minutes (défaut : 2)
@@ -583,6 +586,19 @@ captcha_settings_mode: "Mode : <code>%s</code>"
 captcha_settings_timeout: "Délai : <code>%d minutes</code>"
 captcha_settings_failure_action: "Action d'échec : <code>%s</code>"
 captcha_settings_max_attempts: "Tentatives max : <code>%d</code>"
+captcha_settings_join_requests: "Demandes d'adhésion en privé : <code>{status}</code>"
+captcha_join_requests_current: "Le captcha privé pour les demandes d'adhésion est <b>{status}</b>."
+captcha_join_requests_enabled: "Le captcha privé pour les demandes d'adhésion est activé. Une réponse correcte approuve la demande même si /autoapprove est désactivé."
+captcha_join_requests_disabled: "Le captcha privé pour les demandes d'adhésion est désactivé. Les demandes suivent le fonctionnement habituel : approbation automatique ou boutons pour les administrateurs."
+captcha_join_requests_usage: "Utilisez <code>/captchajoin on</code> ou <code>/captchajoin off</code>. Utilisez <code>/captchajoin</code> pour afficher l'état actuel."
+captcha_join_request_prompt: "Pour rejoindre <b>{group}</b>, résolvez ce captcha :\n\nDélai : <b>{timeout} minutes</b>. Tentatives autorisées : <b>{attempts}</b>."
+captcha_join_request_approved: "Votre demande pour rejoindre <b>{group}</b> a été approuvée."
+captcha_join_request_declined: "Votre demande pour rejoindre <b>{group}</b> a été refusée après trop de réponses incorrectes."
+captcha_join_request_declined_alert: "Votre demande d'adhésion a été refusée après trop de réponses incorrectes."
+captcha_join_request_timeout: "Votre demande pour rejoindre <b>{group}</b> a été refusée car le délai du captcha a expiré."
+captcha_join_request_wrong: "Réponse incorrecte. Tentatives restantes : {remaining}."
+captcha_join_request_expired: "Ce captcha de demande d'adhésion a expiré ou la demande a déjà été traitée."
+captcha_join_request_wrong_user: "Ce captcha de demande d'adhésion ne vous est pas destiné."
 captcha_status_enabled: "activé"
 captcha_status_disabled: "désactivé"
 captcha_mode_math_desc: "problèmes mathématiques"
@@ -2888,6 +2904,7 @@ blacklists_extend_msg: |
   /remallbl — vider la liste noire
 captcha_extend_msg: |
   /captcha — activer ou désactiver le captcha pour les nouveaux membres
+  /captchajoin — activer ou désactiver le captcha privé pour les demandes d'adhésion
   /captchamode — type de captcha : math ou text
   /captchatime — minutes pour résoudre le captcha
   /captchaaction — sanction en cas d'échec : kick, ban ou mute

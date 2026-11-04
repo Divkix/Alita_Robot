@@ -195,6 +195,9 @@ captcha_help_msg:
   
     × /captcha `<on/off>`: Включить или отключить проверку капчи
   
+    × /captchajoin `<on/off>`: Проверять заявки на вступление в личных сообщениях (по умолчанию отключено; без аргументов показывает состояние).
+    Работает независимо от /captcha, время на ответ — не более 5 минут.
+  
     × /captchamode `<math/text>`: Установить тип капчи (математические задачи или распознавание текста)
   
     × /captchatime `<1-10>`: Установить время ожидания в минутах (по умолчанию: 2)
@@ -1421,6 +1424,19 @@ captcha_settings_mode: "Режим: <code>%s</code>"
 captcha_settings_timeout: "Время ожидания: <code>%d минут</code>"
 captcha_settings_failure_action: "Действие при неудаче: <code>%s</code>"
 captcha_settings_max_attempts: "Макс. попыток: <code>%d</code>"
+captcha_settings_join_requests: "Заявки на вступление в ЛС: <code>{status}</code>"
+captcha_join_requests_current: "Капча в ЛС для заявок на вступление: <b>{status}</b>."
+captcha_join_requests_enabled: "Капча в ЛС для заявок на вступление включена. Правильный ответ одобряет заявку, даже если /autoapprove отключён."
+captcha_join_requests_disabled: "Капча в ЛС для заявок на вступление отключена. Заявки обрабатываются как раньше: автоматически или кнопками для администраторов."
+captcha_join_requests_usage: "Используйте <code>/captchajoin on</code> или <code>/captchajoin off</code>. Команда <code>/captchajoin</code> показывает текущее состояние."
+captcha_join_request_prompt: "Чтобы вступить в <b>{group}</b>, решите эту капчу:\n\nВремя на ответ: <b>{timeout} мин.</b> Допустимо попыток: <b>{attempts}</b>."
+captcha_join_request_approved: "Ваша заявка на вступление в <b>{group}</b> одобрена."
+captcha_join_request_declined: "Ваша заявка на вступление в <b>{group}</b> отклонена из-за слишком большого числа неверных ответов."
+captcha_join_request_declined_alert: "Ваша заявка на вступление отклонена из-за слишком большого числа неверных ответов."
+captcha_join_request_timeout: "Ваша заявка на вступление в <b>{group}</b> отклонена, потому что время на решение капчи истекло."
+captcha_join_request_wrong: "Неверный ответ. Осталось попыток: {remaining}."
+captcha_join_request_expired: "Срок действия этой капчи истёк или заявка на вступление уже обработана."
+captcha_join_request_wrong_user: "Эта капча для заявки на вступление предназначена не вам."
 captcha_status_enabled: "включено"
 captcha_status_disabled: "отключено"
 
@@ -2753,6 +2769,7 @@ blacklists_extend_msg: |
   /remallbl — очистить чёрный список
 captcha_extend_msg: |
   /captcha — включить или выключить капчу для новичков
+  /captchajoin — включить или отключить капчу в ЛС для заявок на вступление
   /captchamode — тип капчи: math или text
   /captchatime — минут на решение капчи
   /captchaaction — действие при провале: kick, ban или mute

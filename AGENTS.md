@@ -90,7 +90,7 @@ CGO_ENABLED=0 go build ./...   # compile check
 - Repositories live in `alita/db/<domain>/`. Reads go through `cache.GetFromCacheOrLoad` with `cache.CacheKey` keys;
   every write calls `cache.DeleteCache` on each key it affects. The loader is `alita/db/cache`, not
   `alita/utils/cache`; its in-process layer is described in `alita/db/cache/local.go`.
-- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`, `alita:probation:*`, `alita:aispam:*`) sit outside
+- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`, `alita:probation:*`, `alita:aispam:*`, `alita:joinCaptcha:*`) sit outside
   the `alita:cache:` prefix, so `CLEAR_CACHE_ON_STARTUP` keeps them.
 - `UpdateRecord` skips zero values; write `false`/`0`/`""` with `UpdateRecordWithZeroValues`. Both return
   `gorm.ErrRecordNotFound` when no row matched.

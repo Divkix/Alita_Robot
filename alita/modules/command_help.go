@@ -105,6 +105,7 @@ var commandHelpModules = map[string]string{
 	"autoapprove":        "greetings",
 	"captcha":            "captcha",
 	"captchamode":        "captcha",
+	"captchajoin":        "captcha",
 	"captchatime":        "captcha",
 	"captchaaction":      "captcha",
 	"captchamaxattempts": "captcha",
@@ -217,6 +218,7 @@ var menuCommands = map[string]menuCommand{
 
 	"captcha":            {Module: "captcha", AdminOnly: true},
 	"captchamode":        {Module: "captcha", AdminOnly: true},
+	"captchajoin":        {Module: "captcha", AdminOnly: true},
 	"captchatime":        {Module: "captcha", AdminOnly: true},
 	"captchaaction":      {Module: "captcha", AdminOnly: true},
 	"captchamaxattempts": {Module: "captcha", AdminOnly: true},

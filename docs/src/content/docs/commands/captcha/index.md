@@ -17,6 +17,7 @@ Force new members to prove they're human by solving a simple challenge before th
 *Admin Commands:*
 × /captcha `<on/off>`: Enable or disable captcha verification
 × /captchamode `<math/text>`: Set captcha type (math problems or text recognition)
+× /captchajoin `<on/off>`: Verify join requests in private messages (default: off; no argument shows its state)
 × /captchatime `<1-10>`: Set timeout in minutes (default: 2)
 × /captchaaction `<kick/ban/mute>`: Set action for failed verification (default: kick)
 × /captchamaxattempts `<1-10>`: Set maximum verification attempts (default: 3)
@@ -42,6 +43,34 @@ When a user is completing the captcha, any messages they try to send are stored 
 
 This helps identify potential spam attempts before users complete verification.
 
+## Join-request verification in PM
+
+Use `/captchajoin on` for groups that require approval to join. This is independent
+of `/captcha on`: either check can be enabled on its own. `/captchajoin` shows the
+current state; `/captchajoin off` restores the existing auto-approval or admin-button flow.
+The `/captcha` status and `/settings` summary also show this setting.
+
+- Applicants receive a private captcha naming the group. It uses `/captchamode`,
+  `/captchatime` and `/captchamaxattempts`, with a **5-minute maximum timeout**.
+- A correct answer approves the request even when `/autoapprove` is off. Users
+  on the group's approved list are approved immediately without a challenge.
+- Running out of time or attempts declines the request; `/captchaaction` does not
+  apply. The applicant is not kicked, banned or muted for failing a join captcha.
+- When `/spamdb` is enabled, its `ban` action bans and declines a listed applicant;
+  `mute` declines them; `log` logs the match and still sends the challenge.
+- If the bot cannot send the PM, it falls back to `/autoapprove` or the usual
+  Approve / Decline / Ban buttons. A failed PM never declines the request.
+- Admin buttons are shown only for that fallback. Captcha and spam-database
+  outcomes are sent to the configured log channel.
+- After approval, the normal welcome still appears. A recent successful join
+  captcha skips the regular captcha, so the user does not solve it twice.
+
+Telegram allows the bot to contact applicants for only five minutes, until their
+request is processed, and only if another admin has not already contacted them.
+The bot needs the **Invite users** permission to receive, approve and decline
+requests. Join-request verification does not require restricting members.
+
+
 
 ## Available Commands
 
@@ -50,6 +79,7 @@ This helps identify potential spam attempts before users complete verification.
 | `/captcha` | Toggle captcha verification for new members | ❌ |
 | `/captchaaction` | Set action for failed captcha attempts | ❌ |
 | `/captchaclear` | Clear pending captcha messages | ❌ |
+| `/captchajoin` | Toggle private captcha for join requests; no argument shows its state | ❌ |
 | `/captchamaxattempts` | Set maximum captcha verification attempts | ❌ |
 | `/captchamode` | Set captcha verification mode | ❌ |
 | `/captchapending` | View a pending user's stored messages | ❌ |
@@ -63,6 +93,7 @@ This helps identify potential spam attempts before users complete verification.
 /captcha
 /captchaaction
 /captchaclear
+/captchajoin on
 ```
 
 For detailed command usage, refer to the commands table above.
