@@ -191,13 +191,15 @@ jobs:
       contents: read
       security-events: write
     steps:
+      # trivy-action installs Trivy from get.trivy.dev, which stopped resolving on
+      # 2026-11-04 (aquasecurity/trivy#11537), so the scan runs the official image,
+      # pinned by digest (0.76.1, same digest on ghcr.io and Docker Hub). Dependabot
+      # does not update docker:// steps: bump the digest by hand, or return to
+      # trivy-action once its installer downloads from a host that resolves.
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: docker://ghcr.io/aquasecurity/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
         with:
-          image-ref: ghcr.io/divkix/alita_robot:latest
-          format: table
-          exit-code: 0
-          severity: CRITICAL,HIGH
+          args: image --severity CRITICAL,HIGH --exit-code 0 --format table --no-progress --skip-version-check --disable-telemetry ghcr.io/divkix/alita_robot:latest
 
       - name: Release notification
         run: |
