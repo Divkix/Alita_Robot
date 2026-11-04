@@ -224,6 +224,25 @@ The operator's `ENABLE_DIGEST` kill switch defaults to `true`. With
 with “The digest is disabled by the bot operator.” Admins can still view the
 stored choice, turn it off, or change its destination.
 
+### Report settings
+
+The **Reports** group in **Settings** controls member reporting and its optional
+automatic mute.
+
+| Setting | Default | Accepted values |
+|---------|---------|-----------------|
+| `reports.enabled` | `true` | On or off for this chat. |
+| `reports.mute_threshold` | `0` (off) | `0` to disable auto-mute, or `2`–`20` different members with open reports against the same user. |
+
+Multiple reports from one member count only once toward the threshold. Resetting
+it to `0` turns auto-mute off without disabling reporting.
+
+Changing `reports.enabled` requires you and the bot to be chat admins.
+Changing `reports.mute_threshold`, including resetting it to `0`, additionally
+requires **both you and the bot** to have Telegram's `can_restrict_members`
+right. An invalid setting or missing right refuses the entire save, including
+changes to other modules. Opening Settings does not create a report settings row.
+
 ## Failure modes
 
 | Symptom | Cause | Fix |

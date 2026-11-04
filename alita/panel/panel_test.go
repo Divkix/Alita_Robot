@@ -52,6 +52,7 @@ func TestMain(m *testing.M) {
 		&models.ModerationEvent{},
 		&models.ProbationSettings{},
 		&models.DigestSettings{},
+		&models.ReportChatSettings{},
 	))
 }
 

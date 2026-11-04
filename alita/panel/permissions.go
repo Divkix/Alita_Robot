@@ -33,6 +33,7 @@ var settingsPermissions = map[string]permission{
 	"antiraid":    permNone, // /antiraid and the raid timers only require an admin
 	"warns":       permNone, // /setwarnlimit, /setwarnmode and /setwarntime
 	"digest":      permNone, // /digest requires an admin and the bot admin
+	"reports":     permNone, // /reports; auto-mute: settingsFieldPermission
 	"locks":       permNone, // read-only summary
 	"log_channel": permNone, // read-only summary
 }
@@ -44,6 +45,9 @@ func settingsFieldPermission(module, field string) permission {
 	perm := settingsPermissions[module]
 	// /probation checks can_restrict_members, unlike /aispam and /spamdb.
 	if module == "antispam" && strings.HasPrefix(field, "probation_") {
+		perm = max(perm, permRestrict)
+	}
+	if module == "reports" && field == "mute_threshold" {
 		perm = max(perm, permRestrict)
 	}
 	return perm

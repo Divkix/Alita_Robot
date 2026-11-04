@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/probation"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
@@ -193,6 +194,10 @@ func panelSettings(access chatAccess) settingsResponse {
 	if row, err := digestsettings.GetContext(context.Background(), chatID); err == nil && row != nil {
 		digestRow = row
 	}
+	reportRow := &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
+	if row, ok := readSettingsRow[models.ReportChatSettings](chatID); ok {
+		reportRow = row
+	}
 
 	spamDB := &models.SpamDBSettings{ChatID: chatID, Action: spamdbsettings.ActionBan, CheckCAS: true}
 	if row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err == nil && row != nil {
@@ -277,6 +282,10 @@ func panelSettings(access chatAccess) settingsResponse {
 		{Key: "digest", Label: "Weekly digest", Fields: []settingsField{
 			settingsBool("enabled", digestRow.Enabled, false, true),
 			settingsString("destination", digestRow.Destination, "", true, []string{"", "log", "group"}),
+		}},
+		{Key: "reports", Label: "Reports", Fields: []settingsField{
+			settingsBool("enabled", reportRow.Status, true, true),
+			settingsInt("mute_threshold", reportRow.MuteThreshold, 0, true),
 		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
@@ -623,6 +632,12 @@ func validateSettingValue(key string, field settingsField, value any) string {
 		if fieldKey == "enabled" && value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableDigest) {
 			return settingsRefusal("digest_globally_disabled")
 		}
+	case "reports":
+		if fieldKey == "mute_threshold" {
+			if n := value.(int); n != 0 && (n < models.ReportMuteThresholdMin || n > models.ReportMuteThresholdMax) {
+				return "must be 0 (off) or between 2 and 20"
+			}
+		}
 	}
 	return ""
 }
@@ -806,6 +821,13 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 			return digestsettings.SetEnabled(chatID, value.(bool))
 		case "destination":
 			return digestsettings.SetDestination(chatID, value.(string))
+		}
+	case "reports":
+		switch fieldKey {
+		case "enabled":
+			return reports.SetChatReportStatus(chatID, value.(bool))
+		case "mute_threshold":
+			return reports.SetChatReportMuteThreshold(chatID, value.(int))
 		}
 	}
 	return fmt.Errorf("unknown setting %q", key)
