@@ -51,6 +51,8 @@ const fieldInfo = {
 	"warns.expiry": { label: "Warnings expire after", unit: "s", duration: true, hint: "0 means never; otherwise 1 minute to 366 days" },
 	"digest.enabled": { label: "Weekly digest", hint: "Requires the operator's ENABLE_DIGEST switch" },
 	"digest.destination": { label: "Digest destination", hint: "Default uses the log channel if connected, otherwise the group" },
+	"reports.enabled": { label: "Member reports" },
+	"reports.mute_threshold": { label: "Auto-mute after reports", unit: "members", hint: "Different reporters: 2 to 20, or 0 for off; needs the restrict right", max: 20 },
 	"locks.active": { label: "Locked", hint: "Change them with /lock and /unlock in the group" },
 	"log_channel.bound": { label: "Log channel connected", hint: "Set one with /setlog" },
 };

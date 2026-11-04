@@ -4,6 +4,7 @@ package panel
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
 )
 
 // A greeting toggle needs the caller's can_change_info, the right /welcome
@@ -113,5 +115,60 @@ func TestSettingsPatchCreatorSkipsRights(t *testing.T) {
 	}
 	if greetings.GetGreetingSettings(chatID).WelcomeSettings.ShouldWelcome {
 		t.Fatal("creator greeting write did not apply")
+	}
+}
+
+// /reports on/off needs an admin, not can_restrict_members on either member.
+func TestSettingsPatchReportEnabledOnlyNeedsAdmin(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	delete(fixture.client.rights, settingsFixtureUserID)
+	fixture.client.botRights.canRestrictMembers = false
+
+	for _, enabled := range []bool{false, true} {
+		recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+			fmt.Sprintf(`{"changes":{"reports.enabled":%t}}`, enabled), "application/json")
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+		}
+		settings := reports.GetChatReportSettings(chatID)
+		if settings.Enabled != enabled || settings.Status != enabled {
+			t.Fatalf("reports after admin-only write = %+v, want enabled/status=%t", settings, enabled)
+		}
+	}
+}
+
+// Both setting and resetting the auto-mute threshold need caller and bot
+// can_restrict_members; refusal prevents every change in a mixed batch.
+func TestSettingsPatchReportThresholdNeedsCallerAndBotRestrict(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		callerRestrict bool
+		botRestrict    bool
+		threshold      int
+		status         int
+		code           string
+	}{
+		{"caller cannot enable", false, true, 2, http.StatusForbidden, "missing_permission"},
+		{"bot cannot enable", true, false, 2, http.StatusConflict, "bot_missing_permission"},
+		{"caller cannot reset", false, true, 0, http.StatusForbidden, "missing_permission"},
+		{"bot cannot reset", true, false, 0, http.StatusConflict, "bot_missing_permission"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			fixture.client.rights[settingsFixtureUserID] = panelFakeRights{canRestrictMembers: test.callerRestrict}
+			fixture.client.botRights.canRestrictMembers = test.botRestrict
+
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
+				fmt.Sprintf(`{"changes":{"language.code":"es","reports.enabled":false,"reports.mute_threshold":%d}}`, test.threshold),
+				"application/json")
+			requireAPIError(t, recorder, test.status, test.code)
+			if count := countChatRows(t, &models.ReportChatSettings{}, chatID); count != 0 {
+				t.Fatalf("refused batch created %d report settings rows", count)
+			}
+			if got := lang.GetGroupLanguage(context.Background(), chatID); got != "en" {
+				t.Fatalf("language after refused batch = %q, want en", got)
+			}
+		})
 	}
 }

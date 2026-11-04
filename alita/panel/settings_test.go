@@ -29,6 +29,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
@@ -123,7 +124,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatalf("read_only = %v/%q, want writable for an admin with a bot admin", body.ReadOnly, body.ReadOnlyReason)
 	}
 
-	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "locks", "log_channel"}
+	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "locks", "log_channel"}
 	if len(body.Modules) != len(wantModules) {
 		t.Fatalf("modules = %d, want %d", len(body.Modules), len(wantModules))
 	}
@@ -212,6 +213,15 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 	if len(destinationOptions) != 3 || destinationOptions[0] != "" || destinationOptions[1] != "log" || destinationOptions[2] != "group" {
 		t.Fatalf("digest destinations = %v, want default, log and group", destinationOptions)
 	}
+	if !fieldBool(t, body, "reports.enabled") || fieldInt(t, body, "reports.mute_threshold") != 0 {
+		t.Fatalf("reports defaults = %+v, want enabled with auto-mute off", body.Modules[9])
+	}
+	for _, key := range []string{"reports.enabled", "reports.mute_threshold"} {
+		field := findSettingsField(t, body, key)
+		if !field.Writable || field.Changed || field.Default != field.Value {
+			t.Fatalf("%s metadata = %+v, want writable and unchanged at its default", key, field)
+		}
+	}
 	if findSettingsField(t, body, "locks.active").Writable || findSettingsField(t, body, "log_channel.bound").Writable {
 		t.Fatal("locks and log channel summaries must be read-only")
 	}
@@ -225,6 +235,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"antiraid":    &models.AntiRaidSettings{},
 		"warns":       &models.WarnSettings{},
 		"digest":      &models.DigestSettings{},
+		"reports":     &models.ReportChatSettings{},
 		"warn_users":  &models.Warns{},
 		"warn_entry":  &models.WarnEntry{},
 		"spam_db":     &models.SpamDBSettings{},
@@ -239,9 +250,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 }
 
 func TestSettingsPatchValidationWritesNothing(t *testing.T) {
-	fixture, chatID := newSettingsFixture(t)
 	raw := readFixture(t, "initdata_main.txt")
-	target := settingsPath(chatID)
 
 	tests := []struct {
 		name     string
@@ -300,11 +309,26 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "digest log without log channel", body: `{"changes":{"digest.destination":"log"}}`, wantKeys: []string{"digest.destination"}},
 		{name: "invalid digest blocks other settings", body: `{"changes":{"greetings.welcome_enabled":false,"digest.enabled":false,"digest.destination":"default"}}`, wantKeys: []string{"digest.destination"}},
 		{name: "invalid module blocks valid digest", body: `{"changes":{"captcha.timeout":99,"digest.enabled":false,"digest.destination":"group"}}`, wantKeys: []string{"captcha.timeout"}},
+		{name: "reports enabled wrong type", body: `{"changes":{"reports.enabled":"true"}}`, wantKeys: []string{"reports.enabled"}},
+		{name: "reports enabled null", body: `{"changes":{"reports.enabled":null}}`, wantKeys: []string{"reports.enabled"}},
+		{name: "report threshold negative", body: `{"changes":{"reports.mute_threshold":-1}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold below minimum", body: fmt.Sprintf(`{"changes":{"reports.mute_threshold":%d}}`, models.ReportMuteThresholdMin-1), wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold above maximum", body: fmt.Sprintf(`{"changes":{"reports.mute_threshold":%d}}`, models.ReportMuteThresholdMax+1), wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold fraction", body: `{"changes":{"reports.mute_threshold":2.5}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold string", body: `{"changes":{"reports.mute_threshold":"2"}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold bool", body: `{"changes":{"reports.mute_threshold":true}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold null", body: `{"changes":{"reports.mute_threshold":null}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold array", body: `{"changes":{"reports.mute_threshold":[]}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "report threshold object", body: `{"changes":{"reports.mute_threshold":{}}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "invalid report blocks other settings", body: `{"changes":{"greetings.welcome_enabled":false,"reports.enabled":false,"reports.mute_threshold":1}}`, wantKeys: []string{"reports.mute_threshold"}},
+		{name: "invalid module blocks valid reports", body: `{"changes":{"captcha.timeout":99,"reports.enabled":false,"reports.mute_threshold":2}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
+	// Each case gets its own panel: the table outgrows one user's rate limit.
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, test.body, "application/json")
+			fixture, chatID := newSettingsFixture(t)
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw, test.body, "application/json")
 			if recorder.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, want 400 (body %s)", recorder.Code, recorder.Body.String())
 			}
@@ -332,6 +356,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 				"antiflood": &models.AntifloodSettings{},
 				"warns":     &models.WarnSettings{},
 				"digest":    &models.DigestSettings{},
+				"reports":   &models.ReportChatSettings{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {
 					t.Fatalf("%s: %d %s rows written", test.name, count, name)
@@ -340,7 +365,8 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		})
 	}
 
-	empty := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, `{"changes":{}}`, "application/json")
+	fixture, chatID := newSettingsFixture(t)
+	empty := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw, `{"changes":{}}`, "application/json")
 	requireAPIError(t, empty, http.StatusBadRequest, "invalid_settings")
 }
 
@@ -557,6 +583,91 @@ func TestSettingsPatchDigestAppliesThroughSettersAndInvalidatesCache(t *testing.
 			}
 			if field := findSettingsField(t, after, "digest.destination"); field.Default != "" || field.Changed != (test.destination != "") {
 				t.Fatalf("digest.destination metadata = %+v, want default empty and changed=%t", field, test.destination != "")
+			}
+		})
+	}
+}
+
+func TestSettingsPatchReportsInvalidJSONWritesNothing(t *testing.T) {
+	for name, payload := range map[string]string{
+		"unfinished threshold": `{"changes":{"greetings.welcome_enabled":false,"reports.enabled":false,"reports.mute_threshold":`,
+		"trailing comma":       `{"changes":{"greetings.welcome_enabled":false,"reports.enabled":false,"reports.mute_threshold":2,}}`,
+		"changes array":        `{"changes":[{"reports.enabled":false,"reports.mute_threshold":2}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
+				payload, "application/json")
+			requireAPIError(t, recorder, http.StatusBadRequest, "invalid_body")
+			for name, model := range map[string]any{
+				"greetings": &models.GreetingSettings{},
+				"reports":   &models.ReportChatSettings{},
+			} {
+				if count := countChatRows(t, model, chatID); count != 0 {
+					t.Fatalf("invalid JSON created %d %s rows", count, name)
+				}
+			}
+		})
+	}
+}
+
+func TestSettingsPatchReportsAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	target := settingsPath(chatID)
+
+	// Warm the shared report cache before each field's PATCH, so another
+	// setter cannot hide a missing invalidation.
+	for _, test := range []struct {
+		name      string
+		key       string
+		value     any
+		enabled   bool
+		threshold int
+	}{
+		{"disable reports", "reports.enabled", false, false, 0},
+		{"minimum threshold", "reports.mute_threshold", models.ReportMuteThresholdMin, false, models.ReportMuteThresholdMin},
+		{"maximum threshold", "reports.mute_threshold", models.ReportMuteThresholdMax, false, models.ReportMuteThresholdMax},
+		{"reset enabled preserves threshold", "reports.enabled", true, true, models.ReportMuteThresholdMax},
+		{"reset threshold", "reports.mute_threshold", 0, true, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reports.GetChatReportSettings(chatID)
+			payload, err := json.Marshal(map[string]any{"changes": map[string]any{test.key: test.value}})
+			if err != nil {
+				t.Fatalf("encode changes: %v", err)
+			}
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, string(payload), "application/json")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var patch settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if len(patch.Saved) != 1 || patch.Saved[0] != test.key || len(patch.Failed) != 0 {
+				t.Fatalf("saved = %v, failed = %v, want %s saved", patch.Saved, patch.Failed, test.key)
+			}
+			var stored models.ReportChatSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load report settings: %v", err)
+			}
+			for source, settings := range map[string]*models.ReportChatSettings{"database": &stored, "getter": reports.GetChatReportSettings(chatID)} {
+				if settings.Enabled != test.enabled || settings.Status != test.enabled || settings.MuteThreshold != test.threshold {
+					t.Fatalf("%s reports = %+v, want enabled/status=%t threshold=%d", source, settings, test.enabled, test.threshold)
+				}
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+			for source, body := range map[string]settingsResponse{"PATCH": {Modules: patch.Modules}, "GET": after} {
+				if fieldBool(t, body, "reports.enabled") != test.enabled || fieldInt(t, body, "reports.mute_threshold") != test.threshold {
+					t.Fatalf("%s reports does not reflect the saved settings", source)
+				}
+				if field := findSettingsField(t, body, "reports.enabled"); field.Default != true || field.Changed != !test.enabled {
+					t.Fatalf("%s reports.enabled metadata = %+v, want default true and changed=%t", source, field, !test.enabled)
+				}
+				if field := findSettingsField(t, body, "reports.mute_threshold"); field.Default != float64(0) || field.Changed != (test.threshold != 0) {
+					t.Fatalf("%s reports.mute_threshold metadata = %+v, want default zero and changed=%t", source, field, test.threshold != 0)
+				}
 			}
 		})
 	}
@@ -831,6 +942,14 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	if count := countChatRows(t, &models.DigestSettings{}, chatID); count != 0 {
 		t.Fatalf("non-admin write created %d digest settings rows", count)
 	}
+	for _, changes := range []string{`{"reports.enabled":false}`, `{"reports.mute_threshold":2}`} {
+		reportWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+			`{"changes":`+changes+`}`, "application/json")
+		requireAPIError(t, reportWrite, http.StatusForbidden, "not_admin")
+		if count := countChatRows(t, &models.ReportChatSettings{}, chatID); count != 0 {
+			t.Fatalf("non-admin write created %d report settings rows", count)
+		}
+	}
 }
 
 func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
@@ -866,6 +985,14 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	requireAPIError(t, digestWrite, http.StatusConflict, "bot_not_admin")
 	if count := countChatRows(t, &models.DigestSettings{}, chatID); count != 0 {
 		t.Fatalf("refused write created %d digest settings rows", count)
+	}
+	for _, changes := range []string{`{"reports.enabled":false}`, `{"reports.mute_threshold":2}`} {
+		reportWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+			`{"changes":`+changes+`}`, "application/json")
+		requireAPIError(t, reportWrite, http.StatusConflict, "bot_not_admin")
+		if count := countChatRows(t, &models.ReportChatSettings{}, chatID); count != 0 {
+			t.Fatalf("refused write created %d report settings rows", count)
+		}
 	}
 }
 
