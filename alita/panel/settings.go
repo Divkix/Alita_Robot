@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -198,6 +199,10 @@ func panelSettings(access chatAccess) settingsResponse {
 	if row, ok := readSettingsRow[models.ReportChatSettings](chatID); ok {
 		reportRow = row
 	}
+	timezone := chattz.DefaultName
+	if name, err := chattz.Name(chatID); err == nil {
+		timezone = name
+	}
 
 	spamDB := &models.SpamDBSettings{ChatID: chatID, Action: spamdbsettings.ActionBan, CheckCAS: true}
 	if row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err == nil && row != nil {
@@ -286,6 +291,9 @@ func panelSettings(access chatAccess) settingsResponse {
 		{Key: "reports", Label: "Reports", Fields: []settingsField{
 			settingsBool("enabled", reportRow.Status, true, true),
 			settingsInt("mute_threshold", reportRow.MuteThreshold, 0, true),
+		}},
+		{Key: "timezone", Label: "Timezone", Fields: []settingsField{
+			settingsString("name", timezone, chattz.DefaultName, true, nil),
 		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
@@ -638,6 +646,10 @@ func validateSettingValue(key string, field settingsField, value any) string {
 				return "must be 0 (off) or between 2 and 20"
 			}
 		}
+	case "timezone":
+		if _, _, err := chattz.Parse(value.(string)); err != nil {
+			return "must be an IANA timezone such as Asia/Kolkata or UTC"
+		}
 	}
 	return ""
 }
@@ -829,6 +841,9 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 		case "mute_threshold":
 			return reports.SetChatReportMuteThreshold(chatID, value.(int))
 		}
+	case "timezone":
+		_, err := chattz.Set(chatID, value.(string))
+		return err
 	}
 	return fmt.Errorf("unknown setting %q", key)
 }

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -124,7 +126,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatalf("read_only = %v/%q, want writable for an admin with a bot admin", body.ReadOnly, body.ReadOnlyReason)
 	}
 
-	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "locks", "log_channel"}
+	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "timezone", "locks", "log_channel"}
 	if len(body.Modules) != len(wantModules) {
 		t.Fatalf("modules = %d, want %d", len(body.Modules), len(wantModules))
 	}
@@ -222,6 +224,11 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 			t.Fatalf("%s metadata = %+v, want writable and unchanged at its default", key, field)
 		}
 	}
+	timezone := findSettingsField(t, body, "timezone.name")
+	if timezone.Type != "string" || timezone.Value != "UTC" || timezone.Default != "UTC" ||
+		!timezone.Writable || timezone.Changed || len(timezone.Options) != 0 {
+		t.Fatalf("timezone.name metadata = %+v, want writable text at its UTC default", timezone)
+	}
 	if findSettingsField(t, body, "locks.active").Writable || findSettingsField(t, body, "log_channel.bound").Writable {
 		t.Fatal("locks and log channel summaries must be read-only")
 	}
@@ -236,6 +243,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"warns":       &models.WarnSettings{},
 		"digest":      &models.DigestSettings{},
 		"reports":     &models.ReportChatSettings{},
+		"timezone":    &models.ChatTimezone{},
 		"warn_users":  &models.Warns{},
 		"warn_entry":  &models.WarnEntry{},
 		"spam_db":     &models.SpamDBSettings{},
@@ -322,6 +330,19 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "report threshold object", body: `{"changes":{"reports.mute_threshold":{}}}`, wantKeys: []string{"reports.mute_threshold"}},
 		{name: "invalid report blocks other settings", body: `{"changes":{"greetings.welcome_enabled":false,"reports.enabled":false,"reports.mute_threshold":1}}`, wantKeys: []string{"reports.mute_threshold"}},
 		{name: "invalid module blocks valid reports", body: `{"changes":{"captcha.timeout":99,"reports.enabled":false,"reports.mute_threshold":2}}`, wantKeys: []string{"captcha.timeout"}},
+		{name: "timezone unknown", body: `{"changes":{"timezone.name":"Mars/Olympus"}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone empty", body: `{"changes":{"timezone.name":""}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone blank", body: `{"changes":{"timezone.name":"   "}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone local", body: `{"changes":{"timezone.name":"Local"}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone fixed offset", body: `{"changes":{"timezone.name":"+05:30"}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone path traversal", body: `{"changes":{"timezone.name":"../UTC"}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone number", body: `{"changes":{"timezone.name":5}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone bool", body: `{"changes":{"timezone.name":true}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone null", body: `{"changes":{"timezone.name":null}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone array", body: `{"changes":{"timezone.name":[]}}`, wantKeys: []string{"timezone.name"}},
+		{name: "timezone object", body: `{"changes":{"timezone.name":{}}}`, wantKeys: []string{"timezone.name"}},
+		{name: "invalid timezone blocks other settings", body: `{"changes":{"greetings.welcome_enabled":false,"timezone.name":"Mars/Olympus"}}`, wantKeys: []string{"timezone.name"}},
+		{name: "invalid module blocks valid timezone", body: `{"changes":{"captcha.timeout":99,"timezone.name":"Asia/Kolkata"}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
 	// Each case gets its own panel: the table outgrows one user's rate limit.
@@ -357,6 +378,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 				"warns":     &models.WarnSettings{},
 				"digest":    &models.DigestSettings{},
 				"reports":   &models.ReportChatSettings{},
+				"timezone":  &models.ChatTimezone{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {
 					t.Fatalf("%s: %d %s rows written", test.name, count, name)
@@ -673,6 +695,66 @@ func TestSettingsPatchReportsAppliesThroughSettersAndInvalidatesCache(t *testing
 	}
 }
 
+func TestSettingsPatchTimezoneAppliesThroughSetterAndInvalidatesCache(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	target := settingsPath(chatID)
+	previous := "UTC"
+
+	for _, test := range []struct {
+		name      string
+		input     string
+		canonical string
+	}{
+		{"canonical spelling", " asia/kolkata ", "Asia/Kolkata"},
+		{"replace timezone", "America/New_York", "America/New_York"},
+		{"reset timezone", "UTC", "UTC"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// Warm the old value before every PATCH to expose a missing
+			// invalidation even when replacing or resetting an existing row.
+			if name, err := chattz.Name(chatID); err != nil || name != previous {
+				t.Fatalf("warm timezone = %q/%v, want %q", name, err, previous)
+			}
+			payload, err := json.Marshal(map[string]any{"changes": map[string]any{"timezone.name": test.input}})
+			if err != nil {
+				t.Fatalf("encode changes: %v", err)
+			}
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, string(payload), "application/json")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var patch settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if patch.Error != nil || len(patch.Saved) != 1 || patch.Saved[0] != "timezone.name" ||
+				len(patch.Failed) != 0 || len(patch.Errors) != 0 {
+				t.Fatalf("patch = %+v, want timezone.name saved without errors", patch)
+			}
+			var stored models.ChatTimezone
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load timezone: %v", err)
+			}
+			if stored.Timezone != test.canonical {
+				t.Fatalf("stored timezone = %q, want %q", stored.Timezone, test.canonical)
+			}
+			if name, err := chattz.Name(chatID); err != nil || name != test.canonical {
+				t.Fatalf("cached timezone = %q/%v, want %q", name, err, test.canonical)
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+			for source, body := range map[string]settingsResponse{"PATCH": {Modules: patch.Modules}, "GET": after} {
+				field := findSettingsField(t, body, "timezone.name")
+				if field.Value != test.canonical || field.Default != "UTC" || !field.Writable ||
+					field.Changed != (test.canonical != "UTC") {
+					t.Fatalf("%s timezone.name = %+v, want %q with UTC default", source, field, test.canonical)
+				}
+			}
+		})
+		previous = test.canonical
+	}
+}
+
 func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	fixture, chatID := newSettingsFixture(t)
 	raw := readFixture(t, "initdata_main.txt")
@@ -923,6 +1005,12 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	if got := fieldString(t, body, "language.code"); got != "en" {
 		t.Fatalf("read-only GET language = %q, want en", got)
 	}
+	if field := findSettingsField(t, body, "timezone.name"); field.Value != "UTC" || !field.Writable {
+		t.Fatalf("read-only timezone = %+v, want UTC with writable capability retained", field)
+	}
+	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
+		t.Fatalf("read-only GET created %d timezone rows", count)
+	}
 
 	write := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
 		`{"changes":{"greetings.welcome_enabled":false}}`, "application/json")
@@ -950,6 +1038,12 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 			t.Fatalf("non-admin write created %d report settings rows", count)
 		}
 	}
+	timezoneWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"timezone.name":"Asia/Kolkata"}}`, "application/json")
+	requireAPIError(t, timezoneWrite, http.StatusForbidden, "not_admin")
+	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
+		t.Fatalf("non-admin write created %d timezone rows", count)
+	}
 }
 
 func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
@@ -966,6 +1060,12 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	body := decodeSettingsResponse(t, recorder)
 	if !body.ReadOnly || body.ReadOnlyReason != "bot_not_admin" {
 		t.Fatalf("read_only = %v/%q, want true/bot_not_admin", body.ReadOnly, body.ReadOnlyReason)
+	}
+	if field := findSettingsField(t, body, "timezone.name"); field.Value != "UTC" || !field.Writable {
+		t.Fatalf("read-only timezone = %+v, want UTC with writable capability retained", field)
+	}
+	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
+		t.Fatalf("read-only GET created %d timezone rows", count)
 	}
 
 	write := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
@@ -993,6 +1093,12 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 		if count := countChatRows(t, &models.ReportChatSettings{}, chatID); count != 0 {
 			t.Fatalf("refused write created %d report settings rows", count)
 		}
+	}
+	timezoneWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"timezone.name":"Asia/Kolkata"}}`, "application/json")
+	requireAPIError(t, timezoneWrite, http.StatusConflict, "bot_not_admin")
+	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
+		t.Fatalf("refused write created %d timezone rows", count)
 	}
 }
 
