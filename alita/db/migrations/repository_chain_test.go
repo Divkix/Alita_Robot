@@ -84,6 +84,7 @@ func TestRepositoryMigrationChain(t *testing.T) {
 	}
 
 	assertBlacklistActionsAccepted(t, database)
+	assertJoinRequestCaptchaMigrationIdempotent(t, database, migrationsPath)
 
 	var records []SchemaMigration
 	if err := database.Order("version").Find(&records).Error; err != nil {
@@ -150,5 +151,57 @@ func assertBlacklistActionsAccepted(t *testing.T, database *gorm.DB) {
 		if err := tx.RollbackTo(savepoint).Error; err != nil {
 			t.Fatalf("rollback to %s: %v", savepoint, err)
 		}
+	}
+}
+
+// Reapply both the SQL consumed by psql and the runner's cleaned statements.
+// All DDL and applicant writes are rolled back after checking the trigger.
+func assertJoinRequestCaptchaMigrationIdempotent(t *testing.T, database *gorm.DB, migrationsPath string) {
+	t.Helper()
+
+	content, err := os.ReadFile(filepath.Join(migrationsPath, "20261103120000_add_join_request_captcha.sql"))
+	if err != nil {
+		t.Fatalf("read join-request captcha migration: %v", err)
+	}
+	tx := database.Begin()
+	if tx.Error != nil {
+		t.Fatalf("begin join-request captcha migration check: %v", tx.Error)
+	}
+	defer tx.Rollback()
+
+	runner := &MigrationRunner{}
+	for _, sql := range []string{string(content), cleanSupabaseSQL(string(content))} {
+		for _, statement := range runner.splitSQLStatements(sql) {
+			if err := tx.Exec(statement).Error; err != nil {
+				t.Fatalf("reapply join-request captcha migration: %v", err)
+			}
+		}
+	}
+
+	const chatID = int64(-1001234567891)
+	const firstName = "Applicant <b>名</b>"
+	if err := tx.Exec(`INSERT INTO chats (chat_id, chat_name) VALUES (?, 'join-request captcha migration check')`, chatID).Error; err != nil {
+		t.Fatalf("insert chat for join-request captcha migration check: %v", err)
+	}
+	if err := tx.Exec(`
+		INSERT INTO join_request_captchas
+			(chat_id, user_id, user_chat_id, first_name, answer, created_at, updated_at, expires_at)
+		VALUES (?, 1, 2, ?, '42', CURRENT_TIMESTAMP - INTERVAL '1 minute',
+			CURRENT_TIMESTAMP - INTERVAL '1 minute', CURRENT_TIMESTAMP + INTERVAL '4 minutes')
+	`, chatID, firstName).Error; err != nil {
+		t.Fatalf("insert applicant challenge: %v", err)
+	}
+	var stored struct {
+		FirstName      string
+		TriggerUpdated bool
+	}
+	if err := tx.Raw(`
+		UPDATE join_request_captchas SET message_id = 123 WHERE chat_id = ?
+		RETURNING first_name, updated_at > created_at AS trigger_updated
+	`, chatID).Scan(&stored).Error; err != nil {
+		t.Fatalf("update applicant challenge after migration reapplication: %v", err)
+	}
+	if stored.FirstName != firstName || !stored.TriggerUpdated {
+		t.Fatalf("reapplied migration persisted %+v, want first name %q and updated timestamp", stored, firstName)
 	}
 }

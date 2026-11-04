@@ -286,6 +286,9 @@ captcha_help_msg:
 
   × /captcha `<on/off>`: Habilitar o deshabilitar verificación captcha
 
+  × /captchajoin `<on/off>`: Verificar solicitudes de ingreso por privado (desactivado por defecto; sin argumentos muestra el estado).
+  Independiente de /captcha, con un tiempo máximo de 5 minutos.
+
   × /captchamode `<math/text>`: Establecer tipo de captcha (problemas matemáticos o reconocimiento de texto)
 
   × /captchatime `<1-10>`: Establecer tiempo de espera en minutos (predeterminado: 2)
@@ -1648,6 +1651,19 @@ captcha_settings_mode: "Modo: <code>%s</code>"
 captcha_settings_timeout: "Tiempo de espera: <code>%d minutos</code>"
 captcha_settings_failure_action: "Acción de Falla: <code>%s</code>"
 captcha_settings_max_attempts: "Intentos Máximos: <code>%d</code>"
+captcha_settings_join_requests: "Solicitudes de ingreso por privado: <code>{status}</code>"
+captcha_join_requests_current: "El captcha privado para solicitudes de ingreso está <b>{status}</b>."
+captcha_join_requests_enabled: "El captcha privado para solicitudes de ingreso está activado. Las respuestas correctas aprueban las solicitudes aunque /autoapprove esté desactivado."
+captcha_join_requests_disabled: "El captcha privado para solicitudes de ingreso está desactivado. Las solicitudes siguen el flujo habitual de aprobación automática o botones de administrador."
+captcha_join_requests_usage: "Usa <code>/captchajoin on</code> o <code>/captchajoin off</code>. Usa <code>/captchajoin</code> para ver el estado actual."
+captcha_join_request_prompt: "Para unirte a <b>{group}</b>, resuelve este captcha:\n\nTiempo límite: <b>{timeout} minutos</b>. Intentos permitidos: <b>{attempts}</b>."
+captcha_join_request_approved: "Tu solicitud para unirte a <b>{group}</b> ha sido aprobada."
+captcha_join_request_declined: "Tu solicitud para unirte a <b>{group}</b> fue rechazada por demasiadas respuestas incorrectas."
+captcha_join_request_declined_alert: "Tu solicitud para unirte fue rechazada tras demasiadas respuestas incorrectas."
+captcha_join_request_timeout: "Tu solicitud para unirte a <b>{group}</b> fue rechazada porque se agotó el tiempo del captcha."
+captcha_join_request_wrong: "Respuesta incorrecta. Intentos restantes: {remaining}."
+captcha_join_request_expired: "Este captcha de solicitud de ingreso ha caducado o la solicitud ya ha sido atendida."
+captcha_join_request_wrong_user: "Este captcha de solicitud de ingreso no es para ti."
 captcha_status_enabled: "habilitado"
 captcha_status_disabled: "deshabilitado"
 
@@ -2979,6 +2995,7 @@ blacklists_extend_msg: |
   /remallbl — vaciar la lista negra
 captcha_extend_msg: |
   /captcha — activar o desactivar el captcha para nuevos miembros
+  /captchajoin — activar o desactivar el captcha privado para solicitudes de ingreso
   /captchamode — tipo de captcha: math o text
   /captchatime — minutos para resolver el captcha
   /captchaaction — acción si falla: kick, ban o mute

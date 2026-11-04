@@ -63,6 +63,7 @@ func TestMain(m *testing.M) {
 			&Notes{},
 			&CaptchaSettings{},
 			&CaptchaAttempts{},
+			&models.JoinRequestCaptcha{},
 			&models.StoredMessages{},
 			&models.CaptchaMutedUsers{},
 			&ApprovedUsers{},

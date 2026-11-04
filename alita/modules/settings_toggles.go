@@ -128,6 +128,10 @@ func inFedRight(_ *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, _ int64) s
 // setters where available so the panel and command do not acquire different behavior.
 var settingsToggles = []settingsToggle{
 	{key: "cp", command: "/captcha", values: settingsOnOff, botAdmin: true, set: setCaptchaToggle},
+	{key: "cj", command: "/captchajoin", values: settingsOnOff,
+		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
+			return settingsSaveFailed("/captchajoin", chatID, captcha.SetCaptchaJoinRequests(chatID, chatName, value == "on"))
+		}},
 	{key: "cm", command: "/captchamode", values: []string{"math", "text"},
 		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
 			return settingsSaveFailed("/captchamode", chatID, captcha.SetCaptchaMode(chatID, chatName, value))

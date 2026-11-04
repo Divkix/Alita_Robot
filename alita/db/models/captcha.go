@@ -2,10 +2,14 @@ package models
 
 import "time"
 
+// CaptchaMaxRefreshes caps refreshes for member and join-request challenges.
+const CaptchaMaxRefreshes = 3
+
 type CaptchaSettings struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatID        int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`
 	Enabled       bool      `gorm:"column:enabled;default:false" json:"enabled,omitempty"`
+	JoinRequests  bool      `gorm:"column:join_requests;not null;default:false" json:"join_requests,omitempty"`
 	CaptchaMode   string    `gorm:"column:captcha_mode;default:'math';check:chk_captcha_mode,captcha_mode IN ('math','text')" json:"captcha_mode,omitempty"`
 	Timeout       int       `gorm:"column:timeout;default:2;check:chk_captcha_timeout_range,timeout BETWEEN 1 AND 10" json:"timeout,omitempty"`
 	FailureAction string    `gorm:"column:failure_action;default:'kick';check:chk_captcha_failure_action,failure_action IN ('kick','ban','mute')" json:"failure_action,omitempty"`
@@ -35,6 +39,27 @@ type CaptchaAttempts struct {
 
 func (CaptchaAttempts) TableName() string {
 	return "captcha_attempts"
+}
+
+// JoinRequestCaptcha is separate from member captchas: an applicant must never
+// receive a member captcha's kick, ban or mute action, including after rollback.
+type JoinRequestCaptcha struct {
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
+	ChatID       int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_join_request_captcha_chat_user" json:"chat_id,omitempty"`
+	UserID       int64     `gorm:"column:user_id;not null;uniqueIndex:uk_join_request_captcha_chat_user" json:"user_id,omitempty"`
+	UserChatID   int64     `gorm:"column:user_chat_id;not null" json:"user_chat_id,omitempty"`
+	FirstName    string    `gorm:"column:first_name;not null" json:"first_name,omitempty"`
+	Answer       string    `gorm:"column:answer;not null" json:"answer,omitempty"`
+	Attempts     int       `gorm:"column:attempts;not null;default:0" json:"attempts,omitempty"`
+	MessageID    int64     `gorm:"column:message_id;not null;default:0" json:"message_id,omitempty"`
+	RefreshCount int       `gorm:"column:refresh_count;not null;default:0" json:"refresh_count,omitempty"`
+	ExpiresAt    time.Time `gorm:"column:expires_at;not null;index:idx_join_request_captchas_expires_at;check:chk_join_request_captcha_expires_at,expires_at > created_at" json:"expires_at,omitempty"`
+	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
+	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+}
+
+func (JoinRequestCaptcha) TableName() string {
+	return "join_request_captchas"
 }
 
 type StoredMessages struct {

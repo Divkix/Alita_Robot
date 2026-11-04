@@ -323,6 +323,9 @@ captcha_help_msg:
 
   × /captcha `<on/off>`: Enable or disable captcha verification
 
+  × /captchajoin `<on/off>`: Verify join requests in PM (default: off; no argument shows the state).
+  Independent of /captcha, with a maximum timeout of 5 minutes.
+
   × /captchamode `<math/text>`: Set captcha type (math problems or text recognition)
 
   × /captchatime `<1-10>`: Set timeout in minutes (default: 2)
@@ -1687,6 +1690,19 @@ captcha_settings_mode: "Mode: <code>%s</code>"
 captcha_settings_timeout: "Timeout: <code>%d minutes</code>"
 captcha_settings_failure_action: "Failure Action: <code>%s</code>"
 captcha_settings_max_attempts: "Max Attempts: <code>%d</code>"
+captcha_settings_join_requests: "Join requests in PM: <code>{status}</code>"
+captcha_join_requests_current: "Private captcha for join requests is <b>{status}</b>."
+captcha_join_requests_enabled: "Private captcha for join requests is enabled. Correct answers approve requests even when /autoapprove is off."
+captcha_join_requests_disabled: "Private captcha for join requests is disabled. Requests follow the existing auto-approval or admin-button flow."
+captcha_join_requests_usage: "Use <code>/captchajoin on</code> or <code>/captchajoin off</code>. Use <code>/captchajoin</code> to show the current state."
+captcha_join_request_prompt: "To join <b>{group}</b>, solve this captcha:\n\nTime limit: <b>{timeout} minutes</b>. Attempts allowed: <b>{attempts}</b>."
+captcha_join_request_approved: "Your request to join <b>{group}</b> has been approved."
+captcha_join_request_declined: "Your request to join <b>{group}</b> was declined after too many incorrect answers."
+captcha_join_request_declined_alert: "Your join request was declined after too many incorrect answers."
+captcha_join_request_timeout: "Your request to join <b>{group}</b> was declined because the captcha timed out."
+captcha_join_request_wrong: "Incorrect answer. Attempts remaining: {remaining}."
+captcha_join_request_expired: "This join-request captcha has expired or the request has already been handled."
+captcha_join_request_wrong_user: "This join-request captcha is not for you."
 captcha_status_enabled: "enabled"
 captcha_status_disabled: "disabled"
 
@@ -2988,6 +3004,7 @@ blacklists_extend_msg: |
   /remallbl — remove all blacklisted words
 captcha_extend_msg: |
   /captcha — turn captcha for new members on or off
+  /captchajoin — turn private captcha for join requests on or off
   /captchamode — captcha type: math or text
   /captchatime — minutes to solve the captcha
   /captchaaction — action on failure: kick, ban or mute

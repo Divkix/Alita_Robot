@@ -121,10 +121,7 @@ func messageTypeToString(tr *i18n.Translator, messageType int) string {
 	return text
 }
 
-const (
-	captchaMaxRefreshes     = 3
-	captchaRefreshCooldownS = 5
-)
+const captchaRefreshCooldownS = 5
 
 var (
 	captchaLifecycleOnce sync.Once
@@ -254,6 +251,9 @@ func StartCaptchaLifecycle(bot *gotgbot.Bot) error {
 		captchaLifecycleMu.Unlock()
 
 		captchaLifecycleErr = runOrphanedCaptchaRecovery(bot)
+		if captchaLifecycleErr == nil {
+			captchaLifecycleErr = recoverJoinRequestCaptchas(bot)
+		}
 		if captchaLifecycleErr == nil {
 			startCaptchaWorkers(bot)
 		} else {
@@ -650,6 +650,12 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			status, _ = tr.GetString("captcha_status_enabled")
 		}
 
+		joinStatus, _ := tr.GetString("captcha_status_disabled")
+		if settings.JoinRequests {
+			joinStatus, _ = tr.GetString("captcha_status_enabled")
+		}
+		joinLine, _ := tr.GetString("captcha_settings_join_requests", i18n.TranslationParams{"status": joinStatus})
+
 		statusUsage, _ := tr.GetString("captcha_status_usage")
 		header, _ := tr.GetString("captcha_settings_header")
 		statusLine, _ := tr.GetString("captcha_settings_status", i18n.TranslationParams{"s": status})
@@ -659,8 +665,8 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		attemptsLine, _ := tr.GetString("captcha_settings_max_attempts", i18n.TranslationParams{"d": settings.MaxAttempts})
 
 		text := fmt.Sprintf(
-			"%s\n%s\n%s\n%s\n%s\n%s\n\n%s",
-			header, statusLine, modeLine, timeoutLine, actionLine, attemptsLine, statusUsage,
+			"%s\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s",
+			header, statusLine, joinLine, modeLine, timeoutLine, actionLine, attemptsLine, statusUsage,
 		)
 
 		_, err = msg.Reply(bot, text, formatting.Shtml())
@@ -746,6 +752,55 @@ func DisableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 		}
 	}
 	return cleanupErr
+}
+
+// captchaJoinCommand controls PM verification of join requests independently of
+// the regular captcha used after joining. Its timeout and challenge settings
+// are shared with regular captcha, but failure always declines the request.
+func (moduleStruct) captchaJoinCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	_, chat, ok := captchaAdminGate(bot, ctx, false)
+	if !ok {
+		return ext.EndGroups
+	}
+	reply := func(key string, params i18n.TranslationParams) error {
+		text, _ := tr.GetString(key, params)
+		_, err := msg.Reply(bot, withGroupLine(tr, msg, chat, text), formatting.Shtml())
+		return err
+	}
+	args := ctx.Args()[1:]
+	if len(args) == 0 {
+		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+		if err != nil {
+			_ = reply("captcha_internal_error", nil)
+			return err
+		}
+		status, _ := tr.GetString("captcha_status_disabled")
+		if settings.JoinRequests {
+			status, _ = tr.GetString("captcha_status_enabled")
+		}
+		return reply("captcha_join_requests_current", i18n.TranslationParams{"status": status})
+	}
+
+	var enabled bool
+	switch strings.ToLower(args[0]) {
+	case "on", "enable", "yes":
+		enabled = true
+	case "off", "disable", "no":
+		enabled = false
+	default:
+		return reply("captcha_join_requests_usage", nil)
+	}
+	if err := captcha.SetCaptchaJoinRequests(chat.Id, chat.Title, enabled); err != nil {
+		_ = reply("captcha_internal_error", nil)
+		return err
+	}
+	key := "captcha_join_requests_disabled"
+	if enabled {
+		key = "captcha_join_requests_enabled"
+	}
+	return reply(key, nil)
 }
 
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -1154,6 +1209,9 @@ func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, option
 //nolint:gocyclo // The ordered mute/send/persist rollback state machine is intentionally cohesive.
 func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName string) (err error) {
 	if userID <= 0 || chat_status.IsSystemUser(userID) {
+		return errCaptchaDisabled
+	}
+	if joinRequestCaptchaPassed(ctx.EffectiveChat.Id, userID) {
 		return errCaptchaDisabled
 	}
 	var preAttempt *db.CaptchaAttempts
@@ -1945,7 +2003,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 		return err
 	}
 
-	if attempt.RefreshCount >= captchaMaxRefreshes {
+	if attempt.RefreshCount >= models.CaptchaMaxRefreshes {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_refresh_limit_reached")
 		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -2218,7 +2276,7 @@ func cleanupExpiredCaptchaAttempts(ctx context.Context, bot *gotgbot.Bot) error 
 func runCaptchaCleanupTick(baseCtx context.Context, bot *gotgbot.Bot) error {
 	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
 	defer cancel()
-	return cleanupExpiredCaptchaAttempts(ctx, bot)
+	return errors.Join(cleanupExpiredCaptchaAttempts(ctx, bot), cleanupExpiredJoinRequestCaptchas(ctx, bot))
 }
 
 func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
@@ -2321,6 +2379,7 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 	}{
 		{"captcha", captchaModule.captchaCommand},
 		{"captchamode", captchaModule.captchaModeCommand},
+		{"captchajoin", captchaModule.captchaJoinCommand},
 		{"captchatime", captchaModule.captchaTimeCommand},
 		{"captchaaction", captchaModule.captchaActionCommand},
 		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand},
@@ -2333,11 +2392,15 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 			PMGroupArg:     helpers.PMGroupArgOwn,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
+		if cfg.name == "captchajoin" {
+			RegisterAnonymousAdminHandler(cfg.name, anonPipelineHandler(desc, cfg.handler))
+		}
 	}
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify"), captchaModule.captchaVerifyCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_refresh"), captchaModule.captchaRefreshCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(captchaJoinNamespace+"|"), captchaModule.captchaJoinEnableCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("joincaptcha|"), captchaModule.joinCaptchaCallback))
 }
 
 func init() {

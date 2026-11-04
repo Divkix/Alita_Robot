@@ -79,6 +79,25 @@ func SetCaptchaEnabled(chatID int64, chatName string, enabled bool) error {
 	return nil
 }
 
+// SetCaptchaJoinRequests configures PM verification independently of member captcha.
+func SetCaptchaJoinRequests(chatID int64, chatName string, enabled bool) error {
+	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
+		return err
+	}
+	defer cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	if err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoNothing: true,
+	}).Create(&models.CaptchaSettings{ChatID: chatID}).Error; err != nil {
+		return err
+	}
+	return db.UpdateRecordWithZeroValues(
+		&models.CaptchaSettings{},
+		map[string]any{"chat_id": chatID},
+		map[string]any{"join_requests": enabled},
+	)
+}
+
 func SetCaptchaMode(chatID int64, chatName, mode string) error {
 	if mode != "math" && mode != "text" {
 		return ErrInvalidCaptchaMode

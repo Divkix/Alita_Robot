@@ -242,6 +242,7 @@ func TestCaptchaSettersCreateMissingChat(t *testing.T) {
 		set  func(chatID int64, chatName string) error
 	}{
 		{"enabled", func(id int64, title string) error { return SetCaptchaEnabled(id, title, true) }},
+		{"join_requests", func(id int64, title string) error { return SetCaptchaJoinRequests(id, title, true) }},
 		{"mode", func(id int64, title string) error { return SetCaptchaMode(id, title, "text") }},
 		{"timeout", func(id int64, title string) error { return SetCaptchaTimeout(id, title, 5) }},
 		{"max_attempts", func(id int64, title string) error { return SetCaptchaMaxAttempts(id, title, 7) }},

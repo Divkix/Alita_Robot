@@ -57,7 +57,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 		ChatId: srcChat, Word: "scam", Action: "tban", ActionTime: 7200, Reason: "custom reason",
 	}).Error)
 	require.NoError(t, db.DB.Create(&models.CaptchaSettings{
-		ChatID: srcChat, Enabled: true, CaptchaMode: "text", Timeout: 9,
+		ChatID: srcChat, Enabled: true, JoinRequests: true, CaptchaMode: "text", Timeout: 9,
 		FailureAction: "mute", MaxAttempts: 8,
 	}).Error)
 	require.NoError(t, db.DB.Create(&models.ConnectionChatSettings{
@@ -197,6 +197,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, captchaData.Settings)
 	assert.True(t, captchaData.Settings.Enabled)
+	assert.True(t, captchaData.Settings.JoinRequests)
 	assert.Equal(t, "text", captchaData.Settings.CaptchaMode)
 	assert.Equal(t, 9, captchaData.Settings.Timeout)
 	assert.Equal(t, "mute", captchaData.Settings.FailureAction)
