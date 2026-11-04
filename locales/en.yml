@@ -149,7 +149,7 @@ antiflood_help_msg:
   your chat? With antiflood, that happens no more!
 
 
-  Antiflood allows you to take action on users that send more than x messages with no gap longer than 60 seconds between them (other members' messages don't reset the count). Actions are: ban/kick/mute
+  Antiflood allows you to take action on users that send more than x messages with no gap longer than 60 seconds between them (other members' messages don't reset the count). Actions are: ban/kick/mute/tban/tmute
 
 
   *User commands*:
@@ -162,8 +162,8 @@ antiflood_help_msg:
   × /setflood `<number/off/no>`: Set the number of messages after which to take action
   on a user. Set to '0', 'off', or 'no' to disable.
 
-  × /setfloodmode `<action type>`: Choose which action to take on a user who has been
-  flooding. Options: ban/kick/mute
+  × /setfloodmode `<ban/kick/mute/tban/tmute> [duration]`: Choose which action to take on a user who has been
+  flooding. A duration is required for tban/tmute, e.g. `/setfloodmode tban 1d` or `/setfloodmode tmute 10m`.
 
   × /delflood `<yes/no/on/off>`: If you want bot to delete messages flooded by user."
 antiflood_setflood_disabled: "Okay.
@@ -172,9 +172,11 @@ antiflood_setflood_disabled: "Okay.
 antiflood_setflood_success: Flood Limit has been set to <b>%d</b> messages.
 antiflood_setfloodmode_specify_action:
   "You need to specify an action to take upon
-  flooding. Current modes are: `ban`/`kick`/`mute`"
+  flooding. Use ban/kick/mute, or tban/tmute with a duration (e.g. tban 1d or tmute 10m)."
 antiflood_setfloodmode_success: Flood mode has been set to %s.
-antiflood_setfloodmode_unknown_type: "Unknown type '%s'. Please use one of: ban/kick/mute"
+antiflood_mode_tban: "Flood mode has been set to tban for %s."
+antiflood_mode_tmute: "Flood mode has been set to tmute for %s."
+antiflood_setfloodmode_unknown_type: "Unknown type '%s'. Please use ban/kick/mute, or tban/tmute with a duration (e.g. tban 1d or tmute 10m)."
 bans_ban_ban_reason: <b>Reason:</b> %s
 bans_ban_dban_no_reply: You need to reply to a message to delete it and ban the user!
 bans_ban_is_admin: Why would I ban an admin? That sounds like a pretty dumb idea.
@@ -264,8 +266,8 @@ blacklists_help_msg: "*User Commands:*
 
   × /rmblacklist `<trigger>`: Removes the word from current Blacklisted Words in Chat.
 
-  × /blaction `<mute/kick/ban/warn/none>`: Sets the action to be performed by bot
-  when a blacklist word is detected.
+  × /blaction `<mute/kick/ban/warn/none/tban/tmute> [duration]`: Sets the action to be performed by bot
+  when a blacklist word is detected. A duration is required for tban/tmute, e.g. `/blaction tban 1d` or `/blaction tmute 2h`.
 
   × /blacklistaction: Same as above
 
@@ -289,7 +291,9 @@ blacklists_rm_all_bl_button_handler_no:
   ❌
 blacklists_rm_all_bl_button_handler_yes: Removed all Blacklists from this Chat ✅
 blacklists_set_bl_action_changed_mode: "Successfully Changed blacklist mode to: *%s*"
-blacklists_set_bl_action_choose_correct_option: Please choose an option out of <mute/kick/ban/warn/none>
+blist_action_tban: "Successfully changed blacklist mode to: tban for %s"
+blist_action_tmute: "Successfully changed blacklist mode to: tmute for %s"
+blacklists_set_bl_action_choose_correct_option: "Please choose mute/kick/ban/warn/none, or tban/tmute with a duration (e.g. tban 1d or tmute 2h)."
 blacklists_set_bl_action_current_mode:
   "The current blacklist mode for this chat is:
   %s"
@@ -2401,6 +2405,8 @@ blacklists_extended_docs: |
   • <code>mute</code> - Deletes message and mutes the user
   • <code>kick</code> - Deletes message and kicks the user (they can rejoin)
   • <code>ban</code> - Deletes message and permanently bans the user
+  • <code>tban &lt;duration&gt;</code> - Deletes the message and bans the user for the required duration (e.g. <code>/blaction tban 1d</code>)
+  • <code>tmute &lt;duration&gt;</code> - Deletes the message and mutes the user for the required duration (e.g. <code>/blaction tmute 2h</code>)
 
   <b>Note:</b>
   The Default mode for Blacklist is <b>warn</b>, which will delete the message and issue a warning to the user.
@@ -2408,7 +2414,7 @@ blacklists_extended_docs: |
   <b>Commands:</b>
   • <code>/addblacklist &lt;trigger&gt;</code> - Blacklists the word in the current chat
   • <code>/rmblacklist &lt;trigger&gt;</code> - Removes the word from current Blacklisted Words in Chat
-  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Sets the action to be performed by bot when a blacklist word is detected
+  • <code>/blaction &lt;mute/kick/ban/warn/none/tban/tmute&gt; [duration]</code> - Sets the action when a blacklist word is detected; tban/tmute require a duration
   • <code>/remallbl</code> - Removes all the blacklisted words from chat (Owner Only)
 
 # Extended documentation locale keys - Disabling module
@@ -2940,7 +2946,7 @@ aispam_extend_msg: |
 antiflood_extend_msg: |
   /flood — show the antiflood settings
   /setflood — messages allowed (no gap over 60 s) before action (off to disable)
-  /setfloodmode — action on flooders: ban, kick or mute
+  /setfloodmode — action on flooders: ban, kick, mute, or tban/tmute with a required duration (e.g. tmute 10m)
   /delflood — delete flooded messages too
 antiraid_extend_msg: |
   /antiraid — show, enable or disable raid mode
@@ -2977,7 +2983,7 @@ blacklists_extend_msg: |
   /blacklists — list blacklisted words
   /addblacklist — blacklist a word
   /rmblacklist — remove a word from the blacklist
-  /blaction — action on a blacklisted word: mute, kick, ban, warn or none
+  /blaction — action on a blacklisted word: mute, kick, ban, warn, none, or tban/tmute with a required duration (e.g. tban 1d)
   /blacklistaction — same as /blaction
   /remallbl — remove all blacklisted words
 captcha_extend_msg: |

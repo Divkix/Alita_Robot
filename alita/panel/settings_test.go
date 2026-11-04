@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -154,8 +155,15 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatalf("captcha defaults = %+v", body.Modules[3])
 	}
 	if fieldInt(t, body, "antiflood.limit") != 0 || fieldString(t, body, "antiflood.action") != "mute" ||
-		fieldBool(t, body, "antiflood.delete_messages") {
+		fieldInt(t, body, "antiflood.action_time") != 0 || fieldBool(t, body, "antiflood.delete_messages") {
 		t.Fatalf("antiflood defaults = %+v", body.Modules[4])
+	}
+	if options := findSettingsField(t, body, "antiflood.action").Options; !slices.Equal(options, []string{"ban", "kick", "mute", "tban", "tmute"}) {
+		t.Fatalf("antiflood action options = %v, want ban/kick/mute/tban/tmute", options)
+	}
+	actionTime := findSettingsField(t, body, "antiflood.action_time")
+	if actionTime.Type != "int" || !actionTime.Writable || actionTime.Default != float64(0) || actionTime.Changed {
+		t.Fatalf("antiflood.action_time metadata = %+v, want writable int with unchanged default 0", actionTime)
 	}
 	if fieldBool(t, body, "antispam.aispam_enabled") || fieldBool(t, body, "antispam.spamdb_enabled") {
 		t.Fatal("antispam features must default off")
@@ -208,6 +216,19 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "language option", body: `{"changes":{"language.code":"xx"}}`, wantKeys: []string{"language.code"}},
 		{name: "read-only field", body: `{"changes":{"locks.active":[]}}`, wantKeys: []string{"locks.active"}},
 		{name: "antiflood range", body: `{"changes":{"antiflood.limit":2}}`, wantKeys: []string{"antiflood.limit"}},
+		{name: "flood tban missing duration", body: `{"changes":{"antiflood.action":"tban","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
+		{name: "flood tmute missing duration", body: `{"changes":{"antiflood.action":"tmute","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
+		{name: "flood zero duration", body: `{"changes":{"antiflood.action":"tban","antiflood.action_time":0,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood negative duration", body: `{"changes":{"antiflood.action":"tban","antiflood.action_time":-1,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood duration below minimum", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":59,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood duration above maximum", body: `{"changes":{"antiflood.action":"tban","antiflood.action_time":31622401,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood fractional duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":60.5,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood string duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":"60","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood null duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":null,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood duration alone while untimed", body: `{"changes":{"antiflood.action_time":3600,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood zero duration alone while untimed", body: `{"changes":{"antiflood.action_time":0,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood invalid duration with untimed action", body: `{"changes":{"antiflood.action":"ban","antiflood.action_time":59,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
+		{name: "flood warn is not supported", body: `{"changes":{"antiflood.action":"warn","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
 		{name: "last spam database", body: `{"changes":{"antispam.spamdb_cas":false}}`, wantKeys: []string{"antispam.spamdb_cas"}},
 		{name: "no spam database left", body: `{"changes":{"antispam.spamdb_cas":false,"antispam.spamdb_shared":false}}`, wantKeys: []string{"antispam.spamdb_cas", "antispam.spamdb_shared"}},
 		{name: "valid beside invalid", body: `{"changes":{"greetings.welcome_enabled":false,"captcha.timeout":99}}`, wantKeys: []string{"captcha.timeout"}},
@@ -237,6 +258,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 			for name, model := range map[string]any{
 				"greetings": &models.GreetingSettings{},
 				"captcha":   &models.CaptchaSettings{},
+				"antiflood": &models.AntifloodSettings{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {
 					t.Fatalf("%s: %d %s rows written", test.name, count, name)
@@ -283,7 +305,8 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		"captcha.action":"ban",
 		"captcha.max_attempts":2,
 		"antiflood.limit":5,
-		"antiflood.action":"ban",
+		"antiflood.action":"tban",
+		"antiflood.action_time":7200,
 		"antiflood.delete_messages":true,
 		"antispam.spamdb_action":"log",
 		"antispam.spamdb_lols":true,
@@ -299,8 +322,8 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
 		t.Fatalf("decode patch response: %v", err)
 	}
-	if len(patch.Saved) != 20 || len(patch.Failed) != 0 {
-		t.Fatalf("saved = %v, failed = %v; want all 20 saved", patch.Saved, patch.Failed)
+	if len(patch.Saved) != 21 || len(patch.Failed) != 0 {
+		t.Fatalf("saved = %v, failed = %v; want all 21 saved", patch.Saved, patch.Failed)
 	}
 
 	// The bot's own getters answer with the new values at once.
@@ -324,7 +347,7 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		t.Fatalf("captcha settings after patch = %+v", captchaSettings)
 	}
 	flood := antiflood.GetFlood(chatID)
-	if flood.Limit != 5 || flood.Action != "ban" || !flood.DeleteAntifloodMessage {
+	if flood.Limit != 5 || flood.Action != "tban" || flood.FloodActionTime != 7200 || !flood.DeleteAntifloodMessage {
 		t.Fatalf("antiflood settings after patch = %+v", flood)
 	}
 	spamdb, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
@@ -349,6 +372,93 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	}
 	if fieldInt(t, after, "captcha.timeout") != 5 || fieldString(t, after, "captcha.mode") != "text" {
 		t.Fatalf("GET captcha = %+v", after.Modules[3])
+	}
+	if fieldString(t, after, "antiflood.action") != "tban" || fieldInt(t, after, "antiflood.action_time") != 7200 ||
+		!findSettingsField(t, after, "antiflood.action_time").Changed {
+		t.Fatalf("GET antiflood did not reflect the timed action: %+v", after.Modules[4])
+	}
+}
+
+func TestSettingsPatchAntifloodDurationPersistence(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		action     string
+		actionTime int
+		changes    string
+		wantAction string
+		wantTime   int
+		wantSaved  []string
+	}{
+		{name: "reuse stored duration", action: "tban", actionTime: 5400, changes: `{"antiflood.action":"tmute"}`, wantAction: "tmute", wantTime: 5400, wantSaved: []string{"antiflood.action"}},
+		{name: "duration alone while timed", action: "tmute", actionTime: 5400, changes: `{"antiflood.action_time":3600}`, wantAction: "tmute", wantTime: 3600, wantSaved: []string{"antiflood.action_time"}},
+		{name: "minimum duration", action: "mute", changes: fmt.Sprintf(`{"antiflood.action":"tban","antiflood.action_time":%d}`, models.MinActionTime), wantAction: "tban", wantTime: models.MinActionTime, wantSaved: []string{"antiflood.action", "antiflood.action_time"}},
+		{name: "maximum duration", action: "mute", changes: fmt.Sprintf(`{"antiflood.action":"tmute","antiflood.action_time":%d}`, models.MaxActionTime), wantAction: "tmute", wantTime: models.MaxActionTime, wantSaved: []string{"antiflood.action", "antiflood.action_time"}},
+		{name: "clear for ban", action: "tban", actionTime: 5400, changes: `{"antiflood.action":"ban"}`, wantAction: "ban", wantSaved: []string{"antiflood.action"}},
+		{name: "clear for mute", action: "tmute", actionTime: 5400, changes: `{"antiflood.action":"mute"}`, wantAction: "mute", wantSaved: []string{"antiflood.action"}},
+		{name: "clear for kick", action: "tban", actionTime: 5400, changes: `{"antiflood.action":"kick"}`, wantAction: "kick", wantSaved: []string{"antiflood.action"}},
+		{name: "untimed clears submitted duration", action: "tmute", actionTime: 5400, changes: `{"antiflood.action":"ban","antiflood.action_time":7200}`, wantAction: "ban", wantSaved: []string{"antiflood.action", "antiflood.action_time"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			if err := antiflood.SetFloodMode(chatID, test.action, test.actionTime); err != nil {
+				t.Fatalf("seed flood action: %v", err)
+			}
+			antiflood.GetFlood(chatID)
+			raw := readFixture(t, "initdata_main.txt")
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+				`{"changes":`+test.changes+`}`, "application/json")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("PATCH status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var response settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if !slices.Equal(response.Saved, test.wantSaved) || len(response.Failed) != 0 {
+				t.Fatalf("saved = %v, failed = %v, want saved %v", response.Saved, response.Failed, test.wantSaved)
+			}
+			var stored models.AntifloodSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load flood settings: %v", err)
+			}
+			if stored.Action != test.wantAction || stored.FloodActionTime != test.wantTime {
+				t.Fatalf("stored flood action = %s/%d, want %s/%d", stored.Action, stored.FloodActionTime, test.wantAction, test.wantTime)
+			}
+			cached := antiflood.GetFlood(chatID)
+			if cached.Action != test.wantAction || cached.FloodActionTime != test.wantTime {
+				t.Fatalf("cached flood action = %s/%d, want %s/%d", cached.Action, cached.FloodActionTime, test.wantAction, test.wantTime)
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, settingsPath(chatID), raw, "", ""))
+			if fieldString(t, after, "antiflood.action") != test.wantAction || fieldInt(t, after, "antiflood.action_time") != test.wantTime {
+				t.Fatalf("GET flood action did not reflect the patch: %+v", after.Modules[4])
+			}
+		})
+	}
+}
+
+func TestSettingsPatchAntifloodRejectsUnusableStoredDuration(t *testing.T) {
+	for _, actionTime := range []int{0, models.MinActionTime - 1, models.MaxActionTime + 1} {
+		t.Run(strconv.Itoa(actionTime), func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			legacy := models.AntifloodSettings{ChatId: chatID, Action: "tban", FloodActionTime: actionTime}
+			if err := db.DB.Create(&legacy).Error; err != nil {
+				t.Fatalf("seed legacy flood action: %v", err)
+			}
+			antiflood.GetFlood(chatID)
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
+				`{"changes":{"antiflood.action":"tmute","greetings.welcome_enabled":false}}`, "application/json")
+			assertFieldRefusal(t, recorder, "antiflood.action", "require a duration")
+			var stored models.AntifloodSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load flood settings: %v", err)
+			}
+			if stored.Action != "tban" || stored.FloodActionTime != actionTime {
+				t.Fatalf("refused patch changed flood action to %s/%d", stored.Action, stored.FloodActionTime)
+			}
+			if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
+				t.Fatalf("refused patch wrote %d greeting rows", count)
+			}
+		})
 	}
 }
 

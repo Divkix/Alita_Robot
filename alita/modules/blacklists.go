@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
@@ -31,10 +32,25 @@ var blacklistsModule = moduleStruct{
 	handlerGroup: 7,
 }
 
-// blacklistTimedActionTime is how long the tban/tmute blacklist actions last.
-// /blaction cannot store these actions or a duration; they reach the table from
-// backups and older versions, so they get a fixed hour.
+// blacklistTimedActionTime is the fallback for tban/tmute rows without a usable
+// duration, such as backups taken before action_time existed.
 const blacklistTimedActionTime = 60 * 60
+
+func blacklistActionTime(settings *models.BlacklistSettings) int {
+	if !models.ValidActionTime(settings.ActionTime) {
+		return blacklistTimedActionTime
+	}
+	return settings.ActionTime
+}
+
+// blacklistModeLabel includes the effective duration for timed actions.
+func blacklistModeLabel(settings models.BlacklistSettingsSlice) string {
+	action := settings.Action()
+	if action == "tban" || action == "tmute" {
+		return action + " " + formatDuration(blacklistActionTime(settings[0]))
+	}
+	return action
+}
 
 func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
@@ -312,13 +328,22 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 
 	if len(args) == 0 {
-		currAction := blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id).Action()
+		currAction := blacklistModeLabel(blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id))
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_current_mode")
 		rMsg = fmt.Sprintf(temp, currAction)
-	} else if len(args) == 1 {
+	} else {
 		action := strings.ToLower(args[0])
-		if slices.Contains([]string{"mute", "kick", "warn", "ban", "none"}, action) {
-			if err := blacklists.SetBlacklistAction(chat.Id, action); errors.Is(err, blacklists.ErrNoBlacklistWords) {
+		timed := action == "tban" || action == "tmute"
+		if slices.Contains([]string{"mute", "kick", "warn", "ban", "none", "tban", "tmute"}, action) && (len(args) == 1 || timed) {
+			actionTime := 0
+			if timed {
+				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
+				if seconds == -1 {
+					return ext.EndGroups
+				}
+				actionTime = int(seconds)
+			}
+			if err := blacklists.SetBlacklistAction(chat.Id, action, actionTime); errors.Is(err, blacklists.ErrNoBlacklistWords) {
 				rMsg, _ = tr.GetString("blacklists_set_bl_action_no_words")
 			} else if err != nil {
 				log.WithFields(log.Fields{
@@ -328,14 +353,18 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 				}).Error("[Blacklists] Failed to persist blacklist action")
 				rMsg, _ = tr.GetString("blacklists_set_bl_action_update_failed")
 			} else {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_changed_mode")
-				rMsg = fmt.Sprintf(temp, action)
+				key := strings.ToLower(m.moduleName) + "_set_bl_action_changed_mode"
+				value := action
+				if timed {
+					key = "blist_action_" + action
+					value = formatDuration(actionTime)
+				}
+				temp, _ := tr.GetString(key)
+				rMsg = fmt.Sprintf(temp, value)
 			}
 		} else {
 			rMsg, _ = tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_choose_correct_option")
 		}
-	} else {
-		rMsg, _ = tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_choose_correct_option")
 	}
 	_, err := msg.Reply(b, rMsg, formatting.Smarkdown())
 	if err != nil {
@@ -578,7 +607,8 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 
-		untilDate := time.Now().Unix() + blacklistTimedActionTime
+		actionTime := blacklistActionTime(matched)
+		untilDate := time.Now().Unix() + int64(actionTime)
 		key := "_bl_watcher_tbanned_user"
 		if matched.Action == "tban" {
 			_, err = b.BanChatMember(chat.Id, user.Id(), &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
@@ -596,8 +626,8 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 				reason: banReason, untilUnix: untilDate,
 			})
 		}
-		logAction(matched.Action + " " + formatDuration(blacklistTimedActionTime))
-		if err = notify(key, formatDuration(blacklistTimedActionTime)); err != nil {
+		logAction(matched.Action + " " + formatDuration(actionTime))
+		if err = notify(key, formatDuration(actionTime)); err != nil {
 			return err
 		}
 	case "warn":

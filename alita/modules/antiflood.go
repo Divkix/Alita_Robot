@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	keyboardutils "github.com/divkix/Alita_Robot/alita/utils/keyboard"
@@ -34,22 +35,36 @@ const (
 	maxConcurrentMsgDeletions = 5
 )
 
-// floodTimedActionTime is how long the tban/tmute flood actions last.
-// /setfloodmode cannot store these actions or a duration; they reach the table
-// from backups and older versions, so they get a fixed hour.
+// floodTimedActionTime is the fallback for tban/tmute rows without a usable
+// duration, such as backups taken before flood_action_time existed.
 const floodTimedActionTime = 60 * 60
 
+func floodActionTime(settings *models.AntifloodSettings) int {
+	if !models.ValidActionTime(settings.FloodActionTime) {
+		return floodTimedActionTime
+	}
+	return settings.FloodActionTime
+}
+
+// floodModeLabel includes the effective duration for timed actions.
+func floodModeLabel(settings *models.AntifloodSettings) string {
+	if settings.Action == "tban" || settings.Action == "tmute" {
+		return settings.Action + " " + formatDuration(floodActionTime(settings))
+	}
+	return settings.Action
+}
+
 // floodActionLabel names the flood action for the flood notice and /flood.
-func floodActionLabel(tr *i18n.Translator, action string) string {
+func floodActionLabel(tr *i18n.Translator, settings *models.AntifloodSettings) string {
 	label := func(key, fallback string, params ...i18n.TranslationParams) string {
 		if text, _ := tr.GetString(key, params...); text != "" {
 			return text
 		}
 		return fallback
 	}
-	duration := formatDuration(floodTimedActionTime)
+	duration := formatDuration(floodActionTime(settings))
 	durationParams := i18n.TranslationParams{"duration": duration}
-	switch action {
+	switch settings.Action {
 	case "mute":
 		return label("antiflood_action_muted", "muted")
 	case "ban":
@@ -63,7 +78,7 @@ func floodActionLabel(tr *i18n.Translator, action string) string {
 	case "":
 		return label("antiflood_action_none", "none")
 	default:
-		return action
+		return settings.Action
 	}
 }
 
@@ -404,7 +419,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
-		untilDate := time.Now().Unix() + floodTimedActionTime
+		untilDate := time.Now().Unix() + int64(floodActionTime(flood))
 		floodTimedUntil = untilDate
 		var err error
 		if flood.Action == "tban" {
@@ -428,13 +443,10 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if flood.Action == "ban" || flood.Action == "tban" {
 		banRecordID = recordBan(banRecord{chatID: chatId, userID: userId, source: models.BanSourceAntiflood, untilUnix: floodTimedUntil})
 	}
-	logAction := flood.Action
-	if logAction == "tban" || logAction == "tmute" {
-		logAction += " " + formatDuration(floodTimedActionTime)
-	}
+	logAction := floodModeLabel(flood)
 	actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chatId, banRecordID), "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
-		trSprintf(tr, strings.ToLower(m.moduleName)+"_checkflood_perform_action", formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood.Action)),
+		trSprintf(tr, strings.ToLower(m.moduleName)+"_checkflood_perform_action", formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood)),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -522,7 +534,7 @@ func (m moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_flood_show_settings")
-		text = fmt.Sprintf(temp, flood.Limit, floodActionLabel(tr, flood.Action))
+		text = fmt.Sprintf(temp, flood.Limit, floodActionLabel(tr, flood))
 	}
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
@@ -543,15 +555,30 @@ func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
-		if slices.Contains([]string{"ban", "kick", "mute"}, selectedMode) {
-			if err := antiflood.SetFloodModeContext(tracing.UpdateContext(ctx), chat.Id, selectedMode); err != nil {
+		if slices.Contains([]string{"ban", "kick", "mute", "tban", "tmute"}, selectedMode) {
+			actionTime := 0
+			timed := selectedMode == "tban" || selectedMode == "tmute"
+			if timed {
+				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
+				if seconds == -1 {
+					return ext.EndGroups
+				}
+				actionTime = int(seconds)
+			}
+			if err := antiflood.SetFloodModeContext(tracing.UpdateContext(ctx), chat.Id, selectedMode, actionTime); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_success")
-			_, err := msg.Reply(b, fmt.Sprintf(temp, selectedMode), formatting.Shtml())
+			key := strings.ToLower(m.moduleName) + "_setfloodmode_success"
+			value := selectedMode
+			if timed {
+				key = "antiflood_mode_" + selectedMode
+				value = formatDuration(actionTime)
+			}
+			temp, _ := tr.GetString(key)
+			_, err := msg.Reply(b, fmt.Sprintf(temp, value), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 			}

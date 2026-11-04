@@ -61,7 +61,7 @@ nightmode_example: "/nightmode 23:00 07:00 media,url"
 nightmode_pm_example: "/nightmode @mygroup 23:00 07:00 media,url"
 flood_example: '/flood "My Group"'
 setflood_example: "/setflood @mygroup 10"
-setfloodmode_example: "/setfloodmode @mygroup mute"
+setfloodmode_example: "/setfloodmode @mygroup tmute 10m"
 delflood_example: "/delflood @mygroup on"
 disabled_example: '/disabled "My Group"'
 disable_example: "/disable @mygroup rules"
@@ -86,7 +86,7 @@ resetrulesbutton_example: '/resetrulesbutton "My Group"'
 blacklists_example: '/blacklists "My Group"'
 addblacklist_example: "/addblacklist @mygroup spamword"
 rmblacklist_example: "/rmblacklist @mygroup spamword"
-blaction_example: "/blaction @mygroup mute"
+blaction_example: "/blaction @mygroup tban 1d"
 approved_example: '/approved "My Group"'
 approve_example: "/approve -1001234567890 @username"
 unapprove_example: "/unapprove -1001234567890 @username"

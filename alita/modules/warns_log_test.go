@@ -199,7 +199,7 @@ func TestBlacklistWarnLogsNothingUnderWarns(t *testing.T) {
 	if err := blacklists.AddBlacklist(f.chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist() error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(f.chat.Id, "warn"); err != nil {
+	if err := blacklists.SetBlacklistAction(f.chat.Id, "warn", 0); err != nil {
 		t.Fatalf("SetBlacklistAction() error = %v", err)
 	}
 	_ = blacklistsModule.blacklistWatcher(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "this has spam inside"))

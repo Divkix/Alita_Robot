@@ -109,7 +109,7 @@ antiflood_help_msg:
   obrolan Anda? Dengan antiflood, itu tidak terjadi lagi!
 
 
-  Antiflood memungkinkan Anda mengambil tindakan pada pengguna yang mengirim lebih dari x pesan tanpa jeda lebih dari 60 detik di antaranya (pesan anggota lain tidak mereset hitungan). Tindakan adalah: ban/kick/mute
+  Antiflood memungkinkan Anda mengambil tindakan pada pengguna yang mengirim lebih dari x pesan tanpa jeda lebih dari 60 detik di antaranya (pesan anggota lain tidak mereset hitungan). Tindakannya: ban/kick/mute/tban/tmute
 
 
   *Perintah Pengguna*:
@@ -122,8 +122,8 @@ antiflood_help_msg:
   × /setflood `<number/off/no>`: Atur jumlah pesan setelah itu untuk mengambil tindakan
   pada pengguna. Atur ke '0', 'off', atau 'no' untuk menonaktifkan.
 
-  × /setfloodmode `<action type>`: Pilih tindakan mana yang akan diambil pada pengguna yang telah
-  melakukan flooding. Opsi: ban/kick/mute
+  × /setfloodmode `<ban/kick/mute/tban/tmute> [durasi]`: Pilih tindakan terhadap pengguna yang melakukan
+  flood. Durasi wajib diberikan untuk tban/tmute, misalnya `/setfloodmode tban 1d` atau `/setfloodmode tmute 10m`.
 
   × /delflood `<yes/no/on/off>`: Jika Anda ingin bot menghapus pesan yang diflood oleh pengguna."
 antiflood_setflood_disabled: "Oke.
@@ -131,10 +131,12 @@ antiflood_setflood_disabled: "Oke.
   Saya tidak akan memperingatkan pengguna karena flooding."
 antiflood_setflood_success: Batas Flood telah diatur ke <b>%d</b> pesan.
 antiflood_setfloodmode_specify_action:
-  "Anda perlu menentukan tindakan yang akan diambil saat
-  flooding. Mode saat ini adalah: `ban`/`kick`/`mute`"
+  "Tentukan tindakan yang akan diambil saat
+  flood. Gunakan ban/kick/mute, atau tban/tmute dengan durasi (misalnya tban 1d atau tmute 10m)."
 antiflood_setfloodmode_success: Mode flood telah diatur ke %s.
-antiflood_setfloodmode_unknown_type: "Tipe tidak dikenal '%s'. Silakan gunakan salah satu dari: ban/kick/mute"
+antiflood_mode_tban: "Mode flood diatur ke tban selama %s."
+antiflood_mode_tmute: "Mode flood diatur ke tmute selama %s."
+antiflood_setfloodmode_unknown_type: "Tipe tidak dikenal '%s'. Gunakan ban/kick/mute, atau tban/tmute dengan durasi (misalnya tban 1d atau tmute 10m)."
 bans_ban_ban_reason: <b>Alasan:</b> %s
 bans_ban_dban_no_reply: Anda perlu membalas pesan untuk menghapusnya dan melarang pengguna!
 bans_ban_is_admin: Mengapa saya melarang admin? Itu terdengar seperti ide yang sangat bodoh.
@@ -224,8 +226,8 @@ blacklists_help_msg: "*Perintah Pengguna:*
 
   × /rmblacklist `<trigger>`: Menghapus kata dari Kata-kata yang Didaftar Hitam di Obrolan saat ini.
 
-  × /blaction `<mute/kick/ban/warn/none>`: Mengatur tindakan yang akan dilakukan oleh bot
-  ketika kata daftar hitam terdeteksi.
+  × /blaction `<mute/kick/ban/warn/none/tban/tmute> [durasi]`: Atur tindakan saat kata dalam daftar hitam
+  terdeteksi. Durasi wajib diberikan untuk tban/tmute, misalnya `/blaction tban 1d` atau `/blaction tmute 2h`.
 
   × /blacklistaction: Sama seperti di atas
 
@@ -249,7 +251,9 @@ blacklists_rm_all_bl_button_handler_no:
   ❌"
 blacklists_rm_all_bl_button_handler_yes: Menghapus semua Daftar Hitam dari Obrolan Ini ✅
 blacklists_set_bl_action_changed_mode: "Berhasil mengubah mode daftar hitam ke: *%s*"
-blacklists_set_bl_action_choose_correct_option: Silakan pilih opsi dari <mute/kick/ban/warn/none>
+blist_action_tban: "Mode daftar hitam berhasil diubah ke tban selama %s."
+blist_action_tmute: "Mode daftar hitam berhasil diubah ke tmute selama %s."
+blacklists_set_bl_action_choose_correct_option: "Pilih mute/kick/ban/warn/none, atau tban/tmute dengan durasi (misalnya tban 1d atau tmute 2h)."
 blacklists_set_bl_action_current_mode:
   "Mode daftar hitam saat ini untuk obrolan ini adalah:
   %s"
@@ -2344,6 +2348,8 @@ blacklists_extended_docs: |
   • <code>mute</code> - Hapus pesan dan bisu pengguna
   • <code>kick</code> - Hapus pesan dan tendang pengguna (mereka dapat bergabung kembali)
   • <code>ban</code> - Hapus pesan dan blokir pengguna secara permanen
+  • <code>tban &lt;durasi&gt;</code> - Menghapus pesan dan memblokir pengguna selama durasi yang wajib ditentukan (misalnya <code>/blaction tban 1d</code>)
+  • <code>tmute &lt;durasi&gt;</code> - Menghapus pesan dan membisukan pengguna selama durasi yang wajib ditentukan (misalnya <code>/blaction tmute 2h</code>)
 
   <b>Catatan:</b>
   Mode default untuk Daftar Hitam adalah <b>warn</b>, yang akan menghapus pesan dan memberikan peringatan ke pengguna.
@@ -2351,7 +2357,7 @@ blacklists_extended_docs: |
   <b>Perintah:</b>
   • <code>/addblacklist &lt;trigger&gt;</code> - Menambahkan kata ke daftar hitam di obrolan saat ini
   • <code>/rmblacklist &lt;trigger&gt;</code> - Menghapus kata dari Kata-kata yang Didaftar Hitam di Obrolan saat ini
-  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Mengatur tindakan yang akan dilakukan oleh bot ketika kata daftar hitam terdeteksi
+  • <code>/blaction &lt;mute/kick/ban/warn/none/tban/tmute&gt; [durasi]</code> - Mengatur tindakan saat kata dalam daftar hitam terdeteksi; tban/tmute wajib disertai durasi
   • <code>/remallbl</code> - Menghapus semua kata yang didaftar hitam dari obrolan (Khusus Pemilik)
 
 # Extended documentation locale keys - Disabling module
@@ -2922,7 +2928,7 @@ aispam_extend_msg: |
 antiflood_extend_msg: |
   /flood — lihat pengaturan antiflood
   /setflood — jumlah pesan yang diizinkan (tanpa jeda lebih dari 60 dtk) sebelum ditindak (off untuk menonaktifkan)
-  /setfloodmode — tindakan untuk flooder: ban, kick atau mute
+  /setfloodmode — tindakan untuk flooder: ban, kick, mute, atau tban/tmute dengan durasi wajib (misalnya tmute 10m)
   /delflood — hapus juga pesan flood
 antiraid_extend_msg: |
   /antiraid — lihat, aktifkan, atau nonaktifkan mode raid
@@ -2959,7 +2965,7 @@ blacklists_extend_msg: |
   /blacklists — daftar kata di daftar hitam
   /addblacklist — masukkan kata ke daftar hitam
   /rmblacklist — hapus kata dari daftar hitam
-  /blaction — tindakan untuk kata terlarang: mute, kick, ban, warn atau none
+  /blaction — tindakan untuk kata terlarang: mute, kick, ban, warn, none, atau tban/tmute dengan durasi wajib (misalnya tban 1d)
   /blacklistaction — sama dengan /blaction
   /remallbl — kosongkan daftar hitam
 captcha_extend_msg: |

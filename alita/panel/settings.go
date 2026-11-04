@@ -228,7 +228,8 @@ func panelSettings(access chatAccess) settingsResponse {
 		}},
 		{Key: "antiflood", Label: "Antiflood", Fields: []settingsField{
 			settingsInt("limit", flood.Limit, 0, true),
-			settingsString("action", flood.Action, "mute", true, []string{"ban", "kick", "mute"}),
+			settingsString("action", flood.Action, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
+			settingsInt("action_time", flood.FloodActionTime, 0, true),
 			settingsBool("delete_messages", flood.DeleteAntifloodMessage, false, true),
 		}},
 		{Key: "antispam", Label: "Antispam", Fields: []settingsField{
@@ -315,7 +316,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	current := panelSettings(access)
+	current := settingsIndex(panelSettings(access))
 	updates, fieldErrors := validateSettingsChanges(body.Changes, current)
 	if len(fieldErrors) > 0 {
 		writeJSON(w, http.StatusBadRequest, settingsPatchResponse{
@@ -331,7 +332,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saved, failed := applySettingsChanges(access.ChatID, access.Title, updates)
+	saved, failed := applySettingsChanges(access.ChatID, access.Title, updates, current)
 	if enabled, ok := updates["captcha.enabled"].(bool); ok && !enabled && slices.Contains(saved, "captcha.enabled") && p.deps.DisableCaptcha != nil {
 		// Same cleanup /captcha off runs: unmute users still pending a captcha.
 		if err := p.deps.DisableCaptcha(p.bot, access.ChatID); err != nil {
@@ -359,8 +360,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 // validateSettingsChanges decodes and validates every change against the
 // current snapshot. It returns decoded values, or field-level errors; callers
 // write nothing when errors is non-empty.
-func validateSettingsChanges(changes map[string]json.RawMessage, current settingsResponse) (map[string]any, map[string]string) {
-	index := settingsIndex(current)
+func validateSettingsChanges(changes map[string]json.RawMessage, index map[string]settingsField) (map[string]any, map[string]string) {
 	updates := make(map[string]any, len(changes))
 	fieldErrors := make(map[string]string)
 
@@ -391,8 +391,48 @@ func validateSettingsChanges(changes map[string]json.RawMessage, current setting
 		updates[key] = value
 	}
 
-	// The table constraint refuses a row with no spam database left on. Check
-	// the batch as a whole so enabling one and disabling another is allowed.
+	validateAntifloodModeChanges(index, updates, fieldErrors)
+	validateSpamDatabaseChanges(index, updates, fieldErrors)
+	// /probation block takes at least one kind; turning probation off is how
+	// a chat blocks nothing.
+	if !anyKeyOn(index, updates, probationBlockKeys) {
+		for _, key := range probationBlockKeys {
+			if _, changed := updates[key]; changed {
+				fieldErrors[key] = "probation must block at least one of links, forwards and media"
+			}
+		}
+	}
+
+	return updates, fieldErrors
+}
+
+// validateAntifloodModeChanges checks the effective action and duration
+// together: tban/tmute need a usable duration, other actions take none.
+func validateAntifloodModeChanges(index map[string]settingsField, updates map[string]any, fieldErrors map[string]string) {
+	action, actionTime := antifloodModeValues(index, updates)
+	_, actionChanged := updates["antiflood.action"]
+	_, timeChanged := updates["antiflood.action_time"]
+	if !actionChanged && !timeChanged {
+		return
+	}
+	if action == "tban" || action == "tmute" {
+		if !models.ValidActionTime(actionTime) {
+			if actionChanged {
+				fieldErrors["antiflood.action"] = "temporary flood actions require a duration between 60 and 31622400 seconds"
+			}
+			if timeChanged {
+				fieldErrors["antiflood.action_time"] = "must be between 60 and 31622400 seconds"
+			}
+		}
+	} else if timeChanged && !actionChanged {
+		fieldErrors["antiflood.action_time"] = "requires a tban or tmute flood action"
+	}
+}
+
+// validateSpamDatabaseChanges mirrors the table constraint that refuses a row
+// with no spam database left on. It checks the batch as a whole, so enabling
+// one and disabling another is allowed.
+func validateSpamDatabaseChanges(index map[string]settingsField, updates map[string]any, fieldErrors map[string]string) {
 	databases := []string{"antispam.spamdb_cas", "antispam.spamdb_lols", "antispam.spamdb_shared"}
 	anyOn, anyChanged := false, false
 	for _, key := range databases {
@@ -411,17 +451,23 @@ func validateSettingsChanges(changes map[string]json.RawMessage, current setting
 			}
 		}
 	}
-	// /probation block takes at least one kind; turning probation off is how
-	// a chat blocks nothing.
-	if !anyKeyOn(index, updates, probationBlockKeys) {
-		for _, key := range probationBlockKeys {
-			if _, changed := updates[key]; changed {
-				fieldErrors[key] = "probation must block at least one of links, forwards and media"
-			}
-		}
-	}
+}
 
-	return updates, fieldErrors
+// antifloodModeValues resolves the action and duration from the same snapshot
+// used to validate the batch. Untimed actions always clear the duration.
+func antifloodModeValues(index map[string]settingsField, updates map[string]any) (string, int) {
+	action, changed := updates["antiflood.action"].(string)
+	if !changed {
+		action, _ = index["antiflood.action"].Value.(string)
+	}
+	actionTime, changed := updates["antiflood.action_time"].(int)
+	if !changed {
+		actionTime, _ = index["antiflood.action_time"].Value.(int)
+	}
+	if action != "tban" && action != "tmute" {
+		actionTime = 0
+	}
+	return action, actionTime
 }
 
 // probationBlockKeys are the panel fields of /probation block.
@@ -483,6 +529,11 @@ func validateSettingValue(key string, field settingsField, value any) string {
 		if fieldKey == "limit" {
 			if n := value.(int); n != 0 && (n < 3 || n > 100) {
 				return "must be 0 (off) or between 3 and 100"
+			}
+		}
+		if fieldKey == "action_time" {
+			if n := value.(int); n != 0 && !models.ValidActionTime(n) {
+				return "must be 0 (unset) or between 60 and 31622400 seconds"
 			}
 		}
 	case "antispam":
@@ -585,8 +636,9 @@ func plainText(text string) string {
 // applySettingsChanges writes through the same repository setters commands
 // use, so each one invalidates the caches its command would. Boolean enables
 // run before disables so switching the spam databases can proceed in either
-// direction without tripping the last-database constraint.
-func applySettingsChanges(chatID int64, chatName string, updates map[string]any) ([]string, map[string]string) {
+// direction without tripping the last-database constraint. Flood action and
+// duration share one setter call, with outcomes reported for each requested key.
+func applySettingsChanges(chatID int64, chatName string, updates map[string]any, current map[string]settingsField) ([]string, map[string]string) {
 	keys := make([]string, 0, len(updates))
 	for key := range updates {
 		keys = append(keys, key)
@@ -610,8 +662,21 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any)
 
 	saved := make([]string, 0, len(keys))
 	failed := make(map[string]string)
+	floodAction, floodActionTime := antifloodModeValues(current, updates)
+	var floodModeErr error
+	floodModeApplied := false
 	for _, key := range ordered {
-		if err := applySettingChange(chatID, chatName, key, updates[key]); err != nil {
+		var err error
+		if key == "antiflood.action" || key == "antiflood.action_time" {
+			if !floodModeApplied {
+				floodModeErr = antiflood.SetFloodMode(chatID, floodAction, floodActionTime)
+				floodModeApplied = true
+			}
+			err = floodModeErr
+		} else {
+			err = applySettingChange(chatID, chatName, key, updates[key])
+		}
+		if err != nil {
 			log.WithError(err).Warnf("[Panel] save %s for chat %d", key, chatID)
 			failed[key] = err.Error()
 			continue
@@ -678,8 +743,6 @@ func applyAntifloodChange(chatID int64, field string, value any) error {
 	switch field {
 	case "limit":
 		return antiflood.SetFlood(chatID, value.(int))
-	case "action":
-		return antiflood.SetFloodMode(chatID, value.(string))
 	case "delete_messages":
 		return antiflood.SetFloodMsgDel(chatID, value.(bool))
 	}

@@ -15,13 +15,15 @@ func ValidBlacklistAction(action string) bool {
 }
 
 type BlacklistSettings struct {
-	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	ChatId    int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_blacklists_chat_word" json:"chat_id,omitempty"`
-	Word      string    `gorm:"column:word;not null;uniqueIndex:uk_blacklists_chat_word" json:"word,omitempty"`
-	Action    string    `gorm:"column:action;default:'warn';check:chk_blacklist_action,action IN ('warn','mute','ban','kick','tban','tmute','delete','none')" json:"action,omitempty"`
-	Reason    string    `gorm:"column:reason" json:"reason,omitempty"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+	ID     uint   `gorm:"primaryKey;autoIncrement" json:"-"`
+	ChatId int64  `gorm:"column:chat_id;not null;uniqueIndex:uk_blacklists_chat_word" json:"chat_id,omitempty"`
+	Word   string `gorm:"column:word;not null;uniqueIndex:uk_blacklists_chat_word" json:"word,omitempty"`
+	Action string `gorm:"column:action;default:'warn';check:chk_blacklist_action,action IN ('warn','mute','ban','kick','tban','tmute','delete','none')" json:"action,omitempty"`
+	// ActionTime is the tban/tmute duration in seconds; 0 means not set.
+	ActionTime int       `gorm:"column:action_time;not null;default:0;check:chk_blacklist_action_time,action_time >= 0" json:"action_time,omitempty"`
+	Reason     string    `gorm:"column:reason" json:"reason,omitempty"`
+	CreatedAt  time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
+	UpdatedAt  time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
 type BlacklistSettingsSlice []*BlacklistSettings

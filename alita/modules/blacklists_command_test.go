@@ -89,6 +89,132 @@ func TestBlacklistWordAddedAfterBlactionUsesIt(t *testing.T) {
 	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, member.Id))
 }
 
+func TestBlactionTimedDurationPropagatesToWordsEnforcementAndDisplay(t *testing.T) {
+	useEnglishLocale(t)
+	for _, tc := range []struct {
+		mode     string
+		duration string
+		seconds  int
+		method   string
+	}{
+		{"tban", "1d", 86400, "banChatMember"},
+		{"tmute", "10m", 600, "restrictChatMember"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			addWords := func(words string, count int) {
+				t.Helper()
+				if err := blacklistsModule.addBlacklist(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/addblacklist "+words)); err != ext.EndGroups {
+					t.Fatalf("addBlacklist(%s) error = %v, want EndGroups", words, err)
+				}
+				waitForModuleCondition(t, func() bool {
+					return len(blacklists.GetBlacklistSettings(f.chat.Id)) == count
+				})
+			}
+			assertRows := func(mode string, seconds, count int) {
+				t.Helper()
+				var rows []models.BlacklistSettings
+				if err := db.DB.Where("chat_id = ?", f.chat.Id).Find(&rows).Error; err != nil {
+					t.Fatalf("load blacklist rows: %v", err)
+				}
+				if len(rows) != count {
+					t.Fatalf("blacklist rows = %d, want %d", len(rows), count)
+				}
+				for _, row := range rows {
+					if row.Action != mode || row.ActionTime != seconds {
+						t.Fatalf("%s settings = %+v, want %s %d", row.Word, row, mode, seconds)
+					}
+				}
+			}
+			addWords("spam eggs", 2)
+			command := "/blaction " + tc.mode + " " + tc.duration
+			if err := blacklistsModule.setBlacklistAction(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, command)); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", command, err)
+			}
+			assertRows(tc.mode, tc.seconds, 2)
+			if got, want := lastReply(t, f.client), fmt.Sprintf(translated(t, "blist_action_"+tc.mode), tc.duration); got != want {
+				t.Fatalf("mode reply = %q, want %q", got, want)
+			}
+			addWords("fresh", 3)
+			addWords("ham toast", 5)
+			assertRows(tc.mode, tc.seconds, 5)
+			if err := blacklistsModule.setBlacklistAction(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/blaction")); err != ext.EndGroups {
+				t.Fatalf("setBlacklistAction(current) error = %v, want EndGroups", err)
+			}
+			if text := lastReply(t, f.client); !strings.Contains(text, tc.mode+" "+tc.duration) {
+				t.Fatalf("/blaction reply = %q, want %s %s", text, tc.mode, tc.duration)
+			}
+
+			before := time.Now().Unix()
+			if err := blacklistsModule.blacklistWatcher(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "fresh food")); err != ext.ContinueGroups {
+				t.Fatalf("blacklistWatcher() error = %v, want ContinueGroups", err)
+			}
+			after := time.Now().Unix()
+			call := f.client.onlyCall(t, tc.method)
+			assertParams(t, call, targetParams(f.chat.Id, f.member.Id))
+			if until := untilDateParam(t, call); until < before+int64(tc.seconds) || until > after+int64(tc.seconds) {
+				t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, tc.seconds, before+int64(tc.seconds), after+int64(tc.seconds))
+			}
+			if text := lastReply(t, f.client); !strings.Contains(text, tc.duration) {
+				t.Fatalf("blacklist notice = %q, want duration %s", text, tc.duration)
+			}
+
+			if err := blacklistsModule.setBlacklistAction(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/blaction ban")); err != ext.EndGroups {
+				t.Fatalf("setBlacklistAction(ban) error = %v, want EndGroups", err)
+			}
+			assertRows("ban", 0, 5)
+		})
+	}
+}
+
+func TestBlactionRejectsMissingInvalidAndOutOfRangeDurationsWithoutWrites(t *testing.T) {
+	useEnglishLocale(t)
+	for _, mode := range []string{"tban", "tmute"} {
+		for _, tc := range []struct {
+			duration string
+			replyKey string
+		}{
+			{"", "extraction_no_time_specified"},
+			{"0h", "extraction_invalid_time_amount"},
+			{"-1m", "extraction_invalid_time_amount"},
+			{"367d", "extraction_time_limit_exceeded"},
+			{"1d extra", "extraction_invalid_time_format"},
+		} {
+			t.Run(mode+"/"+tc.duration, func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				if err := blacklists.AddBlacklistBulk(f.chat.Id, []string{"spam", "eggs"}); err != nil {
+					t.Fatalf("AddBlacklistBulk() error = %v", err)
+				}
+				if err := blacklists.SetBlacklistAction(f.chat.Id, "tmute", 600); err != nil {
+					t.Fatalf("SetBlacklistAction() error = %v", err)
+				}
+				var before, after []models.BlacklistSettings
+				if err := db.DB.Where("chat_id = ?", f.chat.Id).Order("id").Find(&before).Error; err != nil {
+					t.Fatalf("load blacklist rows before command: %v", err)
+				}
+				text := strings.TrimSpace("/blaction " + mode + " " + tc.duration)
+				if err := blacklistsModule.setBlacklistAction(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, text)); err != ext.EndGroups {
+					t.Fatalf("%s error = %v, want EndGroups", text, err)
+				}
+				if err := db.DB.Where("chat_id = ?", f.chat.Id).Order("id").Find(&after).Error; err != nil {
+					t.Fatalf("load blacklist rows after command: %v", err)
+				}
+				if len(after) != len(before) {
+					t.Fatalf("rejected command changed row count from %d to %d", len(before), len(after))
+				}
+				for i := range before {
+					if after[i] != before[i] {
+						t.Fatalf("rejected command changed row: before=%+v after=%+v", before[i], after[i])
+					}
+				}
+				if got, want := lastReply(t, f.client), translated(t, tc.replyKey); got != want {
+					t.Fatalf("duration refusal = %q, want %q", got, want)
+				}
+			})
+		}
+	}
+}
+
 func TestBlactionWithoutWordsAsksForAWordFirst(t *testing.T) {
 	useEnglishLocale(t)
 	f := newAdminChatFixture(t)
@@ -188,7 +314,7 @@ func TestBlacklistWatcherAppliesMuteAction(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "mute"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "mute", 0); err != nil {
 		t.Fatalf("SetBlacklistAction setup error = %v", err)
 	}
 
@@ -213,7 +339,7 @@ func TestBlacklistWarnDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "warn"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "warn", 0); err != nil {
 		t.Fatalf("SetBlacklistAction setup error = %v", err)
 	}
 
@@ -252,7 +378,7 @@ func TestBlacklistWatcherAppliesBanWarnAndNoneActions(t *testing.T) {
 			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 				t.Fatalf("AddBlacklist setup error = %v", err)
 			}
-			if err := blacklists.SetBlacklistAction(chat.Id, tc.action); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, tc.action, 0); err != nil {
 				t.Fatalf("SetBlacklistAction setup error = %v", err)
 			}
 
@@ -283,7 +409,7 @@ func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "kick"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "kick", 0); err != nil {
 		t.Fatalf("SetBlacklistAction(kick) setup error = %v", err)
 	}
 
@@ -293,7 +419,7 @@ func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
 	}
 	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, member.Id))
 
-	if err := blacklists.SetBlacklistAction(chat.Id, "ban"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "ban", 0); err != nil {
 		t.Fatalf("SetBlacklistAction(ban) setup error = %v", err)
 	}
 	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
@@ -497,7 +623,7 @@ func TestBlacklistWatcherUsesMatchedTriggerAction(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "oldword"); err != nil {
 		t.Fatalf("AddBlacklist(oldword) error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "mute"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "mute", 0); err != nil {
 		t.Fatalf("SetBlacklistAction error = %v", err)
 	}
 	if err := blacklists.AddBlacklist(chat.Id, "newword"); err != nil {
@@ -574,7 +700,7 @@ func TestBlacklistWatcherDoesNothingWhenBotIsNotAdmin(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "mute"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "mute", 0); err != nil {
 		t.Fatalf("SetBlacklistAction setup error = %v", err)
 	}
 
@@ -591,25 +717,26 @@ func TestBlacklistWatcherDoesNothingWhenBotIsNotAdmin(t *testing.T) {
 	}
 }
 
-// /blaction cannot store tban/tmute, but the action CHECK allows them, so rows
-// restored from a backup or older versions carry them.
+// Legacy zero and unusable stored durations retain the one-hour fallback.
 func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
+	useEnglishLocale(t)
 	for _, tc := range []struct {
-		action string
-		method string
+		action     string
+		method     string
+		actionTime int
 	}{
 		{action: "tban", method: "banChatMember"},
 		{action: "tmute", method: "restrictChatMember"},
+		{action: "tban", method: "banChatMember", actionTime: 30},
+		{action: "tmute", method: "restrictChatMember", actionTime: 366*86400 + 1},
 	} {
-		t.Run(tc.action, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
-			member := gotgbot.User{Id: 42, FirstName: "Member"}
+		t.Run(fmt.Sprintf("%s/%d", tc.action, tc.actionTime), func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			client, bot, chat, member := f.client, f.bot, f.chat, f.member
 			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 				t.Fatalf("AddBlacklist setup error = %v", err)
 			}
-			if err := blacklists.SetBlacklistAction(chat.Id, tc.action); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, tc.action, tc.actionTime); err != nil {
 				t.Fatalf("SetBlacklistAction setup error = %v", err)
 			}
 
@@ -634,6 +761,12 @@ func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			if len(notices) != 1 || !strings.Contains(fmt.Sprint(notices[0].Params["text"]), "1h") {
 				t.Fatalf("blacklist notices = %#v, want duration 1h", notices)
 			}
+			if err := blacklistsModule.setBlacklistAction(bot, newModuleMessageContext(bot, chat, f.admin, "/blaction")); err != ext.EndGroups {
+				t.Fatalf("setBlacklistAction(current) error = %v, want EndGroups", err)
+			}
+			if text := lastReply(t, client); !strings.Contains(text, tc.action+" 1h") {
+				t.Fatalf("/blaction reply = %q, want %s 1h", text, tc.action)
+			}
 		})
 	}
 }
@@ -641,32 +774,31 @@ func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 // banChatSenderChat has no until_date, so a timed ban would become permanent:
 // the watcher only deletes the channel's message.
 func TestBlacklistWatcherDoesNotBanChannelForTimedAction(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
-		t.Fatalf("AddBlacklist setup error = %v", err)
-	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "tban"); err != nil {
-		t.Fatalf("SetBlacklistAction setup error = %v", err)
-	}
+	for _, mode := range []string{"tban", "tmute"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := blacklists.AddBlacklist(f.chat.Id, "spam"); err != nil {
+				t.Fatalf("AddBlacklist setup error = %v", err)
+			}
+			if err := blacklists.SetBlacklistAction(f.chat.Id, mode, 600); err != nil {
+				t.Fatalf("SetBlacklistAction setup error = %v", err)
+			}
 
-	channel := gotgbot.Chat{Id: -1001234567891, Type: "channel", Title: "Spam Channel"}
-	ctx := newModuleMessageContext(bot, chat, member, "channel says spam")
-	ctx.EffectiveMessage.From = nil
-	ctx.EffectiveMessage.SenderChat = &channel
-	ctx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: chat.Id}
-	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want message deletion", len(calls))
-	}
-	for _, method := range []string{"banChatSenderChat", "banChatMember", "sendMessage"} {
-		if calls := client.callsFor(method); len(calls) != 0 {
-			t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
-		}
+			channel := gotgbot.Chat{Id: -1001234567891, Type: "channel", Title: "Spam Channel"}
+			ctx := newModuleMessageContext(f.bot, f.chat, f.member, "channel says spam")
+			ctx.EffectiveMessage.From = nil
+			ctx.EffectiveMessage.SenderChat = &channel
+			ctx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: f.chat.Id}
+			if err := blacklistsModule.blacklistWatcher(f.bot, ctx); err != ext.ContinueGroups {
+				t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
+			}
+			assertDeleted(t, f.client, f.chat.Id, ctx.EffectiveMessage.MessageId)
+			for _, method := range []string{"banChatSenderChat", "banChatMember", "restrictChatMember", "sendMessage"} {
+				if calls := f.client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
+				}
+			}
+		})
 	}
 }
 
@@ -736,7 +868,7 @@ func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
 				if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 					t.Fatalf("AddBlacklist setup error = %v", err)
 				}
-				if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
+				if err := blacklists.SetBlacklistAction(chat.Id, action, 0); err != nil {
 					t.Fatalf("SetBlacklistAction setup error = %v", err)
 				}
 
@@ -773,7 +905,7 @@ func TestBlacklistWatcherNoticeEscapesTrigger(t *testing.T) {
 			if err := blacklists.AddBlacklist(chat.Id, "<3"); err != nil {
 				t.Fatalf("AddBlacklist setup error = %v", err)
 			}
-			if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, action, 0); err != nil {
 				t.Fatalf("SetBlacklistAction setup error = %v", err)
 			}
 

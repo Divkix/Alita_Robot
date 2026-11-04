@@ -136,7 +136,9 @@ var settingsToggles = []settingsToggle{
 		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
 			return settingsSaveFailed("/captchaaction", chatID, captcha.SetCaptchaFailureAction(chatID, chatName, value))
 		}},
-	valueToggle("fm", "/setfloodmode", []string{"mute", "ban", "kick"}, true, antiflood.SetFloodMode),
+	valueToggle("fm", "/setfloodmode", []string{"mute", "ban", "kick"}, true, func(chatID int64, mode string) error {
+		return antiflood.SetFloodMode(chatID, mode, 0)
+	}),
 	boolToggle("fd", "/delflood", true, antiflood.SetFloodMsgDel),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
 	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},
