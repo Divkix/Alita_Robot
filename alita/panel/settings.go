@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -203,6 +204,10 @@ func panelSettings(access chatAccess) settingsResponse {
 	if name, err := chattz.Name(chatID); err == nil {
 		timezone = name
 	}
+	night := &models.NightModeSettings{ChatID: chatID}
+	if row, err := nightmode.GetContext(context.Background(), chatID); err == nil && row != nil {
+		night = row
+	}
 
 	spamDB := &models.SpamDBSettings{ChatID: chatID, Action: spamdbsettings.ActionBan, CheckCAS: true}
 	if row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err == nil && row != nil {
@@ -295,6 +300,12 @@ func panelSettings(access chatAccess) settingsResponse {
 		{Key: "timezone", Label: "Timezone", Fields: []settingsField{
 			settingsString("name", timezone, chattz.DefaultName, true, nil),
 		}},
+		{Key: "nightmode", Label: "Night mode", Fields: []settingsField{
+			settingsBool("enabled", night.Enabled, false, true),
+			settingsString("start", nightClock(night.StartMinute), "00:00", true, nil),
+			settingsString("end", nightClock(night.EndMinute), "00:00", true, nil),
+			settingsString("lock_types", night.LockTypes, "", true, nil),
+		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
 		}},
@@ -358,7 +369,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	current := settingsIndex(panelSettings(access))
-	updates, fieldErrors := validateSettingsChanges(body.Changes, current)
+	updates, fieldErrors := validateSettingsChanges(body.Changes, current, p.deps.NightModeLockTypes)
 	if len(fieldErrors) > 0 {
 		writeJSON(w, http.StatusBadRequest, settingsPatchResponse{
 			Error:  &apiError{Code: "invalid_settings", Message: "one or more settings are invalid"},
@@ -401,7 +412,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 // validateSettingsChanges decodes and validates every change against the
 // current snapshot. It returns decoded values, or field-level errors; callers
 // write nothing when errors is non-empty.
-func validateSettingsChanges(changes map[string]json.RawMessage, index map[string]settingsField) (map[string]any, map[string]string) {
+func validateSettingsChanges(changes map[string]json.RawMessage, index map[string]settingsField, nightTypes []string) (map[string]any, map[string]string) {
 	updates := make(map[string]any, len(changes))
 	fieldErrors := make(map[string]string)
 
@@ -445,6 +456,13 @@ func validateSettingsChanges(changes map[string]json.RawMessage, index map[strin
 	}
 
 	validateWarnModeChanges(index, updates, fieldErrors)
+	if message := validateNightModeChanges(index, updates, nightTypes, fieldErrors); message != "" {
+		for _, key := range nightModeKeys {
+			if _, changed := updates[key]; changed {
+				fieldErrors[key] = message
+			}
+		}
+	}
 
 	// Same refusal as /digest log: a log destination needs a bound log channel.
 	if destination, _ := updates["digest.destination"].(string); destination == digestsettings.DestinationLog {
@@ -518,6 +536,67 @@ func antifloodModeValues(index map[string]settingsField, updates map[string]any)
 		actionTime = 0
 	}
 	return action, actionTime
+}
+
+var nightModeKeys = []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"}
+
+func nightClock(minute int) string {
+	return fmt.Sprintf("%02d:%02d", minute/60, minute%60)
+}
+
+// validateNightModeChanges validates the entire effective configuration before
+// any write. Disabled windows stay intact; editing them requires enabling in
+// the same batch rather than briefly enabling a supposedly disabled feature.
+func validateNightModeChanges(index map[string]settingsField, updates map[string]any, validTypes []string, fieldErrors map[string]string) string {
+	changed, configChanged := false, false
+	for _, key := range nightModeKeys {
+		if fieldErrors[key] != "" {
+			return ""
+		}
+		if _, ok := updates[key]; ok {
+			changed = true
+			configChanged = configChanged || key != "nightmode.enabled"
+		}
+	}
+	if !changed {
+		return ""
+	}
+	value := func(key string) any {
+		if v, ok := updates[key]; ok {
+			return v
+		}
+		return index[key].Value
+	}
+	if !value("nightmode.enabled").(bool) {
+		if configChanged {
+			return "turn night mode on in the same save to edit its window or lock types"
+		}
+		return ""
+	}
+	var types []string
+	for field := range strings.SplitSeq(value("nightmode.lock_types").(string), ",") {
+		lockType := strings.ToLower(strings.TrimSpace(field))
+		if lockType == "" {
+			continue
+		}
+		if !slices.Contains(validTypes, lockType) {
+			return "unknown night mode lock type: " + field
+		}
+		types = append(types, lockType)
+	}
+	if len(types) == 0 {
+		return settingsRefusal("nightmode_no_types")
+	}
+	start, _ := nightmode.ParseClock(value("nightmode.start").(string))
+	end, _ := nightmode.ParseClock(value("nightmode.end").(string))
+	if start == end {
+		return settingsRefusal("nightmode_same_times")
+	}
+	if _, changed := updates["nightmode.lock_types"]; changed {
+		slices.Sort(types)
+		updates["nightmode.lock_types"] = strings.Join(slices.Compact(types), ",")
+	}
+	return ""
 }
 
 // validateWarnModeChanges checks the effective mode and duration together, so
@@ -622,20 +701,7 @@ func validateSettingValue(key string, field settingsField, value any) string {
 	case "antiraid":
 		return validateAntiraidValue(fieldKey, value)
 	case "warns":
-		switch fieldKey {
-		case "limit":
-			if n := value.(int); n < 1 || n > 100 {
-				return "must be between 1 and 100"
-			}
-		case "action_time":
-			if n := value.(int); n != 0 && !models.ValidActionTime(n) {
-				return "must be between 60 and 31622400 seconds"
-			}
-		case "expiry":
-			if !models.ValidWarnExpiry(value.(int)) {
-				return "must be 0 (never) or between 60 and 31622400 seconds"
-			}
-		}
+		return validateWarnValue(fieldKey, value)
 	case "digest":
 		if fieldKey == "enabled" && value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableDigest) {
 			return settingsRefusal("digest_globally_disabled")
@@ -649,6 +715,30 @@ func validateSettingValue(key string, field settingsField, value any) string {
 	case "timezone":
 		if _, _, err := chattz.Parse(value.(string)); err != nil {
 			return "must be an IANA timezone such as Asia/Kolkata or UTC"
+		}
+	case "nightmode":
+		if fieldKey == "start" || fieldKey == "end" {
+			if _, ok := nightmode.ParseClock(value.(string)); !ok {
+				return "must be a 24-hour time such as 23:00 or 07:00"
+			}
+		}
+	}
+	return ""
+}
+
+func validateWarnValue(field string, value any) string {
+	switch field {
+	case "limit":
+		if n := value.(int); n < 1 || n > 100 {
+			return "must be between 1 and 100"
+		}
+	case "action_time":
+		if n := value.(int); n != 0 && !models.ValidActionTime(n) {
+			return "must be between 60 and 31622400 seconds"
+		}
+	case "expiry":
+		if !models.ValidWarnExpiry(value.(int)) {
+			return "must be 0 (never) or between 60 and 31622400 seconds"
 		}
 	}
 	return ""
@@ -773,8 +863,8 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any,
 	saved := make([]string, 0, len(keys))
 	failed := make(map[string]string)
 	floodAction, floodActionTime := antifloodModeValues(current, updates)
-	var floodModeErr, warnModeErr error
-	floodModeApplied, warnModeApplied := false, false
+	var floodModeErr, warnModeErr, nightErr error
+	floodModeApplied, warnModeApplied, nightApplied := false, false, false
 	for _, key := range ordered {
 		var err error
 		switch key {
@@ -790,6 +880,12 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any,
 				warnModeApplied = true
 			}
 			err = warnModeErr
+		case "nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types":
+			if !nightApplied {
+				nightErr = applyNightModeChanges(chatID, updates)
+				nightApplied = true
+			}
+			err = nightErr
 		default:
 			err = applySettingChange(chatID, chatName, key, updates[key])
 		}
@@ -860,6 +956,30 @@ func applyWarnModeChange(chatID int64, updates map[string]any) error {
 		row.WarnActionTime = 0
 	}
 	return warns.SetWarnMode(chatID, row.WarnMode, row.WarnActionTime)
+}
+
+func applyNightModeChanges(chatID int64, updates map[string]any) error {
+	if enabled, changed := updates["nightmode.enabled"].(bool); changed && !enabled {
+		return nightmode.Disable(chatID)
+	}
+	row, err := nightmode.Get(chatID)
+	if err != nil {
+		return err
+	}
+	if row == nil {
+		return errors.New("night mode settings are unavailable")
+	}
+	start, end, types := row.StartMinute, row.EndMinute, row.Types()
+	if clock, changed := updates["nightmode.start"].(string); changed {
+		start, _ = nightmode.ParseClock(clock)
+	}
+	if clock, changed := updates["nightmode.end"].(string); changed {
+		end, _ = nightmode.ParseClock(clock)
+	}
+	if names, changed := updates["nightmode.lock_types"].(string); changed {
+		types = strings.Split(names, ",")
+	}
+	return nightmode.Enable(chatID, start, end, types)
 }
 
 func applyGreetingChange(chatID int64, field string, value any) error {

@@ -5,6 +5,7 @@ package modules
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,34 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
+
+func TestNightModeLockTypesExcludesOnlyUnsupportedTypesAndPreservesCache(t *testing.T) {
+	all := slices.Clone(locksModule.getLockMapAsArray())
+	if !slices.Contains(all, "bots") {
+		t.Fatal("the complete lock list is missing bots")
+	}
+	got := NightModeLockTypes()
+	wantLen := 0
+	for _, lockType := range all {
+		want := !nightLockExcluded[lockType]
+		if slices.Contains(got, lockType) != want {
+			t.Errorf("NightModeLockTypes() = %v: %q present, want %v", got, lockType, want)
+		}
+		if want {
+			wantLen++
+		}
+	}
+	if len(got) != wantLen {
+		t.Fatalf("NightModeLockTypes() has %d types, want %d", len(got), wantLen)
+	}
+	if !slices.Equal(locksModule.getLockMapAsArray(), all) {
+		t.Fatal("filtering night lock types changed the cached complete lock list")
+	}
+	got[0] = "changed"
+	if !slices.Equal(locksModule.getLockMapAsArray(), all) {
+		t.Fatal("night lock types share the cached complete lock list's backing array")
+	}
+}
 
 // pinNightModeNow fixes the clock night mode reads at the given UTC time.
 func pinNightModeNow(t *testing.T, hour, minute int) {

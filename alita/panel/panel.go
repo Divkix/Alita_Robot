@@ -60,6 +60,9 @@ type Deps struct {
 	// captcha off: pending users are unmuted. Production wires
 	// modules.DisableCaptchaForChat; nil skips it.
 	DisableCaptcha func(bot *gotgbot.Bot, chatID int64) error
+	// NightModeLockTypes contains only lock names supported by night mode.
+	// Production wires modules.NightModeLockTypes, excluding join-only locks.
+	NightModeLockTypes []string
 }
 
 // panelRequestTimeout bounds one panel request below the HTTP server's 10 s

@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 		&models.DigestSettings{},
 		&models.ReportChatSettings{},
 		&models.ChatTimezone{},
+		&models.NightModeSettings{},
 	))
 }
 

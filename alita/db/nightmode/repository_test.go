@@ -45,6 +45,34 @@ func countRows(t *testing.T, chatID int64) int64 {
 	return n
 }
 
+func TestParseClock(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		input string
+		want  int
+		ok    bool
+	}{
+		{"0:00", 0, true},
+		{"00:00", 0, true},
+		{"7:05", 7*60 + 5, true},
+		{"07:05", 7*60 + 5, true},
+		{"23:59", 23*60 + 59, true},
+		{"", 0, false},
+		{"7", 0, false},
+		{"07:5", 0, false},
+		{"24:00", 0, false},
+		{"23:60", 0, false},
+		{"-1:00", 0, false},
+		{"07:00:00", 0, false},
+		{" 07:00", 0, false},
+		{"07:00 ", 0, false},
+	} {
+		if got, ok := ParseClock(tt.input); got != tt.want || ok != tt.ok {
+			t.Errorf("ParseClock(%q) = (%d, %v), want (%d, %v)", tt.input, got, ok, tt.want, tt.ok)
+		}
+	}
+}
+
 func TestChatWithoutRowHasNightModeOffAndReadingInsertsNothing(t *testing.T) {
 	cache.SetupTestMemoryMarshaler(t)
 	chatID := newNightChat(t)

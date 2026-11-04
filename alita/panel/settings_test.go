@@ -31,6 +31,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
@@ -43,6 +44,7 @@ const settingsFixtureUserID = 279058397
 func newSettingsFixture(t *testing.T) (panelFixture, int64) {
 	t.Helper()
 	fixture := newPanelFixture(t)
+	fixture.panel.deps.NightModeLockTypes = []string{"all", "media", "photo", "url"}
 	chatID := uniquePanelChatID()
 	fixture.client.admins[chatID] = adminListJSON(settingsFixtureUserID, 999)
 	// The fixture admin is the one who may write every module; refusal tests
@@ -126,7 +128,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatalf("read_only = %v/%q, want writable for an admin with a bot admin", body.ReadOnly, body.ReadOnlyReason)
 	}
 
-	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "timezone", "locks", "log_channel"}
+	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "timezone", "nightmode", "locks", "log_channel"}
 	if len(body.Modules) != len(wantModules) {
 		t.Fatalf("modules = %d, want %d", len(body.Modules), len(wantModules))
 	}
@@ -229,6 +231,22 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		!timezone.Writable || timezone.Changed || len(timezone.Options) != 0 {
 		t.Fatalf("timezone.name metadata = %+v, want writable text at its UTC default", timezone)
 	}
+	for key, want := range map[string]any{
+		"nightmode.enabled":    false,
+		"nightmode.start":      "00:00",
+		"nightmode.end":        "00:00",
+		"nightmode.lock_types": "",
+	} {
+		field := findSettingsField(t, body, key)
+		wantType := "string"
+		if key == "nightmode.enabled" {
+			wantType = "bool"
+		}
+		if field.Type != wantType || field.Value != want || field.Default != want ||
+			!field.Writable || field.Changed || len(field.Options) != 0 {
+			t.Fatalf("%s metadata = %+v, want writable %s at default %v", key, field, wantType, want)
+		}
+	}
 	if findSettingsField(t, body, "locks.active").Writable || findSettingsField(t, body, "log_channel.bound").Writable {
 		t.Fatal("locks and log channel summaries must be read-only")
 	}
@@ -244,6 +262,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"digest":      &models.DigestSettings{},
 		"reports":     &models.ReportChatSettings{},
 		"timezone":    &models.ChatTimezone{},
+		"nightmode":   &models.NightModeSettings{},
 		"warn_users":  &models.Warns{},
 		"warn_entry":  &models.WarnEntry{},
 		"spam_db":     &models.SpamDBSettings{},
@@ -343,6 +362,20 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "timezone object", body: `{"changes":{"timezone.name":{}}}`, wantKeys: []string{"timezone.name"}},
 		{name: "invalid timezone blocks other settings", body: `{"changes":{"greetings.welcome_enabled":false,"timezone.name":"Mars/Olympus"}}`, wantKeys: []string{"timezone.name"}},
 		{name: "invalid module blocks valid timezone", body: `{"changes":{"captcha.timeout":99,"timezone.name":"Asia/Kolkata"}}`, wantKeys: []string{"captcha.timeout"}},
+		{name: "nightmode enabled string", body: `{"changes":{"nightmode.enabled":"true"}}`, wantKeys: []string{"nightmode.enabled"}},
+		{name: "nightmode enabled null", body: `{"changes":{"nightmode.enabled":null}}`, wantKeys: []string{"nightmode.enabled"}},
+		{name: "nightmode start after day", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"24:00","nightmode.end":"07:00","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.start"}},
+		{name: "nightmode end after day", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"24:00","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.end"}},
+		{name: "nightmode malformed start", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"23:0","nightmode.end":"07:00","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.start"}},
+		{name: "nightmode malformed end", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"not-a-time","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.end"}},
+		{name: "nightmode start wrong type", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":2300,"nightmode.end":"07:00","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.start"}},
+		{name: "nightmode end null", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":null,"nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.end"}},
+		{name: "nightmode same times", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"07:00","nightmode.end":"07:00","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.start", "nightmode.end"}},
+		{name: "nightmode unknown lock type", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":"media,nope"}}`, wantKeys: []string{"nightmode.lock_types"}},
+		{name: "nightmode excluded bots", body: `{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":"media, BOTS"}}`, wantKeys: []string{"nightmode.lock_types"}},
+		{name: "nightmode lock types array", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":["media"]}}`, wantKeys: []string{"nightmode.lock_types"}},
+		{name: "nightmode lock types null", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":null}}`, wantKeys: []string{"nightmode.lock_types"}},
+		{name: "invalid module blocks valid nightmode", body: `{"changes":{"captcha.timeout":99,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":"media,url"}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
 	// Each case gets its own panel: the table outgrows one user's rate limit.
@@ -379,6 +412,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 				"digest":    &models.DigestSettings{},
 				"reports":   &models.ReportChatSettings{},
 				"timezone":  &models.ChatTimezone{},
+				"nightmode": &models.NightModeSettings{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {
 					t.Fatalf("%s: %d %s rows written", test.name, count, name)
@@ -755,6 +789,193 @@ func TestSettingsPatchTimezoneAppliesThroughSetterAndInvalidatesCache(t *testing
 	}
 }
 
+func TestSettingsPatchNightmodeAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	target := settingsPath(chatID)
+
+	for _, test := range []struct {
+		name        string
+		changes     map[string]any
+		enabled     bool
+		startMinute int
+		endMinute   int
+		types       string
+	}{
+		{"enable and normalize", map[string]any{
+			"nightmode.enabled": true, "nightmode.start": "23:00", "nightmode.end": "07:00",
+			"nightmode.lock_types": " URL,photo,MEDIA,photo, all,URL ",
+		}, true, 1380, 420, "all,media,photo,url"},
+		{"start at midnight", map[string]any{"nightmode.start": "00:00"}, true, 0, 420, "all,media,photo,url"},
+		{"replace start", map[string]any{"nightmode.start": "23:15"}, true, 1395, 420, "all,media,photo,url"},
+		{"end at midnight", map[string]any{"nightmode.end": "00:00"}, true, 1395, 0, "all,media,photo,url"},
+		{"replace end", map[string]any{"nightmode.end": "06:45"}, true, 1395, 405, "all,media,photo,url"},
+		{"replace types", map[string]any{"nightmode.lock_types": " URL , Photo,URL "}, true, 1395, 405, "photo,url"},
+		{"disable preserves configuration", map[string]any{"nightmode.enabled": false}, false, 1395, 405, "photo,url"},
+		{"re-enable stored configuration", map[string]any{"nightmode.enabled": true}, true, 1395, 405, "photo,url"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// Warm before every field change: a sibling write must not mask a
+			// missing cache invalidation.
+			if _, err := nightmode.GetContext(context.Background(), chatID); err != nil {
+				t.Fatalf("warm nightmode cache: %v", err)
+			}
+			payload, err := json.Marshal(map[string]any{"changes": test.changes})
+			if err != nil {
+				t.Fatalf("encode changes: %v", err)
+			}
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, string(payload), "application/json")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var patch settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if patch.Error != nil || len(patch.Saved) != len(test.changes) || len(patch.Failed) != 0 || len(patch.Errors) != 0 {
+				t.Fatalf("patch = %+v, want every changed nightmode field saved", patch)
+			}
+			for key := range test.changes {
+				if !containsString(patch.Saved, key) {
+					t.Fatalf("saved = %v, missing %s", patch.Saved, key)
+				}
+			}
+			var stored models.NightModeSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load nightmode: %v", err)
+			}
+			cached, err := nightmode.GetContext(context.Background(), chatID)
+			if err != nil {
+				t.Fatalf("get nightmode: %v", err)
+			}
+			for source, settings := range map[string]*models.NightModeSettings{"database": &stored, "getter": cached} {
+				if settings.Enabled != test.enabled || settings.StartMinute != test.startMinute ||
+					settings.EndMinute != test.endMinute || settings.LockTypes != test.types {
+					t.Fatalf("%s nightmode = %+v, want enabled=%t window=%d-%d types=%q",
+						source, settings, test.enabled, test.startMinute, test.endMinute, test.types)
+				}
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+			for source, body := range map[string]settingsResponse{"PATCH": {Modules: patch.Modules}, "GET": after} {
+				for key, want := range map[string]any{
+					"nightmode.enabled":    test.enabled,
+					"nightmode.start":      fmt.Sprintf("%02d:%02d", test.startMinute/60, test.startMinute%60),
+					"nightmode.end":        fmt.Sprintf("%02d:%02d", test.endMinute/60, test.endMinute%60),
+					"nightmode.lock_types": test.types,
+				} {
+					field := findSettingsField(t, body, key)
+					if field.Value != want || !field.Writable || field.Changed != (field.Default != want) {
+						t.Fatalf("%s %s metadata = %+v, want value %v with correct changed state", source, key, field, want)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSettingsPatchNightmodeRefusesMissingTypesAndDisabledEdits(t *testing.T) {
+	rawLocale, err := os.ReadFile(filepath.Join("..", "..", "locales", "en.yml"))
+	if err != nil {
+		t.Fatalf("read locales/en.yml: %v", err)
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(map[string]string{"en": string(rawLocale)})
+	if err != nil {
+		t.Fatalf("override locales: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+	raw := readFixture(t, "initdata_main.txt")
+
+	for _, types := range []string{"", " , , "} {
+		t.Run(fmt.Sprintf("missing types %q", types), func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			payload := fmt.Sprintf(`{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":%q}}`, types)
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw, payload, "application/json")
+			assertFieldRefusal(t, recorder, "nightmode.enabled", "Give a start time, an end time and the lock types")
+			for name, model := range map[string]any{
+				"greetings": &models.GreetingSettings{},
+				"nightmode": &models.NightModeSettings{},
+			} {
+				if count := countChatRows(t, model, chatID); count != 0 {
+					t.Fatalf("refused batch wrote %d %s rows", count, name)
+				}
+			}
+		})
+	}
+	t.Run("enable without stored types", func(t *testing.T) {
+		fixture, chatID := newSettingsFixture(t)
+		recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+			`{"changes":{"greetings.welcome_enabled":false,"nightmode.enabled":true}}`, "application/json")
+		assertFieldRefusal(t, recorder, "nightmode.enabled", "Give a start time, an end time and the lock types")
+		for name, model := range map[string]any{"greetings": &models.GreetingSettings{}, "nightmode": &models.NightModeSettings{}} {
+			if count := countChatRows(t, model, chatID); count != 0 {
+				t.Fatalf("refused batch wrote %d %s rows", count, name)
+			}
+		}
+	})
+
+	for _, stored := range []bool{false, true} {
+		t.Run(fmt.Sprintf("off stored=%t", stored), func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			target := settingsPath(chatID)
+			var before models.NightModeSettings
+			if stored {
+				if err := nightmode.Enable(chatID, 1380, 420, []string{"media", "url"}); err != nil {
+					t.Fatalf("seed nightmode: %v", err)
+				}
+			}
+			off := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+				`{"changes":{"nightmode.enabled":false}}`, "application/json")
+			decodeSettingsResponse(t, off)
+			if stored {
+				if err := db.DB.Where("chat_id = ?", chatID).Take(&before).Error; err != nil {
+					t.Fatalf("load disabled nightmode: %v", err)
+				}
+				if before.Enabled || before.StartMinute != 1380 || before.EndMinute != 420 || before.LockTypes != "media,url" {
+					t.Fatalf("disable changed stored configuration: %+v", before)
+				}
+			}
+			for _, test := range []struct {
+				name    string
+				changes string
+				key     string
+			}{
+				{"start", `"nightmode.start":"22:00"`, "nightmode.start"},
+				{"end", `"nightmode.end":"08:00"`, "nightmode.end"},
+				{"types", `"nightmode.lock_types":"photo"`, "nightmode.lock_types"},
+				{"explicit off", `"nightmode.enabled":false,"nightmode.start":"22:00"`, "nightmode.start"},
+				{"transient enable then disable", `"nightmode.enabled":true,"nightmode.start":"22:00","nightmode.enabled":false`, "nightmode.start"},
+			} {
+				t.Run(test.name, func(t *testing.T) {
+					recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
+						`{"changes":{"greetings.welcome_enabled":false,`+test.changes+`}}`, "application/json")
+					requireAPIError(t, recorder, http.StatusBadRequest, "invalid_settings")
+					var patch settingsPatchResponse
+					if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+						t.Fatalf("decode refusal: %v", err)
+					}
+					if patch.Errors[test.key] == "" || len(patch.Saved) != 0 || len(patch.Failed) != 0 {
+						t.Fatalf("patch = %+v, want %s refused before writes", patch, test.key)
+					}
+					if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
+						t.Fatalf("refused batch wrote %d greetings rows", count)
+					}
+					if stored {
+						var after models.NightModeSettings
+						if err := db.DB.Where("chat_id = ?", chatID).Take(&after).Error; err != nil {
+							t.Fatalf("load nightmode after refusal: %v", err)
+						}
+						if after != before {
+							t.Fatalf("refused batch changed nightmode from %+v to %+v", before, after)
+						}
+					} else if count := countChatRows(t, &models.NightModeSettings{}, chatID); count != 0 {
+						t.Fatalf("refused batch wrote %d nightmode rows", count)
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	fixture, chatID := newSettingsFixture(t)
 	raw := readFixture(t, "initdata_main.txt")
@@ -992,6 +1213,7 @@ func TestSettingsPatchCaptchaPreservesTelegramTitle(t *testing.T) {
 
 func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	fixture := newPanelFixture(t)
+	fixture.panel.deps.NightModeLockTypes = []string{"all", "media", "photo", "url"}
 	chatID := uniquePanelChatID()
 	fixture.client.admins[chatID] = adminListJSON(999)
 	seedPanelChat(t, chatID, "Read-only Chat", fixtureNow)
@@ -1010,6 +1232,14 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	}
 	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
 		t.Fatalf("read-only GET created %d timezone rows", count)
+	}
+	for _, key := range []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"} {
+		if field := findSettingsField(t, body, key); !field.Writable {
+			t.Fatalf("read-only %s lost its writable capability: %+v", key, field)
+		}
+	}
+	if count := countChatRows(t, &models.NightModeSettings{}, chatID); count != 0 {
+		t.Fatalf("read-only GET created %d nightmode rows", count)
 	}
 
 	write := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
@@ -1044,10 +1274,17 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
 		t.Fatalf("non-admin write created %d timezone rows", count)
 	}
+	nightWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":"media,url"}}`, "application/json")
+	requireAPIError(t, nightWrite, http.StatusForbidden, "not_admin")
+	if count := countChatRows(t, &models.NightModeSettings{}, chatID); count != 0 {
+		t.Fatalf("non-admin write created %d nightmode rows", count)
+	}
 }
 
 func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	fixture := newPanelFixture(t)
+	fixture.panel.deps.NightModeLockTypes = []string{"all", "media", "photo", "url"}
 	fixture.client.botAdmin = false
 	chatID := uniquePanelChatID()
 	// The bot is deliberately absent from the admin list so IsBotAdmin falls
@@ -1066,6 +1303,14 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	}
 	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
 		t.Fatalf("read-only GET created %d timezone rows", count)
+	}
+	for _, key := range []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"} {
+		if field := findSettingsField(t, body, key); !field.Writable {
+			t.Fatalf("read-only %s lost its writable capability: %+v", key, field)
+		}
+	}
+	if count := countChatRows(t, &models.NightModeSettings{}, chatID); count != 0 {
+		t.Fatalf("read-only GET created %d nightmode rows", count)
 	}
 
 	write := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
@@ -1099,6 +1344,12 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	requireAPIError(t, timezoneWrite, http.StatusConflict, "bot_not_admin")
 	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
 		t.Fatalf("refused write created %d timezone rows", count)
+	}
+	nightWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":"media,url"}}`, "application/json")
+	requireAPIError(t, nightWrite, http.StatusConflict, "bot_not_admin")
+	if count := countChatRows(t, &models.NightModeSettings{}, chatID); count != 0 {
+		t.Fatalf("refused write created %d nightmode rows", count)
 	}
 }
 
