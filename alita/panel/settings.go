@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
@@ -188,6 +189,10 @@ func panelSettings(access chatAccess) settingsResponse {
 
 	raid := antiraid.GetAntiRaidSettings(chatID)
 	warn := readWarnSettings(chatID)
+	digestRow := &models.DigestSettings{ChatID: chatID}
+	if row, err := digestsettings.GetContext(context.Background(), chatID); err == nil && row != nil {
+		digestRow = row
+	}
 
 	spamDB := &models.SpamDBSettings{ChatID: chatID, Action: spamdbsettings.ActionBan, CheckCAS: true}
 	if row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err == nil && row != nil {
@@ -268,6 +273,10 @@ func panelSettings(access chatAccess) settingsResponse {
 			settingsString("mode", warn.WarnMode, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
 			settingsInt("action_time", warn.WarnActionTime, 0, true),
 			settingsInt("expiry", warn.WarnExpiry, 0, true),
+		}},
+		{Key: "digest", Label: "Weekly digest", Fields: []settingsField{
+			settingsBool("enabled", digestRow.Enabled, false, true),
+			settingsString("destination", digestRow.Destination, "", true, []string{"", "log", "group"}),
 		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
@@ -420,6 +429,13 @@ func validateSettingsChanges(changes map[string]json.RawMessage, index map[strin
 
 	validateWarnModeChanges(index, updates, fieldErrors)
 
+	// Same refusal as /digest log: a log destination needs a bound log channel.
+	if destination, _ := updates["digest.destination"].(string); destination == digestsettings.DestinationLog {
+		if bound, _ := index["log_channel.bound"].Value.(bool); !bound {
+			fieldErrors["digest.destination"] = settingsRefusal("digest_log_unavailable")
+		}
+	}
+
 	return updates, fieldErrors
 }
 
@@ -468,7 +484,6 @@ func validateSpamDatabaseChanges(index map[string]settingsField, updates map[str
 			}
 		}
 	}
-
 }
 
 // antifloodModeValues resolves the action and duration from the same snapshot
@@ -603,6 +618,10 @@ func validateSettingValue(key string, field settingsField, value any) string {
 			if !models.ValidWarnExpiry(value.(int)) {
 				return "must be 0 (never) or between 60 and 31622400 seconds"
 			}
+		}
+	case "digest":
+		if fieldKey == "enabled" && value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableDigest) {
+			return settingsRefusal("digest_globally_disabled")
 		}
 	}
 	return ""
@@ -780,6 +799,13 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 			return warns.SetWarnLimit(chatID, value.(int))
 		case "expiry":
 			return warns.SetWarnExpiry(chatID, value.(int))
+		}
+	case "digest":
+		switch fieldKey {
+		case "enabled":
+			return digestsettings.SetEnabled(chatID, value.(bool))
+		case "destination":
+			return digestsettings.SetDestination(chatID, value.(string))
 		}
 	}
 	return fmt.Errorf("unknown setting %q", key)

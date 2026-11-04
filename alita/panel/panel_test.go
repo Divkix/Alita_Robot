@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 		&models.WarnEntry{},
 		&models.ModerationEvent{},
 		&models.ProbationSettings{},
+		&models.DigestSettings{},
 	))
 }
 
