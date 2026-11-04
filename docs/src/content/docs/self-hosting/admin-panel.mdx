@@ -151,10 +151,11 @@ checked against the bot token on arrival.
   says so instead of drawing an empty chart.
 - **Activity** shows the same window as a heatmap of messages by weekday and
   hour (each cell shaded by its average per day), with the busiest hour, and a
-  chart of the Telegram member count. Hours and weekdays are in UTC, and the
-  screen says so. The bot reads the member count once a day for each chat that
-  had activity yesterday or today, so the chart starts on the day the feature
-  was deployed and has no point for a day the chat was quiet.
+  chart of the Telegram member count. Heatmap hours and weekdays use the chat's
+  timezone (UTC by default), shown on screen. The bot reads the member count
+  once a day for each chat that had activity yesterday or today, so the chart
+  starts on the day the feature was deployed and has no point for a day the chat
+  was quiet.
 - **Top members** (admins only) ranks the users who sent the most messages in
   the window, named like the timeline. Channel posts and anonymous admins are
   not counted, and per-user counts are kept for 90 days.
@@ -242,6 +243,27 @@ Changing `reports.mute_threshold`, including resetting it to `0`, additionally
 requires **both you and the bot** to have Telegram's `can_restrict_members`
 right. An invalid setting or missing right refuses the entire save, including
 changes to other modules. Opening Settings does not create a report settings row.
+
+### Timezone setting
+
+The **Timezone** group in **Settings** configures the same chat timezone as
+`/timezone`.
+
+| Setting | Default | Accepted values |
+|---------|---------|-----------------|
+| `timezone.name` | `UTC` | An IANA timezone such as `Asia/Kolkata` or `America/New_York`, or `UTC`. |
+
+Names are saved with their canonical spelling: `asia/kolkata` becomes
+`Asia/Kolkata`. Empty names, unknown zones, numeric offsets such as `+05:30`,
+and the server-local name `Local` are refused. Reset saves `UTC`.
+
+Changing or resetting the timezone requires you and the bot to be chat admins,
+and you must have Telegram's `can_change_info` right. An invalid value or missing
+right refuses the entire save, including changes to other modules. Opening
+Settings does not create a timezone row.
+
+The **Activity** heatmap uses this timezone. **Top members** and the **weekly
+digest** keep their UTC-based windows; changing the timezone does not shift them.
 
 ## Failure modes
 

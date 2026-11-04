@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 		&models.ProbationSettings{},
 		&models.DigestSettings{},
 		&models.ReportChatSettings{},
+		&models.ChatTimezone{},
 	))
 }
 

@@ -8,8 +8,10 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
@@ -23,12 +25,19 @@ func analyticsPath(chatID int64, endpoint, query string) string {
 }
 
 // newAnalyticsFixture is the overview fixture plus cleanup of the analytics
-// tables.
+// tables and the chat's timezone.
 func newAnalyticsFixture(t *testing.T) (panelFixture, int64) {
 	t.Helper()
-	fixture, chatID := newOverviewFixture(t)
+	return newAnalyticsFixtureWithClock(t, func() time.Time { return fixtureNow })
+}
+
+func newAnalyticsFixtureWithClock(t *testing.T, clock func() time.Time) (panelFixture, int64) {
+	t.Helper()
+	fixture, chatID := newOverviewFixtureWithClock(t, clock)
 	t.Cleanup(func() {
-		for _, model := range []any{&models.ChatHourlyStat{}, &models.ChatMemberDailyStat{}, &models.ChatMemberCount{}} {
+		for _, model := range []any{
+			&models.ChatHourlyStat{}, &models.ChatMemberDailyStat{}, &models.ChatMemberCount{}, &models.ChatTimezone{},
+		} {
 			if err := db.DB.Where("chat_id = ?", chatID).Delete(model).Error; err != nil {
 				t.Errorf("delete analytics rows of chat %d: %v", chatID, err)
 			}
@@ -110,6 +119,75 @@ func TestHeatmapSumsMessagesByWeekdayAndUTCHour(t *testing.T) {
 		if n != want {
 			t.Fatalf("30-day weekdays = %v, want 5 for rows %d and %d and 4 elsewhere", month.Weekdays, todayRow, yesterdayRow)
 		}
+	}
+}
+
+func TestHeatmapUsesChatLocalWindowAndHours(t *testing.T) {
+	for _, tc := range []struct {
+		zone                      string
+		clockHour, localDayOffset int
+		firstUTCHour, lastUTCHour int
+	}{
+		// Offsets are UTC hours from each boundary's date at UTC midnight.
+		// Kolkata's first bucket is on the preceding UTC day; Honolulu's
+		// last bucket is on the following UTC day.
+		{zone: "Asia/Kolkata", clockHour: 20, localDayOffset: 1, firstUTCHour: -5, lastUTCHour: 18},
+		{zone: "Pacific/Honolulu", clockHour: 25, localDayOffset: 0, firstUTCHour: 10, lastUTCHour: 33},
+	} {
+		t.Run(tc.zone, func(t *testing.T) {
+			now := overviewDayStart().Add(time.Duration(tc.clockHour) * time.Hour)
+			fixture, chatID := newAnalyticsFixtureWithClock(t, func() time.Time { return now })
+			if _, err := chattz.Set(chatID, tc.zone); err != nil {
+				t.Fatalf("set chat timezone: %v", err)
+			}
+			// These UTC midnights represent the expected local date labels,
+			// not the instants when the local days start.
+			to := overviewDayStart().AddDate(0, 0, tc.localDayOffset)
+			from := to.AddDate(0, 0, -29)
+			first := from.Add(time.Duration(tc.firstUTCHour) * time.Hour)
+			last := to.Add(time.Duration(tc.lastUTCHour) * time.Hour)
+			var rows []models.ChatHourlyStat
+			for _, bucket := range []struct {
+				at       time.Time
+				messages int64
+			}{
+				{at: first, messages: 4},
+				{at: last, messages: 7},
+				// Queried UTC buckets just outside the local date window
+				// must not contribute to its totals or busiest hour.
+				{at: first.Add(-time.Hour), messages: 100},
+				{at: last.Add(time.Hour), messages: 200},
+			} {
+				rows = append(rows, models.ChatHourlyStat{
+					ChatID: chatID, Day: stats.Day(bucket.at), Hour: int16(bucket.at.Hour()), Messages: bucket.messages,
+				})
+			}
+			seedRows(t, &rows)
+
+			heat := getAnalytics[heatmapResponse](t, fixture, analyticsPath(chatID, "heatmap", "days=30"))
+			if heat.Timezone != tc.zone || heat.Days != 30 || heat.From != stats.Day(from) || heat.To != stats.Day(to) {
+				t.Fatalf("timezone/window = %q/%d/%s/%s, want %q/30/%s/%s",
+					heat.Timezone, heat.Days, heat.From, heat.To, tc.zone, stats.Day(from), stats.Day(to))
+			}
+			wantGrid := make([][]int64, 7)
+			for row := range wantGrid {
+				wantGrid[row] = make([]int64, 24)
+			}
+			wantGrid[weekdayRow(from.Weekday())][0] = 4
+			wantGrid[weekdayRow(to.Weekday())][23] = 7
+			if !reflect.DeepEqual(heat.Grid, wantGrid) {
+				t.Fatalf("grid = %v, want local midnight and 23:00 cells %v", heat.Grid, wantGrid)
+			}
+			wantWeekdays := []int{4, 4, 4, 4, 4, 4, 4}
+			wantWeekdays[weekdayRow(to.Weekday())]++
+			wantWeekdays[weekdayRow(to.AddDate(0, 0, -1).Weekday())]++
+			if !reflect.DeepEqual(heat.Weekdays, wantWeekdays) {
+				t.Fatalf("weekdays = %v, want %v", heat.Weekdays, wantWeekdays)
+			}
+			if heat.Total != 11 || heat.Busiest == nil || *heat.Busiest != (busiestHour{Hour: 23, Messages: 7}) {
+				t.Fatalf("total/busiest = %d/%+v, want 11/23:00 with 7", heat.Total, heat.Busiest)
+			}
+		})
 	}
 }
 

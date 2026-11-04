@@ -7,15 +7,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
 const (
-	// analyticsTimezone is the zone the heatmap's weekdays and hours are in.
-	// The counters are stored per UTC hour and no per-chat timezone exists
-	// yet, so the screens say UTC instead of guessing the viewer's zone.
-	analyticsTimezone = "UTC"
-
 	topMembersDefault = 10
 	topMembersMax     = 50
 )
@@ -24,7 +20,7 @@ const (
 // 24 hours each, every cell the window's messages in that weekday and hour.
 // Weekdays counts how often each row's weekday occurs in the window (a 30-day
 // window has two weekdays five times), so a client can compare rows by their
-// average per day instead of by totals.
+// average per day instead of by totals. Dates, weekdays and hours use Timezone.
 type heatmapResponse struct {
 	Timezone string       `json:"timezone"`
 	Days     int          `json:"days"`
@@ -93,18 +89,25 @@ func weekdayRow(day time.Weekday) int {
 }
 
 // handleHeatmap answers the hourly heatmap: the window's messages by weekday
-// and UTC hour. It shows counts only, so every member with access may read it.
+// and chat-local hour. Every member with access may read these counts.
 func (p *Panel) handleHeatmap(w http.ResponseWriter, r *http.Request) {
 	_, access, ok := p.chatRequest(w, r)
 	if !ok {
 		return
 	}
-	days, from, to, ok := p.analyticsWindow(w, r)
+	days, ok := parseOverviewDays(r.URL.Query().Get("days"))
 	if !ok {
+		writeJSONError(w, http.StatusBadRequest, "invalid_days", "days must be 7, 30 or 90")
 		return
 	}
 
-	rows, err := chatstats.GetHourlyRange(access.ChatID, from, to)
+	loc := chattz.LocationContext(r.Context(), access.ChatID)
+	now := p.deps.Now().In(loc)
+	start := now.AddDate(0, 0, 1-days)
+	from, to := start.Format(time.DateOnly), now.Format(time.DateOnly)
+	// UTC buckets on adjacent days can belong to the local calendar window.
+	rows, err := chatstats.GetHourlyRange(access.ChatID,
+		start.AddDate(0, 0, -1).Format(time.DateOnly), now.AddDate(0, 0, 1).Format(time.DateOnly))
 	if err != nil {
 		log.WithError(err).Error("[Panel] Failed to read chat hourly stats")
 		writeJSONError(w, http.StatusInternalServerError, "heatmap_failed", "could not read this chat's activity")
@@ -112,7 +115,7 @@ func (p *Panel) handleHeatmap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := heatmapResponse{
-		Timezone: analyticsTimezone,
+		Timezone: loc.String(),
 		Days:     days,
 		From:     from,
 		To:       to,
@@ -122,10 +125,8 @@ func (p *Panel) handleHeatmap(w http.ResponseWriter, r *http.Request) {
 	for i := range response.Grid {
 		response.Grid[i] = make([]int64, 24)
 	}
-	if start, err := time.Parse(time.DateOnly, from); err == nil {
-		for i := range days {
-			response.Weekdays[weekdayRow(start.AddDate(0, 0, i).Weekday())]++
-		}
+	for i := range days {
+		response.Weekdays[weekdayRow(start.AddDate(0, 0, i).Weekday())]++
 	}
 	hours := make([]int64, 24)
 	for _, row := range rows {
@@ -133,8 +134,13 @@ func (p *Panel) handleHeatmap(w http.ResponseWriter, r *http.Request) {
 		if err != nil || row.Hour < 0 || row.Hour > 23 {
 			continue
 		}
-		response.Grid[weekdayRow(date.Weekday())][row.Hour] += row.Messages
-		hours[row.Hour] += row.Messages
+		local := date.Add(time.Duration(row.Hour) * time.Hour).In(loc)
+		if day := local.Format(time.DateOnly); day < from || day > to {
+			continue
+		}
+		hour := local.Hour()
+		response.Grid[weekdayRow(local.Weekday())][hour] += row.Messages
+		hours[hour] += row.Messages
 		response.Total += row.Messages
 	}
 	for hour, messages := range hours {

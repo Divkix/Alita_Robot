@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -37,6 +38,38 @@ func TestSettingsPatchGreetingsNeedChangeInfo(t *testing.T) {
 	}
 	if greetings.GetGreetingSettings(chatID).WelcomeSettings.ShouldWelcome {
 		t.Fatal("greeting write with can_change_info did not apply")
+	}
+}
+
+// /timezone needs the caller's can_change_info; a refusal must leave even
+// admin-only settings in the same batch untouched.
+func TestSettingsPatchTimezoneNeedsChangeInfo(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	delete(fixture.client.rights, settingsFixtureUserID)
+	changes := `{"changes":{"language.code":"es","timezone.name":"asia/kolkata"}}`
+
+	recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		changes, "application/json")
+	requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
+	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
+		t.Fatalf("refused timezone write created %d rows", count)
+	}
+	if got := lang.GetGroupLanguage(context.Background(), chatID); got != "en" {
+		t.Fatalf("language after refused timezone batch = %q, want en", got)
+	}
+
+	fixture.client.rights[settingsFixtureUserID] = panelFakeRights{canChangeInfo: true}
+	recorder = panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		changes, "application/json")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+	}
+	if name, err := chattz.Name(chatID); err != nil || name != "Asia/Kolkata" {
+		t.Fatalf("timezone after permitted write = %q/%v, want Asia/Kolkata", name, err)
+	}
+	if got := lang.GetGroupLanguage(context.Background(), chatID); got != "es" {
+		t.Fatalf("language after permitted timezone batch = %q, want es", got)
 	}
 }
 
