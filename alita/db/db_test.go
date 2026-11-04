@@ -2,11 +2,71 @@ package db
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+// A migration adds a column while statements prepared before it are still
+// cached on a server session: the bot's own pool during a rollout, or
+// PgBouncer's shared server connections for the process that starts next.
+// Reading the table again must still work.
+func TestPreparedSelectSurvivesAddedColumn(t *testing.T) {
+	skipIfNoDb(t)
+	if DB.Name() != "postgres" {
+		t.Skip("prepared statement plans need Postgres")
+	}
+	database, err := gorm.Open(postgres.Open(os.Getenv("DATABASE_URL")), newGormConfig(logger.Default.LogMode(logger.Silent)))
+	if err != nil {
+		t.Fatalf("open postgres: %v", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("sql db: %v", err)
+	}
+	// One session, so the second read runs the statement the first prepared.
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	type planProbe struct {
+		ID   int64
+		Name string
+	}
+	table := fmt.Sprintf("plan_probe_%d", time.Now().UnixNano())
+	t.Cleanup(func() {
+		if err := DB.Exec("DROP TABLE IF EXISTS " + table).Error; err != nil {
+			t.Errorf("drop %s: %v", table, err)
+		}
+	})
+	for _, stmt := range []string{
+		"CREATE TABLE " + table + " (id bigint PRIMARY KEY, name text NOT NULL)",
+		"INSERT INTO " + table + " VALUES (1, 'before')",
+	} {
+		if err := database.Exec(stmt).Error; err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+
+	read := func() planProbe {
+		t.Helper()
+		var got planProbe
+		if err := database.Table(table).Where("id = ?", 1).First(&got).Error; err != nil {
+			t.Fatalf("read %s: %v", table, err)
+		}
+		return got
+	}
+	read()
+	if err := database.Exec("ALTER TABLE " + table + " ADD COLUMN extra integer NOT NULL DEFAULT 0").Error; err != nil {
+		t.Fatalf("add column: %v", err)
+	}
+	if got := read(); got != (planProbe{ID: 1, Name: "before"}) {
+		t.Fatalf("read after ADD COLUMN = %+v", got)
+	}
+}
 
 // A crash or failover resets the table statistics, after which n_live_tup
 // counts only the rows inserted since: the count must still include the rows
