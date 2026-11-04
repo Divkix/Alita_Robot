@@ -29,6 +29,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -120,7 +121,7 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		t.Fatalf("read_only = %v/%q, want writable for an admin with a bot admin", body.ReadOnly, body.ReadOnlyReason)
 	}
 
-	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "locks", "log_channel"}
+	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "locks", "log_channel"}
 	if len(body.Modules) != len(wantModules) {
 		t.Fatalf("modules = %d, want %d", len(body.Modules), len(wantModules))
 	}
@@ -177,6 +178,25 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		fieldInt(t, body, "antiraid.auto_threshold") != 0 {
 		t.Fatalf("antiraid defaults = %+v", body.Modules[6])
 	}
+	if fieldInt(t, body, "warns.limit") != 3 || fieldString(t, body, "warns.mode") != "mute" ||
+		fieldInt(t, body, "warns.action_time") != 0 || fieldInt(t, body, "warns.expiry") != 0 {
+		t.Fatalf("warns defaults = %+v", body.Modules[7])
+	}
+	for _, key := range []string{"warns.limit", "warns.mode", "warns.action_time", "warns.expiry"} {
+		field := findSettingsField(t, body, key)
+		if !field.Writable || field.Changed || field.Default != field.Value {
+			t.Fatalf("%s metadata = %+v, want writable and unchanged at its default", key, field)
+		}
+	}
+	options := findSettingsField(t, body, "warns.mode").Options
+	if len(options) != 5 {
+		t.Fatalf("warn modes = %v, want five supported actions", options)
+	}
+	for _, mode := range []string{"ban", "kick", "mute", "tban", "tmute"} {
+		if !containsString(options, mode) {
+			t.Fatalf("warn modes = %v, missing %q", options, mode)
+		}
+	}
 	if findSettingsField(t, body, "locks.active").Writable || findSettingsField(t, body, "log_channel.bound").Writable {
 		t.Fatal("locks and log channel summaries must be read-only")
 	}
@@ -188,6 +208,9 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"captcha":     &models.CaptchaSettings{},
 		"antiflood":   &models.AntifloodSettings{},
 		"antiraid":    &models.AntiRaidSettings{},
+		"warns":       &models.WarnSettings{},
+		"warn_users":  &models.Warns{},
+		"warn_entry":  &models.WarnEntry{},
 		"spam_db":     &models.SpamDBSettings{},
 		"ai_spam":     &models.AISpamSettings{},
 		"lock":        &models.LockSettings{},
@@ -232,6 +255,27 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "last spam database", body: `{"changes":{"antispam.spamdb_cas":false}}`, wantKeys: []string{"antispam.spamdb_cas"}},
 		{name: "no spam database left", body: `{"changes":{"antispam.spamdb_cas":false,"antispam.spamdb_shared":false}}`, wantKeys: []string{"antispam.spamdb_cas", "antispam.spamdb_shared"}},
 		{name: "valid beside invalid", body: `{"changes":{"greetings.welcome_enabled":false,"captcha.timeout":99}}`, wantKeys: []string{"captcha.timeout"}},
+		{name: "warn limit below minimum", body: `{"changes":{"warns.limit":0}}`, wantKeys: []string{"warns.limit"}},
+		{name: "warn limit above maximum", body: `{"changes":{"warns.limit":101}}`, wantKeys: []string{"warns.limit"}},
+		{name: "warn limit fraction", body: `{"changes":{"warns.limit":3.5}}`, wantKeys: []string{"warns.limit"}},
+		{name: "warn limit wrong type", body: `{"changes":{"warns.limit":"3"}}`, wantKeys: []string{"warns.limit"}},
+		{name: "warn mode unknown", body: `{"changes":{"warns.mode":"restrict"}}`, wantKeys: []string{"warns.mode"}},
+		{name: "warn mode wrong type", body: `{"changes":{"warns.mode":true}}`, wantKeys: []string{"warns.mode"}},
+		{name: "warn timed ban without duration", body: `{"changes":{"warns.mode":"tban"}}`, wantKeys: []string{"warns.mode"}},
+		{name: "warn timed mute without duration", body: `{"changes":{"warns.mode":"tmute"}}`, wantKeys: []string{"warns.mode"}},
+		{name: "warn timed action with zero duration", body: `{"changes":{"warns.mode":"tban","warns.action_time":0}}`, wantKeys: []string{"warns.mode", "warns.action_time"}},
+		{name: "warn duration below minimum", body: `{"changes":{"warns.mode":"tmute","warns.action_time":59}}`, wantKeys: []string{"warns.action_time"}},
+		{name: "warn duration above maximum", body: fmt.Sprintf(`{"changes":{"warns.mode":"tban","warns.action_time":%d}}`, models.MaxActionTime+1), wantKeys: []string{"warns.action_time"}},
+		{name: "warn duration wrong type", body: `{"changes":{"warns.mode":"tban","warns.action_time":"60"}}`, wantKeys: []string{"warns.action_time"}},
+		{name: "warn duration alone while untimed", body: `{"changes":{"warns.action_time":60}}`, wantKeys: []string{"warns.action_time"}},
+		{name: "warn zero duration alone while untimed", body: `{"changes":{"warns.action_time":0}}`, wantKeys: []string{"warns.action_time"}},
+		{name: "warn duration with untimed mode", body: `{"changes":{"warns.mode":"ban","warns.action_time":60}}`, wantKeys: []string{"warns.mode", "warns.action_time"}},
+		{name: "warn expiry negative", body: `{"changes":{"warns.expiry":-1}}`, wantKeys: []string{"warns.expiry"}},
+		{name: "warn expiry below minimum", body: `{"changes":{"warns.expiry":59}}`, wantKeys: []string{"warns.expiry"}},
+		{name: "warn expiry above maximum", body: fmt.Sprintf(`{"changes":{"warns.expiry":%d}}`, models.MaxWarnExpiry+1), wantKeys: []string{"warns.expiry"}},
+		{name: "warn expiry wrong type", body: `{"changes":{"warns.expiry":false}}`, wantKeys: []string{"warns.expiry"}},
+		{name: "invalid warn blocks other modules", body: `{"changes":{"greetings.welcome_enabled":false,"warns.limit":7,"warns.mode":"tban","warns.expiry":60}}`, wantKeys: []string{"warns.mode"}},
+		{name: "invalid module blocks valid warns", body: `{"changes":{"captcha.timeout":99,"warns.limit":7,"warns.mode":"tban","warns.action_time":60,"warns.expiry":60}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
 	for _, test := range tests {
@@ -259,6 +303,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 				"greetings": &models.GreetingSettings{},
 				"captcha":   &models.CaptchaSettings{},
 				"antiflood": &models.AntifloodSettings{},
+				"warns":     &models.WarnSettings{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {
 					t.Fatalf("%s: %d %s rows written", test.name, count, name)
@@ -269,6 +314,150 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 
 	empty := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, `{"changes":{}}`, "application/json")
 	requireAPIError(t, empty, http.StatusBadRequest, "invalid_settings")
+}
+
+func TestSettingsPatchWarnsAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
+	fixture, chatID := newSettingsFixture(t)
+	raw := readFixture(t, "initdata_main.txt")
+	target := settingsPath(chatID)
+
+	// Each step warms the shared warns cache before writing. Separate PATCHes
+	// ensure another setter cannot hide a missing cache invalidation.
+	for _, test := range []struct {
+		name       string
+		changes    map[string]any
+		limit      int
+		mode       string
+		actionTime int
+		expiry     int
+	}{
+		{"minimum limit", map[string]any{"warns.limit": 1}, 1, "mute", 0, 0},
+		{"maximum limit", map[string]any{"warns.limit": 100}, 100, "mute", 0, 0},
+		{"ban", map[string]any{"warns.mode": "ban"}, 100, "ban", 0, 0},
+		{"kick", map[string]any{"warns.mode": "kick"}, 100, "kick", 0, 0},
+		{"mute", map[string]any{"warns.mode": "mute"}, 100, "mute", 0, 0},
+		{"timed ban minimum", map[string]any{"warns.mode": "tban", "warns.action_time": models.MinActionTime}, 100, "tban", models.MinActionTime, 0},
+		{"timed mute reuses stored duration", map[string]any{"warns.mode": "tmute"}, 100, "tmute", models.MinActionTime, 0},
+		{"duration alone while timed", map[string]any{"warns.action_time": models.MaxActionTime}, 100, "tmute", models.MaxActionTime, 0},
+		{"timed ban reuses stored duration", map[string]any{"warns.mode": "tban"}, 100, "tban", models.MaxActionTime, 0},
+		{"ban clears duration", map[string]any{"warns.mode": "ban"}, 100, "ban", 0, 0},
+		{"timed mute maximum", map[string]any{"warns.mode": "tmute", "warns.action_time": models.MaxActionTime}, 100, "tmute", models.MaxActionTime, 0},
+		{"kick with explicit zero clears duration", map[string]any{"warns.mode": "kick", "warns.action_time": 0}, 100, "kick", 0, 0},
+		{"timed ban", map[string]any{"warns.mode": "tban", "warns.action_time": 120}, 100, "tban", 120, 0},
+		{"mute clears duration", map[string]any{"warns.mode": "mute"}, 100, "mute", 0, 0},
+		{"minimum expiry", map[string]any{"warns.expiry": models.MinWarnExpiry}, 100, "mute", 0, models.MinWarnExpiry},
+		{"maximum expiry", map[string]any{"warns.expiry": models.MaxWarnExpiry}, 100, "mute", 0, models.MaxWarnExpiry},
+		{"disable expiry", map[string]any{"warns.expiry": 0}, 100, "mute", 0, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			warns.GetWarnSetting(chatID)
+			payload, err := json.Marshal(map[string]any{"changes": test.changes})
+			if err != nil {
+				t.Fatalf("encode changes: %v", err)
+			}
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, string(payload), "application/json")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var patch settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if len(patch.Saved) != len(test.changes) || len(patch.Failed) != 0 {
+				t.Fatalf("saved = %v, failed = %v, want every change saved", patch.Saved, patch.Failed)
+			}
+			for key := range test.changes {
+				if !containsString(patch.Saved, key) {
+					t.Fatalf("saved = %v, missing %s", patch.Saved, key)
+				}
+			}
+
+			var stored models.WarnSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load warn settings: %v", err)
+			}
+			for source, settings := range map[string]*models.WarnSettings{"database": &stored, "getter": warns.GetWarnSetting(chatID)} {
+				if settings.WarnLimit != test.limit || settings.WarnMode != test.mode ||
+					settings.WarnActionTime != test.actionTime || settings.WarnExpiry != test.expiry {
+					t.Fatalf("%s warns = %+v, want limit=%d mode=%s action_time=%d expiry=%d",
+						source, settings, test.limit, test.mode, test.actionTime, test.expiry)
+				}
+			}
+			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
+			if fieldInt(t, after, "warns.limit") != test.limit || fieldString(t, after, "warns.mode") != test.mode ||
+				fieldInt(t, after, "warns.action_time") != test.actionTime || fieldInt(t, after, "warns.expiry") != test.expiry {
+				t.Fatal("GET warns does not reflect the saved settings")
+			}
+			for _, key := range []string{"warns.limit", "warns.mode", "warns.action_time", "warns.expiry"} {
+				field := findSettingsField(t, after, key)
+				if field.Changed != (field.Value != field.Default) {
+					t.Fatalf("%s changed = %v for value=%v default=%v", key, field.Changed, field.Value, field.Default)
+				}
+			}
+		})
+	}
+}
+
+func TestSettingsPatchWarnsValidationPreservesStoredSettings(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		mode       string
+		actionTime int
+		changes    string
+		errorKey   string
+	}{
+		{"ban rejects duration alone", "ban", 0, `{"warns.action_time":60}`, "warns.action_time"},
+		{"kick rejects zero duration alone", "kick", 0, `{"warns.action_time":0}`, "warns.action_time"},
+		{"mute rejects duration alone", "mute", 0, `{"warns.action_time":60}`, "warns.action_time"},
+		{"timed duration cannot become zero", "tban", 120, `{"warns.limit":7,"warns.action_time":0,"warns.expiry":60}`, "warns.action_time"},
+		{"timed duration cannot become too short", "tmute", 120, `{"warns.limit":7,"warns.action_time":59}`, "warns.action_time"},
+		{"untimed mode rejects nonzero duration", "tban", 120, `{"warns.mode":"ban","warns.action_time":60}`, "warns.action_time"},
+		{"invalid expiry blocks mode and time", "tban", 120, `{"greetings.welcome_enabled":false,"warns.limit":7,"warns.mode":"tmute","warns.action_time":180,"warns.expiry":59}`, "warns.expiry"},
+		{"zero stored duration cannot enable timed mode", "ban", 0, `{"warns.limit":7,"warns.mode":"tban","warns.expiry":60}`, "warns.mode"},
+		{"short stored duration cannot enable timed mode", "ban", models.MinActionTime - 1, `{"warns.limit":7,"warns.mode":"tmute","warns.expiry":60}`, "warns.mode"},
+		{"long stored duration cannot enable timed mode", "ban", models.MaxActionTime + 1, `{"warns.limit":7,"warns.mode":"tban","warns.expiry":60}`, "warns.mode"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture, chatID := newSettingsFixture(t)
+			if err := warns.SetWarnLimit(chatID, 8); err != nil {
+				t.Fatalf("seed warn limit: %v", err)
+			}
+			if err := warns.SetWarnMode(chatID, test.mode, test.actionTime); err != nil {
+				t.Fatalf("seed warn mode: %v", err)
+			}
+			if err := warns.SetWarnExpiry(chatID, 300); err != nil {
+				t.Fatalf("seed warn expiry: %v", err)
+			}
+			warns.GetWarnSetting(chatID)
+
+			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
+				`{"changes":`+test.changes+`}`, "application/json")
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400 (body %s)", recorder.Code, recorder.Body.String())
+			}
+			var patch settingsPatchResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if patch.Error == nil || patch.Error.Code != "invalid_settings" || patch.Errors[test.errorKey] == "" ||
+				len(patch.Saved) != 0 || len(patch.Failed) != 0 {
+				t.Fatalf("patch = %+v, want validation failure for %s without writes", patch, test.errorKey)
+			}
+			var stored models.WarnSettings
+			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
+				t.Fatalf("load warn settings: %v", err)
+			}
+			for source, settings := range map[string]*models.WarnSettings{"database": &stored, "getter": warns.GetWarnSetting(chatID)} {
+				if settings.WarnLimit != 8 || settings.WarnMode != test.mode ||
+					settings.WarnActionTime != test.actionTime || settings.WarnExpiry != 300 {
+					t.Fatalf("refused PATCH changed %s warns: %+v", source, settings)
+				}
+			}
+			if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
+				t.Fatalf("refused PATCH created %d greeting rows", count)
+			}
+		})
+	}
 }
 
 func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
@@ -528,6 +717,12 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
 		t.Fatalf("non-admin write created %d greeting rows", count)
 	}
+	warnWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"warns.limit":7,"warns.mode":"tban","warns.action_time":60,"warns.expiry":60}}`, "application/json")
+	requireAPIError(t, warnWrite, http.StatusForbidden, "not_admin")
+	if count := countChatRows(t, &models.WarnSettings{}, chatID); count != 0 {
+		t.Fatalf("non-admin write created %d warn settings rows", count)
+	}
 }
 
 func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
@@ -551,6 +746,12 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	requireAPIError(t, write, http.StatusConflict, "bot_not_admin")
 	if count := countChatRows(t, &models.CaptchaSettings{}, chatID); count != 0 {
 		t.Fatalf("refused write created %d captcha rows", count)
+	}
+	warnWrite := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
+		`{"changes":{"warns.limit":7,"warns.mode":"tmute","warns.action_time":60,"warns.expiry":60}}`, "application/json")
+	requireAPIError(t, warnWrite, http.StatusConflict, "bot_not_admin")
+	if count := countChatRows(t, &models.WarnSettings{}, chatID); count != 0 {
+		t.Fatalf("refused write created %d warn settings rows", count)
 	}
 }
 

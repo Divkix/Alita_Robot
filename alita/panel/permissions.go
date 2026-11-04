@@ -31,6 +31,7 @@ var settingsPermissions = map[string]permission{
 	"antiflood":   permNone, // /setflood requires an admin and the bot admin
 	"antispam":    permNone, // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
 	"antiraid":    permNone, // /antiraid and the raid timers only require an admin
+	"warns":       permNone, // /setwarnlimit, /setwarnmode and /setwarntime
 	"locks":       permNone, // read-only summary
 	"log_channel": permNone, // read-only summary
 }

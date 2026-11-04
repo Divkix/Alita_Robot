@@ -28,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -149,6 +150,13 @@ func readRulesSettings(chatID int64) models.RulesSettings {
 	return *row
 }
 
+func readWarnSettings(chatID int64) models.WarnSettings {
+	if row, ok := readSettingsRow[models.WarnSettings](chatID); ok {
+		return *row
+	}
+	return models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
+}
+
 // panelSettings reads every supported setting and marks the response read-only
 // for a non-admin caller, or one where the bot cannot act.
 func panelSettings(access chatAccess) settingsResponse {
@@ -179,6 +187,7 @@ func panelSettings(access chatAccess) settingsResponse {
 	}
 
 	raid := antiraid.GetAntiRaidSettings(chatID)
+	warn := readWarnSettings(chatID)
 
 	spamDB := &models.SpamDBSettings{ChatID: chatID, Action: spamdbsettings.ActionBan, CheckCAS: true}
 	if row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err == nil && row != nil {
@@ -253,6 +262,12 @@ func panelSettings(access chatAccess) settingsResponse {
 			settingsInt("raid_time", raid.RaidTime, 21600, true),
 			settingsInt("raid_action_time", raid.RaidActionTime, 3600, true),
 			settingsInt("auto_threshold", raid.AutoAntiRaidThreshold, 0, true),
+		}},
+		{Key: "warns", Label: "Warnings", Fields: []settingsField{
+			settingsInt("limit", warn.WarnLimit, 3, true),
+			settingsString("mode", warn.WarnMode, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
+			settingsInt("action_time", warn.WarnActionTime, 0, true),
+			settingsInt("expiry", warn.WarnExpiry, 0, true),
 		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
@@ -403,6 +418,8 @@ func validateSettingsChanges(changes map[string]json.RawMessage, index map[strin
 		}
 	}
 
+	validateWarnModeChanges(index, updates, fieldErrors)
+
 	return updates, fieldErrors
 }
 
@@ -451,6 +468,7 @@ func validateSpamDatabaseChanges(index map[string]settingsField, updates map[str
 			}
 		}
 	}
+
 }
 
 // antifloodModeValues resolves the action and duration from the same snapshot
@@ -468,6 +486,37 @@ func antifloodModeValues(index map[string]settingsField, updates map[string]any)
 		actionTime = 0
 	}
 	return action, actionTime
+}
+
+// validateWarnModeChanges checks the effective mode and duration together, so
+// a batch can switch to a timed action without depending on field order.
+func validateWarnModeChanges(index map[string]settingsField, updates map[string]any, fieldErrors map[string]string) {
+	mode, modeChanged := updates["warns.mode"].(string)
+	seconds, timeChanged := updates["warns.action_time"].(int)
+	if !modeChanged && !timeChanged {
+		return
+	}
+	if !modeChanged {
+		mode, _ = index["warns.mode"].Value.(string)
+	}
+	if !timeChanged {
+		seconds, _ = index["warns.action_time"].Value.(int)
+	}
+	message := ""
+	if mode == "tban" || mode == "tmute" {
+		if !models.ValidActionTime(seconds) {
+			message = "a timed action needs between 60 and 31622400 seconds"
+		}
+	} else if timeChanged && (!modeChanged || seconds != 0) {
+		message = "action duration is only available for tban and tmute"
+	}
+	if message != "" {
+		for _, key := range []string{"warns.mode", "warns.action_time"} {
+			if _, changed := updates[key]; changed {
+				fieldErrors[key] = message
+			}
+		}
+	}
 }
 
 // probationBlockKeys are the panel fields of /probation block.
@@ -540,6 +589,21 @@ func validateSettingValue(key string, field settingsField, value any) string {
 		return validateAntispamValue(fieldKey, value)
 	case "antiraid":
 		return validateAntiraidValue(fieldKey, value)
+	case "warns":
+		switch fieldKey {
+		case "limit":
+			if n := value.(int); n < 1 || n > 100 {
+				return "must be between 1 and 100"
+			}
+		case "action_time":
+			if n := value.(int); n != 0 && !models.ValidActionTime(n) {
+				return "must be between 60 and 31622400 seconds"
+			}
+		case "expiry":
+			if !models.ValidWarnExpiry(value.(int)) {
+				return "must be 0 (never) or between 60 and 31622400 seconds"
+			}
+		}
 	}
 	return ""
 }
@@ -663,17 +727,24 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any,
 	saved := make([]string, 0, len(keys))
 	failed := make(map[string]string)
 	floodAction, floodActionTime := antifloodModeValues(current, updates)
-	var floodModeErr error
-	floodModeApplied := false
+	var floodModeErr, warnModeErr error
+	floodModeApplied, warnModeApplied := false, false
 	for _, key := range ordered {
 		var err error
-		if key == "antiflood.action" || key == "antiflood.action_time" {
+		switch key {
+		case "antiflood.action", "antiflood.action_time":
 			if !floodModeApplied {
 				floodModeErr = antiflood.SetFloodMode(chatID, floodAction, floodActionTime)
 				floodModeApplied = true
 			}
 			err = floodModeErr
-		} else {
+		case "warns.mode", "warns.action_time":
+			if !warnModeApplied {
+				warnModeErr = applyWarnModeChange(chatID, updates)
+				warnModeApplied = true
+			}
+			err = warnModeErr
+		default:
 			err = applySettingChange(chatID, chatName, key, updates[key])
 		}
 		if err != nil {
@@ -703,8 +774,29 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 		return applyAntispamChange(chatID, fieldKey, value)
 	case "antiraid":
 		return applyAntiraidChange(chatID, fieldKey, value)
+	case "warns":
+		switch fieldKey {
+		case "limit":
+			return warns.SetWarnLimit(chatID, value.(int))
+		case "expiry":
+			return warns.SetWarnExpiry(chatID, value.(int))
+		}
 	}
 	return fmt.Errorf("unknown setting %q", key)
+}
+
+func applyWarnModeChange(chatID int64, updates map[string]any) error {
+	row := readWarnSettings(chatID)
+	if mode, ok := updates["warns.mode"].(string); ok {
+		row.WarnMode = mode
+	}
+	if seconds, ok := updates["warns.action_time"].(int); ok {
+		row.WarnActionTime = seconds
+	}
+	if row.WarnMode != "tban" && row.WarnMode != "tmute" {
+		row.WarnActionTime = 0
+	}
+	return warns.SetWarnMode(chatID, row.WarnMode, row.WarnActionTime)
 }
 
 func applyGreetingChange(chatID int64, field string, value any) error {
