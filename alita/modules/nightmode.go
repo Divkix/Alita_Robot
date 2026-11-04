@@ -27,6 +27,19 @@ var nightModeNow = time.Now
 // bots on the ChatMember path, not on the delete path night mode runs on.
 var nightLockExcluded = map[string]bool{"bots": true}
 
+// NightModeLockTypes returns the supported night lock types without modifying
+// the locks module's cached list.
+func NightModeLockTypes() []string {
+	all := locksModule.getLockMapAsArray()
+	types := make([]string, 0, len(all))
+	for _, lockType := range all {
+		if !nightLockExcluded[lockType] {
+			types = append(types, lockType)
+		}
+	}
+	return types
+}
+
 // withNightLocks returns chatLocks with the chat's night lock types added
 // while its night window is open in the chat's timezone, and chatLocks itself
 // otherwise. It never writes to chatLocks, the cached map: the merge is a
@@ -120,7 +133,7 @@ func (m moduleStruct) parseNightMode(tr *i18n.Translator, args []string) (start,
 		if i >= len(args) {
 			return 0, 0, nil, trS(tr, "nightmode_no_types")
 		}
-		if *out, ok = parseNightClock(args[i]); !ok {
+		if *out, ok = nightmode.ParseClock(args[i]); !ok {
 			text, _ := tr.GetString("nightmode_invalid_time", i18n.TranslationParams{"input": html.EscapeString(args[i])})
 			return 0, 0, nil, text
 		}
@@ -147,16 +160,6 @@ func (m moduleStruct) parseNightMode(tr *i18n.Translator, args []string) (start,
 	}
 	slices.Sort(types)
 	return start, end, slices.Compact(types), ""
-}
-
-// parseNightClock reads a 24-hour H:MM or HH:MM time as minutes after
-// midnight.
-func parseNightClock(s string) (int, bool) {
-	t, err := time.Parse("15:04", s)
-	if err != nil {
-		return 0, false
-	}
-	return t.Hour()*60 + t.Minute(), true
 }
 
 // nightWindowLabel is how replies and the settings summary show a night

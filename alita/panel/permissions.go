@@ -35,6 +35,7 @@ var settingsPermissions = map[string]permission{
 	"digest":      permNone,       // /digest requires an admin and the bot admin
 	"reports":     permNone,       // /reports; auto-mute: settingsFieldPermission
 	"timezone":    permChangeInfo, // /timezone checks can_change_info
+	"nightmode":   permNone,       // /nightmode checks an admin and the bot admin
 	"locks":       permNone,       // read-only summary
 	"log_channel": permNone,       // read-only summary
 }

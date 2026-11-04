@@ -265,6 +265,35 @@ Settings does not create a timezone row.
 The **Activity** heatmap uses this timezone. **Top members** and the **weekly
 digest** keep their UTC-based windows; changing the timezone does not shift them.
 
+### Night mode settings
+
+The **Night mode** group in **Settings** applies selected message locks during a
+daily window in the chat's **Timezone** (`UTC` by default), just like
+`/nightmode`. It is off until an admin enables it.
+
+| Setting | Default | Accepted values |
+|---------|---------|-----------------|
+| `nightmode.enabled` | `false` | On or off for this chat. |
+| `nightmode.start` | `00:00` | A 24-hour `HH:MM` time from `00:00` to `23:59`. |
+| `nightmode.end` | `00:00` | A different 24-hour `HH:MM` time from `00:00` to `23:59`. |
+| `nightmode.lock_types` | `""` | Comma-separated `/locktypes` names, such as `media,url`, or `all`; `bots` is excluded. |
+
+The start is inclusive and the end exclusive. An end before the start crosses
+midnight: `23:00`–`07:00` runs overnight. Start and end cannot be equal, and
+enabling requires at least one supported lock type. Types are case-insensitive;
+spaces and duplicates are removed, and names are saved in sorted order.
+
+To configure a chat while night mode is off, switch it on and save the window
+and types in the same batch. Saving configuration edits while it remains off
+is refused, even if you briefly switch it on and back off before saving.
+Turning it off by itself preserves the stored window and types, so turning it
+back on can reuse them. Locks configured with `/lock` are not changed.
+
+You and the bot must be chat admins to save these settings. An invalid time,
+unsupported type, empty type list when enabling, or refused off-state edit
+blocks the entire save, including changes to other modules. Opening Settings
+does not create a night mode settings row.
+
 ## Failure modes
 
 | Symptom | Cause | Fix |

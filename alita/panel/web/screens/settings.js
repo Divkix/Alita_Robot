@@ -54,6 +54,10 @@ const fieldInfo = {
 	"reports.enabled": { label: "Member reports" },
 	"reports.mute_threshold": { label: "Auto-mute after reports", unit: "members", hint: "Different reporters: 2 to 20, or 0 for off; needs the restrict right", max: 20 },
 	"timezone.name": { label: "Chat timezone", hint: "IANA name, such as Asia/Kolkata; used by night mode and the activity heatmap" },
+	"nightmode.enabled": { label: "Night mode", hint: "Enable with a window and at least one lock type" },
+	"nightmode.start": { label: "Night mode starts", hint: "24-hour HH:MM in the chat timezone; enable night mode to edit" },
+	"nightmode.end": { label: "Night mode ends", hint: "24-hour HH:MM; a window can cross midnight" },
+	"nightmode.lock_types": { label: "Night lock types", hint: "Comma-separated /lock names, such as media,url; bots is not supported" },
 	"locks.active": { label: "Locked", hint: "Change them with /lock and /unlock in the group" },
 	"log_channel.bound": { label: "Log channel connected", hint: "Set one with /setlog" },
 };

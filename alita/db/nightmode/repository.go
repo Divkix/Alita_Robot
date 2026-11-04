@@ -1,7 +1,7 @@
 // Package nightmode stores each chat's night mode: lock types the locks
 // delete path enforces every day between two times in the chat's timezone.
-// Which lock types exist is the locks module's business; this package only
-// stores them and answers whether a local time falls inside the window.
+// Which lock types exist is the locks module's business; this package stores
+// them, parses clock times, and checks whether a local time falls in the window.
 package nightmode
 
 import (
@@ -32,6 +32,15 @@ var (
 	// ErrNoLockTypes is returned when Enable gets no lock type.
 	ErrNoLockTypes = errors.New("nightmode: no lock types")
 )
+
+// ParseClock reads a 24-hour H:MM or HH:MM time as minutes after midnight.
+func ParseClock(s string) (int, bool) {
+	t, err := time.Parse("15:04", s)
+	if err != nil {
+		return 0, false
+	}
+	return t.Hour()*60 + t.Minute(), true
+}
 
 func cacheKey(chatID int64) string {
 	return cache.CacheKey(cacheKeyPrefix, chatID)
