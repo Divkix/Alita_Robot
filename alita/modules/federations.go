@@ -783,13 +783,7 @@ func notifyFedAction(b *gotgbot.Bot, fed *models.Federation, actor *gotgbot.User
 
 func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	from := requireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
-	if chat_status.CheckDisabledCmd(b, msg, "fedstat") {
-		return ext.EndGroups
-	}
+	from := ctx.EffectiveUser
 	tr := ctxTr(ctx)
 	args := ctx.Args()[1:]
 	targetID := from.Id
@@ -1343,8 +1337,9 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unfban", Aliases: []string{"funban"}, RequiredChecks: []helpers.CheckFunc{federationBanCheck},
 	}, pipelineHandler(federationsModule.unfban))
-	helpers.MultiCommand(dispatcher, []string{"fedstat", "fbanstat"}, federationsModule.fedStat)
-	helpers.AddCmdToDisableable("fedstat")
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "fedstat", Aliases: []string{"fbanstat"}, Disableable: true,
+	}, pipelineHandler(federationsModule.fedStat))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "subfed", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.subFed))

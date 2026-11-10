@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 )
 
@@ -135,5 +136,48 @@ func TestFederationCommandsKeepPrivateTargetsAndValidationOrder(t *testing.T) {
 		calls := f.client.callsFor("sendMessage")[before:]
 		require.Len(t, calls, 1)
 		require.Equal(t, tc.want, calls[0].Params["text"])
+	}
+}
+
+func TestFederationStatisticsAliasesShareDisableSetting(t *testing.T) {
+	useRealLocales(t)
+	for _, stored := range []string{"fedstat", "fbanstat"} {
+		t.Run(stored, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			withDisableCommands(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadFederations(d)
+			LoadDisabling(d)
+			run := func(actor gotgbot.User, text string) []moduleBotCall {
+				t.Helper()
+				before := len(f.client.callsFor("sendMessage"))
+				require.NoError(t, d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil))
+				return f.client.callsFor("sendMessage")[before:]
+			}
+			list := run(f.member, "/disableable")
+			require.Len(t, list, 1)
+			require.Contains(t, fmt.Sprint(list[0].Params["text"]), "fbanstat")
+			for _, typed := range []string{"fedstat", "fbanstat"} {
+				require.Len(t, run(f.member, "/"+typed), 1)
+			}
+			run(f.admin, "/disable "+stored)
+			require.True(t, disabling.IsCommandDisabled(f.chat.Id, stored), "/disable must accept every alias")
+			list = run(f.admin, "/disabled")
+			require.Len(t, list, 1)
+			require.Contains(t, fmt.Sprint(list[0].Params["text"]), stored)
+			require.NoError(t, disabling.ToggleDel(f.chat.Id, true))
+			for _, typed := range []string{"fedstat", "fbanstat"} {
+				before := len(f.client.callsFor("deleteMessage"))
+				require.Empty(t, run(f.member, "/"+typed), "one stored spelling must silence every alias")
+				require.Len(t, f.client.callsFor("deleteMessage"), before+1)
+				require.Len(t, run(f.admin, "/"+typed), 1, "admins must bypass every alias row")
+				require.Len(t, f.client.callsFor("deleteMessage"), before+1)
+			}
+			run(f.admin, "/enable "+stored)
+			require.False(t, disabling.IsCommandDisabled(f.chat.Id, stored))
+			for _, typed := range []string{"fedstat", "fbanstat"} {
+				require.Len(t, run(f.member, "/"+typed), 1)
+			}
+		})
 	}
 }

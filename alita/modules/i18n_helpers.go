@@ -9,7 +9,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -38,12 +37,4 @@ func replyHTML(b *gotgbot.Bot, msg *gotgbot.Message, text string) {
 	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
 		log.Error(err)
 	}
-}
-
-func requireUser(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.User {
-	u := chat_status.RequireUser(b, ctx)
-	if u == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-	}
-	return u
 }
