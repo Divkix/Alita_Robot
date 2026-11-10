@@ -22,32 +22,8 @@ import (
 
 var ConnectionsModule = moduleStruct{moduleName: "Connections"}
 
-func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequirePrivate(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_pm_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
-		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	chat := chat_status.IsUserConnected(b, ctx, false, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
+func (m moduleStruct) connection(c *helpers.CommandContext) error {
+	b, msg, chat, user, tr := c.Bot, c.Msg, c.Chat, c.User, c.Tr
 
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
 	_text := fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
@@ -67,22 +43,8 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat.Type == "private" {
-		// From PM, act on the connected group.
-		if chat = resolveAdminChat(b, ctx, false); chat == nil {
-			return ext.EndGroups
-		}
-	} else if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-		return ext.EndGroups
-	}
+func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
+	b, ctx, msg, chat, tr := c.Bot, c.Ctx, c.Msg, c.Chat, c.Tr
 	args := ctx.Args()
 
 	var text string
@@ -123,14 +85,8 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+func (m moduleStruct) connect(c *helpers.CommandContext) error {
+	b, ctx, chat, msg, user, tr := c.Bot, c.Ctx, c.Chat, c.Msg, c.User, c.Tr
 	var text string
 	var replyMarkup gotgbot.ReplyMarkup
 
@@ -148,9 +104,10 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
-			text, _ = tr.GetString(denyKey)
-		} else if err := connections.ConnectId(user.Id, chat.Id); err != nil {
+		if !helpers.RunChecks(c, []helpers.CheckFunc{connectionTargetCheck(chat.Id)}) {
+			return ext.EndGroups
+		}
+		if err := connections.ConnectId(user.Id, chat.Id); err != nil {
 			text, _ = tr.GetString("common_settings_save_failed")
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
@@ -158,20 +115,19 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyMarkup = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 		}
 	} else {
-		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
-			text, _ = tr.GetString(denyKey)
-		} else {
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_tap_btn_connect")
-			replyMarkup = gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+		if !helpers.RunChecks(c, []helpers.CheckFunc{connectionTargetCheck(chat.Id)}) {
+			return ext.EndGroups
+		}
+		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_tap_btn_connect")
+		replyMarkup = gotgbot.InlineKeyboardMarkup{
+			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+				{
 					{
-						{
-							Text: trS(ctxTr(ctx), "connections_button_connect"),
-							Url:  fmt.Sprintf("https://t.me/%s?start=connect_%d", b.Username, chat.Id),
-						},
+						Text: trS(ctxTr(ctx), "connections_button_connect"),
+						Url:  fmt.Sprintf("https://t.me/%s?start=connect_%d", b.Username, chat.Id),
 					},
 				},
-			}
+			},
 		}
 	}
 
@@ -271,28 +227,18 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	return ext.EndGroups
 }
 
-func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
+func (m moduleStruct) disconnect(c *helpers.CommandContext) error {
+	b, msg, user, tr := c.Bot, c.Msg, c.User, c.Tr
 	var text string
 
-	if ctx.Message.Chat.Type == "private" {
-		if connections.Connection(user.Id).Connected {
-			if err := connections.DisconnectId(user.Id); err != nil {
-				text, _ = tr.GetString("common_settings_save_failed")
-			} else {
-				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_disconnected")
-			}
+	if connections.Connection(user.Id).Connected {
+		if err := connections.DisconnectId(user.Id); err != nil {
+			text, _ = tr.GetString("common_settings_save_failed")
 		} else {
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_disconnected")
 		}
 	} else {
-		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_need_pm")
+		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
 	}
 
 	_, err := msg.Reply(b, text, formatting.Shtml())
@@ -304,81 +250,158 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+func (m moduleStruct) reconnect(c *helpers.CommandContext) error {
+	b, msg, user, tr := c.Bot, c.Msg, c.User, c.Tr
 	var (
 		connKeyboard gotgbot.InlineKeyboardMarkup
 		text         string
 	)
+	chatId := connections.Connection(user.Id).ChatId
 
-	if ctx.Message.Chat.Type == "private" {
-		user := chat_status.RequireUser(b, ctx)
-		if user == nil {
-			return ext.EndGroups
-		}
-		chatId := connections.Connection(user.Id).ChatId
-
-		if chatId != 0 {
-			gchat, err := b.GetChat(chatId, nil)
-			if err != nil || gchat == nil {
-				log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Last chat lookup failed")
-				text, _ = tr.GetString("error_generic")
-			} else {
-				_chat := gchat.ToChat()
-				isMember, err := chat_status.IsUserInChatWithError(b, &_chat, user.Id)
-				if err != nil {
-					log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Membership check failed")
-					text, _ = tr.GetString("error_generic")
-				} else if !isMember {
-					if err := connections.DisconnectId(user.Id); err != nil {
-						text, _ = tr.GetString("common_settings_save_failed")
-					} else {
-						text, _ = tr.GetString("connections_stale_connection")
-					}
-				} else if allowed, denyKey := canUserConnectToChat(b, chatId, user.Id); !allowed {
-					text, _ = tr.GetString(denyKey)
-				} else if err := connections.ConnectId(user.Id, chatId); err != nil {
-					text, _ = tr.GetString("common_settings_save_failed")
-				} else {
-					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
-					text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
-					connKeyboard = keyboard.InitButtons(b, tr, gchat.Id, user.Id)
-				}
-			}
+	if chatId != 0 {
+		gchat, err := b.GetChat(chatId, nil)
+		if err != nil || gchat == nil {
+			log.WithFields(log.Fields{"userId": user.Id, "chatId": chatId, "error": err}).Warn("[Reconnect] Last chat lookup failed")
+			text, _ = tr.GetString("error_generic")
 		} else {
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_no_last_chat")
+			chat := gchat.ToChat()
+			if !helpers.RunChecks(c, []helpers.CheckFunc{reconnectTargetCheck(&chat, chatId)}) {
+				return ext.EndGroups
+			}
+			if err := connections.ConnectId(user.Id, chatId); err != nil {
+				text, _ = tr.GetString("common_settings_save_failed")
+			} else {
+				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
+				text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
+				connKeyboard = keyboard.InitButtons(b, tr, gchat.Id, user.Id)
+			}
 		}
-		_, err := msg.Reply(b, text,
-			&gotgbot.SendMessageOpts{
-				ReplyMarkup: connKeyboard,
-				ParseMode:   formatting.HTML,
-			},
-		)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
 	} else {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_need_pm")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_no_last_chat")
+	}
+	_, err := msg.Reply(b, text,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: connKeyboard,
+			ParseMode:   formatting.HTML,
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 	return ext.EndGroups
+}
+
+// connectionPrivateCheck keeps /connection's generic PM refusal before its
+// saved-connection and membership checks.
+func connectionPrivateCheck(c *helpers.CommandContext) bool {
+	if chat_status.RequirePrivate(c.Bot, c.Ctx, nil) {
+		return true
+	}
+	chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pm_only_error", "", chat_status.WithReply())
+	return false
+}
+
+func connectionSavedCheck(c *helpers.CommandContext) bool {
+	if conn := connections.Connection(c.User.Id); conn.Connected && conn.ChatId != 0 {
+		return true
+	}
+	text, _ := c.Tr.GetString("connections_not_connected")
+	if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
+		log.Error(err)
+	}
+	return false
+}
+
+// connectionPMOnlyCheck preserves disconnect/reconnect's distinct group replies.
+func connectionPMOnlyCheck(key string) helpers.CheckFunc {
+	return func(c *helpers.CommandContext) bool {
+		if c.Msg.Chat.Type == "private" {
+			return true
+		}
+		text, _ := c.Tr.GetString(key)
+		if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+		}
+		return false
+	}
+}
+
+// allowConnectAdminCheck keeps group non-admins silent, without anonymous proof.
+func allowConnectAdminCheck(c *helpers.CommandContext) bool {
+	if c.Msg.Chat.Type == "private" {
+		return helpers.RequireConnectedAdmin(false)(c)
+	}
+	return chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
+}
+
+// connectionTargetCheck applies the shared policy only after the command has
+// read its actual target; a saved connection is not /connect's target.
+func connectionTargetCheck(chatID int64) helpers.CheckFunc {
+	return func(c *helpers.CommandContext) bool {
+		allowed, key := canUserConnectToChat(c.Bot, chatID, c.User.Id)
+		if allowed {
+			return true
+		}
+		text, _ := c.Tr.GetString(key)
+		if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+		}
+		return false
+	}
+}
+
+// reconnectTargetCheck requires live membership before the allow-connect policy.
+// Lookup failures preserve the saved connection; only a former member is detached.
+func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.CheckFunc {
+	return func(c *helpers.CommandContext) bool {
+		isMember, err := chat_status.IsUserInChatWithError(c.Bot, chat, c.User.Id)
+		var key string
+		if err != nil {
+			log.WithFields(log.Fields{"userId": c.User.Id, "chatId": chatID, "error": err}).Warn("[Reconnect] Membership check failed")
+			key = "error_generic"
+		} else if !isMember {
+			if err := connections.DisconnectId(c.User.Id); err != nil {
+				key = "common_settings_save_failed"
+			} else {
+				key = "connections_stale_connection"
+			}
+		} else {
+			return connectionTargetCheck(chatID)(c)
+		}
+		text, _ := c.Tr.GetString(key)
+		if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+		}
+		return false
+	}
 }
 
 func LoadConnections(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(ConnectionsModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("connect", ConnectionsModule.connect))
-	dispatcher.AddHandler(handlers.NewCommand("disconnect", ConnectionsModule.disconnect))
-	dispatcher.AddHandler(handlers.NewCommand("connection", ConnectionsModule.connection))
-	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
-	dispatcher.AddHandler(handlers.NewCommand("allowconnect", withPMGroupArg("allowconnect", helpers.PMGroupArgOwn, ConnectionsModule.allowConnect)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "connect"}, ConnectionsModule.connect)
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "disconnect",
+		RequiredChecks: []helpers.CheckFunc{connectionPMOnlyCheck("connections_disconnect_need_pm")},
+	}, ConnectionsModule.disconnect)
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "connection",
+		RequiredChecks: []helpers.CheckFunc{
+			connectionPrivateCheck,
+			connectionSavedCheck,
+			helpers.RequireConnectedMember(false),
+		},
+	}, ConnectionsModule.connection)
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "reconnect",
+		RequiredChecks: []helpers.CheckFunc{connectionPMOnlyCheck("connections_reconnect_need_pm")},
+	}, ConnectionsModule.reconnect)
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "allowconnect",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{allowConnectAdminCheck},
+	}, ConnectionsModule.allowConnect)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "settings"}, pipelineHandler(ConnectionsModule.settings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))

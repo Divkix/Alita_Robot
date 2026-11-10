@@ -50,14 +50,6 @@ func connectedPMFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot
 	return client, bot, groupA, admin, member
 }
 
-func runInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, handler func(*gotgbot.Bot, *ext.Context) error) {
-	t.Helper()
-	ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
-	if err := handler(bot, ctx); err != nil && err != ext.EndGroups {
-		t.Fatalf("%s from PM error = %v", text, err)
-	}
-}
-
 func captchaSettingsOf(t *testing.T, chatID int64) *models.CaptchaSettings {
 	t.Helper()
 	settings, err := captcha.GetCaptchaSettings(chatID)
@@ -429,13 +421,20 @@ func TestReactionsFromPMViaConnection(t *testing.T) {
 
 func TestAllowConnectFromPMViaConnection(t *testing.T) {
 	client, bot, groupA, admin, member := connectedPMFixture(t)
+	dispatcher := connectionsDispatcher()
 
-	runInPM(t, bot, member, "/allowconnect off", ConnectionsModule.allowConnect)
+	memberCtx := newModuleMessageContext(bot, privateChatOf(member), member, "/allowconnect off")
+	if err := dispatcher.ProcessUpdate(bot, memberCtx.Update, nil); err != nil {
+		t.Fatalf("member /allowconnect off from PM: %v", err)
+	}
 	if !connections.GetChatConnectionSetting(groupA).AllowConnect {
 		t.Fatal("non-admin turned allowconnect off")
 	}
 
-	runInPM(t, bot, admin, "/allowconnect off", ConnectionsModule.allowConnect)
+	adminCtx := newModuleMessageContext(bot, privateChatOf(admin), admin, "/allowconnect off")
+	if err := dispatcher.ProcessUpdate(bot, adminCtx.Update, nil); err != nil {
+		t.Fatalf("admin /allowconnect off from PM: %v", err)
+	}
 	if connections.GetChatConnectionSetting(groupA).AllowConnect {
 		t.Fatal("/allowconnect off from PM did not change the connected group")
 	}
