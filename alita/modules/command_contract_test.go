@@ -5,7 +5,6 @@ package modules
 import (
 	"fmt"
 	"net/http"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -19,19 +18,16 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
-// This sweep discovers names from the dispatcher, acceptance from /disable,
-// and aliases from the shared response closures registered by the pipeline.
-// Keep inputs argument-free unless an argument is needed to reach a proof;
-// commands which normally call external services then answer with their usage.
+// This sweep discovers names from the dispatcher and acceptance from /disable.
+// Disableable alias families below are independent behaviour expectations, not
+// inferred from the suppression being tested. Argument-free inputs keep external
+// lookups on their usage paths; the fixture also forbids external HTTP.
 func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 	useRealLocales(t)
 	withMiniredis(t)
 	withDisableCommands(t)
 	withExtendRegistry(t)
-	withMiscHTTPClient(t, &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Errorf("command sweep attempted external HTTP %s; give this command an offline input", req.URL.Redacted())
-		return nil, fmt.Errorf("external HTTP is forbidden in the command sweep")
-	})})
+	withCommandContractOfflineHTTP(t)
 
 	all := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAllModules(all)
@@ -42,6 +38,9 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 	}
 	byName := make(map[string]handlers.Command, len(commands))
 	for _, command := range commands {
+		if _, exists := byName[command.Command]; exists {
+			t.Fatalf("LoadAllModules registered /%s more than once", command.Command)
+		}
 		byName[command.Command] = command
 	}
 	names := make([]string, 0, len(byName))
@@ -49,6 +48,9 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
+	if len(names) != 227 {
+		t.Fatalf("LoadAllModules registered %d names, want 227: %v", len(names), names)
+	}
 	disable, ok := byName["disable"]
 	if !ok {
 		t.Fatal("LoadAllModules did not register /disable")
@@ -82,21 +84,23 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 			acceptedCount++
 		}
 	}
-	if acceptedCount == 0 {
-		t.Fatal("/disable accepted no registered names; the sweep cannot exercise member suppression")
+	if acceptedCount != 35 {
+		t.Fatalf("/disable accepted %d registered names, want 35", acceptedCount)
 	}
 
-	// reflect.Value equality preserves the identity of copied function values,
-	// unlike Pointer(), which identifies only their shared code. Pipeline aliases
-	// receive copies of the very same response closure.
-	closures := make(map[reflect.Value][]string)
-	for _, name := range names {
-		response := reflect.ValueOf(byName[name].Response)
-		closures[response] = append(closures[response], name)
-	}
 	aliases := make(map[string][]string)
-	for _, siblings := range closures {
+	for _, siblings := range [][]string{
+		{"blacklists", "blocklists"},
+		{"fedstat", "fbanstat"},
+		{"notes", "saved"},
+	} {
 		for _, name := range siblings {
+			if _, exists := byName[name]; !exists {
+				t.Fatalf("expected disableable alias /%s is not registered", name)
+			}
+			if !accepted[name] {
+				t.Errorf("/disable rejected expected alias /%s", name)
+			}
 			aliases[name] = siblings
 		}
 	}
@@ -172,8 +176,8 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 			})
 		})
 	}
-	if proofs == 0 {
-		t.Error("no registered command requested anonymous-admin proof; the sweep did not exercise replay")
+	if proofs != 72 {
+		t.Errorf("observed %d anonymous-admin proof flows, want 72", proofs)
 	}
 
 	for _, source := range names {
@@ -183,6 +187,9 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		t.Run(source+"/alias-rows", func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			var memberFailures, adminFailures []string
+			sourceDispatcher := commandContractDispatcher(byName[source])
+			sourceMember := commandContractOutcome(t, sourceDispatcher, f, f.member, source)
+			sourceAdmin := commandContractOutcome(t, sourceDispatcher, f, f.admin, source)
 			for _, target := range aliases[source] {
 				if source == target {
 					continue
@@ -194,9 +201,11 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 				commandContractSetRow(t, f.chat.Id, source, true)
 				memberAfter := commandContractOutcome(t, d, f, f.member, target)
 				adminAfter := commandContractOutcome(t, d, f, f.admin, target)
-				if len(memberBefore) == 0 {
-					t.Fatalf("/%s has no member baseline when checking row %s; add an offline commandContractInput", target, source)
+				if len(memberBefore) == 0 || len(adminBefore) == 0 {
+					t.Fatalf("/%s has no member/admin baseline when checking row %s; add an offline commandContractInput", target, source)
 				}
+				check(t, source, "alias-baseline-member", commandContractSameEffects(target, sourceMember, memberBefore), fmt.Sprintf("expected alias /%s differs before disabling: /%s=%s /%s=%s", target, source, commandContractDescribe(sourceMember), target, commandContractDescribe(memberBefore)))
+				check(t, source, "alias-baseline-admin", commandContractSameEffects(target, sourceAdmin, adminBefore), fmt.Sprintf("expected alias /%s differs before disabling: /%s=%s /%s=%s", target, source, commandContractDescribe(sourceAdmin), target, commandContractDescribe(adminBefore)))
 				if len(memberAfter) != 0 {
 					memberFailures = append(memberFailures, fmt.Sprintf("/%s got %s", target, commandContractDescribe(memberAfter)))
 				}
@@ -209,6 +218,20 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		})
 	}
 	t.Logf("observed %d registered names, %d accepted disable names, %d anonymous proof flows", len(names), acceptedCount, proofs)
+}
+
+func withCommandContractOfflineHTTP(t *testing.T) {
+	t.Helper()
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Errorf("command probe attempted external HTTP %s; give this command an offline input", req.URL.Redacted())
+		return nil, fmt.Errorf("external HTTP is forbidden in command probes")
+	})}
+	withMiscHTTPClient(t, client)
+	previousBackup, previousAISpam := backupDownloadHTTPClient, aispamHTTPClient
+	backupDownloadHTTPClient, aispamHTTPClient = client, client
+	t.Cleanup(func() {
+		backupDownloadHTTPClient, aispamHTTPClient = previousBackup, previousAISpam
+	})
 }
 
 func commandContractDispatcher(command handlers.Command) *ext.Dispatcher {
