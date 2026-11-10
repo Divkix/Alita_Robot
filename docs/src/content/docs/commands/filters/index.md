@@ -90,6 +90,10 @@ For detailed command usage, refer to the commands table above.
 - `/stopall` — Requires **chat owner** (creator)
 - `/filters` — Available to all users (disableable)
 
+Anonymous admins receive only a confirmation button for `/filter` and `/stop`,
+including their aliases. After an admin confirms, the command uses that admin's
+rights and keeps the original replied-to message or media.
+
 **Important:** When re-adding an existing filter keyword, the bot shows an inline
 confirmation dialog (Yes/No buttons) asking the admin to confirm overwrite. The
 confirmation expires after 5 minutes. Each chat can have up to **150 filters**;

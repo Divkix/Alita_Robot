@@ -175,8 +175,8 @@ func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
 		member := gotgbot.User{Id: 42, FirstName: "Member"}
 		ctx := newModuleMessageContext(bot, chat, member, "/filter hello nope")
 
-		if err := filtersModule.addFilter(bot, ctx); err != ext.EndGroups {
-			t.Fatalf("addFilter non-admin error = %v, want EndGroups", err)
+		if err := filtersDispatcher().ProcessUpdate(bot, ctx.Update, nil); err != nil {
+			t.Fatalf("addFilter non-admin error = %v", err)
 		}
 		if filters.DoesFilterExists(chat.Id, "hello") {
 			t.Fatal("filter was stored by non-admin")
@@ -668,8 +668,8 @@ func TestRemoveAllFiltersFromNonOwnerRepliesWithoutConfirmation(t *testing.T) {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 
-	if err := filtersModule.rmAllFilters(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/stopall")); err != ext.EndGroups {
-		t.Fatalf("rmAllFilters error = %v, want EndGroups", err)
+	if err := filtersDispatcher().ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/stopall").Update, nil); err != nil {
+		t.Fatalf("rmAllFilters error = %v", err)
 	}
 	calls := f.client.callsFor("sendMessage")
 	if len(calls) != 1 {
