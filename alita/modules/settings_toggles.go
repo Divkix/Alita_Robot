@@ -12,7 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
@@ -23,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -204,7 +204,7 @@ func setCaptchaToggle(b *gotgbot.Bot, chatID int64, chatName, value string) stri
 func setAntiRaidToggle(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
 	var err error
 	if value == "on" {
-		_, err = antiRaidModule.enableRaid(chatID, antiraid.GetAntiRaidSettings(chatID).RaidTime)
+		_, err = antiRaidModule.enableRaid(chatID, settings.ReadAntiRaid(chatID).RaidTime)
 	} else {
 		_, err = antiRaidModule.disableRaid(chatID)
 	}

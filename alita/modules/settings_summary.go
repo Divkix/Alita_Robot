@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
@@ -32,6 +31,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -58,8 +58,6 @@ const (
 	settingsDefaultCaptchaAction   = "kick"
 	settingsDefaultCaptchaAttempts = 3
 	settingsDefaultFloodAction     = "mute"
-	settingsDefaultRaidTime        = 21600
-	settingsDefaultRaidActionTime  = 3600
 	settingsDefaultWarnLimit       = 3
 	settingsDefaultWarnMode        = "mute"
 	settingsDefaultBlacklistAction = "warn"
@@ -181,19 +179,23 @@ func antifloodSettingsSection(chatID int64) settingsSection {
 }
 
 func antiraidSettingsSection(chatID int64) settingsSection {
-	s := antiraid.GetAntiRaidSettings(chatID)
 	st := getRaidState(chatID)
 	active := st.Active && time.Now().Unix() <= st.ExpiresAt
-	auto := settingsRow{Command: "/autoantiraid", Value: "off"}
-	if s.AutoAntiRaidThreshold > 0 {
-		auto = settingsRow{Command: "/autoantiraid", Value: strconv.Itoa(s.AutoAntiRaidThreshold), Changed: true}
-	}
 	return settingsSection{Title: "AntiRaid", Rows: []settingsRow{
 		boolRow("/antiraid", active, false),
-		{Command: "/raidtime", Value: formatDuration(s.RaidTime), Changed: s.RaidTime != settingsDefaultRaidTime},
-		{Command: "/raidactiontime", Value: formatDuration(s.RaidActionTime), Changed: s.RaidActionTime != settingsDefaultRaidActionTime},
-		auto,
+		declaredSettingsRow("/raidtime", settings.RaidTime.Read(chatID), formatDuration),
+		declaredSettingsRow("/raidactiontime", settings.RaidActionTime.Read(chatID), formatDuration),
+		declaredSettingsRow("/autoantiraid", settings.AutoAntiRaidThreshold.Read(chatID), func(value int) string {
+			if value == 0 {
+				return "off"
+			}
+			return strconv.Itoa(value)
+		}),
 	}}
+}
+
+func declaredSettingsRow(command string, state settings.State, format func(int) string) settingsRow {
+	return settingsRow{Command: command, Value: format(state.Value.(int)), Changed: state.Changed}
 }
 
 func probationSettingsSection(ctx context.Context, chatID int64) settingsSection {

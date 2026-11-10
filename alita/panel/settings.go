@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
@@ -34,6 +32,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 )
 
 // languageCodes is the set /lang offers and ChangeGroupLanguage accepts.
@@ -102,6 +101,22 @@ func settingsString(key, value, def string, writable bool, options []string) set
 		Changed:  value != def,
 		Writable: writable,
 		Options:  options,
+	}
+}
+
+func declaredSettingsField(chatID int64, declaration *settings.Declaration) settingsField {
+	state := declaration.Read(chatID)
+	_, key, _ := strings.Cut(declaration.Key, ".")
+	var fieldType string
+	switch declaration.Type {
+	case settings.Number, settings.Duration:
+		fieldType = "int"
+	default:
+		panic("unmapped setting type")
+	}
+	return settingsField{
+		Key: key, Type: fieldType, Value: state.Value, Default: declaration.Default,
+		Changed: state.Changed, Writable: true,
 	}
 }
 
@@ -190,7 +205,6 @@ func panelSettings(access chatAccess) settingsResponse {
 		flood.Action = "mute"
 	}
 
-	raid := antiraid.GetAntiRaidSettings(chatID)
 	warn := readWarnSettings(chatID)
 	digestRow := &models.DigestSettings{ChatID: chatID}
 	if row, err := digestsettings.GetContext(context.Background(), chatID); err == nil && row != nil {
@@ -279,9 +293,9 @@ func panelSettings(access chatAccess) settingsResponse {
 			settingsBool("probation_notice", probationRow.Notice, false, true),
 		}},
 		{Key: "antiraid", Label: "Antiraid", Fields: []settingsField{
-			settingsInt("raid_time", raid.RaidTime, 21600, true),
-			settingsInt("raid_action_time", raid.RaidActionTime, 3600, true),
-			settingsInt("auto_threshold", raid.AutoAntiRaidThreshold, 0, true),
+			declaredSettingsField(chatID, settings.RaidTime),
+			declaredSettingsField(chatID, settings.RaidActionTime),
+			declaredSettingsField(chatID, settings.AutoAntiRaidThreshold),
 		}},
 		{Key: "warns", Label: "Warnings", Fields: []settingsField{
 			settingsInt("limit", warn.WarnLimit, 3, true),
@@ -674,6 +688,12 @@ func decodeSettingValue(field settingsField, raw json.RawMessage) (any, string) 
 }
 
 func validateSettingValue(key string, field settingsField, value any) string {
+	if declaration, ok := settings.Lookup(key); ok {
+		if err := declaration.Validate(value); err != nil {
+			return err.Error()
+		}
+		return ""
+	}
 	if len(field.Options) > 0 {
 		text, _ := value.(string)
 		if !slices.Contains(field.Options, text) {
@@ -698,8 +718,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 		}
 	case "antispam":
 		return validateAntispamValue(fieldKey, value)
-	case "antiraid":
-		return validateAntiraidValue(fieldKey, value)
 	case "warns":
 		return validateWarnValue(fieldKey, value)
 	case "digest":
@@ -754,19 +772,6 @@ func validateCaptchaValue(field string, value any) string {
 		if n := value.(int); n < 1 || n > 10 {
 			return "must be between 1 and 10"
 		}
-	}
-	return ""
-}
-
-func validateAntiraidValue(field string, value any) string {
-	if field != "raid_time" && field != "raid_action_time" && field != "auto_threshold" {
-		return ""
-	}
-	if n := value.(int); n < 0 || n > math.MaxInt32 {
-		if field == "auto_threshold" {
-			return "must be between 0 and 2147483647"
-		}
-		return "must be between 0 and 2147483647 seconds"
 	}
 	return ""
 }
@@ -900,6 +905,9 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any,
 }
 
 func applySettingChange(chatID int64, chatName, key string, value any) error {
+	if declaration, ok := settings.Lookup(key); ok {
+		return declaration.Write(chatID, value)
+	}
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
 	case "language":
@@ -914,8 +922,6 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 		return applyAntifloodChange(chatID, fieldKey, value)
 	case "antispam":
 		return applyAntispamChange(chatID, fieldKey, value)
-	case "antiraid":
-		return applyAntiraidChange(chatID, fieldKey, value)
 	case "warns":
 		switch fieldKey {
 		case "limit":
@@ -1056,16 +1062,4 @@ func applyAntispamChange(chatID int64, field string, value any) error {
 		return probation.SetNotice(chatID, value.(bool))
 	}
 	return fmt.Errorf("unknown antispam setting %q", field)
-}
-
-func applyAntiraidChange(chatID int64, field string, value any) error {
-	switch field {
-	case "raid_time":
-		return antiraid.SetRaidTime(chatID, value.(int))
-	case "raid_action_time":
-		return antiraid.SetRaidActionTime(chatID, value.(int))
-	case "auto_threshold":
-		return antiraid.SetAutoAntiRaidThreshold(chatID, value.(int))
-	}
-	return fmt.Errorf("unknown antiraid setting %q", field)
 }

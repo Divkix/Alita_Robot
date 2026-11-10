@@ -47,8 +47,6 @@ func TestParseDuration(t *testing.T) {
 		{"negative bare", "-5", 0, false},
 		{"negative minutes", "-5m", 0, false},
 		{"overflowing weeks", "9223372036854775807w", 0, false},
-		{"above operational maximum", "367d", 0, false},
-		{"operational maximum", "366d", 366 * 24 * 60 * 60, true},
 		{"uppercase", "1H", 3600, true},
 		{"whitespace", "  5m  ", 5 * 60, true},
 	}
@@ -353,9 +351,6 @@ func TestAntiRaidCommandRightsThroughDispatcher(t *testing.T) {
 	withDisableCommands(t)
 	for _, command := range []struct{ text, replyKey string }{
 		{"/antiraid nope", "antiraid_invalid_duration"},
-		{"/raidtime", "antiraid_raidtime_usage"},
-		{"/raidactiontime", "antiraid_raidactiontime_usage"},
-		{"/autoantiraid nope", "antiraid_invalid_threshold"},
 	} {
 		for _, actorAdmin := range []bool{false, true} {
 			for _, botAdmin := range []bool{false, true} {
@@ -545,8 +540,6 @@ func TestAntiRaidTimeCommandsValidateInputAndNoChange(t *testing.T) {
 		"/raidactiontime",
 		"/raidactiontime nope",
 		"/raidactiontime 0",
-		"/raidactiontime 29s",
-		"/raidactiontime 367d",
 	} {
 		ctx := newModuleMessageContext(bot, chat, user, text)
 		if err := antiRaidModule.raidTimeSetter(bot, ctx, strings.HasPrefix(text, "/raidtime")); err != ext.EndGroups {
@@ -570,8 +563,8 @@ func TestAntiRaidTimeCommandsValidateInputAndNoChange(t *testing.T) {
 		t.Fatalf("raidActionTime(no change) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("sendMessage"); len(calls) != 10 {
-		t.Fatalf("sendMessage calls = %d, want validation and no-change replies", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 8 {
+		t.Fatalf("sendMessage calls = %d, want parsing and no-change replies", len(calls))
 	}
 }
 

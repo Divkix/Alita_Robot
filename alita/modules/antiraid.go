@@ -17,10 +17,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -33,10 +33,9 @@ const (
 	antiraidJoinWindowSeconds = 60
 	// antiraidStateGrace keeps an active raid's state this long past its
 	// expiry; readers treat it as inactive (and delete it) from ExpiresAt on.
-	antiraidStateGrace  = 30 * time.Second
-	antiraidStateKey    = "alita:antiraid:state" // format: state:chat_id
-	antiraidJoinsKey    = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
-	maxAntiRaidDuration = 366 * 24 * 60 * 60
+	antiraidStateGrace = 30 * time.Second
+	antiraidStateKey   = "alita:antiraid:state" // format: state:chat_id
+	antiraidJoinsKey   = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
 )
 
 var (
@@ -239,8 +238,8 @@ func (a *antiRaidStruct) isRaidActive(chatID int64) bool {
 }
 
 func (a *antiRaidStruct) enableRaid(chatID int64, durationSeconds int) (bool, error) {
-	if durationSeconds <= 0 || durationSeconds > maxAntiRaidDuration {
-		return false, fmt.Errorf("duration must be between 1 second and 366 days")
+	if err := chatsettings.RaidTime.Validate(durationSeconds); err != nil {
+		return false, err
 	}
 	now := time.Now().Unix()
 	st := &raidState{
@@ -314,8 +313,8 @@ func (a *antiRaidStruct) disableRaid(chatID int64) (bool, error) {
 }
 
 func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) error {
-	if durationSeconds <= 0 || durationSeconds > maxAntiRaidDuration {
-		return fmt.Errorf("duration must be between 1 second and 366 days")
+	if err := chatsettings.RaidTime.Validate(durationSeconds); err != nil {
+		return err
 	}
 	for range 5 {
 		current := getRaidState(chatID)
@@ -379,7 +378,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	settings := antiraid.GetAntiRaidSettings(chat.Id)
+	settings := chatsettings.ReadAntiRaid(chat.Id)
 	isActive := a.isRaidActive(chat.Id)
 
 	for _, member := range msg.NewChatMembers {
@@ -455,7 +454,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		settings := antiraid.GetAntiRaidSettings(chat.Id)
+		settings := chatsettings.ReadAntiRaid(chat.Id)
 		isActive := a.isRaidActive(chat.Id)
 		st := getRaidState(chat.Id)
 		var text string
@@ -502,7 +501,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	arg := strings.ToLower(args[0])
 	switch arg {
 	case "on":
-		settings := antiraid.GetAntiRaidSettings(chat.Id)
+		settings := chatsettings.ReadAntiRaid(chat.Id)
 		enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] Failed to enable raid in chat %d", chat.Id)
@@ -597,7 +596,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 
 	dur, ok := parseDuration(args[0])
 	if ok && !isRaidTime {
-		_, ok = extraction.TemporaryUntilDate(0, int64(dur))
+		ok = chatsettings.RaidActionTime.Validate(dur) == nil
 	}
 	if !ok {
 		text, _ := tr.GetString("antiraid_invalid_duration")
@@ -607,13 +606,13 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 
 	text := ""
 	if isRaidTime {
-		settings := antiraid.GetAntiRaidSettings(chat.Id)
+		settings := chatsettings.ReadAntiRaid(chat.Id)
 		if settings.RaidTime == dur {
 			text, _ = tr.GetString("antiraid_raidtime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		err := antiraid.SetRaidTime(chat.Id, dur)
+		err := chatsettings.RaidTime.Write(chat.Id, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidTime failed for chat %d", chat.Id)
 			text, _ = tr.GetString("common_settings_save_failed")
@@ -622,13 +621,13 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		}
 		text, _ = tr.GetString("antiraid_raidtime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
 	} else {
-		settings := antiraid.GetAntiRaidSettings(chat.Id)
+		settings := chatsettings.ReadAntiRaid(chat.Id)
 		if settings.RaidActionTime == dur {
 			text, _ = tr.GetString("antiraid_raidactiontime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		err := antiraid.SetRaidActionTime(chat.Id, dur)
+		err := chatsettings.RaidActionTime.Write(chat.Id, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidActionTime failed for chat %d", chat.Id)
 			text, _ = tr.GetString("common_settings_save_failed")
@@ -648,7 +647,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		settings := antiraid.GetAntiRaidSettings(chat.Id)
+		settings := chatsettings.ReadAntiRaid(chat.Id)
 		var text string
 		if settings.AutoAntiRaidThreshold > 0 {
 			text, _ = tr.GetString("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(settings.AutoAntiRaidThreshold)})
@@ -661,7 +660,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 
 	arg := strings.ToLower(args[0])
 	if arg == "off" {
-		err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 0)
+		err := chatsettings.AutoAntiRaidThreshold.Write(chat.Id, 0)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(0) failed for chat %d", chat.Id)
 			text, _ := tr.GetString("common_settings_save_failed")
@@ -674,12 +673,12 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	threshold, err := strconv.Atoi(arg)
-	if err != nil || threshold <= 0 {
+	if err != nil || threshold == 0 || chatsettings.AutoAntiRaidThreshold.Validate(threshold) != nil {
 		text, _ := tr.GetString("antiraid_invalid_threshold")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, threshold); err != nil {
+	if err := chatsettings.AutoAntiRaidThreshold.Write(chat.Id, threshold); err != nil {
 		log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(%d) failed for chat %d", threshold, chat.Id)
 		text, _ := tr.GetString("common_settings_save_failed")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
@@ -734,7 +733,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	switch action {
 	case "on":
-		settings := antiraid.GetAntiRaidSettings(chatID)
+		settings := chatsettings.ReadAntiRaid(chatID)
 		enabled, err := a.enableRaid(chatID, settings.RaidTime)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] Failed to enable raid in chat %d", chatID)
@@ -809,7 +808,7 @@ func parseDuration(input string) (seconds int, ok bool) {
 	}
 	duration = num * multiplier
 
-	if duration <= 0 || duration > maxAntiRaidDuration {
+	if duration > int64(math.MaxInt) || chatsettings.RaidTime.Validate(int(duration)) != nil {
 		return 0, false
 	}
 	return int(duration), true
@@ -840,15 +839,15 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(antiRaidModule.antiraid))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "raidtime", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.RaidTime),
 	}, pipelineHandler(antiRaidModule.raidTime))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "raidactiontime", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.RaidActionTime),
 	}, pipelineHandler(antiRaidModule.raidActionTime))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "autoantiraid", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.AutoAntiRaidThreshold),
 	}, pipelineHandler(antiRaidModule.autoAntiRaid))
 
 	dispatcher.AddHandlerToGroup(

@@ -23,7 +23,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
@@ -181,10 +180,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		fieldBool(t, body, "antispam.spamdb_shared") {
 		t.Fatalf("spamdb defaults = %+v", body.Modules[5])
 	}
-	if fieldInt(t, body, "antiraid.raid_time") != 21600 || fieldInt(t, body, "antiraid.raid_action_time") != 3600 ||
-		fieldInt(t, body, "antiraid.auto_threshold") != 0 {
-		t.Fatalf("antiraid defaults = %+v", body.Modules[6])
-	}
 	if fieldInt(t, body, "warns.limit") != 3 || fieldString(t, body, "warns.mode") != "mute" ||
 		fieldInt(t, body, "warns.action_time") != 0 || fieldInt(t, body, "warns.expiry") != 0 {
 		t.Fatalf("warns defaults = %+v", body.Modules[7])
@@ -257,7 +252,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"rules":       &models.RulesSettings{},
 		"captcha":     &models.CaptchaSettings{},
 		"antiflood":   &models.AntifloodSettings{},
-		"antiraid":    &models.AntiRaidSettings{},
 		"warns":       &models.WarnSettings{},
 		"digest":      &models.DigestSettings{},
 		"reports":     &models.ReportChatSettings{},
@@ -987,7 +981,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		t.Fatalf("seed captcha cache: %v", err)
 	}
 	antiflood.GetFlood(chatID)
-	antiraid.GetAntiRaidSettings(chatID)
 	rules.GetChatRulesInfo(chatID)
 	if _, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err != nil {
 		t.Fatalf("seed spamdb cache: %v", err)
@@ -1014,10 +1007,7 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		"antiflood.action_time":7200,
 		"antiflood.delete_messages":true,
 		"antispam.spamdb_action":"log",
-		"antispam.spamdb_lols":true,
-		"antiraid.raid_time":7200,
-		"antiraid.raid_action_time":1800,
-		"antiraid.auto_threshold":5
+		"antispam.spamdb_lols":true
 	}}`
 	recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw, body, "application/json")
 	if recorder.Code != http.StatusOK {
@@ -1027,8 +1017,8 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
 		t.Fatalf("decode patch response: %v", err)
 	}
-	if len(patch.Saved) != 21 || len(patch.Failed) != 0 {
-		t.Fatalf("saved = %v, failed = %v; want all 21 saved", patch.Saved, patch.Failed)
+	if len(patch.Saved) != 18 || len(patch.Failed) != 0 {
+		t.Fatalf("saved = %v, failed = %v; want all 18 saved", patch.Saved, patch.Failed)
 	}
 
 	// The bot's own getters answer with the new values at once.
@@ -1061,10 +1051,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	}
 	if spamdb.Action != "log" || !spamdb.CheckLols || !spamdb.CheckCAS {
 		t.Fatalf("spam db settings after patch = %+v", spamdb)
-	}
-	raid := antiraid.GetAntiRaidSettings(chatID)
-	if raid.RaidTime != 7200 || raid.RaidActionTime != 1800 || raid.AutoAntiRaidThreshold != 5 {
-		t.Fatalf("antiraid settings after patch = %+v", raid)
 	}
 
 	// The next GET reflects the same values and marks them changed.

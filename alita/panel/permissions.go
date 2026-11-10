@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/settings"
 )
 
 // permission is the Telegram right the equivalent bot command checks before a
@@ -30,7 +32,6 @@ var settingsPermissions = map[string]permission{
 	"captcha":     permRestrict,
 	"antiflood":   permNone,       // /setflood requires an admin and the bot admin
 	"antispam":    permNone,       // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
-	"antiraid":    permNone,       // /antiraid and the raid timers only require an admin
 	"warns":       permNone,       // /setwarnlimit, /setwarnmode and /setwarntime
 	"digest":      permNone,       // /digest requires an admin and the bot admin
 	"reports":     permNone,       // /reports; auto-mute: settingsFieldPermission
@@ -44,6 +45,15 @@ var settingsPermissions = map[string]permission{
 // its module's, raised for a field whose command checks more than the rest
 // of the module.
 func settingsFieldPermission(module, field string) permission {
+	if declaration, ok := settings.Lookup(module + "." + field); ok {
+		switch declaration.Right {
+		case settings.Admin, settings.AdminBot:
+			// The panel's access envelope already requires both admins.
+			return permNone
+		default:
+			panic("unmapped setting right")
+		}
+	}
 	perm := settingsPermissions[module]
 	// /probation checks can_restrict_members, unlike /aispam and /spamdb.
 	if module == "antispam" && strings.HasPrefix(field, "probation_") {

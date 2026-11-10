@@ -70,10 +70,6 @@ func TestJoinGuardsWelcomeNewcomerTheyDoNotBan(t *testing.T) {
 			enableRaid(t, chat)
 			botCannotRestrict(t, client, bot, chat)
 		}},
-		{name: "raid, invalid action time", setup: func(t *testing.T, _ *moduleBotClient, _ *gotgbot.Bot, chat gotgbot.Chat, _ gotgbot.User) {
-			require.NoError(t, antiraid.SetRaidActionTime(chat.Id, 10))
-			enableRaid(t, chat)
-		}},
 		{name: "fed ban, admin newcomer", setup: func(t *testing.T, client *moduleBotClient, _ *gotgbot.Bot, chat gotgbot.Chat, member gotgbot.User) {
 			fedBan(t, chat, member)
 			makeAdmin(client, chat, member)
