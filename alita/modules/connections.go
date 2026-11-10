@@ -380,7 +380,9 @@ func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.CheckFunc {
 func LoadConnections(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(ConnectionsModule.moduleName, true)
 
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "connect"}, ConnectionsModule.connect)
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "connect", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, ConnectionsModule.connect)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disconnect",
 		RequiredChecks: []helpers.CheckFunc{connectionPMOnlyCheck("connections_disconnect_need_pm")},
