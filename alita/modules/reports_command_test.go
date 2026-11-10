@@ -678,3 +678,20 @@ func TestReportMentionFromChannelStaysSilent(t *testing.T) {
 		t.Fatal("channel mention did not reach later watchers")
 	}
 }
+
+func TestReportCommandRefusesChannelSender(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	f := newAdminChatFixture(t)
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadReports(d)
+	update := newModuleMessageContext(f.bot, f.chat, f.member, "/report").Update
+	update.Message.From = nil
+	update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
+	if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != "Cannot identify user. This command cannot be used by channels." {
+		t.Fatalf("channel /report = %q, want the identity refusal", got)
+	}
+}

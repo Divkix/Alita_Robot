@@ -31,8 +31,9 @@ var reportsModule = moduleStruct{
 }
 
 var reportDesc = helpers.CommandDescriptor{
-	Name:        "report",
-	Disableable: true,
+	Name:           "report",
+	Disableable:    true,
+	RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
 }
 
 var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
