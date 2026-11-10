@@ -32,9 +32,8 @@ var exampleModule = moduleStruct{moduleName: "Example"}
 // failing check handles its own user feedback, so the handler adds none.
 var exampleDesc = helpers.CommandDescriptor{
     Name:        "example",
-    Disableable: true, // lists the command for /disable
+    Disableable: true, // registers and enforces /disable for every name
     RequiredChecks: []helpers.CheckFunc{
-        helpers.CheckDisabled("example"), // enforces /disable
         helpers.RequireGroup(),
         helpers.RequireUserAdmin(),
     },
@@ -114,14 +113,16 @@ func LoadExample(dispatcher *ext.Dispatcher) {
 // Register the module in init() so LoadAllModules picks it up
 func init() {
     RegisterLegacyModule("Example", 100, LoadExample)
-    // Admin command: also runs for anonymous admins once they prove admin rights
-    RegisterAnonymousAdminHandler("example", anonPipelineHandler(exampleDesc, exampleModule.exampleCommand))
 }
 ```
 
 :::note[Command pipeline]
-Register new commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. The `helpers.*` CheckFuncs in `RequiredChecks` send their own failure replies (except `helpers.CheckDisabled`, which stays silent and only deletes the command when /disabledel is on), so do not add replies for failed checks. `Disableable: true` only lists the command for `/disable`; `helpers.CheckDisabled("<cmd>")` enforces it. Anonymous admins bypass `WrapCommand`, so admin commands also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`, which re-runs the same checks.
+Register commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. `RequiredChecks` send their own failure replies, so handlers add none. `Disableable: true` registers every name and alias with `/disable` and silently checks all their rows before rights checks; admins bypass disabling, and `/disabledel` deletes silenced group messages. `WrapCommand` also derives anonymous-admin replay for every spelling and runs the same checks as the confirming admin.
+
+Descriptors with `RequiredChecks` require an identifiable user before running those checks. A descriptor with no checks stays open to send-as-channel messages: its `CommandContext.User` may be nil, and disabling treats that sender as a non-admin. Use `helpers.RequireIdentifiedUser()` when a command needs a user identity but no role or chat permission.
 :::
+
+The senderless channel-post step of `/setlog` is the sole exception: `setLogChannelCommand` wraps a channel-enabled gotgbot command and accepts only `ChannelPost` updates. Group and PM `/setlog` still use a descriptor; forwarded group posts continue to the group-11 binding watcher. The docs parser lists the shared command once, using its descriptor.
 
 ## Step-by-Step Guide
 
@@ -305,7 +306,7 @@ Run `make generate-docs` (the command pages are generated from `locales/en.yml`)
 
 ## Permission Check Functions
 
-Use these functions to validate permissions before executing commands:
+Commands declare rights through the corresponding `helpers.*` checks in `CommandDescriptor.RequiredChecks`. These lower-level `chat_status` functions support pipeline checks, watchers and callbacks:
 
 | Function | Description | Returns |
 |----------|-------------|---------|
@@ -339,29 +340,18 @@ if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 
 ### Common Permission Patterns
 
-Inside `WrapCommand`, use the `helpers.*` CheckFunc builders in `RequiredChecks` instead. The raw `chat_status` predicates below are for watchers and legacy handlers, and they do not reply on failure (see above):
+Use `helpers.*` CheckFunc builders in the descriptor's `RequiredChecks`:
 
 ```go
-// Admin-only command
-if !chat_status.RequireGroup(b, ctx, nil) {
-    return ext.EndGroups
-}
-if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-    return ext.EndGroups
-}
-
-// Command requiring bot to have restrict permissions
-if !chat_status.RequireBotAdmin(b, ctx, nil) {
-    return ext.EndGroups
-}
-if !chat_status.CanBotRestrict(b, ctx, nil) {
-    return ext.EndGroups
-}
-
-// Owner-only command
-if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-    return ext.EndGroups
-}
+helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+    Name: "example",
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+        helpers.RequireBotAdmin(),
+        helpers.CanBotRestrict(),
+    },
+}, exampleModule.exampleHandler)
 ```
 
 ## Handler Return Values
@@ -466,7 +456,7 @@ var (
     welcomeStatusDesc = helpers.CommandDescriptor{
         Name:           "welcomestatus",
         Disableable:    true,
-        RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled("welcomestatus"), helpers.RequireGroup()},
+        RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup()},
     }
     toggleWelcomeDesc = helpers.CommandDescriptor{
         Name:           "togglewelcome",
@@ -542,7 +532,6 @@ func LoadWelcome(dispatcher *ext.Dispatcher) {
 
 func init() {
     RegisterLegacyModule("Welcome", 210, LoadWelcome)
-    RegisterAnonymousAdminHandler("togglewelcome", anonPipelineHandler(toggleWelcomeDesc, welcomeModule.togglewelcome))
 }
 ```
 
@@ -656,8 +645,8 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - [ ] Create module struct with `moduleName`
 - [ ] Implement handler methods on module struct (value receivers)
 - [ ] Register commands with `helpers.WrapCommand` and a `helpers.CommandDescriptor`; put permission checks in `RequiredChecks`
-- [ ] For disableable commands, set `Disableable: true` and add `helpers.CheckDisabled("<cmd>")`
-- [ ] Admin commands: `RegisterAnonymousAdminHandler` + `anonPipelineHandler`
+- [ ] For disableable commands, set `Disableable: true`; the pipeline derives row checks and alias-wide suppression
+- [ ] Anonymous-admin replay is derived from the same descriptor and rechecks the confirming admin's rights
 - [ ] Use `i18n.MustNewTranslator(lang.GetLanguage(ctx))` for translations
 - [ ] Handle errors properly (log and return)
 - [ ] **Escape user-controlled input with `formatting.HtmlEscape()`**

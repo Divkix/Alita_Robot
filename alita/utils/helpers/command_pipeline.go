@@ -2,11 +2,19 @@ package helpers
 
 import (
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -23,8 +31,13 @@ type CommandContext struct {
 }
 
 func BuildCommandContext(b *gotgbot.Bot, ctx *ext.Context) (*CommandContext, error) {
+	return buildCommandContext(b, ctx, true)
+}
+
+// Public descriptors need no actor; checked commands and direct callers do.
+func buildCommandContext(b *gotgbot.Bot, ctx *ext.Context, requireUser bool) (*CommandContext, error) {
 	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
+	if user == nil && requireUser {
 		if ctx != nil && ctx.EffectiveMessage != nil {
 			chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		}
@@ -43,9 +56,10 @@ func BuildCommandContext(b *gotgbot.Bot, ctx *ext.Context) (*CommandContext, err
 type CheckFunc func(c *CommandContext) bool
 
 type CommandDescriptor struct {
-	Name           string
-	Aliases        []string
-	Group          int
+	Name    string
+	Aliases []string
+	Group   int
+	// Checks require an identifiable user. With no checks, User may be nil.
 	RequiredChecks []CheckFunc
 	Disableable    bool
 	// PMGroupArg lets the command name its group as the first argument in
@@ -83,11 +97,26 @@ func SetPMGroupResolver(r PMGroupResolver) {
 	pmGroupResolver = r
 }
 
+// commandReplays is populated only by WrapCommand, alongside dispatcher registration.
+var commandReplays sync.Map
+
+// RunCommand runs a registered command pipeline as the effective actor, for
+// proof callbacks and watcher entry points. It does not re-enter watcher groups
+// or rewrite the message.
+func RunCommand(b *gotgbot.Bot, ctx *ext.Context, command string) error {
+	h, ok := commandReplays.Load(strings.ToLower(command))
+	if !ok {
+		return fmt.Errorf("unknown pipeline command: %s", command)
+	}
+	return h.(handlers.Response)(b, ctx)
+}
+
 func WrapCommand(
 	dispatcher *ext.Dispatcher,
 	desc CommandDescriptor,
 	handler func(c *CommandContext) error,
 ) {
+	names := append([]string{desc.Name}, desc.Aliases...)
 	h := func(b *gotgbot.Bot, ctx *ext.Context) (result error) {
 		defer error_handling.RecoverFromUpdatePanic(ctx, "command_pipeline", "WrapCommand")
 		// Runs before the recover above, so a panic after a swap ends groups too.
@@ -103,18 +132,36 @@ func WrapCommand(
 				}
 			}
 		}
-		c, err := BuildCommandContext(b, ctx)
+		c, err := buildCommandContext(b, ctx, len(desc.RequiredChecks) != 0)
 		if err != nil {
 			return ext.EndGroups
 		}
+		if desc.Disableable && commandDisabled(c, names) {
+			return ext.EndGroups
+		}
+		checkedChat := c.Chat
 		for _, check := range desc.RequiredChecks {
 			if !check(c) {
 				return ext.EndGroups
 			}
+			// A PM connection check may resolve a different target. Honour that
+			// group's setting without ever deleting the private message.
+			if desc.Disableable && c.Chat != checkedChat {
+				if commandDisabled(c, names) {
+					return ext.EndGroups
+				}
+				checkedChat = c.Chat
+			}
 		}
 		return handler(c)
 	}
-	register(dispatcher, desc, h)
+	for _, name := range names {
+		commandReplays.Store(strings.ToLower(name), handlers.Response(h))
+		dispatcher.AddHandlerToGroup(handlers.NewCommand(name, h), desc.Group)
+		if desc.Disableable {
+			AddCmdToDisableable(name)
+		}
+	}
 }
 
 // endGroupsAfterChatSwap ends handler-group iteration once the command has
@@ -142,26 +189,99 @@ func EndGroupsLogging(ctx *ext.Context, err error) error {
 	return ext.EndGroups
 }
 
-func register(dispatcher *ext.Dispatcher, desc CommandDescriptor, h handlers.Response) {
-	cmds := append([]string{desc.Name}, desc.Aliases...)
-	for _, c := range cmds {
-		if desc.Group != 0 {
-			dispatcher.AddHandlerToGroup(handlers.NewCommand(c, h), desc.Group)
-		} else {
-			dispatcher.AddHandler(handlers.NewCommand(c, h))
+// commandDisabled applies one setting to all spellings, using the effective
+// actor rather than the anonymous sender retained on a replayed message.
+func commandDisabled(c *CommandContext, names []string) bool {
+	if c.Chat == nil || c.Chat.Type == "private" {
+		return false
+	}
+	disabled := disabling.GetChatDisabledCMDsCached(c.Chat.Id)
+	for _, name := range names {
+		if !slices.Contains(disabled, name) {
+			continue
 		}
-		if desc.Disableable {
-			AddCmdToDisableable(c)
+		if c.User != nil && chat_status.IsUserAdminForUpdate(c.Bot, c.Ctx, c.Chat.Id, c.User.Id) {
+			return false
 		}
+		if c.Msg != nil && c.Msg.Chat.Type != "private" && disabling.ShouldDel(c.Chat.Id) {
+			if _, err := c.Msg.Delete(c.Bot, nil); err != nil {
+				log.Errorf("[command_pipeline] Failed to delete disabled command %q in chat %d: %v", name, c.Chat.Id, err)
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// BotAdminRequirement names whether a connected check also requires bot admin.
+type BotAdminRequirement bool
+
+const (
+	BotAdminNotRequired BotAdminRequirement = false
+	BotAdminRequired    BotAdminRequirement = true
+)
+
+// RequireConnectedAdmin resolves the current group, or the named/connected group
+// in PM, requiring its admin (and the bot when requested). Connection refusals
+// keep their bot-before-user ordering. Both context chat fields follow the target.
+func RequireConnectedAdmin(botAdmin BotAdminRequirement) CheckFunc {
+	return requireConnectedChat(true, bool(botAdmin))
+}
+
+// RequireConnectedMember resolves the same target without requiring user admin.
+// PM membership and stale connections are checked by IsUserConnected.
+func RequireConnectedMember(botAdmin BotAdminRequirement) CheckFunc {
+	return requireConnectedChat(false, bool(botAdmin))
+}
+
+func requireConnectedChat(requireUserAdmin, requireBotAdmin bool) CheckFunc {
+	return func(c *CommandContext) bool {
+		chat := chat_status.IsUserConnected(c.Bot, c.Ctx, requireUserAdmin, requireBotAdmin)
+		if chat == nil {
+			return false
+		}
+		c.Chat = chat
+		c.Ctx.EffectiveChat = chat
+		return true
 	}
 }
 
-func CheckDisabled(cmdName string) CheckFunc {
+// RequireBotOwner silently refuses everyone except the configured bot owner.
+func RequireBotOwner() CheckFunc {
 	return func(c *CommandContext) bool {
-		if c.Msg == nil || c.Bot == nil {
+		return c.User != nil && c.User.Id == config.AppConfig.OwnerId
+	}
+}
+
+// RequireBotDeveloper accepts the bot owner and developers, but not sudo users.
+// Bot-team checks deliberately send no permission refusal.
+func RequireBotDeveloper() CheckFunc {
+	return func(c *CommandContext) bool {
+		return c.User != nil && (c.User.Id == config.AppConfig.OwnerId || devs.GetTeamMemInfo(c.User.Id).IsDev)
+	}
+}
+
+// RequireBotTeamMember silently accepts the bot owner, developers and sudo users.
+func RequireBotTeamMember() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User == nil {
 			return false
 		}
-		return !chat_status.CheckDisabledCmd(c.Bot, c.Msg, cmdName)
+		if c.User.Id == config.AppConfig.OwnerId {
+			return true
+		}
+		member := devs.GetTeamMemInfo(c.User.Id)
+		return member.IsDev || member.Sudo
+	}
+}
+
+// RequireIdentifiedUser preserves identity-only gates on commands with no role check.
+func RequireIdentifiedUser() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User != nil {
+			return true
+		}
+		return chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 	}
 }
 
@@ -383,8 +503,7 @@ func CanBotDelete() CheckFunc {
 	}
 }
 
-// RunChecks re-runs pipeline checks, for anonymous-admin post-proof handlers
-// which bypass WrapCommand's RequiredChecks. Returns false on first failure.
+// RunChecks runs ordered checks until the first refusal.
 func RunChecks(c *CommandContext, checks []CheckFunc) bool {
 	for _, check := range checks {
 		if !check(c) {

@@ -29,19 +29,16 @@ var banInfoDesc = helpers.CommandDescriptor{Name: "baninfo", PMGroupArg: helpers
 // banRecordChecks are the checks of a command that reads the ban records: an
 // admin who can restrict members, as for /ban. The bot needs no right of its
 // own, since it only reads its records.
-func banRecordChecks(cmd string) []helpers.CheckFunc {
-	return []helpers.CheckFunc{
-		helpers.CheckDisabled(cmd),
-		pmTargetChatCheck,
+func banRecordChecks() []helpers.CheckFunc {
+	return []helpers.CheckFunc{pmTargetChatCheck,
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
-		helpers.CanUserRestrict(),
-	}
+		helpers.CanUserRestrict()}
 }
 
 func initBanRecordDescs() {
-	banInfoDesc.RequiredChecks = banRecordChecks("baninfo")
-	banListDesc.RequiredChecks = banRecordChecks("banlist")
+	banInfoDesc.RequiredChecks = banRecordChecks()
+	banListDesc.RequiredChecks = banRecordChecks()
 }
 
 // banRecordUser is the HTML label of a user or channel a record names: a

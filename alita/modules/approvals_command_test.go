@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +12,70 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 )
+
+func TestApprovalCommandRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []struct{ text, replyKey string }{
+		{"/approve", "common_no_user_specified"},
+		{"/unapprove", "common_no_user_specified"},
+		{"/approval", "common_no_user_specified"},
+		{"/approved", "approvals_none_approved"},
+	} {
+		for _, actorAdmin := range []bool{false, true} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/admin=%t/bot=%t", command.text, actorAdmin, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + adminJSON + "]")
+					f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+					if botAdmin {
+						f.addAdmins(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					} else {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					}
+					actor := f.member
+					if actorAdmin {
+						actor = f.admin
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadApprovals(d)
+					if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, command.text).Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					key := command.replyKey
+					if !botAdmin {
+						key = "connections_is_user_connected_bot_not_admin"
+					} else if !actorAdmin {
+						key = "connections_is_user_connected_user_not_admin"
+					}
+					assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{"chat_id": f.chat.Id, "text": translated(t, key)})
+				})
+			}
+		}
+	}
+}
+
+func TestUnapproveAllThroughDispatcherRequiresOwnerNotBotAdmin(t *testing.T) {
+	useRealLocales(t)
+	for _, role := range []string{"member", "administrator", "creator"} {
+		t.Run(role, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			f.setAdminStatus(role)
+			f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(fmt.Sprintf(`[{"status":%q,"user":{"id":%d,"first_name":"Actor"}}]`, role, f.admin.Id))
+			f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadApprovals(d)
+			if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unapproveall").Update, nil); err != nil {
+				t.Fatal(err)
+			}
+			key := "chat_status_owner_cmd_error"
+			if role == "creator" {
+				key = "approvals_unapproveall_ask"
+			}
+			assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{"chat_id": f.chat.Id, "text": translated(t, key)})
+		})
+	}
+}
 
 func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
 	f := newAdminChatFixture(t)
@@ -58,20 +123,22 @@ func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
 func TestApprovalCommandsRefuseNonAdmins(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, member := f.client, f.bot, f.chat, f.member
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadApprovals(d)
 	if err := approvals.AddApprovedUser(chat.Id, 43, f.admin.Id, "keep"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 
 	approveCtx := newModuleMessageContext(bot, chat, member, "/approve 44 trusted")
-	if err := approvalsModule.approveUser(bot, approveCtx); err != ext.EndGroups {
-		t.Fatalf("approveUser(member) error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(bot, approveCtx.Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if approvals.IsUserApproved(chat.Id, 44) {
 		t.Fatal("a member approved a user")
 	}
 	unapproveCtx := newModuleMessageContext(bot, chat, member, "/unapprove 43")
-	if err := approvalsModule.unapproveUser(bot, unapproveCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveUser(member) error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(bot, unapproveCtx.Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if !approvals.IsUserApproved(chat.Id, 43) {
 		t.Fatal("a member unapproved a user")

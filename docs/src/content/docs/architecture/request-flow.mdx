@@ -277,8 +277,6 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 func init() {
     RegisterLegacyModule("Bans", 70, LoadBans)
     initBanDescs()
-    // Anonymous admins bypass WrapCommand; this re-runs the same checks after they prove admin rights
-    RegisterAnonymousAdminHandler("ban", anonPipelineHandler(banDesc, bansModule.ban))
 }
 ```
 
@@ -286,12 +284,13 @@ func init() {
 
 | Type | Registration | Trigger |
 |------|--------------|---------|
-| Command (pipeline) | `helpers.WrapCommand(dispatcher, desc, handler)` | `/cmd` messages, after the descriptor's `RequiredChecks` |
-| Command (legacy) | `handlers.NewCommand("cmd", fn)` | `/cmd` messages |
+| Command | `helpers.WrapCommand(dispatcher, desc, handler)` | `/cmd` messages, with descriptor-derived checks, disabling and replay |
 | Callback | `handlers.NewCallback(filter, fn)` | Button presses |
 | Message | `handlers.NewMessage(filter, fn)` | Text messages |
 | ChatMember | `handlers.NewChatMember(filter, fn)` | Other members' status changes |
 | MyChatMember | `handlers.NewMyChatMember(filter, fn)` | The bot's own member status changes |
+
+The senderless channel-post step of `/setlog` is the only direct command registration. Its separate user-command descriptor handles group and PM messages; channel posts only create the pending forward marker.
 
 ### Handler Groups
 
@@ -319,41 +318,21 @@ For the complete precedence table with propagation behavior, see [Handler Group 
 
 ## Permission Check Flow
 
-Most admin commands follow this permission checking pattern:
+Commands list their ordered rights checks in the descriptor; the handler contains domain work only. For example:
 
 ```go
-func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
-    chat := ctx.EffectiveChat
-    user := ctx.EffectiveSender.User
-    msg := ctx.EffectiveMessage
-
-    // 1. Require group chat (not private)
-    if !chat_status.RequireGroup(b, ctx, nil) {
-        return ext.EndGroups
-    }
-
-    // 2. Require user to be admin
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-        return ext.EndGroups
-    }
-
-    // 3. Require bot to be admin
-    if !chat_status.RequireBotAdmin(b, ctx, nil) {
-        return ext.EndGroups
-    }
-
-    // 4. Check specific permission (restrict members)
-    if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-        return ext.EndGroups
-    }
-
-    // 5. Check bot has same permission
-    if !chat_status.CanBotRestrict(b, ctx, nil) {
-        return ext.EndGroups
-    }
-
-    // Proceed with ban logic...
-}
+helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+    Name: "restrictuser",
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+        helpers.RequireBotAdmin(),
+        helpers.CanUserRestrict(),
+        helpers.CanBotRestrict(),
+    },
+}, func(c *helpers.CommandContext) error {
+    return restrictUser(c)
+})
 ```
 
 ### Permission Functions Reference

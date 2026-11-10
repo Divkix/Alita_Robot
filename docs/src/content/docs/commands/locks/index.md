@@ -60,6 +60,8 @@ For detailed command usage, refer to the commands table above.
 
 Most commands in this module require **admin permissions** in the group.
 
+`/locktypes` is member-readable; `/locks`, `/lock` and `/unlock` require a group admin. Disabling `/locktypes` also silences members querying that group from PM, without deleting their PM messages; admins remain exempt.
+
 **Bot Permissions Required:**
 
 - Delete messages

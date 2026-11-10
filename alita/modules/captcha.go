@@ -435,14 +435,8 @@ func secureShuffleStrings(values []string) error {
 // viewPendingMessages lets admins list a user's stored messages with /captchapending.
 func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(bot, ctx) == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(bot, ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	if len(ctx.Args()) < 2 {
 		text, _ := tr.GetString("captcha_pending_usage")
@@ -494,14 +488,8 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 // clearPendingMessages lets admins delete a user's stored messages with /captchaclear.
 func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(bot, ctx) == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(bot, ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	args := ctx.Args()[1:]
 	if len(args) < 1 {
@@ -529,18 +517,6 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 		i18n.TranslationParams{"user_id": targetUserID})
 	_, err = msg.Reply(bot, text, formatting.Shtml())
 	return err
-}
-
-func captchaAdminGate(bot *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) (*gotgbot.User, *gotgbot.Chat, bool) {
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return nil, nil, false
-	}
-	chat := resolveAdminChat(bot, ctx, requireBotAdmin)
-	if chat == nil {
-		return nil, nil, false
-	}
-	return user, chat, true
 }
 
 // captchaJoinNamespace is the callback namespace of the "Turn on captcha"
@@ -633,10 +609,7 @@ func (moduleStruct) captchaJoinEnableCallback(bot *gotgbot.Bot, ctx *ext.Context
 func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	_, chat, ok := captchaAdminGate(bot, ctx, true)
-	if !ok {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
@@ -760,10 +733,7 @@ func DisableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 func (moduleStruct) captchaJoinCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	_, chat, ok := captchaAdminGate(bot, ctx, false)
-	if !ok {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	reply := func(key string, params i18n.TranslationParams) error {
 		text, _ := tr.GetString(key, params)
 		_, err := msg.Reply(bot, withGroupLine(tr, msg, chat, text), formatting.Shtml())
@@ -806,10 +776,7 @@ func (moduleStruct) captchaJoinCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	_, chat, ok := captchaAdminGate(bot, ctx, false)
-	if !ok {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
@@ -853,10 +820,7 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	_, chat, ok := captchaAdminGate(bot, ctx, false)
-	if !ok {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
@@ -895,10 +859,7 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	_, chat, ok := captchaAdminGate(bot, ctx, false)
-	if !ok {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
@@ -936,10 +897,7 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	_, chat, ok := captchaAdminGate(bot, ctx, true)
-	if !ok {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
@@ -2371,30 +2329,26 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
 
-	// Admin and bot-admin checks run inside the handlers, against the group
-	// the user is connected to when the command comes from PM.
 	for _, cfg := range []struct {
-		name    string
-		handler func(*gotgbot.Bot, *ext.Context) error
+		name     string
+		handler  func(*gotgbot.Bot, *ext.Context) error
+		botAdmin helpers.BotAdminRequirement
 	}{
-		{"captcha", captchaModule.captchaCommand},
-		{"captchamode", captchaModule.captchaModeCommand},
-		{"captchajoin", captchaModule.captchaJoinCommand},
-		{"captchatime", captchaModule.captchaTimeCommand},
-		{"captchaaction", captchaModule.captchaActionCommand},
-		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand},
-		{"captchapending", captchaModule.viewPendingMessages},
-		{"captchaclear", captchaModule.clearPendingMessages},
+		{"captcha", captchaModule.captchaCommand, helpers.BotAdminRequired},
+		{"captchamode", captchaModule.captchaModeCommand, helpers.BotAdminNotRequired},
+		{"captchajoin", captchaModule.captchaJoinCommand, helpers.BotAdminNotRequired},
+		{"captchatime", captchaModule.captchaTimeCommand, helpers.BotAdminNotRequired},
+		{"captchaaction", captchaModule.captchaActionCommand, helpers.BotAdminNotRequired},
+		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand, helpers.BotAdminRequired},
+		{"captchapending", captchaModule.viewPendingMessages, helpers.BotAdminNotRequired},
+		{"captchaclear", captchaModule.clearPendingMessages, helpers.BotAdminNotRequired},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,
-			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
 			PMGroupArg:     helpers.PMGroupArgOwn,
+			RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(cfg.botAdmin)},
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
-		if cfg.name == "captchajoin" {
-			RegisterAnonymousAdminHandler(cfg.name, anonPipelineHandler(desc, cfg.handler))
-		}
 	}
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify"), captchaModule.captchaVerifyCallback))

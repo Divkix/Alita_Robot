@@ -150,8 +150,8 @@ type replyFn func(c *moderationCtx, t *target) error
 //
 //	RequireUser -> extractTarget -> validate -> execute -> reply.
 //
-// Permission checks are not part of it: the command's descriptor runs them
-// through WrapCommand, or anonPipelineHandler after an anonymous admin's proof.
+// Permission checks are not part of it: WrapCommand runs the descriptor's
+// checks for both the original command and anonymous-admin replay.
 //
 // It eliminates the 30+ lines of boilerplate that every moderation command repeats.
 type moderationCommand struct {
@@ -379,21 +379,5 @@ func extractTemporalTarget(c *moderationCtx, t *target) int64 {
 func pipelineHandler(domain func(*gotgbot.Bot, *ext.Context) error) func(*helpers.CommandContext) error {
 	return func(c *helpers.CommandContext) error {
 		return domain(c.Bot, c.Ctx)
-	}
-}
-
-// anonPipelineHandler is the post-proof anonymous-admin entry point for migrated
-// commands. It re-runs the same pipeline checks via helpers.RunChecks, making
-// migrated commands anon-safe by default without per-module re-enforcement.
-func anonPipelineHandler(desc helpers.CommandDescriptor, domain func(*gotgbot.Bot, *ext.Context) error) AnonymousAdminHandler {
-	return func(b *gotgbot.Bot, ctx *ext.Context) error {
-		c, err := helpers.BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		if !helpers.RunChecks(c, desc.RequiredChecks) {
-			return ext.EndGroups
-		}
-		return domain(b, ctx)
 	}
 }

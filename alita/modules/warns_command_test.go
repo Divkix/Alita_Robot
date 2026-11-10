@@ -41,19 +41,76 @@ func TestWarnSettingsCommandsFromPMActOnConnectedGroup(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot, chat, admin := f.bot, f.chat, f.admin
 	pm := f.connectAdmin(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadWarns(dispatcher)
 
-	if err := warnsModule.setWarnLimit(bot, newModuleMessageContext(bot, pm, admin, "/setwarnlimit 7")); err != ext.EndGroups {
-		t.Fatalf("setWarnLimit from PM error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(bot, newModuleMessageContext(bot, pm, admin, "/setwarnlimit 7").Update, nil); err != nil {
+		t.Fatalf("/setwarnlimit from PM error = %v", err)
 	}
 	if got := warns.GetWarnSetting(chat.Id).WarnLimit; got != 7 {
 		t.Fatalf("connected group warn limit = %d, want 7", got)
 	}
 
-	if err := warnsModule.setWarnMode(bot, newModuleMessageContext(bot, pm, admin, "/setwarnmode kick")); err != ext.EndGroups {
-		t.Fatalf("setWarnMode from PM error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(bot, newModuleMessageContext(bot, pm, admin, "/setwarnmode kick").Update, nil); err != nil {
+		t.Fatalf("/setwarnmode from PM error = %v", err)
 	}
 	if got := warns.GetWarnSetting(chat.Id).WarnMode; got != "kick" {
 		t.Fatalf("connected group warn mode = %q, want kick", got)
+	}
+}
+
+func TestWarnSettingsRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []struct {
+		text, replyKey string
+		ownerOnly      bool
+	}{
+		{"/setwarnlimit", "warns_limit_set_help", false},
+		{"/setwarnmode", "warns_specify_action", false},
+		{"/setwarntime", "warns_expiry_current_off", false},
+		{"/resetallwarns", "warns_no_users_warned", true},
+	} {
+		for _, role := range []string{"member", "admin", "owner"} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/bot=%t", command.text, role, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					if role == "owner" {
+						f.makeOwner()
+					} else {
+						f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(strings.ReplaceAll(
+							string(f.client.adminsByChat[fmt.Sprint(f.chat.Id)]), fixtureAdminRights, `"can_manage_chat":true`))
+						f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(fmt.Sprintf(
+							`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id))
+					}
+					if !botAdmin {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+						f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]) + "]")
+					}
+					actor := f.admin
+					if role == "member" {
+						actor = f.member
+					}
+					dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadWarns(dispatcher)
+					ctx := newModuleMessageContext(f.bot, f.chat, actor, command.text)
+					if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					key := command.replyKey
+					switch {
+					case command.ownerOnly && role != "owner":
+						key = "chat_status_owner_cmd_error"
+					case !command.ownerOnly && !botAdmin:
+						key = "connections_is_user_connected_bot_not_admin"
+					case !command.ownerOnly && role == "member":
+						key = "connections_is_user_connected_user_not_admin"
+					}
+					assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{
+						"chat_id": f.chat.Id, "text": translated(t, key),
+					})
+				})
+			}
+		}
 	}
 }
 

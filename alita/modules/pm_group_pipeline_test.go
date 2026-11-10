@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 				checked = group.Id
 			}
 			return checked == f.chat.Id
-		}},
+		}, helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(warnsModule.setWarnLimit))
 	before := warnLimit(connected)
 
@@ -55,32 +56,20 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 
 // Once a command has run on a group named from PM, later handler groups do
 // not see the message with the group cut out, even when the command leaves
-// ctx.EffectiveChat alone and lets groups continue: through WrapCommand and
-// through withPMGroupArg alike.
+// ctx.EffectiveChat alone and lets groups continue.
 func TestWrapCommandWithPMGroupEndsGroups(t *testing.T) {
-	for name, register := range map[string]func(d *ext.Dispatcher, ran *[]string){
-		"WrapCommand": func(d *ext.Dispatcher, ran *[]string) {
-			helpers.WrapCommand(d, helpers.CommandDescriptor{
-				Name:       "pmgrouptest",
-				PMGroupArg: helpers.PMGroupArgOwn,
-			}, func(c *helpers.CommandContext) error {
-				*ran = c.Ctx.Args()
-				return nil
-			})
-		},
-		"withPMGroupArg": func(d *ext.Dispatcher, ran *[]string) {
-			d.AddHandler(handlers.NewCommand("pmgrouptest", withPMGroupArg("pmgrouptest", helpers.PMGroupArgOwn,
-				func(_ *gotgbot.Bot, ctx *ext.Context) error {
-					*ran = ctx.Args()
-					return nil
-				})))
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
+	for _, result := range []error{nil, ext.ContinueGroups, ext.EndGroups} {
+		t.Run(fmt.Sprint(result), func(t *testing.T) {
 			f, _ := pmSettingsFixture(t)
 			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 			var ran []string
-			register(dispatcher, &ran)
+			helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+				Name:       "pmgrouptest",
+				PMGroupArg: helpers.PMGroupArgOwn,
+			}, func(c *helpers.CommandContext) error {
+				ran = c.Ctx.Args()
+				return result
+			})
 			var later []string
 			dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, func(_ *gotgbot.Bot, ctx *ext.Context) error {
 				later = append(later, ctx.EffectiveMessage.GetText())

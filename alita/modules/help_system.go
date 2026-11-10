@@ -155,7 +155,11 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruc
 	} else {
 		_parsemode = formatting.HTML
 		tr := i18n.MustNewTranslator(userOrGroupLanguage)
-		helpText = getMainHelp(tr, html.EscapeString(ctx.EffectiveUser.FirstName))
+		name := "User"
+		if ctx.EffectiveUser != nil {
+			name = ctx.EffectiveUser.FirstName
+		}
+		helpText = getMainHelp(tr, html.EscapeString(name))
 		kbmarkup = initHelpButtonsFrom(registry, userOrGroupLanguage)
 	}
 

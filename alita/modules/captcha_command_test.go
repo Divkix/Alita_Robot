@@ -25,6 +25,60 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
+func TestCaptchaCommandRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []struct {
+		text, replyKey string
+		botAdmin       bool
+	}{
+		{"/captcha maybe", "captcha_usage", true},
+		{"/captchamode", "captcha_mode_specify", false},
+		{"/captchajoin maybe", "captcha_join_requests_usage", false},
+		{"/captchatime", "captcha_timeout_specify", false},
+		{"/captchaaction", "captcha_action_specify", false},
+		{"/captchamaxattempts maybe", "captcha_max_attempts_invalid", true},
+		{"/captchapending", "captcha_pending_usage", false},
+		{"/captchaclear", "captcha_clear_usage", false},
+	} {
+		for _, actorAdmin := range []bool{false, true} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/admin=%t/bot=%t", command.text, actorAdmin, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					// None of these commands requires a particular admin permission.
+					adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + adminJSON + "]")
+					f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+					if botAdmin {
+						f.addAdmins(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					}
+					if !botAdmin {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					}
+					actor := f.member
+					if actorAdmin {
+						actor = f.admin
+					}
+					dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadCaptcha(dispatcher)
+					ctx := newModuleMessageContext(f.bot, f.chat, actor, command.text)
+					if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					key := command.replyKey
+					if command.botAdmin && !botAdmin {
+						key = "connections_is_user_connected_bot_not_admin"
+					} else if !actorAdmin {
+						key = "connections_is_user_connected_user_not_admin"
+					}
+					assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{
+						"chat_id": f.chat.Id, "text": translated(t, key),
+					})
+				})
+			}
+		}
+	}
+}
+
 func TestCaptchaCommandTogglesAndDisplaysSettings(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -88,10 +142,8 @@ func TestCaptchaCommandRejectsUnknownOption(t *testing.T) {
 }
 
 func TestCaptchaDisableFinalizesAttemptsAndRestoresUsers(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
@@ -110,8 +162,10 @@ func TestCaptchaDisableFinalizesAttemptsAndRestoresUsers(t *testing.T) {
 	}
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/captcha off")
-	if err := captchaModule.captchaCommand(bot, ctx); err != nil {
-		t.Fatalf("captchaCommand(off) error = %v", err)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadCaptcha(dispatcher)
+	if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/captcha off error = %v", err)
 	}
 
 	if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current != nil {

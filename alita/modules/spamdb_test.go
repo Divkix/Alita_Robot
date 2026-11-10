@@ -526,8 +526,10 @@ func TestSpamDBCommandRefusesEnableWhenOperatorSwitchedOff(t *testing.T) {
 }
 
 func TestSpamDBCommandRejectsNonAdmin(t *testing.T) {
+	useRealLocales(t)
 	dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASNotFound)
-	bot := newModuleTestBot(newModuleBotClient())
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Non Admin Chat"}
 
 	spamDBCommand(t, dispatcher, bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, "/spamdb on")
@@ -539,6 +541,9 @@ func TestSpamDBCommandRejectsNonAdmin(t *testing.T) {
 	if settings.Enabled {
 		t.Fatal("a non-admin was able to enable the check")
 	}
+	assertParams(t, client.onlyCall(t, "sendMessage"), map[string]any{
+		"chat_id": chat.Id, "text": translated(t, "connections_is_user_connected_user_not_admin"),
+	})
 }
 
 // A new member's ID goes only to the databases the chat chose, and the notice

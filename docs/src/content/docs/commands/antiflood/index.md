@@ -64,7 +64,7 @@ Most commands in this module require **admin permissions** in the group.
 
 **Command Permissions:**
 - `/setflood`, `/setfloodmode`, `/delflood` (`/clearflood`) — Require admin permission
-- `/flood` — Available to all users (disableable)
+- `/flood` — Available to all users (disableable). A group's disabled setting also applies when members query it from PM; admins remain exempt and PM messages are never deleted.
 
 **Defaults:**
 - Flood action defaults to **mute** if not explicitly set

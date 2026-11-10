@@ -7,7 +7,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
@@ -593,15 +592,8 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 }
 
 func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
-	// Members may view the mode; changing it needs the owner (checked below).
-	chat := chat_status.IsUserConnected(c.Bot, c.Ctx, false, true)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	c.Ctx.EffectiveChat = chat
-	c.Chat = chat
+	chat := c.Chat
 	msg := c.Msg
-	user := c.User
 	args := c.Ctx.Args()
 
 	tr := c.Tr
@@ -618,10 +610,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		}
 	} else {
-		if !chat_status.RequireUserOwner(c.Bot, c.Ctx, chat, user.Id) {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply(), chat_status.WithTranslator(tr))
-			return ext.EndGroups
-		}
 		switch args[1] {
 		case "on", "true", "yes":
 			if adminSettings.AnonAdmin {
@@ -665,24 +653,9 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) adminCache(c *helpers.CommandContext) error {
-	b := c.Bot
-	msg := c.Msg
-	user := c.User
-	if user == nil {
-		return ext.EndGroups
-	}
-
-	var err error
-
-	chat := groupOnlyMemberChat(b, c.Ctx)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.RequireGroup(b, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
+// adminCacheActorCheck must bypass the cache this command is about to reload.
+func adminCacheActorCheck(c *helpers.CommandContext) bool {
+	b, msg, user, chat := c.Bot, c.Msg, c.User, c.Chat
 
 	// Preserve the two existing trusted synthetic admins without querying
 	// Telegram for their non-member sender identities.
@@ -693,7 +666,7 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 			log.WithContext(tracing.UpdateContext(c.Ctx)).Errorf("[Admin] Failed to get member %d: %v", user.Id, lookupErr)
 			errorText, _ := c.Tr.GetString("admin_check_status_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
-			return ext.EndGroups
+			return false
 		}
 		if userMember != nil {
 			status := userMember.GetStatus()
@@ -702,21 +675,22 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	}
 	if !isAdmin {
 		errorText, _ := c.Tr.GetString("admin_need_admin")
-		_, err = msg.Reply(b, errorText, nil)
+		_, err := msg.Reply(b, errorText, nil)
 		if err != nil {
 			log.Error(err)
 		}
-		return ext.EndGroups
+		return false
 	}
-	if !chat_status.RequireBotAdmin(b, c.Ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
+	return true
+}
+
+func (moduleStruct) adminCache(c *helpers.CommandContext) error {
+	b, msg, chat := c.Bot, c.Msg, c.Chat
 
 	cache.LoadAdminCache(b, chat.Id)
 
 	k, _ := c.Tr.GetString("commonstrings_admin_cache_cache_reloaded")
-	_, err = msg.Reply(b, k, formatting.Shtml())
+	_, err := msg.Reply(b, k, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -732,12 +706,9 @@ var (
 		Name:        "adminlist",
 		Disableable: true,
 		PMGroupArg:  helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{
-			helpers.CheckDisabled("adminlist"),
-			groupOnlyChatCheck,
+		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck,
 			helpers.RequireBotAdmin(),
-			helpers.RequireGroup(),
-		},
+			helpers.RequireGroup()},
 	}
 	promoteDesc = helpers.CommandDescriptor{
 		Name: "promote",
@@ -789,9 +760,17 @@ var (
 			helpers.RequireUserAdmin(),
 		},
 	}
-	// anonadmin resolves its chat (and checks bot admin) in the handler so it
-	// also works from PM through a connection or with the group named.
-	anonAdminDesc = helpers.CommandDescriptor{Name: "anonadmin", PMGroupArg: helpers.PMGroupArgOwn}
+	anonAdminDesc = helpers.CommandDescriptor{
+		Name:       "anonadmin",
+		PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireConnectedMember(helpers.BotAdminRequired),
+			func(c *helpers.CommandContext) bool {
+				// Members may view the mode; only the owner may change it.
+				return len(c.Ctx.Args()) == 1 || helpers.RequireUserOwner()(c)
+			},
+		},
+	}
 	setGTitleDesc = helpers.CommandDescriptor{
 		Name:       "setgtitle",
 		Aliases:    []string{"setgrouptitle"},
@@ -846,14 +825,15 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, setGDescDesc, adminModule.setGDesc)
 	loadTimezone(dispatcher)
 
-	dispatcher.AddHandler(handlers.NewCommand("admincache", withPMGroupArg("admincache", helpers.PMGroupArgNone, func(b *gotgbot.Bot, ctx *ext.Context) error {
-		defer error_handling.RecoverFromPanic("admincache", "admin")
-		c, err := helpers.BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		return adminModule.adminCache(c)
-	})))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "admincache", PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireConnectedMember(helpers.BotAdminNotRequired),
+			helpers.RequireGroup(),
+			adminCacheActorCheck,
+			helpers.RequireBotAdmin(),
+		},
+	}, adminModule.adminCache)
 }
 
 func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
@@ -881,39 +861,6 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// anonCommandContextHandler is the post-proof anonymous-admin entry point for
-// pipeline commands whose handlers take a CommandContext. It re-runs the
-// descriptor's checks as the admin who pressed the confirm button.
-func anonCommandContextHandler(desc helpers.CommandDescriptor, h func(*helpers.CommandContext) error) AnonymousAdminHandler {
-	return func(b *gotgbot.Bot, ctx *ext.Context) error {
-		c, err := helpers.BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		if !helpers.RunChecks(c, desc.RequiredChecks) {
-			return ext.EndGroups
-		}
-		return h(c)
-	}
-}
-
 func init() {
 	RegisterLegacyModule("Admin", 30, LoadAdmin)
-	RegisterAnonymousAdminHandler("promote", anonCommandContextHandler(promoteDesc, adminModule.promote))
-	RegisterAnonymousAdminHandler("demote", anonCommandContextHandler(demoteDesc, adminModule.demote))
-	RegisterAnonymousAdminHandler("title", anonCommandContextHandler(setTitleDesc, adminModule.setTitle))
-	// The router matches the command as typed, so register every alias too.
-	for _, d := range []struct {
-		desc helpers.CommandDescriptor
-		h    func(*helpers.CommandContext) error
-	}{
-		{setGTitleDesc, adminModule.setGTitle},
-		{setGPicDesc, adminModule.setGPic},
-		{setGDescDesc, adminModule.setGDesc},
-		{timezoneDesc, adminModule.timezone},
-	} {
-		for _, name := range append([]string{d.desc.Name}, d.desc.Aliases...) {
-			RegisterAnonymousAdminHandler(name, anonCommandContextHandler(d.desc, d.h))
-		}
-	}
 }

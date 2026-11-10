@@ -533,5 +533,5 @@ func LoadProbation(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Probation", 14, LoadProbation)
-	RegisterAnonymousAdminHandler("probation", anonCommandContextHandler(probationDesc, probationModule.probation))
+
 }

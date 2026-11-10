@@ -83,7 +83,7 @@ func TestLogChannelCommandsAndForwardBind(t *testing.T) {
 	channel := gotgbot.Chat{Id: channelID, Type: "channel", Title: "Log Channel"}
 	group := f.chat
 
-	if err := logChannelsModule.setLog(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
+	if err := commandResponse(logChannelsModule.setLog)(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
 		t.Fatalf("setLog group: %v", err)
 	}
 	// A channel post has no user sender.
@@ -94,7 +94,7 @@ func TestLogChannelCommandsAndForwardBind(t *testing.T) {
 		SenderChat: &channel,
 		Text:       "/setlog",
 	}}, nil)
-	if err := logChannelsModule.setLog(bot, setCtx); err != ext.EndGroups {
+	if err := logChannelsModule.setLogChannel(bot, setCtx); err != ext.EndGroups {
 		t.Fatalf("setLog channel: %v", err)
 	}
 
@@ -142,7 +142,7 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 	group := f.chat
 
 	setCtx := newModuleMessageContext(bot, channel, admin, "/setlog")
-	if err := logChannelsModule.setLog(bot, setCtx); err != ext.EndGroups {
+	if err := logChannelsModule.setLogChannel(bot, setCtx); err != ext.EndGroups {
 		t.Fatalf("setLog channel: %v", err)
 	}
 
@@ -160,7 +160,7 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 	withNilCacheMarshal(t)
 	nilBot := f.bot
 	nilSet := newModuleMessageContext(nilBot, channel, admin, "/setlog")
-	if err := logChannelsModule.setLog(nilBot, nilSet); err != ext.EndGroups {
+	if err := logChannelsModule.setLogChannel(nilBot, nilSet); err != ext.EndGroups {
 		t.Fatalf("setLog with nil marshaler: %v", err)
 	}
 	nilFwd := newModuleMessageContext(nilBot, group, admin, "forwarded")

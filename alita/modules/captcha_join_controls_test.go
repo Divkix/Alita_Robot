@@ -108,25 +108,29 @@ func TestCaptchaJoinCommandInPMTargetsNamedGroupAndRefusesMember(t *testing.T) {
 	}
 }
 
-func TestCaptchaJoinAnonymousAdminHandlerUsesAdminGate(t *testing.T) {
+func TestCaptchaJoinDispatcherUsesAdminGate(t *testing.T) {
 	useRealLocales(t)
 	f := newAdminChatFixture(t)
-	LoadCaptcha(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadCaptcha(dispatcher)
 	memberCtx := newModuleMessageContext(f.bot, f.chat, f.member, "/captchajoin on")
-	if err := HandleAnonymousAdmin(f.bot, memberCtx, "captchajoin"); err != ext.EndGroups {
-		t.Fatalf("member anonymous handler error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, memberCtx.Update, nil); err != nil {
+		t.Fatalf("member /captchajoin error = %v", err)
 	}
 	settings, err := captcha.GetCaptchaSettings(f.chat.Id)
 	if err != nil || settings == nil || settings.JoinRequests {
 		t.Fatalf("member enabled join captcha: (%+v, %v)", settings, err)
 	}
+	if got, want := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]), translated(t, "connections_is_user_connected_user_not_admin"); got != want {
+		t.Fatalf("member /captchajoin reply = %q, want %q", got, want)
+	}
 	adminCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/captchajoin on")
-	if err := HandleAnonymousAdmin(f.bot, adminCtx, "captchajoin"); err != nil {
-		t.Fatalf("admin anonymous handler error = %v", err)
+	if err := dispatcher.ProcessUpdate(f.bot, adminCtx.Update, nil); err != nil {
+		t.Fatalf("admin /captchajoin error = %v", err)
 	}
 	settings, err = captcha.GetCaptchaSettings(f.chat.Id)
 	if err != nil || settings == nil || !settings.JoinRequests {
-		t.Fatalf("post-proof admin did not enable join captcha: (%+v, %v)", settings, err)
+		t.Fatalf("admin did not enable join captcha: (%+v, %v)", settings, err)
 	}
 }
 

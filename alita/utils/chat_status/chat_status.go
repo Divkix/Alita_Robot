@@ -16,7 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
-	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -211,34 +210,6 @@ func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
 
 	var c gotgbot.Chat
 	return &c, json.Unmarshal(r, &c)
-}
-
-func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
-	if msg.Chat.Type == "private" {
-		return false
-	}
-
-	if !disabling.IsCommandDisabled(msg.Chat.Id, cmd) {
-		return false
-	}
-
-	// msg.From can be nil for channel posts
-	if msg.From == nil {
-		return false
-	}
-
-	if IsUserAdmin(bot, msg.Chat.Id, msg.From.Id) {
-		return false
-	}
-
-	if disabling.ShouldDel(msg.Chat.Id) {
-		_, err := msg.Delete(bot, nil)
-		if err != nil {
-			log.Errorf("[CheckDisabledCmd] Failed to delete message for disabled command '%s' in chat %d: %v", cmd, msg.Chat.Id, err)
-		}
-	}
-
-	return true
 }
 
 func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {

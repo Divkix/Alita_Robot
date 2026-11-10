@@ -120,7 +120,7 @@ func TestLangGroupFromPMNamesTheGroupLanguage(t *testing.T) {
 		t.Fatalf("ChangeGroupLanguage() error = %v", err)
 	}
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	sent := client.callsFor("sendMessage")
 	if len(sent) == 0 {
 		t.Fatal("/lang group from PM sent no reply")

@@ -20,7 +20,7 @@ Make it easy to promote and demote users with the admin module!
 × /setgdesc `[text]`: Change the group description.
 × /invitelink: Get the chat's invite link.
 × /anonadmin `<on/off>`: on lets anonymous admins act without confirming; off (default) makes them confirm with a button (group owner only).
-× /admincache: Reload the admin list.
+× /admincache: Reload the admin list. Requires your current group-admin status, then the bot's admin status; an outdated admin list cannot block newly promoted admins or allow removed admins. Also works from PM for a named or connected group.
 × /clearadmincache: Clear the cached admin list.
 × /timezone `[name]`: Show or set the chat's timezone as an IANA name such as Asia/Kolkata (default UTC).
 

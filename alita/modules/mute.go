@@ -286,11 +286,11 @@ var (
 )
 
 func initMuteDescs() {
-	muteDesc.RequiredChecks = restrictChecks("mute", pmTargetChatCheck)
-	smuteDesc.RequiredChecks = deleteRestrictChecks("smute", pmTargetChatCheck)
-	tmuteDesc.RequiredChecks = restrictChecks("tmute", pmTargetChatCheck)
-	dmuteDesc.RequiredChecks = deleteRestrictChecks("dmute")
-	unmuteDesc.RequiredChecks = restrictChecks("unmute", pmTargetChatCheck)
+	muteDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	smuteDesc.RequiredChecks = deleteRestrictChecks(pmTargetChatCheck)
+	tmuteDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	dmuteDesc.RequiredChecks = deleteRestrictChecks()
+	unmuteDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
 }
 
 func LoadMutes(dispatcher *ext.Dispatcher) {
@@ -307,9 +307,5 @@ func LoadMutes(dispatcher *ext.Dispatcher) {
 func init() {
 	RegisterLegacyModule("Mutes", 80, LoadMutes)
 	initMuteDescs()
-	RegisterAnonymousAdminHandler("mute", anonPipelineHandler(muteDesc, mutesModule.mute))
-	RegisterAnonymousAdminHandler("smute", anonPipelineHandler(smuteDesc, mutesModule.sMute))
-	RegisterAnonymousAdminHandler("dmute", anonPipelineHandler(dmuteDesc, mutesModule.dMute))
-	RegisterAnonymousAdminHandler("tmute", anonPipelineHandler(tmuteDesc, mutesModule.tMute))
-	RegisterAnonymousAdminHandler("unmute", anonPipelineHandler(unmuteDesc, mutesModule.unmute))
+
 }

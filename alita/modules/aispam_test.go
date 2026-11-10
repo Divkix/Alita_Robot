@@ -176,6 +176,7 @@ func TestAISpamCommandRefusesEnableWhenGloballyDisabled(t *testing.T) {
 }
 
 func TestAISpamCommandRejectsNonAdmin(t *testing.T) {
+	useRealLocales(t)
 	resetAISpamRuntime()
 	withAISpamTestConfig(t, "typesafe-test-key", true, 0)
 
@@ -191,6 +192,9 @@ func TestAISpamCommandRejectsNonAdmin(t *testing.T) {
 	if aispam.IsAISpamEnabled(chat.Id) {
 		t.Fatal("a non-admin was able to enable the filter")
 	}
+	assertParams(t, client.onlyCall(t, "sendMessage"), map[string]any{
+		"chat_id": chat.Id, "text": translated(t, "connections_is_user_connected_user_not_admin"),
+	})
 }
 
 func TestCheckAISpamDeletesFlaggedMessageAndMirrorsIt(t *testing.T) {

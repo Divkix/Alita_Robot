@@ -12,6 +12,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	gocache "github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	"github.com/eko/gocache/lib/v4/store"
@@ -23,7 +24,19 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
+
+// commandResponse adapts direct domain tests to the command-context seam.
+func commandResponse(handler func(*helpers.CommandContext) error) handlers.Response {
+	return func(b *gotgbot.Bot, ctx *ext.Context) error {
+		c, err := helpers.BuildCommandContext(b, ctx)
+		if err != nil {
+			return err
+		}
+		return handler(c)
+	}
+}
 
 // withNilCacheMarshal clears the cache marshaler for the duration of a test.
 func withNilCacheMarshal(t *testing.T) {

@@ -95,13 +95,12 @@ func TestSetWarnTimeStoresExpiry(t *testing.T) {
 }
 
 func TestSetWarnTimeRequiresAdmin(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-
-	if err := warnsModule.setWarnTime(bot, newModuleMessageContext(bot, chat, member, "/setwarntime 1d")); err != ext.EndGroups {
-		t.Fatalf("setWarnTime() error = %v, want EndGroups", err)
+	f := newAdminChatFixture(t)
+	bot, chat, member := f.bot, f.chat, f.member
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadWarns(dispatcher)
+	if err := dispatcher.ProcessUpdate(bot, newModuleMessageContext(bot, chat, member, "/setwarntime 1d").Update, nil); err != nil {
+		t.Fatalf("/setwarntime error = %v", err)
 	}
 	if got := warns.GetWarnSetting(chat.Id).WarnExpiry; got != 0 {
 		t.Fatalf("expiry set by a member = %d, want 0", got)

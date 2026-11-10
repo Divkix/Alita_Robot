@@ -73,3 +73,37 @@ func TestBuildModulesMatchesAliasKeysCaseInsensitively(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistrationPattern(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		cmd  Command
+		want string
+	}{
+		{
+			name: "descriptor",
+			cmd:  Command{Name: "rules"},
+			want: "CommandDescriptor",
+		},
+		{
+			name: "descriptor with aliases",
+			cmd:  Command{Name: "notes", Aliases: []string{"notes", "saved"}},
+			want: "CommandDescriptorWithAliases",
+		},
+		{
+			name: "explicit pattern",
+			cmd:  Command{Name: "notes", Aliases: []string{"notes", "saved"}, Pattern: "ExplicitPattern"},
+			want: "ExplicitPattern",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := registrationPattern(tt.cmd); got != tt.want {
+				t.Errorf("registrationPattern() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

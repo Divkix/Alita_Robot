@@ -71,10 +71,6 @@ func deleteNoteOverwriteCache(token string) {
 
 //nolint:dupl // addNote shares validation logic with filters module by design
 func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	user := chat_status.RequireUser(b, ctx)
@@ -82,11 +78,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	args := ctx.Args()
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	noteString, _ := tr.GetString("notes_save_success")
@@ -223,15 +214,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	args := ctx.Args()
 
 	if len(args) == 1 {
@@ -250,11 +233,6 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	noteWord := strings.TrimLeft(parts[1], "#")
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteWord)) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -292,18 +270,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	chat := groupOnlyChat(b, ctx)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	var txt string
 
@@ -347,12 +314,6 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "notes") {
-		return ext.EndGroups
-	}
-	if resolveMemberChat(b, ctx, true) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -439,15 +400,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-	chat := groupOnlyChat(b, ctx)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true)
 	if len(noteKeys) == 0 {
@@ -461,35 +414,17 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if !chat_status.IsValidUserId(user.Id) || chat_status.IsSystemUser(user.Id) {
-		return ext.EndGroups
-	}
-	mem, err := b.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, user.Id, nil)
-	if err != nil && !error_handling.IsMissingChatMemberError(err) {
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	clearAllText, _ := tr.GetString("notes_clear_all_confirm")
+	clearAllText = confirmText(ctx, tr, clearAllText, chat)
+	_, err := msg.Reply(b, clearAllText,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: confirmKeyboard(tr, "rmAllNotes", chat),
+		},
+	)
+	if err != nil {
+		log.Error(err)
 		return err
-	}
-
-	if mem != nil && mem.GetStatus() == "creator" {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		clearAllText, _ := tr.GetString("notes_clear_all_confirm")
-		clearAllText = confirmText(ctx, tr, clearAllText, chat)
-		_, err := msg.Reply(b, clearAllText,
-			&gotgbot.SendMessageOpts{
-				ReplyMarkup: confirmKeyboard(tr, "rmAllNotes", chat),
-			},
-		)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	} else {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_creator_only")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
 	}
 
 	return ext.EndGroups
@@ -728,7 +663,11 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if noformatNote {
-		err = m.sendNoFormatNote(b, ctx, replyMsgId, noteData)
+		c, buildErr := helpers.BuildCommandContext(b, ctx)
+		if buildErr != nil {
+			return ext.EndGroups
+		}
+		err = m.sendNoFormatNote(c, replyMsgId, noteData)
 		if err != nil {
 			if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
 				log.Error(err)
@@ -779,15 +718,8 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "get") {
-		return ext.EndGroups
-	}
-	if resolveMemberChat(b, ctx, false) == nil {
-		return ext.EndGroups
-	}
-	chat := ctx.EffectiveChat
+func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
+	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
 	args := ctx.Args()[1:]
 	var err error
 
@@ -810,10 +742,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+	user := c.User
 	noteName := args[0]
 
 	// The list is cached, so it can still name a note whose row is gone.
@@ -857,34 +786,9 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if len(args) == 2 && strings.ToLower(args[1]) == "noformat" {
-		err = m.sendNoFormatNote(b, ctx, replyMsgId, noteData)
+		err = m.sendNoFormatNote(c, replyMsgId, noteData)
 	} else {
-		if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			clickForPrivateText, _ := tr.GetString("notes_click_for_private")
-			_, err = msg.Reply(b,
-				fmt.Sprintf(clickForPrivateText, noteName),
-				&gotgbot.SendMessageOpts{
-					ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-						InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-							{
-								{
-									Text: trS(tr, "button_click_me"),
-									Url:  "https://t.me/" + b.Username + "?start=" + noteStartParam(chat.Id, noteName),
-								},
-							},
-						},
-					},
-					ParseMode: formatting.Markdown,
-					ReplyParameters: &gotgbot.ReplyParameters{
-						MessageId:                replyMsgId,
-						AllowSendingWithoutReply: true,
-					},
-				},
-			)
-		} else {
-			_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
-		}
+		err = sendGetNote(c, noteName, replyMsgId, noteData)
 	}
 
 	if err != nil {
@@ -897,15 +801,42 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgId int64, noteData *db.Notes) error {
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
+// sendGetNote answers /get with the note itself, or with a button to read it
+// in PM when the note or the chat keeps notes private.
+func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
+	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		clickForPrivateText, _ := tr.GetString("notes_click_for_private")
+		_, err := msg.Reply(b,
+			fmt.Sprintf(clickForPrivateText, noteName),
+			&gotgbot.SendMessageOpts{
+				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+						{
+							{
+								Text: trS(tr, "button_click_me"),
+								Url:  "https://t.me/" + b.Username + "?start=" + noteStartParam(chat.Id, noteName),
+							},
+						},
+					},
+				},
+				ParseMode: formatting.Markdown,
+				ReplyParameters: &gotgbot.ReplyParameters{
+					MessageId:                replyMsgId,
+					AllowSendingWithoutReply: true,
+				},
+			},
+		)
+		return err
 	}
+	_, err := media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
+	return err
+}
 
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64, noteData *db.Notes) error {
+	b, ctx := c.Bot, c.Ctx
+	if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.RequireUserAdmin()}) {
 		return ext.EndGroups
 	}
 
@@ -937,6 +868,30 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 	return nil
 }
 
+// notesClearAllOwnerCheck preserves the empty-list response, live creator
+// lookup, custom refusal and silent rejection of system accounts.
+func notesClearAllOwnerCheck(c *helpers.CommandContext) bool {
+	if len(notes.GetNotesListContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, true)) == 0 {
+		return true
+	}
+	if !chat_status.IsValidUserId(c.User.Id) || chat_status.IsSystemUser(c.User.Id) {
+		return false
+	}
+	mem, err := c.Bot.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, c.User.Id, nil)
+	if err != nil && !error_handling.IsMissingChatMemberError(err) {
+		_ = helpers.EndGroupsLogging(c.Ctx, err)
+		return false
+	}
+	if mem != nil && mem.GetStatus() == "creator" {
+		return true
+	}
+	text, _ := c.Tr.GetString("notes_creator_only")
+	if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
+		_ = helpers.EndGroupsLogging(c.Ctx, err)
+	}
+	return false
+}
+
 func LoadNotes(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(notesModule.moduleName, true)
 
@@ -946,13 +901,34 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 		}}}
 	})
-	helpers.MultiCommand(dispatcher, []string{"save", "addnote"}, notesModule.addNote)
-	helpers.MultiCommand(dispatcher, []string{"clear", "rmnote"}, notesModule.rmNote)
-	for _, cmd := range []string{"notes", "saved"} {
-		dispatcher.AddHandler(handlers.NewCommand(cmd, withPMGroupArg(cmd, helpers.PMGroupArgNone, notesModule.notesList)))
-	}
-	helpers.AddCmdToDisableable("notes")
-	dispatcher.AddHandler(handlers.NewCommand("clearall", withPMGroupArg("clearall", helpers.PMGroupArgNone, notesModule.rmAllNotes)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "save",
+		Aliases:        []string{"addnote"},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()},
+	}, pipelineHandler(notesModule.addNote))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:    "clear",
+		Aliases: []string{"rmnote"},
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
+			func(c *helpers.CommandContext) bool {
+				// Missing keywords and non-text commands return before this right.
+				return len(c.Ctx.Args()) == 1 || !strings.Contains(c.Msg.Text, " ") || helpers.CanUserChangeInfo()(c)
+			},
+		},
+	}, pipelineHandler(notesModule.rmNote))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "notes",
+		Aliases:        []string{"saved"},
+		PMGroupArg:     helpers.PMGroupArgNone,
+		Disableable:    true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+	}, pipelineHandler(notesModule.notesList))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "clearall",
+		PMGroupArg:     helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), notesClearAllOwnerCheck},
+	}, pipelineHandler(notesModule.rmAllNotes))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes"), notesModule.notesButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite"), notesModule.noteOverWriteHandler))
 	dispatcher.AddHandler(
@@ -963,9 +939,17 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 			notesModule.notesWatcher,
 		),
 	)
-	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, withPMGroupArg("privnote", helpers.PMGroupArgOwn, notesModule.privNote))
-	dispatcher.AddHandler(handlers.NewCommand("get", notesModule.getNotes))
-	helpers.AddCmdToDisableable("get")
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "privnote",
+		Aliases:        []string{"privatenotes"},
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireUserAdmin()},
+	}, pipelineHandler(notesModule.privNote))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "get",
+		Disableable:    true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
+	}, notesModule.getNotes)
 }
 
 func init() {

@@ -449,17 +449,8 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(bot, ctx) == nil {
-		return ext.EndGroups
-	}
-	if chat_status.CheckDisabledCmd(bot, msg, "antiraid") {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(bot, ctx, true)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	args := ctx.Args()[1:]
 
@@ -589,14 +580,8 @@ func (a *antiRaidStruct) raidActionTime(bot *gotgbot.Bot, ctx *ext.Context) erro
 //nolint:dupl // Similar patterns by design: raidTime vs raidActionTime commands.
 func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRaidTime bool) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(bot, ctx) == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(bot, ctx, true)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
@@ -658,14 +643,8 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 
 func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(bot, ctx) == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(bot, ctx, true)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
@@ -855,10 +834,22 @@ func formatDuration(seconds int) string {
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(antiRaidModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("antiraid", withPMGroupArg("antiraid", helpers.PMGroupArgOwn, antiRaidModule.antiraid)))
-	dispatcher.AddHandler(handlers.NewCommand("raidtime", withPMGroupArg("raidtime", helpers.PMGroupArgOwn, antiRaidModule.raidTime)))
-	dispatcher.AddHandler(handlers.NewCommand("raidactiontime", withPMGroupArg("raidactiontime", helpers.PMGroupArgOwn, antiRaidModule.raidActionTime)))
-	dispatcher.AddHandler(handlers.NewCommand("autoantiraid", withPMGroupArg("autoantiraid", helpers.PMGroupArgOwn, antiRaidModule.autoAntiRaid)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "antiraid", PMGroupArg: helpers.PMGroupArgOwn, Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antiRaidModule.antiraid))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "raidtime", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antiRaidModule.raidTime))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "raidactiontime", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antiRaidModule.raidActionTime))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "autoantiraid", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antiRaidModule.autoAntiRaid))
 
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
@@ -871,8 +862,6 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	)
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("antiraid"), antiRaidModule.callbackHandler))
-
-	helpers.AddCmdToDisableable("antiraid")
 }
 
 func init() {

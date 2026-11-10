@@ -52,21 +52,12 @@ func deleteFilterOverwriteCache(token string) {
 func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("addFilter", "Filters")
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, false)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	filtersNum := db_filters.CountFilters(chat.Id)
 	if filtersNum >= 150 {
@@ -212,22 +203,9 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
-	connectedChat := resolveAdminChat(b, ctx, false)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	args := ctx.Args()[1:]
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -269,12 +247,6 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "filters") {
-		return ext.EndGroups
-	}
-	if resolveMemberChat(b, ctx, true) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 
 	var replyMsgId int64
@@ -319,15 +291,8 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 //nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	msg := ctx.EffectiveMessage
-	chat := groupOnlyChat(b, ctx)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	filterKeys := db_filters.GetFiltersList(chat.Id)
 
 	if len(filterKeys) == 0 {
@@ -339,11 +304,6 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -659,14 +619,34 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 		}}}
 	})
-	dispatcher.AddHandler(handlers.NewCommand("filter", filtersModule.addFilter))
-	dispatcher.AddHandler(handlers.NewCommand("addfilter", filtersModule.addFilter))
-	dispatcher.AddHandler(handlers.NewCommand("stop", filtersModule.rmFilter))
-	dispatcher.AddHandler(handlers.NewCommand("rmfilter", filtersModule.rmFilter))
-	dispatcher.AddHandler(handlers.NewCommand("removefilter", filtersModule.rmFilter))
-	dispatcher.AddHandler(handlers.NewCommand("filters", withPMGroupArg("filters", helpers.PMGroupArgNone, filtersModule.filtersList)))
-	helpers.AddCmdToDisableable("filters")
-	dispatcher.AddHandler(handlers.NewCommand("stopall", withPMGroupArg("stopall", helpers.PMGroupArgNone, filtersModule.rmAllFilters)))
+	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "filter",
+		Aliases:        []string{"addfilter"},
+		RequiredChecks: changeInfoChecks,
+	}, pipelineHandler(filtersModule.addFilter))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "stop",
+		Aliases:        []string{"rmfilter", "removefilter"},
+		RequiredChecks: changeInfoChecks,
+	}, pipelineHandler(filtersModule.rmFilter))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "filters",
+		PMGroupArg:     helpers.PMGroupArgNone,
+		Disableable:    true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+	}, pipelineHandler(filtersModule.filtersList))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:       "stopall",
+		PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{
+			groupOnlyChatCheck,
+			func(c *helpers.CommandContext) bool {
+				// An empty list answers before ownership is checked.
+				return len(db_filters.GetFiltersList(c.Chat.Id)) == 0 || helpers.RequireUserOwner()(c)
+			},
+		},
+	}, pipelineHandler(filtersModule.rmAllFilters))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters"), filtersModule.filtersButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("filters_overwrite"), filtersModule.filterOverWriteHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {

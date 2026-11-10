@@ -1,10 +1,15 @@
 package modules
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/admin"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
@@ -34,12 +39,11 @@ func TestAdminChatFixtureMemberCannotModerate(t *testing.T) {
 	other := f.member
 	other.Id = uniquePositiveUserID()
 
-	// The permission checks live in banDesc, run before the handler as
-	// WrapCommand does.
-	ban := anonPipelineHandler(banDesc, bansModule.ban)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
 	ctx := newBanReplyContext(f.bot, f.chat, f.member, other, "/ban")
-	if err := ban(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("ban(by member) error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("ban(by member) error = %v", err)
 	}
 	if calls := f.client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("member's /ban sent %d banChatMember calls, want none", len(calls))
@@ -47,8 +51,56 @@ func TestAdminChatFixtureMemberCannotModerate(t *testing.T) {
 	f.client.onlyCall(t, "getChatAdministrators")
 
 	ctx = newBanReplyContext(f.bot, f.chat, f.admin, other, "/ban")
-	if err := ban(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("ban(by admin) error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("ban(by admin) error = %v", err)
 	}
 	assertParams(t, f.client.onlyCall(t, "banChatMember"), targetParams(f.chat.Id, other.Id))
+}
+
+func anonymousAdminProof(t *testing.T, dispatcher *ext.Dispatcher, f adminChatFixture, command *ext.Context) *gotgbot.Update {
+	t.Helper()
+	if err := admin.SetAnonAdminMode(f.chat.Id, false); err != nil {
+		t.Fatalf("SetAnonAdminMode() error = %v", err)
+	}
+	msg := command.Message
+	msg.From = &gotgbot.User{Id: chat_status.GroupAnonymousBotID, IsBot: true, FirstName: "Group", Username: "GroupAnonymousBot"}
+	msg.SenderChat = &f.chat
+	msg.Entities = []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: int64(len(strings.Fields(msg.Text)[0]))}}
+	key := chat_status.AnonAdminCacheKey(f.chat.Id, msg.MessageId)
+	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
+
+	before := len(f.client.callsFor("sendMessage"))
+	if err := dispatcher.ProcessUpdate(f.bot, command.Update, nil); err != nil {
+		t.Fatalf("anonymous %s error = %v", msg.Text, err)
+	}
+	calls := f.client.callsFor("sendMessage")[before:]
+	if len(calls) != 1 {
+		t.Fatalf("anonymous %s sent %d replies, want only the proof", msg.Text, len(calls))
+	}
+	proof := calls[0]
+	assertParams(t, proof, map[string]any{"chat_id": f.chat.Id})
+	markup, ok := proof.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok || len(markup.InlineKeyboard) != 1 || len(markup.InlineKeyboard[0]) != 1 ||
+		!strings.HasPrefix(markup.InlineKeyboard[0][0].CallbackData, "anon_admin|") {
+		t.Fatalf("anonymous %s reply = %#v, want the proof button", msg.Text, proof.Params)
+	}
+	tap := newModuleCallbackContext(f.bot, f.chat, f.admin, markup.InlineKeyboard[0][0].CallbackData).Update
+	tap.CallbackQuery.Message = gotgbot.Message{
+		MessageId: 9001,
+		Date:      1,
+		Chat:      f.chat,
+		From:      &f.bot.User,
+		Text:      fmt.Sprint(proof.Params["text"]),
+	}
+	return tap
+}
+
+func dispatchAnonymousAdminCommand(t *testing.T, dispatcher *ext.Dispatcher, f adminChatFixture, command *ext.Context) []moduleBotCall {
+	t.Helper()
+	tap := anonymousAdminProof(t, dispatcher, f, command)
+	before := len(f.client.callsFor("sendMessage"))
+	if err := dispatcher.ProcessUpdate(f.bot, tap, nil); err != nil {
+		t.Fatalf("anonymous proof confirmation error = %v", err)
+	}
+	return f.client.callsFor("sendMessage")[before:]
 }

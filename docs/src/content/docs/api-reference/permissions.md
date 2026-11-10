@@ -10,7 +10,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 36
+- **Total Functions**: 35
 - **Location**: `alita/utils/chat_status/ (chat_status.go, access.go, update_memo.go, permission_responder.go)`
 
 ## Function Summary
@@ -52,7 +52,6 @@ This page documents all permission checking functions in Alita Robot.
 | `IsUserConnected` | `*gotgbot.Chat` | Resolves the chat a command acts on (the connected group in PM) |
 | `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts the user from the context without nil panics... |
 | `GetChat` | `*gotgbot.Chat` | GetChat safely retrieves a chat by ID with caching... |
-| `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
 
 ## Functions by Category
 
@@ -552,20 +551,9 @@ GetEffectiveUser safely extracts the user from the context without nil panics. R
 **Parameters:**
 - `ctx`
 
-### 🔧 Utility Functions
+### Command Disabling
 
-#### `CheckDisabledCmd`
-
-```go
-func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool
-```
-
-CheckDisabledCmd checks if a command is disabled in the chat and handles deletion if configured. Returns true if the command should be blocked, false if it should proceed. Skips checks for private chats and admin users. If command is disabled for non-admin users, optionally deletes the message based on chat settings.
-
-**Parameters:**
-- `bot`
-- `msg`
-- `cmd`
+Disabling belongs to `helpers.WrapCommand`, not the permission predicates. A descriptor's `Disableable` flag registers its name and every alias and applies stored rows before its rights checks. A row for any spelling silences every spelling for members; admins remain exempt. `/disabledel` deletes silenced group messages, never PM messages.
 
 ## Special Telegram IDs
 

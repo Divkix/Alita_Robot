@@ -51,3 +51,4 @@ The language selection uses an inline keyboard callback. After sending `/lang`, 
 
 - **Private chats:** Any user can change their own language
 - **Group chats:** Only admins can change the group language
+- **Connected group from PM:** `/lang group` uses the current connection and requires group admin. It does not accept a named group argument; plain `/lang` in PM still shows your personal language.

@@ -374,23 +374,81 @@ func TestParsePMGroupTokenQuoteInsideWord(t *testing.T) {
 	}
 }
 
-// The wrapped handler reads its own arguments, without the group.
+// The descriptor handler reads its own arguments without changing the original
+// message, its entities or its reply target, whether the command is in text or a
+// caption. Replies still go to the PM.
 func TestPMGroupArgHandlerSeesArgumentsWithoutGroup(t *testing.T) {
-	f := oneOffFixture(t)
-	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, fmt.Sprintf("/cmd %d on now", f.chat.Id))
-	var args []string
-	var text string
-	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
-		args, text = ctx.Args(), ctx.EffectiveMessage.Text
-		return ext.EndGroups
-	})
+	for _, caption := range []bool{false, true} {
+		t.Run(fmt.Sprintf("caption=%t", caption), func(t *testing.T) {
+			f := oneOffFixture(t)
+			text := fmt.Sprintf("/cmd %d on now", f.chat.Id)
+			update := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, text).Update
+			original := update.Message
+			reply := &gotgbot.Message{MessageId: 100, Chat: original.Chat, From: &f.member, Text: "target"}
+			original.ReplyToMessage = reply
+			entities := []gotgbot.MessageEntity{
+				{Type: "bot_command", Offset: 0, Length: 4},
+				{Type: "code", Offset: 5, Length: int64(len(fmt.Sprint(f.chat.Id)))},
+				{Type: "bold", Offset: int64(len(text) - len("on now")), Length: 6},
+			}
+			if caption {
+				original.Text, original.Caption, original.CaptionEntities = "", text, entities
+			} else {
+				original.Entities = entities
+			}
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			var seen *helpers.CommandContext
+			helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+				Name:       "cmd",
+				PMGroupArg: helpers.PMGroupArgOwn,
+			}, func(c *helpers.CommandContext) error {
+				seen = c
+				_, err := c.Msg.Reply(c.Bot, "handled", nil)
+				return err
+			})
 
-	if err := handler(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("handler error = %v, want ext.EndGroups", err)
-	}
-
-	if fmt.Sprint(args) != "[/cmd on now]" || text != "/cmd on now" {
-		t.Fatalf("handler saw args %q text %q, want [/cmd on now] and %q", args, text, "/cmd on now")
+			originalEntitiesBefore := fmt.Sprint(original.GetEntities())
+			if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatalf("ProcessUpdate() error = %v", err)
+			}
+			if seen == nil {
+				t.Fatalf("command did not run; sent:\n%s", sentText(f.client))
+			}
+			if fmt.Sprint(seen.Ctx.Args()) != "[/cmd on now]" || seen.Msg.GetText() != "/cmd on now" {
+				t.Fatalf("handler saw args %q text %q, want [/cmd on now] and %q", seen.Ctx.Args(), seen.Msg.GetText(), "/cmd on now")
+			}
+			gotEntities, originalEntities := seen.Msg.Entities, original.Entities
+			if caption {
+				gotEntities, originalEntities = seen.Msg.CaptionEntities, original.CaptionEntities
+				if original.Text != "" || seen.Msg.Text != "" {
+					t.Fatal("caption command acquired message text")
+				}
+			} else if original.Caption != "" || seen.Msg.Caption != "" {
+				t.Fatal("text command acquired a caption")
+			}
+			wantEntities := []gotgbot.MessageEntity{
+				{Type: "bot_command", Offset: 0, Length: 4},
+				{Type: "bold", Offset: 5, Length: 6},
+			}
+			if fmt.Sprint(gotEntities) != fmt.Sprint(wantEntities) {
+				t.Fatalf("handler entities = %+v, want %+v", gotEntities, wantEntities)
+			}
+			if original.GetText() != text || fmt.Sprint(originalEntities) != originalEntitiesBefore ||
+				seen.Ctx.Message != original || seen.Msg == original {
+				t.Fatalf("original message changed: %+v", original)
+			}
+			if group := chat_status.OneOffGroup(seen.Ctx); group == nil || group.Id != f.chat.Id {
+				t.Fatalf("one-off group = %+v, want %d", group, f.chat.Id)
+			}
+			if seen.Msg.ReplyToMessage != reply || original.ReplyToMessage != reply {
+				t.Fatal("command lost its replied-to target")
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			assertParams(t, call, map[string]any{"chat_id": f.admin.Id, "text": "handled"})
+			if rp, _ := call.Params["reply_parameters"].(*gotgbot.ReplyParameters); rp == nil || rp.MessageId != original.MessageId {
+				t.Fatalf("reply_parameters = %+v, want a reply to PM message %d", call.Params["reply_parameters"], original.MessageId)
+			}
+		})
 	}
 }
 
@@ -403,20 +461,32 @@ func TestPMGroupArgOwnArgsTakesUsernameWithConnection(t *testing.T) {
 		t.Fatalf("ConnectId() error = %v", err)
 	}
 	t.Cleanup(func() { _ = connections.DisconnectId(f.admin.Id) })
-	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, "/cmd @fixturegroup on")
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	var args []string
 	var group *gotgbot.Chat
-	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
-		args, group = ctx.Args(), chat_status.OneOffGroup(ctx)
+	var calls int
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:       "cmd",
+		PMGroupArg: helpers.PMGroupArgOwn,
+	}, func(c *helpers.CommandContext) error {
+		calls++
+		args, group = c.Ctx.Args(), chat_status.OneOffGroup(c.Ctx)
 		return ext.EndGroups
 	})
 
-	if err := handler(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("handler error = %v, want ext.EndGroups", err)
-	}
+	processPM(t, dispatcher, f, f.admin.Id, "/cmd @fixturegroup on")
 
 	if group == nil || group.Id != f.chat.Id || fmt.Sprint(args) != "[/cmd on]" {
 		t.Fatalf("handler saw group %+v args %q, want group %d and [/cmd on]", group, args, f.chat.Id)
+	}
+
+	processPM(t, dispatcher, f, f.admin.Id, "/cmd on")
+
+	if calls != 2 || group != nil || fmt.Sprint(args) != "[/cmd on]" {
+		t.Fatalf("next update saw calls %d group %+v args %q, want 2, no one-off group and [/cmd on]", calls, group, args)
+	}
+	if conn := connections.Connection(f.admin.Id); !conn.Connected || conn.ChatId != other {
+		t.Fatalf("connection = %+v, want it kept on %d", conn, other)
 	}
 }
 

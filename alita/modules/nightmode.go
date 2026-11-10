@@ -202,5 +202,5 @@ func nightModeReply(c *helpers.CommandContext, text string) error {
 // loadNightMode registers /nightmode as part of the Locks module (LoadLocks).
 func loadNightMode(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, nightModeDesc, locksModule.nightMode)
-	RegisterAnonymousAdminHandler(nightModeDesc.Name, anonCommandContextHandler(nightModeDesc, locksModule.nightMode))
+
 }

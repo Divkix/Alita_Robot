@@ -34,7 +34,7 @@ func TestWelcomeAndGoodbyeTogglesPersistForNewChat(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	welcomeOffCtx := newGreetingMessageContext(bot, chat, admin, "/welcome off")
-	if err := greetingsModule.welcome(bot, welcomeOffCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.welcome)(bot, welcomeOffCtx); err != ext.EndGroups {
 		t.Fatalf("welcome off error = %v, want EndGroups", err)
 	}
 	if greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
@@ -42,7 +42,7 @@ func TestWelcomeAndGoodbyeTogglesPersistForNewChat(t *testing.T) {
 	}
 
 	goodbyeOnCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye on")
-	if err := greetingsModule.goodbye(bot, goodbyeOnCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeOnCtx); err != ext.EndGroups {
 		t.Fatalf("goodbye on error = %v, want EndGroups", err)
 	}
 	if !greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
@@ -57,7 +57,7 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	welcomeOnCtx := newGreetingMessageContext(bot, chat, admin, "/welcome on")
-	if err := greetingsModule.welcome(bot, welcomeOnCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.welcome)(bot, welcomeOnCtx); err != ext.EndGroups {
 		t.Fatalf("welcome on error = %v, want EndGroups", err)
 	}
 	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
@@ -65,7 +65,7 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 	}
 
 	welcomeInvalidCtx := newGreetingMessageContext(bot, chat, admin, "/welcome maybe")
-	if err := greetingsModule.welcome(bot, welcomeInvalidCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.welcome)(bot, welcomeInvalidCtx); err != ext.EndGroups {
 		t.Fatalf("welcome invalid error = %v, want EndGroups", err)
 	}
 
@@ -73,12 +73,12 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 		t.Fatalf("SetGoodbyeText setup error = %v", err)
 	}
 	goodbyeNoformatCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye noformat")
-	if err := greetingsModule.goodbye(bot, goodbyeNoformatCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeNoformatCtx); err != ext.EndGroups {
 		t.Fatalf("goodbye noformat error = %v, want EndGroups", err)
 	}
 
 	goodbyeOffCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye off")
-	if err := greetingsModule.goodbye(bot, goodbyeOffCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeOffCtx); err != ext.EndGroups {
 		t.Fatalf("goodbye off error = %v, want EndGroups", err)
 	}
 	if greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
@@ -86,7 +86,7 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 	}
 
 	goodbyeInvalidCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye maybe")
-	if err := greetingsModule.goodbye(bot, goodbyeInvalidCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeInvalidCtx); err != ext.EndGroups {
 		t.Fatalf("goodbye invalid error = %v, want EndGroups", err)
 	}
 
@@ -106,7 +106,7 @@ func TestGreetingDisplayPropagatesMediaSendErrors(t *testing.T) {
 	}
 
 	ctx := newGreetingMessageContext(bot, chat, admin, "/welcome noformat")
-	if err := greetingsModule.welcome(bot, ctx); err == nil {
+	if err := commandResponse(greetingsModule.welcome)(bot, ctx); err == nil {
 		t.Fatal("welcome noformat media error = nil, want sendPhoto error")
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -124,7 +124,7 @@ func TestGreetingToggleRejectsNonAdminUsers(t *testing.T) {
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newGreetingMessageContext(bot, chat, member, "/welcome off")
-	if err := greetingsModule.welcome(bot, ctx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.welcome)(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("welcome off by non-admin error = %v, want EndGroups", err)
 	}
 	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
@@ -372,7 +372,7 @@ func TestWelcomeDisplaySendsStatusAndGreeting(t *testing.T) {
 	}
 
 	ctx := newGreetingMessageContext(bot, chat, admin, "/welcome")
-	if err := greetingsModule.welcome(bot, ctx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.welcome)(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("welcome display error = %v, want EndGroups", err)
 	}
 	calls := client.callsFor("sendMessage")
@@ -1167,12 +1167,12 @@ func TestGreetingCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		text string
 		run  func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{name: "welcome status", text: "/welcome", run: greetingsModule.welcome},
-		{name: "welcome toggle", text: "/welcome on", run: greetingsModule.welcome},
+		{name: "welcome status", text: "/welcome", run: commandResponse(greetingsModule.welcome)},
+		{name: "welcome toggle", text: "/welcome on", run: commandResponse(greetingsModule.welcome)},
 		{name: "set welcome", text: "/setwelcome Hello", run: greetingsModule.setWelcome},
 		{name: "reset welcome", text: "/resetwelcome", run: greetingsModule.resetWelcome},
-		{name: "goodbye status", text: "/goodbye", run: greetingsModule.goodbye},
-		{name: "goodbye toggle", text: "/goodbye on", run: greetingsModule.goodbye},
+		{name: "goodbye status", text: "/goodbye", run: commandResponse(greetingsModule.goodbye)},
+		{name: "goodbye toggle", text: "/goodbye on", run: commandResponse(greetingsModule.goodbye)},
 		{name: "set goodbye", text: "/setgoodbye Bye", run: greetingsModule.setGoodbye},
 		{name: "reset goodbye", text: "/resetgoodbye", run: greetingsModule.resetGoodbye},
 		{name: "clean welcome", text: "/cleanwelcome", run: greetingsModule.cleanWelcome},
@@ -1423,8 +1423,8 @@ func TestGreetingStatusShowsSettingsAsWords(t *testing.T) {
 		command string
 		run     func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{command: "/welcome", run: greetingsModule.welcome},
-		{command: "/goodbye", run: greetingsModule.goodbye},
+		{command: "/welcome", run: commandResponse(greetingsModule.welcome)},
+		{command: "/goodbye", run: commandResponse(greetingsModule.goodbye)},
 	} {
 		t.Run(tt.command, func(t *testing.T) {
 			f := newAdminChatFixture(t)

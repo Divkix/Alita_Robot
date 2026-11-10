@@ -2,11 +2,13 @@ package modules
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
@@ -229,5 +231,61 @@ func TestChangeLanguageHelpTranslateButtonFollowsReadersLanguage(t *testing.T) {
 	}
 	if label != want {
 		t.Errorf("help translate button = %q, want the es language_help_translate %q", label, want)
+	}
+}
+
+func languageDispatcher() *ext.Dispatcher {
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLanguage(d)
+	return d
+}
+
+func TestLanguageDispatcherKeepsPMAndGroupGates(t *testing.T) {
+	useRealLocales(t)
+	for _, mode := range []string{"group", "private", "connected-group"} {
+		for _, asAdmin := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/admin=%t", mode, asAdmin), func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				user := f.member
+				if asAdmin {
+					user = f.admin
+				}
+				chat, text := f.chat, "/lang"
+				want := "language_current_group"
+				if mode != "group" {
+					chat = privateChatOf(user)
+					want = "language_current_user"
+					if mode == "connected-group" {
+						if err := connections.ConnectId(user.Id, f.chat.Id); err != nil {
+							t.Fatal(err)
+						}
+						t.Cleanup(func() { _ = connections.DisconnectId(user.Id) })
+						text += " group"
+						want = "language_current_group"
+					}
+				}
+				if !asAdmin && mode == "group" {
+					want = "chat_status_user_admin_cmd_error"
+				} else if !asAdmin && mode == "connected-group" {
+					want = "connections_is_user_connected_user_not_admin"
+				}
+				update := newModuleMessageContext(f.bot, chat, user, text).Update
+				if err := languageDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+					t.Fatal(err)
+				}
+				calls := f.client.callsFor("sendMessage")
+				prefix, _ := i18n.MustNewTranslator("en").GetString(want)
+				if prefix == "" {
+					t.Fatalf("missing translation %s", want)
+				}
+				prefix = strings.Split(prefix, "%")[0]
+				if len(calls) != 1 || !strings.HasPrefix(fmt.Sprint(calls[0].Params["text"]), prefix) {
+					t.Fatalf("replies = %v, want %s", sentTexts(f.client), want)
+				}
+				if asAdmin && calls[0].Params["reply_markup"] == nil {
+					t.Fatal("authorized command did not show its language keyboard")
+				}
+			})
+		}
 	}
 }

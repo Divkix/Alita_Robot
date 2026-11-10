@@ -17,7 +17,7 @@ longer exists, or when the file outgrows its budget.
 - In PM a group the user names wins over the connected group. A command without arguments of its own
   (`PMGroupArgNone`) whose first word does not name exactly one group refuses (its help, the matching groups, or
   `settings_picker_wait`) and never falls back to the connection: the connection is invisible when the message is
-  sent, and acting in the wrong group is worse than a refusal that costs one retry. Mechanics: `withPMGroupArg`.
+  sent, and acting in the wrong group is worse than a refusal that costs one retry. Mechanics: `resolvePMGroupArg`.
 - A PM reply about a group names it: end the text with `withGroupLine`.
 
 ## Commands
@@ -53,14 +53,13 @@ CGO_ENABLED=0 go build ./...   # compile check
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` with `RegisterLegacyModule(name, priority, load)`. Names must be unique (a duplicate
   is dropped silently); priority sets load order and group-0 precedence.
-- New commands use `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`, with `Disableable: true` when
-  chats may disable them. The pipeline sends the reply for a failed check.
-- Anonymous admins bypass `WrapCommand`: an admin command that must work for them also registers
-  `RegisterAnonymousAdminHandler` with `anonPipelineHandler` or `anonCommandContextHandler`.
-- A PM command acting on a group points `ctx.EffectiveChat` at it, and later groups must not run on that ctx.
-  `WrapCommand` ends iteration after such a swap. A legacy command relies on the group-1 guard, which sees only
-  group-0 swaps, so one registered in a higher group returns `ext.EndGroups` on every path. Group 1 holds the guard
-  alone.
+- Every user command uses `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`. Declare its aliases,
+  ordered rights checks, PM group argument and `Disableable` there; handlers contain domain work, not a rights preamble.
+- `WrapCommand` derives anonymous-admin replay for the command's name and every alias; never register a replay
+  handler separately. Descriptor checks run again as the admin who confirmed the proof.
+- A PM command acting on a group points `ctx.EffectiveChat` at it. `WrapCommand` ends iteration after such a swap
+  or a named-group selection, so later groups never see the swapped chat or stripped message. The group-1
+  connected-chat guard remains alone in its group as a fallback.
 - Read command text through `ctx.EffectiveMessage` or `ctx.Args()`: a PM group argument is cut from those, while
   `ctx.Message` keeps it. Group-only commands taken to PM and the buttons they send: `groupOnlyChat`.
 
@@ -75,8 +74,8 @@ CGO_ENABLED=0 go build ./...   # compile check
 - `chat_status` predicates return bools and send nothing; refuse through `PermissionResponder`. These reply
   themselves, so keep them out of watchers: `CanUser*` and `CanInvite` (the anonymous-admin proof keyboard),
   `IsUserConnected`, `UserHasPermissionForUpdate`.
-- `helpers.CheckFunc` replies and needs a `*helpers.CommandContext`: run it through `WrapCommand`'s `RequiredChecks`,
-  or `helpers.RunChecks` in an anonymous-admin post-proof handler.
+- `helpers.CheckFunc` replies and needs a `*helpers.CommandContext`: list unconditional checks in the descriptor's
+  `RequiredChecks`; run argument-dependent checks through `helpers.RunChecks` at the argument branch.
 - After a swap, `chat_status` helpers given a nil chat check the swapped group, and replies still go to the chat the
   update came from, in its language: `lang.GetLanguage(ctx)` returns that language, and `PermissionResponder` takes
   it through `chat_status.WithTranslator`. Read the group's own language with
@@ -112,7 +111,7 @@ CGO_ENABLED=0 go build ./...   # compile check
 3. Add the model to the `AutoMigrate` list of each affected `testmain_test.go` or `internal/testdb.Run` call; do the
    same when changing an existing model.
 4. `alita/modules/<name>.go` with `LoadXxx`, registered through `RegisterLegacyModule`; commands through
-   `helpers.WrapCommand`, plus `RegisterAnonymousAdminHandler` for admin commands.
+   `helpers.WrapCommand` (including derived replay and disabling).
 5. Locale keys in all 7 `locales/*.yml`. Help entries, examples and the `/commands` menu follow `commandHelpModules`
    and `menuCommands`; their tests name any missing entry.
 6. `make generate-docs`, `make check-translations`, `make test`, `make lint`.

@@ -24,7 +24,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 const settingsTestMemberID = 4250
@@ -51,14 +50,6 @@ func connectedPMFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot
 	return client, bot, groupA, admin, member
 }
 
-func runInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, handler func(*gotgbot.Bot, *ext.Context) error) {
-	t.Helper()
-	ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
-	if err := handler(bot, ctx); err != nil && err != ext.EndGroups {
-		t.Fatalf("%s from PM error = %v", text, err)
-	}
-}
-
 func captchaSettingsOf(t *testing.T, chatID int64) *models.CaptchaSettings {
 	t.Helper()
 	settings, err := captcha.GetCaptchaSettings(chatID)
@@ -70,12 +61,14 @@ func captchaSettingsOf(t *testing.T, chatID int64) *models.CaptchaSettings {
 
 func TestCaptchaFromPMViaConnection(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadCaptcha(dispatcher)
 
-	runInPM(t, bot, admin, "/captcha on", captchaModule.captchaCommand)
-	runInPM(t, bot, admin, "/captchamode text", captchaModule.captchaModeCommand)
-	runInPM(t, bot, admin, "/captchatime 5", captchaModule.captchaTimeCommand)
-	runInPM(t, bot, admin, "/captchaaction ban", captchaModule.captchaActionCommand)
-	runInPM(t, bot, admin, "/captchamaxattempts 4", captchaModule.captchaMaxAttemptsCommand)
+	runCommandInPM(t, bot, admin, "/captcha on", dispatcher)
+	runCommandInPM(t, bot, admin, "/captchamode text", dispatcher)
+	runCommandInPM(t, bot, admin, "/captchatime 5", dispatcher)
+	runCommandInPM(t, bot, admin, "/captchaaction ban", dispatcher)
+	runCommandInPM(t, bot, admin, "/captchamaxattempts 4", dispatcher)
 
 	got := captchaSettingsOf(t, groupA)
 	if !got.Enabled || got.CaptchaMode != "text" || got.Timeout != 5 || got.FailureAction != "ban" || got.MaxAttempts != 4 {
@@ -86,6 +79,8 @@ func TestCaptchaFromPMViaConnection(t *testing.T) {
 
 func TestCaptchaPendingCommandsFromPMViaConnection(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadCaptcha(dispatcher)
 	targetID := int64(424243)
 	attempt, err := captcha.CreateCaptchaAttemptPreMessage(targetID, groupA, "7", 2)
 	if err != nil {
@@ -95,7 +90,7 @@ func TestCaptchaPendingCommandsFromPMViaConnection(t *testing.T) {
 		t.Fatalf("StoreMessageForCaptcha() error = %v", err)
 	}
 
-	runInPM(t, bot, admin, "/captchapending 424243", captchaModule.viewPendingMessages)
+	runCommandInPM(t, bot, admin, "/captchapending 424243", dispatcher)
 	shown := false
 	for _, call := range client.callsFor("sendMessage") {
 		if strings.Contains(fmt.Sprint(call.Params["text"]), "held in group") {
@@ -106,7 +101,7 @@ func TestCaptchaPendingCommandsFromPMViaConnection(t *testing.T) {
 		t.Fatal("/captchapending from PM did not show the group's stored message")
 	}
 
-	runInPM(t, bot, admin, "/captchaclear 424243", captchaModule.clearPendingMessages)
+	runCommandInPM(t, bot, admin, "/captchaclear 424243", dispatcher)
 	if messages, err := captcha.GetStoredMessagesForUser(targetID, groupA); err != nil || len(messages) != 0 {
 		t.Fatalf("stored messages after clear = %d, %v; want 0, nil", len(messages), err)
 	}
@@ -115,9 +110,11 @@ func TestCaptchaPendingCommandsFromPMViaConnection(t *testing.T) {
 
 func TestCaptchaFromPMRejectsNonAdmin(t *testing.T) {
 	client, bot, groupA, _, member := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadCaptcha(dispatcher)
 
-	runInPM(t, bot, member, "/captcha on", captchaModule.captchaCommand)
-	runInPM(t, bot, member, "/captchamode text", captchaModule.captchaModeCommand)
+	runCommandInPM(t, bot, member, "/captcha on", dispatcher)
+	runCommandInPM(t, bot, member, "/captchamode text", dispatcher)
 
 	if got := captchaSettingsOf(t, groupA); got.Enabled || got.CaptchaMode == "text" {
 		t.Fatalf("non-admin changed group captcha settings: %+v", got)
@@ -128,11 +125,13 @@ func TestCaptchaFromPMRejectsNonAdmin(t *testing.T) {
 func TestAntiraidFromPMViaConnection(t *testing.T) {
 	withMiniredis(t)
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(dispatcher)
 
-	runInPM(t, bot, admin, "/raidtime 2h", antiRaidModule.raidTime)
-	runInPM(t, bot, admin, "/raidactiontime 30m", antiRaidModule.raidActionTime)
-	runInPM(t, bot, admin, "/autoantiraid 10", antiRaidModule.autoAntiRaid)
-	runInPM(t, bot, admin, "/antiraid on", antiRaidModule.antiraid)
+	runCommandInPM(t, bot, admin, "/raidtime 2h", dispatcher)
+	runCommandInPM(t, bot, admin, "/raidactiontime 30m", dispatcher)
+	runCommandInPM(t, bot, admin, "/autoantiraid 10", dispatcher)
+	runCommandInPM(t, bot, admin, "/antiraid on", dispatcher)
 
 	got := antiraid.GetAntiRaidSettings(groupA)
 	if got.RaidTime != 7200 || got.RaidActionTime != 1800 || got.AutoAntiRaidThreshold != 10 {
@@ -197,7 +196,9 @@ func TestAntiraidButtonInPMActsOnShownGroup(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
 	groupC := extraGroup(t, client, adminListJSON(settingsTestAdminID), groupA)
 
-	runInPM(t, bot, admin, "/antiraid", antiRaidModule.antiraid)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(dispatcher)
+	runCommandInPM(t, bot, admin, "/antiraid", dispatcher)
 	enable := lastButtons(t, client)[0].CallbackData
 	if err := connections.ConnectId(admin.Id, groupC); err != nil {
 		t.Fatalf("ConnectId(C) error = %v", err)
@@ -235,7 +236,9 @@ func TestAntiraidFromPMRejectsNonAdmin(t *testing.T) {
 	withMiniredis(t)
 	_, bot, groupA, _, member := connectedPMFixture(t)
 
-	runInPM(t, bot, member, "/raidtime 2h", antiRaidModule.raidTime)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(dispatcher)
+	runCommandInPM(t, bot, member, "/raidtime 2h", dispatcher)
 	ctx := newModuleCallbackContext(bot, privateChatOf(member), member,
 		encodeCallbackData("antiraid", map[string]string{"a": "on"}))
 	_ = antiRaidModule.callbackHandler(bot, ctx)
@@ -316,30 +319,28 @@ func TestSettingsRefreshInPMRejectsForgedGroup(t *testing.T) {
 	}
 }
 
-func runCommandInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, handler func(*helpers.CommandContext) error) {
+func runCommandInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, dispatcher *ext.Dispatcher) {
 	t.Helper()
 	ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
-	c, err := helpers.BuildCommandContext(bot, ctx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext(%s) error = %v", text, err)
-	}
-	if err := handler(c); err != nil && err != ext.EndGroups {
+	if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
 		t.Fatalf("%s from PM error = %v", text, err)
 	}
 }
 
 func TestAISpamFromPMViaConnection(t *testing.T) {
 	client, bot, groupA, admin, member := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAISpam(dispatcher)
 	if err := aispam.SetAISpamEnabled(groupA, true); err != nil {
 		t.Fatalf("SetAISpamEnabled() error = %v", err)
 	}
 
-	runCommandInPM(t, bot, member, "/aispam off", aispamModule.aispam)
+	runCommandInPM(t, bot, member, "/aispam off", dispatcher)
 	if !aispam.IsAISpamEnabled(groupA) {
 		t.Fatal("non-admin disabled the group's AI spam filter")
 	}
 
-	runCommandInPM(t, bot, admin, "/aispam off", aispamModule.aispam)
+	runCommandInPM(t, bot, admin, "/aispam off", dispatcher)
 	if aispam.IsAISpamEnabled(groupA) {
 		t.Fatal("/aispam off from PM did not change the connected group")
 	}
@@ -348,6 +349,8 @@ func TestAISpamFromPMViaConnection(t *testing.T) {
 
 func TestAnonAdminFromPMViaConnection(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAdmin(dispatcher)
 	owner := gotgbot.User{Id: 4260, FirstName: "Owner"}
 	client.membersByUser = map[string]json.RawMessage{
 		"4260": json.RawMessage(`{"status":"creator","user":{"id":4260,"is_bot":false,"first_name":"Owner"}}`),
@@ -361,12 +364,12 @@ func TestAnonAdminFromPMViaConnection(t *testing.T) {
 		}
 	})
 
-	runCommandInPM(t, bot, admin, "/anonadmin on", adminModule.anonAdmin)
+	runCommandInPM(t, bot, admin, "/anonadmin on", dispatcher)
 	if admin2 := readAnonAdmin(t, groupA); admin2 {
 		t.Fatal("a non-owner admin enabled anonymous admin mode")
 	}
 
-	runCommandInPM(t, bot, owner, "/anonadmin on", adminModule.anonAdmin)
+	runCommandInPM(t, bot, owner, "/anonadmin on", dispatcher)
 	if !readAnonAdmin(t, groupA) {
 		t.Fatal("/anonadmin on from PM did not change the connected group")
 	}
@@ -384,23 +387,32 @@ func TestReactionsFromPMViaConnection(t *testing.T) {
 	client.membersByUser = map[string]json.RawMessage{
 		fmt.Sprint(admin.Id): json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},"can_change_info":true}`, admin.Id)),
 	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadReactions(dispatcher)
+	run := func(user gotgbot.User, text string) {
+		t.Helper()
+		ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
+		if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+			t.Fatalf("%s from PM error = %v", text, err)
+		}
+	}
 
-	runInPM(t, bot, member, "/addreaction hello 👍", reactionsModule.addReaction)
+	run(member, "/addreaction hello 👍")
 	if len(reactions.GetReactions(groupA)) != 0 {
 		t.Fatal("non-admin added a reaction to the group")
 	}
 
-	runInPM(t, bot, admin, "/addreaction hello 👍", reactionsModule.addReaction)
-	runInPM(t, bot, admin, "/addreaction bye 👋", reactionsModule.addReaction)
+	run(admin, "/addreaction hello 👍")
+	run(admin, "/addreaction bye 👋")
 	if got := reactions.GetReactions(groupA); got["hello"] != "👍" {
 		t.Fatalf("group reactions after add = %v, want hello→👍", got)
 	}
-	runInPM(t, bot, admin, "/reactions", reactionsModule.listReactions)
-	runInPM(t, bot, admin, "/removereaction hello", reactionsModule.removeReaction)
+	run(admin, "/reactions")
+	run(admin, "/removereaction hello")
 	if _, ok := reactions.GetReactions(groupA)["hello"]; ok {
 		t.Fatal("/removereaction from PM did not change the connected group")
 	}
-	runInPM(t, bot, admin, "/resetreactions", reactionsModule.resetReactions)
+	run(admin, "/resetreactions")
 	if got := reactions.GetReactions(groupA); len(got) != 0 {
 		t.Fatalf("group reactions after reset = %v, want none", got)
 	}
@@ -409,13 +421,20 @@ func TestReactionsFromPMViaConnection(t *testing.T) {
 
 func TestAllowConnectFromPMViaConnection(t *testing.T) {
 	client, bot, groupA, admin, member := connectedPMFixture(t)
+	dispatcher := connectionsDispatcher()
 
-	runInPM(t, bot, member, "/allowconnect off", ConnectionsModule.allowConnect)
+	memberCtx := newModuleMessageContext(bot, privateChatOf(member), member, "/allowconnect off")
+	if err := dispatcher.ProcessUpdate(bot, memberCtx.Update, nil); err != nil {
+		t.Fatalf("member /allowconnect off from PM: %v", err)
+	}
 	if !connections.GetChatConnectionSetting(groupA).AllowConnect {
 		t.Fatal("non-admin turned allowconnect off")
 	}
 
-	runInPM(t, bot, admin, "/allowconnect off", ConnectionsModule.allowConnect)
+	adminCtx := newModuleMessageContext(bot, privateChatOf(admin), admin, "/allowconnect off")
+	if err := dispatcher.ProcessUpdate(bot, adminCtx.Update, nil); err != nil {
+		t.Fatalf("admin /allowconnect off from PM: %v", err)
+	}
 	if connections.GetChatConnectionSetting(groupA).AllowConnect {
 		t.Fatal("/allowconnect off from PM did not change the connected group")
 	}
@@ -461,7 +480,7 @@ func TestLangGroupFromPMChangesGroupLanguage(t *testing.T) {
 	t.Cleanup(func() { config.AppConfig.ValidLangCodes = original })
 	groupC := extraGroup(t, client, adminListJSON(settingsTestAdminID), groupA)
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	data := langButton(t, client, "ru")
 	if len(data) > 64 {
 		t.Fatalf("callback data is %d bytes, want <= 64", len(data))
@@ -516,7 +535,7 @@ func TestLangGroupConfirmationLanguage(t *testing.T) {
 		}
 	})
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	pressInPM(t, bot, admin, langButton(t, client, "en"), languagesModule.langBtnHandler)
 	if got := lastEditedText(t, client); !strings.HasPrefix(got, "ru-group") {
 		t.Fatalf("PM confirmation = %q, want it in the admin's language (ru)", got)
@@ -553,13 +572,13 @@ func TestLangGroupKeyboardKeepsHelpTranslateLink(t *testing.T) {
 		return out
 	}
 
-	runInPM(t, bot, admin, "/lang", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang", languageDispatcher())
 	want := urlButtons()
 	if len(want) == 0 {
 		t.Fatal("plain /lang keyboard has no link button")
 	}
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	got := urlButtons()
 	if len(got) != len(want) {
 		t.Fatalf("/lang group link buttons = %+v, want %+v", got, want)

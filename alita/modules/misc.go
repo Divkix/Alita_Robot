@@ -12,7 +12,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -67,14 +66,6 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
 
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if msg.From == nil || !chat_status.IsUserAdmin(b, msg.Chat.Id, msg.From.Id) {
-		return ext.EndGroups
-	}
-
 	replyMsg := msg.ReplyToMessage
 	if replyMsg == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -112,9 +103,6 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "id") {
-		return ext.EndGroups
-	}
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
@@ -220,10 +208,6 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
-	if chat_status.CheckDisabledCmd(b, msg, "ping") {
-		return ext.EndGroups
-	}
-
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	pingingText, _ := tr.GetString("misc_pinging")
@@ -273,9 +257,6 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
-	if chat_status.CheckDisabledCmd(b, msg, "info") {
-		return ext.EndGroups
-	}
 	userId := extraction.ExtractUser(b, ctx)
 	switch userId {
 	case -1:
@@ -345,10 +326,6 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
-
-	if chat_status.CheckDisabledCmd(b, msg, "tr") {
-		return ext.EndGroups
-	}
 
 	var (
 		origText string
@@ -459,14 +436,6 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if !chat_status.RequireGroup(b, ctx, chat) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if chat_status.CheckDisabledCmd(b, msg, "stat") {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	textTemplate, _ := tr.GetString("misc_total_messages")
 	text := fmt.Sprintf(textTemplate, msg.Chat.Title, msg.MessageId+1)
@@ -480,18 +449,24 @@ func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadMisc(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(miscModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("stat", miscModule.stat))
-	helpers.AddCmdToDisableable("stat")
-	dispatcher.AddHandler(handlers.NewCommand("id", miscModule.getId))
-	helpers.AddCmdToDisableable("id")
-	dispatcher.AddHandler(handlers.NewCommand("tell", miscModule.echomsg))
-	dispatcher.AddHandler(handlers.NewCommand("ping", miscModule.ping))
-	helpers.AddCmdToDisableable("ping")
-	dispatcher.AddHandler(handlers.NewCommand("info", miscModule.info))
-	helpers.AddCmdToDisableable("info")
-	dispatcher.AddHandler(handlers.NewCommand("tr", miscModule.translate))
-	helpers.AddCmdToDisableable("tr")
-	dispatcher.AddHandler(handlers.NewCommand("removebotkeyboard", miscModule.removeBotKeyboard))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "stat", Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup()},
+	}, pipelineHandler(miscModule.stat))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "id", Disableable: true}, pipelineHandler(miscModule.getId))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "tell",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			func(c *helpers.CommandContext) bool {
+				return c.User != nil && chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
+			},
+		},
+	}, pipelineHandler(miscModule.echomsg))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "ping", Disableable: true}, pipelineHandler(miscModule.ping))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "info", Disableable: true}, pipelineHandler(miscModule.info))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "tr", Disableable: true}, pipelineHandler(miscModule.translate))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "removebotkeyboard"}, pipelineHandler(miscModule.removeBotKeyboard))
 	registerMiscExtras(dispatcher)
 }
 

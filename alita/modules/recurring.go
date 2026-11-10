@@ -357,7 +357,7 @@ func LoadRecurring(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(recurringModule.moduleName, true)
 
 	helpers.WrapCommand(dispatcher, recurringDesc, recurringModule.recurring)
-	RegisterAnonymousAdminHandler("recurring", anonCommandContextHandler(recurringDesc, recurringModule.recurring))
+
 }
 
 func init() {

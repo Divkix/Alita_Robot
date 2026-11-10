@@ -89,22 +89,6 @@ func TestCheckFuncNilGuards(t *testing.T) {
 		c     *CommandContext
 	}{
 		{
-			name:  "CheckDisabled with nil Msg",
-			check: CheckDisabled("test"),
-			c: &CommandContext{
-				Bot: &gotgbot.Bot{Token: "test"},
-				Msg: nil,
-			},
-		},
-		{
-			name:  "CheckDisabled with nil Bot",
-			check: CheckDisabled("test"),
-			c: &CommandContext{
-				Bot: nil,
-				Msg: &gotgbot.Message{},
-			},
-		},
-		{
 			name:  "RequireUserAdmin with nil User",
 			check: RequireUserAdmin(),
 			c: &CommandContext{
@@ -240,15 +224,6 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 			check: CanBotPin(),
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContext("supergroup")},
 			want:  true,
-		},
-		{
-			name:  "CheckDisabled in private chat (always false)",
-			check: CheckDisabled("kick"),
-			c: &CommandContext{
-				Bot: newCpBot(999),
-				Msg: &gotgbot.Message{Chat: gotgbot.Chat{Id: 42, Type: "private"}},
-			},
-			want: true,
 		},
 		{
 			name:  "RequireUserAdmin when user is admin",
@@ -498,7 +473,7 @@ func TestRegisterWithGroup(t *testing.T) {
 	d := ext.NewDispatcher(&ext.DispatcherOpts{})
 
 	called := false
-	handler := func(_ *gotgbot.Bot, _ *ext.Context) error {
+	handler := func(_ *CommandContext) error {
 		called = true
 		return nil
 	}
@@ -508,7 +483,7 @@ func TestRegisterWithGroup(t *testing.T) {
 		Group:   5,
 		Aliases: []string{"groupcmda"},
 	}
-	register(d, cmdDesc, handler)
+	WrapCommand(d, cmdDesc, handler)
 
 	bot := newCpBot(999)
 	for _, text := range []string{"/groupcmd", "/groupcmda"} {

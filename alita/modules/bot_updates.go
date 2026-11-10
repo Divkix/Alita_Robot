@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // function used to get status of bot when it joined a group and send a message to the group
@@ -225,7 +226,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	command := strings.SplitN(parts[0][1:], "@", 2)[0]
 	chat_status.SetConfirmedAnonymousAdmin(ctx, chatId, query.From.Id)
 
-	if err := HandleAnonymousAdmin(b, ctx, command); err != nil {
+	if err := helpers.RunCommand(b, ctx, command); err != nil {
 		return ext.EndGroups
 	}
 	return ext.EndGroups

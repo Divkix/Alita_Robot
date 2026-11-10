@@ -37,6 +37,12 @@ func (f backupRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error
 	return f(req)
 }
 
+func backupDispatcher() *ext.Dispatcher {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBackup(dispatcher)
+	return dispatcher
+}
+
 func TestBackupModuleStructure(t *testing.T) {
 	t.Run("backupModule has correct name", func(t *testing.T) {
 		assert.Equal(t, "Backup", backupModule.moduleName)
@@ -310,9 +316,12 @@ func TestDownloadBackupFileReportsHTTPStatusFailure(t *testing.T) {
 }
 
 func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
+	useRealLocales(t)
 	f := newAdminChatFixture(t)
 	f.makeOwner()
 	chat, owner := f.chat, f.admin
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+	require.NoError(t, rules.SetChatRules(chat.Id, "rules before import"))
 	backup := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules", "notes"})
 	backup.Data["rules"] = map[string]interface{}{
 		"settings": map[string]interface{}{"rules": "imported rules"},
@@ -357,9 +366,10 @@ func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 		},
 	}
 
-	err = backupModule.importHandler(bot, ctx)
+	dispatcher := backupDispatcher()
+	err = dispatcher.ProcessUpdate(bot, ctx.Update, nil)
 
-	require.Equal(t, ext.EndGroups, err)
+	require.NoError(t, err)
 	gotBackup, gotModules, ok := peekPendingImport(chat.Id)
 	require.True(t, ok)
 	assert.Equal(t, []string{"rules"}, gotModules)
@@ -367,6 +377,15 @@ func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 	assert.Contains(t, gotBackup.Data, "notes")
 	assert.Len(t, client.callsFor("getFile"), 1)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
+	assert.Equal(t, "rules before import", rules.GetChatRulesInfo(chat.Id).Rules)
+	confirmation := client.onlyCall(t, "sendMessage")
+	keyboard, ok := confirmation.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	require.True(t, ok)
+	require.NotEmpty(t, keyboard.InlineKeyboard)
+	require.NotEmpty(t, keyboard.InlineKeyboard[0])
+	callback := newModuleCallbackContext(bot, chat, owner, keyboard.InlineKeyboard[0][0].CallbackData)
+	require.NoError(t, dispatcher.ProcessUpdate(bot, callback.Update, nil))
+	assert.Equal(t, "imported rules", rules.GetChatRulesInfo(chat.Id).Rules)
 }
 
 func TestImportHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
@@ -411,9 +430,9 @@ func TestImportHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
 		},
 	}
 
-	err = backupModule.importHandler(bot, ctx)
+	err = backupDispatcher().ProcessUpdate(bot, ctx.Update, nil)
 
-	require.Equal(t, ext.EndGroups, err)
+	require.NoError(t, err)
 	_, _, ok := peekPendingImport(chat.Id)
 	assert.False(t, ok)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
@@ -646,8 +665,8 @@ func TestImportHandlerRequiresReplyDocument(t *testing.T) {
 	chat, owner := f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, owner, "/import")
 
-	err := backupModule.importHandler(bot, ctx)
-	assert.Equal(t, ext.EndGroups, err)
+	err := backupDispatcher().ProcessUpdate(bot, ctx.Update, nil)
+	require.NoError(t, err)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
 
@@ -667,8 +686,8 @@ func TestImportHandlerRejectsInvalidReplyDocument(t *testing.T) {
 		},
 	}
 
-	err := backupModule.importHandler(bot, ctx)
-	assert.Equal(t, ext.EndGroups, err)
+	err := backupDispatcher().ProcessUpdate(bot, ctx.Update, nil)
+	require.NoError(t, err)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 	assert.Empty(t, client.callsFor("getFile"))
 }
@@ -682,8 +701,8 @@ func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
 	require.NoError(t, notes.AddNote(chat.Id, "welcome", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
 
 	ctx := newModuleMessageContext(bot, chat, owner, "/export notes invalid notes")
-	err := backupModule.exportHandler(bot, ctx)
-	assert.Equal(t, ext.EndGroups, err)
+	err := backupDispatcher().ProcessUpdate(bot, ctx.Update, nil)
+	require.NoError(t, err)
 	assert.Len(t, client.callsFor("sendDocument"), 1)
 	assert.Empty(t, client.callsFor("sendMessage"))
 }
@@ -699,8 +718,8 @@ func TestExportHandlerReportsFailureWhenDocumentSendFails(t *testing.T) {
 	require.NoError(t, notes.AddNote(chat.Id, "fallback", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
 
 	ctx := newModuleMessageContext(bot, chat, owner, "/export notes")
-	err := backupModule.exportHandler(bot, ctx)
-	assert.Equal(t, ext.EndGroups, err)
+	err := backupDispatcher().ProcessUpdate(bot, ctx.Update, nil)
+	require.NoError(t, err)
 	assert.Len(t, client.callsFor("sendDocument"), 1)
 	want, trErr := i18n.MustNewTranslator("en").GetString("backup_export_failed")
 	require.NoError(t, trErr)
@@ -714,10 +733,9 @@ func TestExportAndResetListValidModulesForUnknownNames(t *testing.T) {
 	require.NoError(t, err)
 	for _, tt := range []struct {
 		text string
-		run  func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{text: "/export bogus", run: backupModule.exportHandler},
-		{text: "/reset bogus", run: backupModule.resetHandler},
+		{text: "/export bogus"},
+		{text: "/reset bogus"},
 	} {
 		t.Run(tt.text, func(t *testing.T) {
 			f := newAdminChatFixture(t)
@@ -727,7 +745,7 @@ func TestExportAndResetListValidModulesForUnknownNames(t *testing.T) {
 			t.Cleanup(func() { dropPendingReset(chat.Id) })
 
 			ctx := newModuleMessageContext(bot, chat, owner, tt.text)
-			require.Equal(t, ext.EndGroups, tt.run(bot, ctx))
+			require.NoError(t, backupDispatcher().ProcessUpdate(bot, ctx.Update, nil))
 
 			text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
 			assert.Contains(t, text, backup.BackupModuleNotes)
@@ -739,20 +757,121 @@ func TestExportAndResetListValidModulesForUnknownNames(t *testing.T) {
 	}
 }
 
-func TestValidateImportRequestRejectsNonOwner(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	ctx := newModuleMessageContext(bot, chat, member, "/import")
+func TestBackupCommandAuthorization(t *testing.T) {
+	useRealLocales(t)
+	en := i18n.MustNewTranslator("en")
+	for _, command := range []string{"export", "import", "reset"} {
+		for _, role := range []string{"member", "admin", "owner"} {
+			for _, botAdmin := range []bool{true, false} {
+				for _, disabled := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%s/bot-admin=%t/disabled=%t", command, role, botAdmin, disabled), func(t *testing.T) {
+						f := newAdminChatFixture(t)
+						user := f.admin
+						switch role {
+						case "owner":
+							f.makeOwner()
+						case "member":
+							user = f.member
+						}
+						if !botAdmin {
+							f.client.membersByChat = map[string]json.RawMessage{
+								fmt.Sprintf("%d|%d", f.chat.Id, f.bot.Id): json.RawMessage(
+									`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`,
+								),
+							}
+							f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(
+								"[" + string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]) + "]",
+							)
+						}
+						if disabled {
+							require.NoError(t, disabling.DisableCMD(f.chat.Id, command))
+							require.NoError(t, disabling.ToggleDel(f.chat.Id, true))
+						}
+						t.Cleanup(func() { dropPendingReset(f.chat.Id) })
 
-	msg, gotChat, user, tr, ok := validateImportRequest(bot, ctx)
-	assert.False(t, ok)
-	assert.Nil(t, msg)
-	assert.Nil(t, gotChat)
-	assert.Nil(t, user)
-	assert.Nil(t, tr)
-	assert.NotEmpty(t, client.callsFor("sendMessage"))
+						var wantKey string
+						switch {
+						case command == "export" && role == "member":
+							wantKey = "chat_status_user_admin_cmd_error"
+						case !botAdmin:
+							wantKey = "chat_status_bot_not_admin"
+						case command == "import" && role != "owner":
+							wantKey = "backup_import_creator_only"
+						case command == "reset" && role != "owner":
+							wantKey = "chat_status_owner_cmd_error"
+						case command == "import":
+							wantKey = "backup_import_no_reply"
+						}
+						if command == "export" && wantKey == "" {
+							require.NoError(t, chats.EnsureChatInDb(f.chat.Id, f.chat.Title))
+							require.NoError(t, notes.AddNote(f.chat.Id, "welcome", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
+						}
+
+						ctx := newModuleMessageContext(f.bot, f.chat, user, "/"+command+" notes")
+						require.NoError(t, backupDispatcher().ProcessUpdate(f.bot, ctx.Update, nil))
+
+						assert.Empty(t, f.client.callsFor("deleteMessage"))
+						assert.Empty(t, f.client.callsFor("getFile"))
+						if wantKey != "" {
+							want, err := en.GetString(wantKey)
+							require.NoError(t, err)
+							call := f.client.onlyCall(t, "sendMessage")
+							assertParams(t, call, map[string]any{"chat_id": f.chat.Id, "text": want})
+							if wantKey == "backup_import_creator_only" {
+								assertParams(t, call, map[string]any{"parse_mode": "HTML"})
+							}
+							assert.Empty(t, f.client.callsFor("sendDocument"))
+							_, pending := peekPendingReset(f.chat.Id)
+							assert.False(t, pending)
+						} else if command == "export" {
+							assertParams(t, f.client.onlyCall(t, "sendDocument"), map[string]any{"chat_id": f.chat.Id})
+							assert.Empty(t, f.client.callsFor("sendMessage"))
+						} else {
+							call := f.client.onlyCall(t, "sendMessage")
+							assert.Contains(t, fmt.Sprint(call.Params["text"]), "notes")
+							keyboard, ok := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+							require.True(t, ok)
+							require.NotEmpty(t, keyboard.InlineKeyboard)
+							assert.NotEmpty(t, keyboard.InlineKeyboard[0][0].CallbackData)
+							assert.Empty(t, f.client.callsFor("sendDocument"))
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+func TestBackupCommandsStayGroupOnlyInPM(t *testing.T) {
+	useRealLocales(t)
+	want, err := i18n.MustNewTranslator("en").GetString("chat_status_group_only_error")
+	require.NoError(t, err)
+	for _, command := range []string{"export", "import", "reset"} {
+		for _, role := range []string{"member", "admin", "owner"} {
+			t.Run(command+"/"+role, func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				user := f.admin
+				switch role {
+				case "owner":
+					f.makeOwner()
+				case "member":
+					user = f.member
+				}
+				f.connectAdmin(t)
+				chat := privateChatOf(user)
+				ctx := newModuleMessageContext(f.bot, chat, user, fmt.Sprintf("/%s %d notes", command, f.chat.Id))
+
+				require.NoError(t, backupDispatcher().ProcessUpdate(f.bot, ctx.Update, nil))
+
+				assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{"chat_id": chat.Id, "text": want})
+				assert.Empty(t, f.client.callsFor("getChat"))
+				assert.Empty(t, f.client.callsFor("getChatMember"))
+				assert.Empty(t, f.client.callsFor("getChatAdministrators"))
+				assert.Empty(t, f.client.callsFor("getFile"))
+				assert.Empty(t, f.client.callsFor("sendDocument"))
+			})
+		}
+	}
 }
 
 func TestResetHandlerStoresPendingModulesAndRepliesWithConfirmation(t *testing.T) {
@@ -760,17 +879,29 @@ func TestResetHandlerStoresPendingModulesAndRepliesWithConfirmation(t *testing.T
 	f.makeOwner()
 	client, bot := f.client, f.bot
 	chat, owner := f.chat, f.admin
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+	require.NoError(t, rules.SetChatRules(chat.Id, "rules before reset"))
 	ctx := newModuleMessageContext(bot, chat, owner, "/reset rules notes invalid rules")
 	t.Cleanup(func() {
 		dropPendingReset(chat.Id)
 	})
 
-	err := backupModule.resetHandler(bot, ctx)
-	assert.Equal(t, ext.EndGroups, err)
+	dispatcher := backupDispatcher()
+	err := dispatcher.ProcessUpdate(bot, ctx.Update, nil)
+	require.NoError(t, err)
 	gotModules, ok := peekPendingReset(chat.Id)
 	assert.True(t, ok)
 	assert.Equal(t, []string{"rules", "notes"}, gotModules)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
+	assert.Equal(t, "rules before reset", rules.GetChatRulesInfo(chat.Id).Rules)
+	confirmation := client.onlyCall(t, "sendMessage")
+	keyboard, ok := confirmation.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	require.True(t, ok)
+	require.NotEmpty(t, keyboard.InlineKeyboard)
+	require.NotEmpty(t, keyboard.InlineKeyboard[0])
+	callback := newModuleCallbackContext(bot, chat, owner, keyboard.InlineKeyboard[0][0].CallbackData)
+	require.NoError(t, dispatcher.ProcessUpdate(bot, callback.Update, nil))
+	assert.Empty(t, rules.GetChatRulesInfo(chat.Id).Rules)
 }
 
 func TestResetHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
@@ -782,9 +913,9 @@ func TestResetHandlerClearsPendingWhenConfirmationFails(t *testing.T) {
 	ctx := newModuleMessageContext(bot, chat, owner, "/reset rules")
 	t.Cleanup(func() { dropPendingReset(chat.Id) })
 
-	err := backupModule.resetHandler(bot, ctx)
+	err := backupDispatcher().ProcessUpdate(bot, ctx.Update, nil)
 
-	require.Equal(t, ext.EndGroups, err)
+	require.NoError(t, err)
 	_, ok := peekPendingReset(chat.Id)
 	assert.False(t, ok)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
@@ -999,19 +1130,17 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 func TestBackupCommandsIgnoreStaleDisableRows(t *testing.T) {
 	for _, tt := range []struct {
 		cmd string
-		run func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{cmd: "export", run: backupModule.exportHandler},
-		{cmd: "import", run: backupModule.importHandler},
+		{cmd: "export"},
+		{cmd: "import"},
 	} {
 		t.Run(tt.cmd, func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			require.NoError(t, disabling.DisableCMD(f.chat.Id, tt.cmd))
 			require.NoError(t, disabling.ToggleDel(f.chat.Id, true))
 
-			if err := tt.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/"+tt.cmd)); err != ext.EndGroups {
-				t.Fatalf("%s(member) error = %v, want EndGroups", tt.cmd, err)
-			}
+			ctx := newModuleMessageContext(f.bot, f.chat, f.member, "/"+tt.cmd)
+			require.NoError(t, backupDispatcher().ProcessUpdate(f.bot, ctx.Update, nil))
 			if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
 				t.Fatalf("sendMessage calls = %d, want the permission refusal", len(calls))
 			}

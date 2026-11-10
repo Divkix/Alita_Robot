@@ -500,17 +500,18 @@ func TestPMGroupTitleRepeatedScansOncePerPause(t *testing.T) {
 // group first, by title too.
 func TestPMGroupArgOwnArgsTakesTitleWithoutConnection(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, `/cmd "My Group" on`)
 	var args []string
 	var group *gotgbot.Chat
-	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
-		args, group = ctx.Args(), chat_status.OneOffGroup(ctx)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:       "cmd",
+		PMGroupArg: helpers.PMGroupArgOwn,
+	}, func(c *helpers.CommandContext) error {
+		args, group = c.Ctx.Args(), chat_status.OneOffGroup(c.Ctx)
 		return ext.EndGroups
 	})
 
-	if err := handler(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("handler error = %v, want ext.EndGroups", err)
-	}
+	processPM(t, dispatcher, f, f.admin.Id, `/cmd "My Group" on`)
 
 	if fmt.Sprint(args) != "[/cmd on]" || group == nil || group.Id != f.chat.Id {
 		t.Fatalf("handler saw args %q group %+v, want [/cmd on] and group %d", args, group, f.chat.Id)
@@ -524,18 +525,20 @@ func TestPMGroupArgOwnArgsKeepsTitleWithConnection(t *testing.T) {
 	f := titleFixture(t, "My Group")
 	scans := setPMGroupCandidates(t, models.Chat{ChatId: f.chat.Id, ChatName: "My Group"})
 	f.connectAdmin(t)
-	ctx := newModuleMessageContext(f.bot, privateChatOf(f.admin), f.admin, "/cmd mygroup on")
 	var args []string
-	handler := withPMGroupArg("cmd", helpers.PMGroupArgOwn, func(_ *gotgbot.Bot, ctx *ext.Context) error {
-		args = ctx.Args()
+	var group *gotgbot.Chat
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:       "cmd",
+		PMGroupArg: helpers.PMGroupArgOwn,
+	}, func(c *helpers.CommandContext) error {
+		args, group = c.Ctx.Args(), chat_status.OneOffGroup(c.Ctx)
 		return ext.EndGroups
 	})
 
-	if err := handler(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("handler error = %v, want ext.EndGroups", err)
-	}
+	processPM(t, dispatcher, f, f.admin.Id, "/cmd mygroup on")
 
-	if fmt.Sprint(args) != "[/cmd mygroup on]" || scans.Load() != 0 {
-		t.Fatalf("handler saw args %q after %d scans, want [/cmd mygroup on] and none", args, scans.Load())
+	if fmt.Sprint(args) != "[/cmd mygroup on]" || group != nil || scans.Load() != 0 {
+		t.Fatalf("handler saw args %q group %+v after %d scans, want [/cmd mygroup on], no one-off group and no scans", args, group, scans.Load())
 	}
 }

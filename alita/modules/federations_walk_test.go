@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -103,12 +102,8 @@ func TestFedBanWalksEndInTheLatestFederationState(t *testing.T) {
 				require.NoError(t, err)
 			}
 			run := func(command string) {
-				handler := federationsModule.fban
-				if command == "/unfban" {
-					handler = federationsModule.unfban
-				}
 				ctx := newModuleMessageContext(bot, chatA, owner, command+" "+strconv.FormatInt(target, 10)+" spam")
-				require.Equal(t, ext.EndGroups, handler(bot, ctx))
+				require.NoError(t, dispatchFederationCommand(t, bot, ctx))
 			}
 
 			run(tc.first)

@@ -464,10 +464,6 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
@@ -519,12 +515,6 @@ func (m moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 	msg := ctx.EffectiveMessage
 
-	if chat_status.CheckDisabledCmd(b, msg, "flood") {
-		return ext.EndGroups
-	}
-	if resolveMemberChat(b, ctx, true) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -545,10 +535,6 @@ func (m moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
@@ -602,10 +588,6 @@ func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
@@ -652,11 +634,21 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(antifloodModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("setflood", withPMGroupArg("setflood", helpers.PMGroupArgOwn, antifloodModule.setFlood)))
-	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", withPMGroupArg("setfloodmode", helpers.PMGroupArgOwn, antifloodModule.setFloodMode)))
-	dispatcher.AddHandler(handlers.NewCommand("delflood", withPMGroupArg("delflood", helpers.PMGroupArgOwn, antifloodModule.setFloodDeleter)))
-	dispatcher.AddHandler(handlers.NewCommand("clearflood", withPMGroupArg("delflood", helpers.PMGroupArgOwn, antifloodModule.setFloodDeleter)))
-	dispatcher.AddHandler(handlers.NewCommand("flood", withPMGroupArg("flood", helpers.PMGroupArgNone, antifloodModule.flood)))
-	helpers.AddCmdToDisableable("flood")
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "setflood", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antifloodModule.setFlood))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "setfloodmode", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antifloodModule.setFloodMode))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "delflood", Aliases: []string{"clearflood"}, PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(antifloodModule.setFloodDeleter))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "flood", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+	}, pipelineHandler(antifloodModule.flood))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 }

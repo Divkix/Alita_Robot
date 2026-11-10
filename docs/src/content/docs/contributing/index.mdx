@@ -106,7 +106,7 @@ Alita_Robot/
   </Step>
 
   <Step title="Register commands">
-    Use `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. For commands chats may disable, set `Disableable: true` and put `helpers.CheckDisabled("<cmd>")` first in `RequiredChecks`. Admin commands that must work for anonymous admins also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`.
+    Use `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. Set `Disableable: true` for commands chats may disable. The pipeline derives alias-wide disable checks and anonymous-admin replay from that descriptor; put required rights in `RequiredChecks`.
   </Step>
 
   <Step title="Self-register in init()">
@@ -140,7 +140,6 @@ var myCommandDesc = helpers.CommandDescriptor{
     Name:        "mycommand",
     Disableable: true,
     RequiredChecks: []helpers.CheckFunc{
-        helpers.CheckDisabled("mycommand"),
         helpers.RequireGroup(),
     },
 }

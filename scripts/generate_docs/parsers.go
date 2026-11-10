@@ -143,19 +143,11 @@ func parseTranslations(localesPath string) (map[string]string, map[string]Extend
 	return helpTexts, extendedDocs, aliases, nil
 }
 
-// parseCommands parses Go source files to extract command registrations
+// parseCommands extracts descriptor registrations from production Go source files.
 func parseCommands(modulesPath string) ([]Command, error) {
 	var commands []Command
 
-	// Regex patterns for command extraction
-	// Matches handlers.NewCommand("cmd", module.handler) or handlers.NewCommand("cmd", func(...) {...}),
-	// with the handler optionally wrapped as withPMGroupArg("cmd", shape, module.handler).
-	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(?:withPMGroupArg\s*\(\s*"([^"]+)"\s*,\s*[\w.]+\s*,\s*)?(?:(\w+)(?:\(\))?\.(\w+)|func\b)`)
-	disableablePattern := regexp.MustCompile(`(?:misc|helpers)\.AddCmdToDisableable\s*\(\s*"([^"]+)"\s*\)`)
 	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
-
-	// Track disableable commands
-	disableableCmds := make(map[string]bool)
 
 	// Track module names from struct declarations
 	moduleNames := make(map[string]string)
@@ -166,6 +158,9 @@ func parseCommands(modulesPath string) ([]Command, error) {
 	}
 
 	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
 		data, err := os.ReadFile(filepath.Clean(file))
 		if err != nil {
 			log.Warnf("Could not read %s: %v", file, err)
@@ -189,98 +184,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			moduleNames["DefaultHelpRegistry"] = "Help"
 		}
 
-		// Find disableable commands
-		disableMatches := disableablePattern.FindAllStringSubmatch(content, -1)
-		for _, match := range disableMatches {
-			if len(match) >= 2 {
-				disableableCmds[match[1]] = true
-			}
-		}
-
-		// Find command registrations. Commands wrapped with the same
-		// withPMGroupArg name and handler are aliases of that command, one
-		// NewCommand each.
-		cmdMatches := newCommandPattern.FindAllStringSubmatch(content, -1)
-		aliasGroups := map[[2]string][]string{}
-		for _, match := range cmdMatches {
-			if match[2] != "" {
-				key := [2]string{match[2], match[4]}
-				aliasGroups[key] = append(aliasGroups[key], match[1])
-			}
-		}
-		for _, match := range cmdMatches {
-			if len(match) >= 2 {
-				cmdName := match[1]
-				moduleVar := match[3]
-				handler := match[4]
-				var aliases []string
-				if group := aliasGroups[[2]string{match[2], handler}]; match[2] != "" && len(group) > 1 {
-					aliases = group
-				}
-				if handler == "" {
-					handler = "anonymous"
-				}
-
-				// Try to get module name from struct declaration
-				modName := moduleName
-				if name, ok := moduleNames[moduleVar]; ok {
-					modName = strings.ToLower(name)
-				}
-
-				commands = append(commands, Command{
-					Name:        cmdName,
-					Handler:     handler,
-					Module:      modName,
-					Disableable: disableableCmds[cmdName],
-					Aliases:     aliases,
-					Pattern:     "NewCommand",
-				})
-			}
-		}
-
-		// Extract MultiCommand registrations (helpers.MultiCommand(dispatcher, []string{...}, handler))
-		// and loops that register each name of a []string with handlers.NewCommand(name, ...):
-		// every name is a command, with all the names as its aliases.
-		addNames := func(aliasesRaw, moduleVar, handler, pattern string) {
-			var aliases []string
-			for _, a := range quotedStringPattern.FindAllStringSubmatch(aliasesRaw, -1) {
-				aliases = append(aliases, a[1])
-			}
-
-			// Resolve module name from the module variable
-			modName := moduleName
-			if name, ok := moduleNames[moduleVar]; ok {
-				modName = strings.ToLower(name)
-			}
-
-			for _, alias := range aliases {
-				commands = append(commands, Command{
-					Name:        alias,
-					Handler:     handler,
-					Module:      modName,
-					Disableable: disableableCmds[alias],
-					Aliases:     aliases,
-					Pattern:     pattern,
-				})
-			}
-		}
-		for _, match := range multiCommandPattern.FindAllStringSubmatch(content, -1) {
-			addNames(match[1], match[2], match[3], "MultiCommand")
-		}
-		for _, loc := range loopRangePattern.FindAllStringSubmatchIndex(content, -1) {
-			nameVar, aliasesRaw := content[loc[2]:loc[3]], content[loc[4]:loc[5]]
-			bodyEnd := matchingBrace(content, loc[1]-1)
-			if bodyEnd < 0 {
-				continue
-			}
-			loopCommand := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*` + regexp.QuoteMeta(nameVar) + `\s*,\s*` + pmGroupArgPrefix + `(\w+)(?:\(\))?\.(\w+)`)
-			if match := loopCommand.FindStringSubmatch(content[loc[1]:bodyEnd]); match != nil {
-				addNames(aliasesRaw, match[1], match[2], "NewCommand")
-			}
-		}
-
-		// Extract WrapCommand registrations (helpers.WrapCommand/WrapCommandRaw)
-		commands = append(commands, parseWrapCommands(content, moduleName, moduleNames, disableableCmds)...)
+		commands = append(commands, parseWrapCommands(content, moduleName, moduleNames)...)
 	}
 
 	// Sort commands
@@ -307,13 +211,7 @@ var (
 	wrapDescAliasPattern   = regexp.MustCompile(`\bAliases:\s*\[\]string\s*\{([^}]*)\}`)
 	wrapDescDisablePattern = regexp.MustCompile(`\bDisableable:\s*true\b`)
 	quotedStringPattern    = regexp.MustCompile(`"([^"]+)"`)
-	// pmGroupArgPrefix matches withPMGroupArg(name, shape, ahead of the handler
-	// it wraps; name is a literal or, in a loop, the loop variable.
-	pmGroupArgPrefix    = `(?:withPMGroupArg\s*\(\s*(?:"[^"]+"|\w+)\s*,\s*[\w.]+\s*,\s*)?`
-	multiCommandPattern = regexp.MustCompile(
-		`helpers\.MultiCommand\s*\(\s*\w+\s*,\s*\[\]string\s*\{([^}]+)\}\s*,\s*` + pmGroupArgPrefix + `(\w+)\.(\w+)\s*\)`,
-	)
-	loopRangePattern      = regexp.MustCompile(`for\s+_\s*,\s*(\w+)\s*:=\s*range\s*\[\]string\s*\{([^}]*)\}\s*\{`)
+
 	wrapNamedDescPattern  = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)\s*\)?\s*\)`)
 	wrapInlineDescPattern = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*helpers\.CommandDescriptor\s*\{`)
 	wrapHandlerAfterDesc  = regexp.MustCompile(`^\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)`)
@@ -382,7 +280,7 @@ func parseDescriptorBody(body string) wrapDescriptor {
 // inline helpers.CommandDescriptor literal, or a descriptor built in a loop
 // over a []struct{name, handler} literal. The handler may be wrapped in one
 // call such as pipelineHandler(...).
-func parseWrapCommands(content, fileModule string, moduleNames map[string]string, disableableCmds map[string]bool) []Command {
+func parseWrapCommands(content, fileModule string, moduleNames map[string]string) []Command {
 	var commands []Command
 	emit := func(d wrapDescriptor, moduleVar, handler string) {
 		if d.name == "" {
@@ -403,7 +301,7 @@ func parseWrapCommands(content, fileModule string, moduleNames map[string]string
 				Name:        n,
 				Handler:     handler,
 				Module:      modName,
-				Disableable: disableableCmds[n] || d.disableable,
+				Disableable: d.disableable,
 				Aliases:     aliases,
 			})
 		}

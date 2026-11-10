@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -629,5 +630,64 @@ func TestHelpRepliesDisableLinkPreviews(t *testing.T) {
 		if err := json.Unmarshal(raw, &opts); err != nil || !opts.IsDisabled {
 			t.Errorf("reply %d link_preview_options = %s, want previews disabled", i, raw)
 		}
+	}
+}
+
+func TestHelpDescriptorsPreserveDeepLinksAndModuleRouting(t *testing.T) {
+	useRealLocales(t)
+	withExtendRegistry(t, "Admin")
+	for _, tc := range []struct {
+		command string
+		want    string
+	}{
+		{"/start", "Hey there! My name is Alita"},
+		{"/start about", "Info & About"},
+		{"/start extend", "/promote"},
+		{"/start help_admin", "/promote"},
+		{"/help admin", "/promote"},
+		{"/help admin extra", "/promote"},
+	} {
+		t.Run(tc.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadHelp(d)
+			update := newModuleMessageContext(f.bot, privateChatOf(f.member), f.member, tc.command).Update
+			if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(sentTexts(f.client), "\n"); !strings.Contains(got, tc.want) {
+				t.Fatalf("%s reply = %q, want %q", tc.command, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHelpDescriptorsPreserveChannelSenderReplies(t *testing.T) {
+	useRealLocales(t)
+	withExtendRegistry(t, "Admin")
+	for _, tc := range []struct {
+		command string
+		want    string
+	}{
+		{"/help admin", "Admin"},
+		{"/extend", "The full command list is long"},
+		{"/donate", trS(i18n.MustNewTranslator("en"), "help_donatetext")},
+		{"/about", trS(i18n.MustNewTranslator("en"), "help_click_button_info")},
+		{"/commands", "Cannot identify user. This command cannot be used by channels."},
+	} {
+		t.Run(tc.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadHelp(d)
+			update := newModuleMessageContext(f.bot, f.chat, f.member, tc.command).Update
+			update.Message.From = nil
+			update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
+			if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(got, tc.want) {
+				t.Fatalf("%s channel reply = %q, want %q", tc.command, got, tc.want)
+			}
+		})
 	}
 }

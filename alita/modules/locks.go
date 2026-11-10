@@ -141,12 +141,6 @@ func (moduleStruct) buildLockTypesMessage(ctx *ext.Context, chatID int64) (res s
 
 func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "locktypes") {
-		return ext.EndGroups
-	}
-	if resolveMemberChat(b, ctx, true) == nil {
-		return ext.EndGroups
-	}
 	_locktypes := m.getLockMapAsArray()
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -162,13 +156,7 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "locks") {
-		return ext.EndGroups
-	}
-	chat := resolveAdminChat(b, ctx, true)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	_, err := msg.Reply(b, m.buildLockTypesMessage(ctx, chat.Id), formatting.Shtml())
 	if err != nil {
@@ -199,24 +187,10 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys setLocksKeys) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
-	sender := ctx.EffectiveSender
-	if sender == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, sender.Id()) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+	if ctx.EffectiveSender == nil {
 		return ext.EndGroups
 	}
 
@@ -458,12 +432,26 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadLocks(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(locksModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("lock", withPMGroupArg("lock", helpers.PMGroupArgOwn, locksModule.lockPerm)))
-	dispatcher.AddHandler(handlers.NewCommand("unlock", withPMGroupArg("unlock", helpers.PMGroupArgOwn, locksModule.unlockPerm)))
-	dispatcher.AddHandler(handlers.NewCommand("locktypes", withPMGroupArg("locktypes", helpers.PMGroupArgNone, locksModule.locktypes)))
-	helpers.AddCmdToDisableable("locktypes")
-	dispatcher.AddHandler(handlers.NewCommand("locks", withPMGroupArg("locks", helpers.PMGroupArgNone, locksModule.locks)))
-	helpers.AddCmdToDisableable("locks")
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "lock", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
+		},
+	}, pipelineHandler(locksModule.lockPerm))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "unlock", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
+		},
+	}, pipelineHandler(locksModule.unlockPerm))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "locktypes", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+	}, pipelineHandler(locksModule.locktypes))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "locks", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+	}, pipelineHandler(locksModule.locks))
 	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)

@@ -1019,8 +1019,8 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // restrictChecks are the checks of a command that restricts a user; chat
 // checks (pmTargetChatCheck) run before the group's.
-func restrictChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
-	return append(append([]helpers.CheckFunc{helpers.CheckDisabled(cmd)}, chat...),
+func restrictChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
+	return append(chat,
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
 		helpers.RequireBotAdmin(),
@@ -1029,8 +1029,8 @@ func restrictChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
 	)
 }
 
-func deleteRestrictChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
-	return append(restrictChecks(cmd, chat...), helpers.CanBotDelete(), helpers.CanUserDelete())
+func deleteRestrictChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
+	return append(restrictChecks(chat...), helpers.CanBotDelete(), helpers.CanUserDelete())
 }
 
 // pmTargetChatCheck is groupOnlyChatCheck for a command that acts on a user.
@@ -1104,19 +1104,19 @@ var (
 )
 
 func initBanDescs() {
-	banDesc.RequiredChecks = restrictChecks("ban", pmTargetChatCheck)
-	sbanDesc.RequiredChecks = deleteRestrictChecks("sban", pmTargetChatCheck)
-	tbanDesc.RequiredChecks = restrictChecks("tban", pmTargetChatCheck)
-	dbanDesc.RequiredChecks = deleteRestrictChecks("dban")
-	unbanDesc.RequiredChecks = restrictChecks("unban", pmTargetChatCheck)
-	banmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("banme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
-	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unbanall"), groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
-	kickDesc.RequiredChecks = restrictChecks("kick", pmTargetChatCheck)
-	dkickDesc.RequiredChecks = deleteRestrictChecks("dkick")
-	skickDesc.RequiredChecks = deleteRestrictChecks("skick", pmTargetChatCheck)
-	kickmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("kickme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
-	restrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("restrict"), pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
-	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unrestrict"), pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	banDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	sbanDesc.RequiredChecks = deleteRestrictChecks(pmTargetChatCheck)
+	tbanDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	dbanDesc.RequiredChecks = deleteRestrictChecks()
+	unbanDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	banmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.RequireGroup(), helpers.CanBotRestrict()}
+	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
+	kickDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	dkickDesc.RequiredChecks = deleteRestrictChecks()
+	skickDesc.RequiredChecks = deleteRestrictChecks(pmTargetChatCheck)
+	kickmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.RequireGroup(), helpers.CanBotRestrict()}
+	restrictDesc.RequiredChecks = []helpers.CheckFunc{pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 	initBanRecordDescs()
 }
 
@@ -1153,16 +1153,5 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 func init() {
 	RegisterLegacyModule("Bans", 70, LoadBans)
 	initBanDescs()
-	RegisterAnonymousAdminHandler("ban", anonPipelineHandler(banDesc, bansModule.ban))
-	RegisterAnonymousAdminHandler("dban", anonPipelineHandler(dbanDesc, bansModule.dBan))
-	RegisterAnonymousAdminHandler("sban", anonPipelineHandler(sbanDesc, bansModule.sBan))
-	RegisterAnonymousAdminHandler("tban", anonPipelineHandler(tbanDesc, bansModule.tBan))
-	RegisterAnonymousAdminHandler("unban", anonPipelineHandler(unbanDesc, bansModule.unban))
-	RegisterAnonymousAdminHandler("baninfo", anonPipelineHandler(banInfoDesc, bansModule.banInfo))
-	RegisterAnonymousAdminHandler("banlist", anonPipelineHandler(banListDesc, bansModule.banList))
-	RegisterAnonymousAdminHandler("kick", anonPipelineHandler(kickDesc, bansModule.kick))
-	RegisterAnonymousAdminHandler("dkick", anonPipelineHandler(dkickDesc, bansModule.dkick))
-	RegisterAnonymousAdminHandler("skick", anonPipelineHandler(skickDesc, bansModule.sKick))
-	RegisterAnonymousAdminHandler("restrict", anonPipelineHandler(restrictDesc, bansModule.restrict))
-	RegisterAnonymousAdminHandler("unrestrict", anonPipelineHandler(unrestrictDesc, bansModule.unrestrict))
+
 }

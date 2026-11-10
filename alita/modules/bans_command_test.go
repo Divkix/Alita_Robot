@@ -368,19 +368,23 @@ func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	}
 }
 
-// An anonymous admin's confirmed /kick and /dkick reach their handlers.
-func TestAnonymousAdminKickCommandsAreRouted(t *testing.T) {
+// Anonymous /kick and /dkick retain the replied-to target through proof replay.
+func TestAnonymousAdminKickCommandsRunAfterProof(t *testing.T) {
 	for _, command := range []string{"kick", "dkick"} {
 		t.Run(command, func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 			target := gotgbot.User{Id: 42, FirstName: "Member"}
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadBans(dispatcher)
+			LoadBotUpdates(dispatcher)
 
 			ctx := newBanReplyContext(bot, chat, admin, target, "/"+command)
-			if err := HandleAnonymousAdmin(bot, ctx, command); err != ext.EndGroups {
-				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", command, err)
-			}
+			dispatchAnonymousAdminCommand(t, dispatcher, f, ctx)
 			assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
+			if command == "dkick" {
+				assertDeleted(t, client, chat.Id, ctx.EffectiveMessage.ReplyToMessage.MessageId)
+			}
 		})
 	}
 }
@@ -558,13 +562,13 @@ func TestUnbanAllConfirmFlow(t *testing.T) {
 
 func TestUnbanAllRefusesNonOwnerAdmin(t *testing.T) {
 	f := newAdminChatFixture(t)
-	// The owner check lives in unbanAllDesc, run before the handler as WrapCommand does.
-	unbanAll := anonPipelineHandler(unbanAllDesc, bansModule.unbanAllHandler)
-	if err := unbanAll(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unbanall")); err != ext.EndGroups {
-		t.Fatalf("unbanAllHandler: %v", err)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unbanall").Update, nil); err != nil {
+		t.Fatalf("/unbanall error = %v", err)
 	}
 	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
-	if err := bansModule.unbanAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data)); err != ext.EndGroups {
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data).Update, nil); err != nil {
 		t.Fatalf("unbanAllCallback yes: %v", err)
 	}
 	if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {
@@ -1286,17 +1290,12 @@ func newAnonAdminCommandContext(t *testing.T, f adminChatFixture, text string) *
 
 func TestBanByAnonymousAdminSendsOnlyTheProofKeyboard(t *testing.T) {
 	f := newAdminChatFixture(t)
-	c := newAnonAdminCommandContext(t, f, "/ban 42")
-
-	if helpers.RunChecks(c, restrictChecks("ban")) {
-		t.Fatal("RunChecks() = true, want the anonymous admin held for proof")
-	}
-	calls := f.client.callsFor("sendMessage")
-	if len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want only the proof keyboard", len(calls))
-	}
-	if calls[0].Params["reply_markup"] == nil {
-		t.Fatalf("sendMessage = %#v, want the proof keyboard", calls[0].Params)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+	anonymousAdminProof(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, "/ban 42"))
+	if calls := f.client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("unconfirmed /ban sent %d banChatMember calls, want none", len(calls))
 	}
 }
 

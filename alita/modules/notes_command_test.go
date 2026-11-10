@@ -35,7 +35,7 @@ func TestAddGetListAndRemoveTextNote(t *testing.T) {
 	}
 
 	getCtx := newModuleMessageContext(bot, chat, admin, "/get rules")
-	if err := notesModule.getNotes(bot, getCtx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(bot, getCtx); err != ext.EndGroups {
 		t.Fatalf("getNotes() error = %v, want EndGroups", err)
 	}
 
@@ -89,7 +89,7 @@ func TestPrivateNoteDeepLinkCarriesAnyNoteName(t *testing.T) {
 	}
 
 	getCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/get rules.txt")
-	if err := notesModule.getNotes(f.bot, getCtx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(f.bot, getCtx); err != ext.EndGroups {
 		t.Fatalf("getNotes() error = %v, want EndGroups", err)
 	}
 	markup, ok := f.client.onlyCall(t, "sendMessage").Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
@@ -636,7 +636,7 @@ func TestNoteMissingBehindCachedListIsTreatedAsAbsent(t *testing.T) {
 	}
 
 	getCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/get rules")
-	if err := notesModule.getNotes(f.bot, getCtx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(f.bot, getCtx); err != ext.EndGroups {
 		t.Fatalf("getNotes() error = %v, want EndGroups", err)
 	}
 	calls := f.client.callsFor("sendMessage")
@@ -694,7 +694,7 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 
 	for _, text := range []string{"/get", "/get missing"} {
 		ctx := newModuleMessageContext(bot, chat, member, text)
-		if err := notesModule.getNotes(bot, ctx); err != ext.EndGroups {
+		if err := commandResponse(notesModule.getNotes)(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("getNotes(%q) error = %v, want EndGroups", text, err)
 		}
 	}
@@ -703,7 +703,7 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 		t.Fatalf("AddNote(private) setup error = %v", err)
 	}
 	privateCtx := newModuleMessageContext(bot, chat, member, "/get private")
-	if err := notesModule.getNotes(bot, privateCtx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(bot, privateCtx); err != ext.EndGroups {
 		t.Fatalf("getNotes private note error = %v, want EndGroups", err)
 	}
 
@@ -711,12 +711,12 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 		t.Fatalf("AddNote(raw) setup error = %v", err)
 	}
 	memberNoFormatCtx := newModuleMessageContext(bot, chat, member, "/get raw noformat")
-	if err := notesModule.getNotes(bot, memberNoFormatCtx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(bot, memberNoFormatCtx); err != ext.EndGroups {
 		t.Fatalf("getNotes member noformat error = %v, want EndGroups", err)
 	}
 
 	adminNoFormatCtx := newModuleMessageContext(bot, chat, admin, "/get raw noformat")
-	if err := notesModule.getNotes(bot, adminNoFormatCtx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(bot, adminNoFormatCtx); err != ext.EndGroups {
 		t.Fatalf("getNotes admin noformat error = %v, want EndGroups", err)
 	}
 
@@ -741,7 +741,7 @@ func TestGetNotesNoFormatDenialDoesNotLogNormalDispatcherStopAsError(t *testing.
 	}
 
 	ctx := newModuleMessageContext(bot, chat, member, "/get raw noformat")
-	if err := notesModule.getNotes(bot, ctx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("getNotes() error = %v, want EndGroups", err)
 	}
 	for _, entry := range hook.Entries {
@@ -800,13 +800,13 @@ func TestGetNotesAndWatcherPropagateGotgbotSendErrors(t *testing.T) {
 		run  func(*gotgbot.Bot, *ext.Context) error
 		user gotgbot.User
 	}{
-		{name: "get missing args", text: "/get", run: notesModule.getNotes, user: member},
-		{name: "get missing note", text: "/get missing", run: notesModule.getNotes, user: member},
-		{name: "get broken note", text: "/get broken", run: notesModule.getNotes, user: member},
-		{name: "get admin-only denial", text: "/get admin", run: notesModule.getNotes, user: member},
-		{name: "get private redirect", text: "/get private", run: notesModule.getNotes, user: member},
-		{name: "get normal note", text: "/get rules", run: notesModule.getNotes, user: member},
-		{name: "get raw noformat", text: "/get rules noformat", run: notesModule.getNotes, user: admin},
+		{name: "get missing args", text: "/get", run: commandResponse(notesModule.getNotes), user: member},
+		{name: "get missing note", text: "/get missing", run: commandResponse(notesModule.getNotes), user: member},
+		{name: "get broken note", text: "/get broken", run: commandResponse(notesModule.getNotes), user: member},
+		{name: "get admin-only denial", text: "/get admin", run: commandResponse(notesModule.getNotes), user: member},
+		{name: "get private redirect", text: "/get private", run: commandResponse(notesModule.getNotes), user: member},
+		{name: "get normal note", text: "/get rules", run: commandResponse(notesModule.getNotes), user: member},
+		{name: "get raw noformat", text: "/get rules noformat", run: commandResponse(notesModule.getNotes), user: admin},
 		{name: "watcher broken note", text: "#broken", run: notesModule.notesWatcher, user: member},
 		{name: "watcher admin-only denial", text: "#admin", run: notesModule.notesWatcher, user: member},
 		{name: "watcher private redirect", text: "#private", run: notesModule.notesWatcher, user: member},
@@ -920,7 +920,7 @@ func TestGetNoteNoFormatRequiresAdminAndSendsRawNote(t *testing.T) {
 	}
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/get raw noformat")
-	if err := notesModule.getNotes(bot, ctx); err != ext.EndGroups {
+	if err := commandResponse(notesModule.getNotes)(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("getNotes(noformat) error = %v, want EndGroups", err)
 	}
 	calls := client.callsFor("sendMessage")

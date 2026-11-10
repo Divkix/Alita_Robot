@@ -12,7 +12,20 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
+
+// checkInPMOrGroup chooses by the original message chat, even after a PM target
+// has been resolved. A nil check leaves that chat type unrestricted.
+func checkInPMOrGroup(pmCheck, groupCheck helpers.CheckFunc) helpers.CheckFunc {
+	return func(c *helpers.CommandContext) bool {
+		check := groupCheck
+		if c.Msg.Chat.Type == "private" {
+			check = pmCheck
+		}
+		return check == nil || check(c)
+	}
+}
 
 // resolveAdminChat returns the chat an admin command acts on: the current
 // group, or in PM the group the user is connected to. The user must be an
@@ -23,16 +36,7 @@ import (
 // replies go to the user's PM; read the group's language from the returned
 // chat.
 func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
-	return resolveConnectedChat(b, ctx, true, requireBotAdmin)
-}
-
-// resolveMemberChat is resolveAdminChat for commands any member may run.
-func resolveMemberChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
-	return resolveConnectedChat(b, ctx, false, requireBotAdmin)
-}
-
-func resolveConnectedChat(b *gotgbot.Bot, ctx *ext.Context, requireUserAdmin, requireBotAdmin bool) *gotgbot.Chat {
-	chat := chat_status.IsUserConnected(b, ctx, requireUserAdmin, requireBotAdmin)
+	chat := chat_status.IsUserConnected(b, ctx, true, requireBotAdmin)
 	if chat == nil {
 		return nil
 	}

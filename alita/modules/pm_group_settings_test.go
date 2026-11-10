@@ -8,7 +8,6 @@ import (
 	"html"
 	"maps"
 	"reflect"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -29,7 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // pmSettingsDispatcher loads every module whose settings commands take a
@@ -193,30 +191,25 @@ func dispatcherCommands(t *testing.T, dispatcher *ext.Dispatcher) []handlers.Com
 	return cmds
 }
 
-// funcName returns the name of function f. The closures a function returns are
-// named after it with a suffix, inlined copies too.
-func funcName(f any) string {
-	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-}
-
-// Every command that takes its group from PM answers a call without a group
-// with the help entry and PM example of a command in commandHelpModules, so a
-// new command or alias without an entry fails here. Every withPMGroupArg
-// command must ask for the group; a WrapCommand command asks only when its
-// descriptor sets PMGroupArg.
+// Every registered name is dispatched from PM. Commands that ask for a group
+// must include the help entry and PM example of a command in commandHelpModules,
+// so a new command or alias without an entry fails here.
 func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
+	withMiniredis(t)
+	withDisableCommands(t)
+	withExtendRegistry(t)
+	withCommandContractOfflineHTTP(t)
 	f := titleFixture(t, "My Group")
-	legacy, pipeline := funcName(withPMGroupArg)+".", funcName(helpers.WrapCommand)+"."
 	all := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAllModules(all)
 	pick := translated(t, "connections_pm_group_pick")
+	commands := dispatcherCommands(t, all)
+	if len(commands) != 227 {
+		t.Fatalf("LoadAllModules registered %d command names, want 227", len(commands))
+	}
+	slices.SortFunc(commands, func(a, b handlers.Command) int { return strings.Compare(a.Command, b.Command) })
 	var asked []string
-	for _, cmd := range dispatcherCommands(t, all) {
-		name := funcName(cmd.Response)
-		isLegacy := strings.HasPrefix(name, legacy)
-		if !isLegacy && !strings.HasPrefix(name, pipeline) {
-			continue
-		}
+	for _, cmd := range commands {
 		dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 		dispatcher.AddHandler(cmd)
 		before := len(f.client.callsFor("sendMessage"))
@@ -224,10 +217,13 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 		processPM(t, dispatcher, f, f.admin.Id, "/"+cmd.Command)
 
 		replies := f.client.callsFor("sendMessage")[before:]
-		if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), pick) {
-			if isLegacy {
-				t.Errorf("/%s from PM replied %+v, want one reply asking for the group", cmd.Command, replies)
-			}
+		if !slices.ContainsFunc(replies, func(call moduleBotCall) bool {
+			return strings.Contains(fmt.Sprint(call.Params["text"]), pick)
+		}) {
+			continue
+		}
+		if len(replies) != 1 {
+			t.Errorf("/%s from PM replied %+v, want one reply asking for the group", cmd.Command, replies)
 			continue
 		}
 		asked = append(asked, cmd.Command)
