@@ -405,7 +405,9 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 		RequiredChecks: []helpers.CheckFunc{allowConnectAdminCheck},
 	}, ConnectionsModule.allowConnect)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "settings"}, pipelineHandler(ConnectionsModule.settings))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "settings", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, pipelineHandler(ConnectionsModule.settings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))
 	dispatcher.AddHandlerToGroup(connectedChatGuard{}, connectedChatGuardGroup)
 }

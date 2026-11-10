@@ -903,16 +903,20 @@ func TestConnectionUsesSavedMemberTargetWithoutGroupParsing(t *testing.T) {
 	}
 }
 
-func TestConnectRefusesChannelSender(t *testing.T) {
+func TestConnectionIdentityOnlyCommandsRefuseChannelSenders(t *testing.T) {
 	useRealLocales(t)
-	f := newAdminChatFixture(t)
-	update := newModuleMessageContext(f.bot, f.chat, f.member, "/connect").Update
-	update.Message.From = nil
-	update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
-	if err := connectionsDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
-		t.Fatal(err)
-	}
-	if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != "Cannot identify user. This command cannot be used by channels." {
-		t.Fatalf("channel /connect = %q, want the identity refusal", got)
+	for _, command := range []string{"/connect", "/settings"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			update := newModuleMessageContext(f.bot, f.chat, f.member, command).Update
+			update.Message.From = nil
+			update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
+			if err := connectionsDispatcher().ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != "Cannot identify user. This command cannot be used by channels." {
+				t.Fatalf("channel %s = %q, want the identity refusal", command, got)
+			}
+		})
 	}
 }
