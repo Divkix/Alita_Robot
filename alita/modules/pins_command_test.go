@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -379,6 +380,53 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	cleanCurrentCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked")
 	if err := pinsModule.cleanlinked(bot, cleanCurrentCtx); err != ext.EndGroups {
 		t.Fatalf("cleanlinked current error = %v, want EndGroups", err)
+	}
+}
+
+func TestPinSettingDispatcherKeepsBotBeforeUserRefusals(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []string{"antichannelpin", "cleanlinked"} {
+		for _, botAdmin := range []bool{false, true} {
+			for _, userAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/bot=%t/user=%t", command, botAdmin, userAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(`[]`)
+					if !botAdmin {
+						f.client.membersByChat = map[string]json.RawMessage{
+							fmt.Sprint(f.chat.Id) + "|999": json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+						}
+					}
+					user := f.member
+					if userAdmin {
+						user = f.admin
+						f.client.membersByUser[fmt.Sprint(user.Id)] = json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, user.Id))
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadPin(d)
+					if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, user, "/"+command+" on").Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					if !botAdmin || !userAdmin {
+						key := "connections_is_user_connected_user_not_admin"
+						if !botAdmin {
+							key = "connections_is_user_connected_bot_not_admin"
+						}
+						want, _ := i18n.MustNewTranslator("en").GetString(key)
+						if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != want {
+							t.Fatalf("refusal = %q, want %q", got, want)
+						}
+					}
+					settings := pins.GetPinData(f.chat.Id)
+					enabled := settings.AntiChannelPin
+					if command == "cleanlinked" {
+						enabled = settings.CleanLinked
+					}
+					if enabled != (botAdmin && userAdmin) {
+						t.Fatalf("setting enabled = %t, want %t", enabled, botAdmin && userAdmin)
+					}
+				})
+			}
+		}
 	}
 }
 

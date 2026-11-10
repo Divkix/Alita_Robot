@@ -387,10 +387,6 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 // pinToggle shows or switches one on/off pin setting.
 func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -627,8 +623,14 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, permaPinDesc, pinsModule.permaPin)
 	helpers.WrapCommand(dispatcher, pinnedDesc, pinsModule.pinned)
 
-	dispatcher.AddHandler(handlers.NewCommand("antichannelpin", withPMGroupArg("antichannelpin", helpers.PMGroupArgOwn, pinsModule.antichannelpin)))
-	dispatcher.AddHandler(handlers.NewCommand("cleanlinked", withPMGroupArg("cleanlinked", helpers.PMGroupArgOwn, pinsModule.cleanlinked)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "antichannelpin", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(pinsModule.antichannelpin))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "cleanlinked", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(pinsModule.cleanlinked))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unpinallbtn"), pinsModule.unpinallCallback))
 	dispatcher.AddHandlerToGroup(
