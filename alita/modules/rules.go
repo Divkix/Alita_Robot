@@ -9,7 +9,6 @@ import (
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -46,11 +45,7 @@ func (m moduleStruct) defaultRulesButtonText(tr *i18n.Translator) string {
 //nolint:dupl // clearRules has similar structure to resetRulesBtn
 func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
+	chat := ctx.EffectiveChat
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text string
@@ -71,11 +66,7 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
+	chat := ctx.EffectiveChat
 	args := ctx.Args()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text string
@@ -121,14 +112,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(bot, msg, "rules") {
-		return ext.EndGroups
-	}
-	connectedChat := chat_status.IsUserConnected(bot, ctx, false, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
+	chat := ctx.EffectiveChat
 	var (
 		replyMsgId int64
 		Text       = ""
@@ -158,7 +142,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		Text, _ = tr.GetString("rules_no_rules_set")
 	}
 
-	if chat_status.RequireGroup(bot, ctx, nil) && rules.Private {
+	if msg.Chat.Type != "private" && rules.Private {
 		Text, _ = tr.GetString("rules_click_for_rules")
 		rulesKb = gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -192,11 +176,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
+	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text, rulesText string
 	// A reply to the topic-creation service message is Telegram's implicit
@@ -227,22 +207,10 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	args := ctx.Args()
 	var err error
 	var text string
-
-	if !chat_status.IsUserAdmin(bot, chat.Id, user.Id) {
-		return ext.EndGroups
-	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if len(args) >= 2 {
@@ -284,11 +252,7 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // resetRulesBtn has similar structure to clearRules
 func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
+	chat := ctx.EffectiveChat
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text string
@@ -310,18 +274,30 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 func LoadRules(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(rulesModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("rules", withPMGroupArg("rules", helpers.PMGroupArgNone, rulesModule.sendRules)))
-	helpers.AddCmdToDisableable("rules")
-	dispatcher.AddHandler(handlers.NewCommand("setrules", withPMGroupArg("setrules", helpers.PMGroupArgOwn, rulesModule.setRules)))
-	dispatcher.AddHandler(handlers.NewCommand("resetrules", withPMGroupArg("resetrules", helpers.PMGroupArgNone, rulesModule.clearRules)))
-	dispatcher.AddHandler(handlers.NewCommand("clearrules", withPMGroupArg("resetrules", helpers.PMGroupArgNone, rulesModule.clearRules)))
-	dispatcher.AddHandler(handlers.NewCommand("privaterules", withPMGroupArg("privaterules", helpers.PMGroupArgOwn, rulesModule.privaterules)))
-	dispatcher.AddHandler(handlers.NewCommand("rulesbutton", withPMGroupArg("rulesbtn", helpers.PMGroupArgOwn, rulesModule.rulesBtn)))
-	dispatcher.AddHandler(handlers.NewCommand("rulesbtn", withPMGroupArg("rulesbtn", helpers.PMGroupArgOwn, rulesModule.rulesBtn)))
-	dispatcher.AddHandler(handlers.NewCommand("clearrulesbutton", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
-	dispatcher.AddHandler(handlers.NewCommand("clearrulesbtn", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
-	dispatcher.AddHandler(handlers.NewCommand("resetrulesbutton", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
-	dispatcher.AddHandler(handlers.NewCommand("resetrulesbtn", withPMGroupArg("resetrulesbutton", helpers.PMGroupArgNone, rulesModule.resetRulesBtn)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "rules", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+	}, pipelineHandler(rulesModule.sendRules))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "setrules", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(rulesModule.setRules))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "resetrules", Aliases: []string{"clearrules"}, PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(rulesModule.clearRules))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "privaterules", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(rulesModule.privaterules))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "rulesbtn", Aliases: []string{"rulesbutton"}, PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(rulesModule.rulesBtn))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "resetrulesbutton", Aliases: []string{"clearrulesbutton", "clearrulesbtn", "resetrulesbtn"}, PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(rulesModule.resetRulesBtn))
 }
 
 func init() {
