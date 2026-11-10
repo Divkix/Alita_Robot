@@ -4,6 +4,8 @@ package modules
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -45,29 +47,37 @@ func TestGenFormattingKbCallbackData(t *testing.T) {
 }
 
 func TestMarkdownHelpRepliesInPrivateAndGroup(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
-
-	privateChat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Formatter"}
-	privateCtx := newModuleMessageContext(bot, privateChat, user, "/markdownhelp")
-	if err := formattingModule.markdownHelp(bot, privateCtx); err != ext.EndGroups {
-		t.Fatalf("markdownHelp private error = %v, want EndGroups", err)
-	}
-
-	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
-	groupCtx := newModuleMessageContext(bot, groupChat, user, "/markdownhelp")
-	if err := formattingModule.markdownHelp(bot, groupCtx); err != ext.EndGroups {
-		t.Fatalf("markdownHelp group error = %v, want EndGroups", err)
-	}
-
-	calls := client.callsFor("sendMessage")
-	if len(calls) != 2 {
-		t.Fatalf("sendMessage calls = %d, want private and group help replies", len(calls))
-	}
-	for i, call := range calls {
-		if call.Params["reply_markup"] == nil {
-			t.Fatalf("sendMessage call %d missing reply_markup", i)
+	useRealLocales(t)
+	withExtendRegistry(t)
+	for _, command := range []string{"/markdownhelp", "/formatting"} {
+		for _, private := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/private=%t", command, private), func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				chat := f.chat
+				if private {
+					chat = privateChatOf(f.member)
+				}
+				d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+				LoadMkdCmd(d)
+				update := newModuleMessageContext(f.bot, chat, f.member, command).Update
+				if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+					t.Fatal(err)
+				}
+				call := f.client.onlyCall(t, "sendMessage")
+				key := "formatting_press_button"
+				if private {
+					key = "formatting_large_options"
+				}
+				if got, want := fmt.Sprint(call.Params["text"]), trS(i18n.MustNewTranslator("en"), key); got != want {
+					t.Fatalf("formatting reply = %q, want %q", got, want)
+				}
+				if call.Params["reply_markup"] == nil {
+					t.Fatal("formatting reply missing keyboard")
+				}
+				if !private && !strings.Contains(fmt.Sprint(call.Params["reply_markup"]), "?start=help_formatting") {
+					t.Fatalf("group formatting keyboard = %v, want PM deep link", call.Params["reply_markup"])
+				}
+			})
 		}
 	}
 }
@@ -172,6 +182,27 @@ formatting_random: "Random help"
 	for _, tc := range tests {
 		t.Run(tc.module, func(t *testing.T) {
 			assert.Equal(t, tc.want, formattingModule.getMarkdownHelp(tr, tc.module))
+		})
+	}
+}
+
+func TestFormattingChannelSendersKeepAliasReplies(t *testing.T) {
+	useRealLocales(t)
+	withExtendRegistry(t)
+	for _, command := range []string{"/markdownhelp", "/formatting"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadMkdCmd(d)
+			update := newModuleMessageContext(f.bot, f.chat, f.member, command).Update
+			update.Message.From = nil
+			update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
+			if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != "Press the button below to get Markdown Help!" {
+				t.Fatalf("channel formatting reply = %q", got)
+			}
 		})
 	}
 }
