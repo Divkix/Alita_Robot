@@ -788,32 +788,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 	if len(args) == 2 && strings.ToLower(args[1]) == "noformat" {
 		err = m.sendNoFormatNote(c, replyMsgId, noteData)
 	} else {
-		if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			clickForPrivateText, _ := tr.GetString("notes_click_for_private")
-			_, err = msg.Reply(b,
-				fmt.Sprintf(clickForPrivateText, noteName),
-				&gotgbot.SendMessageOpts{
-					ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-						InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-							{
-								{
-									Text: trS(tr, "button_click_me"),
-									Url:  "https://t.me/" + b.Username + "?start=" + noteStartParam(chat.Id, noteName),
-								},
-							},
-						},
-					},
-					ParseMode: formatting.Markdown,
-					ReplyParameters: &gotgbot.ReplyParameters{
-						MessageId:                replyMsgId,
-						AllowSendingWithoutReply: true,
-					},
-				},
-			)
-		} else {
-			_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
-		}
+		err = sendGetNote(c, noteName, replyMsgId, noteData)
 	}
 
 	if err != nil {
@@ -824,6 +799,39 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 	}
 
 	return ext.EndGroups
+}
+
+// sendGetNote answers /get with the note itself, or with a button to read it
+// in PM when the note or the chat keeps notes private.
+func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
+	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		clickForPrivateText, _ := tr.GetString("notes_click_for_private")
+		_, err := msg.Reply(b,
+			fmt.Sprintf(clickForPrivateText, noteName),
+			&gotgbot.SendMessageOpts{
+				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+						{
+							{
+								Text: trS(tr, "button_click_me"),
+								Url:  "https://t.me/" + b.Username + "?start=" + noteStartParam(chat.Id, noteName),
+							},
+						},
+					},
+				},
+				ParseMode: formatting.Markdown,
+				ReplyParameters: &gotgbot.ReplyParameters{
+					MessageId:                replyMsgId,
+					AllowSendingWithoutReply: true,
+				},
+			},
+		)
+		return err
+	}
+	_, err := media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
+	return err
 }
 
 func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64, noteData *db.Notes) error {

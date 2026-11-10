@@ -296,170 +296,139 @@ func (m moduleStruct) reportWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-//nolint:dupl // reports has symmetric block/unblock logic
 func (moduleStruct) reports(c *helpers.CommandContext) error {
-	b, ctx, chat, user, msg := c.Bot, c.Ctx, c.Chat, c.User, c.Msg
-	args := ctx.Args()[1:]
+	args := c.Ctx.Args()[1:]
+	tr := i18n.MustNewTranslator(lang.GetLanguage(c.Ctx))
+	inPM := c.Msg.Chat.Type == "private"
 
-	var (
-		err       error
-		replyText string
-	)
-
-	if len(args) >= 1 {
-		action := strings.ToLower(args[0])
-		switch action {
-		case "on", "yes", "true":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if msg.Chat.Type == "private" {
-				err := reports.SetUserReportSettings(user.Id, true)
-				if err != nil {
-					replyText, _ = tr.GetString("common_settings_save_failed")
-				} else {
-					replyText, _ = tr.GetString("reports_turned_on_personal")
-				}
-			} else {
-				err := reports.SetChatReportStatus(chat.Id, true)
-				if err != nil {
-					replyText, _ = tr.GetString("common_settings_save_failed")
-				} else {
-					replyText, _ = tr.GetString("reports_turned_on_group")
-				}
-			}
-		case "off", "no", "false":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if msg.Chat.Type == "private" {
-				err := reports.SetUserReportSettings(user.Id, false)
-				if err != nil {
-					replyText, _ = tr.GetString("common_settings_save_failed")
-				} else {
-					replyText, _ = tr.GetString("reports_turned_off_personal")
-				}
-			} else {
-				err := reports.SetChatReportStatus(chat.Id, false)
-				if err != nil {
-					replyText, _ = tr.GetString("common_settings_save_failed")
-				} else {
-					replyText, _ = tr.GetString("reports_turned_off_group")
-				}
-			}
-		case "block":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if msg.Chat.Type == "private" {
-				replyText, _ = tr.GetString("reports_group_only")
-			} else {
-				if reply := msg.ReplyToMessage; reply != nil {
-					if reply.From == nil {
-						replyText, _ = tr.GetString("reports_cannot_report_channel")
-					} else {
-						bUser := reply.From
-						err := reports.BlockReportUser(chat.Id, bUser.Id)
-						if err != nil {
-							replyText, _ = tr.GetString("common_settings_save_failed")
-						} else {
-							replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
-								"s": formatting.MentionHtml(bUser.Id, bUser.FirstName),
-							})
-						}
-					}
-				} else {
-					replyText, _ = tr.GetString("reports_reply_to_block")
-				}
-			}
-		case "unblock":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if msg.Chat.Type == "private" {
-				replyText, _ = tr.GetString("reports_group_only")
-			} else {
-				if reply := msg.ReplyToMessage; reply != nil {
-					if reply.From == nil {
-						replyText, _ = tr.GetString("reports_cannot_report_channel")
-					} else {
-						bUser := reply.From
-						err := reports.UnblockReportUser(chat.Id, bUser.Id)
-						if err != nil {
-							replyText, _ = tr.GetString("common_settings_save_failed")
-						} else {
-							replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
-								"s": formatting.MentionHtml(bUser.Id, bUser.FirstName),
-							})
-						}
-					}
-				} else {
-					replyText, _ = tr.GetString("reports_reply_to_unblock")
-				}
-			}
-		case "mute":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if msg.Chat.Type == "private" {
-				replyText, _ = tr.GetString("reports_group_only")
-			} else {
-				// Changing it lets the bot mute members: the admin and the
-				// bot need the right to restrict, as for a mute.
-				if len(args) > 1 {
-					if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.CanUserRestrict(), helpers.CanBotRestrict()}) {
-						return ext.EndGroups
-					}
-				}
-				replyText = reportsMuteSetting(tr, chat.Id, args[1:])
-			}
-		case "showblocklist":
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			if msg.Chat.Type == "private" {
-				replyText, _ = tr.GetString("reports_group_only")
-			} else {
-				blockedUsers := reports.GetChatReportSettings(chat.Id).BlockedList
-				if len(blockedUsers) == 0 {
-					replyText, _ = tr.GetString("reports_no_blocked_users")
-				} else {
-					var builder strings.Builder
-					builder.Grow(256)
-					headerText, _ := tr.GetString("reports_blocked_users_header")
-					builder.WriteString(headerText)
-					for _, blockUserId := range blockedUsers {
-						bUser, err := b.GetChat(blockUserId, nil)
-						if err != nil {
-							log.Error(err)
-							continue
-						}
-						builder.WriteString("\n - ")
-						builder.WriteString(formatting.MentionHtml(blockUserId, bUser.FirstName))
-					}
-					replyText = builder.String()
-				}
-			}
-		default:
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			replyText, _ = tr.GetString("reports_invalid_input")
-		}
-	} else {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if msg.Chat.Type == "private" {
-			rStatus := reports.GetUserReportSettings(user.Id).Status
-			if rStatus {
-				replyText, _ = tr.GetString("reports_preference_enabled_private")
-			} else {
-				replyText, _ = tr.GetString("reports_preference_disabled_private")
-			}
-		} else {
-			settings := reports.GetChatReportSettings(chat.Id)
-			if settings.Status {
-				replyText, _ = tr.GetString("reports_status_enabled_group")
-			} else {
-				replyText, _ = tr.GetString("reports_status_disabled_group")
-			}
-			replyText += "\n" + reportsMuteStatus(tr, settings.MuteThreshold)
-		}
-		hintText, _ := tr.GetString("reports_change_settings_hint")
-		replyText += hintText
+	action := ""
+	if len(args) > 0 {
+		action = strings.ToLower(args[0])
 	}
 
-	_, err = msg.Reply(b, replyText, formatting.Shtml())
-	if err != nil {
+	var replyText string
+	switch action {
+	case "":
+		replyText = reportsStatusText(c, tr, inPM)
+	case "on", "yes", "true":
+		replyText = reportsToggleText(c, tr, inPM, true)
+	case "off", "no", "false":
+		replyText = reportsToggleText(c, tr, inPM, false)
+	case "block", "unblock", "mute", "showblocklist":
+		if inPM {
+			replyText = trS(tr, "reports_group_only")
+			break
+		}
+		switch action {
+		case "mute":
+			// Changing it lets the bot mute members: the admin and the
+			// bot need the right to restrict, as for a mute.
+			if len(args) > 1 && !helpers.RunChecks(c, []helpers.CheckFunc{helpers.CanUserRestrict(), helpers.CanBotRestrict()}) {
+				return ext.EndGroups
+			}
+			replyText = reportsMuteSetting(tr, c.Chat.Id, args[1:])
+		case "showblocklist":
+			replyText = reportsBlocklistText(c, tr)
+		default:
+			replyText = reportsBlockText(c, tr, action == "block")
+		}
+	default:
+		replyText = trS(tr, "reports_invalid_input")
+	}
+
+	if _, err := c.Msg.Reply(c.Bot, replyText, formatting.Shtml()); err != nil {
 		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
+}
+
+// reportsStatusText is /reports without arguments: the user's own preference
+// in PM, the group's setting and auto-mute line elsewhere.
+func reportsStatusText(c *helpers.CommandContext, tr *i18n.Translator, inPM bool) string {
+	var text string
+	if inPM {
+		if reports.GetUserReportSettings(c.User.Id).Status {
+			text = trS(tr, "reports_preference_enabled_private")
+		} else {
+			text = trS(tr, "reports_preference_disabled_private")
+		}
+	} else {
+		settings := reports.GetChatReportSettings(c.Chat.Id)
+		if settings.Status {
+			text = trS(tr, "reports_status_enabled_group")
+		} else {
+			text = trS(tr, "reports_status_disabled_group")
+		}
+		text += "\n" + reportsMuteStatus(tr, settings.MuteThreshold)
+	}
+	return text + trS(tr, "reports_change_settings_hint")
+}
+
+// reportsToggleText turns reports on or off: the user's own preference in PM,
+// the group's setting elsewhere.
+func reportsToggleText(c *helpers.CommandContext, tr *i18n.Translator, inPM, on bool) string {
+	var err error
+	onKey, offKey := "reports_turned_on_group", "reports_turned_off_group"
+	if inPM {
+		err = reports.SetUserReportSettings(c.User.Id, on)
+		onKey, offKey = "reports_turned_on_personal", "reports_turned_off_personal"
+	} else {
+		err = reports.SetChatReportStatus(c.Chat.Id, on)
+	}
+	switch {
+	case err != nil:
+		return trS(tr, "common_settings_save_failed")
+	case on:
+		return trS(tr, onKey)
+	default:
+		return trS(tr, offKey)
+	}
+}
+
+// reportsBlockText blocks or unblocks the author of the replied-to message
+// from reporting in the group.
+func reportsBlockText(c *helpers.CommandContext, tr *i18n.Translator, block bool) string {
+	usageKey, doneKey, apply := "reports_reply_to_unblock", "reports_user_unblocked", reports.UnblockReportUser
+	if block {
+		usageKey, doneKey, apply = "reports_reply_to_block", "reports_user_blocked", reports.BlockReportUser
+	}
+	reply := c.Msg.ReplyToMessage
+	if reply == nil {
+		return trS(tr, usageKey)
+	}
+	target := reply.From
+	if target == nil {
+		return trS(tr, "reports_cannot_report_channel")
+	}
+	if err := apply(c.Chat.Id, target.Id); err != nil {
+		return trS(tr, "common_settings_save_failed")
+	}
+	text, _ := tr.GetString(doneKey, i18n.TranslationParams{
+		"s": formatting.MentionHtml(target.Id, target.FirstName),
+	})
+	return text
+}
+
+// reportsBlocklistText lists the members blocked from reporting in the group.
+func reportsBlocklistText(c *helpers.CommandContext, tr *i18n.Translator) string {
+	blockedUsers := reports.GetChatReportSettings(c.Chat.Id).BlockedList
+	if len(blockedUsers) == 0 {
+		return trS(tr, "reports_no_blocked_users")
+	}
+	var builder strings.Builder
+	builder.Grow(256)
+	builder.WriteString(trS(tr, "reports_blocked_users_header"))
+	for _, blockUserId := range blockedUsers {
+		bUser, err := c.Bot.GetChat(blockUserId, nil)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		builder.WriteString("\n - ")
+		builder.WriteString(formatting.MentionHtml(blockUserId, bUser.FirstName))
+	}
+	return builder.String()
 }
 
 // legacyReportStatus maps the in-group report buttons to report decisions.
