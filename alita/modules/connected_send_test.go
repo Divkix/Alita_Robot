@@ -64,7 +64,9 @@ func TestApprovedFileFromPMIsSentToThePM(t *testing.T) {
 		}
 	}
 
-	runInPM(t, bot, admin, "/approved", approvalsModule.listApprovedUsers)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadApprovals(dispatcher)
+	runCommandInPM(t, bot, admin, "/approved", dispatcher)
 
 	call := client.onlyCall(t, "sendDocument")
 	if got := fmt.Sprint(call.Params["chat_id"]); got != fmt.Sprint(admin.Id) {

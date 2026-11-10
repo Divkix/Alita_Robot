@@ -35,21 +35,12 @@ const approvedUsersInlineLimit = 50
 
 func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
+	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	targetUserID, reason := extraction.ExtractUserAndText(b, ctx)
 	switch targetUserID {
@@ -119,21 +110,8 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	targetUserID, _ := extraction.ExtractUserAndText(b, ctx)
 	switch targetUserID {
@@ -179,21 +157,8 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	targetUserID, _ := extraction.ExtractUserAndText(b, ctx)
 	switch targetUserID {
@@ -264,21 +229,8 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 
 func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	approvedUsers := approvals.GetApprovedUsersContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(approvedUsers) == 0 {
@@ -380,25 +332,10 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 //nolint:dupl // Similar to other rmAll handlers with distinct callback data and messages
 func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	chat := groupOnlyChat(b, ctx)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_ask")
 	text = confirmText(ctx, tr, text, chat)
@@ -502,11 +439,26 @@ func extractDisplayName(userID int64) string {
 func LoadApprovals(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(approvalsModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("approve", withPMGroupArg("approve", helpers.PMGroupArgOwn, approvalsModule.approveUser)))
-	dispatcher.AddHandler(handlers.NewCommand("unapprove", withPMGroupArg("unapprove", helpers.PMGroupArgOwn, approvalsModule.unapproveUser)))
-	dispatcher.AddHandler(handlers.NewCommand("approval", withPMGroupArg("approval", helpers.PMGroupArgOwn, approvalsModule.checkApprovalStatus)))
-	dispatcher.AddHandler(handlers.NewCommand("approved", withPMGroupArg("approved", helpers.PMGroupArgNone, approvalsModule.listApprovedUsers)))
-	dispatcher.AddHandler(handlers.NewCommand("unapproveall", withPMGroupArg("unapproveall", helpers.PMGroupArgNone, approvalsModule.unapproveAllHandler)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "approve", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.RequireUserAdmin()},
+	}, pipelineHandler(approvalsModule.approveUser))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "unapprove", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.RequireUserAdmin()},
+	}, pipelineHandler(approvalsModule.unapproveUser))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "approval", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.RequireUserAdmin()},
+	}, pipelineHandler(approvalsModule.checkApprovalStatus))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "approved", PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.RequireUserAdmin()},
+	}, pipelineHandler(approvalsModule.listApprovedUsers))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "unapproveall", PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
+	}, pipelineHandler(approvalsModule.unapproveAllHandler))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))
 }
