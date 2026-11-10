@@ -10,7 +10,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -45,9 +44,6 @@ func isDeletedAccount(firstName string) bool {
 func (moduleStruct) stickerID(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat_status.CheckDisabledCmd(b, msg, "stickerid") {
-		return ext.EndGroups
-	}
 	if msg == nil || msg.ReplyToMessage == nil || msg.ReplyToMessage.Sticker == nil {
 		text, _ := tr.GetString("misc_stickerid_need_sticker")
 		replyHTML(b, msg, text)
@@ -62,24 +58,8 @@ func (moduleStruct) stickerID(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	from := chat_status.RequireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
 	scanText, _ := tr.GetString("misc_zombies_scanning")
 	replyHTML(b, msg, scanText)
 	cleaned := 0
@@ -113,7 +93,7 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) github(b *gotgbot.Bot, ctx *ext.Context) error {
-	return lookupAndReply(b, ctx, "github", "misc_github_usage", "misc_github_not_found", lookupGitHub)
+	return lookupAndReply(b, ctx, "misc_github_usage", "misc_github_not_found", lookupGitHub)
 }
 
 func lookupGitHub(query string) (string, error) {
@@ -186,14 +166,11 @@ func lookupGitHubRepo(owner, repo string) (string, error) {
 func lookupAndReply(
 	b *gotgbot.Bot,
 	ctx *ext.Context,
-	cmd, usageKey, failKey string,
+	usageKey, failKey string,
 	lookup func(string) (string, error),
 ) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat_status.CheckDisabledCmd(b, msg, cmd) {
-		return ext.EndGroups
-	}
 	query := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if query == "" {
 		text, _ := tr.GetString(usageKey)
@@ -211,7 +188,7 @@ func lookupAndReply(
 }
 
 func (moduleStruct) wiki(b *gotgbot.Bot, ctx *ext.Context) error {
-	return lookupAndReply(b, ctx, "wiki", "misc_wiki_usage", "misc_wiki_not_found", lookupWikipedia)
+	return lookupAndReply(b, ctx, "misc_wiki_usage", "misc_wiki_not_found", lookupWikipedia)
 }
 
 func lookupWikipedia(query string) (string, error) {
@@ -251,7 +228,7 @@ func lookupWikipedia(query string) (string, error) {
 }
 
 func (moduleStruct) urbanDict(b *gotgbot.Bot, ctx *ext.Context) error {
-	return lookupAndReply(b, ctx, "ud", "misc_ud_usage", "misc_ud_not_found", lookupUrbanDictionary)
+	return lookupAndReply(b, ctx, "misc_ud_usage", "misc_ud_not_found", lookupUrbanDictionary)
 }
 
 func lookupUrbanDictionary(query string) (string, error) {
@@ -285,9 +262,6 @@ func lookupUrbanDictionary(query string) (string, error) {
 func (moduleStruct) runs(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat_status.CheckDisabledCmd(b, msg, "runs") {
-		return ext.EndGroups
-	}
 	lines, err := tr.GetStringSlice("misc_runs")
 	if err != nil || len(lines) == 0 {
 		lines = []string{"Run."}
@@ -301,15 +275,17 @@ func (moduleStruct) runs(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func registerMiscExtras(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("stickerid", miscModule.stickerID))
-	helpers.AddCmdToDisableable("stickerid")
-	dispatcher.AddHandler(handlers.NewCommand("zombies", miscModule.zombies))
-	dispatcher.AddHandler(handlers.NewCommand("github", miscModule.github))
-	helpers.AddCmdToDisableable("github")
-	dispatcher.AddHandler(handlers.NewCommand("wiki", miscModule.wiki))
-	helpers.AddCmdToDisableable("wiki")
-	dispatcher.AddHandler(handlers.NewCommand("ud", miscModule.urbanDict))
-	helpers.AddCmdToDisableable("ud")
-	dispatcher.AddHandler(handlers.NewCommand("runs", miscModule.runs))
-	helpers.AddCmdToDisableable("runs")
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "stickerid", Disableable: true}, pipelineHandler(miscModule.stickerID))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "zombies",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireUserAdmin(),
+			helpers.CanBotRestrict(),
+		},
+	}, pipelineHandler(miscModule.zombies))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "github", Disableable: true}, pipelineHandler(miscModule.github))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "wiki", Disableable: true}, pipelineHandler(miscModule.wiki))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "ud", Disableable: true}, pipelineHandler(miscModule.urbanDict))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "runs", Disableable: true}, pipelineHandler(miscModule.runs))
 }

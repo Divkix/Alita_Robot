@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -369,12 +370,10 @@ func TestDisabledIdAndInfoStaySilentForUnknownUsername(t *testing.T) {
 			f.client.errors["getChat"] = errors.New("Bad Request: chat not found")
 
 			ctx := newModuleMessageContext(f.bot, f.chat, f.member, "/"+cmd+" @nonexistentuser")
-			handler := miscModule.getId
-			if cmd == "info" {
-				handler = miscModule.info
-			}
-			if err := handler(f.bot, ctx); err != ext.EndGroups {
-				t.Fatalf("%s() error = %v, want EndGroups", cmd, err)
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadMisc(dispatcher)
+			if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+				t.Fatalf("dispatch /%s: %v", cmd, err)
 			}
 			if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
 				t.Fatalf("sendMessage calls = %d, want 0 for a disabled command", len(calls))
@@ -470,5 +469,111 @@ func TestLoadMiscRegistersHelpAndHandlers(t *testing.T) {
 
 	if !DefaultHelpRegistry().AbleMap[miscModule.moduleName] {
 		t.Fatal("misc help registration = false, want enabled")
+	}
+}
+
+func TestMiscSenderlessCommandKeepsPublicReply(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	f := newAdminChatFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadMisc(dispatcher)
+	update := newModuleMessageContext(f.bot, f.chat, f.member, "/id").Update
+	update.Message.From = nil
+	update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Sender"}
+
+	if err := dispatcher.ProcessUpdate(f.bot, update, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := trS(i18n.MustNewTranslator("en"), "common_anonymous_user_error")
+	if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != want {
+		t.Fatalf("senderless /id = %q, want %q", got, want)
+	}
+}
+
+func TestMiscCommandPermissionPrecedence(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	for _, tc := range []struct {
+		name       string
+		command    string
+		member     bool
+		limited    bool
+		limitedBot bool
+		private    bool
+		wantKey    string
+		wantCount  int
+	}{
+		{name: "tell member silent", command: "/tell hi", member: true},
+		{name: "tell admin", command: "/tell hi", wantKey: "misc_reply_to_someone", wantCount: 1},
+		{name: "tell needs no restrict rights", command: "/tell hi", limited: true, limitedBot: true, wantKey: "misc_reply_to_someone", wantCount: 1},
+		{name: "tell PM stays group only", command: "/tell hi", private: true, wantKey: "chat_status_group_only_error", wantCount: 1},
+		{name: "zombies member", command: "/zombies", member: true, wantKey: "chat_status_user_admin_cmd_error", wantCount: 1},
+		{name: "zombies actor before bot", command: "/zombies", member: true, limitedBot: true, wantKey: "chat_status_user_admin_cmd_error", wantCount: 1},
+		{name: "zombies needs no actor restrict right", command: "/zombies", limited: true, wantKey: "misc_zombies_scanning", wantCount: 2},
+		{name: "zombies bot restrict", command: "/zombies", limitedBot: true, wantKey: "chat_status_bot_restrict_group_error", wantCount: 1},
+		{name: "zombies PM stays group only", command: "/zombies", private: true, wantKey: "chat_status_group_only_error", wantCount: 1},
+		{name: "stat PM stays group only", command: "/stat", private: true, wantKey: "chat_status_group_only_error", wantCount: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if tc.limited {
+				key := fmt.Sprint(f.admin.Id)
+				original := string(f.client.membersByUser[key])
+				limited := strings.ReplaceAll(original, `"can_restrict_members":true`, `"can_restrict_members":false`)
+				f.client.membersByUser[key] = json.RawMessage(limited)
+				key = fmt.Sprint(f.chat.Id)
+				f.client.adminsByChat[key] = json.RawMessage(strings.Replace(string(f.client.adminsByChat[key]), original, limited, 1))
+			}
+			if tc.limitedBot {
+				f.client.membersByUser[fmt.Sprint(f.bot.Id)] = json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"},"can_restrict_members":false}`)
+				key := fmt.Sprint(f.chat.Id)
+				f.client.adminsByChat[key] = json.RawMessage(strings.Replace(string(f.client.adminsByChat[key]), `"can_restrict_members":true`, `"can_restrict_members":false`, 1))
+			}
+			actor := f.admin
+			if tc.member {
+				actor = f.member
+			}
+			chat := f.chat
+			if tc.private {
+				chat = f.connectAdmin(t)
+			}
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadMisc(d)
+			if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, chat, actor, tc.command).Update, nil); err != nil {
+				t.Fatal(err)
+			}
+			calls := f.client.callsFor("sendMessage")
+			if len(calls) != tc.wantCount {
+				t.Fatalf("replies = %v, want %d", sentTexts(f.client), tc.wantCount)
+			}
+			if tc.wantKey != "" {
+				if want := trS(i18n.MustNewTranslator("en"), tc.wantKey); fmt.Sprint(calls[0].Params["text"]) != want {
+					t.Fatalf("first reply = %v, want %q", calls[0].Params["text"], want)
+				}
+			}
+		})
+	}
+}
+
+func TestMiscCheckedCommandsRefuseChannelSenders(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	for _, command := range []string{"/stat", "/tell", "/zombies"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadMisc(d)
+			update := newModuleMessageContext(f.bot, f.chat, f.member, command).Update
+			update.Message.From = nil
+			update.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
+			if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			want := "Cannot identify user. This command cannot be used by channels."
+			if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != want {
+				t.Fatalf("%s channel reply = %q, want %q", command, got, want)
+			}
+		})
 	}
 }
