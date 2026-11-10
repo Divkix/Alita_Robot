@@ -306,7 +306,7 @@ func connectionSavedCheck(c *helpers.CommandContext) bool {
 	if conn := connections.Connection(c.User.Id); conn.Connected && conn.ChatId != 0 {
 		return true
 	}
-	replyHTML(c.Bot, c.Msg, trS(c.Tr, "connections_not_connected"))
+	sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, "connections_not_connected"))
 	return false
 }
 
@@ -316,7 +316,7 @@ func connectionPMOnlyCheck(key string) helpers.CheckFunc {
 		if c.Msg.Chat.Type == "private" {
 			return true
 		}
-		replyHTML(c.Bot, c.Msg, trS(c.Tr, key))
+		sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
 	}
 }
@@ -337,7 +337,7 @@ func connectionTargetCheck(chatID int64) helpers.CheckFunc {
 		if allowed {
 			return true
 		}
-		replyHTML(c.Bot, c.Msg, trS(c.Tr, key))
+		sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
 	}
 }
@@ -360,7 +360,7 @@ func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.CheckFunc {
 		} else {
 			return connectionTargetCheck(chatID)(c)
 		}
-		replyHTML(c.Bot, c.Msg, trS(c.Tr, key))
+		sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
 	}
 }

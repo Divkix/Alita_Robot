@@ -34,6 +34,10 @@ func replyHTML(b *gotgbot.Bot, msg *gotgbot.Message, text string) {
 	if msg == nil || text == "" {
 		return
 	}
+	sendHTMLReply(b, msg, text)
+}
+
+func sendHTMLReply(b *gotgbot.Bot, msg *gotgbot.Message, text string) {
 	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
 		log.Error(err)
 	}
