@@ -187,13 +187,13 @@ func LoadLanguage(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "lang",
-		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
-			if c.Msg.Chat.Type != "private" {
-				return helpers.RequireUserAdmin()(c)
-			}
-			args := c.Ctx.Args()
-			return len(args) == 1 || !strings.EqualFold(args[1], "group") || helpers.RequireConnectedAdmin(false)(c)
-		}},
+		RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(
+			func(c *helpers.CommandContext) bool {
+				args := c.Ctx.Args()
+				return len(args) == 1 || !strings.EqualFold(args[1], "group") || helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)(c)
+			},
+			helpers.RequireUserAdmin(),
+		)},
 	}, pipelineHandler(languagesModule.changeLanguage))
 }
 

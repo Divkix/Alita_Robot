@@ -896,13 +896,13 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "save",
 		Aliases:        []string{"addnote"},
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.CanUserChangeInfo()},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()},
 	}, pipelineHandler(notesModule.addNote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:    "clear",
 		Aliases: []string{"rmnote"},
 		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireConnectedAdmin(true),
+			helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
 			func(c *helpers.CommandContext) bool {
 				// Missing keywords and non-text commands return before this right.
 				return len(c.Ctx.Args()) == 1 || !strings.Contains(c.Msg.Text, " ") || helpers.CanUserChangeInfo()(c)
@@ -914,7 +914,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		Aliases:        []string{"saved"},
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(notesModule.notesList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "clearall",
@@ -940,7 +940,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "get",
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(false)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
 	}, pipelineHandler(notesModule.getNotes))
 }
 

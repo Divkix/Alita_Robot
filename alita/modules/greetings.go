@@ -1076,9 +1076,9 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		),
 	)
 
-	adminChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false)}
-	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false), helpers.CanUserChangeInfo()}
-	botAdminChangeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.CanUserChangeInfo()}
+	adminChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)}
+	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
+	botAdminChangeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()}
 	for _, cfg := range []struct {
 		name    string
 		arg     helpers.PMGroupArg

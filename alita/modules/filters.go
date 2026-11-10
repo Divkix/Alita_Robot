@@ -619,7 +619,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 		}}}
 	})
-	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false), helpers.CanUserChangeInfo()}
+	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "filter",
 		Aliases:        []string{"addfilter"},
@@ -634,7 +634,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 		Name:           "filters",
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(filtersModule.filtersList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:       "stopall",

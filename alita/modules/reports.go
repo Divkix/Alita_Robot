@@ -671,7 +671,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, reportDesc, pipelineHandler(reportsModule.report))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "reports",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()},
 	}, pipelineHandler(reportsModule.reports))
 	startReportRetentionSweeper()
 }

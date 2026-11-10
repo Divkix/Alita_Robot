@@ -636,19 +636,19 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setflood", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antifloodModule.setFlood))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setfloodmode", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antifloodModule.setFloodMode))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "delflood", Aliases: []string{"clearflood"}, PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antifloodModule.setFloodDeleter))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "flood", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(antifloodModule.flood))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 }

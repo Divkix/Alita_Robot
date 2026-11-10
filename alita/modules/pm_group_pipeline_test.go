@@ -34,7 +34,7 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 				checked = group.Id
 			}
 			return checked == f.chat.Id
-		}, helpers.RequireConnectedAdmin(true)},
+		}, helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(warnsModule.setWarnLimit))
 	before := warnLimit(connected)
 

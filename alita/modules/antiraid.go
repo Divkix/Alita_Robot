@@ -836,19 +836,19 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antiraid", PMGroupArg: helpers.PMGroupArgOwn, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antiRaidModule.antiraid))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "raidtime", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antiRaidModule.raidTime))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "raidactiontime", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antiRaidModule.raidActionTime))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "autoantiraid", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antiRaidModule.autoAntiRaid))
 
 	dispatcher.AddHandlerToGroup(

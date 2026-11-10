@@ -764,7 +764,7 @@ var (
 		Name:       "anonadmin",
 		PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireConnectedMember(true),
+			helpers.RequireConnectedMember(helpers.BotAdminRequired),
 			func(c *helpers.CommandContext) bool {
 				// Members may view the mode; only the owner may change it.
 				return len(c.Ctx.Args()) == 1 || helpers.RequireUserOwner()(c)
@@ -828,7 +828,7 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "admincache", PMGroupArg: helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireConnectedMember(false),
+			helpers.RequireConnectedMember(helpers.BotAdminNotRequired),
 			helpers.RequireGroup(),
 			adminCacheActorCheck,
 			helpers.RequireBotAdmin(),

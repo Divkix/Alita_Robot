@@ -1042,7 +1042,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, removeWarnDesc, pipelineHandler(warnsModule.removeWarn))
 	helpers.WrapCommand(dispatcher, warnsStatusDesc, pipelineHandler(warnsModule.warns))
 	settingChecks := []helpers.CheckFunc{
-		helpers.RequireConnectedAdmin(true),
+		helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
 		helpers.RequireBotAdmin(),
 		helpers.RequireUserAdmin(),
 	}

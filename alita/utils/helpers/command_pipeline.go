@@ -213,17 +213,25 @@ func commandDisabled(c *CommandContext, names []string) bool {
 	return false
 }
 
+// BotAdminRequirement names whether a connected check also requires bot admin.
+type BotAdminRequirement bool
+
+const (
+	BotAdminNotRequired BotAdminRequirement = false
+	BotAdminRequired    BotAdminRequirement = true
+)
+
 // RequireConnectedAdmin resolves the current group, or the named/connected group
 // in PM, requiring its admin (and the bot when requested). Connection refusals
 // keep their bot-before-user ordering. Both context chat fields follow the target.
-func RequireConnectedAdmin(requireBotAdmin bool) CheckFunc {
-	return requireConnectedChat(true, requireBotAdmin)
+func RequireConnectedAdmin(botAdmin BotAdminRequirement) CheckFunc {
+	return requireConnectedChat(true, bool(botAdmin))
 }
 
 // RequireConnectedMember resolves the same target without requiring user admin.
 // PM membership and stale connections are checked by IsUserConnected.
-func RequireConnectedMember(requireBotAdmin bool) CheckFunc {
-	return requireConnectedChat(false, requireBotAdmin)
+func RequireConnectedMember(botAdmin BotAdminRequirement) CheckFunc {
+	return requireConnectedChat(false, bool(botAdmin))
 }
 
 func requireConnectedChat(requireUserAdmin, requireBotAdmin bool) CheckFunc {

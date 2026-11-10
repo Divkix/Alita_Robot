@@ -435,22 +435,22 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "lock", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireConnectedAdmin(true), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
+			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
 		},
 	}, pipelineHandler(locksModule.lockPerm))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unlock", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireConnectedAdmin(true), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
+			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
 		},
 	}, pipelineHandler(locksModule.unlockPerm))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "locktypes", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locktypes))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "locks", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locks))
 	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)

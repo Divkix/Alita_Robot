@@ -38,7 +38,7 @@ var supportedReactionEmoji = []string{
 }
 
 func LoadReactions(dispatcher *ext.Dispatcher) {
-	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false), helpers.CanUserChangeInfo()}
+	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "addreaction",
 		PMGroupArg:     helpers.PMGroupArgOwn,
@@ -52,7 +52,7 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "reactions",
 		PMGroupArg:     helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(false)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
 	}, pipelineHandler(reactionsModule.listReactions))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "resetreactions",

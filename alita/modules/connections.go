@@ -104,7 +104,7 @@ func (m moduleStruct) connect(c *helpers.CommandContext) error {
 			return ext.EndGroups
 		}
 
-		if !helpers.RunChecks(c, []helpers.CheckFunc{connectionTargetCheck(chat.Id)}) {
+		if !connectionTargetCheck(chat.Id)(c) {
 			return ext.EndGroups
 		}
 		if err := connections.ConnectId(user.Id, chat.Id); err != nil {
@@ -115,7 +115,7 @@ func (m moduleStruct) connect(c *helpers.CommandContext) error {
 			replyMarkup = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 		}
 	} else {
-		if !helpers.RunChecks(c, []helpers.CheckFunc{connectionTargetCheck(chat.Id)}) {
+		if !connectionTargetCheck(chat.Id)(c) {
 			return ext.EndGroups
 		}
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_tap_btn_connect")
@@ -306,10 +306,7 @@ func connectionSavedCheck(c *helpers.CommandContext) bool {
 	if conn := connections.Connection(c.User.Id); conn.Connected && conn.ChatId != 0 {
 		return true
 	}
-	text, _ := c.Tr.GetString("connections_not_connected")
-	if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
-		log.Error(err)
-	}
+	replyHTML(c.Bot, c.Msg, trS(c.Tr, "connections_not_connected"))
 	return false
 }
 
@@ -319,21 +316,18 @@ func connectionPMOnlyCheck(key string) helpers.CheckFunc {
 		if c.Msg.Chat.Type == "private" {
 			return true
 		}
-		text, _ := c.Tr.GetString(key)
-		if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
-			log.Error(err)
-		}
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
 	}
 }
 
 // allowConnectAdminCheck keeps group non-admins silent, without anonymous proof.
-func allowConnectAdminCheck(c *helpers.CommandContext) bool {
-	if c.Msg.Chat.Type == "private" {
-		return helpers.RequireConnectedAdmin(false)(c)
-	}
-	return chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
-}
+var allowConnectAdminCheck = checkInPMOrGroup(
+	helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired),
+	func(c *helpers.CommandContext) bool {
+		return chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
+	},
+)
 
 // connectionTargetCheck applies the shared policy only after the command has
 // read its actual target; a saved connection is not /connect's target.
@@ -343,10 +337,7 @@ func connectionTargetCheck(chatID int64) helpers.CheckFunc {
 		if allowed {
 			return true
 		}
-		text, _ := c.Tr.GetString(key)
-		if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
-			log.Error(err)
-		}
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
 	}
 }
@@ -369,10 +360,7 @@ func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.CheckFunc {
 		} else {
 			return connectionTargetCheck(chatID)(c)
 		}
-		text, _ := c.Tr.GetString(key)
-		if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
-			log.Error(err)
-		}
+		replyHTML(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
 	}
 }
@@ -392,7 +380,7 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 		RequiredChecks: []helpers.CheckFunc{
 			connectionPrivateCheck,
 			connectionSavedCheck,
-			helpers.RequireConnectedMember(false),
+			helpers.RequireConnectedMember(helpers.BotAdminNotRequired),
 		},
 	}, ConnectionsModule.connection)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
@@ -406,7 +394,7 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	}, ConnectionsModule.allowConnect)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "settings", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "settings", RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(nil, helpers.RequireUserAdmin())},
 	}, pipelineHandler(ConnectionsModule.settings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))
 	dispatcher.AddHandlerToGroup(connectedChatGuard{}, connectedChatGuardGroup)

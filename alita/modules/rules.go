@@ -276,27 +276,27 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "rules", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.sendRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setrules", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.setRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "resetrules", Aliases: []string{"clearrules"}, PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.clearRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "privaterules", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.privaterules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "rulesbtn", Aliases: []string{"rulesbutton"}, PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.rulesBtn))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "resetrulesbutton", Aliases: []string{"clearrulesbutton", "clearrulesbtn", "resetrulesbtn"}, PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.resetRulesBtn))
 }
 

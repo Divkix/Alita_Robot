@@ -2332,16 +2332,16 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 	for _, cfg := range []struct {
 		name     string
 		handler  func(*gotgbot.Bot, *ext.Context) error
-		botAdmin bool
+		botAdmin helpers.BotAdminRequirement
 	}{
-		{"captcha", captchaModule.captchaCommand, true},
-		{"captchamode", captchaModule.captchaModeCommand, false},
-		{"captchajoin", captchaModule.captchaJoinCommand, false},
-		{"captchatime", captchaModule.captchaTimeCommand, false},
-		{"captchaaction", captchaModule.captchaActionCommand, false},
-		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand, true},
-		{"captchapending", captchaModule.viewPendingMessages, false},
-		{"captchaclear", captchaModule.clearPendingMessages, false},
+		{"captcha", captchaModule.captchaCommand, helpers.BotAdminRequired},
+		{"captchamode", captchaModule.captchaModeCommand, helpers.BotAdminNotRequired},
+		{"captchajoin", captchaModule.captchaJoinCommand, helpers.BotAdminNotRequired},
+		{"captchatime", captchaModule.captchaTimeCommand, helpers.BotAdminNotRequired},
+		{"captchaaction", captchaModule.captchaActionCommand, helpers.BotAdminNotRequired},
+		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand, helpers.BotAdminRequired},
+		{"captchapending", captchaModule.viewPendingMessages, helpers.BotAdminNotRequired},
+		{"captchaclear", captchaModule.clearPendingMessages, helpers.BotAdminNotRequired},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,

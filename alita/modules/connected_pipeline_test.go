@@ -22,7 +22,7 @@ func TestConnectedPipelineCheckMatrix(t *testing.T) {
 	for _, check := range []struct {
 		name  string
 		admin bool
-		build func(bool) helpers.CheckFunc
+		build func(helpers.BotAdminRequirement) helpers.CheckFunc
 	}{
 		{"checkadmin", true, helpers.RequireConnectedAdmin},
 		{"checkmember", false, helpers.RequireConnectedMember},
@@ -63,7 +63,7 @@ func TestConnectedPipelineCheckMatrix(t *testing.T) {
 									t.Cleanup(func() { _ = connections.DisconnectId(actor.Id) })
 								}
 								d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-								helpers.WrapCommand(d, helpers.CommandDescriptor{Name: check.name, PMGroupArg: helpers.PMGroupArgNone, RequiredChecks: []helpers.CheckFunc{check.build(requireBot)}}, func(c *helpers.CommandContext) error {
+								helpers.WrapCommand(d, helpers.CommandDescriptor{Name: check.name, PMGroupArg: helpers.PMGroupArgNone, RequiredChecks: []helpers.CheckFunc{check.build(helpers.BotAdminRequirement(requireBot))}}, func(c *helpers.CommandContext) error {
 									_, err := c.Msg.Reply(c.Bot, fmt.Sprintf("target=%d/effective=%d/origin=%d/actor=%d/text=%s", c.Chat.Id, c.Ctx.EffectiveChat.Id, c.Msg.Chat.Id, c.User.Id, c.Msg.Text), nil)
 									return err
 								})

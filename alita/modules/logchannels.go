@@ -177,12 +177,10 @@ func canPostInChannel(b *gotgbot.Bot, ctx *ext.Context, channelID, userID int64)
 }
 
 // logAdminChatCheck preserves group refusals and connected-PM admin checks.
-func logAdminChatCheck(c *helpers.CommandContext) bool {
-	if c.Msg.Chat.Type == "private" {
-		return helpers.RequireConnectedAdmin(false)(c)
-	}
-	return helpers.RequireUserAdmin()(c)
-}
+var logAdminChatCheck = checkInPMOrGroup(
+	helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired),
+	helpers.RequireUserAdmin(),
+)
 
 func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
@@ -354,9 +352,7 @@ func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(setLogChannelCommand{handlers.NewCommand("setlog", logChannelsModule.setLogChannel).SetAllowChannel(true)})
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setlog", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
-			return c.Msg.Chat.Type != "private" || helpers.RequireConnectedAdmin(false)(c)
-		}},
+		RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), nil)},
 	}, pipelineHandler(logChannelsModule.setLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unsetlog", PMGroupArg: helpers.PMGroupArgNone,
@@ -364,7 +360,7 @@ func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(logChannelsModule.unsetLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "logchannel", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(false)},
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
 	}, pipelineHandler(logChannelsModule.logChannel))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "logcategories",

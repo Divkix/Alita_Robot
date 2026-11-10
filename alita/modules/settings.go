@@ -86,10 +86,6 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 	text, _ := tr.GetString("settings_open_in_pm")
 	button, _ := tr.GetString("settings_open_in_pm_button")
 	rows := [][]gotgbot.InlineKeyboardButton{{{

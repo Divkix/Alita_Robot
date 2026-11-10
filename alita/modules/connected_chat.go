@@ -12,7 +12,20 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
+
+// checkInPMOrGroup chooses by the original message chat, even after a PM target
+// has been resolved. A nil check leaves that chat type unrestricted.
+func checkInPMOrGroup(pmCheck, groupCheck helpers.CheckFunc) helpers.CheckFunc {
+	return func(c *helpers.CommandContext) bool {
+		check := groupCheck
+		if c.Msg.Chat.Type == "private" {
+			check = pmCheck
+		}
+		return check == nil || check(c)
+	}
+}
 
 // resolveAdminChat returns the chat an admin command acts on: the current
 // group, or in PM the group the user is connected to. The user must be an
