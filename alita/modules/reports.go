@@ -30,6 +30,11 @@ var reportsModule = moduleStruct{
 	handlerGroup: 8,
 }
 
+var reportDesc = helpers.CommandDescriptor{
+	Name:        "report",
+	Disableable: true,
+}
+
 var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
 
 // maxReportReasonRunes caps the stored reason so one report cannot store an
@@ -73,10 +78,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	user := sender.User
 	msg := ctx.EffectiveMessage
-
-	if chat_status.CheckDisabledCmd(b, msg, "report") {
-		return ext.EndGroups
-	}
 
 	reportprefs := reports.GetChatReportSettings(chat.Id)
 	if !reportprefs.Status {
@@ -285,21 +286,17 @@ func reporterDecided(chatID, messageID, reporterID int64) bool {
 	return rep.Status != models.ReportStatusOpen
 }
 
-// reportWatcher serves the group-8 @admin mention watcher. report() ends
-// iteration for the /report command, but a watcher must let reactions (8),
-// filters (9), pins (10) and log-channel (11) still see the message.
-// report() logs its own errors before returning them.
+// reportWatcher uses the command's pipeline so /disable report still covers
+// @admin mentions, then lets the later watcher groups see the message.
 func (m moduleStruct) reportWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
-	_ = m.report(b, ctx)
+	if sender := ctx.EffectiveSender; sender != nil && sender.User != nil {
+		_ = helpers.ReplayCommand(b, ctx, reportDesc.Name)
+	}
 	return ext.ContinueGroups
 }
 
 //nolint:dupl // reports has symmetric block/unblock logic
 func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	sender := ctx.EffectiveSender
 	if sender == nil || sender.User == nil {
@@ -313,15 +310,6 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 		err       error
 		replyText string
 	)
-
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
 
 	if len(args) >= 1 {
 		action := strings.ToLower(args[0])
@@ -414,12 +402,8 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				// Changing it lets the bot mute members: the admin and the
 				// bot need the right to restrict, as for a mute.
 				if len(args) > 1 {
-					if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
-						chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-						return ext.EndGroups
-					}
-					if !chat_status.CanBotRestrict(b, ctx, chat) {
-						chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+					c, buildErr := helpers.BuildCommandContext(b, ctx)
+					if buildErr != nil || !helpers.RunChecks(c, []helpers.CheckFunc{helpers.CanUserRestrict(), helpers.CanBotRestrict()}) {
 						return ext.EndGroups
 					}
 				}
@@ -683,9 +667,11 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("report"), reportsModule.markResolvedButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(reportCardNamespace+"|"), reportsModule.reportCardHandler))
-	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
-	helpers.AddCmdToDisableable("report")
-	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))
+	helpers.WrapCommand(dispatcher, reportDesc, pipelineHandler(reportsModule.report))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "reports",
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()},
+	}, pipelineHandler(reportsModule.reports))
 	startReportRetentionSweeper()
 }
 

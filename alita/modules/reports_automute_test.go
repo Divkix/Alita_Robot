@@ -291,12 +291,14 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 }
 
 func TestReportsMuteSetting(t *testing.T) {
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadReports(d)
 	f := newAdminChatFixture(t)
 	run := func(from gotgbot.User, text string) {
 		t.Helper()
 		ctx := newModuleMessageContext(f.bot, f.chat, from, text)
-		if err := reportsModule.reports(f.bot, ctx); err != ext.EndGroups {
-			t.Fatalf("%s error = %v, want EndGroups", text, err)
+		if err := d.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+			t.Fatalf("%s error = %v", text, err)
 		}
 	}
 	threshold := func() int { return reports.GetChatReportSettings(f.chat.Id).MuteThreshold }
