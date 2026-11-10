@@ -67,26 +67,9 @@ func warnModeLabel(settings *models.WarnSettings) string {
 
 func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	var replyText string
 
@@ -146,26 +129,9 @@ func warnExpiryLabel(tr *i18n.Translator, settings *models.WarnSettings) string 
 // setWarnTime sets how long a warn counts: /setwarntime 30d, or off.
 func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	var replyText string
 	switch {
@@ -776,26 +742,9 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	var replyText string
 
@@ -887,25 +836,9 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	msg := ctx.EffectiveMessage
+	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	chat := groupOnlyChat(b, ctx)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
 
 	warnrc := warns.GetAllChatWarns(chat.Id)
 	if warnrc == 0 {
@@ -914,18 +847,16 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	if chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
-		text, _ := tr.GetString("warns_reset_all_confirm")
-		text = confirmText(ctx, tr, text, chat)
-		_, err := msg.Reply(b, text,
-			&gotgbot.SendMessageOpts{
-				ReplyMarkup: confirmKeyboard(tr, "rmAllChatWarns", chat),
-			},
-		)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+	text, _ := tr.GetString("warns_reset_all_confirm")
+	text = confirmText(ctx, tr, text, chat)
+	_, err := msg.Reply(b, text,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: confirmKeyboard(tr, "rmAllChatWarns", chat),
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
 	return ext.EndGroups
@@ -1110,19 +1041,31 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, resetWarnsDesc, pipelineHandler(warnsModule.resetWarns))
 	helpers.WrapCommand(dispatcher, removeWarnDesc, pipelineHandler(warnsModule.removeWarn))
 	helpers.WrapCommand(dispatcher, warnsStatusDesc, pipelineHandler(warnsModule.warns))
+	settingChecks := []helpers.CheckFunc{
+		helpers.RequireConnectedAdmin(true),
+		helpers.RequireBotAdmin(),
+		helpers.RequireUserAdmin(),
+	}
+	resetChecks := []helpers.CheckFunc{
+		groupOnlyChatCheck,
+		helpers.RequireGroup(),
+		helpers.RequireUserOwner(),
+	}
 	for _, cfg := range []struct {
 		name    string
 		arg     helpers.PMGroupArg
 		handler func(*gotgbot.Bot, *ext.Context) error
+		checks  []helpers.CheckFunc
 	}{
-		{"setwarnlimit", helpers.PMGroupArgOwn, warnsModule.setWarnLimit},
-		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode},
-		{"setwarntime", helpers.PMGroupArgOwn, warnsModule.setWarnTime},
-		{"resetallwarns", helpers.PMGroupArgNone, warnsModule.resetAllWarns},
+		{"setwarnlimit", helpers.PMGroupArgOwn, warnsModule.setWarnLimit, settingChecks},
+		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode, settingChecks},
+		{"setwarntime", helpers.PMGroupArgOwn, warnsModule.setWarnTime, settingChecks},
+		{"resetallwarns", helpers.PMGroupArgNone, warnsModule.resetAllWarns, resetChecks},
 	} {
 		desc := helpers.CommandDescriptor{
-			Name:       cfg.name,
-			PMGroupArg: cfg.arg,
+			Name:           cfg.name,
+			PMGroupArg:     cfg.arg,
+			RequiredChecks: cfg.checks,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
