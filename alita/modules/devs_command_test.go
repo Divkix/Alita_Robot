@@ -9,6 +9,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -53,6 +54,8 @@ func TestDevLeaveChatHandlesMissingArgsAndRequestErrors(t *testing.T) {
 }
 
 func TestDevTeamRoleCommandsHandleNoopAndAuthorizationBranches(t *testing.T) {
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadDev(d)
 	withOwnerID(t, 777000)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -61,8 +64,8 @@ func TestDevTeamRoleCommandsHandleNoopAndAuthorizationBranches(t *testing.T) {
 	guest := gotgbot.User{Id: 55, FirstName: "Guest"}
 
 	guestCtx := newModuleMessageContext(bot, chat, guest, "/addsudo 42")
-	if err := devsModule.addSudo(bot, guestCtx); err != ext.ContinueGroups {
-		t.Fatalf("addSudo(guest) error = %v, want ContinueGroups", err)
+	if err := d.ProcessUpdate(bot, guestCtx.Update, nil); err != nil {
+		t.Fatalf("addSudo(guest) error = %v", err)
 	}
 
 	channelCtx := newModuleMessageContext(bot, chat, owner, "/addsudo -1001234567890")
@@ -147,6 +150,8 @@ func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {
 }
 
 func TestDevCommandsRejectNonTeamUsersWithoutTelegramCalls(t *testing.T) {
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadDev(d)
 	withOwnerID(t, 777000)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -154,8 +159,8 @@ func TestDevCommandsRejectNonTeamUsersWithoutTelegramCalls(t *testing.T) {
 	guest := gotgbot.User{Id: 42, FirstName: "Guest"}
 
 	ctx := newModuleMessageContext(bot, chat, guest, "/chatinfo -100123")
-	if err := devsModule.chatInfo(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("chatInfo() error = %v, want ContinueGroups", err)
+	if err := d.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+		t.Fatalf("chatInfo() error = %v", err)
 	}
 	if calls := client.callsFor("getChat"); len(calls) != 0 {
 		t.Fatalf("getChat calls = %d, want none for unauthorized user", len(calls))
@@ -301,5 +306,71 @@ func TestDevChatListSendsDocumentWhenProgressDeleteFails(t *testing.T) {
 	}
 	if calls := client.callsFor("sendDocument"); len(calls) != 1 {
 		t.Fatalf("sendDocument calls = %d, want 1 despite the delete failure", len(calls))
+	}
+}
+
+func TestDeveloperCommandRoleGatesThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	ownerID := uniquePositiveUserID()
+	withOwnerID(t, ownerID)
+	for _, role := range []string{"owner", "developer", "sudo", "member"} {
+		for _, command := range []struct {
+			text      string
+			ownerOnly bool
+			teamRead  bool
+		}{
+			{text: "/stats"},
+			{text: "/chatinfo -100123"},
+			{text: "/chatlist"},
+			{text: "/leavechat -100123"},
+			{text: "/teamusers", teamRead: true},
+			{text: "/addsudo", ownerOnly: true},
+			{text: "/adddev", ownerOnly: true},
+			{text: "/remsudo", ownerOnly: true},
+			{text: "/remdev", ownerOnly: true},
+		} {
+			t.Run(role+command.text, func(t *testing.T) {
+				userID := uniquePositiveUserID()
+				switch role {
+				case "owner":
+					userID = ownerID
+				case "developer":
+					if err := devs.AddDev(userID); err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { _ = devs.RemDev(userID) })
+				case "sudo":
+					if err := devs.AddSudo(userID); err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { _ = devs.RemSudo(userID) })
+				}
+				client := newModuleBotClient()
+				bot := newModuleTestBot(client)
+				user := gotgbot.User{Id: userID, FirstName: role}
+				chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Developer commands"}
+				d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+				LoadDev(d)
+				continued := false
+				d.AddHandlerToGroup(handlers.NewMessage(func(*gotgbot.Message) bool { return true }, func(*gotgbot.Bot, *ext.Context) error {
+					continued = true
+					return ext.ContinueGroups
+				}), 1)
+				ctx := newModuleMessageContext(bot, chat, user, command.text)
+				if err := d.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+					t.Fatal(err)
+				}
+				allowed := role == "owner" || (!command.ownerOnly && (role == "developer" || (command.teamRead && role == "sudo")))
+				if got := len(client.callsFor("sendMessage")); (got > 0) != allowed {
+					t.Fatalf("replies = %d, allowed = %t", got, allowed)
+				}
+				if !allowed && len(client.calls) != 0 {
+					t.Fatalf("unauthorised command made calls = %+v", client.calls)
+				}
+				if continued {
+					t.Fatal("a developer command reached later watcher groups")
+				}
+			})
+		}
 	}
 }

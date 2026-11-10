@@ -12,6 +12,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db/devs"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -226,6 +228,35 @@ func requireConnectedChat(requireUserAdmin, requireBotAdmin bool) CheckFunc {
 		c.Chat = chat
 		c.Ctx.EffectiveChat = chat
 		return true
+	}
+}
+
+// RequireBotOwner silently refuses everyone except the configured bot owner.
+func RequireBotOwner() CheckFunc {
+	return func(c *CommandContext) bool {
+		return c.User != nil && c.User.Id == config.AppConfig.OwnerId
+	}
+}
+
+// RequireBotDeveloper accepts the bot owner and developers, but not sudo users.
+// Bot-team checks deliberately send no permission refusal.
+func RequireBotDeveloper() CheckFunc {
+	return func(c *CommandContext) bool {
+		return c.User != nil && (c.User.Id == config.AppConfig.OwnerId || devs.GetTeamMemInfo(c.User.Id).IsDev)
+	}
+}
+
+// RequireBotTeamMember silently accepts the bot owner, developers and sudo users.
+func RequireBotTeamMember() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User == nil {
+			return false
+		}
+		if c.User.Id == config.AppConfig.OwnerId {
+			return true
+		}
+		member := devs.GetTeamMemInfo(c.User.Id)
+		return member.IsDev || member.Sudo
 	}
 }
 
