@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
@@ -39,11 +40,6 @@ func withHelpTranslateRow(kb [][]gotgbot.InlineKeyboardButton, langCode string) 
 }
 
 func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 
 	var replyString string
@@ -52,25 +48,15 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(cLang)
 
 	langKb := m.genFullLanguageKb(cLang)
-	if args := ctx.Args(); ctx.Message.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
-		// /lang group in PM: pick the language of the connected group.
-		group := resolveAdminChat(b, ctx, false)
-		if group == nil {
-			return ext.EndGroups
-		}
+	if args := ctx.Args(); msg.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
+		group := ctx.EffectiveChat
 		// lang.GetLanguage(ctx) answers in the PM's language; name the group's.
 		groupLang := lang.GetLanguage(&ext.Context{EffectiveChat: group})
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
 		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id), cLang)
-	} else if ctx.Message.Chat.Type == "private" {
+	} else if msg.Chat.Type == "private" {
 		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
-
-		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-			return ext.EndGroups
-		}
-
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	}
 
@@ -199,7 +185,16 @@ func LoadLanguage(dispatcher *ext.Dispatcher) {
 	SetModuleHelpBuilder(languagesModule.moduleName, languagesModule.genFullLanguageKb)
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
-	dispatcher.AddHandler(handlers.NewCommand("lang", languagesModule.changeLanguage))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "lang",
+		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
+			if c.Msg.Chat.Type != "private" {
+				return helpers.RequireUserAdmin()(c)
+			}
+			args := c.Ctx.Args()
+			return len(args) == 1 || !strings.EqualFold(args[1], "group") || helpers.RequireConnectedAdmin(false)(c)
+		}},
+	}, pipelineHandler(languagesModule.changeLanguage))
 }
 
 func init() {

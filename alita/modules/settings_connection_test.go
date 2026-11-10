@@ -481,7 +481,7 @@ func TestLangGroupFromPMChangesGroupLanguage(t *testing.T) {
 	t.Cleanup(func() { config.AppConfig.ValidLangCodes = original })
 	groupC := extraGroup(t, client, adminListJSON(settingsTestAdminID), groupA)
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	data := langButton(t, client, "ru")
 	if len(data) > 64 {
 		t.Fatalf("callback data is %d bytes, want <= 64", len(data))
@@ -536,7 +536,7 @@ func TestLangGroupConfirmationLanguage(t *testing.T) {
 		}
 	})
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	pressInPM(t, bot, admin, langButton(t, client, "en"), languagesModule.langBtnHandler)
 	if got := lastEditedText(t, client); !strings.HasPrefix(got, "ru-group") {
 		t.Fatalf("PM confirmation = %q, want it in the admin's language (ru)", got)
@@ -573,13 +573,13 @@ func TestLangGroupKeyboardKeepsHelpTranslateLink(t *testing.T) {
 		return out
 	}
 
-	runInPM(t, bot, admin, "/lang", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang", languageDispatcher())
 	want := urlButtons()
 	if len(want) == 0 {
 		t.Fatal("plain /lang keyboard has no link button")
 	}
 
-	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	runCommandInPM(t, bot, admin, "/lang group", languageDispatcher())
 	got := urlButtons()
 	if len(got) != len(want) {
 		t.Fatalf("/lang group link buttons = %+v, want %+v", got, want)
