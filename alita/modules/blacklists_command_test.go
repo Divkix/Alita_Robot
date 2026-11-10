@@ -533,15 +533,16 @@ func TestRemoveAllBlacklistsRefusesNonOwnerAdmin(t *testing.T) {
 func TestBlacklistCommandsRefuseMembers(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot, chat, member := f.bot, f.chat, f.member
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBlacklists(dispatcher)
 	if err := blacklists.AddBlacklist(chat.Id, "keep"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
 
-	if err := blacklistsModule.addBlacklist(bot, newModuleMessageContext(bot, chat, member, "/addblacklist spam")); err != ext.EndGroups {
-		t.Fatalf("addBlacklist(member) error = %v, want EndGroups", err)
-	}
-	if err := blacklistsModule.removeBlacklist(bot, newModuleMessageContext(bot, chat, member, "/rmblacklist keep")); err != ext.EndGroups {
-		t.Fatalf("removeBlacklist(member) error = %v, want EndGroups", err)
+	for _, command := range []string{"/addblacklist spam", "/rmblacklist keep"} {
+		if err := dispatcher.ProcessUpdate(bot, newModuleMessageContext(bot, chat, member, command).Update, nil); err != nil {
+			t.Fatalf("%s by member error = %v", command, err)
+		}
 	}
 	if got := blacklists.GetBlacklistSettings(chat.Id).Triggers(); len(got) != 1 || got[0] != "keep" {
 		t.Fatalf("blacklist triggers after member commands = %q, want only keep", got)
@@ -932,6 +933,8 @@ func TestDisabledBlocklistsStopsBothListCommands(t *testing.T) {
 		t.Run(disabled, func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			client, bot, chat, member := f.client, f.bot, f.chat, f.member
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadBlacklists(dispatcher)
 			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 				t.Fatalf("AddBlacklist setup error = %v", err)
 			}
@@ -941,8 +944,8 @@ func TestDisabledBlocklistsStopsBothListCommands(t *testing.T) {
 
 			for _, command := range []string{"/blacklists", "/blocklists"} {
 				ctx := newModuleMessageContext(bot, chat, member, command)
-				if err := blacklistsModule.listBlacklists(bot, ctx); err != ext.EndGroups {
-					t.Fatalf("%s error = %v, want EndGroups", command, err)
+				if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+					t.Fatalf("%s error = %v", command, err)
 				}
 			}
 			if calls := client.callsFor("sendMessage"); len(calls) != 0 {
