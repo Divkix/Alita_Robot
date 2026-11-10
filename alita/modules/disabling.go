@@ -7,13 +7,11 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -31,10 +29,6 @@ type toggleCmdConfig struct {
 func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context) error {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg := ctx.EffectiveMessage
-		connectedChat := resolveAdminChat(b, ctx, true)
-		if connectedChat == nil {
-			return ext.EndGroups
-		}
 		chat := ctx.EffectiveChat
 		args := ctx.Args()[1:]
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -149,12 +143,6 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "disabled") {
-		return ext.EndGroups
-	}
-	if resolveMemberChat(b, ctx, true) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 
 	var replyMsgId int64
@@ -203,10 +191,6 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	connectedChat := resolveAdminChat(b, ctx, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -254,12 +238,28 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadDisabling(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(disablingModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("disable", withPMGroupArg("disable", helpers.PMGroupArgOwn, disablingModule.disable)))
-	dispatcher.AddHandler(handlers.NewCommand("disableable", disablingModule.disableable))
-	dispatcher.AddHandler(handlers.NewCommand("disabled", withPMGroupArg("disabled", helpers.PMGroupArgNone, disablingModule.disabled)))
-	helpers.AddCmdToDisableable("disabled")
-	dispatcher.AddHandler(handlers.NewCommand("disabledel", withPMGroupArg("disabledel", helpers.PMGroupArgOwn, disablingModule.disabledel)))
-	dispatcher.AddHandler(handlers.NewCommand("enable", withPMGroupArg("enable", helpers.PMGroupArgOwn, disablingModule.enable)))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "disable",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(disablingModule.disable))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "disableable"}, pipelineHandler(disablingModule.disableable))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "disabled",
+		PMGroupArg:     helpers.PMGroupArgNone,
+		Disableable:    true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(true)},
+	}, pipelineHandler(disablingModule.disabled))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "disabledel",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(disablingModule.disabledel))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "enable",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(true)},
+	}, pipelineHandler(disablingModule.enable))
 }
 
 func init() {

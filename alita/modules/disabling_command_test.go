@@ -3,12 +3,15 @@
 package modules
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -215,4 +218,116 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func TestDisabledHonoursTargetGroupSettingInPM(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	for _, named := range []bool{false, true} {
+		for _, admin := range []bool{false, true} {
+			for _, disabled := range []bool{false, true} {
+				t.Run(fmt.Sprintf("named=%t/admin=%t/disabled=%t", named, admin, disabled), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					user := f.member
+					if admin {
+						user = f.admin
+					}
+					if err := connections.ToggleAllowConnect(f.chat.Id, true); err != nil {
+						t.Fatal(err)
+					}
+					if err := connections.ConnectId(user.Id, f.chat.Id); err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { _ = connections.DisconnectId(user.Id) })
+					if disabled {
+						if err := disabling.DisableCMD(f.chat.Id, "disabled"); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if err := disabling.ToggleDel(f.chat.Id, true); err != nil {
+						t.Fatal(err)
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadDisabling(d)
+					text := "/disabled"
+					if named {
+						text += fmt.Sprint(" ", f.chat.Id)
+					}
+					ctx := newModuleMessageContext(f.bot, privateChatOf(user), user, text)
+					if err := d.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					want := 1
+					if disabled && !admin {
+						want = 0
+					}
+					if got := len(sentTexts(f.client)); got != want {
+						t.Fatalf("replies = %d, want %d", got, want)
+					}
+					if got := len(f.client.callsFor("deleteMessage")); got != 0 {
+						t.Fatalf("PM deletions = %d, want none", got)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestDisablingCommandRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t, "report")
+	for _, text := range []string{"/disable report", "/enable report", "/disabledel yes", "/disabled", "/disableable"} {
+		for _, admin := range []bool{false, true} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/admin=%t/bot-admin=%t", text, admin, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					user := f.member
+					if admin {
+						user = f.admin
+					}
+					if !botAdmin {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+						f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]) + "]")
+					}
+					if text == "/enable report" {
+						if err := disabling.DisableCMD(f.chat.Id, "report"); err != nil {
+							t.Fatal(err)
+						}
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadDisabling(d)
+					ctx := newModuleMessageContext(f.bot, f.chat, user, text)
+					if err := d.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					key := ""
+					if text != "/disableable" {
+						if !botAdmin {
+							key = "connections_is_user_connected_bot_not_admin"
+						} else if !admin && text != "/disabled" {
+							key = "connections_is_user_connected_user_not_admin"
+						}
+					}
+					call := f.client.onlyCall(t, "sendMessage")
+					if key != "" {
+						assertParams(t, call, map[string]any{"text": trS(ctxTr(ctx), key)})
+					}
+					switch text {
+					case "/disable report":
+						if got := disabling.IsCommandDisabled(f.chat.Id, "report"); got != (key == "") {
+							t.Fatalf("report disabled = %t, refusal = %q", got, key)
+						}
+					case "/enable report":
+						if got := disabling.IsCommandDisabled(f.chat.Id, "report"); got != (key != "") {
+							t.Fatalf("report disabled = %t, refusal = %q", got, key)
+						}
+					case "/disabledel yes":
+						if got := disabling.ShouldDel(f.chat.Id); got != (key == "") {
+							t.Fatalf("delete enabled = %t, refusal = %q", got, key)
+						}
+					}
+				})
+			}
+		}
+	}
 }
