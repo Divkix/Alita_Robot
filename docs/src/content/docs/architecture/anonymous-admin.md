@@ -68,14 +68,14 @@ sequenceDiagram
 
 ## Supported Commands
 
-Every command registered with `helpers.WrapCommand` automatically has replay under its name and every alias. No separate replay registration is needed. Commands still using legacy registration are being migrated; the dispatcher-wide command contract test names their remaining failures.
+Every user command is registered with `helpers.WrapCommand` and automatically has replay under its name and every alias. No separate replay registration is needed. The dispatcher-wide command contract test checks every registered command without exceptions. The senderless channel-post step of `/setlog` is separate and never asks for anonymous-admin proof.
 
 ## Troubleshooting
 
 :::tip[Common issues]
 - **"Button expired"** -- An admin clicked the button after the 20-second cache entry expired. The admin must re-send the command.
 - **"Need to be admin"** -- A non-admin user clicked the "Prove Admin" button. Only actual chat admins can verify.
-- **Commands not executing in anonymous mode** -- Check the command's descriptor and the confirming admin's required rights. Legacy command registrations still need migration to `helpers.WrapCommand`.
+- **Commands not executing in anonymous mode** -- Check the command's descriptor and the confirming admin's required rights. The pipeline re-runs those checks before executing the restored command.
 :::
 
 ## Related Pages

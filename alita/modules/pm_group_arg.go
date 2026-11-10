@@ -10,7 +10,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -205,39 +204,19 @@ func replyPMGroupHelp(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cmd
 	return err
 }
 
-// withPMGroupArg lets a PM command name its group as the first argument:
+// resolvePMGroupArg lets a descriptor's PMGroupArg name its group first:
 // "/cmd -1001234567890 args", "/cmd @group args", or the title of a group the
 // user administers ("/cmd mygroup args", "/cmd \"My Group\" args"). The group
-// passes the same checks as /connect, then the command runs with it in place
-// of the saved connection and with the group cut from its message. A call
-// with no usable group gets the command's help and the user's groups. Outside
-// PM the command runs unchanged.
-// Enable this wrapper per command at registration and add the command to
-// commandHelpModules so missing or unknown groups have help to show. Handlers
-// must read command text through ctx.EffectiveMessage or ctx.Args(), since
-// ctx.Message remains the original message. A resolved one-off group ends
-// handler-group iteration, so later groups never see the stripped message.
-func withPMGroupArg(cmd string, arg helpers.PMGroupArg, h handlers.Response) handlers.Response {
-	return func(b *gotgbot.Bot, ctx *ext.Context) error {
-		if !resolvePMGroupArg(b, ctx, cmd, arg) {
-			return ext.EndGroups
-		}
-		if chat_status.OneOffGroup(ctx) == nil {
-			return h(b, ctx)
-		}
-		// Later handler groups must not see the cut message.
-		return helpers.EndGroupsLogging(ctx, h(b, ctx))
-	}
-}
-
-// resolvePMGroupArg is withPMGroupArg's part that finds the group, also run by
-// helpers.WrapCommand for commands with a PMGroupArg. When the call names a
-// group that passes the /connect checks, it stores the group with
-// chat_status.SetOneOffGroup and cuts it from ctx.EffectiveMessage. It
-// returns false when it has answered the call itself.
-// alita/modules installs this resolver through helpers.SetPMGroupResolver in
-// init; WrapCommand runs it before RequiredChecks. Rich messages with arguments
-// receive connections_pm_group_plain_text because their blocks cannot be cut.
+// passes the /connect checks, then chat_status.SetOneOffGroup puts it in place
+// of the saved connection and the token is cut from ctx.EffectiveMessage.
+// ctx.Message remains unchanged, so handlers read ctx.EffectiveMessage or
+// ctx.Args(). A call with no usable group gets the command's help and the user's
+// groups; add the command to commandHelpModules when setting PMGroupArg.
+// Outside PM the command runs unchanged. It returns false after answering.
+// init installs this resolver through helpers.SetPMGroupResolver. WrapCommand
+// runs it before RequiredChecks and ends handler-group iteration after a one-off
+// resolution, so later groups never see the stripped message. Rich messages with
+// arguments receive connections_pm_group_plain_text because blocks cannot be cut.
 func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers.PMGroupArg) bool {
 	msg, user := ctx.EffectiveMessage, ctx.EffectiveUser
 	if user == nil || !inPM(msg) {
@@ -265,7 +244,7 @@ func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers
 	return c.useGroup(group, tok)
 }
 
-// pmGroupCall is one PM call of a command wrapped by withPMGroupArg.
+// pmGroupCall is one PM call resolved for a command descriptor.
 type pmGroupCall struct {
 	b   *gotgbot.Bot
 	ctx *ext.Context

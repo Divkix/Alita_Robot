@@ -199,22 +199,18 @@ func funcName(f any) string {
 	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 }
 
-// Every command that takes its group from PM answers a call without a group
-// with the help entry and PM example of a command in commandHelpModules, so a
-// new command or alias without an entry fails here. Every withPMGroupArg
-// command must ask for the group; a WrapCommand command asks only when its
-// descriptor sets PMGroupArg.
+// Every descriptor command that takes its group from PM answers a call without
+// a group with the help entry and PM example of a command in commandHelpModules,
+// so a new command or alias without an entry fails here.
 func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 	f := titleFixture(t, "My Group")
-	legacy, pipeline := funcName(withPMGroupArg)+".", funcName(helpers.WrapCommand)+"."
+	pipeline := funcName(helpers.WrapCommand) + "."
 	all := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAllModules(all)
 	pick := translated(t, "connections_pm_group_pick")
 	var asked []string
 	for _, cmd := range dispatcherCommands(t, all) {
-		name := funcName(cmd.Response)
-		isLegacy := strings.HasPrefix(name, legacy)
-		if !isLegacy && !strings.HasPrefix(name, pipeline) {
+		if !strings.HasPrefix(funcName(cmd.Response), pipeline) {
 			continue
 		}
 		dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
@@ -225,9 +221,6 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 
 		replies := f.client.callsFor("sendMessage")[before:]
 		if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), pick) {
-			if isLegacy {
-				t.Errorf("/%s from PM replied %+v, want one reply asking for the group", cmd.Command, replies)
-			}
 			continue
 		}
 		asked = append(asked, cmd.Command)

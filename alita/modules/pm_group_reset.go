@@ -14,10 +14,10 @@ import (
 )
 
 // groupOnlyChat returns the group a group-only command acts on: the chat it
-// was sent in or, in PM, the group the user named (withPMGroupArg or
-// CommandDescriptor.PMGroupArg) or is connected to, which they must
-// administer. In PM it points ctx.EffectiveChat at that group, so chat_status
-// checks given a nil chat check it. nil means the call has been answered.
+// was sent in or, in PM, the group resolved by CommandDescriptor.PMGroupArg
+// or the saved connection, which they must administer. In PM it points
+// ctx.EffectiveChat at that group, so chat_status checks given a nil chat
+// check it. nil means the call has been answered.
 func groupOnlyChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	if !inPM(ctx.EffectiveMessage) {
 		return ctx.EffectiveChat

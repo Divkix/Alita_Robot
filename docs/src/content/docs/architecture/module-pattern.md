@@ -306,7 +306,7 @@ Run `make generate-docs` (the command pages are generated from `locales/en.yml`)
 
 ## Permission Check Functions
 
-Use these functions to validate permissions before executing commands:
+Commands declare rights through the corresponding `helpers.*` checks in `CommandDescriptor.RequiredChecks`. These lower-level `chat_status` functions support pipeline checks, watchers and callbacks:
 
 | Function | Description | Returns |
 |----------|-------------|---------|
@@ -340,29 +340,18 @@ if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 
 ### Common Permission Patterns
 
-Inside `WrapCommand`, use the `helpers.*` CheckFunc builders in `RequiredChecks` instead. The raw `chat_status` predicates below are for watchers and legacy handlers, and they do not reply on failure (see above):
+Use `helpers.*` CheckFunc builders in the descriptor's `RequiredChecks`:
 
 ```go
-// Admin-only command
-if !chat_status.RequireGroup(b, ctx, nil) {
-    return ext.EndGroups
-}
-if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-    return ext.EndGroups
-}
-
-// Command requiring bot to have restrict permissions
-if !chat_status.RequireBotAdmin(b, ctx, nil) {
-    return ext.EndGroups
-}
-if !chat_status.CanBotRestrict(b, ctx, nil) {
-    return ext.EndGroups
-}
-
-// Owner-only command
-if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-    return ext.EndGroups
-}
+helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+    Name: "example",
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+        helpers.RequireBotAdmin(),
+        helpers.CanBotRestrict(),
+    },
+}, exampleModule.exampleHandler)
 ```
 
 ## Handler Return Values

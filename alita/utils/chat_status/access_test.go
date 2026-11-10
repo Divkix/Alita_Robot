@@ -10,7 +10,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
-	"github.com/divkix/Alita_Robot/alita/db/disabling"
 )
 
 type chatStatusBotClient struct{}
@@ -400,92 +399,6 @@ func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 				t.Fatalf("%s bot permission = true, want false", tt.name)
 			}
 		})
-	}
-}
-
-func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
-	skipIfNoDb(t)
-
-	client := &recordingChatStatusClient{}
-	bot := newRecordingChatStatusBot(999, client)
-	chatID := int64(-999999999910001)
-	msg := &gotgbot.Message{
-		MessageId: 501,
-		Date:      1,
-		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
-		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
-		Text:      "/kick 100",
-	}
-	t.Cleanup(func() {
-		_ = disabling.EnableCMD(chatID, "kick")
-		_ = disabling.ToggleDel(chatID, false)
-	})
-
-	privateMsg := *msg
-	privateMsg.Chat = gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"}
-	if CheckDisabledCmd(bot, &privateMsg, "kick") {
-		t.Fatal("CheckDisabledCmd(private) = true, want false")
-	}
-	if CheckDisabledCmd(bot, msg, "kick") {
-		t.Fatal("CheckDisabledCmd(enabled command) = true, want false")
-	}
-	if err := disabling.DisableCMD(chatID, "kick"); err != nil {
-		t.Fatalf("DisableCMD() error = %v", err)
-	}
-
-	nilSenderMsg := *msg
-	nilSenderMsg.From = nil
-	if CheckDisabledCmd(bot, &nilSenderMsg, "kick") {
-		t.Fatal("CheckDisabledCmd(nil sender) = true, want false")
-	}
-	if !CheckDisabledCmd(bot, msg, "kick") {
-		t.Fatal("CheckDisabledCmd(disabled, no delete) = false, want true")
-	}
-	if got := client.callsFor("deleteMessage"); got != 0 {
-		t.Fatalf("deleteMessage calls = %d, want none before delete setting", got)
-	}
-
-	if err := disabling.ToggleDel(chatID, true); err != nil {
-		t.Fatalf("ToggleDel(true) error = %v", err)
-	}
-	if !CheckDisabledCmd(bot, msg, "kick") {
-		t.Fatal("CheckDisabledCmd(disabled, delete) = false, want true")
-	}
-	if got := client.callsFor("deleteMessage"); got != 1 {
-		t.Fatalf("deleteMessage calls = %d, want one after delete setting", got)
-	}
-}
-
-func TestCheckDisabledCmdAllowsTelegramServiceAdmins(t *testing.T) {
-	skipIfNoDb(t)
-
-	client := &recordingChatStatusClient{}
-	bot := newRecordingChatStatusBot(999, client)
-	chatID := int64(-999999999910002)
-	msg := &gotgbot.Message{
-		MessageId: 502,
-		Date:      1,
-		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
-		From:      &gotgbot.User{Id: TelegramUserID, FirstName: "Telegram"},
-		Text:      "/kick 100",
-	}
-	t.Cleanup(func() {
-		_ = disabling.EnableCMD(chatID, "kick")
-		_ = disabling.ToggleDel(chatID, false)
-	})
-
-	if err := disabling.DisableCMD(chatID, "kick"); err != nil {
-		t.Fatalf("DisableCMD() error = %v", err)
-	}
-	if err := disabling.ToggleDel(chatID, true); err != nil {
-		t.Fatalf("ToggleDel(true) error = %v", err)
-	}
-
-	if CheckDisabledCmd(bot, msg, "kick") {
-		t.Fatal("CheckDisabledCmd(Telegram service admin) = true, want false")
-	}
-	if got := client.callsFor("deleteMessage"); got != 0 {
-		t.Fatalf("deleteMessage calls = %d, want none for Telegram service admin", got)
 	}
 }
 

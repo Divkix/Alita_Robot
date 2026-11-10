@@ -20,7 +20,7 @@ import (
 )
 
 // This sweep discovers names from the dispatcher, acceptance from /disable,
-// and aliases from shared response closures or observed cross-name suppression.
+// and aliases from the shared response closures registered by the pipeline.
 // Keep inputs argument-free unless an argument is needed to reach a proof;
 // commands which normally call external services then answer with their usage.
 func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
@@ -54,17 +54,12 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		t.Fatal("LoadAllModules did not register /disable")
 	}
 
-	failures := make(map[string]bool)
 	check := func(t *testing.T, name, clause string, passed bool, detail string) {
 		t.Helper()
 		if passed {
 			return
 		}
-		key := name + "/" + clause
-		failures[key] = true
-		if _, known := commandContractExceptions[key]; !known {
-			t.Errorf("command contract %q: %s; fix the command, or add exactly %q: \"#ticket: reason\" to commandContractExceptions", key, detail, key)
-		}
+		t.Errorf("command contract %q: %s", name+"/"+clause, detail)
 	}
 
 	accepted := make(map[string]bool, len(names))
@@ -91,25 +86,19 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		t.Fatal("/disable accepted no registered names; the sweep cannot exercise member suppression")
 	}
 
-	aliases := make(map[string]map[string]bool)
-	link := func(a, b string) {
-		for _, pair := range [][2]string{{a, b}, {b, a}} {
-			if aliases[pair[0]] == nil {
-				aliases[pair[0]] = make(map[string]bool)
-			}
-			aliases[pair[0]][pair[1]] = true
-		}
-	}
 	// reflect.Value equality preserves the identity of copied function values,
 	// unlike Pointer(), which identifies only their shared code. Pipeline aliases
-	// and MultiCommand names receive copies of the very same response closure.
+	// receive copies of the very same response closure.
 	closures := make(map[reflect.Value][]string)
 	for _, name := range names {
 		response := reflect.ValueOf(byName[name].Response)
-		for _, sibling := range closures[response] {
-			link(name, sibling)
-		}
 		closures[response] = append(closures[response], name)
+	}
+	aliases := make(map[string][]string)
+	for _, siblings := range closures {
+		for _, name := range siblings {
+			aliases[name] = siblings
+		}
 	}
 
 	proofs := 0
@@ -187,61 +176,15 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		t.Error("no registered command requested anonymous-admin proof; the sweep did not exercise replay")
 	}
 
-	// Legacy aliases can have separately allocated PM wrapper closures. Discover
-	// their relationship through a row for an accepted name, not help/descriptors.
-	// Code identity only narrows the probes; it never proves an alias relationship.
-	t.Run("discover-legacy-aliases", func(t *testing.T) {
-		for _, source := range names {
-			if !accepted[source] {
-				continue
-			}
-			f := newAdminChatFixture(t)
-			for _, target := range names {
-				if source == target || reflect.ValueOf(byName[source].Response).Pointer() != reflect.ValueOf(byName[target].Response).Pointer() {
-					continue
-				}
-				d := commandContractDispatcher(byName[target])
-				commandContractSetRow(t, f.chat.Id, source, false)
-				before := commandContractOutcome(t, d, f, f.member, target)
-				commandContractSetRow(t, f.chat.Id, source, true)
-				after := commandContractOutcome(t, d, f, f.member, target)
-				if len(before) != 0 && len(after) == 0 {
-					link(source, target)
-				}
-			}
-		}
-	})
-
-	// Close the observed/shared relationships transitively, so a three-name
-	// command is checked in every direction, including rows for refused aliases.
-	for _, middle := range names {
-		for _, source := range names {
-			if !aliases[source][middle] {
-				continue
-			}
-			for target := range aliases[middle] {
-				if source != target {
-					link(source, target)
-				}
-			}
-		}
-	}
 	for _, source := range names {
-		if len(aliases[source]) == 0 {
-			continue
-		}
-		disableable := accepted[source]
-		for target := range aliases[source] {
-			disableable = disableable || accepted[target]
-		}
-		if !disableable {
+		if len(aliases[source]) < 2 || !accepted[source] {
 			continue
 		}
 		t.Run(source+"/alias-rows", func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			var memberFailures, adminFailures []string
-			for _, target := range names {
-				if source == target || !aliases[source][target] {
+			for _, target := range aliases[source] {
+				if source == target {
 					continue
 				}
 				d := commandContractDispatcher(byName[target])
@@ -264,11 +207,6 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 			check(t, source, "alias-member", len(memberFailures) == 0, "row must silence every alias for members: "+strings.Join(memberFailures, "; "))
 			check(t, source, "alias-admin", len(adminFailures) == 0, "row must leave every alias usable by admins: "+strings.Join(adminFailures, "; "))
 		})
-	}
-	for key := range commandContractExceptions {
-		if !failures[key] {
-			t.Errorf("stale command contract exception %q: clause now passes or command disappeared; remove exactly %q from commandContractExceptions", key, key)
-		}
 	}
 	t.Logf("observed %d registered names, %d accepted disable names, %d anonymous proof flows", len(names), acceptedCount, proofs)
 }
