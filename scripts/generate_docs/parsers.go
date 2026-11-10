@@ -197,6 +197,14 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			}
 		}
 
+		// A senderless channel route can share its name with a descriptor.
+		// Document that command once, from the descriptor rather than its transport.
+		wrappedCommands := parseWrapCommands(content, moduleName, moduleNames, disableableCmds)
+		wrappedNames := make(map[string]bool, len(wrappedCommands))
+		for _, command := range wrappedCommands {
+			wrappedNames[command.Name] = true
+		}
+
 		// Find command registrations. Commands wrapped with the same
 		// withPMGroupArg name and handler are aliases of that command, one
 		// NewCommand each.
@@ -210,6 +218,9 @@ func parseCommands(modulesPath string) ([]Command, error) {
 		}
 		for _, match := range cmdMatches {
 			if len(match) >= 2 {
+				if wrappedNames[match[1]] {
+					continue
+				}
 				cmdName := match[1]
 				moduleVar := match[3]
 				handler := match[4]
@@ -279,8 +290,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			}
 		}
 
-		// Extract WrapCommand registrations (helpers.WrapCommand/WrapCommandRaw)
-		commands = append(commands, parseWrapCommands(content, moduleName, moduleNames, disableableCmds)...)
+		commands = append(commands, wrappedCommands...)
 	}
 
 	// Sort commands

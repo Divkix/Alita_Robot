@@ -281,3 +281,25 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 		t.Errorf("parsed %d commands, want 7: %+v", len(commands), commands)
 	}
 }
+
+func TestParseCommands_ChannelAndPipelineShareOneCommand(t *testing.T) {
+	dir := t.TempDir()
+	content := `package modules
+var logChannelsModule = moduleStruct{moduleName: "LogChannels"}
+func LoadLogChannels(dispatcher *ext.Dispatcher) {
+	dispatcher.AddHandler(setLogChannelCommand{handlers.NewCommand("setlog", logChannelsModule.setLogChannel).SetAllowChannel(true)})
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "setlog", PMGroupArg: helpers.PMGroupArgOwn,
+	}, pipelineHandler(logChannelsModule.setLog))
+}`
+	if err := os.WriteFile(filepath.Join(dir, "logchannels.go"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commands, err := parseCommands(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 1 || commands[0].Name != "setlog" || commands[0].Module != "logchannels" || commands[0].Handler != "setLog" || commands[0].Disableable {
+		t.Fatalf("commands = %+v, want one non-disableable /setlog from its descriptor", commands)
+	}
+}

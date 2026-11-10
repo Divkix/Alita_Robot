@@ -36,46 +36,49 @@ func setlogPendingKey(channelID, messageID int64) string {
 	return fmt.Sprintf("alita:setlog:%d:%d", channelID, messageID)
 }
 
-func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
+// setLogChannelCommand is the senderless channel-post step, never a group or PM command.
+type setLogChannelCommand struct {
+	handlers.Command
+}
+
+func (h setLogChannelCommand) CheckUpdate(b *gotgbot.Bot, ctx *ext.Context) bool {
+	return ctx.ChannelPost != nil && h.Command.CheckUpdate(b, ctx)
+}
+
+func (moduleStruct) setLogChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if chat == nil || msg == nil {
-		return ext.EndGroups
-	}
 	tr := ctxTr(ctx)
-	if chat.Type == "channel" {
-		// Channel posts have no user sender; only channel admins can post here.
-		m := cache.GetMarshal()
-		if m == nil {
-			text, _ := tr.GetString("common_settings_save_failed")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		if err := m.Set(
-			cache.Context,
-			setlogPendingKey(chat.Id, msg.MessageId),
-			[]byte("1"),
-			store.WithExpiration(time.Hour),
-		); err != nil {
-			log.Errorf("[LogChannels] failed to store pending setlog: %v", err)
-			text, _ := tr.GetString("common_settings_save_failed")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("logs_forward_to_group")
+	m := cache.GetMarshal()
+	if m == nil {
+		text, _ := tr.GetString("common_settings_save_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if chat.Type == "private" {
+	if err := m.Set(
+		cache.Context,
+		setlogPendingKey(msg.Chat.Id, msg.MessageId),
+		[]byte("1"),
+		store.WithExpiration(time.Hour),
+	); err != nil {
+		log.Errorf("[LogChannels] failed to store pending setlog: %v", err)
+		text, _ := tr.GetString("common_settings_save_failed")
+		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	text, _ := tr.GetString("logs_forward_to_group")
+	replyHTML(b, msg, text)
+	return ext.EndGroups
+}
+
+func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	tr := ctxTr(ctx)
+	if msg.Chat.Type == "private" {
 		return setLogFromPM(b, ctx, tr)
 	}
-	// A forwarded /setlog post is the bind step; let the group-11 watcher
-	// (captureSetLogForward) handle it instead of answering logs_need_channel.
+	// The group-11 watcher owns the forwarded bind step.
 	if msg.ForwardOrigin != nil {
 		return ext.ContinueGroups
-	}
-	if requireUser(b, ctx) == nil {
-		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_need_channel")
 	replyHTML(b, msg, text)
@@ -83,20 +86,14 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 // setLogFromPM binds the channel named after the group: "/setlog <group>
-// <channel>", with the group already cut by withPMGroupArg or left out on a
+// <channel>", with the group already cut by the descriptor's PM resolver or left out on a
 // connection. No post in the channel proves who runs it, so Telegram must:
 // the user is an admin of the group and of the channel, and the bot may post
 // there.
 func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 	msg := ctx.EffectiveMessage
-	from := chat_status.RequireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
-	group := resolveAdminChat(b, ctx, false)
-	if group == nil {
-		return ext.EndGroups
-	}
+	from := ctx.EffectiveSender.User
+	group := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	switch {
 	case len(args) == 0:
@@ -121,17 +118,7 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	// The bot first: Telegram answers getChatMember in a channel only to an
-	// admin bot, so without that the user lookup below would fail too.
-	if !canPostInChannel(b, ctx, channel.Id, b.Id) {
-		text, _ := tr.GetString("logs_pm_bot_cannot_post")
-		replyHTML(b, msg, text)
-		return ext.EndGroups
-	}
-	// As with a /setlog post in the channel, the user must be able to post there.
-	if !canPostInChannel(b, ctx, channel.Id, from.Id) {
-		text, _ := tr.GetString("logs_pm_user_not_channel_admin")
-		replyHTML(b, msg, text)
+	if !requireLogChannelPosting(channel.Id)(&helpers.CommandContext{Bot: b, Ctx: ctx, Msg: msg, User: from, Tr: tr}) {
 		return ext.EndGroups
 	}
 	if err := logchannels.Set(group.Id, group.Title, channel.Id); err != nil {
@@ -149,6 +136,24 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 	replyHTML(b, msg, text)
 	actionlog.Settings(b, group, from, "set log channel")
 	return ext.EndGroups
+}
+
+// requireLogChannelPosting runs after the channel argument is resolved. Telegram
+// requires bot posting rights before it can reliably answer the actor lookup.
+func requireLogChannelPosting(channelID int64) helpers.CheckFunc {
+	return func(c *helpers.CommandContext) bool {
+		key := ""
+		if !canPostInChannel(c.Bot, c.Ctx, channelID, c.Bot.Id) {
+			key = "logs_pm_bot_cannot_post"
+		} else if !canPostInChannel(c.Bot, c.Ctx, channelID, c.User.Id) {
+			key = "logs_pm_user_not_channel_admin"
+		}
+		if key != "" {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, key, "", chat_status.WithReply())
+			return false
+		}
+		return true
+	}
 }
 
 // canPostInChannel reports whether userID owns the channel or is an admin of
@@ -171,37 +176,19 @@ func canPostInChannel(b *gotgbot.Bot, ctx *ext.Context, channelID, userID int64)
 	return false
 }
 
-// logsChat returns the group a log-channel command acts on: the chat it was
-// sent in or, in PM, the group withPMGroupArg named or the connected one. A
-// non-nil admin must be an admin of that group, checked once: in PM by
-// IsUserConnected, which answers any refusal. nil means the call has been
-// answered.
-func logsChat(b *gotgbot.Bot, ctx *ext.Context, admin *gotgbot.User) *gotgbot.Chat {
-	chat := ctx.EffectiveChat
-	if chat.Type != "private" {
-		if admin != nil && !chat_status.RequireUserAdmin(b, ctx, chat, admin.Id) {
-			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-			return nil
-		}
-		return chat
+// logAdminChatCheck preserves group refusals and connected-PM admin checks.
+func logAdminChatCheck(c *helpers.CommandContext) bool {
+	if c.Msg.Chat.Type == "private" {
+		return helpers.RequireConnectedAdmin(false)(c)
 	}
-	if admin != nil {
-		return resolveAdminChat(b, ctx, false)
-	}
-	return resolveMemberChat(b, ctx, false)
+	return helpers.RequireUserAdmin()(c)
 }
 
 func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	from := chat_status.RequireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
+	from := ctx.EffectiveSender.User
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, from)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	// Read the settings first: Unset deletes them, and the change is logged
 	// to the channel that was just unset.
 	prev := logchannels.Get(chat.Id)
@@ -218,14 +205,8 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(b, ctx) == nil {
-		return ext.EndGroups
-	}
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, nil)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	settings := logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id)
 	if settings == nil {
 		text, _ := tr.GetString("logs_not_set")
@@ -241,9 +222,6 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) logCategories(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if chat_status.RequireUser(b, ctx) == nil {
-		return ext.EndGroups
-	}
 	tr := ctxTr(ctx)
 	text, _ := tr.GetString("logs_categories")
 	replyHTML(b, msg, text)
@@ -260,15 +238,9 @@ func (m moduleStruct) disableLog(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bool) error {
 	msg := ctx.EffectiveMessage
-	from := chat_status.RequireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
+	from := ctx.EffectiveSender.User
 	tr := ctxTr(ctx)
-	chat := logsChat(b, ctx, from)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 	if logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id) == nil {
 		text, _ := tr.GetString("logs_not_set")
 		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
@@ -378,14 +350,33 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(logChannelsModule.moduleName, true)
 
-	// Channel posts must reach /setlog: posting it in the channel starts the bind.
-	// From PM each command but /logcategories takes the group first.
-	dispatcher.AddHandler(handlers.NewCommand("setlog", withPMGroupArg("setlog", helpers.PMGroupArgOwn, logChannelsModule.setLog)).SetAllowChannel(true))
-	dispatcher.AddHandler(handlers.NewCommand("unsetlog", withPMGroupArg("unsetlog", helpers.PMGroupArgNone, logChannelsModule.unsetLog)))
-	dispatcher.AddHandler(handlers.NewCommand("logchannel", withPMGroupArg("logchannel", helpers.PMGroupArgNone, logChannelsModule.logChannel)))
-	dispatcher.AddHandler(handlers.NewCommand("logcategories", logChannelsModule.logCategories))
-	dispatcher.AddHandler(handlers.NewCommand("log", withPMGroupArg("log", helpers.PMGroupArgOwn, logChannelsModule.enableLog)))
-	dispatcher.AddHandler(handlers.NewCommand("nolog", withPMGroupArg("nolog", helpers.PMGroupArgOwn, logChannelsModule.disableLog)))
+	// Only this senderless channel-post step stays outside the pipeline.
+	dispatcher.AddHandler(setLogChannelCommand{handlers.NewCommand("setlog", logChannelsModule.setLogChannel).SetAllowChannel(true)})
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "setlog", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
+			return c.Msg.Chat.Type != "private" || helpers.RequireConnectedAdmin(false)(c)
+		}},
+	}, pipelineHandler(logChannelsModule.setLog))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "unsetlog", PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},
+	}, pipelineHandler(logChannelsModule.unsetLog))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "logchannel", PMGroupArg: helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(false)},
+	}, pipelineHandler(logChannelsModule.logChannel))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "logcategories",
+	}, pipelineHandler(logChannelsModule.logCategories))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "log", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},
+	}, pipelineHandler(logChannelsModule.enableLog))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "nolog", PMGroupArg: helpers.PMGroupArgOwn,
+		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},
+	}, pipelineHandler(logChannelsModule.disableLog))
 
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(message.All, logChannelsModule.captureSetLogForward),
