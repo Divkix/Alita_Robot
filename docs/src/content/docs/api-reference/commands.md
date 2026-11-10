@@ -695,6 +695,8 @@ Each CheckFunc handles its own failure: the permission checks send the refusal r
 | `RequireGroup()` | Ensures command is used in a group |
 | `RequireBotAdmin()` | Ensures bot is admin |
 | `RequireUserAdmin()` | Ensures user is admin |
+| `RequireConnectedAdmin(botAdmin)` | Resolves the current group or PM's named/connected group, requiring its admin and optionally the bot's admin status |
+| `RequireConnectedMember(botAdmin)` | Resolves the same target for member-readable commands, optionally requiring the bot's admin status |
 | `CanUserPromote()` | Checks user can promote members |
 | `CanBotPromote()` | Checks bot can promote members |
 | `CanUserPin()` | Checks user can pin messages |
@@ -707,6 +709,8 @@ Each CheckFunc handles its own failure: the permission checks send the refusal r
 | `RequireUserOwner()` | Ensures user is the chat owner |
 | `CanUserDelete()` | Checks user can delete messages |
 | `CanBotDelete()` | Checks bot can delete messages |
+
+The connected checks update both `CommandContext.Chat` and `ctx.EffectiveChat`, so later checks and the handler act on the resolved group while replies stay in the original chat. Named PM groups win over the saved connection; `PMGroupArg` still owns parsing and the no-fallback rule for commands without their own arguments. Connection refusals keep their existing bot-before-user order. These checks do not themselves request anonymous proof; a following `CanUser*` check does so when required.
 
 `RunChecks(c, checks)` runs a list of CheckFuncs outside `WrapCommand` (used by anonymous-admin handlers).
 

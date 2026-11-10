@@ -165,9 +165,6 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 //nolint:dupl // displayGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config greetingConfig) error {
 	msg := ctx.EffectiveMessage
-	if resolveAdminChat(bot, ctx, false) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
@@ -236,8 +233,7 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		}
 
 	} else if len(args) >= 1 {
-		if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-			chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		if c, err := helpers.BuildCommandContext(bot, ctx); err != nil || !helpers.RequireUserAdmin()(c) {
 			return ext.EndGroups
 		}
 		var err error
@@ -302,19 +298,7 @@ func (m moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // setWelcome is similar to setGoodbye but uses different DB calls and translation keys
 func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if resolveAdminChat(bot, ctx, false) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	result := content.ExtractWelcome(msg, "welcome", lang.GetLanguage(ctx))
 	text, dataType, content, buttons, errorMsg := result.Text, result.DataType, result.FileID, result.Buttons, result.ErrorMsg
@@ -347,18 +331,7 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // resetGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome bool) error {
 	msg := ctx.EffectiveMessage
-	if resolveAdminChat(bot, ctx, false) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if isWelcome {
@@ -402,18 +375,7 @@ func (m moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // setGoodbye is similar to setWelcome but uses different DB calls and translation keys
 func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	if resolveAdminChat(bot, ctx, false) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	result := content.ExtractWelcome(msg, "goodbye", lang.GetLanguage(ctx))
 	text, dataType, content, buttons, errorMsg := result.Text, result.DataType, result.FileID, result.Buttons, result.ErrorMsg
@@ -531,20 +493,9 @@ var autoApproveToggleConfig = greetingToggleConfig{
 
 func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greetingToggleConfig) error {
 	msg := ctx.EffectiveMessage
-	if resolveAdminChat(bot, ctx, cfg.connectBotAdmin) == nil {
-		return ext.EndGroups
-	}
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	var err error
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
@@ -1125,25 +1076,30 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		),
 	)
 
+	adminChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false)}
+	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false), helpers.CanUserChangeInfo()}
+	botAdminChangeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(true), helpers.CanUserChangeInfo()}
 	for _, cfg := range []struct {
 		name    string
 		arg     helpers.PMGroupArg
 		handler func(*gotgbot.Bot, *ext.Context) error
+		checks  []helpers.CheckFunc
 	}{
-		{"welcome", helpers.PMGroupArgOwn, greetingsModule.welcome},
-		{"setwelcome", helpers.PMGroupArgOwn, greetingsModule.setWelcome},
-		{"resetwelcome", helpers.PMGroupArgNone, greetingsModule.resetWelcome},
-		{"goodbye", helpers.PMGroupArgOwn, greetingsModule.goodbye},
-		{"setgoodbye", helpers.PMGroupArgOwn, greetingsModule.setGoodbye},
-		{"resetgoodbye", helpers.PMGroupArgNone, greetingsModule.resetGoodbye},
-		{"cleanwelcome", helpers.PMGroupArgOwn, greetingsModule.cleanWelcome},
-		{"cleangoodbye", helpers.PMGroupArgOwn, greetingsModule.cleanGoodbye},
-		{"cleanservice", helpers.PMGroupArgOwn, greetingsModule.delJoined},
-		{"autoapprove", helpers.PMGroupArgOwn, greetingsModule.autoApprove},
+		{"welcome", helpers.PMGroupArgOwn, greetingsModule.welcome, adminChecks},
+		{"setwelcome", helpers.PMGroupArgOwn, greetingsModule.setWelcome, changeInfoChecks},
+		{"resetwelcome", helpers.PMGroupArgNone, greetingsModule.resetWelcome, changeInfoChecks},
+		{"goodbye", helpers.PMGroupArgOwn, greetingsModule.goodbye, adminChecks},
+		{"setgoodbye", helpers.PMGroupArgOwn, greetingsModule.setGoodbye, changeInfoChecks},
+		{"resetgoodbye", helpers.PMGroupArgNone, greetingsModule.resetGoodbye, changeInfoChecks},
+		{"cleanwelcome", helpers.PMGroupArgOwn, greetingsModule.cleanWelcome, changeInfoChecks},
+		{"cleangoodbye", helpers.PMGroupArgOwn, greetingsModule.cleanGoodbye, changeInfoChecks},
+		{"cleanservice", helpers.PMGroupArgOwn, greetingsModule.delJoined, botAdminChangeInfoChecks},
+		{"autoapprove", helpers.PMGroupArgOwn, greetingsModule.autoApprove, botAdminChangeInfoChecks},
 	} {
 		desc := helpers.CommandDescriptor{
-			Name:       cfg.name,
-			PMGroupArg: cfg.arg,
+			Name:           cfg.name,
+			PMGroupArg:     cfg.arg,
+			RequiredChecks: cfg.checks,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
