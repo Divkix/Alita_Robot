@@ -642,14 +642,15 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadHelp(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("start", DefaultHelpRegistry().start))
-	dispatcher.AddHandler(handlers.NewCommand("help", DefaultHelpRegistry().help))
-	dispatcher.AddHandler(handlers.NewCommand("extend", DefaultHelpRegistry().extend))
+	helpModule := DefaultHelpRegistry()
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "start"}, pipelineHandler(helpModule.start))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "help"}, pipelineHandler(helpModule.help))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "extend"}, pipelineHandler(helpModule.extend))
 	loadCommandsMenu(dispatcher)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), DefaultHelpRegistry().helpButtonHandler))
-	dispatcher.AddHandler(handlers.NewCommand("donate", DefaultHelpRegistry().donate))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "donate"}, pipelineHandler(helpModule.donate))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), DefaultHelpRegistry().botConfig))
-	dispatcher.AddHandler(handlers.NewCommand("about", DefaultHelpRegistry().about))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "about"}, pipelineHandler(helpModule.about))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), DefaultHelpRegistry().about))
 }
 
