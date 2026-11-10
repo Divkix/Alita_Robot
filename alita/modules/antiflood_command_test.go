@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
@@ -23,6 +26,75 @@ func resetAntifloodState(t *testing.T) {
 		antifloodModule.syncHelperMap.Delete(key)
 		return true
 	})
+}
+
+func TestAntifloodCommandRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	for _, command := range []struct {
+		text, replyKey string
+		member         bool
+	}{
+		{"/setflood", "antiflood_errors_expected_args", false},
+		{"/setfloodmode", "antiflood_setfloodmode_specify_action", false},
+		{"/delflood maybe", "antiflood_flood_deleter_invalid_option", false},
+		{"/clearflood maybe", "antiflood_flood_deleter_invalid_option", false},
+		{"/flood", "antiflood_flood_disabled", true},
+	} {
+		for _, actorAdmin := range []bool{false, true} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/admin=%t/bot=%t", command.text, actorAdmin, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + adminJSON + "]")
+					f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+					if botAdmin {
+						f.addAdmins(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					} else {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					}
+					actor := f.member
+					if actorAdmin {
+						actor = f.admin
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadAntiflood(d)
+					if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, command.text).Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					key := command.replyKey
+					if !botAdmin {
+						key = "connections_is_user_connected_bot_not_admin"
+					} else if !actorAdmin && !command.member {
+						key = "connections_is_user_connected_user_not_admin"
+					}
+					assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{"chat_id": f.chat.Id, "text": translated(t, key)})
+				})
+			}
+		}
+	}
+}
+
+func TestDisabledFloodInPMHonoursTargetGroup(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	f := newAdminChatFixture(t)
+	if err := connections.ConnectId(f.member.Id, f.chat.Id); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = connections.DisconnectId(f.member.Id) })
+	if err := disabling.DisableCMD(f.chat.Id, "flood"); err != nil {
+		t.Fatal(err)
+	}
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiflood(d)
+	runCommandInPM(t, f.bot, f.member, "/flood", d)
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("disabled /flood replied in PM: %+v", calls)
+	}
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("disabled /flood deleted a PM message: %+v", calls)
+	}
 }
 
 func TestAntifloodCommandsUpdateSettingsAndDisplay(t *testing.T) {
