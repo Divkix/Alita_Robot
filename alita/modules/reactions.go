@@ -16,7 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -39,10 +38,27 @@ var supportedReactionEmoji = []string{
 }
 
 func LoadReactions(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("addreaction", withPMGroupArg("addreaction", helpers.PMGroupArgOwn, reactionsModule.addReaction)))
-	dispatcher.AddHandler(handlers.NewCommand("removereaction", withPMGroupArg("removereaction", helpers.PMGroupArgOwn, reactionsModule.removeReaction)))
-	dispatcher.AddHandler(handlers.NewCommand("reactions", withPMGroupArg("reactions", helpers.PMGroupArgNone, reactionsModule.listReactions)))
-	dispatcher.AddHandler(handlers.NewCommand("resetreactions", withPMGroupArg("resetreactions", helpers.PMGroupArgNone, reactionsModule.resetReactions)))
+	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(false), helpers.CanUserChangeInfo()}
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "addreaction",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: changeInfoChecks,
+	}, pipelineHandler(reactionsModule.addReaction))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "removereaction",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: changeInfoChecks,
+	}, pipelineHandler(reactionsModule.removeReaction))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "reactions",
+		PMGroupArg:     helpers.PMGroupArgNone,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(false)},
+	}, pipelineHandler(reactionsModule.listReactions))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name:           "resetreactions",
+		PMGroupArg:     helpers.PMGroupArgNone,
+		RequiredChecks: changeInfoChecks,
+	}, pipelineHandler(reactionsModule.resetReactions))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("reactions_help"), reactionsModule.reactionsHelpHandler))
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
@@ -134,20 +150,8 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("addReaction", "Reactions")
 
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(b, ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error", chat_status.WithTranslator(tr))
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	args := ctx.Args()
 	if len(args) < 3 {
@@ -198,20 +202,8 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("removeReaction", "Reactions")
 
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(b, ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error", chat_status.WithTranslator(tr))
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -260,10 +252,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveMemberChat(b, ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {
@@ -293,20 +282,8 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("resetReactions", "Reactions")
 
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := resolveAdminChat(b, ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error", chat_status.WithTranslator(tr))
-		return ext.EndGroups
-	}
+	chat := ctx.EffectiveChat
 
 	if err := reactions.ResetReactions(chat.Id); err != nil {
 		log.Errorf("[Reactions] Failed to reset reactions: %v", err)

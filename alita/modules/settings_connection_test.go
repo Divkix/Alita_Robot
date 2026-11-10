@@ -384,23 +384,32 @@ func TestReactionsFromPMViaConnection(t *testing.T) {
 	client.membersByUser = map[string]json.RawMessage{
 		fmt.Sprint(admin.Id): json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},"can_change_info":true}`, admin.Id)),
 	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadReactions(dispatcher)
+	run := func(user gotgbot.User, text string) {
+		t.Helper()
+		ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
+		if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+			t.Fatalf("%s from PM error = %v", text, err)
+		}
+	}
 
-	runInPM(t, bot, member, "/addreaction hello 👍", reactionsModule.addReaction)
+	run(member, "/addreaction hello 👍")
 	if len(reactions.GetReactions(groupA)) != 0 {
 		t.Fatal("non-admin added a reaction to the group")
 	}
 
-	runInPM(t, bot, admin, "/addreaction hello 👍", reactionsModule.addReaction)
-	runInPM(t, bot, admin, "/addreaction bye 👋", reactionsModule.addReaction)
+	run(admin, "/addreaction hello 👍")
+	run(admin, "/addreaction bye 👋")
 	if got := reactions.GetReactions(groupA); got["hello"] != "👍" {
 		t.Fatalf("group reactions after add = %v, want hello→👍", got)
 	}
-	runInPM(t, bot, admin, "/reactions", reactionsModule.listReactions)
-	runInPM(t, bot, admin, "/removereaction hello", reactionsModule.removeReaction)
+	run(admin, "/reactions")
+	run(admin, "/removereaction hello")
 	if _, ok := reactions.GetReactions(groupA)["hello"]; ok {
 		t.Fatal("/removereaction from PM did not change the connected group")
 	}
-	runInPM(t, bot, admin, "/resetreactions", reactionsModule.resetReactions)
+	run(admin, "/resetreactions")
 	if got := reactions.GetReactions(groupA); len(got) != 0 {
 		t.Fatalf("group reactions after reset = %v, want none", got)
 	}
