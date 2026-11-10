@@ -79,7 +79,7 @@ This module can be accessed using the following aliases:
 | `/privatenotes` | Alias of `/privnote` | ❌ |
 | `/rmnote` | Alias of `/clear` | ❌ |
 | `/save` | Save a note with a keyword | ❌ |
-| `/saved` | Alias of `/notes` | ❌ |
+| `/saved` | Alias of `/notes` | ✅ |
 
 ## Usage Examples
 
@@ -101,3 +101,10 @@ For detailed command usage, refer to the commands table above.
 - Clear all notes: Chat Owner
 - Get regular notes: Any user
 - Bot: must be an admin for /save, /addnote, /clear, /rmnote, /notes and /saved (/get and #notename work without it)
+
+Anonymous admins receive only a confirmation button for `/save` and `/clear`,
+including their aliases. Confirmation uses the tapping admin's rights and
+preserves the original replied-to message or media.
+
+`/disable saved` is accepted just like `/disable notes`. A disabled row for
+either spelling silences both names for members; admins can still use them.

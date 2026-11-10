@@ -7,14 +7,5 @@ package modules
 // the exact key to add for a failure, and fails when an entry stops failing.
 // #1181-#1189 remove their entries as the remaining legacy handlers migrate.
 var commandContractExceptions = map[string]string{
-	"addnote/proof-only":    "#1183: legacy change-info check refuses beside the proof",
-	"addnote/proof-replay":  "#1183: legacy handler is not registered through the pipeline",
-	"save/proof-only":       "#1183: legacy change-info check refuses beside the proof",
-	"save/proof-replay":     "#1183: legacy handler is not registered through the pipeline",
-	"clear/proof-only":      "#1183: legacy change-info check refuses beside the proof",
-	"clear/proof-replay":    "#1183: legacy handler is not registered through the pipeline",
-	"rmnote/proof-only":     "#1183: legacy change-info check refuses beside the proof",
-	"rmnote/proof-replay":   "#1183: legacy handler is not registered through the pipeline",
 	"fbanstat/alias-member": "#1188: legacy shared handler checks fedstat, not its fbanstat alias row",
-	"saved/alias-member":    "#1183: legacy shared handler checks notes, not its saved alias row",
 }
