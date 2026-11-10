@@ -118,6 +118,8 @@ func init() {
 
 :::note[Command pipeline]
 Register commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. `RequiredChecks` send their own failure replies, so handlers add none. `Disableable: true` registers every name and alias with `/disable` and silently checks all their rows before rights checks; admins bypass disabling, and `/disabledel` deletes silenced group messages. `WrapCommand` also derives anonymous-admin replay for every spelling and runs the same checks as the confirming admin.
+
+Descriptors with `RequiredChecks` require an identifiable user before running those checks. A descriptor with no checks stays open to send-as-channel messages: its `CommandContext.User` may be nil, and disabling treats that sender as a non-admin. Use `helpers.RequireIdentifiedUser()` when a command needs a user identity but no role or chat permission.
 :::
 
 The senderless channel-post step of `/setlog` is the sole exception: `setLogChannelCommand` wraps a channel-enabled gotgbot command and accepts only `ChannelPost` updates. Group and PM `/setlog` still use a descriptor; forwarded group posts continue to the group-11 binding watcher. The docs parser lists the shared command once, using its descriptor.

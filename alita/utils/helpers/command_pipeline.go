@@ -31,8 +31,13 @@ type CommandContext struct {
 }
 
 func BuildCommandContext(b *gotgbot.Bot, ctx *ext.Context) (*CommandContext, error) {
+	return buildCommandContext(b, ctx, true)
+}
+
+// Public descriptors need no actor; checked commands and direct callers do.
+func buildCommandContext(b *gotgbot.Bot, ctx *ext.Context, requireUser bool) (*CommandContext, error) {
 	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
+	if user == nil && requireUser {
 		if ctx != nil && ctx.EffectiveMessage != nil {
 			chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		}
@@ -51,9 +56,10 @@ func BuildCommandContext(b *gotgbot.Bot, ctx *ext.Context) (*CommandContext, err
 type CheckFunc func(c *CommandContext) bool
 
 type CommandDescriptor struct {
-	Name           string
-	Aliases        []string
-	Group          int
+	Name    string
+	Aliases []string
+	Group   int
+	// Checks require an identifiable user. With no checks, User may be nil.
 	RequiredChecks []CheckFunc
 	Disableable    bool
 	// PMGroupArg lets the command name its group as the first argument in
@@ -125,7 +131,7 @@ func WrapCommand(
 				}
 			}
 		}
-		c, err := BuildCommandContext(b, ctx)
+		c, err := buildCommandContext(b, ctx, len(desc.RequiredChecks) != 0)
 		if err != nil {
 			return ext.EndGroups
 		}
@@ -185,7 +191,7 @@ func EndGroupsLogging(ctx *ext.Context, err error) error {
 // commandDisabled applies one setting to all spellings, using the effective
 // actor rather than the anonymous sender retained on a replayed message.
 func commandDisabled(c *CommandContext, names []string) bool {
-	if c.Chat == nil || c.Chat.Type == "private" || c.User == nil {
+	if c.Chat == nil || c.Chat.Type == "private" {
 		return false
 	}
 	disabled := disabling.GetChatDisabledCMDsCached(c.Chat.Id)
@@ -193,7 +199,7 @@ func commandDisabled(c *CommandContext, names []string) bool {
 		if !slices.Contains(disabled, name) {
 			continue
 		}
-		if chat_status.IsUserAdminForUpdate(c.Bot, c.Ctx, c.Chat.Id, c.User.Id) {
+		if c.User != nil && chat_status.IsUserAdminForUpdate(c.Bot, c.Ctx, c.Chat.Id, c.User.Id) {
 			return false
 		}
 		if c.Msg != nil && c.Msg.Chat.Type != "private" && disabling.ShouldDel(c.Chat.Id) {
