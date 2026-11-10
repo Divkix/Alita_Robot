@@ -11,10 +11,97 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
+
+func TestLockCommandRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	for _, command := range []struct {
+		text   string
+		member bool
+	}{
+		{"/lock", false}, {"/unlock", false}, {"/locks", false}, {"/locktypes", true},
+	} {
+		for _, actorAdmin := range []bool{false, true} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/admin=%t/bot=%t", command.text, actorAdmin, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + adminJSON + "]")
+					f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+					if botAdmin {
+						f.addAdmins(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					} else {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					}
+					actor := f.member
+					if actorAdmin {
+						actor = f.admin
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadLocks(d)
+					if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, command.text).Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+					switch {
+					case !botAdmin:
+						if want := translated(t, "connections_is_user_connected_bot_not_admin"); text != want {
+							t.Fatalf("reply = %q, want %q", text, want)
+						}
+					case !actorAdmin && !command.member:
+						if want := translated(t, "connections_is_user_connected_user_not_admin"); text != want {
+							t.Fatalf("reply = %q, want %q", text, want)
+						}
+					case command.text == "/locktypes":
+						if !strings.HasPrefix(text, translated(t, "locks_locktypes_header")) {
+							t.Fatalf("reply = %q, want lock types", text)
+						}
+					case command.text == "/locks":
+						if !strings.HasPrefix(text, translated(t, "locks_current_locks_header")) {
+							t.Fatalf("reply = %q, want current locks", text)
+						}
+					default:
+						key := "locks_what_to_lock"
+						if command.text == "/unlock" {
+							key = "locks_what_to_unlock"
+						}
+						if want := translated(t, key); text != want {
+							t.Fatalf("reply = %q, want %q", text, want)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestDisabledLockTypesInPMHonoursTargetGroup(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	f := newAdminChatFixture(t)
+	if err := connections.ConnectId(f.member.Id, f.chat.Id); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = connections.DisconnectId(f.member.Id) })
+	if err := disabling.DisableCMD(f.chat.Id, "locktypes"); err != nil {
+		t.Fatal(err)
+	}
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLocks(d)
+	runCommandInPM(t, f.bot, f.member, "/locktypes", d)
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("disabled /locktypes replied in PM: %+v", calls)
+	}
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("disabled /locktypes deleted a PM message: %+v", calls)
+	}
+}
 
 func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
 	f := newAdminChatFixture(t)
@@ -79,16 +166,18 @@ func TestLockCommandsFromPMActOnConnectedGroup(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot, chat, admin := f.bot, f.chat, f.admin
 	pm := f.connectAdmin(t)
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLocks(d)
 
-	if err := locksModule.lockPerm(bot, newModuleMessageContext(bot, pm, admin, "/lock url")); err != ext.EndGroups {
-		t.Fatalf("lockPerm from PM error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(bot, newModuleMessageContext(bot, pm, admin, "/lock url").Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if !locks.IsPermLocked(chat.Id, "url") {
 		t.Fatal("a connected admin could not lock url from PM")
 	}
 
-	if err := locksModule.unlockPerm(bot, newModuleMessageContext(bot, pm, admin, "/unlock url")); err != ext.EndGroups {
-		t.Fatalf("unlockPerm from PM error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(bot, newModuleMessageContext(bot, pm, admin, "/unlock url").Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if locks.IsPermLocked(chat.Id, "url") {
 		t.Fatal("a connected admin could not unlock url from PM")
@@ -98,18 +187,20 @@ func TestLockCommandsFromPMActOnConnectedGroup(t *testing.T) {
 func TestLockCommandsRefuseMembers(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot, chat, member := f.bot, f.chat, f.member
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLocks(d)
 	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
 		t.Fatalf("UpdateLock setup error = %v", err)
 	}
 
-	if err := locksModule.lockPerm(bot, newModuleMessageContext(bot, chat, member, "/lock url")); err != ext.EndGroups {
-		t.Fatalf("lockPerm(member) error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(bot, newModuleMessageContext(bot, chat, member, "/lock url").Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if locks.IsPermLocked(chat.Id, "url") {
 		t.Fatal("a member locked url")
 	}
-	if err := locksModule.unlockPerm(bot, newModuleMessageContext(bot, chat, member, "/unlock media")); err != ext.EndGroups {
-		t.Fatalf("unlockPerm(member) error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(bot, newModuleMessageContext(bot, chat, member, "/unlock media").Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if !locks.IsPermLocked(chat.Id, "media") {
 		t.Fatal("a member unlocked media")
