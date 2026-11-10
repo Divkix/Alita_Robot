@@ -197,11 +197,14 @@ func TestCommandHelpFallsBackToModuleHelp(t *testing.T) {
 
 func TestAnonymousAdminBanWithoutTargetGetsHelp(t *testing.T) {
 	useRealLocales(t)
-	initBanDescs()
 	f := newAdminChatFixture(t)
-	handler := anonPipelineHandler(banDesc, bansModule.ban)
-	if err := handler(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/ban")); err != ext.EndGroups {
-		t.Fatalf("anonymous /ban error = %v, want EndGroups", err)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+	replies := dispatchAnonymousAdminCommand(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, "/ban"))
+	if len(replies) != 1 {
+		t.Fatalf("anonymous /ban sent %d post-proof replies, want its help", len(replies))
 	}
-	assertCommandHelpReply(t, onlyReply(t, f.client, f.chat.Id), "ban", translated(t, "common_no_user_specified"))
+	assertParams(t, replies[0], map[string]any{"chat_id": f.chat.Id, "parse_mode": "HTML"})
+	assertCommandHelpReply(t, fmt.Sprint(replies[0].Params["text"]), "ban", translated(t, "common_no_user_specified"))
 }

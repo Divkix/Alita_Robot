@@ -375,15 +375,12 @@ func escapeLegacyMarkdown(s string) string {
 	return legacyMarkdownEscaper.Replace(s)
 }
 
-func purgeChecks(cmd string) []helpers.CheckFunc {
-	return []helpers.CheckFunc{
-		helpers.CheckDisabled(cmd),
-		helpers.RequireGroup(),
+func purgeChecks() []helpers.CheckFunc {
+	return []helpers.CheckFunc{helpers.RequireGroup(),
 		helpers.RequireBotAdmin(),
 		helpers.CanBotDelete(),
 		helpers.RequireUserAdmin(),
-		helpers.CanUserDelete(),
-	}
+		helpers.CanUserDelete()}
 }
 
 var (
@@ -394,10 +391,10 @@ var (
 )
 
 func initPurgeDescs() {
-	delDesc.RequiredChecks = purgeChecks("del")
-	purgeDesc.RequiredChecks = purgeChecks("purge")
-	purgeFromDesc.RequiredChecks = purgeChecks("purgefrom")
-	purgeToDesc.RequiredChecks = purgeChecks("purgeto")
+	delDesc.RequiredChecks = purgeChecks()
+	purgeDesc.RequiredChecks = purgeChecks()
+	purgeFromDesc.RequiredChecks = purgeChecks()
+	purgeToDesc.RequiredChecks = purgeChecks()
 }
 
 func LoadPurges(dispatcher *ext.Dispatcher) {
@@ -413,8 +410,5 @@ func LoadPurges(dispatcher *ext.Dispatcher) {
 func init() {
 	RegisterLegacyModule("Purges", 90, LoadPurges)
 	initPurgeDescs()
-	RegisterAnonymousAdminHandler("purge", anonPipelineHandler(purgeDesc, purgesModule.purge))
-	RegisterAnonymousAdminHandler("del", anonPipelineHandler(delDesc, purgesModule.delCmd))
-	RegisterAnonymousAdminHandler("purgefrom", anonPipelineHandler(purgeFromDesc, purgesModule.purgeFrom))
-	RegisterAnonymousAdminHandler("purgeto", anonPipelineHandler(purgeToDesc, purgesModule.purgeTo))
+
 }

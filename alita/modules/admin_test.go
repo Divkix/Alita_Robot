@@ -18,7 +18,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -419,8 +418,7 @@ func TestSetTitleReplyEscapesNameAndTitle(t *testing.T) {
 	}
 }
 
-// Anonymous admins skip WrapCommand, so the anon handlers send the refusal the
-// pipeline would have sent instead of ending silently.
+// Proof replay must run the same rights checks and explain a refusal.
 func TestAnonAdminPromoteAndDemoteExplainMissingRights(t *testing.T) {
 	useRealLocales(t)
 	const noRights = `"can_manage_chat":true`
@@ -433,14 +431,8 @@ func TestAnonAdminPromoteAndDemoteExplainMissingRights(t *testing.T) {
 		{name: "admin cannot promote", adminRule: noRights, botRule: fixtureAdminRights, wantKey: "chat_status_promote_cmd_error"},
 		{name: "bot cannot promote", adminRule: fixtureAdminRights, botRule: noRights, wantKey: "chat_status_bot_promote_error"},
 	} {
-		for _, cmd := range []struct {
-			text string
-			run  func(*gotgbot.Bot, *ext.Context) error
-		}{
-			{text: "/promote 42", run: anonCommandContextHandler(promoteDesc, adminModule.promote)},
-			{text: "/demote 42", run: anonCommandContextHandler(demoteDesc, adminModule.demote)},
-		} {
-			t.Run(tt.name+" "+cmd.text, func(t *testing.T) {
+		for _, command := range []string{"/promote 42", "/demote 42"} {
+			t.Run(tt.name+" "+command, func(t *testing.T) {
 				f := newAdminChatFixture(t)
 				adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, f.admin.Id, tt.adminRule)
 				botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + tt.botRule + `}`
@@ -450,14 +442,18 @@ func TestAnonAdminPromoteAndDemoteExplainMissingRights(t *testing.T) {
 				// the bot's rights come from the loaded admin cache.
 				cache.LoadAdminCache(f.bot, f.chat.Id)
 
-				if err := cmd.run(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, cmd.text)); err != ext.EndGroups {
-					t.Fatalf("%s error = %v, want EndGroups", cmd.text, err)
-				}
+				dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+				LoadAdmin(dispatcher)
+				LoadBotUpdates(dispatcher)
+				replies := dispatchAnonymousAdminCommand(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, command))
 				if calls := f.client.callsFor("promoteChatMember"); len(calls) != 0 {
 					t.Fatalf("promoteChatMember calls = %d, want none", len(calls))
 				}
-				if got, want := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]), translated(t, tt.wantKey); got != want {
-					t.Fatalf("%s reply = %q, want %q", cmd.text, got, want)
+				if len(replies) != 1 {
+					t.Fatalf("%s sent %d post-proof replies, want one refusal", command, len(replies))
+				}
+				if got, want := fmt.Sprint(replies[0].Params["text"]), translated(t, tt.wantKey); got != want {
+					t.Fatalf("%s reply = %q, want %q", command, got, want)
 				}
 			})
 		}
@@ -937,9 +933,10 @@ func fmtInt(value int64) string {
 	return strconv.FormatInt(value, 10)
 }
 
-// An anonymous admin's confirmed /setg* command, under its name or any alias,
-// reaches its handler.
-func TestAnonymousAdminSetGroupCommandsAreRouted(t *testing.T) {
+// An anonymous admin's /setg* command and aliases keep their domain behavior
+// after the actual proof button is pressed.
+func TestAnonymousAdminSetGroupCommandsRunAfterProof(t *testing.T) {
+	useRealLocales(t)
 	for _, tt := range []struct {
 		command string
 		method  string
@@ -952,24 +949,27 @@ func TestAnonymousAdminSetGroupCommandsAreRouted(t *testing.T) {
 	} {
 		t.Run(tt.command, func(t *testing.T) {
 			f := newAdminChatFixture(t)
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadAdmin(dispatcher)
+			LoadBotUpdates(dispatcher)
 			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+tt.command+" New Value")
-			if err := HandleAnonymousAdmin(f.bot, ctx, tt.command); err != ext.EndGroups {
-				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", tt.command, err)
-			}
+			dispatchAnonymousAdminCommand(t, dispatcher, f, ctx)
 			f.client.onlyCall(t, tt.method)
 		})
 	}
 
-	// Without a replied-to photo the handler answers instead of erroring as
-	// an unknown command.
+	// Without a replied-to photo the confirmed command explains what it needs.
 	for _, command := range []string{"setgpic", "setgrouppic"} {
 		t.Run(command, func(t *testing.T) {
 			f := newAdminChatFixture(t)
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadAdmin(dispatcher)
+			LoadBotUpdates(dispatcher)
 			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/"+command)
-			if err := HandleAnonymousAdmin(f.bot, ctx, command); err != ext.EndGroups {
-				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", command, err)
+			replies := dispatchAnonymousAdminCommand(t, dispatcher, f, ctx)
+			if len(replies) != 1 || fmt.Sprint(replies[0].Params["text"]) != translated(t, "admin_setgpic_need_photo") {
+				t.Fatalf("/%s post-proof replies = %+v, want the photo request", command, replies)
 			}
-			f.client.onlyCall(t, "sendMessage")
 		})
 	}
 }
@@ -1064,18 +1064,12 @@ func TestDirectAdminMemberRequestsKeepUpdateTrace(t *testing.T) {
 func TestAnonymousAdminProofRejectsNonAdminBeforeReplay(t *testing.T) {
 	useRealLocales(t)
 	f := newAdminChatFixture(t)
-	original := newAnonAdminCommandContext(t, f, "/ban 42").Msg
-	key := chat_status.AnonAdminCacheKey(f.chat.Id, original.MessageId)
-	if err := cache.GetMarshal().Set(cache.Context, key, original); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
-	data := encodeCallbackData("anon_admin", map[string]string{
-		"c": fmtInt(f.chat.Id),
-		"m": fmtInt(original.MessageId),
-	})
-	ctx := newModuleCallbackContext(f.bot, f.chat, f.member, data)
-	if err := verifyAnonymousAdmin(f.bot, ctx); err != ext.EndGroups {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+	tap := anonymousAdminProof(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, "/ban 42"))
+	tap.CallbackQuery.From = f.member
+	if err := dispatcher.ProcessUpdate(f.bot, tap, nil); err != nil {
 		t.Fatalf("unprivileged confirmation returned %v", err)
 	}
 	if calls := f.client.callsFor("banChatMember"); len(calls) != 0 {
@@ -1084,8 +1078,8 @@ func TestAnonymousAdminProofRejectsNonAdminBeforeReplay(t *testing.T) {
 	if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("unprivileged confirmation consumed the proof button: %+v", calls)
 	}
-	if chat_status.CanUserRestrict(f.bot, ctx, &f.chat, f.member.Id) {
-		t.Fatal("rejected confirmation retained restriction permission")
+	if got, want := fmt.Sprint(f.client.onlyCall(t, "answerCallbackQuery").Params["text"]), translated(t, "bot_updates_need_admin"); got != want {
+		t.Fatalf("unprivileged confirmation answered %q, want %q", got, want)
 	}
 }
 
@@ -1128,32 +1122,21 @@ func TestAdminMembershipFailurePropagatesBeforeMutation(t *testing.T) {
 	}
 }
 
-func TestAnonymousAdminProofPreservesMessageSender(t *testing.T) {
+func TestAnonymousAdminInviteLinkUsesConfirmingAdminsRights(t *testing.T) {
 	useRealLocales(t)
 	f := newAdminChatFixture(t)
-	original := newAnonAdminCommandContext(t, f, "/ban 42").Msg
-	key := chat_status.AnonAdminCacheKey(f.chat.Id, original.MessageId)
-	if err := cache.GetMarshal().Set(cache.Context, key, original); err != nil {
-		t.Fatal(err)
+	const invite = "https://t.me/+confirmed-admin-invite"
+	f.client.chatsByID[fmt.Sprint(f.chat.Id)] = json.RawMessage(fmt.Sprintf(
+		`{"id":%d,"type":"supergroup","title":%q,"invite_link":%q}`, f.chat.Id, f.chat.Title, invite,
+	))
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAdmin(dispatcher)
+	LoadBotUpdates(dispatcher)
+	replies := dispatchAnonymousAdminCommand(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, "/invitelink"))
+	if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), invite) {
+		t.Fatalf("post-proof invite replies = %+v, want the private invite link", replies)
 	}
-	t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
-	data := encodeCallbackData("anon_admin", map[string]string{
-		"c": fmtInt(f.chat.Id),
-		"m": fmtInt(original.MessageId),
-	})
-	ctx := newModuleCallbackContext(f.bot, f.chat, f.admin, data)
-	if err := verifyAnonymousAdmin(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("admin confirmation returned %v", err)
-	}
-	f.client.onlyCall(t, "banChatMember")
-	if ctx.EffectiveUser == nil || ctx.EffectiveUser.Id != f.admin.Id {
-		t.Fatal("confirmation lost the authorizing admin")
-	}
-	if ctx.EffectiveMessage == nil || ctx.EffectiveMessage.From == nil ||
-		ctx.EffectiveMessage.From.Id != chat_status.GroupAnonymousBotID {
-		t.Fatal("confirmation exposed the original anonymous sender")
-	}
-	if !chat_status.CanInvite(f.bot, ctx, &f.chat, ctx.EffectiveMessage) {
-		t.Fatal("original anonymous sender masked the confirming admin's invite right")
+	for _, call := range f.client.callsFor("getChat") {
+		assertParams(t, call, map[string]any{"chat_id": f.chat.Id})
 	}
 }

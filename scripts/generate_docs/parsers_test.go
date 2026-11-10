@@ -200,7 +200,7 @@ var (
 	// Nested braces in RequiredChecks must not end the descriptor early.
 	banDesc = helpers.CommandDescriptor{
 		RequiredChecks: []helpers.CheckFunc{
-			helpers.CheckDisabled("ban"),
+			helpers.RequireGroup(),
 			func(c *helpers.CommandContext) bool { return c != nil }, // don't stop here
 		},
 		Name:    "ban",
@@ -226,7 +226,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,
-			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+			RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup()},
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}

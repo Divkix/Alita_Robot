@@ -732,12 +732,9 @@ var (
 		Name:        "adminlist",
 		Disableable: true,
 		PMGroupArg:  helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{
-			helpers.CheckDisabled("adminlist"),
-			groupOnlyChatCheck,
+		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck,
 			helpers.RequireBotAdmin(),
-			helpers.RequireGroup(),
-		},
+			helpers.RequireGroup()},
 	}
 	promoteDesc = helpers.CommandDescriptor{
 		Name: "promote",
@@ -881,39 +878,6 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// anonCommandContextHandler is the post-proof anonymous-admin entry point for
-// pipeline commands whose handlers take a CommandContext. It re-runs the
-// descriptor's checks as the admin who pressed the confirm button.
-func anonCommandContextHandler(desc helpers.CommandDescriptor, h func(*helpers.CommandContext) error) AnonymousAdminHandler {
-	return func(b *gotgbot.Bot, ctx *ext.Context) error {
-		c, err := helpers.BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		if !helpers.RunChecks(c, desc.RequiredChecks) {
-			return ext.EndGroups
-		}
-		return h(c)
-	}
-}
-
 func init() {
 	RegisterLegacyModule("Admin", 30, LoadAdmin)
-	RegisterAnonymousAdminHandler("promote", anonCommandContextHandler(promoteDesc, adminModule.promote))
-	RegisterAnonymousAdminHandler("demote", anonCommandContextHandler(demoteDesc, adminModule.demote))
-	RegisterAnonymousAdminHandler("title", anonCommandContextHandler(setTitleDesc, adminModule.setTitle))
-	// The router matches the command as typed, so register every alias too.
-	for _, d := range []struct {
-		desc helpers.CommandDescriptor
-		h    func(*helpers.CommandContext) error
-	}{
-		{setGTitleDesc, adminModule.setGTitle},
-		{setGPicDesc, adminModule.setGPic},
-		{setGDescDesc, adminModule.setGDesc},
-		{timezoneDesc, adminModule.timezone},
-	} {
-		for _, name := range append([]string{d.desc.Name}, d.desc.Aliases...) {
-			RegisterAnonymousAdminHandler(name, anonCommandContextHandler(d.desc, d.h))
-		}
-	}
 }

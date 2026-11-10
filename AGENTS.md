@@ -55,8 +55,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   is dropped silently); priority sets load order and group-0 precedence.
 - New commands use `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`, with `Disableable: true` when
   chats may disable them. The pipeline sends the reply for a failed check.
-- Anonymous admins bypass `WrapCommand`: an admin command that must work for them also registers
-  `RegisterAnonymousAdminHandler` with `anonPipelineHandler` or `anonCommandContextHandler`.
+- `WrapCommand` derives anonymous-admin replay for the command's name and every alias; never register a replay
+  handler separately. Descriptor checks run again as the admin who confirmed the proof.
 - A PM command acting on a group points `ctx.EffectiveChat` at it, and later groups must not run on that ctx.
   `WrapCommand` ends iteration after such a swap. A legacy command relies on the group-1 guard, which sees only
   group-0 swaps, so one registered in a higher group returns `ext.EndGroups` on every path. Group 1 holds the guard
@@ -112,7 +112,7 @@ CGO_ENABLED=0 go build ./...   # compile check
 3. Add the model to the `AutoMigrate` list of each affected `testmain_test.go` or `internal/testdb.Run` call; do the
    same when changing an existing model.
 4. `alita/modules/<name>.go` with `LoadXxx`, registered through `RegisterLegacyModule`; commands through
-   `helpers.WrapCommand`, plus `RegisterAnonymousAdminHandler` for admin commands.
+   `helpers.WrapCommand` (including derived replay and disabling).
 5. Locale keys in all 7 `locales/*.yml`. Help entries, examples and the `/commands` menu follow `commandHelpModules`
    and `menuCommands`; their tests name any missing entry.
 6. `make generate-docs`, `make check-translations`, `make test`, `make lint`.

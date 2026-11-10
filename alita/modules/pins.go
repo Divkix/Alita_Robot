@@ -644,8 +644,5 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Pins", 50, LoadPin)
-	RegisterAnonymousAdminHandler("pin", anonCommandContextHandler(pinDesc, pinsModule.pin))
-	RegisterAnonymousAdminHandler("unpin", anonCommandContextHandler(unpinDesc, pinsModule.unpin))
-	RegisterAnonymousAdminHandler("permapin", anonCommandContextHandler(permaPinDesc, pinsModule.permaPin))
-	RegisterAnonymousAdminHandler("unpinall", anonCommandContextHandler(unpinAllDesc, pinsModule.unpinAll))
+
 }

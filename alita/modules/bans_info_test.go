@@ -176,15 +176,16 @@ func TestBanInfoFromPMReadsTheNamedGroup(t *testing.T) {
 	}
 }
 
-func TestAnonymousAdminBanInfoIsRouted(t *testing.T) {
+func TestAnonymousAdminBanInfoShowsRecordAfterProof(t *testing.T) {
 	useEnglishLocale(t)
 	f := newAdminChatFixture(t)
 	seedBanRecord(t, models.BanRecord{ChatId: f.chat.Id, UserId: 43, Source: models.BanSourceManual, Reason: "anon reason"})
 
-	if err := HandleAnonymousAdmin(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/baninfo 43"), "baninfo"); err != ext.EndGroups {
-		t.Fatalf("HandleAnonymousAdmin(baninfo) error = %v, want EndGroups", err)
-	}
-	if text := soleText(t, sentTexts(f.client)); !strings.Contains(text, "anon reason") {
-		t.Fatalf("anonymous /baninfo replied %q, want the record", text)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+	replies := dispatchAnonymousAdminCommand(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, "/baninfo 43"))
+	if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), "anon reason") {
+		t.Fatalf("anonymous /baninfo post-proof replies = %+v, want the record", replies)
 	}
 }

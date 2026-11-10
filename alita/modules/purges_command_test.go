@@ -238,26 +238,24 @@ func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
 	assertDeleted(t, client, chat.Id, 215, 216, 217, 218, 220, 230)
 }
 
-// An anonymous admin's confirmed /purgefrom and /purgeto reach their handlers.
-func TestAnonymousAdminPurgeFromToAreRouted(t *testing.T) {
+// Both marked-range commands retain their replies through anonymous proof replay.
+func TestAnonymousAdminPurgeFromToDeletesMarkedRangeAfterProof(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	delMsgs.Delete(chat.Id)
 	t.Cleanup(func() { delMsgs.Delete(chat.Id) })
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadPurges(dispatcher)
+	LoadBotUpdates(dispatcher)
 
 	fromCtx := newPurgeReplyContext(bot, chat, admin, "/purgefrom", 420, 415)
-	if err := HandleAnonymousAdmin(bot, fromCtx, "purgefrom"); err != ext.EndGroups {
-		t.Fatalf("HandleAnonymousAdmin(purgefrom) error = %v, want EndGroups", err)
-	}
-	if stored, ok := delMsgs.Load(chat.Id); !ok || stored.(delMsgEntry).msgID != 415 {
-		t.Fatalf("purge marker = %v, %v, want message 415", stored, ok)
-	}
-
+	dispatchAnonymousAdminCommand(t, dispatcher, f, fromCtx)
 	toCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto", 430, 417)
-	if err := HandleAnonymousAdmin(bot, toCtx, "purgeto"); err != ext.EndGroups {
-		t.Fatalf("HandleAnonymousAdmin(purgeto) error = %v, want EndGroups", err)
-	}
+	dispatchAnonymousAdminCommand(t, dispatcher, f, toCtx)
 	assertDeleted(t, client, chat.Id, 415, 416, 417)
+	if _, ok := delMsgs.Load(chat.Id); ok {
+		t.Fatal("purge marker was not cleared after the confirmed /purgeto")
+	}
 }
 
 // A second /purgefrom on another message is refused with its own message and

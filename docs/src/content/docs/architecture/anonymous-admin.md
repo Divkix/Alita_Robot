@@ -63,28 +63,19 @@ sequenceDiagram
 
 - **Cache key format:** `alita:anonAdmin:{chatId}:{msgId}` with 20-second TTL
 - **Callback data encoding:** Versioned codec format `anon_admin|v1|c={chatId}&m={msgId}` only; unversioned or malformed payloads are rejected with "Invalid request." (`alita:anonAdmin:{chatId}:{msgId}` is the Redis cache key above, not a callback format)
-- **Command re-dispatch:** After verification, the bot sets `ctx.EffectiveMessage` to the original cached message, clears `SenderChat` (prevents re-triggering anonymous admin detection), replaces `ctx.Update` with a message-only update for the original message (dropping the `CallbackQuery`), sets the effective user to the clicker, extracts the command from the message text or caption, and dispatches through `HandleAnonymousAdmin`, which looks it up in the registry filled by `RegisterAnonymousAdminHandler` (`alita/modules/anonymous_admin_router.go`)
+- **Command replay:** After verification, the bot restores the original cached message, clears `SenderChat`, replaces the callback update with the original message update, and sets the effective actor to the admin who tapped. `helpers.ReplayCommand` runs the same pipeline registered by `WrapCommand`, under the typed name or alias, preserving arguments, media and the replied-to message. Checks run with the confirming admin's rights; proof does not grant missing rights or ownership.
 - **Non-admin click handling:** Shows a toast notification ("Need to be admin") without error; does not consume the keyboard
 
 ## Supported Commands
 
-The following commands support anonymous admin verification. Only these commands are registered with `RegisterAnonymousAdminHandler`:
-
-| Module | Commands |
-|--------|----------|
-| Admin | `/promote`, `/demote`, `/title`, `/setgtitle` (`/setgrouptitle`), `/setgpic` (`/setgrouppic`), `/setgdesc` (`/setgroupdesc`, `/setdescription`) |
-| Bans | `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/kick`, `/dkick`, `/skick`, `/restrict`, `/unrestrict` |
-| Mutes | `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute` |
-| Pins | `/pin`, `/unpin`, `/permapin`, `/unpinall` |
-| Purges | `/purge`, `/del`, `/purgefrom`, `/purgeto` |
-| Warns | `/warn`, `/swarn`, `/dwarn` |
+Every command registered with `helpers.WrapCommand` automatically has replay under its name and every alias. No separate replay registration is needed. Commands still using legacy registration are being migrated; the dispatcher-wide command contract test names their remaining failures.
 
 ## Troubleshooting
 
 :::tip[Common issues]
 - **"Button expired"** -- An admin clicked the button after the 20-second cache entry expired. The admin must re-send the command.
 - **"Need to be admin"** -- A non-admin user clicked the "Prove Admin" button. Only actual chat admins can verify.
-- **Commands not executing in anonymous mode** -- The command may not be in the supported commands list above. Only commands registered with `RegisterAnonymousAdminHandler` are supported.
+- **Commands not executing in anonymous mode** -- Check the command's descriptor and the confirming admin's required rights. Legacy command registrations still need migration to `helpers.WrapCommand`.
 :::
 
 ## Related Pages

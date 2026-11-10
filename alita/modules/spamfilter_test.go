@@ -125,12 +125,6 @@ func spamFilterLogEntry(t *testing.T, client *moduleBotClient) (string, string) 
 	return text, markup.InlineKeyboard[0][0].CallbackData
 }
 
-// spamCommandHandled reports a CommandContext handler's success: it returns
-// nil, which WrapCommand turns into EndGroups, or EndGroups after a refusal.
-func spamCommandHandled(err error) bool {
-	return err == nil || err == ext.EndGroups
-}
-
 func spamFilterLogEntries(client *moduleBotClient) int {
 	return len(spamDBMessagesTo(client, spamFilterLogChannel))
 }
@@ -143,11 +137,13 @@ func TestSpamCommandDeletesBansRecordsAndStoresSample(t *testing.T) {
 	spamFilterReset(t)
 	f := newAdminChatFixture(t)
 	spammer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Spammer"}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadSpamFilter(dispatcher)
 
 	ctx := newBanReplyContext(f.bot, f.chat, f.admin, spammer, "/spam")
 	ctx.EffectiveMessage.ReplyToMessage.Text = spamFilterSpamText
-	if err := anonPipelineHandler(spamDesc, spamFilterModule.spamCommand)(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("/spam error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/spam error = %v", err)
 	}
 
 	assertParams(t, f.client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": f.chat.Id, "message_id": 303})
@@ -183,11 +179,13 @@ func TestSpamCommandStillBansWhenTheTextIsTooShortToStore(t *testing.T) {
 	spamFilterReset(t)
 	f := newAdminChatFixture(t)
 	spammer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Spammer"}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadSpamFilter(dispatcher)
 
 	ctx := newBanReplyContext(f.bot, f.chat, f.admin, spammer, "/spam")
 	ctx.EffectiveMessage.ReplyToMessage.Text = "hi"
-	if err := anonPipelineHandler(spamDesc, spamFilterModule.spamCommand)(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("/spam error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/spam error = %v", err)
 	}
 	f.client.onlyCall(t, "banChatMember")
 	f.client.onlyCall(t, "sendMessage")
@@ -200,26 +198,27 @@ func TestSpamCommandRefusals(t *testing.T) {
 	spamFilterReset(t)
 	f := newAdminChatFixture(t)
 	spammer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Spammer"}
-	run := anonPipelineHandler(spamDesc, spamFilterModule.spamCommand)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadSpamFilter(dispatcher)
 
 	// Without a reply there is nothing to delete or learn.
-	if err := run(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/spam")); err != ext.EndGroups {
-		t.Fatalf("/spam without reply error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/spam").Update, nil); err != nil {
+		t.Fatalf("/spam without reply error = %v", err)
 	}
 	f.client.onlyCall(t, "sendMessage")
 
 	// A member cannot use it.
 	ctx := newBanReplyContext(f.bot, f.chat, f.member, spammer, "/spam")
 	ctx.EffectiveMessage.ReplyToMessage.Text = spamFilterSpamText
-	if err := run(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("/spam by member error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/spam by member error = %v", err)
 	}
 
 	// Nor can it target an admin.
 	ctx = newBanReplyContext(f.bot, f.chat, f.admin, f.admin, "/spam")
 	ctx.EffectiveMessage.ReplyToMessage.Text = spamFilterSpamText
-	if err := run(f.bot, ctx); err != ext.EndGroups {
-		t.Fatalf("/spam on admin error = %v, want EndGroups", err)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/spam on admin error = %v", err)
 	}
 
 	for _, method := range []string{"banChatMember", "deleteMessage"} {
@@ -501,11 +500,12 @@ func TestSpamFilterCommandSetsModeAndThreshold(t *testing.T) {
 	useRealLocales(t)
 	spamFilterReset(t)
 	f := newAdminChatFixture(t)
-	run := anonCommandContextHandler(spamFilterDesc, spamFilterModule.spamFilter)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadSpamFilter(dispatcher)
 	send := func(text string) {
 		t.Helper()
-		if err := run(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, text)); !spamCommandHandled(err) {
-			t.Fatalf("%s error = %v, want it handled", text, err)
+		if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, text).Update, nil); err != nil {
+			t.Fatalf("%s error = %v", text, err)
 		}
 	}
 	settings := func() *models.SpamFilterSettings {
@@ -539,8 +539,8 @@ func TestSpamFilterCommandSetsModeAndThreshold(t *testing.T) {
 	}
 
 	// A member cannot change it.
-	if err := run(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/spamfilter on")); !spamCommandHandled(err) {
-		t.Fatalf("member /spamfilter error = %v, want it handled", err)
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/spamfilter on").Update, nil); err != nil {
+		t.Fatalf("member /spamfilter error = %v", err)
 	}
 	if got := settings().Mode; got != models.SpamFilterOff {
 		t.Fatalf("mode after member /spamfilter on = %q, want off", got)
@@ -555,19 +555,19 @@ func TestSpamSamplesListsAndForgetSpamDeletes(t *testing.T) {
 	mine := spamFilterAddSample(t, f.chat.Id, 7, "Join <b>VIP</b> signals & get 300% profit at @vip_signals_channel")
 	theirs := spamFilterAddSample(t, other, 7, spamFilterSpamText)
 
-	list := anonCommandContextHandler(spamSamplesDesc, spamFilterModule.spamSamples)
-	if err := list(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/spamsamples")); !spamCommandHandled(err) {
-		t.Fatalf("/spamsamples error = %v, want it handled", err)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadSpamFilter(dispatcher)
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/spamsamples").Update, nil); err != nil {
+		t.Fatalf("/spamsamples error = %v", err)
 	}
 	listing := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
 	if !strings.Contains(listing, fmt.Sprintf("#%d", mine.ID)) || !strings.Contains(listing, "&lt;b&gt;VIP&lt;/b&gt;") {
 		t.Fatalf("/spamsamples = %q, want sample #%d with its text escaped", listing, mine.ID)
 	}
 
-	forget := anonCommandContextHandler(forgetSpamDesc, spamFilterModule.forgetSpam)
 	for _, text := range []string{fmt.Sprintf("/forgetspam %d", theirs.ID), "/forgetspam x", fmt.Sprintf("/forgetspam #%d", mine.ID)} {
-		if err := forget(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, text)); !spamCommandHandled(err) {
-			t.Fatalf("%s error = %v, want it handled", text, err)
+		if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, text).Update, nil); err != nil {
+			t.Fatalf("%s error = %v", text, err)
 		}
 	}
 	if spam := spamFilterSamples(t, f.chat.Id, models.SpamLabelSpam); len(spam) != 0 {

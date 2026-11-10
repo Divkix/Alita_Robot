@@ -277,8 +277,6 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 func init() {
     RegisterLegacyModule("Bans", 70, LoadBans)
     initBanDescs()
-    // Anonymous admins bypass WrapCommand; this re-runs the same checks after they prove admin rights
-    RegisterAnonymousAdminHandler("ban", anonPipelineHandler(banDesc, bansModule.ban))
 }
 ```
 

@@ -285,15 +285,16 @@ func TestBanListFromPMListsTheNamedGroup(t *testing.T) {
 	}
 }
 
-func TestAnonymousAdminBanListIsRouted(t *testing.T) {
+func TestAnonymousAdminBanListShowsOpenBansAfterProof(t *testing.T) {
 	useEnglishLocale(t)
 	f := newAdminChatFixture(t)
 	seedOpenBans(t, f.chat.Id, 1201)
 
-	if err := HandleAnonymousAdmin(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/banlist"), "banlist"); err != ext.EndGroups {
-		t.Fatalf("HandleAnonymousAdmin(banlist) error = %v, want EndGroups", err)
-	}
-	if text := soleText(t, sentTexts(f.client)); len(listedIDs(text, 1201)) != 1 {
-		t.Fatalf("anonymous /banlist replied %q, want the list", text)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+	replies := dispatchAnonymousAdminCommand(t, dispatcher, f, newModuleMessageContext(f.bot, f.chat, f.admin, "/banlist"))
+	if len(replies) != 1 || len(listedIDs(fmt.Sprint(replies[0].Params["text"]), 1201)) != 1 {
+		t.Fatalf("anonymous /banlist post-proof replies = %+v, want the list", replies)
 	}
 }

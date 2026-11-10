@@ -39,7 +39,7 @@ func spamFilterAdminChecks() []helpers.CheckFunc {
 var (
 	// spamDesc needs what /dban needs: /spam deletes the replied message and
 	// bans its sender.
-	spamDesc        = helpers.CommandDescriptor{Name: "spam", RequiredChecks: deleteRestrictChecks("spam")}
+	spamDesc        = helpers.CommandDescriptor{Name: "spam", RequiredChecks: deleteRestrictChecks()}
 	spamFilterDesc  = helpers.CommandDescriptor{Name: "spamfilter", RequiredChecks: spamFilterAdminChecks()}
 	spamSamplesDesc = helpers.CommandDescriptor{Name: "spamsamples", RequiredChecks: spamFilterAdminChecks()}
 	forgetSpamDesc  = helpers.CommandDescriptor{Name: "forgetspam", RequiredChecks: spamFilterAdminChecks()}
@@ -408,8 +408,5 @@ func LoadSpamFilter(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("SpamFilter", 226, LoadSpamFilter)
-	RegisterAnonymousAdminHandler("spam", anonPipelineHandler(spamDesc, spamFilterModule.spamCommand))
-	RegisterAnonymousAdminHandler("spamfilter", anonCommandContextHandler(spamFilterDesc, spamFilterModule.spamFilter))
-	RegisterAnonymousAdminHandler("spamsamples", anonCommandContextHandler(spamSamplesDesc, spamFilterModule.spamSamples))
-	RegisterAnonymousAdminHandler("forgetspam", anonCommandContextHandler(forgetSpamDesc, spamFilterModule.forgetSpam))
+
 }

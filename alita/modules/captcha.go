@@ -2387,14 +2387,10 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 		{"captchaclear", captchaModule.clearPendingMessages},
 	} {
 		desc := helpers.CommandDescriptor{
-			Name:           cfg.name,
-			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
-			PMGroupArg:     helpers.PMGroupArgOwn,
+			Name:       cfg.name,
+			PMGroupArg: helpers.PMGroupArgOwn,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
-		if cfg.name == "captchajoin" {
-			RegisterAnonymousAdminHandler(cfg.name, anonPipelineHandler(desc, cfg.handler))
-		}
 	}
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify"), captchaModule.captchaVerifyCallback))

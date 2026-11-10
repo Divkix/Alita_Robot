@@ -2,11 +2,17 @@ package helpers
 
 import (
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -83,11 +89,25 @@ func SetPMGroupResolver(r PMGroupResolver) {
 	pmGroupResolver = r
 }
 
+// commandReplays is populated only by WrapCommand, alongside dispatcher registration.
+var commandReplays sync.Map
+
+// ReplayCommand runs the registered pipeline as the effective actor restored by
+// the proof callback. It does not re-enter watcher groups or rewrite the message.
+func ReplayCommand(b *gotgbot.Bot, ctx *ext.Context, command string) error {
+	h, ok := commandReplays.Load(strings.ToLower(command))
+	if !ok {
+		return fmt.Errorf("unknown pipeline command: %s", command)
+	}
+	return h.(handlers.Response)(b, ctx)
+}
+
 func WrapCommand(
 	dispatcher *ext.Dispatcher,
 	desc CommandDescriptor,
 	handler func(c *CommandContext) error,
 ) {
+	names := append([]string{desc.Name}, desc.Aliases...)
 	h := func(b *gotgbot.Bot, ctx *ext.Context) (result error) {
 		defer error_handling.RecoverFromUpdatePanic(ctx, "command_pipeline", "WrapCommand")
 		// Runs before the recover above, so a panic after a swap ends groups too.
@@ -107,14 +127,32 @@ func WrapCommand(
 		if err != nil {
 			return ext.EndGroups
 		}
+		if desc.Disableable && commandDisabled(c, names) {
+			return ext.EndGroups
+		}
+		checkedChat := c.Chat
 		for _, check := range desc.RequiredChecks {
 			if !check(c) {
 				return ext.EndGroups
 			}
+			// A PM connection check may resolve a different target. Honour that
+			// group's setting without ever deleting the private message.
+			if desc.Disableable && c.Chat != checkedChat {
+				if commandDisabled(c, names) {
+					return ext.EndGroups
+				}
+				checkedChat = c.Chat
+			}
 		}
 		return handler(c)
 	}
-	register(dispatcher, desc, h)
+	for _, name := range names {
+		commandReplays.Store(strings.ToLower(name), handlers.Response(h))
+		dispatcher.AddHandlerToGroup(handlers.NewCommand(name, h), desc.Group)
+		if desc.Disableable {
+			AddCmdToDisableable(name)
+		}
+	}
 }
 
 // endGroupsAfterChatSwap ends handler-group iteration once the command has
@@ -142,27 +180,28 @@ func EndGroupsLogging(ctx *ext.Context, err error) error {
 	return ext.EndGroups
 }
 
-func register(dispatcher *ext.Dispatcher, desc CommandDescriptor, h handlers.Response) {
-	cmds := append([]string{desc.Name}, desc.Aliases...)
-	for _, c := range cmds {
-		if desc.Group != 0 {
-			dispatcher.AddHandlerToGroup(handlers.NewCommand(c, h), desc.Group)
-		} else {
-			dispatcher.AddHandler(handlers.NewCommand(c, h))
-		}
-		if desc.Disableable {
-			AddCmdToDisableable(c)
-		}
+// commandDisabled applies one setting to all spellings, using the effective
+// actor rather than the anonymous sender retained on a replayed message.
+func commandDisabled(c *CommandContext, names []string) bool {
+	if c.Chat == nil || c.Chat.Type == "private" || c.User == nil {
+		return false
 	}
-}
-
-func CheckDisabled(cmdName string) CheckFunc {
-	return func(c *CommandContext) bool {
-		if c.Msg == nil || c.Bot == nil {
+	disabled := disabling.GetChatDisabledCMDsCached(c.Chat.Id)
+	for _, name := range names {
+		if !slices.Contains(disabled, name) {
+			continue
+		}
+		if chat_status.IsUserAdminForUpdate(c.Bot, c.Ctx, c.Chat.Id, c.User.Id) {
 			return false
 		}
-		return !chat_status.CheckDisabledCmd(c.Bot, c.Msg, cmdName)
+		if c.Msg != nil && c.Msg.Chat.Type != "private" && disabling.ShouldDel(c.Chat.Id) {
+			if _, err := c.Msg.Delete(c.Bot, nil); err != nil {
+				log.Errorf("[command_pipeline] Failed to delete disabled command %q in chat %d: %v", name, c.Chat.Id, err)
+			}
+		}
+		return true
 	}
+	return false
 }
 
 func RequireGroup() CheckFunc {
@@ -383,8 +422,7 @@ func CanBotDelete() CheckFunc {
 	}
 }
 
-// RunChecks re-runs pipeline checks, for anonymous-admin post-proof handlers
-// which bypass WrapCommand's RequiredChecks. Returns false on first failure.
+// RunChecks runs ordered checks until the first refusal.
 func RunChecks(c *CommandContext, checks []CheckFunc) bool {
 	for _, check := range checks {
 		if !check(c) {

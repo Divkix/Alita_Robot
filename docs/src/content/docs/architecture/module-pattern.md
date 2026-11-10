@@ -32,9 +32,8 @@ var exampleModule = moduleStruct{moduleName: "Example"}
 // failing check handles its own user feedback, so the handler adds none.
 var exampleDesc = helpers.CommandDescriptor{
     Name:        "example",
-    Disableable: true, // lists the command for /disable
+    Disableable: true, // registers and enforces /disable for every name
     RequiredChecks: []helpers.CheckFunc{
-        helpers.CheckDisabled("example"), // enforces /disable
         helpers.RequireGroup(),
         helpers.RequireUserAdmin(),
     },
@@ -114,13 +113,11 @@ func LoadExample(dispatcher *ext.Dispatcher) {
 // Register the module in init() so LoadAllModules picks it up
 func init() {
     RegisterLegacyModule("Example", 100, LoadExample)
-    // Admin command: also runs for anonymous admins once they prove admin rights
-    RegisterAnonymousAdminHandler("example", anonPipelineHandler(exampleDesc, exampleModule.exampleCommand))
 }
 ```
 
 :::note[Command pipeline]
-Register new commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. The `helpers.*` CheckFuncs in `RequiredChecks` send their own failure replies (except `helpers.CheckDisabled`, which stays silent and only deletes the command when /disabledel is on), so do not add replies for failed checks. `Disableable: true` only lists the command for `/disable`; `helpers.CheckDisabled("<cmd>")` enforces it. Anonymous admins bypass `WrapCommand`, so admin commands also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`, which re-runs the same checks.
+Register commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. `RequiredChecks` send their own failure replies, so handlers add none. `Disableable: true` registers every name and alias with `/disable` and silently checks all their rows before rights checks; admins bypass disabling, and `/disabledel` deletes silenced group messages. `WrapCommand` also derives anonymous-admin replay for every spelling and runs the same checks as the confirming admin.
 :::
 
 ## Step-by-Step Guide
@@ -466,7 +463,7 @@ var (
     welcomeStatusDesc = helpers.CommandDescriptor{
         Name:           "welcomestatus",
         Disableable:    true,
-        RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled("welcomestatus"), helpers.RequireGroup()},
+        RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup()},
     }
     toggleWelcomeDesc = helpers.CommandDescriptor{
         Name:           "togglewelcome",
@@ -542,7 +539,6 @@ func LoadWelcome(dispatcher *ext.Dispatcher) {
 
 func init() {
     RegisterLegacyModule("Welcome", 210, LoadWelcome)
-    RegisterAnonymousAdminHandler("togglewelcome", anonPipelineHandler(toggleWelcomeDesc, welcomeModule.togglewelcome))
 }
 ```
 
@@ -656,8 +652,8 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - [ ] Create module struct with `moduleName`
 - [ ] Implement handler methods on module struct (value receivers)
 - [ ] Register commands with `helpers.WrapCommand` and a `helpers.CommandDescriptor`; put permission checks in `RequiredChecks`
-- [ ] For disableable commands, set `Disableable: true` and add `helpers.CheckDisabled("<cmd>")`
-- [ ] Admin commands: `RegisterAnonymousAdminHandler` + `anonPipelineHandler`
+- [ ] For disableable commands, set `Disableable: true`; the pipeline derives row checks and alias-wide suppression
+- [ ] Anonymous-admin replay is derived from the same descriptor and rechecks the confirming admin's rights
 - [ ] Use `i18n.MustNewTranslator(lang.GetLanguage(ctx))` for translations
 - [ ] Handle errors properly (log and return)
 - [ ] **Escape user-controlled input with `formatting.HtmlEscape()`**

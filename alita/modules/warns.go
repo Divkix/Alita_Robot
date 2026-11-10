@@ -15,7 +15,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -1065,11 +1064,8 @@ var (
 	warningsDesc    = helpers.CommandDescriptor{Name: "warnings", PMGroupArg: helpers.PMGroupArgNone}
 )
 
-// warnsChatCheck points a /warns sent from PM at the group named or
-// connected. Any member may run /warns in the group, so a member may from PM:
-// the group's admins are not required. A reply in PM names no user. Disabled
-// in that group, /warns answers a member who is no admin there as it does in
-// the group: with nothing.
+// warnsChatCheck resolves the PM target as a member and drops PM reply targets.
+// WrapCommand applies the resolved group's disable setting.
 func warnsChatCheck(c *helpers.CommandContext) bool {
 	if !inPM(c.Ctx.EffectiveMessage) {
 		return true
@@ -1080,17 +1076,14 @@ func warnsChatCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.EffectiveChat = chat
 	c.Chat = chat
-	if disabling.IsCommandDisabled(chat.Id, "warns") && !chat_status.IsUserAdmin(c.Bot, chat.Id, c.User.Id) {
-		return false
-	}
 	dropPMReply(c)
 	return true
 }
 
 // adminBotUserChecks are the checks of a command an admin runs with the bot
 // an admin; chat checks (pmTargetChatCheck) run before the group's.
-func adminBotUserChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFunc {
-	return append(append([]helpers.CheckFunc{helpers.CheckDisabled(cmd)}, chat...),
+func adminBotUserChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
+	return append(chat,
 		helpers.RequireGroup(),
 		helpers.RequireBotAdmin(),
 		helpers.RequireUserAdmin(),
@@ -1098,13 +1091,13 @@ func adminBotUserChecks(cmd string, chat ...helpers.CheckFunc) []helpers.CheckFu
 }
 
 func initWarnDescs() {
-	warnDesc.RequiredChecks = restrictChecks("warn", pmTargetChatCheck)
-	swarnDesc.RequiredChecks = deleteRestrictChecks("swarn", pmTargetChatCheck)
-	dwarnDesc.RequiredChecks = deleteRestrictChecks("dwarn")
-	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns", pmTargetChatCheck)
-	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn", pmTargetChatCheck)
-	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns"), warnsChatCheck}
-	warningsDesc.RequiredChecks = adminBotUserChecks("warnings", groupOnlyChatCheck)
+	warnDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
+	swarnDesc.RequiredChecks = deleteRestrictChecks(pmTargetChatCheck)
+	dwarnDesc.RequiredChecks = deleteRestrictChecks()
+	resetWarnsDesc.RequiredChecks = adminBotUserChecks(pmTargetChatCheck)
+	removeWarnDesc.RequiredChecks = adminBotUserChecks(pmTargetChatCheck)
+	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{warnsChatCheck}
+	warningsDesc.RequiredChecks = adminBotUserChecks(groupOnlyChatCheck)
 }
 
 func LoadWarns(dispatcher *ext.Dispatcher) {
@@ -1128,9 +1121,8 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		{"resetallwarns", helpers.PMGroupArgNone, warnsModule.resetAllWarns},
 	} {
 		desc := helpers.CommandDescriptor{
-			Name:           cfg.name,
-			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
-			PMGroupArg:     cfg.arg,
+			Name:       cfg.name,
+			PMGroupArg: cfg.arg,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
@@ -1142,7 +1134,5 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 func init() {
 	RegisterLegacyModule("Warns", 200, LoadWarns)
 	initWarnDescs()
-	RegisterAnonymousAdminHandler("warn", anonPipelineHandler(warnDesc, warnsModule.warnUser))
-	RegisterAnonymousAdminHandler("swarn", anonPipelineHandler(swarnDesc, warnsModule.sWarnUser))
-	RegisterAnonymousAdminHandler("dwarn", anonPipelineHandler(dwarnDesc, warnsModule.dWarnUser))
+
 }

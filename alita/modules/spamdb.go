@@ -35,10 +35,7 @@ var spamDBModule = moduleStruct{
 var spamDBDesc = helpers.CommandDescriptor{
 	Name:        "spamdb",
 	Disableable: true,
-	RequiredChecks: []helpers.CheckFunc{
-		helpers.CheckDisabled("spamdb"),
-	},
-	PMGroupArg: helpers.PMGroupArgOwn,
+	PMGroupArg:  helpers.PMGroupArgOwn,
 }
 
 // spamDBChecker answers the database lookups. LoadSpamDB builds it from the

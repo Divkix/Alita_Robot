@@ -1142,9 +1142,8 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		{"autoapprove", helpers.PMGroupArgOwn, greetingsModule.autoApprove},
 	} {
 		desc := helpers.CommandDescriptor{
-			Name:           cfg.name,
-			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
-			PMGroupArg:     cfg.arg,
+			Name:       cfg.name,
+			PMGroupArg: cfg.arg,
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
