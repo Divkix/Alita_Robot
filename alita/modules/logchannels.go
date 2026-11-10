@@ -70,11 +70,10 @@ func (moduleStruct) setLogChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := ctxTr(ctx)
+func (moduleStruct) setLog(c *helpers.CommandContext) error {
+	b, msg, tr := c.Bot, c.Msg, c.Tr
 	if msg.Chat.Type == "private" {
-		return setLogFromPM(b, ctx, tr)
+		return setLogFromPM(c)
 	}
 	// The group-11 watcher owns the forwarded bind step.
 	if msg.ForwardOrigin != nil {
@@ -90,10 +89,8 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 // connection. No post in the channel proves who runs it, so Telegram must:
 // the user is an admin of the group and of the channel, and the bot may post
 // there.
-func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
-	msg := ctx.EffectiveMessage
-	from := ctx.EffectiveSender.User
-	group := ctx.EffectiveChat
+func setLogFromPM(c *helpers.CommandContext) error {
+	b, ctx, msg, from, group, tr := c.Bot, c.Ctx, c.Msg, c.User, c.Chat, c.Tr
 	args := ctx.Args()[1:]
 	switch {
 	case len(args) == 0:
@@ -118,7 +115,7 @@ func setLogFromPM(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if !requireLogChannelPosting(channel.Id)(&helpers.CommandContext{Bot: b, Ctx: ctx, Msg: msg, User: from, Tr: tr}) {
+	if !helpers.RunChecks(c, []helpers.CheckFunc{requireLogChannelPosting(channel.Id)}) {
 		return ext.EndGroups
 	}
 	if err := logchannels.Set(group.Id, group.Title, channel.Id); err != nil {
@@ -353,7 +350,7 @@ func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setlog", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), nil)},
-	}, pipelineHandler(logChannelsModule.setLog))
+	}, logChannelsModule.setLog)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unsetlog", PMGroupArg: helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},

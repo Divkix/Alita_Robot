@@ -663,7 +663,11 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if noformatNote {
-		err = m.sendNoFormatNote(b, ctx, replyMsgId, noteData)
+		c, buildErr := helpers.BuildCommandContext(b, ctx)
+		if buildErr != nil {
+			return ext.EndGroups
+		}
+		err = m.sendNoFormatNote(c, replyMsgId, noteData)
 		if err != nil {
 			if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
 				log.Error(err)
@@ -714,9 +718,8 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
+func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
+	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
 	args := ctx.Args()[1:]
 	var err error
 
@@ -739,10 +742,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+	user := c.User
 	noteName := args[0]
 
 	// The list is cached, so it can still name a note whose row is gone.
@@ -786,7 +786,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if len(args) == 2 && strings.ToLower(args[1]) == "noformat" {
-		err = m.sendNoFormatNote(b, ctx, replyMsgId, noteData)
+		err = m.sendNoFormatNote(c, replyMsgId, noteData)
 	} else {
 		if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -826,9 +826,9 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgId int64, noteData *db.Notes) error {
-	c, err := helpers.BuildCommandContext(b, ctx)
-	if err != nil || !helpers.RequireUserAdmin()(c) {
+func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64, noteData *db.Notes) error {
+	b, ctx := c.Bot, c.Ctx
+	if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.RequireUserAdmin()}) {
 		return ext.EndGroups
 	}
 
@@ -836,7 +836,7 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 
 	noteData.NoteContent += content.RevertButtons(noteData.Buttons)
 
-	_, err = media.Send(b, media.Content{
+	_, err := media.Send(b, media.Content{
 		Text:    noteData.NoteContent,
 		FileID:  noteData.FileID,
 		MsgType: noteData.MsgType,
@@ -941,7 +941,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		Name:           "get",
 		Disableable:    true,
 		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
-	}, pipelineHandler(notesModule.getNotes))
+	}, notesModule.getNotes)
 }
 
 func init() {

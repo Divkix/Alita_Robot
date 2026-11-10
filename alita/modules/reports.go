@@ -297,14 +297,8 @@ func (m moduleStruct) reportWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 //nolint:dupl // reports has symmetric block/unblock logic
-func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	sender := ctx.EffectiveSender
-	if sender == nil || sender.User == nil {
-		return ext.EndGroups
-	}
-	user := sender.User
-	msg := ctx.EffectiveMessage
+func (moduleStruct) reports(c *helpers.CommandContext) error {
+	b, ctx, chat, user, msg := c.Bot, c.Ctx, c.Chat, c.User, c.Msg
 	args := ctx.Args()[1:]
 
 	var (
@@ -403,8 +397,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				// Changing it lets the bot mute members: the admin and the
 				// bot need the right to restrict, as for a mute.
 				if len(args) > 1 {
-					c, buildErr := helpers.BuildCommandContext(b, ctx)
-					if buildErr != nil || !helpers.RunChecks(c, []helpers.CheckFunc{helpers.CanUserRestrict(), helpers.CanBotRestrict()}) {
+					if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.CanUserRestrict(), helpers.CanBotRestrict()}) {
 						return ext.EndGroups
 					}
 				}
@@ -672,7 +665,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "reports",
 		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()},
-	}, pipelineHandler(reportsModule.reports))
+	}, reportsModule.reports)
 	startReportRetentionSweeper()
 }
 

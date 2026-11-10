@@ -163,13 +163,8 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 }
 
 //nolint:dupl // displayGreeting has symmetric welcome/goodbye logic by design
-func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config greetingConfig) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
+func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingConfig) error {
+	bot, ctx, msg, chat, user := c.Bot, c.Ctx, c.Msg, c.Chat, c.User
 	args := ctx.Args()[1:]
 
 	var greetingText string
@@ -233,7 +228,7 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		}
 
 	} else if len(args) >= 1 {
-		if c, err := helpers.BuildCommandContext(bot, ctx); err != nil || !helpers.RequireUserAdmin()(c) {
+		if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.RequireUserAdmin()}) {
 			return ext.EndGroups
 		}
 		var err error
@@ -291,8 +286,8 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 }
 
 //nolint:dupl // welcome delegates to displayGreeting with different config
-func (m moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
-	return m.displayGreeting(bot, ctx, welcomeConfig)
+func (m moduleStruct) welcome(c *helpers.CommandContext) error {
+	return m.displayGreeting(c, welcomeConfig)
 }
 
 //nolint:dupl // setWelcome is similar to setGoodbye but uses different DB calls and translation keys
@@ -368,8 +363,8 @@ func (m moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 //nolint:dupl // goodbye delegates to displayGreeting with different config
-func (m moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
-	return m.displayGreeting(bot, ctx, goodbyeConfig)
+func (m moduleStruct) goodbye(c *helpers.CommandContext) error {
+	return m.displayGreeting(c, goodbyeConfig)
 }
 
 //nolint:dupl // setGoodbye is similar to setWelcome but uses different DB calls and translation keys
@@ -1077,6 +1072,12 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 	)
 
 	adminChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)}
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "welcome", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: adminChecks,
+	}, greetingsModule.welcome)
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "goodbye", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: adminChecks,
+	}, greetingsModule.goodbye)
 	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	botAdminChangeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()}
 	for _, cfg := range []struct {
@@ -1085,10 +1086,8 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		handler func(*gotgbot.Bot, *ext.Context) error
 		checks  []helpers.CheckFunc
 	}{
-		{"welcome", helpers.PMGroupArgOwn, greetingsModule.welcome, adminChecks},
 		{"setwelcome", helpers.PMGroupArgOwn, greetingsModule.setWelcome, changeInfoChecks},
 		{"resetwelcome", helpers.PMGroupArgNone, greetingsModule.resetWelcome, changeInfoChecks},
-		{"goodbye", helpers.PMGroupArgOwn, greetingsModule.goodbye, adminChecks},
 		{"setgoodbye", helpers.PMGroupArgOwn, greetingsModule.setGoodbye, changeInfoChecks},
 		{"resetgoodbye", helpers.PMGroupArgNone, greetingsModule.resetGoodbye, changeInfoChecks},
 		{"cleanwelcome", helpers.PMGroupArgOwn, greetingsModule.cleanWelcome, changeInfoChecks},

@@ -83,7 +83,7 @@ func TestLogChannelCommandsAndForwardBind(t *testing.T) {
 	channel := gotgbot.Chat{Id: channelID, Type: "channel", Title: "Log Channel"}
 	group := f.chat
 
-	if err := logChannelsModule.setLog(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
+	if err := commandResponse(logChannelsModule.setLog)(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
 		t.Fatalf("setLog group: %v", err)
 	}
 	// A channel post has no user sender.
