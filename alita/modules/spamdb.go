@@ -33,9 +33,10 @@ var spamDBModule = moduleStruct{
 }
 
 var spamDBDesc = helpers.CommandDescriptor{
-	Name:        "spamdb",
-	Disableable: true,
-	PMGroupArg:  helpers.PMGroupArgOwn,
+	Name:           "spamdb",
+	Disableable:    true,
+	PMGroupArg:     helpers.PMGroupArgOwn,
+	RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(false)},
 }
 
 // spamDBChecker answers the database lookups. LoadSpamDB builds it from the
@@ -159,12 +160,7 @@ func applySpamDBAction(b *gotgbot.Bot, chatID, userID int64, action string) erro
 // refuses when the operator has switched the feature off, and the shared
 // database refuses when the operator has not enabled the network.
 func (moduleStruct) spamdb(c *helpers.CommandContext) error {
-	// Admin check runs here, against the connected group when used from PM.
-	chat := resolveAdminChat(c.Bot, c.Ctx, false)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	c.Chat = chat
+	chat := c.Chat
 	args := c.Ctx.Args()[1:]
 
 	settings, err := spamdbsettings.GetSpamDBSettingsContext(tracing.UpdateContext(c.Ctx), chat.Id)
