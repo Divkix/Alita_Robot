@@ -1299,7 +1299,9 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "newfed", RequiredChecks: []helpers.CheckFunc{federationPrivateCheck},
 	}, pipelineHandler(federationsModule.newFed))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "renamefed"}, pipelineHandler(federationsModule.renameFed))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "renamefed", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, pipelineHandler(federationsModule.renameFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "delfed", RequiredChecks: []helpers.CheckFunc{federationPrivateCheck, federationOwnerCheck},
 	}, pipelineHandler(federationsModule.delFed))
@@ -1312,19 +1314,27 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "quietfed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, helpers.RequireUserAdmin(), federationChatCheck},
 	}, pipelineHandler(federationsModule.quietFed))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "fedinfo", Disableable: true}, pipelineHandler(federationsModule.fedInfo))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "fedadmins", Disableable: true}, pipelineHandler(federationsModule.fedAdmins))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "fedinfo", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, pipelineHandler(federationsModule.fedInfo))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "fedadmins", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, pipelineHandler(federationsModule.fedAdmins))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "chatfed", Disableable: true, RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatCheck},
 	}, pipelineHandler(federationsModule.chatFed))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "myfeds"}, pipelineHandler(federationsModule.myFeds))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "myfeds", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, pipelineHandler(federationsModule.myFeds))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "fedpromote", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedPromote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "feddemote", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedDemote))
-	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "feddemoteme"}, pipelineHandler(federationsModule.fedDemoteMe))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "feddemoteme", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	}, pipelineHandler(federationsModule.fedDemoteMe))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "fedreason", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedReason))
@@ -1339,6 +1349,7 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(federationsModule.unfban))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "fedstat", Aliases: []string{"fbanstat"}, Disableable: true,
+		RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedStat))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "subfed", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},

@@ -260,6 +260,16 @@ func RequireBotTeamMember() CheckFunc {
 	}
 }
 
+// RequireIdentifiedUser preserves identity-only gates on commands with no role check.
+func RequireIdentifiedUser() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User != nil {
+			return true
+		}
+		return chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "common_cannot_identify_user", "", chat_status.WithReply())
+	}
+}
+
 func RequireGroup() CheckFunc {
 	return func(c *CommandContext) bool {
 		result := chat_status.RequireGroup(c.Bot, c.Ctx, nil)

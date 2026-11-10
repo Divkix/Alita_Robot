@@ -181,3 +181,17 @@ func TestFederationStatisticsAliasesShareDisableSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestFederationIdentityOnlyCommandsRefuseChannelSenders(t *testing.T) {
+	useRealLocales(t)
+	for _, text := range []string{"/renamefed name", "/fedinfo", "/fedadmins", "/myfeds", "/feddemoteme invalid", "/fedstat", "/fbanstat"} {
+		t.Run(text, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.member, text)
+			ctx.Message.From = nil
+			ctx.Message.SenderChat = &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel"}
+			require.NoError(t, dispatchFederationCommand(t, f.bot, ctx))
+			require.Equal(t, "Cannot identify user. This command cannot be used by channels.", fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]))
+		})
+	}
+}
