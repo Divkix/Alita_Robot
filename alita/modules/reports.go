@@ -291,7 +291,7 @@ func reporterDecided(chatID, messageID, reporterID int64) bool {
 // @admin mentions, then lets the later watcher groups see the message.
 func (m moduleStruct) reportWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if sender := ctx.EffectiveSender; sender != nil && sender.User != nil {
-		_ = helpers.ReplayCommand(b, ctx, reportDesc.Name)
+		_ = helpers.RunCommand(b, ctx, reportDesc.Name)
 	}
 	return ext.ContinueGroups
 }

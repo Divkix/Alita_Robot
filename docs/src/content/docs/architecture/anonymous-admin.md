@@ -63,7 +63,7 @@ sequenceDiagram
 
 - **Cache key format:** `alita:anonAdmin:{chatId}:{msgId}` with 20-second TTL
 - **Callback data encoding:** Versioned codec format `anon_admin|v1|c={chatId}&m={msgId}` only; unversioned or malformed payloads are rejected with "Invalid request." (`alita:anonAdmin:{chatId}:{msgId}` is the Redis cache key above, not a callback format)
-- **Command replay:** After verification, the bot restores the original cached message, clears `SenderChat`, replaces the callback update with the original message update, and sets the effective actor to the admin who tapped. `helpers.ReplayCommand` runs the same pipeline registered by `WrapCommand`, under the typed name or alias, preserving arguments, media and the replied-to message. Checks run with the confirming admin's rights; proof does not grant missing rights or ownership.
+- **Command replay:** After verification, the bot restores the original cached message, clears `SenderChat`, replaces the callback update with the original message update, and sets the effective actor to the admin who tapped. `helpers.RunCommand` runs the same pipeline registered by `WrapCommand`, under the typed name or alias, preserving arguments, media and the replied-to message. Checks run with the confirming admin's rights; proof does not grant missing rights or ownership.
 - **Non-admin click handling:** Shows a toast notification ("Need to be admin") without error; does not consume the keyboard
 
 ## Supported Commands

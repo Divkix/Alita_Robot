@@ -76,7 +76,7 @@ func TestConnectedPipelineCheckMatrix(t *testing.T) {
 									d.AddHandler(handlers.NewCallback(callbackquery.Equal("connected-replay"), func(b *gotgbot.Bot, ctx *ext.Context) error {
 										ctx.Update = command
 										ctx.EffectiveMessage = command.Message
-										return helpers.ReplayCommand(b, ctx, check.name)
+										return helpers.RunCommand(b, ctx, check.name)
 									}))
 									update = newModuleCallbackContext(f.bot, origin, actor, "connected-replay").Update
 								}

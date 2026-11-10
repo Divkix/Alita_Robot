@@ -79,7 +79,7 @@ func TestPipelineRoleDisableReplayMatrix(t *testing.T) {
 									d.AddHandler(handlers.NewCallback(callbackquery.Equal("replay"), func(b *gotgbot.Bot, ctx *ext.Context) error {
 										ctx.Update = &gotgbot.Update{Message: msg}
 										ctx.EffectiveMessage = msg
-										return ReplayCommand(b, ctx, name)
+										return RunCommand(b, ctx, name)
 									}))
 									update = &gotgbot.Update{CallbackQuery: &gotgbot.CallbackQuery{Id: "confirm", From: actor, Data: "replay", Message: gotgbot.Message{MessageId: 102, Chat: chat}}}
 								}

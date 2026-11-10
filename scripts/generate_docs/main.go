@@ -673,7 +673,7 @@ func registrationPattern(cmd Command) string {
 		return cmd.Pattern
 	}
 	if len(cmd.Aliases) > 0 {
-		return "MultiCommand"
+		return "CommandDescriptorWithAliases"
 	}
-	return "NewCommand"
+	return "CommandDescriptor"
 }

@@ -100,9 +100,10 @@ func SetPMGroupResolver(r PMGroupResolver) {
 // commandReplays is populated only by WrapCommand, alongside dispatcher registration.
 var commandReplays sync.Map
 
-// ReplayCommand runs the registered pipeline as the effective actor restored by
-// the proof callback. It does not re-enter watcher groups or rewrite the message.
-func ReplayCommand(b *gotgbot.Bot, ctx *ext.Context, command string) error {
+// RunCommand runs a registered command pipeline as the effective actor, for
+// proof callbacks and watcher entry points. It does not re-enter watcher groups
+// or rewrite the message.
+func RunCommand(b *gotgbot.Bot, ctx *ext.Context, command string) error {
 	h, ok := commandReplays.Load(strings.ToLower(command))
 	if !ok {
 		return fmt.Errorf("unknown pipeline command: %s", command)
