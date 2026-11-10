@@ -658,7 +658,7 @@ func init() {
 
 ### Declarative Command Pipeline
 
-The preferred modern approach uses `WrapCommand` with `CommandDescriptor`:
+Every user command uses `WrapCommand` with a `CommandDescriptor`:
 
 ```go
 helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
@@ -680,23 +680,28 @@ helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 
 | Type | Description |
 |------|-------------|
-| `CommandDescriptor` | Declarative command configuration (Name, Aliases, Group, RequiredChecks, Disableable) |
+| `CommandDescriptor` | Declarative command configuration (Name, Aliases, Group, RequiredChecks, Disableable, PMGroupArg) |
 | `CommandContext` | Context passed through the command pipeline |
 | `CheckFunc` | Permission check function signature |
 | `WrapCommand` | Main pipeline builder with automatic check execution |
 
-Each CheckFunc handles its own failure: the permission checks send the refusal reply, and `CheckDisabled` stops the command silently (deleting it when the chat has `/disabledel` on), so handlers add no replies for failed checks. `Disableable: true` only lists the command for `/disable`; `CheckDisabled` enforces it.
+A `CheckFunc` returns `false` to stop the command and handles any refusal reply or anonymous-admin confirmation prompt itself. Bot-team checks intentionally refuse silently. Handlers must not add another refusal reply. Descriptors with `RequiredChecks` require an identifiable user; unchecked commands may receive a nil `CommandContext.User`.
+
+`Disableable: true` makes `WrapCommand` both register the command and every alias for `/disable` and enforce the setting for all of those spellings. Disabling any spelling silences them all for non-admins. The wrapper checks before `RequiredChecks` and again when a check resolves another target group, so the group's setting also applies to queries from PM. Group admins remain exempt. With `/disabledel` enabled, disabled command messages sent in the group are deleted; PM messages are never deleted.
 
 **Pre-built CheckFunc builders**:
 
 | Function | Description |
 |----------|-------------|
-| `CheckDisabled(cmd)` | Refuses the command when the chat has disabled it (needed alongside `Disableable: true`) |
 | `RequireGroup()` | Ensures command is used in a group |
 | `RequireBotAdmin()` | Ensures bot is admin |
 | `RequireUserAdmin()` | Ensures user is admin |
-| `RequireConnectedAdmin(botAdmin)` | Resolves the current group or PM's named/connected group, requiring its admin and optionally the bot's admin status |
-| `RequireConnectedMember(botAdmin)` | Resolves the same target for member-readable commands, optionally requiring the bot's admin status |
+| `RequireConnectedAdmin(requirement)` | Resolves the current group or PM's named/connected group and requires the user to be its admin; `requirement` controls whether the bot must also be admin |
+| `RequireConnectedMember(requirement)` | Resolves the same target for member-readable commands; `requirement` controls whether the bot must be admin |
+| `RequireBotOwner()` | Silently accepts only the configured bot owner |
+| `RequireBotDeveloper()` | Silently accepts the bot owner and developers, but not sudo users |
+| `RequireBotTeamMember()` | Silently accepts the bot owner, developers and sudo users |
+| `RequireIdentifiedUser()` | Requires an identifiable user without requiring a role |
 | `CanUserPromote()` | Checks user can promote members |
 | `CanBotPromote()` | Checks bot can promote members |
 | `CanUserPin()` | Checks user can pin messages |
@@ -710,7 +715,11 @@ Each CheckFunc handles its own failure: the permission checks send the refusal r
 | `CanUserDelete()` | Checks user can delete messages |
 | `CanBotDelete()` | Checks bot can delete messages |
 
+The connected checks take a `helpers.BotAdminRequirement`: pass `helpers.BotAdminRequired` or `helpers.BotAdminNotRequired`, not a boolean.
+
 The connected checks update both `CommandContext.Chat` and `ctx.EffectiveChat`, so later checks and the handler act on the resolved group while replies stay in the original chat. Named PM groups win over the saved connection; `PMGroupArg` still owns parsing and the no-fallback rule for commands without their own arguments. Connection refusals keep their existing bot-before-user order. These checks do not themselves request anonymous proof; a following `CanUser*` check does so when required.
 
-`RunChecks(c, checks)` runs a list of CheckFuncs outside `WrapCommand` (used by anonymous-admin handlers).
+Declare unconditional checks in `CommandDescriptor.RequiredChecks`. For checks that depend on parsed arguments, call `helpers.RunChecks(c, checks)` at the relevant handler branch; it runs checks in order and stops at the first refusal.
+
+`helpers.RunCommand(b, ctx, name)` invokes the registered pipeline as the effective actor for both anonymous-admin proof replay and watcher-triggered commands. It does not re-enter watcher groups or rewrite the message.
 

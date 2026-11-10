@@ -106,5 +106,5 @@ Anonymous admins receive only a confirmation button for `/save` and `/clear`,
 including their aliases. Confirmation uses the tapping admin's rights and
 preserves the original replied-to message or media.
 
-`/disable saved` is accepted just like `/disable notes`. A disabled row for
-either spelling silences both names for members; admins can still use them.
+`/disable saved` is accepted just like `/disable notes`. Disabling either
+spelling silences both names for members; admins can still use them.

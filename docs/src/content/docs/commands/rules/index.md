@@ -46,7 +46,7 @@ This works without `/connect` and, when you are connected, shows the named group
 
 **Required Permissions:**
 - `/rules`: Available to all users (disableable), but **bot must be admin** in the chat; in PM it needs the group as its first argument or a group connected with `/connect`. A disabled target group's rules stay silent for members in PM too; admins can still read them.
-- All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Their descriptors require admin permissions in the group they act on, with bot admin checked first.
+- All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Require both you and the bot to be admins in the target group, with the bot's admin status checked first. In PM, name the group as the first argument or use the connected group.
 
 
 ## Module Aliases
@@ -90,8 +90,8 @@ For detailed command usage, refer to the commands table above.
 | Command | Permissions |
 |---------|-------------|
 | `/rules` | Any user (disableable) — **bot must be admin**; in PM needs the group as the first argument (`/rules @group` or `/rules -100…`) or a `/connect`ed group |
-| `/setrules` | Admin only — requires `IsUserConnected` (bot admin + user admin) |
-| `/resetrules`, `/clearrules` | Admin only — requires `IsUserConnected` |
-| `/privaterules` | Admin only — requires `IsUserConnected`, user must be admin in the named or connected group |
-| `/rulesbtn`, `/rulesbutton` | Admin only — requires `IsUserConnected`, user must be admin in the named or connected group |
-| `/resetrulesbtn`, `/resetrulesbutton`, `/clearrulesbtn`, `/clearrulesbutton` | Admin only — requires `IsUserConnected` |
+| `/setrules` | Both you and the bot must be admins in the target group |
+| `/resetrules`, `/clearrules` | Both you and the bot must be admins in the target group |
+| `/privaterules` | Both you and the bot must be admins in the target group |
+| `/rulesbtn`, `/rulesbutton` | Both you and the bot must be admins in the target group |
+| `/resetrulesbtn`, `/resetrulesbutton`, `/clearrulesbtn`, `/clearrulesbutton` | Both you and the bot must be admins in the target group |

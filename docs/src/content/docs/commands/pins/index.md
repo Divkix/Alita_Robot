@@ -77,7 +77,7 @@ For detailed command usage, refer to the commands table above.
 ## Required Permissions
 
 - `/pin`, `/permapin`, `/unpin`, `/unpinall` — Require admin with **Pin Messages** permission
-- `/antichannelpin`, `/cleanlinked` — Their group-0 descriptors require bot admin before user admin, including from a named or connected group in PM. No pin-specific right is required to change these settings; `/cleanlinked` needs the bot's **Delete Messages** permission when its watcher deletes linked-channel posts.
+- `/antichannelpin`, `/cleanlinked` — Require both you and the bot to be group admins, with the bot's admin status checked first. This also applies from PM for a named or connected group. Neither needs **Pin Messages** permission to change the setting; `/cleanlinked` needs the bot's **Delete Messages** permission to delete linked-channel posts, otherwise those posts are left in place.
 - `/pinned` — Any user can use, but **bot must be admin** to fetch pinned message
 
 ## Technical Notes
