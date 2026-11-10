@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
@@ -181,31 +182,8 @@ func startPendingCleanupTicker() {
 	}()
 }
 
-func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-
-	if user == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
+	b, msg, chat, user, tr := c.Bot, c.Msg, c.Chat, c.User, c.Tr
 
 	var modules []string
 	if msg.Text != "" {
@@ -276,36 +254,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, *gotgbot.Chat, *gotgbot.User, *i18n.Translator, bool) {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-
-	if user == nil {
-		return nil, nil, nil, nil, false
-	}
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return nil, nil, nil, nil, false
-	}
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return nil, nil, nil, nil, false
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		text, _ := tr.GetString("backup_import_creator_only")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return nil, nil, nil, nil, false
-	}
-
-	return msg, chat, user, tr, true
-}
-
 func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translator) ([]byte, string) {
 	if !strings.HasSuffix(strings.ToLower(doc.FileName), ".json") {
 		text, _ := tr.GetString("backup_import_invalid_file")
@@ -367,11 +315,8 @@ func parseModuleArgs(args []string, valid func(string) bool) ([]string, error) {
 	return modules, nil
 }
 
-func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg, chat, _, tr, ok := validateImportRequest(b, ctx)
-	if !ok {
-		return ext.EndGroups
-	}
+func (m moduleStruct) importHandler(c *helpers.CommandContext) error {
+	b, msg, chat, tr := c.Bot, c.Msg, c.Chat, c.Tr
 
 	if msg.ReplyToMessage == nil || msg.ReplyToMessage.Document == nil {
 		text, _ := tr.GetString("backup_import_no_reply")
@@ -452,31 +397,8 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-
-	if user == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
+func (m moduleStruct) resetHandler(c *helpers.CommandContext) error {
+	b, msg, chat, tr := c.Bot, c.Msg, c.Chat, c.Tr
 
 	var resetModules []string
 	if msg.Text != "" {
@@ -765,12 +687,49 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64, token string) gotgbot
 	}
 }
 
+// backupImportOwnerCheck preserves import's custom HTML creator-only refusal.
+func backupImportOwnerCheck(c *helpers.CommandContext) bool {
+	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id) {
+		return true
+	}
+	text, _ := c.Tr.GetString("backup_import_creator_only")
+	_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
+	return false
+}
+
+var (
+	backupExportDesc = helpers.CommandDescriptor{
+		Name: "export",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireUserAdmin(),
+			helpers.RequireBotAdmin(),
+		},
+	}
+	backupImportDesc = helpers.CommandDescriptor{
+		Name: "import",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireBotAdmin(),
+			backupImportOwnerCheck,
+		},
+	}
+	backupResetDesc = helpers.CommandDescriptor{
+		Name: "reset",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireBotAdmin(),
+			helpers.RequireUserOwner(),
+		},
+	}
+)
+
 func LoadBackup(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(backupModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("export", backupModule.exportHandler))
-	dispatcher.AddHandler(handlers.NewCommand("import", backupModule.importHandler))
-	dispatcher.AddHandler(handlers.NewCommand("reset", backupModule.resetHandler))
+	helpers.WrapCommand(dispatcher, backupExportDesc, backupModule.exportHandler)
+	helpers.WrapCommand(dispatcher, backupImportDesc, backupModule.importHandler)
+	helpers.WrapCommand(dispatcher, backupResetDesc, backupModule.resetHandler)
 
 	dispatcher.AddHandler(handlers.NewCallback(
 		callbackquery.Prefix("backup"),
