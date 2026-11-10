@@ -133,11 +133,13 @@ func TestCaptchaFromPMRejectsNonAdmin(t *testing.T) {
 func TestAntiraidFromPMViaConnection(t *testing.T) {
 	withMiniredis(t)
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(dispatcher)
 
-	runInPM(t, bot, admin, "/raidtime 2h", antiRaidModule.raidTime)
-	runInPM(t, bot, admin, "/raidactiontime 30m", antiRaidModule.raidActionTime)
-	runInPM(t, bot, admin, "/autoantiraid 10", antiRaidModule.autoAntiRaid)
-	runInPM(t, bot, admin, "/antiraid on", antiRaidModule.antiraid)
+	runCommandInPM(t, bot, admin, "/raidtime 2h", dispatcher)
+	runCommandInPM(t, bot, admin, "/raidactiontime 30m", dispatcher)
+	runCommandInPM(t, bot, admin, "/autoantiraid 10", dispatcher)
+	runCommandInPM(t, bot, admin, "/antiraid on", dispatcher)
 
 	got := antiraid.GetAntiRaidSettings(groupA)
 	if got.RaidTime != 7200 || got.RaidActionTime != 1800 || got.AutoAntiRaidThreshold != 10 {
@@ -202,7 +204,9 @@ func TestAntiraidButtonInPMActsOnShownGroup(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
 	groupC := extraGroup(t, client, adminListJSON(settingsTestAdminID), groupA)
 
-	runInPM(t, bot, admin, "/antiraid", antiRaidModule.antiraid)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(dispatcher)
+	runCommandInPM(t, bot, admin, "/antiraid", dispatcher)
 	enable := lastButtons(t, client)[0].CallbackData
 	if err := connections.ConnectId(admin.Id, groupC); err != nil {
 		t.Fatalf("ConnectId(C) error = %v", err)
@@ -240,7 +244,9 @@ func TestAntiraidFromPMRejectsNonAdmin(t *testing.T) {
 	withMiniredis(t)
 	_, bot, groupA, _, member := connectedPMFixture(t)
 
-	runInPM(t, bot, member, "/raidtime 2h", antiRaidModule.raidTime)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(dispatcher)
+	runCommandInPM(t, bot, member, "/raidtime 2h", dispatcher)
 	ctx := newModuleCallbackContext(bot, privateChatOf(member), member,
 		encodeCallbackData("antiraid", map[string]string{"a": "on"}))
 	_ = antiRaidModule.callbackHandler(bot, ctx)

@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -347,6 +348,49 @@ func TestAntiRaidExpiredStoredStateIsPersistedInactiveOnCheck(t *testing.T) {
 	}
 }
 
+func TestAntiRaidCommandRightsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	withDisableCommands(t)
+	for _, command := range []struct{ text, replyKey string }{
+		{"/antiraid nope", "antiraid_invalid_duration"},
+		{"/raidtime", "antiraid_raidtime_usage"},
+		{"/raidactiontime", "antiraid_raidactiontime_usage"},
+		{"/autoantiraid nope", "antiraid_invalid_threshold"},
+	} {
+		for _, actorAdmin := range []bool{false, true} {
+			for _, botAdmin := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/admin=%t/bot=%t", command.text, actorAdmin, botAdmin), func(t *testing.T) {
+					f := newAdminChatFixture(t)
+					adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + adminJSON + "]")
+					f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+					if botAdmin {
+						f.addAdmins(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					} else {
+						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					}
+					actor := f.member
+					if actorAdmin {
+						actor = f.admin
+					}
+					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadAntiRaid(d)
+					if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, command.text).Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					key := command.replyKey
+					if !botAdmin {
+						key = "connections_is_user_connected_bot_not_admin"
+					} else if !actorAdmin {
+						key = "connections_is_user_connected_user_not_admin"
+					}
+					assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{"chat_id": f.chat.Id, "text": translated(t, key)})
+				})
+			}
+		}
+	}
+}
+
 func TestAntiRaidCommandShowsStatusAndTogglesState(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -390,6 +434,8 @@ func TestAntiRaidCommandShowsStatusAndTogglesState(t *testing.T) {
 // for non-admins while admins keep using it.
 func TestAntiRaidCommandHonoursDisable(t *testing.T) {
 	f := newAdminChatFixture(t)
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntiRaid(d)
 	if err := disabling.DisableCMD(f.chat.Id, "antiraid"); err != nil {
 		t.Fatalf("DisableCMD() error = %v", err)
 	}
@@ -397,8 +443,8 @@ func TestAntiRaidCommandHonoursDisable(t *testing.T) {
 		t.Fatalf("ToggleDel() error = %v", err)
 	}
 
-	if err := antiRaidModule.antiraid(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/antiraid")); err != ext.EndGroups {
-		t.Fatalf("antiraid(member) error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/antiraid").Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
 		t.Fatalf("sendMessage calls = %d, want none for a disabled command", len(calls))
@@ -407,8 +453,8 @@ func TestAntiRaidCommandHonoursDisable(t *testing.T) {
 		t.Fatalf("deleteMessage calls = %d, want the disabled command deleted", len(calls))
 	}
 
-	if err := antiRaidModule.antiraid(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/antiraid")); err != ext.EndGroups {
-		t.Fatalf("antiraid(admin) error = %v, want EndGroups", err)
+	if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/antiraid").Update, nil); err != nil {
+		t.Fatal(err)
 	}
 	if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want the admin's status reply", len(calls))
