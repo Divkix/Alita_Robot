@@ -25,16 +25,6 @@ func groupOnlyChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	return resolveAdminChat(b, ctx, false)
 }
 
-// groupOnlyMemberChat is groupOnlyChat for a command that checks the user's
-// admin status itself, live, such as /admincache: in PM it does not ask the
-// cached admin list, which may not list an admin promoted since.
-func groupOnlyMemberChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
-	if !inPM(ctx.EffectiveMessage) {
-		return ctx.EffectiveChat
-	}
-	return resolveMemberChat(b, ctx, false)
-}
-
 // groupOnlyChatCheck runs groupOnlyChat first among a WrapCommand command's
 // RequiredChecks, so the checks after it (RequireGroup, RequireUserOwner, ...)
 // see the group named or connected in PM.

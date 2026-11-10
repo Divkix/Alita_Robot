@@ -725,12 +725,8 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	refreshCtx := newModuleMessageContext(bot, chat, user, "/admincache")
-	cmdCtx, err := helpers.BuildCommandContext(bot, refreshCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("adminCache() error = %v, want EndGroups", err)
+	if err := adminPMDispatcher().ProcessUpdate(bot, refreshCtx.Update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/admincache) error = %v", err)
 	}
 	assertParams(t, client.onlyCall(t, "getChatAdministrators"), map[string]any{"chat_id": chat.Id})
 	if found, admins := cache.GetAdminCacheList(chat.Id); !found || len(admins.UserInfo) != 2 {
@@ -755,7 +751,7 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 		t.Fatalf("seed admin cache: %v", err)
 	}
 	clearCtx := newModuleMessageContext(bot, clearChat, user, "/clearadmincache")
-	cmdCtx, err = helpers.BuildCommandContext(bot, clearCtx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, clearCtx)
 	if err != nil {
 		t.Fatalf("BuildCommandContext failed: %v", err)
 	}
@@ -792,12 +788,8 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	memberCtx := newModuleMessageContext(memberBot, chat, member, "/admincache")
-	cmdCtx, err := helpers.BuildCommandContext(memberBot, memberCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("adminCache(member) error = %v, want EndGroups", err)
+	if err := adminPMDispatcher().ProcessUpdate(memberBot, memberCtx.Update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/admincache member) error = %v", err)
 	}
 	if calls := memberClient.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want non-admin denial", len(calls))
@@ -808,12 +800,8 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	restrictedBot := newModuleTestBot(restrictedClient)
 	restrictedClient.responses["getChatMember"] = []byte(`{"status":"restricted","user":{"id":42,"is_bot":false,"first_name":"Member"},"is_member":true}`)
 	restrictedCtx := newModuleMessageContext(restrictedBot, chat, member, "/admincache")
-	cmdCtx, err = helpers.BuildCommandContext(restrictedBot, restrictedCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("adminCache(restricted) error = %v, want EndGroups", err)
+	if err := adminPMDispatcher().ProcessUpdate(restrictedBot, restrictedCtx.Update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/admincache restricted) error = %v", err)
 	}
 	if calls := restrictedClient.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want non-admin denial for a restricted user", len(calls))
@@ -826,12 +814,8 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	errorClient, errorBot, admin := f.client, f.bot, f.admin
 	errorClient.errors["getChatMember"] = errors.New("telegram unavailable")
 	errorCtx := newModuleMessageContext(errorBot, f.chat, admin, "/admincache")
-	cmdCtx, err = helpers.BuildCommandContext(errorBot, errorCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("adminCache(lookup failure) error = %v, want EndGroups", err)
+	if err := adminPMDispatcher().ProcessUpdate(errorBot, errorCtx.Update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/admincache lookup failure) error = %v", err)
 	}
 	if calls := errorClient.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want lookup-failure denial", len(calls))
