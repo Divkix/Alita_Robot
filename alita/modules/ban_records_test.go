@@ -5,6 +5,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -294,5 +295,25 @@ func TestFedBanWalkRecordsAndUnfbanCloses(t *testing.T) {
 
 	if got := singleBanRecord(t, chat.Id); got.LiftedAt == nil || got.LiftedBy == nil || *got.LiftedBy != owner {
 		t.Fatalf("record = %+v, want it lifted by %d", got, owner)
+	}
+}
+
+// A raid ban records the end Telegram was given, even the shortest one the raid
+// accepts, so /baninfo never shows a 30-second raid ban as permanent.
+func TestRaidBanRecordsTheEndItWasMadeWith(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chat.Id).Delete(&models.BanRecord{}).Error })
+
+	banRaidMember(bot, &chat, 4253, 30)
+
+	until, err := strconv.ParseInt(fmt.Sprint(client.onlyCall(t, "banChatMember").Params["until_date"]), 10, 64)
+	if err != nil {
+		t.Fatalf("until_date: %v", err)
+	}
+	got := singleBanRecord(t, chat.Id)
+	if got.Source != models.BanSourceAntiraid || got.Until == nil || got.Until.Unix() != until {
+		t.Fatalf("record = %+v, want an antiraid ban ending at %d", got, until)
 	}
 }
