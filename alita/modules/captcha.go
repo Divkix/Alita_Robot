@@ -1731,7 +1731,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			return err
 		}
 
-		if err = restoreCaptchaPermissions(bot, chat.Id, targetUserID); err != nil {
+		if err = keepScheduledUnmuteOnFailure(chat.Id, targetUserID, unmuteCaptchaUser(bot, chat.Id, targetUserID)); err != nil {
 			log.Errorf("Failed to unmute user %d on verify: %v", targetUserID, err)
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

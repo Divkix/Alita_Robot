@@ -48,6 +48,49 @@ func assertCaptchaRows(t *testing.T, attempt *db.CaptchaAttempts, wantScheduled 
 	}
 }
 
+// tapCaptcha taps answer on attempt's prompt as member 42.
+func tapCaptcha(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, answer string) error {
+	chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": answer})
+	return captchaModule.captchaVerifyCallback(bot, newModuleCallbackContext(bot, chat, member, data))
+}
+
+// A pass lifts the mute by the same rule as a release; only an error retrying
+// can fix tells the member the verification failed.
+func TestCaptchaPassLiftsTheMuteByTheFailureRule(t *testing.T) {
+	useRealLocales(t)
+	for _, tt := range []struct {
+		name          string
+		unmuteErr     error
+		wantErr       bool
+		wantAnswer    string
+		wantScheduled int
+	}{
+		{name: "unmute succeeds", wantAnswer: "✅ Verified successfully!"},
+		{name: "member gone", unmuteErr: errors.New("Bad Request: USER_NOT_PARTICIPANT"), wantAnswer: "✅ Verified successfully!"},
+		{name: "member is an admin", unmuteErr: errors.New("Bad Request: user is an administrator of the chat"), wantAnswer: "✅ Verified successfully!"},
+		{name: "temporary failure", unmuteErr: errors.New("temporary Telegram failure"), wantErr: true, wantAnswer: "Failed to verify. Please contact an admin.", wantScheduled: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			if tt.unmuteErr != nil {
+				client.errors["restrictChatMember"] = tt.unmuteErr
+			}
+			bot := newModuleTestBot(client)
+			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+
+			if err := tapCaptcha(bot, attempt, "7"); (err != nil) != tt.wantErr {
+				t.Fatalf("captchaVerifyCallback() error = %v, want error %t", err, tt.wantErr)
+			}
+			assertParams(t, client.onlyCall(t, "restrictChatMember"), targetParams(attempt.ChatID, 42))
+			assertParams(t, client.onlyCall(t, "answerCallbackQuery"), map[string]any{"text": tt.wantAnswer})
+			assertDeleted(t, client, attempt.ChatID, 123)
+			assertCaptchaRows(t, attempt, tt.wantScheduled)
+		})
+	}
+}
+
 func TestSettleCaptchaReleaseLiftsTheMuteByTheFailureRule(t *testing.T) {
 	temporary := errors.New("temporary Telegram failure")
 	for _, tt := range []struct {

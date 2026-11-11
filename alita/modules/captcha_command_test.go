@@ -1327,45 +1327,6 @@ func TestCaptchaVerifyCallbackFinalWrongAnswerAppliesFailureAction(t *testing.T)
 	}
 }
 
-func TestCaptchaVerifyCallbackUnmuteFailureSchedulesRetryUnmute(t *testing.T) {
-	client := newModuleBotClient()
-	client.errors["restrictChatMember"] = errors.New("bot lost restrict rights")
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
-		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
-	}
-
-	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"}))
-	if err := captchaModule.captchaVerifyCallback(bot, ctx); err == nil {
-		t.Fatalf("captchaVerifyCallback(unmute failure) error = nil, want error surfaced")
-	}
-
-	// A captcha_muted_users row must be scheduled so the 5-minute unmute poller
-	// retries, instead of leaving the user permanently muted with no retry path.
-	users, err := captcha.GetUsersToUnmute()
-	if err != nil {
-		t.Fatalf("GetUsersToUnmute() error = %v", err)
-	}
-	var found bool
-	for _, u := range users {
-		if u.UserID == member.Id && u.ChatID == chat.Id {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatal("captcha_muted_users row not scheduled after unmute failure")
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) == 0 {
-		t.Fatal("deleteMessage calls = 0, want captcha message cleanup on unmute failure")
-	}
-}
-
 func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) {
 	tests := []struct {
 		name           string
