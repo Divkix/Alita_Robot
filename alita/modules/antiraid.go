@@ -24,9 +24,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -343,7 +343,7 @@ func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) erro
 }
 
 func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTime int) {
-	untilDate, ok := extraction.TemporaryUntilDate(time.Now().Unix(), int64(actionTime))
+	untilDate, ok := window.UntilDate(time.Now().Unix(), int64(actionTime))
 	if !ok {
 		log.Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
 		return
