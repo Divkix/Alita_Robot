@@ -103,8 +103,8 @@ func captchaNumber(key string, def int, right Right, read func(*models.CaptchaSe
 func captchaDeclaration(key string, kind Type, def any, right Right, read func(*models.CaptchaSettings) any, write func(WriteContext, any) error) *Declaration {
 	return &Declaration{
 		Key: key, Type: kind, Default: def, Right: right,
-		read: func(chatID int64) any {
-			row, err := captcha.GetCaptchaSettings(chatID)
+		read: func(ctx context.Context, chatID int64) any {
+			row, err := captcha.GetCaptchaSettingsContext(ctx, chatID)
 			if err != nil || row == nil || row.ID == 0 {
 				return nil
 			}

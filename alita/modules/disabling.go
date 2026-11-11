@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var disablingModule = moduleStruct{moduleName: "Disabling"}
@@ -202,14 +203,14 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		param := strings.ToLower(args[0])
 		switch param {
 		case "on", "true", "yes":
-			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
+			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("error_generic")
 			} else {
 				text, _ = tr.GetString("disabling_delete_enabled")
 			}
 		case "off", "false", "no":
-			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
+			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("error_generic")
 			} else {
@@ -219,7 +220,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("disabling_invalid_option")
 		}
 	} else {
-		currStatus := settings.DeleteDisabledCommands.Read(chat.Id).Value.(bool)
+		currStatus := settings.DeleteDisabledCommands.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currStatus {
 			text, _ = tr.GetString("disabling_delete_current_enabled")
 		} else {

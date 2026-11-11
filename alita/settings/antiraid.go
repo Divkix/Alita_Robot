@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -23,7 +24,7 @@ var RaidActionTime = raidDuration("antiraid.raid_action_time", 3600, 30,
 func raidDuration(key string, def, minSeconds int, read func(*models.AntiRaidSettings) int, write func(int64, int) error) *Declaration {
 	return &Declaration{
 		Key: key, Type: Duration, Default: def, Right: AdminBot,
-		read: func(chatID int64) any {
+		read: func(ctx context.Context, chatID int64) any {
 			row := antiraid.GetAntiRaidSettings(chatID)
 			if row.ID == 0 {
 				return nil
@@ -42,7 +43,7 @@ func raidDuration(key string, def, minSeconds int, read func(*models.AntiRaidSet
 
 var AutoAntiRaidThreshold = &Declaration{
 	Key: "antiraid.auto_threshold", Type: Number, Default: 0, Right: AdminBot,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := antiraid.GetAntiRaidSettings(chatID)
 		if row.ID == 0 {
 			return nil

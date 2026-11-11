@@ -70,7 +70,7 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 				actionTime = int(seconds)
 			}
 			changes := map[string]any{settings.WarnMode.Key: mode, settings.WarnActionTime.Key: actionTime}
-			input := settings.WriteContext{ChatID: chat.Id}
+			input := settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
 			if len(settings.ValidateChanges(input, changes)) != 0 {
 				replyText, _ = tr.GetString("warns_specify_action")
 				_, _ = msg.Reply(b, replyText, formatting.Shtml())
@@ -129,7 +129,7 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyText, _ = tr.GetString("warns_expiry_current_off")
 		}
 	case slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) && len(args) == 1:
-		if err := settings.WarnExpiry.Write(settings.WriteContext{ChatID: chat.Id}, 0); err != nil {
+		if err := settings.WarnExpiry.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0); err != nil {
 			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -141,7 +141,7 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 		if seconds == -1 {
 			return ext.EndGroups
 		}
-		if err := settings.WarnExpiry.Write(settings.WriteContext{ChatID: chat.Id}, int(seconds)); err != nil {
+		if err := settings.WarnExpiry.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, int(seconds)); err != nil {
 			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -744,7 +744,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			if settings.WarnLimit.Validate(num) != nil {
 				replyText, _ = tr.GetString("warns_limit_range_error")
 			} else {
-				if err := settings.WarnLimit.Write(settings.WriteContext{ChatID: chat.Id}, num); err != nil {
+				if err := settings.WarnLimit.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, num); err != nil {
 					log.Errorf("[Warns] SetWarnLimit failed for chat %d: %v", chat.Id, err)
 					errText, _ := tr.GetString("common_settings_save_failed")
 					_, _ = msg.Reply(b, errText, formatting.Shtml())

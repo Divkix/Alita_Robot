@@ -36,6 +36,7 @@
 package settings
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"iter"
@@ -92,18 +93,19 @@ type Declaration struct {
 	shared       *sharedWrite
 	unchanged    func(any) bool
 	attachment   func() error
-	read         func(int64) any
+	read         func(context.Context, int64) any
 	allowed      func(any) error
 	precondition func(WriteContext, any) error
 	write        func(WriteContext, any) error
 }
 
-// WriteContext supplies the chat title needed by captcha persistence and the
-// bot used by attached effects. All adapters use the same write operation.
+// WriteContext carries the request context, chat title needed by captcha, and
+// bot used by attached effects. Adapters pass their update or request context.
 type WriteContext struct {
-	ChatID int64
-	Title  string
-	Bot    *gotgbot.Bot
+	Context context.Context
+	ChatID  int64
+	Title   string
+	Bot     *gotgbot.Bot
 }
 
 // State is the effective value and whether it differs from the declaration's
@@ -188,8 +190,8 @@ func (d *Declaration) Validate(value any) error {
 	return nil
 }
 
-func (d *Declaration) Read(chatID int64) State {
-	value := d.effective(d.read(chatID))
+func (d *Declaration) ReadContext(ctx context.Context, chatID int64) State {
+	value := d.effective(d.read(ctx, chatID))
 	changed := value != d.Default
 	if d.unchanged != nil {
 		changed = !d.unchanged(value)

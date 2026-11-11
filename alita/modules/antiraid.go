@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 const (
@@ -612,7 +613,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		err := chatsettings.RaidTime.Write(chatsettings.WriteContext{ChatID: chat.Id}, dur)
+		err := chatsettings.RaidTime.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidTime failed for chat %d", chat.Id)
 			text, _ = tr.GetString("common_settings_save_failed")
@@ -627,7 +628,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		err := chatsettings.RaidActionTime.Write(chatsettings.WriteContext{ChatID: chat.Id}, dur)
+		err := chatsettings.RaidActionTime.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidActionTime failed for chat %d", chat.Id)
 			text, _ = tr.GetString("common_settings_save_failed")
@@ -660,7 +661,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 
 	arg := strings.ToLower(args[0])
 	if arg == "off" {
-		err := chatsettings.AutoAntiRaidThreshold.Write(chatsettings.WriteContext{ChatID: chat.Id}, 0)
+		err := chatsettings.AutoAntiRaidThreshold.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(0) failed for chat %d", chat.Id)
 			text, _ := tr.GetString("common_settings_save_failed")
@@ -678,7 +679,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	if err := chatsettings.AutoAntiRaidThreshold.Write(chatsettings.WriteContext{ChatID: chat.Id}, threshold); err != nil {
+	if err := chatsettings.AutoAntiRaidThreshold.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, threshold); err != nil {
 		log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(%d) failed for chat %d", threshold, chat.Id)
 		text, _ := tr.GetString("common_settings_save_failed")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())

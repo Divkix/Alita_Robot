@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"context"
+
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
@@ -11,7 +13,7 @@ import (
 
 var PrivateNotes = &Declaration{
 	Key: "notes.private_notes", Type: Switch, Default: false, Right: Admin,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := notes.GetNotes(chatID)
 		if row.ID == 0 {
 			return nil
@@ -25,7 +27,7 @@ var PrivateNotes = &Declaration{
 
 var AntiChannelPin = &Declaration{
 	Key: "pins.anti_channel_pin", Type: Switch, Default: false, Right: AdminBot,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := pins.GetPinData(chatID)
 		if row.ID == 0 {
 			return nil
@@ -39,7 +41,7 @@ var AntiChannelPin = &Declaration{
 
 var CleanLinked = &Declaration{
 	Key: "pins.clean_linked", Type: Switch, Default: false, Right: AdminBot,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := pins.GetPinData(chatID)
 		if row.ID == 0 {
 			return nil
@@ -53,7 +55,7 @@ var CleanLinked = &Declaration{
 
 var AllowConnect = &Declaration{
 	Key: "connections.allow_connect", Type: Switch, Default: true, Right: Admin,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := connections.GetChatConnectionSetting(chatID)
 		if row.ID == 0 {
 			return nil
@@ -67,7 +69,7 @@ var AllowConnect = &Declaration{
 
 var AnonAdmin = &Declaration{
 	Key: "admin.anon_admin", Type: Switch, Default: false, Right: OwnerBot,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := admin.GetAdminSettings(chatID)
 		if row.ID == 0 {
 			return nil
@@ -81,7 +83,7 @@ var AnonAdmin = &Declaration{
 
 var DeleteDisabledCommands = &Declaration{
 	Key: "disabling.delete_commands", Type: Switch, Default: false, Right: AdminBot,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := disabling.GetChatSettings(chatID)
 		if row == nil {
 			return nil
@@ -95,8 +97,8 @@ var DeleteDisabledCommands = &Declaration{
 
 var QuietFed = &Declaration{
 	Key: "federations.quiet", Type: Switch, Default: false, Right: FederationAdmin,
-	read: func(chatID int64) any {
-		row := federations.GetChatFed(chatID)
+	read: func(ctx context.Context, chatID int64) any {
+		row := federations.GetChatFedContext(ctx, chatID)
 		if row == nil {
 			return nil
 		}

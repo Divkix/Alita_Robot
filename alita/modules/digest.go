@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var digestModule = moduleStruct{
@@ -40,11 +41,11 @@ var digestNow = time.Now
 // here and log change it; now renders the current partial week with the same
 // builder the weekly scheduler uses. Counting and sending are UTC-only.
 func (moduleStruct) digest(c *helpers.CommandContext) error {
-	if err := settings.DigestEnabled.ValidateWrite(settings.WriteContext{ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, false); err != nil {
+	if err := settings.DigestEnabled.ValidateWrite(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, false); err != nil {
 		return digestReplyKey(c, settings.RefusalKey(err), nil)
 	}
 
-	preferences, err := settings.ReadDigest(c.Chat.Id)
+	preferences, err := settings.ReadDigestContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[Digest] could not read the chat's digest settings")
@@ -110,7 +111,7 @@ func digestPreview(c *helpers.CommandContext) error {
 
 // digestSetEnabled stores the switch and answers with the new state.
 func digestSetEnabled(c *helpers.CommandContext, enabled bool) error {
-	if err := settings.DigestEnabled.Write(settings.WriteContext{ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, enabled); err != nil {
+	if err := settings.DigestEnabled.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, enabled); err != nil {
 		if key := settings.RefusalKey(err); key != "" {
 			return digestReplyKey(c, key, nil)
 		}
@@ -124,7 +125,7 @@ func digestSetEnabled(c *helpers.CommandContext, enabled bool) error {
 // digestSetDestination stores the admin's choice and answers with the new
 // state, including whether the destination is still the default.
 func digestSetDestination(c *helpers.CommandContext, destination string) error {
-	if err := settings.DigestDestination.Write(settings.WriteContext{ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, destination); err != nil {
+	if err := settings.DigestDestination.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, destination); err != nil {
 		if key := settings.RefusalKey(err); key != "" {
 			return digestReplyKey(c, key, nil)
 		}
@@ -138,7 +139,7 @@ func digestSetDestination(c *helpers.CommandContext, destination string) error {
 // digestReplyFreshStatus re-reads the settings after a write (the setter
 // invalidated the cache) and replies with them.
 func digestReplyFreshStatus(c *helpers.CommandContext) error {
-	preferences, err := settings.ReadDigest(c.Chat.Id)
+	preferences, err := settings.ReadDigestContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[Digest] could not read the saved digest settings")

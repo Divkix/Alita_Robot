@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -190,7 +191,7 @@ func liftReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64, 
 }
 
 // reportsMuteSetting serves /reports mute [N|off] in a group.
-func reportsMuteSetting(tr *i18n.Translator, chatID int64, args []string) string {
+func reportsMuteSetting(ctx context.Context, tr *i18n.Translator, chatID int64, args []string) string {
 	usage, _ := tr.GetString("reports_automute_usage", i18n.TranslationParams{
 		"min": models.ReportMuteThresholdMin,
 		"max": models.ReportMuteThresholdMax,
@@ -209,7 +210,7 @@ func reportsMuteSetting(tr *i18n.Translator, chatID int64, args []string) string
 		}
 		threshold = n
 	}
-	if err := settings.ReportMuteThreshold.Write(settings.WriteContext{ChatID: chatID}, threshold); err != nil {
+	if err := settings.ReportMuteThreshold.Write(settings.WriteContext{Context: ctx, ChatID: chatID}, threshold); err != nil {
 		log.Errorf("[Reports] %v", err)
 		text, _ := tr.GetString("common_settings_save_failed")
 		return text

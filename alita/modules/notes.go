@@ -281,14 +281,14 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "yes", "true":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_enabled")
-			if err := settings.PrivateNotes.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
+			if err := settings.PrivateNotes.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
 				txt, _ = tr.GetString("error_generic")
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_disabled")
-			if err := settings.PrivateNotes.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
+			if err := settings.PrivateNotes.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
 				txt, _ = tr.GetString("error_generic")
 			}
@@ -297,7 +297,7 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			txt, _ = tr.GetString("notes_private_invalid_option")
 		}
 	} else {
-		tmp := settings.PrivateNotes.Read(chat.Id).Value.(bool)
+		tmp := settings.PrivateNotes.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if tmp {
 			txt, _ = tr.GetString("notes_private_status_on")

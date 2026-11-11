@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var ConnectionsModule = moduleStruct{moduleName: "Connections"}
@@ -54,13 +55,13 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 		toogleOption := args[1]
 		switch toogleOption {
 		case "on", "true", "yes":
-			if err := settings.AllowConnect.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
+			if err := settings.AllowConnect.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
 			}
 		case "off", "false", "no":
-			if err := settings.AllowConnect.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
+			if err := settings.AllowConnect.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
@@ -69,7 +70,7 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 			text, _ = tr.GetString("connections_invalid_option")
 		}
 	} else {
-		currSetting := settings.AllowConnect.Read(chat.Id).Value.(bool)
+		currSetting := settings.AllowConnect.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currSetting {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_currently_on")
 		} else {

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -79,39 +80,39 @@ func nightModeDeclarations() (*Declaration, *Declaration, *Declaration, *Declara
 		_, err := parseNightLockTypes(value.(string))
 		return err
 	}
-	read := func(chatID int64) (*models.NightModeSettings, error) {
-		return readNightMode(chatID, enabled, start, end, types)
+	read := func(ctx context.Context, chatID int64) (*models.NightModeSettings, error) {
+		return readNightMode(ctx, chatID, enabled, start, end, types)
 	}
-	enabled.read = func(chatID int64) any {
-		row, err := read(chatID)
+	enabled.read = func(ctx context.Context, chatID int64) any {
+		row, err := read(ctx, chatID)
 		if err != nil {
 			return nil
 		}
 		return row.Enabled
 	}
-	start.read = func(chatID int64) any {
-		row, err := read(chatID)
+	start.read = func(ctx context.Context, chatID int64) any {
+		row, err := read(ctx, chatID)
 		if err != nil {
 			return nil
 		}
 		return nightClock(row.StartMinute)
 	}
-	end.read = func(chatID int64) any {
-		row, err := read(chatID)
+	end.read = func(ctx context.Context, chatID int64) any {
+		row, err := read(ctx, chatID)
 		if err != nil {
 			return nil
 		}
 		return nightClock(row.EndMinute)
 	}
-	types.read = func(chatID int64) any {
-		row, err := read(chatID)
+	types.read = func(ctx context.Context, chatID int64) any {
+		row, err := read(ctx, chatID)
 		if err != nil {
 			return nil
 		}
 		return row.LockTypes
 	}
 	resolve := func(input WriteContext, changes map[string]any) (*models.NightModeSettings, []string, error) {
-		row, err := read(input.ChatID)
+		row, err := read(input.Context, input.ChatID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -169,12 +170,12 @@ func nightModeDeclarations() (*Declaration, *Declaration, *Declaration, *Declara
 // ReadNightMode returns a normalized copy without repairing cached or stored data.
 // Invalid fields use declaration defaults; an invalid window or types disables
 // the effective configuration, so corrupt data cannot activate moderation.
-func ReadNightMode(chatID int64) (*models.NightModeSettings, error) {
-	return readNightMode(chatID, NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes)
+func ReadNightModeContext(ctx context.Context, chatID int64) (*models.NightModeSettings, error) {
+	return readNightMode(ctx, chatID, NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes)
 }
 
-func readNightMode(chatID int64, enabled, start, end, types *Declaration) (*models.NightModeSettings, error) {
-	stored, err := nightmode.Get(chatID)
+func readNightMode(ctx context.Context, chatID int64, enabled, start, end, types *Declaration) (*models.NightModeSettings, error) {
+	stored, err := nightmode.GetContext(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}

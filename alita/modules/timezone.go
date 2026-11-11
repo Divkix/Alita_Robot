@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // timezoneDesc is /timezone: the chat's IANA timezone, which features acting
@@ -35,7 +36,7 @@ var timezoneNow = time.Now
 func (moduleStruct) timezone(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()[1:]
 	if len(args) == 0 {
-		name, err := settings.ReadTimezone(c.Chat.Id)
+		name, err := settings.ReadTimezoneContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 		if err != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 				Error("[Timezone] could not read the chat's timezone")
@@ -45,7 +46,7 @@ func (moduleStruct) timezone(c *helpers.CommandContext) error {
 	}
 
 	input := strings.Join(args, " ")
-	err := settings.Timezone.Write(settings.WriteContext{ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, input)
+	err := settings.Timezone.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, input)
 	if errors.Is(err, chattz.ErrUnknownTimezone) {
 		text, _ := c.Tr.GetString("timezone_invalid", i18n.TranslationParams{"input": html.EscapeString(input)})
 		if replyErr := replyCommandHelp(c.Bot, c.Msg, c.Tr, timezoneDesc.Name, text); replyErr != nil {
@@ -59,7 +60,7 @@ func (moduleStruct) timezone(c *helpers.CommandContext) error {
 			Error("[Timezone] could not save the chat's timezone")
 		return timezoneReply(c, "common_settings_save_failed")
 	}
-	return timezoneReply(c, "timezone_set", timezoneParams(settings.Timezone.Read(c.Chat.Id).Value.(string)))
+	return timezoneReply(c, "timezone_set", timezoneParams(settings.Timezone.ReadContext(tracing.UpdateContext(c.Ctx), c.Chat.Id).Value.(string)))
 }
 
 // timezoneParams fills the replies: the name, its UTC offset now and the

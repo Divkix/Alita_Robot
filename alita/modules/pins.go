@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var pinsModule = moduleStruct{
@@ -396,7 +397,7 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 			text, _ = tr.GetString("pins_input_not_recognized")
 			return replyPinToggle(b, msg, text)
 		}
-		if err := cfg.setting.Write(settings.WriteContext{ChatID: chat.Id}, on); err != nil {
+		if err := cfg.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
 			log.Errorf("[Pins] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -409,7 +410,7 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 		}
 	} else {
 		key := cfg.currentDisabledKey
-		if cfg.setting.Read(chat.Id).Value.(bool) {
+		if cfg.setting.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 			key = cfg.currentEnabledKey
 		}
 		temp, _ := tr.GetString(key)

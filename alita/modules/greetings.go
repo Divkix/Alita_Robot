@@ -246,7 +246,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			}
 			return ext.EndGroups
 		}
-		if err := config.setting.Write(settings.WriteContext{ChatID: chat.Id}, on); err != nil {
+		if err := config.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", config.setting.Key, chat.Id, err)
 			key = "common_settings_save_failed"
 		}
@@ -435,7 +435,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if len(args) == 0 {
-		if cfg.setting.Read(chat.Id).Value.(bool) {
+		if cfg.setting.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 			text, _ := tr.GetString(cfg.showEnabled)
 			if cfg.useMarkdownOnEnabled {
 				_, err = msg.Reply(bot, text, formatting.Smarkdown())
@@ -455,7 +455,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		if dbErr := cfg.setting.Write(settings.WriteContext{ChatID: chat.Id}, false); dbErr != nil {
+		if dbErr := cfg.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
@@ -464,7 +464,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 		text, _ := tr.GetString(cfg.setDisabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	case "on", "yes":
-		if dbErr := cfg.setting.Write(settings.WriteContext{ChatID: chat.Id}, true); dbErr != nil {
+		if dbErr := cfg.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
@@ -714,7 +714,7 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !m.loadPendingJoins(chat.Id, user.Id) {
 
-		if settings.AutoApprove.Read(chat.Id).Value.(bool) {
+		if settings.AutoApprove.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 			if _, err := bot.ApproveChatJoinRequest(chat.Id, user.Id, nil); err != nil {
 				if isJoinRequestGone(err) || helpers.IsExpectedTelegramError(err) {
 					log.Debugf("[Greetings] Expected error auto-approving join for user %d in chat %d: %v", user.Id, chat.Id, err)

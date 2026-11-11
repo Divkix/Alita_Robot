@@ -351,7 +351,7 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 		if !ok {
 			return probationUsage(c)
 		}
-		if err := chatsettings.ProbationNotice.Write(chatsettings.WriteContext{ChatID: c.Chat.Id}, on); err != nil {
+		if err := chatsettings.ProbationNotice.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, on); err != nil {
 			return probationSaveFailed(c, err)
 		}
 		if on {
@@ -363,7 +363,7 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 		if !ok || len(args) != 1 {
 			return probationUsage(c)
 		}
-		if err := chatsettings.ProbationEnabled.Write(chatsettings.WriteContext{ChatID: c.Chat.Id}, on); err != nil {
+		if err := chatsettings.ProbationEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, on); err != nil {
 			return probationSaveFailed(c, err)
 		}
 		if !on {
@@ -385,7 +385,7 @@ func probationSetTime(c *helpers.CommandContext, args []string) error {
 	if !ok || chatsettings.ProbationTime.Validate(seconds) != nil {
 		return probationReplyKey(c, "probation_invalid_time")
 	}
-	if err := chatsettings.ProbationTime.Write(chatsettings.WriteContext{ChatID: c.Chat.Id}, seconds); err != nil {
+	if err := chatsettings.ProbationTime.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, seconds); err != nil {
 		return probationSaveFailed(c, err)
 	}
 	return probationReplyKey(c, "probation_time_success", i18n.TranslationParams{"time": formatDuration(seconds)})
@@ -400,7 +400,7 @@ func probationSetNumber(c *helpers.CommandContext, args []string, declaration *c
 	if err != nil || declaration.Validate(n) != nil {
 		return probationReplyKey(c, invalidKey)
 	}
-	if err := declaration.Write(chatsettings.WriteContext{ChatID: c.Chat.Id}, n); err != nil {
+	if err := declaration.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, n); err != nil {
 		return probationSaveFailed(c, err)
 	}
 	return probationReplyKey(c, successKey, i18n.TranslationParams{param: n})
@@ -424,7 +424,7 @@ func probationSetBlock(c *helpers.CommandContext, args []string) error {
 		chatsettings.ProbationBlockForwards.Key: choice[probation.BlockForwards],
 		chatsettings.ProbationBlockMedia.Key:    choice[probation.BlockMedia],
 	}
-	input := chatsettings.WriteContext{ChatID: c.Chat.Id}
+	input := chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}
 	if len(chatsettings.ValidateChanges(input, changes)) != 0 {
 		return probationReplyKey(c, "probation_invalid_block")
 	}

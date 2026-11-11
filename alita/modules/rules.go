@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var rulesModule = moduleStruct{
@@ -75,14 +76,14 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			if err := settings.PrivateRules.Write(settings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, true); err != nil {
+			if err := settings.PrivateRules.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: bot}, true); err != nil {
 				log.Errorf("[Rules] Failed to enable private rules for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString("rules_private_pm_usage")
 			}
 		case "off", "no", "false":
-			if err := settings.PrivateRules.Write(settings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, false); err != nil {
+			if err := settings.PrivateRules.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: bot}, false); err != nil {
 				log.Errorf("[Rules] Failed to disable private rules for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
@@ -92,7 +93,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		default:
 			text, _ = tr.GetString("pins_input_not_recognized")
 		}
-	} else if settings.PrivateRules.Read(chat.Id).Value.(bool) {
+	} else if settings.PrivateRules.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 		text, _ = tr.GetString("rules_private_current_pm")
 	} else {
 		temp2, _ := tr.GetString("rules_private_current_group")
@@ -140,7 +141,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		Text, _ = tr.GetString("rules_no_rules_set")
 	}
 
-	if msg.Chat.Type != "private" && settings.PrivateRules.Read(chat.Id).Value.(bool) {
+	if msg.Chat.Type != "private" && settings.PrivateRules.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 		Text, _ = tr.GetString("rules_click_for_rules")
 		rulesKb = gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{

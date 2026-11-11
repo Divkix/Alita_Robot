@@ -11,25 +11,31 @@ import (
 
 var FloodLimit = &Declaration{
 	Key: "antiflood.limit", Type: Number, Default: 0, Right: AdminBot,
-	read: func(chatID int64) any { return antiflood.GetFlood(chatID).Limit },
+	read: func(ctx context.Context, chatID int64) any { return antiflood.GetFloodContext(ctx, chatID).Limit },
 	allowed: func(value any) error {
 		if n := value.(int); n != 0 && (n < 3 || n > 100) {
 			return fmt.Errorf("must be 0 (off) or between 3 and 100")
 		}
 		return nil
 	},
-	write: func(input WriteContext, value any) error { return antiflood.SetFlood(input.ChatID, value.(int)) },
+	write: func(input WriteContext, value any) error {
+		return antiflood.SetFloodContext(input.Context, input.ChatID, value.(int))
+	},
 }
 
 var FloodDelete = &Declaration{
 	Key: "antiflood.delete_messages", Type: Switch, Default: false, Right: AdminBot,
-	read:  func(chatID int64) any { return antiflood.GetFlood(chatID).DeleteAntifloodMessage },
-	write: func(input WriteContext, value any) error { return antiflood.SetFloodMsgDel(input.ChatID, value.(bool)) },
+	read: func(ctx context.Context, chatID int64) any {
+		return antiflood.GetFloodContext(ctx, chatID).DeleteAntifloodMessage
+	},
+	write: func(input WriteContext, value any) error {
+		return antiflood.SetFloodMsgDelContext(input.Context, input.ChatID, value.(bool))
+	},
 }
 
 var WarnLimit = &Declaration{
 	Key: "warns.limit", Type: Number, Default: 3, Right: AdminBot,
-	read: func(chatID int64) any { return warns.GetWarnSetting(chatID).WarnLimit },
+	read: func(ctx context.Context, chatID int64) any { return warns.GetWarnSettingContext(ctx, chatID).WarnLimit },
 	allowed: func(value any) error {
 		if n := value.(int); n < 1 || n > 100 {
 			return fmt.Errorf("must be between 1 and 100")
@@ -41,7 +47,9 @@ var WarnLimit = &Declaration{
 
 var WarnExpiry = &Declaration{
 	Key: "warns.expiry", Type: Duration, Default: 0, Right: AdminBot,
-	read: func(chatID int64) any { return warns.GetWarnSetting(chatID).WarnExpiry },
+	read: func(ctx context.Context, chatID int64) any {
+		return warns.GetWarnSettingContext(ctx, chatID).WarnExpiry
+	},
 	allowed: func(value any) error {
 		if !models.ValidWarnExpiry(value.(int)) {
 			return fmt.Errorf("must be 0 (never) or between 60 and 31622400 seconds")

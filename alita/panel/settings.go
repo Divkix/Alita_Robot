@@ -1,6 +1,7 @@
 package panel
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,8 +83,8 @@ func settingsString(key, value, def string, writable bool, options []string) set
 	}
 }
 
-func declaredSettingsField(chatID int64, declaration *settings.Declaration) settingsField {
-	state := declaration.Read(chatID)
+func declaredSettingsField(ctx context.Context, chatID int64, declaration *settings.Declaration) settingsField {
+	state := declaration.ReadContext(ctx, chatID)
 	_, key, _ := strings.Cut(declaration.Key, ".")
 	var fieldType string
 	switch declaration.Type {
@@ -130,7 +131,7 @@ func readRulesSettings(chatID int64) models.RulesSettings {
 
 // panelSettings reads every supported setting and marks the response read-only
 // for a non-admin caller, or one where the bot cannot act.
-func panelSettings(access chatAccess) settingsResponse {
+func panelSettings(ctx context.Context, access chatAccess) settingsResponse {
 	chatID := access.ChatID
 
 	rulesRow := readRulesSettings(chatID)
@@ -147,78 +148,78 @@ func panelSettings(access chatAccess) settingsResponse {
 
 	modules := []settingsModule{
 		{Key: "language", Label: "Language", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.Language),
+			declaredSettingsField(ctx, chatID, settings.Language),
 		}},
 		{Key: "greetings", Label: "Greetings", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.Welcome),
-			declaredSettingsField(chatID, settings.CleanWelcome),
-			declaredSettingsField(chatID, settings.Goodbye),
-			declaredSettingsField(chatID, settings.CleanGoodbye),
-			declaredSettingsField(chatID, settings.CleanService),
+			declaredSettingsField(ctx, chatID, settings.Welcome),
+			declaredSettingsField(ctx, chatID, settings.CleanWelcome),
+			declaredSettingsField(ctx, chatID, settings.Goodbye),
+			declaredSettingsField(ctx, chatID, settings.CleanGoodbye),
+			declaredSettingsField(ctx, chatID, settings.CleanService),
 		}},
 		{Key: "rules", Label: "Rules", Fields: []settingsField{
 			// /setrules converts the admin's Markdown to Telegram HTML before
 			// storing it; the panel has no editor for that, so it reports the
 			// text and writes only the toggle.
 			settingsString("rules_text", rulesRow.Rules, "", false, nil),
-			declaredSettingsField(chatID, settings.PrivateRules),
+			declaredSettingsField(ctx, chatID, settings.PrivateRules),
 		}},
 		{Key: "captcha", Label: "Captcha", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.CaptchaEnabled),
-			declaredSettingsField(chatID, settings.CaptchaMode),
-			declaredSettingsField(chatID, settings.CaptchaTimeout),
-			declaredSettingsField(chatID, settings.CaptchaAction),
-			declaredSettingsField(chatID, settings.CaptchaMaxAttempts),
+			declaredSettingsField(ctx, chatID, settings.CaptchaEnabled),
+			declaredSettingsField(ctx, chatID, settings.CaptchaMode),
+			declaredSettingsField(ctx, chatID, settings.CaptchaTimeout),
+			declaredSettingsField(ctx, chatID, settings.CaptchaAction),
+			declaredSettingsField(ctx, chatID, settings.CaptchaMaxAttempts),
 		}},
 		{Key: "antiflood", Label: "Antiflood", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.FloodLimit),
-			declaredSettingsField(chatID, settings.FloodMode),
-			declaredSettingsField(chatID, settings.FloodActionTime),
-			declaredSettingsField(chatID, settings.FloodDelete),
+			declaredSettingsField(ctx, chatID, settings.FloodLimit),
+			declaredSettingsField(ctx, chatID, settings.FloodMode),
+			declaredSettingsField(ctx, chatID, settings.FloodActionTime),
+			declaredSettingsField(ctx, chatID, settings.FloodDelete),
 		}},
 		{Key: "antispam", Label: "Antispam", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.AISpamEnabled),
-			declaredSettingsField(chatID, settings.SpamDBEnabled),
-			declaredSettingsField(chatID, settings.SpamDBAction),
-			declaredSettingsField(chatID, settings.SpamDBCAS),
-			declaredSettingsField(chatID, settings.SpamDBLols),
-			declaredSettingsField(chatID, settings.SpamDBShared),
-			declaredSettingsField(chatID, settings.ProbationEnabled),
-			declaredSettingsField(chatID, settings.ProbationTime),
-			declaredSettingsField(chatID, settings.ProbationMessages),
-			declaredSettingsField(chatID, settings.ProbationMinLength),
-			declaredSettingsField(chatID, settings.ProbationBlockLinks),
-			declaredSettingsField(chatID, settings.ProbationBlockForwards),
-			declaredSettingsField(chatID, settings.ProbationBlockMedia),
-			declaredSettingsField(chatID, settings.ProbationNotice),
+			declaredSettingsField(ctx, chatID, settings.AISpamEnabled),
+			declaredSettingsField(ctx, chatID, settings.SpamDBEnabled),
+			declaredSettingsField(ctx, chatID, settings.SpamDBAction),
+			declaredSettingsField(ctx, chatID, settings.SpamDBCAS),
+			declaredSettingsField(ctx, chatID, settings.SpamDBLols),
+			declaredSettingsField(ctx, chatID, settings.SpamDBShared),
+			declaredSettingsField(ctx, chatID, settings.ProbationEnabled),
+			declaredSettingsField(ctx, chatID, settings.ProbationTime),
+			declaredSettingsField(ctx, chatID, settings.ProbationMessages),
+			declaredSettingsField(ctx, chatID, settings.ProbationMinLength),
+			declaredSettingsField(ctx, chatID, settings.ProbationBlockLinks),
+			declaredSettingsField(ctx, chatID, settings.ProbationBlockForwards),
+			declaredSettingsField(ctx, chatID, settings.ProbationBlockMedia),
+			declaredSettingsField(ctx, chatID, settings.ProbationNotice),
 		}},
 		{Key: "antiraid", Label: "Antiraid", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.RaidTime),
-			declaredSettingsField(chatID, settings.RaidActionTime),
-			declaredSettingsField(chatID, settings.AutoAntiRaidThreshold),
+			declaredSettingsField(ctx, chatID, settings.RaidTime),
+			declaredSettingsField(ctx, chatID, settings.RaidActionTime),
+			declaredSettingsField(ctx, chatID, settings.AutoAntiRaidThreshold),
 		}},
 		{Key: "warns", Label: "Warnings", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.WarnLimit),
-			declaredSettingsField(chatID, settings.WarnMode),
-			declaredSettingsField(chatID, settings.WarnActionTime),
-			declaredSettingsField(chatID, settings.WarnExpiry),
+			declaredSettingsField(ctx, chatID, settings.WarnLimit),
+			declaredSettingsField(ctx, chatID, settings.WarnMode),
+			declaredSettingsField(ctx, chatID, settings.WarnActionTime),
+			declaredSettingsField(ctx, chatID, settings.WarnExpiry),
 		}},
 		{Key: "digest", Label: "Weekly digest", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.DigestEnabled),
-			declaredSettingsField(chatID, settings.DigestDestination),
+			declaredSettingsField(ctx, chatID, settings.DigestEnabled),
+			declaredSettingsField(ctx, chatID, settings.DigestDestination),
 		}},
 		{Key: "reports", Label: "Reports", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.ReportsEnabled),
-			declaredSettingsField(chatID, settings.ReportMuteThreshold),
+			declaredSettingsField(ctx, chatID, settings.ReportsEnabled),
+			declaredSettingsField(ctx, chatID, settings.ReportMuteThreshold),
 		}},
 		{Key: "timezone", Label: "Timezone", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.Timezone),
+			declaredSettingsField(ctx, chatID, settings.Timezone),
 		}},
 		{Key: "nightmode", Label: "Night mode", Fields: []settingsField{
-			declaredSettingsField(chatID, settings.NightModeEnabled),
-			declaredSettingsField(chatID, settings.NightModeStart),
-			declaredSettingsField(chatID, settings.NightModeEnd),
-			declaredSettingsField(chatID, settings.NightModeLockTypes),
+			declaredSettingsField(ctx, chatID, settings.NightModeEnabled),
+			declaredSettingsField(ctx, chatID, settings.NightModeStart),
+			declaredSettingsField(ctx, chatID, settings.NightModeEnd),
+			declaredSettingsField(ctx, chatID, settings.NightModeLockTypes),
 		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
@@ -256,7 +257,7 @@ func (p *Panel) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, panelSettings(access))
+	writeJSON(w, http.StatusOK, panelSettings(r.Context(), access))
 }
 
 // handleUpdateSettings applies a batch of "<module>.<field>" changes. Every key
@@ -282,8 +283,8 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	current := settingsIndex(panelSettings(access))
-	input := settings.WriteContext{ChatID: access.ChatID, Title: access.Title, Bot: p.bot}
+	current := settingsIndex(panelSettings(r.Context(), access))
+	input := settings.WriteContext{Context: r.Context(), ChatID: access.ChatID, Title: access.Title, Bot: p.bot}
 	updates, fieldErrors := validateSettingsChanges(input, body.Changes, current)
 	if len(fieldErrors) > 0 {
 		writeJSON(w, http.StatusBadRequest, settingsPatchResponse{
@@ -300,7 +301,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	saved, failed := applySettingsChanges(input, updates)
-	updated := panelSettings(access)
+	updated := panelSettings(r.Context(), access)
 	response := settingsPatchResponse{
 		Saved:          saved,
 		Failed:         failed,

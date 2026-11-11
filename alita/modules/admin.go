@@ -599,7 +599,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	tr := c.Tr
 	var text string
 
-	anonAdmin := settings.AnonAdmin.Read(chat.Id).Value.(bool)
+	anonAdmin := settings.AnonAdmin.ReadContext(tracing.UpdateContext(c.Ctx), chat.Id).Value.(bool)
 
 	if len(args) == 1 {
 		if anonAdmin {
@@ -616,7 +616,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
-				if err := settings.AnonAdmin.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
+				if err := settings.AnonAdmin.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, true); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
@@ -630,7 +630,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
-				if err := settings.AnonAdmin.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
+				if err := settings.AnonAdmin.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, false); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())

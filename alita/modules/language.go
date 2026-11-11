@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var languagesModule = moduleStruct{moduleName: "Languages"}
@@ -46,7 +47,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	cLang := lang.GetLanguage(ctx)
 	if msg.Chat.Type != "private" {
-		cLang = settings.Language.Read(ctx.EffectiveChat.Id).Value.(string)
+		cLang = settings.Language.ReadContext(tracing.UpdateContext(ctx), ctx.EffectiveChat.Id).Value.(string)
 	}
 	tr := i18n.MustNewTranslator(cLang)
 
@@ -54,7 +55,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	if args := ctx.Args(); msg.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
 		group := ctx.EffectiveChat
 		// lang.GetLanguage(ctx) answers in the PM's language; name the group's.
-		groupLang := settings.Language.Read(group.Id).Value.(string)
+		groupLang := settings.Language.ReadContext(tracing.UpdateContext(ctx), group.Id).Value.(string)
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
 		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id), cLang)
 	} else if msg.Chat.Type == "private" {
@@ -150,7 +151,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	} else {
-		if err := settings.Language.Write(settings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: b}, language); err != nil {
+		if err := settings.Language.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: b}, language); err != nil {
 			log.Errorf("[Language] ChangeGroupLanguage failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})

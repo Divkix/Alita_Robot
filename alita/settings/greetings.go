@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"context"
+
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
@@ -26,7 +28,7 @@ var AutoApprove = greetingSwitch("greetings.auto_approve", false, ChangeInfoBot,
 func greetingSwitch(key string, def bool, right Right, read func(*models.GreetingSettings) bool, write func(int64, bool) error) *Declaration {
 	return &Declaration{
 		Key: key, Type: Switch, Default: def, Right: right,
-		read: func(chatID int64) any {
+		read: func(ctx context.Context, chatID int64) any {
 			row := greetings.GetGreetingSettings(chatID)
 			if row.ID == 0 {
 				return nil

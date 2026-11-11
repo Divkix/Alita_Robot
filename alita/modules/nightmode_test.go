@@ -362,7 +362,7 @@ func TestInvalidStoredNightModeIsOffWithoutRepairingData(t *testing.T) {
 			}
 			cached := nightModeOf(t, f.chat.Id)
 			before := *cached
-			normalized, err := settings.ReadNightMode(f.chat.Id)
+			normalized, err := settings.ReadNightModeContext(t.Context(), f.chat.Id)
 			if err != nil || normalized.Enabled {
 				t.Fatalf("effective night mode = %+v, error = %v, want off", normalized, err)
 			}

@@ -180,7 +180,7 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 			return spamDBReplyKey(c, "spamdb_invalid_action", nil)
 		}
 		action := strings.ToLower(args[1])
-		if err := chatsettings.SpamDBAction.Write(chatsettings.WriteContext{ChatID: chat.Id}, action); err != nil {
+		if err := chatsettings.SpamDBAction.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, action); err != nil {
 			return spamDBSaveFailed(c, err)
 		}
 		return spamDBReplyKey(c, "spamdb_action_success", i18n.TranslationParams{"action": action})
@@ -190,7 +190,7 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	if !ok {
 		return spamDBReplyKey(c, "spamdb_invalid_option", nil)
 	}
-	if err := chatsettings.SpamDBEnabled.Write(chatsettings.WriteContext{ChatID: chat.Id}, want); err != nil {
+	if err := chatsettings.SpamDBEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, want); err != nil {
 		if key := chatsettings.RefusalKey(err); key != "" {
 			return spamDBReplyKey(c, key, nil)
 		}
@@ -219,7 +219,7 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	database := spamDBDatabases[idx]
 	params := i18n.TranslationParams{"database": database.source.Name()}
 
-	err := database.setting.Write(chatsettings.WriteContext{ChatID: c.Chat.Id}, want)
+	err := database.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, want)
 	if key := chatsettings.RefusalKey(err); key != "" {
 		return spamDBReplyKey(c, key, params)
 	}

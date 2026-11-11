@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -19,6 +20,7 @@ import (
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // nightModeNow is the clock night mode reads. Tests pin it; production never
@@ -35,8 +37,8 @@ func init() {
 // while its night window is open in the chat's timezone, and chatLocks itself
 // otherwise. It never writes to chatLocks, the cached map: the merge is a
 // copy. A chat without night mode costs one cached read.
-func withNightLocks(chatID int64, chatLocks map[string]bool) map[string]bool {
-	settings, err := chatsettings.ReadNightMode(chatID)
+func withNightLocks(ctx context.Context, chatID int64, chatLocks map[string]bool) map[string]bool {
+	settings, err := chatsettings.ReadNightModeContext(ctx, chatID)
 	if err != nil {
 		log.Errorf("[NightMode] read night mode: %v - %d", err, chatID)
 		return chatLocks
@@ -71,7 +73,7 @@ var nightModeDesc = helpers.CommandDescriptor{
 func (moduleStruct) nightMode(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()[1:]
 	if len(args) == 0 {
-		settings, err := chatsettings.ReadNightMode(c.Chat.Id)
+		settings, err := chatsettings.ReadNightModeContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 		if err != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 				Error("[NightMode] could not read the chat's night mode")
@@ -84,7 +86,7 @@ func (moduleStruct) nightMode(c *helpers.CommandContext) error {
 	}
 
 	if len(args) == 1 && strings.EqualFold(args[0], "off") {
-		if err := chatsettings.NightModeEnabled.Write(chatsettings.WriteContext{ChatID: c.Chat.Id}, false); err != nil {
+		if err := chatsettings.NightModeEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, false); err != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 				Error("[NightMode] could not turn night mode off")
 			return nightModeReply(c, trS(c.Tr, "common_settings_save_failed"))
@@ -103,7 +105,7 @@ func (moduleStruct) nightMode(c *helpers.CommandContext) error {
 		changes[field.Key] = args[i]
 	}
 	changes[chatsettings.NightModeLockTypes.Key] = strings.Join(args[2:], ",")
-	if err := chatsettings.NightModeEnabled.WriteChanges(chatsettings.WriteContext{ChatID: c.Chat.Id}, changes); err != nil {
+	if err := chatsettings.NightModeEnabled.WriteChanges(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, changes); err != nil {
 		if chatsettings.RefusalKey(err) != "" {
 			return nightModeRefused(c, err)
 		}
@@ -111,7 +113,7 @@ func (moduleStruct) nightMode(c *helpers.CommandContext) error {
 			Error("[NightMode] could not save night mode")
 		return nightModeReply(c, trS(c.Tr, "common_settings_save_failed"))
 	}
-	settings, err := chatsettings.ReadNightMode(c.Chat.Id)
+	settings, err := chatsettings.ReadNightModeContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[NightMode] could not read the saved night mode")

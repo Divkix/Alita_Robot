@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"context"
+
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -17,7 +19,7 @@ func canUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (bool, string) {
 // looked the user up in the chat live. An admin is let in from the cached
 // admin list, without that lookup.
 func checkUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (allowed bool, key string, memberChecked bool) {
-	allowConnect := settings.AllowConnect.Read(chatID).Value.(bool)
+	allowConnect := settings.AllowConnect.ReadContext(context.Background(), chatID).Value.(bool)
 	if chat_status.IsUserAdmin(b, chatID, userID) {
 		return true, "", false
 	}

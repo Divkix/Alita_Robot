@@ -16,7 +16,7 @@ import (
 
 var ReportsEnabled = &Declaration{
 	Key: "reports.enabled", Type: Switch, Default: true, Right: AdminBot,
-	read: func(chatID int64) any {
+	read: func(ctx context.Context, chatID int64) any {
 		row := reports.GetChatReportSettings(chatID)
 		if row.ID == 0 {
 			return nil
@@ -30,7 +30,9 @@ var ReportsEnabled = &Declaration{
 
 var ReportMuteThreshold = &Declaration{
 	Key: "reports.mute_threshold", Type: Number, Default: 0, Right: Restrict,
-	read: func(chatID int64) any { return reports.GetChatReportSettings(chatID).MuteThreshold },
+	read: func(ctx context.Context, chatID int64) any {
+		return reports.GetChatReportSettings(chatID).MuteThreshold
+	},
 	allowed: func(value any) error {
 		if n := value.(int); n != 0 && (n < models.ReportMuteThresholdMin || n > models.ReportMuteThresholdMax) {
 			return fmt.Errorf("must be 0 or between %d and %d", models.ReportMuteThresholdMin, models.ReportMuteThresholdMax)
@@ -58,8 +60,8 @@ func ReadReports(chatID int64) *models.ReportChatSettings {
 
 var DigestEnabled = &Declaration{
 	Key: "digest.enabled", Type: Switch, Default: false, Right: AdminBot,
-	read: func(chatID int64) any {
-		row, err := digestsettings.Get(chatID)
+	read: func(ctx context.Context, chatID int64) any {
+		row, err := digestsettings.GetContext(ctx, chatID)
 		if err != nil || row == nil {
 			return nil
 		}
@@ -74,8 +76,8 @@ var DigestEnabled = &Declaration{
 var DigestDestination = &Declaration{
 	Key: "digest.destination", Type: Choice, Default: digestsettings.DestinationAuto, Right: AdminBot,
 	Options: []string{digestsettings.DestinationAuto, digestsettings.DestinationLog, digestsettings.DestinationGroup},
-	read: func(chatID int64) any {
-		row, err := digestsettings.Get(chatID)
+	read: func(ctx context.Context, chatID int64) any {
+		row, err := digestsettings.GetContext(ctx, chatID)
 		if err != nil || row == nil {
 			return nil
 		}
@@ -86,7 +88,7 @@ var DigestDestination = &Declaration{
 			return err
 		}
 		if value.(string) == digestsettings.DestinationLog {
-			row := logchannels.Get(input.ChatID)
+			row := logchannels.GetContext(input.Context, input.ChatID)
 			if row == nil || row.LogChannelID == 0 {
 				return Refusal("digest_log_unavailable")
 			}
@@ -106,8 +108,8 @@ func digestAvailable(_ WriteContext, _ any) error {
 }
 
 // ReadDigest applies allowed-value defaults without applying write preconditions.
-func ReadDigest(chatID int64) (*models.DigestSettings, error) {
-	stored, err := digestsettings.Get(chatID)
+func ReadDigestContext(ctx context.Context, chatID int64) (*models.DigestSettings, error) {
+	stored, err := digestsettings.GetContext(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +121,8 @@ func ReadDigest(chatID int64) (*models.DigestSettings, error) {
 
 var Timezone = &Declaration{
 	Key: "timezone.name", Type: Text, Default: chattz.DefaultName, Right: ChangeInfo,
-	read: func(chatID int64) any {
-		name, err := chattz.Name(chatID)
+	read: func(ctx context.Context, chatID int64) any {
+		name, err := chattz.NameContext(ctx, chatID)
 		if err != nil {
 			return nil
 		}
@@ -137,8 +139,8 @@ var Timezone = &Declaration{
 }
 
 // ReadTimezone preserves repository errors while normalizing invalid stored names.
-func ReadTimezone(chatID int64) (string, error) {
-	name, err := chattz.Name(chatID)
+func ReadTimezoneContext(ctx context.Context, chatID int64) (string, error) {
+	name, err := chattz.NameContext(ctx, chatID)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +150,7 @@ func ReadTimezone(chatID int64) (string, error) {
 var Language = &Declaration{
 	Key: "language.code", Type: Choice, Default: "en", Right: Admin,
 	Options: []string{"en", "es", "fr", "hi", "ru", "pt", "id"},
-	read:    func(chatID int64) any { return lang.GetGroupLanguage(context.Background(), chatID) },
+	read:    func(ctx context.Context, chatID int64) any { return lang.GetGroupLanguage(ctx, chatID) },
 	write: func(input WriteContext, value any) error {
 		return lang.ChangeGroupLanguage(input.ChatID, value.(string))
 	},
@@ -156,7 +158,7 @@ var Language = &Declaration{
 
 var PrivateRules = &Declaration{
 	Key: "rules.private_rules", Type: Switch, Default: false, Right: AdminBot,
-	read: func(chatID int64) any { return rules.GetChatRulesInfo(chatID).Private },
+	read: func(ctx context.Context, chatID int64) any { return rules.GetChatRulesInfo(chatID).Private },
 	write: func(input WriteContext, value any) error {
 		return rules.SetPrivateRules(input.ChatID, value.(bool))
 	},

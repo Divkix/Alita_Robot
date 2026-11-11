@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,7 +35,7 @@ type settingsToggle struct {
 	right func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string
 	// set receives the title for captcha writes; other repositories only need
 	// the ID. It returns the i18n key to answer with when the write fails.
-	set func(b *gotgbot.Bot, chatID int64, chatName, value string) string
+	set func(ctx context.Context, b *gotgbot.Bot, chatID int64, chatName, value string) string
 }
 
 // next is the value after current, or the first one when current is not one
@@ -48,12 +49,12 @@ var settingsOnOff = []string{"off", "on"}
 func declaredSettingsToggle(key, command string, declaration *settings.Declaration) settingsToggle {
 	toggle := settingsToggle{
 		key: key, command: command, declaration: declaration, values: declaration.ToggleValues(),
-		set: func(b *gotgbot.Bot, chatID int64, title string, value string) string {
+		set: func(ctx context.Context, b *gotgbot.Bot, chatID int64, title string, value string) string {
 			var parsed any = value
 			if declaration.Type == settings.Switch {
 				parsed = value == "on"
 			}
-			err := declaration.Write(settings.WriteContext{ChatID: chatID, Title: title, Bot: b}, parsed)
+			err := declaration.Write(settings.WriteContext{Context: ctx, ChatID: chatID, Title: title, Bot: b}, parsed)
 			if key := settings.RefusalKey(err); key != "" {
 				return key
 			}
@@ -171,7 +172,7 @@ var settingsTogglesByKey, settingsTogglesByCommand = func() (byKey, byCommand ma
 
 // setAntiRaidToggle is /antiraid on|off: on starts raid mode for the chat's
 // raid time. A raid already in the state asked for counts as done.
-func setAntiRaidToggle(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
+func setAntiRaidToggle(_ context.Context, _ *gotgbot.Bot, chatID int64, _ string, value string) string {
 	var err error
 	if value == "on" {
 		_, err = antiRaidModule.enableRaid(chatID, settings.ReadAntiRaid(chatID).RaidTime)
@@ -234,7 +235,7 @@ func settingsTogglePress(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, 
 	}
 	// The summary is drawn again even when the write fails: one that fails
 	// half way (captcha off, then the release fails) has changed the row.
-	failKey := toggle.set(b, chat.Id, chat.Title, value)
+	failKey := toggle.set(tracing.UpdateContext(ctx), b, chat.Id, chat.Title, value)
 	text, kb := settingsSummaryView(ctx, tr, chat)
 	editSettingsMessage(b, query.Message, text, kb)
 	answer := &gotgbot.AnswerCallbackQueryOpts{}

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
@@ -9,16 +10,20 @@ import (
 )
 
 var FloodMode, FloodActionTime = moderationMode("antiflood.action", "antiflood.action_time",
-	func(chatID int64) (string, int) {
-		row := antiflood.GetFlood(chatID)
+	func(ctx context.Context, chatID int64) (string, int) {
+		row := antiflood.GetFloodContext(ctx, chatID)
 		return row.Action, row.FloodActionTime
-	}, antiflood.SetFloodMode)
+	}, func(input WriteContext, mode string, seconds int) error {
+		return antiflood.SetFloodModeContext(input.Context, input.ChatID, mode, seconds)
+	})
 
 var WarnMode, WarnActionTime = moderationMode("warns.mode", "warns.action_time",
-	func(chatID int64) (string, int) {
-		row := warns.GetWarnSetting(chatID)
+	func(ctx context.Context, chatID int64) (string, int) {
+		row := warns.GetWarnSettingContext(ctx, chatID)
 		return row.WarnMode, row.WarnActionTime
-	}, warns.SetWarnMode)
+	}, func(input WriteContext, mode string, seconds int) error {
+		return warns.SetWarnMode(input.ChatID, mode, seconds)
+	})
 
 // IsTimedMode reports whether moderation needs a duration supplied by the user.
 func IsTimedMode(mode string) bool {
@@ -35,13 +40,13 @@ func effectiveModeDuration(mode string, seconds, def int) int {
 	return seconds
 }
 
-func moderationMode(modeKey, timeKey string, read func(int64) (string, int), write func(int64, string, int) error) (*Declaration, *Declaration) {
+func moderationMode(modeKey, timeKey string, read func(context.Context, int64) (string, int), write func(WriteContext, string, int) error) (*Declaration, *Declaration) {
 	mode := &Declaration{
 		Key: modeKey, Type: Choice, Default: "mute", Right: AdminBot,
 		Options:      []string{"ban", "kick", "mute", "tban", "tmute"},
 		toggleValues: []string{"mute", "ban", "kick"},
-		read: func(chatID int64) any {
-			value, _ := read(chatID)
+		read: func(ctx context.Context, chatID int64) any {
+			value, _ := read(ctx, chatID)
 			return value
 		},
 	}
@@ -56,12 +61,12 @@ func moderationMode(modeKey, timeKey string, read func(int64) (string, int), wri
 	}
 	// Zero means inactive for an untimed mode, not a customized duration.
 	duration.unchanged = func(value any) bool { return value == 0 || value == duration.Default }
-	duration.read = func(chatID int64) any {
-		storedMode, seconds := read(chatID)
+	duration.read = func(ctx context.Context, chatID int64) any {
+		storedMode, seconds := read(ctx, chatID)
 		return effectiveModeDuration(mode.effective(storedMode).(string), seconds, duration.Default.(int))
 	}
 	values := func(input WriteContext, changes map[string]any) (string, int, error) {
-		storedMode, seconds := read(input.ChatID)
+		storedMode, seconds := read(input.Context, input.ChatID)
 		selected := mode.effective(storedMode).(string)
 		seconds = effectiveModeDuration(selected, seconds, duration.Default.(int))
 		if value, changed := changes[mode.Key]; changed {
@@ -92,7 +97,7 @@ func moderationMode(modeKey, timeKey string, read func(int64) (string, int), wri
 			if err != nil {
 				return err
 			}
-			return write(input.ChatID, selected, seconds)
+			return write(input, selected, seconds)
 		},
 	}
 	mode.shared, duration.shared = group, group

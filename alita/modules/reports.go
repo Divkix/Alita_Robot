@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var reportsModule = moduleStruct{
@@ -325,7 +326,7 @@ func (moduleStruct) reports(c *helpers.CommandContext) error {
 			if len(args) > 1 && !helpers.RunChecks(c, declaredSettingChecks(settings.ReportMuteThreshold)) {
 				return ext.EndGroups
 			}
-			replyText = reportsMuteSetting(tr, c.Chat.Id, args[1:])
+			replyText = reportsMuteSetting(tracing.UpdateContext(c.Ctx), tr, c.Chat.Id, args[1:])
 		case "showblocklist":
 			replyText = reportsBlocklistText(c, tr)
 		default:
@@ -373,7 +374,7 @@ func reportsToggleText(c *helpers.CommandContext, tr *i18n.Translator, inPM, on 
 		err = reports.SetUserReportSettings(c.User.Id, on)
 		onKey, offKey = "reports_turned_on_personal", "reports_turned_off_personal"
 	} else {
-		err = settings.ReportsEnabled.Write(settings.WriteContext{ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, on)
+		err = settings.ReportsEnabled.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, on)
 	}
 	switch {
 	case err != nil:

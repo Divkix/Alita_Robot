@@ -51,8 +51,8 @@ func probationNumber(key string, kind Type, def, minValue, maxValue int, message
 func probationDeclaration(key string, kind Type, def any, read func(*models.ProbationSettings) any, write func(WriteContext, any) error) *Declaration {
 	return &Declaration{
 		Key: key, Type: kind, Default: def, Right: Restrict,
-		read: func(chatID int64) any {
-			row, err := probation.GetSettings(context.Background(), chatID)
+		read: func(ctx context.Context, chatID int64) any {
+			row, err := probation.GetSettings(ctx, chatID)
 			if err != nil || row == nil {
 				return nil
 			}
@@ -67,7 +67,7 @@ func probationBlocks() (*Declaration, *Declaration, *Declaration) {
 	forwards := probationDeclaration("antispam.probation_block_forwards", Switch, true, func(row *models.ProbationSettings) any { return row.BlockForwards }, nil)
 	media := probationDeclaration("antispam.probation_block_media", Switch, false, func(row *models.ProbationSettings) any { return row.BlockMedia }, nil)
 	values := func(input WriteContext, changes map[string]any) (bool, bool, bool, error) {
-		row, err := ReadProbationContext(context.Background(), input.ChatID)
+		row, err := ReadProbationContext(input.Context, input.ChatID)
 		if err != nil {
 			return false, false, false, err
 		}

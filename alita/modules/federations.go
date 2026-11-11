@@ -221,7 +221,7 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if err := settings.QuietFed.Write(settings.WriteContext{ChatID: chat.Id}, enabled); err != nil {
+	if err := settings.QuietFed.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, enabled); err != nil {
 		text, _ := tr.GetString("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups

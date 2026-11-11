@@ -34,8 +34,8 @@ var ErrLastSpamDatabase = errors.New("at least one spam database must stay on")
 func spamDBDeclaration(key string, kind Type, def any, read func(*models.SpamDBSettings) any, write func(WriteContext, any) error) *Declaration {
 	d := &Declaration{
 		Key: key, Type: kind, Default: def, Right: Admin,
-		read: func(chatID int64) any {
-			row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
+		read: func(ctx context.Context, chatID int64) any {
+			row, err := spamdbsettings.GetSpamDBSettingsContext(ctx, chatID)
 			if err != nil || row == nil {
 				return nil
 			}
@@ -79,7 +79,7 @@ func spamDatabases() (*Declaration, *Declaration, *Declaration) {
 	group := &sharedWrite{
 		fields: []*Declaration{cas, lols, shared},
 		validate: func(input WriteContext, changes map[string]any) error {
-			row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), input.ChatID)
+			row, err := spamdbsettings.GetSpamDBSettingsContext(input.Context, input.ChatID)
 			if err != nil {
 				return err
 			}

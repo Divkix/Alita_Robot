@@ -282,7 +282,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	chatId := chat.Id
 	// Cheapest discriminator first: an unconfigured chat (Limit == 0) pays only
 	// this one cached read, not the translator/admin/approval lookups below.
-	flood := settings.ReadFlood(chatId)
+	flood := settings.ReadFloodContext(tracing.UpdateContext(ctx), chatId)
 	if flood.Limit == 0 {
 		return ext.ContinueGroups
 	}
@@ -463,7 +463,7 @@ func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_expected_args")
 	} else {
 		if slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
-			if err := settings.FloodLimit.Write(settings.WriteContext{ChatID: chat.Id}, 0); err != nil {
+			if err := settings.FloodLimit.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0); err != nil {
 				log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -478,7 +478,7 @@ func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				if settings.FloodLimit.Validate(num) != nil {
 					replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_set_in_limit")
 				} else {
-					if err := settings.FloodLimit.Write(settings.WriteContext{ChatID: chat.Id}, num); err != nil {
+					if err := settings.FloodLimit.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, num); err != nil {
 						log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 						errText, _ := tr.GetString("common_settings_save_failed")
 						_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -541,7 +541,7 @@ func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 				actionTime = int(seconds)
 			}
 			changes := map[string]any{settings.FloodMode.Key: selectedMode, settings.FloodActionTime.Key: actionTime}
-			input := settings.WriteContext{ChatID: chat.Id}
+			input := settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
 			if len(settings.ValidateChanges(input, changes)) != 0 {
 				text, _ := tr.GetString("antiflood_setfloodmode_specify_action")
 				_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -593,7 +593,7 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		switch selectedMode {
 		case "on", "yes":
-			if err := settings.FloodDelete.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
+			if err := settings.FloodDelete.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -601,7 +601,7 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
 		case "off", "no":
-			if err := settings.FloodDelete.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
+			if err := settings.FloodDelete.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -612,7 +612,7 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_invalid_option")
 		}
 	} else {
-		currSet := settings.FloodDelete.Read(chat.Id).Value.(bool)
+		currSet := settings.FloodDelete.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currSet {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_already_enabled")
 		} else {
