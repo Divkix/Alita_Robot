@@ -126,7 +126,7 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 	case captchaEndLeft:
 		// Nobody to unmute, and the claim scheduled nothing.
 	default:
-		err = keepScheduledUnmuteOnFailure(attempt.ChatID, attempt.UserID, unmuteCaptchaUser(bot, attempt.ChatID, attempt.UserID))
+		err = liftCaptchaMute(bot, attempt.ChatID, attempt.UserID)
 	}
 	if attempt.MessageID > 0 {
 		_ = helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID)
@@ -163,7 +163,7 @@ func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 		if outcome.action == "kick" {
 			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
 		}
-		return name, nil, false, errors.Join(err, keepScheduledUnmuteOnFailure(chatID, userID, unmuteCaptchaUser(bot, chatID, userID)))
+		return name, nil, false, errors.Join(err, liftCaptchaMute(bot, chatID, userID))
 	}
 	if outcome.action == "mute" {
 		return name, unban, true, nil
@@ -199,12 +199,13 @@ func reportCaptchaPass(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 	}
 }
 
-// keepScheduledUnmuteOnFailure is the one rule when lifting a mute fails. A
-// permanent Telegram error (member gone, chat gone, member now an admin) leaves
-// nothing to unmute: the scheduled unmute is cleared and it is no failure. Any
-// other error keeps the scheduled unmute for the unmute worker and is returned.
-func keepScheduledUnmuteOnFailure(chatID, userID int64, unmuteErr error) error {
-	if unmuteErr != nil && !isPermanentUnmuteError(unmuteErr) {
+// liftCaptchaMute lifts userID's captcha mute in chatID by the one failure
+// rule. Once lifted, or on a permanent Telegram error (member gone, chat gone,
+// member now an admin) that leaves nothing to unmute, the scheduled unmute is
+// cleared and it is no failure. Any other error keeps the scheduled unmute for
+// the unmute worker and is returned.
+func liftCaptchaMute(bot *gotgbot.Bot, chatID, userID int64) error {
+	if unmuteErr := unmuteCaptchaUser(bot, chatID, userID); unmuteErr != nil && !isPermanentUnmuteError(unmuteErr) {
 		return unmuteErr
 	}
 	return captcha.DeleteMutedUser(userID, chatID)

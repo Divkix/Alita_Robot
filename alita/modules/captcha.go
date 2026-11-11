@@ -673,7 +673,7 @@ func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 		if _, ok := settled[user.UserID]; ok {
 			continue
 		}
-		if err := keepScheduledUnmuteOnFailure(chatID, user.UserID, unmuteCaptchaUser(bot, chatID, user.UserID)); err != nil {
+		if err := liftCaptchaMute(bot, chatID, user.UserID); err != nil {
 			releaseErr = errors.Join(releaseErr, err)
 		}
 	}
