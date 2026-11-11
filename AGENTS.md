@@ -96,6 +96,7 @@ CGO_ENABLED=0 go build ./...   # compile check
 - Check `TableName()` before raw SQL: `ConnectionSettings` → `connection` (per user), `ConnectionChatSettings` →
   `connection_settings` (per chat), `AdminSettings` → `admin`, `DisableSettings` → `disable`.
 - Return every DB error on a state-changing path.
+- A stored chat setting offered on two surfaces is declared in `alita/settings`; surfaces only parse and render.
 
 ## Migrations
 

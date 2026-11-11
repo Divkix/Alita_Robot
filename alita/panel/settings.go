@@ -417,11 +417,9 @@ func plainText(text string) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
-// applySettingsChanges writes through the same repository setters commands
-// use, so each one invalidates the caches its command would. Boolean enables
-// run before disables so switching the spam databases can proceed in either
-// direction without tripping the last-database constraint. Flood action and
-// duration share one setter call, with outcomes reported for each requested key.
+// applySettingsChanges writes through declarations and reuses each shared write's
+// outcome for every requested field. Boolean enables run before disables so
+// switching spam databases never momentarily leaves none enabled.
 func applySettingsChanges(input settings.WriteContext, updates map[string]any) ([]string, map[string]string) {
 	chatID := input.ChatID
 	keys := make([]string, 0, len(updates))

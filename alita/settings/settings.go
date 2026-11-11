@@ -38,6 +38,7 @@ package settings
 import (
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strings"
 
@@ -126,6 +127,11 @@ var declarations = []*Declaration{
 	NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes,
 	PrivateNotes, AntiChannelPin, CleanLinked, AllowConnect, AnonAdmin,
 	DeleteDisabledCommands, QuietFed,
+}
+
+// All iterates every declared setting in registration order.
+func All() iter.Seq[*Declaration] {
+	return slices.Values(declarations)
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.

@@ -42,9 +42,7 @@ type settingsSection struct {
 	Rows  []settingsRow
 }
 
-// Effective defaults of a group that never touched a setting. They follow what
-// the bot actually does, not the Go fallbacks: GORM drops zero values that have
-// a default tag, so goodbye and allow_connect end up true once their row exists.
+// Blacklist actions are command-only; shared settings get defaults from declarations.
 const (
 	settingsDefaultBlacklistAction = "warn"
 	settingsMaxListedItems         = 15
@@ -235,7 +233,7 @@ func locksSettingsSection(_ context.Context, chatID int64) settingsSection {
 	}
 	return settingsSection{Title: "Locks", Rows: []settingsRow{
 		listRow("/locks", locked),
-		stringRow("/nightmode", night, "off"),
+		{Command: "/nightmode", Value: night, Changed: settings.NightModeEnabled.Read(chatID).Changed},
 	}}
 }
 
