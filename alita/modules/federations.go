@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -220,7 +221,7 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if err := federations.SetQuietFed(chat.Id, enabled); err != nil {
+	if err := settings.QuietFed.Write(settings.WriteContext{ChatID: chat.Id}, enabled); err != nil {
 		text, _ := tr.GetString("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
@@ -1312,7 +1313,7 @@ func LoadFederations(dispatcher *ext.Dispatcher) {
 		Name: "leavefed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatOwnerCheck},
 	}, pipelineHandler(federationsModule.leaveFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "quietfed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, helpers.RequireUserAdmin(), federationChatCheck},
+		Name: "quietfed", RequiredChecks: append([]helpers.CheckFunc{federationGroupCheck}, declaredGroupSettingChecks(settings.QuietFed)...),
 	}, pipelineHandler(federationsModule.quietFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "fedinfo", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},

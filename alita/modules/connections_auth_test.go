@@ -103,66 +103,6 @@ func TestCanUserConnectToChatDeniesRestrictedFormerMember(t *testing.T) {
 	}
 }
 
-func TestAllowConnectTogglesSetting(t *testing.T) {
-	useEnglishLocale(t)
-	f := newAdminChatFixture(t)
-	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
-	chatID := chat.Id
-
-	onCtx := newModuleMessageContext(bot, chat, user, "/allowconnect on")
-	if err := connectionsDispatcher().ProcessUpdate(bot, onCtx.Update, nil); err != nil {
-		t.Fatalf("dispatch /allowconnect on: %v", err)
-	}
-	if !connections.GetChatConnectionSetting(chatID).AllowConnect {
-		t.Fatal("AllowConnect was not enabled")
-	}
-
-	currentCtx := newModuleMessageContext(bot, chat, user, "/allowconnect")
-	if err := connectionsDispatcher().ProcessUpdate(bot, currentCtx.Update, nil); err != nil {
-		t.Fatalf("dispatch /allowconnect: %v", err)
-	}
-
-	offCtx := newModuleMessageContext(bot, chat, user, "/allowconnect no")
-	if err := connectionsDispatcher().ProcessUpdate(bot, offCtx.Update, nil); err != nil {
-		t.Fatalf("dispatch /allowconnect no: %v", err)
-	}
-	if connections.GetChatConnectionSetting(chatID).AllowConnect {
-		t.Fatal("AllowConnect stayed enabled after no")
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
-		t.Fatalf("sendMessage calls = %d, want on/current/off replies", len(calls))
-	}
-}
-
-func TestAllowConnectHandlesInvalidOptionAndNonAdminNoop(t *testing.T) {
-	useEnglishLocale(t)
-	f := newAdminChatFixture(t)
-	client, bot, chat := f.client, f.bot, f.chat
-	chatID := chat.Id
-
-	invalidCtx := newModuleMessageContext(bot, chat, f.admin, "/allowconnect maybe")
-	if err := connectionsDispatcher().ProcessUpdate(bot, invalidCtx.Update, nil); err != nil {
-		t.Fatalf("dispatch /allowconnect maybe: %v", err)
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want invalid-option reply", len(calls))
-	}
-
-	memberCtx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, "/allowconnect on")
-	if err := connections.ToggleAllowConnect(chatID, false); err != nil {
-		t.Fatalf("connections.ToggleAllowConnect() error = %v", err)
-	}
-	if err := connectionsDispatcher().ProcessUpdate(bot, memberCtx.Update, nil); err != nil {
-		t.Fatalf("dispatch member /allowconnect: %v", err)
-	}
-	if connections.GetChatConnectionSetting(chatID).AllowConnect {
-		t.Fatal("non-admin /allowconnect changed the chat setting")
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want no reply for non-admin noop", len(calls))
-	}
-}
-
 func TestDisconnectPrivateClearsConnection(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

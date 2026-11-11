@@ -12,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -201,14 +202,14 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		param := strings.ToLower(args[0])
 		switch param {
 		case "on", "true", "yes":
-			if err := disabling.ToggleDel(chat.Id, true); err != nil {
+			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("error_generic")
 			} else {
 				text, _ = tr.GetString("disabling_delete_enabled")
 			}
 		case "off", "false", "no":
-			if err := disabling.ToggleDel(chat.Id, false); err != nil {
+			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("error_generic")
 			} else {
@@ -218,7 +219,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("disabling_invalid_option")
 		}
 	} else {
-		currStatus := disabling.ShouldDel(chat.Id)
+		currStatus := settings.DeleteDisabledCommands.Read(chat.Id).Value.(bool)
 		if currStatus {
 			text, _ = tr.GetString("disabling_delete_current_enabled")
 		} else {
@@ -253,7 +254,7 @@ func LoadDisabling(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disabledel",
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(settings.DeleteDisabledCommands),
 	}, pipelineHandler(disablingModule.disabledel))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "enable",

@@ -112,38 +112,6 @@ func TestPrivateNoteDeepLinkCarriesAnyNoteName(t *testing.T) {
 	}
 }
 
-func TestPrivNoteTogglesNewChatSetting(t *testing.T) {
-	f := newAdminChatFixture(t)
-	bot := f.bot
-	chat, admin := f.chat, f.admin
-
-	onCtx := newModuleMessageContext(bot, chat, admin, "/privnote on")
-	if err := notesModule.privNote(bot, onCtx); err != ext.EndGroups {
-		t.Fatalf("privNote on error = %v, want EndGroups", err)
-	}
-	if !notes.GetNotes(chat.Id).PrivateNotesEnabled() {
-		t.Fatal("private notes were not enabled for new chat")
-	}
-
-	statusCtx := newModuleMessageContext(bot, chat, admin, "/privnote")
-	if err := notesModule.privNote(bot, statusCtx); err != ext.EndGroups {
-		t.Fatalf("privNote status error = %v, want EndGroups", err)
-	}
-
-	offCtx := newModuleMessageContext(bot, chat, admin, "/privnote off")
-	if err := notesModule.privNote(bot, offCtx); err != ext.EndGroups {
-		t.Fatalf("privNote off error = %v, want EndGroups", err)
-	}
-	if notes.GetNotes(chat.Id).PrivateNotesEnabled() {
-		t.Fatal("private notes stayed enabled")
-	}
-
-	invalidCtx := newModuleMessageContext(bot, chat, admin, "/privnote maybe")
-	if err := notesModule.privNote(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("privNote invalid option error = %v, want EndGroups", err)
-	}
-}
-
 func TestAddExistingNoteUsesOverwriteConfirmation(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot := f.client, f.bot

@@ -3,6 +3,8 @@ package settings
 import (
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 )
@@ -74,5 +76,33 @@ var AnonAdmin = &Declaration{
 	},
 	write: func(input WriteContext, value any) error {
 		return admin.SetAnonAdminMode(input.ChatID, value.(bool))
+	},
+}
+
+var DeleteDisabledCommands = &Declaration{
+	Key: "disabling.delete_commands", Type: Switch, Default: false, Right: AdminBot,
+	read: func(chatID int64) any {
+		row := disabling.GetChatSettings(chatID)
+		if row == nil {
+			return nil
+		}
+		return row.DeleteCommands
+	},
+	write: func(input WriteContext, value any) error {
+		return disabling.ToggleDel(input.ChatID, value.(bool))
+	},
+}
+
+var QuietFed = &Declaration{
+	Key: "federations.quiet", Type: Switch, Default: false, Right: FederationAdmin,
+	read: func(chatID int64) any {
+		row := federations.GetChatFed(chatID)
+		if row == nil {
+			return nil
+		}
+		return row.Quiet
+	},
+	write: func(input WriteContext, value any) error {
+		return federations.SetQuietFed(input.ChatID, value.(bool))
 	},
 }

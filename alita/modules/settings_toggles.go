@@ -9,7 +9,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
@@ -46,14 +45,6 @@ func (t settingsToggle) next(current string) string {
 
 var settingsOnOff = []string{"off", "on"}
 
-// boolToggle is an on/off row whose command writes it with set.
-func boolToggle(key, command string, botAdmin bool, set func(chatID int64, on bool) error) settingsToggle {
-	return settingsToggle{key: key, command: command, values: settingsOnOff, botAdmin: botAdmin,
-		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
-			return settingsSaveFailed(command, chatID, set(chatID, value == "on"))
-		}}
-}
-
 func declaredSettingsToggle(key, command string, declaration *settings.Declaration) settingsToggle {
 	toggle := settingsToggle{
 		key: key, command: command, declaration: declaration, values: declaration.ToggleValues(),
@@ -87,6 +78,8 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 		toggle.botAdmin, toggle.right = true, restrictRight
 	case settings.OwnerBot:
 		toggle.botAdmin, toggle.right = true, ownerRight
+	case settings.FederationAdmin:
+		toggle.right = inFedRight
 	default:
 		panic("unmapped setting right")
 	}
@@ -99,11 +92,6 @@ func settingsSaveFailed(command string, chatID int64, err error) string {
 	}
 	log.Errorf("[Settings] toggle %s failed for chat %d: %v", command, chatID, err)
 	return "common_settings_save_failed"
-}
-
-func withRight(t settingsToggle, right func(*gotgbot.Bot, *ext.Context, *gotgbot.Chat, int64) string) settingsToggle {
-	t.right = right
-	return t
 }
 
 // The rights the commands check beyond admin status.
@@ -163,8 +151,8 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("pn", "/privnote", settings.PrivateNotes),
 	declaredSettingsToggle("ap", "/antichannelpin", settings.AntiChannelPin),
 	declaredSettingsToggle("cl", "/cleanlinked", settings.CleanLinked),
-	boolToggle("dd", "/disabledel", true, disabling.ToggleDel),
-	withRight(boolToggle("qf", "/quietfed", false, federations.SetQuietFed), inFedRight),
+	declaredSettingsToggle("dd", "/disabledel", settings.DeleteDisabledCommands),
+	declaredSettingsToggle("qf", "/quietfed", settings.QuietFed),
 	declaredSettingsToggle("ac", "/allowconnect", settings.AllowConnect),
 	declaredSettingsToggle("an", "/anonadmin", settings.AnonAdmin),
 }

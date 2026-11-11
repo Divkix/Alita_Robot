@@ -30,8 +30,8 @@ func settingsFieldPermission(module, field string) permission {
 			return permChangeInfo
 		case settings.Restrict:
 			return permRestrict
-		case settings.OwnerBot:
-			panic("owner-only settings have no panel editor")
+		case settings.OwnerBot, settings.FederationAdmin:
+			panic("owner/federation settings have no panel editor")
 		default:
 			panic("unmapped setting right")
 		}

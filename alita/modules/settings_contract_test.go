@@ -30,6 +30,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
@@ -65,6 +66,7 @@ type settingContract struct {
 	botAdmin      bool
 	silentMember  bool
 	owner         bool
+	inFed         bool
 	statusOn      string
 	statusOff     string
 	setOn         string
@@ -478,6 +480,21 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			setOn: "admin_anon_admin_enabled_now", setOff: "admin_anon_admin_already_disabled", refusalKey: "admin_anon_admin_invalid_arg",
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
+		{
+			key: "disabling.delete_commands", command: "/disabledel", button: "dd", noPanel: true, botAdmin: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "disabling_delete_current_enabled", statusOff: "disabling_delete_current_disabled",
+			setOn: "disabling_delete_enabled", setOff: "disabling_delete_disabled", refusalKey: "disabling_invalid_option",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "federations.quiet", command: "/quietfed", button: "qf", noPanel: true, directChecks: true, inFed: true,
+			defaultValue: false, defaultLabel: "off",
+			// /quietfed has no status form; its summary is the value-bearing read.
+			statusOn: "feds_invalid_toggle", statusOff: "feds_invalid_toggle",
+			setOn: "feds_quiet_on", setOff: "feds_quiet_off", refusalKey: "feds_invalid_toggle",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
 	} {
 		if setting.key == "nightmode.lock_types" {
 			// Expectations come from the locks owner, not the declaration's attachment.
@@ -526,6 +543,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				{"no change info", true, true, false, setting.restrict, setting.owner},
 				{"no restrict", true, true, setting.changeInfo, false, setting.owner},
 				{"bot member", true, false, setting.changeInfo, setting.restrict, setting.owner},
+				{"member and bot member", false, false, false, setting.restrict, false},
 			} {
 				t.Run("rights/"+rights.name, func(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
@@ -571,14 +589,11 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						contractPress(t, f, actor, setting.button, edge.input)
 						text, alert := lastAnswer(t, f.client)
 						want := reply
-						if (setting.directChecks || setting.silentMember) && !rights.callerAdmin {
+						if !rights.callerAdmin {
 							want = translated(t, "connections_is_user_connected_user_not_admin")
 						}
-						if setting.owner && !rights.owner && rights.botAdmin {
+						if setting.owner && rights.callerAdmin && !rights.owner && rights.botAdmin {
 							want = translated(t, "chat_status_owner_button_error")
-							if !rights.callerAdmin {
-								want = translated(t, "connections_is_user_connected_user_not_admin")
-							}
 						}
 						if accepted == alert || (!accepted && text != want) {
 							t.Fatalf("button answer = %q alert %t, want %q accepted %t", text, alert, want, accepted)
@@ -596,14 +611,70 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					}
 					if !accepted {
 						assertContractRowCount(t, f, setting, 0)
+						if setting.inFed {
+							assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+						}
 					} else if rights.botAdmin {
 						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
 					}
 				})
 			}
+			if setting.inFed {
+				t.Run("chat must belong to a federation", func(t *testing.T) {
+					withoutFed := setting
+					withoutFed.inFed = false
+					f := newSettingContractFixture(t, withoutFed)
+					for _, value := range []string{"on", "off"} {
+						if reply := contractSet(t, f, f.admin, setting, value); reply != translated(t, "feds_not_in_fed") {
+							t.Fatalf("command outside federation = %q", reply)
+						}
+						contractPress(t, f, f.admin, setting.button, value)
+						if text, alert := lastAnswer(t, f.client); !alert || text != translated(t, "feds_not_in_fed") {
+							t.Fatalf("button outside federation = %q alert %t", text, alert)
+						}
+						assertContractRowCount(t, f, withoutFed, 0)
+					}
+				})
+			}
+			if setting.noPanel && setting.button != "" {
+				for _, first := range []string{"command", "button"} {
+					t.Run("warmed round trip/"+first, func(t *testing.T) {
+						f := newSettingContractFixture(t, setting)
+						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+						for i, value := range []bool{true, false, true} {
+							input := "off"
+							if value {
+								input = "on"
+							}
+							if (i%2 == 0) == (first == "command") {
+								contractSet(t, f, f.admin, setting, input)
+							} else {
+								contractPress(t, f, f.admin, setting.button, input)
+								if text, alert := lastAnswer(t, f.client); alert {
+									t.Fatalf("button refused %s: %q", input, text)
+								}
+							}
+							assertContractRead(t, f, setting, value, input, value != setting.defaultValue)
+						}
+					})
+				}
+			}
 			for _, edge := range setting.edges {
 				t.Run(edge.input, func(t *testing.T) {
 					if setting.noPanel {
+						f := newSettingContractFixture(t, setting)
+						response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: edge.value}))
+						var result struct {
+							Errors map[string]string `json:"errors"`
+						}
+						if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+							t.Fatal(err)
+						}
+						if response.Code != http.StatusBadRequest || result.Errors[setting.key] == "" {
+							t.Fatalf("panel gained an editor: %d %s", response.Code, response.Body.String())
+						}
+						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+						assertContractRowCount(t, f, setting, 0)
 						return
 					}
 					f := newSettingContractFixture(t, setting)
@@ -1196,6 +1267,15 @@ func newSettingContractFixture(t *testing.T, setting settingContract) adminChatF
 			t.Fatal(err)
 		}
 	}
+	if setting.inFed {
+		fed, err := federations.CreateFederation(f.admin.Id, fmt.Sprintf("Contract Fed %d", f.chat.Id))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := federations.JoinFed(f.chat.Id, f.chat.Title, fed.FedID); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return f
 }
 
@@ -1244,6 +1324,8 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	LoadNotes(dispatcher)
 	LoadPin(dispatcher)
 	LoadAdmin(dispatcher)
+	LoadDisabling(dispatcher)
+	LoadFederations(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -1464,10 +1546,10 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			t.Fatalf("button offers %q, want %q", actual, next)
 		}
 	}
-	if setting.noPanel {
-		return
-	}
 	response := contractPanelRequest(t, f, f.admin, http.MethodGet, "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("panel read = %d %s", response.Code, response.Body.String())
+	}
 	var body struct {
 		Modules []struct {
 			Key    string `json:"key"`
@@ -1487,6 +1569,9 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			if module.Key+"."+field.Key != setting.key {
 				continue
 			}
+			if setting.noPanel {
+				t.Fatalf("panel unexpectedly offers %s", setting.key)
+			}
 			def := setting.defaultValue
 			if isContractModeDuration(setting) {
 				def = 3600
@@ -1497,6 +1582,9 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			}
 			return
 		}
+	}
+	if setting.noPanel {
+		return
 	}
 	t.Fatalf("panel missing %s: %d %s", setting.key, response.Code, response.Body.String())
 }
@@ -1567,6 +1655,13 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.ConnectionChatSettings{}
 	} else if strings.HasPrefix(setting.key, "admin.") {
 		model = &models.AdminSettings{}
+	} else if strings.HasPrefix(setting.key, "disabling.") {
+		model = &models.DisableChatSettings{}
+	} else if strings.HasPrefix(setting.key, "federations.") {
+		model = &models.FederationChat{}
+		if setting.inFed {
+			want = 1 // Joining the federation creates this row before settings are read.
+		}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {

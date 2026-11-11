@@ -178,60 +178,6 @@ func TestSettingsToggleStaleButtonSetsItsValue(t *testing.T) {
 	}
 }
 
-func TestSettingsToggleRefusals(t *testing.T) {
-	limited := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Limited"}
-	limitedJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Limited"},"can_delete_messages":true}`, limited.Id)
-
-	tests := []struct {
-		name    string
-		user    func(f adminChatFixture) gotgbot.User
-		setup   func(t *testing.T, f adminChatFixture)
-		key     string
-		value   string
-		command string
-		denyKey string
-	}{
-		{
-			name: "admin who is not the owner", key: "an", value: "on", command: "/anonadmin",
-			user:    func(f adminChatFixture) gotgbot.User { return f.admin },
-			denyKey: "chat_status_owner_button_error",
-		},
-		{
-			name: "bot not admin", key: "dd", value: "on", command: "/disabledel",
-			user: func(f adminChatFixture) gotgbot.User { return f.admin },
-			setup: func(_ *testing.T, f adminChatFixture) {
-				adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, f.admin.Id, fixtureAdminRights)
-				f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = []byte("[" + adminJSON + "]")
-			},
-			denyKey: "connections_is_user_connected_bot_not_admin",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := settingsToggleFixture(t)
-			f.addAdmins(limitedJSON)
-			f.client.membersByUser[fmt.Sprint(limited.Id)] = []byte(limitedJSON)
-			if tt.setup != nil {
-				tt.setup(t, f)
-			}
-			before := settingsRowValue(t, f.chat.Id, tt.command)
-
-			pressSettingsToggle(t, f, tt.user(f), tt.key, tt.value)
-
-			want, _ := i18n.MustNewTranslator("en").GetString(tt.denyKey)
-			if text, alert := lastAnswer(t, f.client); !alert || text != want {
-				t.Fatalf("answer = %q (alert %v), want alert %q", text, alert, want)
-			}
-			if got := settingsRowValue(t, f.chat.Id, tt.command); got != before {
-				t.Fatalf("%s = %q after a refused tap, want %q", tt.command, got, before)
-			}
-			if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {
-				t.Fatalf("a refused tap edited the summary: %v", calls[0].Params)
-			}
-		})
-	}
-}
-
 // A forged button with a value the command does not take changes nothing.
 func TestSettingsToggleRejectsForgedValues(t *testing.T) {
 	f := settingsToggleFixture(t)

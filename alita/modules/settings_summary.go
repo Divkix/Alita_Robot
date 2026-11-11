@@ -316,14 +316,10 @@ func pinsSettingsSection(_ context.Context, chatID int64) settingsSection {
 	}}
 }
 
-func disablingSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	del := false
-	if d, ok := readChatSetting[models.DisableChatSettings](ctx, chatID); ok {
-		del = d.DeleteCommands
-	}
+func disablingSettingsSection(_ context.Context, chatID int64) settingsSection {
 	return settingsSection{Title: "Disabling", Rows: []settingsRow{
 		listRow("/disabled", slices.Clone(disabling.GetChatDisabledCMDsCached(chatID))),
-		boolRow("/disabledel", del, false),
+		declaredBoolRow("/disabledel", settings.DeleteDisabledCommands, chatID),
 	}}
 }
 
@@ -368,7 +364,7 @@ func federationSettingsSection(chatID int64) settingsSection {
 	}
 	return settingsSection{Title: "Federation", Rows: []settingsRow{
 		{Command: "/chatfed", Value: fc.FedID, Changed: true},
-		boolRow("/quietfed", fc.Quiet, false),
+		declaredBoolRow("/quietfed", settings.QuietFed, chatID),
 	}}
 }
 

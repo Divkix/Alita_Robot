@@ -567,108 +567,21 @@ func TestGetInviteLinkHandlesPrivateLookupFailure(t *testing.T) {
 	}
 }
 
-func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
-	f := newAdminChatFixture(t)
-	f.makeOwner()
-	bot, chat, user := f.bot, f.chat, f.admin
-
-	onCtx := newModuleMessageContext(bot, chat, user, "/anonadmin on")
-	cmdCtx, err := helpers.BuildCommandContext(bot, onCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("anonAdmin(on) error = %v, want EndGroups", err)
-	}
-	if !admin.GetAdminSettings(chat.Id).AnonAdmin {
-		t.Fatal("AnonAdmin was not enabled")
-	}
-
-	statusCtx := newModuleMessageContext(bot, chat, user, "/anonadmin")
-	cmdCtx, err = helpers.BuildCommandContext(bot, statusCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("anonAdmin(status) error = %v, want EndGroups", err)
-	}
-
-	offCtx := newModuleMessageContext(bot, chat, user, "/anonadmin false")
-	cmdCtx, err = helpers.BuildCommandContext(bot, offCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("anonAdmin(off) error = %v, want EndGroups", err)
-	}
-	if admin.GetAdminSettings(chat.Id).AnonAdmin {
-		t.Fatal("AnonAdmin stayed enabled after false")
-	}
-}
-
-func TestAnonAdminRefusesNonOwnerAdmin(t *testing.T) {
+func TestAnonAdminDispatcherKeepsMemberReadableStatus(t *testing.T) {
 	useRealLocales(t)
-	f := newAdminChatFixture(t)
-	bot, chat, user := f.bot, f.chat, f.admin
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadAdmin(dispatcher)
-	ctx := newModuleMessageContext(bot, chat, user, "/anonadmin on")
-	if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
-		t.Fatalf("/anonadmin on error = %v", err)
-	}
-	assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{
-		"chat_id": chat.Id, "text": translated(t, "chat_status_owner_cmd_error"),
-	})
-	if admin.GetAdminSettings(chat.Id).AnonAdmin {
-		t.Fatal("a non-owner admin enabled AnonAdmin")
-	}
-}
-
-func TestAnonAdminDispatcherKeepsMemberStatusAndOwnerOnlyChanges(t *testing.T) {
-	useRealLocales(t)
-	for _, role := range []string{"member", "admin", "owner"} {
-		for _, botAdmin := range []bool{false, true} {
-			for _, arg := range []string{"", " on", " maybe"} {
-				t.Run(fmt.Sprintf("%s/bot=%t/arg=%q", role, botAdmin, arg), func(t *testing.T) {
-					f := newAdminChatFixture(t)
-					if role == "owner" {
-						f.makeOwner()
-					}
-					if !botAdmin {
-						f.client.membersByUser["999"] = json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
-						f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]) + "]")
-					}
-					actor := f.admin
-					if role == "member" {
-						actor = f.member
-					}
-					dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-					LoadAdmin(dispatcher)
-					ctx := newModuleMessageContext(f.bot, f.chat, actor, "/anonadmin"+arg)
-					if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
-						t.Fatal(err)
-					}
-					key := "admin_anon_admin_disabled"
-					switch {
-					case !botAdmin:
-						key = "connections_is_user_connected_bot_not_admin"
-					case arg != "" && role != "owner":
-						key = "chat_status_owner_cmd_error"
-					case arg == " on":
-						key = "admin_anon_admin_enabled_now"
-					case arg == " maybe":
-						key = "admin_anon_admin_invalid_arg"
-					}
-					want := strings.ReplaceAll(translated(t, key), "%s", f.chat.Title)
-					assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{
-						"chat_id": f.chat.Id, "text": want,
-					})
-					if got, want := admin.GetAdminSettings(f.chat.Id).AnonAdmin, botAdmin && role == "owner" && arg == " on"; got != want {
-						t.Fatalf("anonymous admin trust = %t, want %t", got, want)
-					}
-				})
+	for _, botAdmin := range []bool{false, true} {
+		t.Run(fmt.Sprintf("bot admin=%t", botAdmin), func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			contractRights(f, false, botAdmin, false)
+			contractDispatch(t, f, f.member, "/anonadmin")
+			key := "admin_anon_admin_disabled"
+			if !botAdmin {
+				key = "connections_is_user_connected_bot_not_admin"
 			}
-		}
+			assertParams(t, f.client.onlyCall(t, "sendMessage"), map[string]any{
+				"chat_id": f.chat.Id, "text": contractSwitchReply(t, f, key),
+			})
+		})
 	}
 }
 

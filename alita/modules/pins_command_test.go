@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -308,125 +307,6 @@ func TestPinSettingStatusEscapesChatTitle(t *testing.T) {
 				t.Fatalf("%s status = %q, want the chat title HTML-escaped", tc.name, text)
 			}
 		})
-	}
-}
-
-func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
-	f := newAdminChatFixture(t)
-	bot, chat, user := f.bot, f.chat, f.admin
-	chatID := chat.Id
-
-	antiOnCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin on")
-	if err := pinsModule.antichannelpin(bot, antiOnCtx); err != ext.EndGroups {
-		t.Fatalf("antichannelpin on error = %v, want EndGroups", err)
-	}
-	if !pins.GetPinData(chatID).AntiChannelPin {
-		t.Fatal("AntiChannelPin was not enabled")
-	}
-
-	cleanOnCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked on")
-	if err := pinsModule.cleanlinked(bot, cleanOnCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked on error = %v, want EndGroups", err)
-	}
-	if !pins.GetPinData(chatID).CleanLinked {
-		t.Fatal("CleanLinked was not enabled")
-	}
-
-	antiInvalidCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin maybe")
-	if err := pinsModule.antichannelpin(bot, antiInvalidCtx); err != ext.EndGroups {
-		t.Fatalf("antichannelpin invalid error = %v, want EndGroups", err)
-	}
-
-	cleanOffCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked off")
-	if err := pinsModule.cleanlinked(bot, cleanOffCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked off error = %v, want EndGroups", err)
-	}
-	if pins.GetPinData(chatID).CleanLinked {
-		t.Fatal("CleanLinked stayed enabled")
-	}
-
-	antiCurrentCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin")
-	if err := pinsModule.antichannelpin(bot, antiCurrentCtx); err != ext.EndGroups {
-		t.Fatalf("antichannelpin current error = %v, want EndGroups", err)
-	}
-	antiOffCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin off")
-	if err := pinsModule.antichannelpin(bot, antiOffCtx); err != ext.EndGroups {
-		t.Fatalf("antichannelpin off error = %v, want EndGroups", err)
-	}
-	if pins.GetPinData(chatID).AntiChannelPin {
-		t.Fatal("AntiChannelPin stayed enabled")
-	}
-	antiCurrentDisabledCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin")
-	if err := pinsModule.antichannelpin(bot, antiCurrentDisabledCtx); err != ext.EndGroups {
-		t.Fatalf("antichannelpin current disabled error = %v, want EndGroups", err)
-	}
-
-	cleanEnabledCurrentCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked on")
-	if err := pinsModule.cleanlinked(bot, cleanEnabledCurrentCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked re-enable error = %v, want EndGroups", err)
-	}
-	cleanCurrentEnabledCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked")
-	if err := pinsModule.cleanlinked(bot, cleanCurrentEnabledCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked current enabled error = %v, want EndGroups", err)
-	}
-	cleanInvalidCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked maybe")
-	if err := pinsModule.cleanlinked(bot, cleanInvalidCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked invalid error = %v, want EndGroups", err)
-	}
-	cleanOffAgainCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked off")
-	if err := pinsModule.cleanlinked(bot, cleanOffAgainCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked off again error = %v, want EndGroups", err)
-	}
-	cleanCurrentCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked")
-	if err := pinsModule.cleanlinked(bot, cleanCurrentCtx); err != ext.EndGroups {
-		t.Fatalf("cleanlinked current error = %v, want EndGroups", err)
-	}
-}
-
-func TestPinSettingDispatcherKeepsBotBeforeUserRefusals(t *testing.T) {
-	useRealLocales(t)
-	for _, command := range []string{"antichannelpin", "cleanlinked"} {
-		for _, botAdmin := range []bool{false, true} {
-			for _, userAdmin := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/bot=%t/user=%t", command, botAdmin, userAdmin), func(t *testing.T) {
-					f := newAdminChatFixture(t)
-					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(`[]`)
-					if !botAdmin {
-						f.client.membersByChat = map[string]json.RawMessage{
-							fmt.Sprint(f.chat.Id) + "|999": json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
-						}
-					}
-					user := f.member
-					if userAdmin {
-						user = f.admin
-						f.client.membersByUser[fmt.Sprint(user.Id)] = json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, user.Id))
-					}
-					d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-					LoadPin(d)
-					if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, user, "/"+command+" on").Update, nil); err != nil {
-						t.Fatal(err)
-					}
-					if !botAdmin || !userAdmin {
-						key := "connections_is_user_connected_user_not_admin"
-						if !botAdmin {
-							key = "connections_is_user_connected_bot_not_admin"
-						}
-						want, _ := i18n.MustNewTranslator("en").GetString(key)
-						if got := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"]); got != want {
-							t.Fatalf("refusal = %q, want %q", got, want)
-						}
-					}
-					settings := pins.GetPinData(f.chat.Id)
-					enabled := settings.AntiChannelPin
-					if command == "cleanlinked" {
-						enabled = settings.CleanLinked
-					}
-					if enabled != (botAdmin && userAdmin) {
-						t.Fatalf("setting enabled = %t, want %t", enabled, botAdmin && userAdmin)
-					}
-				})
-			}
-		}
 	}
 }
 

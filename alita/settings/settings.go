@@ -32,6 +32,7 @@
 // Private notes, pin switches, connections and anonymous-admin mode also use
 // non-creating reads. The anonymous-admin command keeps its member-readable
 // status; only its writes and /settings taps require the owner.
+// Quiet federation mode requires a chat administrator and federation membership.
 package settings
 
 import (
@@ -71,12 +72,13 @@ const (
 type Right uint8
 
 const (
-	Admin         Right = iota
-	AdminBot            // caller and bot must both be administrators
-	ChangeInfo          // caller is an admin with can_change_info
-	ChangeInfoBot       // ChangeInfo, with the bot an administrator
-	Restrict            // caller and bot administrators with can_restrict_members
-	OwnerBot            // only the owner may write; bot must be an administrator
+	Admin           Right = iota
+	AdminBot              // caller and bot must both be administrators
+	ChangeInfo            // caller is an admin with can_change_info
+	ChangeInfoBot         // ChangeInfo, with the bot an administrator
+	Restrict              // caller and bot administrators with can_restrict_members
+	OwnerBot              // only the owner may write; bot must be an administrator
+	FederationAdmin       // caller is an admin of a chat that belongs to a federation
 )
 
 type Declaration struct {
@@ -123,6 +125,7 @@ var declarations = []*Declaration{
 	Timezone, Language, PrivateRules,
 	NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes,
 	PrivateNotes, AntiChannelPin, CleanLinked, AllowConnect, AnonAdmin,
+	DeleteDisabledCommands, QuietFed,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.
