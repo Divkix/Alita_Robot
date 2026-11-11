@@ -1,3 +1,10 @@
+// Package media sends the messages admins save: notes, filters, greetings,
+// recurring messages and permapins.
+//
+// Features send a saved message only through SendSaved. The kinds table is the
+// one place to change what a kind supports (a random part, fillings,
+// directives, waiting for the send limiter); the transport below it is
+// unexported so no feature fills send options by hand.
 package media
 
 import (
@@ -40,14 +47,14 @@ func resolveSendResult[T any](result T, err error, chatID int64, mediaType strin
 
 var ErrNoPermission = fmt.Errorf("bot lacks permission to send messages")
 
-type Content struct {
+type outgoing struct {
 	Text    string
 	FileID  string
 	MsgType int
 	Name    string
 }
 
-type Options struct {
+type sendOptions struct {
 	ChatID            int64
 	ReplyMsgID        int64
 	ThreadID          int64
@@ -59,7 +66,8 @@ type Options struct {
 	AllowWithoutReply bool
 }
 
-func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, error) {
+// deliver sends content with opts, skipping a chat known to be restricted.
+func deliver(b *gotgbot.Bot, content outgoing, opts sendOptions) (*gotgbot.Message, error) {
 	restricted, restrictedFlagPresent := cache.IsChatRestrictedState(opts.ChatID)
 	if restricted {
 		log.WithField("chat_id", opts.ChatID).Debug("[Media] Skipping send to restricted chat")
@@ -104,7 +112,7 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	return msg, err
 }
 
-func sendMedia(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendMedia(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	switch content.MsgType {
 	case db.STICKER:
 		return sendSticker(b, content, opts, replyParams)
@@ -123,7 +131,7 @@ func sendMedia(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	}
 }
 
-func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendText(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendMessage(opts.ChatID, content.Text, &gotgbot.SendMessageOpts{
 		ParseMode: parseMode,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
@@ -138,7 +146,7 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 	return resolveSendResult(msg, err, opts.ChatID, "text")
 }
 
-func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendSticker(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendSticker(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
 		ReplyParameters:     replyParams,
 		ReplyMarkup:         opts.Keyboard,
@@ -149,7 +157,7 @@ func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *got
 	return resolveSendResult(msg, err, opts.ChatID, "sticker")
 }
 
-func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendDocument(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendDocument(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendDocumentOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -162,7 +170,7 @@ func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode strin
 	return resolveSendResult(msg, err, opts.ChatID, "document")
 }
 
-func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendPhoto(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendPhoto(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendPhotoOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -175,7 +183,7 @@ func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "photo")
 }
 
-func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendAudio(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendAudio(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendAudioOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -188,7 +196,7 @@ func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "audio")
 }
 
-func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendVoice(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendVoice(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVoiceOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -201,7 +209,7 @@ func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "voice")
 }
 
-func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendVideo(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendVideo(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
@@ -214,7 +222,7 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "video")
 }
 
-func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendVideoNote(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendVideoNote(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
 		ReplyParameters:     replyParams,
 		ReplyMarkup:         opts.Keyboard,
@@ -223,25 +231,6 @@ func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *g
 		MessageThreadId:     opts.ThreadID,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "video note")
-}
-
-func SendGreeting(b *gotgbot.Bot, chatID int64, text, fileID string, msgType int, keyboard *gotgbot.InlineKeyboardMarkup, threadID int64) (*gotgbot.Message, error) {
-	return Send(b, Content{
-		Text:    text,
-		FileID:  fileID,
-		MsgType: msgType,
-		Name:    "greeting",
-	}, Options{
-		ChatID:            chatID,
-		ReplyMsgID:        0,
-		ThreadID:          threadID,
-		Keyboard:          keyboard,
-		NoFormat:          false,
-		NoNotif:           false,
-		WebPreview:        false,
-		IsProtected:       false,
-		AllowWithoutReply: true,
-	})
 }
 
 // Kind is the feature a saved message belongs to. What each kind supports is
@@ -356,7 +345,7 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 	rules := kinds[msg.Kind]
 	var (
 		text string
-		opts Options
+		opts sendOptions
 	)
 	if view == Raw {
 		text, opts = raw(msg, rules)
@@ -364,10 +353,10 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 		text, opts = render(b, msg, to, rules)
 	}
 	opts.ChatID, opts.ThreadID, opts.ReplyMsgID, opts.AllowWithoutReply = to.ChatID, to.ThreadID, to.ReplyMsgID, true
-	payload := Content{Text: text, FileID: msg.FileID, MsgType: msg.MsgType, Name: msg.Name}
+	payload := outgoing{Text: text, FileID: msg.FileID, MsgType: msg.MsgType, Name: msg.Name}
 
 	if !rules.scheduled {
-		return Send(b, payload, opts)
+		return deliver(b, payload, opts)
 	}
 	limiter := to.Limiter
 	if limiter == nil {
@@ -376,13 +365,13 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 	var sent *gotgbot.Message
 	err := limiter.Do(ctx, func() error {
 		var sendErr error
-		sent, sendErr = Send(b, payload, opts)
+		sent, sendErr = deliver(b, payload, opts)
 		return sendErr
 	})
 	return sent, err
 }
 
-func render(b *gotgbot.Bot, msg SavedMessage, to Target, rules kindRules) (string, Options) {
+func render(b *gotgbot.Bot, msg SavedMessage, to Target, rules kindRules) (string, sendOptions) {
 	text, buttons := msg.Text, msg.Buttons
 	if parts := strings.Split(text, "%%%"); rules.random && len(parts) > 1 {
 		text = parts[rand.Intn(len(parts))] // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
@@ -394,7 +383,7 @@ func render(b *gotgbot.Bot, msg SavedMessage, to Target, rules kindRules) (strin
 		}
 		text, buttons = formatting.FormattingReplacer(b, chat, to.Member, text, buttons)
 	}
-	opts := Options{WebPreview: msg.WebPreview, IsProtected: msg.IsProtected, NoNotif: msg.NoNotif}
+	opts := sendOptions{WebPreview: msg.WebPreview, IsProtected: msg.IsProtected, NoNotif: msg.NoNotif}
 	switch rules.directives {
 	case directivesNone:
 	case directivesStored:
@@ -406,8 +395,8 @@ func render(b *gotgbot.Bot, msg SavedMessage, to Target, rules kindRules) (strin
 	return text, opts
 }
 
-func raw(msg SavedMessage, rules kindRules) (string, Options) {
-	opts := Options{NoFormat: true, IsProtected: msg.IsProtected, NoNotif: msg.NoNotif, Keyboard: &gotgbot.InlineKeyboardMarkup{}}
+func raw(msg SavedMessage, rules kindRules) (string, sendOptions) {
+	opts := sendOptions{NoFormat: true, IsProtected: msg.IsProtected, NoNotif: msg.NoNotif, Keyboard: &gotgbot.InlineKeyboardMarkup{}}
 	if rules.directives == directivesFromText {
 		_, _, _, _, opts.IsProtected, opts.NoNotif, _ = content.NotesParser(msg.Text)
 	}

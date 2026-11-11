@@ -54,26 +54,6 @@ func newRecordingBot(client *recordingBotClient) *gotgbot.Bot {
 	}
 }
 
-func TestContentAndOptionsZeroValues(t *testing.T) {
-	t.Parallel()
-
-	var content Content
-	if content.Text != "" || content.FileID != "" || content.MsgType != 0 || content.Name != "" {
-		t.Fatalf("Content zero value = %#v, want empty fields", content)
-	}
-
-	var opts Options
-	if opts.ChatID != 0 || opts.ReplyMsgID != 0 || opts.ThreadID != 0 {
-		t.Fatalf("Options ID zero value = %#v, want zero IDs", opts)
-	}
-	if opts.Keyboard != nil {
-		t.Fatalf("Options keyboard = %#v, want nil", opts.Keyboard)
-	}
-	if opts.NoFormat || opts.NoNotif || opts.WebPreview || opts.IsProtected || opts.AllowWithoutReply {
-		t.Fatalf("Options bool zero value = %#v, want false flags", opts)
-	}
-}
-
 func TestErrNoPermission(t *testing.T) {
 	t.Parallel()
 
@@ -159,7 +139,7 @@ func TestSendTextBuildsTelegramParams(t *testing.T) {
 	client := &recordingBotClient{}
 	bot := newRecordingBot(client)
 
-	msg, err := Send(bot, Content{Text: "hello", MsgType: db.TEXT}, Options{
+	msg, err := deliver(bot, outgoing{Text: "hello", MsgType: db.TEXT}, sendOptions{
 		ChatID:            -100,
 		ReplyMsgID:        123,
 		ThreadID:          456,
@@ -234,7 +214,7 @@ func TestSendMediaFallsBackToTextWhenFileIDMissing(t *testing.T) {
 
 			client := &recordingBotClient{}
 			bot := newRecordingBot(client)
-			_, err := Send(bot, Content{Text: "fallback", MsgType: tc.msgType, Name: tc.name}, Options{ChatID: -100})
+			_, err := deliver(bot, outgoing{Text: "fallback", MsgType: tc.msgType, Name: tc.name}, sendOptions{ChatID: -100})
 			if err != nil {
 				t.Fatalf("Send fallback error = %v", err)
 			}
@@ -246,7 +226,7 @@ func TestSendMediaFallsBackToTextWhenFileIDMissing(t *testing.T) {
 			}
 
 			plain := &recordingBotClient{}
-			if _, err := Send(newRecordingBot(plain), Content{Text: "<b>", MsgType: tc.msgType, Name: tc.name}, Options{ChatID: -100, NoFormat: true}); err != nil {
+			if _, err := deliver(newRecordingBot(plain), outgoing{Text: "<b>", MsgType: tc.msgType, Name: tc.name}, sendOptions{ChatID: -100, NoFormat: true}); err != nil {
 				t.Fatalf("Send NoFormat fallback error = %v", err)
 			}
 			if _, ok := plain.params["parse_mode"]; ok {
@@ -281,12 +261,12 @@ func TestSendMediaUsesTelegramMethodForFileID(t *testing.T) {
 
 			client := &recordingBotClient{}
 			bot := newRecordingBot(client)
-			_, err := Send(bot, Content{
+			_, err := deliver(bot, outgoing{
 				Text:    "caption",
 				FileID:  "file-123",
 				MsgType: tc.msgType,
 				Name:    tc.name,
-			}, Options{
+			}, sendOptions{
 				ChatID:      -100,
 				ThreadID:    10,
 				IsProtected: true,
@@ -309,49 +289,6 @@ func TestSendMediaUsesTelegramMethodForFileID(t *testing.T) {
 			}
 			if got := client.params["disable_notification"]; got != true {
 				t.Fatalf("disable_notification = %#v, want true", got)
-			}
-		})
-	}
-}
-
-func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		send      func(*gotgbot.Bot) (*gotgbot.Message, error)
-		want      textSendWant
-		noReplyID bool
-	}{
-		{
-			name: "greeting",
-			send: func(bot *gotgbot.Bot) (*gotgbot.Message, error) {
-				return SendGreeting(bot, -300, "welcome", "", db.TEXT, &gotgbot.InlineKeyboardMarkup{}, 555)
-			},
-			want: textSendWant{
-				text:           "welcome",
-				threadID:       555,
-				replyMarkupSet: true,
-			},
-			noReplyID: true,
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			client := &recordingBotClient{}
-			bot := newRecordingBot(client)
-			if _, err := tc.send(bot); err != nil {
-				t.Fatalf("%s send error = %v", tc.name, err)
-			}
-			assertTextSendParams(t, client, tc.want)
-			if tc.noReplyID {
-				if _, ok := client.params["reply_parameters"]; ok {
-					t.Fatalf("%s reply_parameters = %#v, want omitted", tc.name, client.params["reply_parameters"])
-				}
 			}
 		})
 	}
