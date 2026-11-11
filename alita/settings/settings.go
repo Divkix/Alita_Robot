@@ -115,7 +115,7 @@ var declarations = []*Declaration{
 	Timezone, Language, PrivateRules,
 	NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes,
 	PrivateNotes, AntiChannelPin, CleanLinked, AllowConnect, AnonAdmin,
-	DeleteDisabledCommands, QuietFed,
+	DeleteDisabledCommands, QuietFed, EphemeralReplies,
 }
 
 // All iterates every declared setting in registration order.

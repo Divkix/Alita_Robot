@@ -142,6 +142,10 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if msg.Chat.Type != "private" && chatsettings.PrivateRules.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
+		// With /ephemeral on, the asker sees the rules themselves in the group.
+		if sendEphemeral(bot, ctx, Text, gotgbot.SendMessageOpts{ParseMode: formatting.HTML}) {
+			return ext.EndGroups
+		}
 		Text, _ = tr.GetString("rules_click_for_rules")
 		rulesKb = gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{

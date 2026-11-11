@@ -61,7 +61,9 @@ admin_help_msg: "Facilite a promoção e rebaixamento de usuários com o módulo
 
   × /clearadmincache: Limpa a lista de admins em cache.
 
-  × /timezone `[nome]`: Mostra ou define o fuso horário do chat como um nome IANA, por exemplo Asia/Kolkata (padrão UTC)."
+  × /timezone `[nome]`: Mostra ou define o fuso horário do chat como um nome IANA, por exemplo Asia/Kolkata (padrão UTC).
+
+  × /ephemeral `<on/off>`: on mostra o que eu enviaria para o privado (regras privadas, notas privadas, o botão do /help) apenas ao membro que pediu, no grupo; off (padrão) mantém o botão para o privado. Preciso ser administrador."
 admin_promote_admin_title_truncated: "Título de administrador truncado para 16 caracteres de %d"
 admin_promote_is_admin: Esta pessoa já é administradora, como eu vou
   promovê-la?
@@ -2836,6 +2838,10 @@ admin_setgdesc_failed: "Não consegui alterar a descrição do grupo."
 timezone_status: "O fuso horário deste chat é <b>{timezone}</b> (UTC{offset}); lá são {time} agora.\nMude com <code>/timezone &lt;nome&gt;</code>, um nome IANA como <code>America/Sao_Paulo</code>."
 timezone_set: "Fuso horário definido como <b>{timezone}</b> (UTC{offset}); lá são {time} agora."
 timezone_invalid: "Não conheço o fuso horário <code>{input}</code>. Use um nome IANA como <code>America/Sao_Paulo</code> ou <code>Europe/Lisbon</code> (lista: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
+ephemeral_status_on: "As respostas privadas estão <b>ativadas</b>: regras privadas, notas privadas e o redirecionamento do /help aparecem no grupo apenas para o membro que pediu."
+ephemeral_status_off: "As respostas privadas estão <b>desativadas</b>: regras privadas, notas privadas e /help enviam um botão que as abre no privado. Ative com <code>/ephemeral on</code>."
+ephemeral_enabled: "Respostas privadas <b>ativadas</b>. Quem pedir as regras privadas, notas privadas ou /help verá aqui, só para si."
+ephemeral_disabled: "Respostas privadas <b>desativadas</b>. Regras privadas, notas privadas e /help voltam a enviar um botão para o privado."
 misc_stickerid_need_sticker: "Responda a um sticker para obter o ID do arquivo."
 misc_stickerid_result: "ID do arquivo do sticker: <code>{id}</code>"
 misc_zombies_scanning: "Procurando contas excluídas…"
@@ -2912,6 +2918,7 @@ admin_extend_msg: |
   /setgpic — definir a foto respondida como foto do grupo
   /setgdesc — mudar a descrição do grupo
   /timezone — ver ou mudar o fuso horário do chat
+  /ephemeral — mostrar respostas privadas só para quem pediu, no grupo
 aispam_extend_msg: |
   /aispam — ver ou ativar o filtro de spam com IA
 antiflood_extend_msg: |

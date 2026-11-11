@@ -568,6 +568,7 @@ func TestMain(m *testing.M) {
 		&models.NightModeSettings{},
 		&models.SpamSample{},
 		&models.SpamFilterSettings{},
+		&models.EphemeralSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

@@ -818,6 +818,7 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, setGPicDesc, adminModule.setGPic)
 	helpers.WrapCommand(dispatcher, setGDescDesc, adminModule.setGDesc)
 	loadTimezone(dispatcher)
+	loadEphemeral(dispatcher)
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "admincache", PMGroupArg: helpers.PMGroupArgNone,

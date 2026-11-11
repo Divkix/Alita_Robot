@@ -52,6 +52,7 @@ const fieldInfo = {
 	"reports.enabled": { label: "Member reports" },
 	"reports.mute_threshold": { label: "Auto-mute after reports", unit: "members", hint: "Different reporters" },
 	"timezone.name": { label: "Chat timezone", hint: "IANA name, such as Asia/Kolkata; used by night mode and the activity heatmap" },
+	"ephemeral.enabled": { label: "Show private answers only to the asker", hint: "Private rules, private notes and the /help redirect appear in the group for the member who asked, instead of a PM button" },
 	"nightmode.enabled": { label: "Night mode" },
 	"nightmode.start": { label: "Night mode starts", hint: "24-hour HH:MM in the chat timezone" },
 	"nightmode.end": { label: "Night mode ends", hint: "24-hour HH:MM; a window can cross midnight" },

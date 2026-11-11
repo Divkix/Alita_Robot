@@ -187,6 +187,9 @@ func panelSettings(ctx context.Context, access chatAccess) settingsResponse {
 		{Key: "timezone", Label: "Timezone", Fields: []settingsField{
 			declaredSettingsField(ctx, chatID, chatsettings.Timezone),
 		}},
+		{Key: "ephemeral", Label: "Private answers", Fields: []settingsField{
+			declaredSettingsField(ctx, chatID, chatsettings.EphemeralReplies),
+		}},
 		{Key: "nightmode", Label: "Night mode", Fields: []settingsField{
 			declaredSettingsField(ctx, chatID, chatsettings.NightModeEnabled),
 			declaredSettingsField(ctx, chatID, chatsettings.NightModeStart),

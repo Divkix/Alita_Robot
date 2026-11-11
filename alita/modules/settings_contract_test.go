@@ -385,6 +385,13 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
 		{
+			key: "ephemeral.enabled", command: "/ephemeral", button: "ep", botAdmin: true,
+			defaultValue: false, defaultLabel: "off", refusalKey: "pins_input_not_recognized",
+			statusOn: "ephemeral_status_on", statusOff: "ephemeral_status_off",
+			setOn: "ephemeral_enabled", setOff: "ephemeral_disabled",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
 			key: "digest.enabled", command: "/digest", botAdmin: true, directChecks: true,
 			defaultValue: false, defaultLabel: "off", refusalKey: "digest_usage", helpRefusal: true,
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
@@ -1860,6 +1867,8 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.AdminSettings{}
 	} else if strings.HasPrefix(setting.key, "disabling.") {
 		model = &models.DisableChatSettings{}
+	} else if strings.HasPrefix(setting.key, "ephemeral.") {
+		model = &models.EphemeralSettings{}
 	} else if strings.HasPrefix(setting.key, "federations.") {
 		model = &models.FederationChat{}
 		if setting.inFed {

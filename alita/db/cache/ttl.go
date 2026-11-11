@@ -42,4 +42,5 @@ const (
 	CacheTTLRecurring       = DefaultCacheTTL
 	CacheTTLNightMode       = DefaultCacheTTL
 	CacheTTLSpamFilter      = DefaultCacheTTL
+	CacheTTLEphemeral       = DefaultCacheTTL
 )

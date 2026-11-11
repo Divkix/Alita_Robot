@@ -371,6 +371,7 @@ func chatSettingsSection(ctx context.Context, chatID int64) settingsSection {
 		declaredStringRow("/timezone", chatsettings.Timezone.ReadContext(ctx, chatID)),
 		declaredBoolRow(ctx, "/allowconnect", chatsettings.AllowConnect, chatID),
 		declaredBoolRow(ctx, "/anonadmin", chatsettings.AnonAdmin, chatID),
+		declaredBoolRow(ctx, "/ephemeral", chatsettings.EphemeralReplies, chatID),
 	}}
 }
 

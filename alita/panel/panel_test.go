@@ -60,6 +60,7 @@ func TestMain(m *testing.M) {
 		&models.ReportChatSettings{},
 		&models.ChatTimezone{},
 		&models.NightModeSettings{},
+		&models.EphemeralSettings{},
 	))
 }
 

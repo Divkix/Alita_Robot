@@ -87,6 +87,7 @@ func TestMain(m *testing.M) {
 			&models.ProbationMember{},
 			&models.RecurringMessage{},
 			&models.NightModeSettings{},
+			&models.EphemeralSettings{},
 		)
 		if err != nil {
 			fmt.Printf("AutoMigrate failed: %v\n", err)
