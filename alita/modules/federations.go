@@ -1199,7 +1199,7 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		})
 		return err
 	}); err != nil || !result.Applied {
-		log.Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
+		log.WithContext(tracing.UpdateContext(ctx)).Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
 		return StageFailed
 	}
 	if !membership.Quiet {

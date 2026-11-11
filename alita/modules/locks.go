@@ -394,7 +394,7 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 		// A ChatMember update has no message to reply to, so send to the chat.
 		text, _ := tr.GetString(key)
 		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
-			log.Error(err)
+			log.WithContext(tracing.UpdateContext(ctx)).Error(err)
 		}
 	}
 	if !chat_status.IsBotAdmin(b, ctx, nil) {
@@ -407,12 +407,17 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 	}
 
 	// A permanent ban, not a kick: the removed bot cannot simply be added again.
-	result, err := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+	reqCtx := tracing.UpdateContext(ctx)
+	result, err := punishment.Apply(reqCtx, b, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
 		Source: models.BanSourceLock, Detail: "bots",
 	})
-	if err != nil || !result.Applied {
-		log.Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
+	if err != nil {
+		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
+		return StageFailed
+	}
+	if !result.Applied {
+		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %s", mem.Id, chat.Id, result.Refusal)
 		return StageFailed
 	}
 	var addedBy string

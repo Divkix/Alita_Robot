@@ -378,7 +378,7 @@ func raidApplies(bot *gotgbot.Bot, ctx *ext.Context, userID int64) bool {
 		return false
 	}
 	if !chat_status.CanBotRestrict(bot, ctx, chat) {
-		log.WithFields(log.Fields{"chatId": chat.Id}).Debug("Antiraid action skipped: bot lacks restrict permissions")
+		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{"chatId": chat.Id}).Debug("Antiraid action skipped: bot lacks restrict permissions")
 		return false
 	}
 	return !chat_status.IsApproved(bot, chat.Id, userID) && !chat_status.IsUserAdmin(bot, chat.Id, userID)
@@ -400,7 +400,7 @@ func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID in
 	}
 	count, err := trackJoin(chat.Id, userID)
 	if err != nil {
-		log.WithError(err).Warnf("[AntiRaid] Failed to track join for chat %d", chat.Id)
+		log.WithContext(tracing.UpdateContext(ctx)).WithError(err).Warnf("[AntiRaid] Failed to track join for chat %d", chat.Id)
 		return
 	}
 	if count < settings.AutoAntiRaidThreshold {
@@ -408,14 +408,14 @@ func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID in
 	}
 	enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
 	if err != nil {
-		log.WithError(err).Warnf("[AntiRaid] Failed to auto-enable raid in chat %d", chat.Id)
+		log.WithContext(tracing.UpdateContext(ctx)).WithError(err).Warnf("[AntiRaid] Failed to auto-enable raid in chat %d", chat.Id)
 		return
 	}
 	if !enabled {
 		// Another join switched it on first and reported it.
 		return
 	}
-	log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
+	log.WithContext(tracing.UpdateContext(ctx)).Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
 	actionlog.Automated(bot, chat, "ANTIRAID", 0, "",
 		actionlog.Field{Name: "Joins", Value: strconv.Itoa(count)},
 		actionlog.Field{Name: "Threshold", Value: strconv.Itoa(settings.AutoAntiRaidThreshold)},
