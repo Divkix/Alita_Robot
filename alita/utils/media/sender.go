@@ -66,8 +66,9 @@ type sendOptions struct {
 	AllowWithoutReply bool
 }
 
-// deliver sends content with opts, skipping a chat known to be restricted.
-func deliver(b *gotgbot.Bot, content outgoing, opts sendOptions) (*gotgbot.Message, error) {
+// deliver sends content with opts on ctx, skipping a chat known to be
+// restricted.
+func deliver(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions) (*gotgbot.Message, error) {
 	restricted, restrictedFlagPresent := cache.IsChatRestrictedState(opts.ChatID)
 	if restricted {
 		log.WithField("chat_id", opts.ChatID).Debug("[Media] Skipping send to restricted chat")
@@ -94,17 +95,17 @@ func deliver(b *gotgbot.Bot, content outgoing, opts sendOptions) (*gotgbot.Messa
 	)
 	switch content.MsgType {
 	case db.TEXT, 0:
-		msg, err = sendText(b, content, opts, parseMode, replyParams)
+		msg, err = sendText(ctx, b, content, opts, parseMode, replyParams)
 	case db.STICKER, db.DOCUMENT, db.PHOTO, db.AUDIO, db.VOICE, db.VIDEO, db.VIDEO_NOTE:
 		if content.FileID == "" {
 			log.Warnf("[Media] Empty FileID for type %d '%s' in chat %d, falling back to text", content.MsgType, content.Name, opts.ChatID)
-			msg, err = sendText(b, content, opts, parseMode, replyParams)
+			msg, err = sendText(ctx, b, content, opts, parseMode, replyParams)
 			break
 		}
-		msg, err = sendMedia(b, content, opts, parseMode, replyParams)
+		msg, err = sendMedia(ctx, b, content, opts, parseMode, replyParams)
 	default:
 		log.Warnf("[Media] Unknown message type %d, falling back to text", content.MsgType)
-		msg, err = sendText(b, content, opts, parseMode, replyParams)
+		msg, err = sendText(ctx, b, content, opts, parseMode, replyParams)
 	}
 	if err == nil && restrictedFlagPresent {
 		cache.MarkChatNotRestrictedIfOlder(opts.ChatID, sentAt)
@@ -112,27 +113,27 @@ func deliver(b *gotgbot.Bot, content outgoing, opts sendOptions) (*gotgbot.Messa
 	return msg, err
 }
 
-func sendMedia(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+func sendMedia(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	switch content.MsgType {
 	case db.STICKER:
-		return sendSticker(b, content, opts, replyParams)
+		return sendSticker(ctx, b, content, opts, replyParams)
 	case db.DOCUMENT:
-		return sendDocument(b, content, opts, parseMode, replyParams)
+		return sendDocument(ctx, b, content, opts, parseMode, replyParams)
 	case db.PHOTO:
-		return sendPhoto(b, content, opts, parseMode, replyParams)
+		return sendPhoto(ctx, b, content, opts, parseMode, replyParams)
 	case db.AUDIO:
-		return sendAudio(b, content, opts, parseMode, replyParams)
+		return sendAudio(ctx, b, content, opts, parseMode, replyParams)
 	case db.VOICE:
-		return sendVoice(b, content, opts, parseMode, replyParams)
+		return sendVoice(ctx, b, content, opts, parseMode, replyParams)
 	case db.VIDEO:
-		return sendVideo(b, content, opts, parseMode, replyParams)
+		return sendVideo(ctx, b, content, opts, parseMode, replyParams)
 	default:
-		return sendVideoNote(b, content, opts, replyParams)
+		return sendVideoNote(ctx, b, content, opts, replyParams)
 	}
 }
 
-func sendText(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendMessage(opts.ChatID, content.Text, &gotgbot.SendMessageOpts{
+func sendText(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendMessageWithContext(ctx, opts.ChatID, content.Text, &gotgbot.SendMessageOpts{
 		ParseMode: parseMode,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 			IsDisabled: !opts.WebPreview,
@@ -146,8 +147,8 @@ func sendText(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode stri
 	return resolveSendResult(msg, err, opts.ChatID, "text")
 }
 
-func sendSticker(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendSticker(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
+func sendSticker(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendStickerWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
 		ReplyParameters:     replyParams,
 		ReplyMarkup:         opts.Keyboard,
 		ProtectContent:      opts.IsProtected,
@@ -157,8 +158,8 @@ func sendSticker(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams
 	return resolveSendResult(msg, err, opts.ChatID, "sticker")
 }
 
-func sendDocument(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendDocument(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendDocumentOpts{
+func sendDocument(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendDocumentWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendDocumentOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
 		ReplyMarkup:         opts.Keyboard,
@@ -170,8 +171,8 @@ func sendDocument(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode 
 	return resolveSendResult(msg, err, opts.ChatID, "document")
 }
 
-func sendPhoto(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendPhoto(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendPhotoOpts{
+func sendPhoto(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendPhotoWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendPhotoOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
 		ReplyMarkup:         opts.Keyboard,
@@ -183,8 +184,8 @@ func sendPhoto(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode str
 	return resolveSendResult(msg, err, opts.ChatID, "photo")
 }
 
-func sendAudio(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendAudio(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendAudioOpts{
+func sendAudio(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendAudioWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendAudioOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
 		ReplyMarkup:         opts.Keyboard,
@@ -196,8 +197,8 @@ func sendAudio(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode str
 	return resolveSendResult(msg, err, opts.ChatID, "audio")
 }
 
-func sendVoice(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendVoice(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVoiceOpts{
+func sendVoice(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendVoiceWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVoiceOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
 		ReplyMarkup:         opts.Keyboard,
@@ -209,8 +210,8 @@ func sendVoice(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode str
 	return resolveSendResult(msg, err, opts.ChatID, "voice")
 }
 
-func sendVideo(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendVideo(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoOpts{
+func sendVideo(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendVideoWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoOpts{
 		ReplyParameters:     replyParams,
 		ParseMode:           parseMode,
 		ReplyMarkup:         opts.Keyboard,
@@ -222,8 +223,8 @@ func sendVideo(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode str
 	return resolveSendResult(msg, err, opts.ChatID, "video")
 }
 
-func sendVideoNote(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	msg, err := b.SendVideoNote(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
+func sendVideoNote(ctx context.Context, b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
+	msg, err := b.SendVideoNoteWithContext(ctx, opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
 		ReplyParameters:     replyParams,
 		ReplyMarkup:         opts.Keyboard,
 		ProtectContent:      opts.IsProtected,
@@ -345,8 +346,9 @@ func GreetingMessage(text, fileID string, msgType int, buttons []db.Button) Save
 // sends HTML. Raw is one recipe for every kind: the stored text turned back
 // into the markup an admin types plus the button codes, fillings as typed, no
 // parse mode, no keyboard and no link preview; media and the protect and
-// silent flags are kept. A scheduled kind waits for the limiter; ctx bounds
-// that wait.
+// silent flags are kept. A scheduled kind waits for the limiter, bounded by
+// ctx. The request itself carries ctx's trace span but not its cancellation,
+// so a shutdown never cuts off a send Telegram may already have taken.
 func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target, view View) (*gotgbot.Message, error) {
 	rules := kinds[msg.Kind]
 	var (
@@ -361,8 +363,9 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 	opts.ChatID, opts.ThreadID, opts.ReplyMsgID, opts.AllowWithoutReply = to.ChatID, to.ThreadID, to.ReplyMsgID, true
 	payload := outgoing{Text: text, FileID: msg.FileID, MsgType: msg.MsgType, Name: msg.Name}
 
+	sendCtx := context.WithoutCancel(ctx)
 	if !rules.scheduled {
-		return deliver(b, payload, opts)
+		return deliver(sendCtx, b, payload, opts)
 	}
 	limiter := to.Limiter
 	if limiter == nil {
@@ -371,7 +374,7 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 	var sent *gotgbot.Message
 	err := limiter.Do(ctx, func() error {
 		var sendErr error
-		sent, sendErr = deliver(b, payload, opts)
+		sent, sendErr = deliver(sendCtx, b, payload, opts)
 		return sendErr
 	})
 	return sent, err

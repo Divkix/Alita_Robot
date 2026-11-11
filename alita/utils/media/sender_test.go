@@ -27,10 +27,12 @@ type recordingBotClient struct {
 	params map[string]any
 	err    error
 	calls  int // requests made, for asserting that nothing was sent
+	ctx    context.Context
 }
 
-func (c *recordingBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+func (c *recordingBotClient) RequestWithContext(ctx context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
 	c.calls++
+	c.ctx = ctx
 	c.method = method
 	c.params = params
 	if c.err != nil {
@@ -139,7 +141,7 @@ func TestSendTextBuildsTelegramParams(t *testing.T) {
 	client := &recordingBotClient{}
 	bot := newRecordingBot(client)
 
-	msg, err := deliver(bot, outgoing{Text: "hello", MsgType: db.TEXT}, sendOptions{
+	msg, err := deliver(context.Background(), bot, outgoing{Text: "hello", MsgType: db.TEXT}, sendOptions{
 		ChatID:            -100,
 		ReplyMsgID:        123,
 		ThreadID:          456,
@@ -214,7 +216,7 @@ func TestSendMediaFallsBackToTextWhenFileIDMissing(t *testing.T) {
 
 			client := &recordingBotClient{}
 			bot := newRecordingBot(client)
-			_, err := deliver(bot, outgoing{Text: "fallback", MsgType: tc.msgType, Name: tc.name}, sendOptions{ChatID: -100})
+			_, err := deliver(context.Background(), bot, outgoing{Text: "fallback", MsgType: tc.msgType, Name: tc.name}, sendOptions{ChatID: -100})
 			if err != nil {
 				t.Fatalf("Send fallback error = %v", err)
 			}
@@ -226,7 +228,7 @@ func TestSendMediaFallsBackToTextWhenFileIDMissing(t *testing.T) {
 			}
 
 			plain := &recordingBotClient{}
-			if _, err := deliver(newRecordingBot(plain), outgoing{Text: "<b>", MsgType: tc.msgType, Name: tc.name}, sendOptions{ChatID: -100, NoFormat: true}); err != nil {
+			if _, err := deliver(context.Background(), newRecordingBot(plain), outgoing{Text: "<b>", MsgType: tc.msgType, Name: tc.name}, sendOptions{ChatID: -100, NoFormat: true}); err != nil {
 				t.Fatalf("Send NoFormat fallback error = %v", err)
 			}
 			if _, ok := plain.params["parse_mode"]; ok {
@@ -261,7 +263,7 @@ func TestSendMediaUsesTelegramMethodForFileID(t *testing.T) {
 
 			client := &recordingBotClient{}
 			bot := newRecordingBot(client)
-			_, err := deliver(bot, outgoing{
+			_, err := deliver(context.Background(), bot, outgoing{
 				Text:    "caption",
 				FileID:  "file-123",
 				MsgType: tc.msgType,
@@ -606,6 +608,27 @@ func TestSendSavedLimiterChoice(t *testing.T) {
 			}
 			if err != nil || client.calls != 1 {
 				t.Fatalf("update send err = %v calls = %d, want sent at once", err, client.calls)
+			}
+		})
+	}
+}
+
+type spanKey struct{}
+
+// The request runs on the caller's ctx, so it joins the update's trace span.
+func TestSendSavedSendsOnTheCallersContext(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range allKinds {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.WithValue(context.Background(), spanKey{}, tc.name)
+			client := &recordingBotClient{}
+			if _, err := SendSaved(ctx, newRecordingBot(client), SavedMessage{Kind: tc.kind, Text: "t", MsgType: db.PHOTO, FileID: "f"}, Target{ChatID: -100}, Rendered); err != nil {
+				t.Fatalf("SendSaved error = %v", err)
+			}
+			if client.ctx == nil || client.ctx.Value(spanKey{}) != tc.name {
+				t.Fatalf("request ctx = %v, want the caller's ctx", client.ctx)
 			}
 		})
 	}
