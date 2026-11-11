@@ -481,7 +481,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if err := settleMemberCaptcha(bot, chat.Id, leftMember.Id, captchaLeft); err != nil {
-		log.Errorf("Failed to end the captcha of leaving user %d: %v", leftMember.Id, err)
+		log.WithContext(tracing.UpdateContext(ctx)).Errorf("Failed to end the captcha of leaving user %d: %v", leftMember.Id, err)
 	}
 	endProbationOnLeave(tracing.UpdateContext(ctx), chat.Id, leftMember.Id)
 

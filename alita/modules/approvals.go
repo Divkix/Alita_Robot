@@ -77,7 +77,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if err := settleMemberCaptcha(b, chat.Id, targetUserID, captchaReleased); err != nil {
-		log.Errorf("[Approvals] Approved user %d but captcha release will retry: %v", targetUserID, err)
+		log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Approvals] Approved user %d but captcha release will retry: %v", targetUserID, err)
 	}
 
 	reasonStr := ""

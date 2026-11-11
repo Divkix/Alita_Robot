@@ -1649,7 +1649,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 				return ext.EndGroups
 			}
 			if settleErr != nil {
-				log.Errorf("[Captcha] Failed to fail user %d after wrong answers: %v", targetUserID, settleErr)
+				log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Captcha] Failed to fail user %d after wrong answers: %v", targetUserID, settleErr)
 			}
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			if !applied {
