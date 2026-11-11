@@ -30,6 +30,7 @@ const (
 	captchaEndReleased captchaEnding = iota + 1
 	captchaEndPassed
 	captchaEndFailed
+	captchaEndLeft
 )
 
 // captchaOutcome is how a captcha attempt ended.
@@ -63,6 +64,21 @@ func captchaFailed(cause, action string) captchaOutcome {
 	return captchaOutcome{ending: captchaEndFailed, cause: cause, action: action}
 }
 
+// captchaLeft is the member leaving with the challenge pending: there is
+// nobody to unmute and nothing to schedule.
+var captchaLeft = captchaOutcome{ending: captchaEndLeft}
+
+// settleMemberCaptcha ends the pending challenge of userID in chatID, if any,
+// with outcome; err is a failed lookup or settleCaptchaAttempt's err.
+func settleMemberCaptcha(bot *gotgbot.Bot, chatID, userID int64, outcome captchaOutcome) error {
+	attempt, err := captcha.GetCaptchaAttemptIncludingExpired(userID, chatID)
+	if err != nil || attempt == nil {
+		return err
+	}
+	_, err = settleCaptchaAttempt(bot, attempt, outcome)
+	return err
+}
+
 // settleCaptchaAttempt ends attempt with outcome, in one order for every
 // outcome: claim the attempt, deal with the mute, clear or keep the scheduled
 // unmute, remove the prompt, report. settled is false when another ending
@@ -70,9 +86,10 @@ func captchaFailed(cause, action string) captchaOutcome {
 // retry, the scheduled unmute it kept for the unmute worker, or the failure
 // action Telegram refused.
 func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (settled bool, err error) {
-	// The claim deletes the attempt with its stored messages and schedules a
-	// fallback unmute in one transaction, so a crash right after it cannot
-	// leave the member muted. Reports read the stored messages before.
+	// The claim deletes the attempt with its stored messages and, unless the
+	// member left, schedules a fallback unmute in one transaction, so a crash
+	// right after it cannot leave the member muted. Reports read the stored
+	// messages before.
 	var stored []*models.StoredMessages
 	var storedCount int64
 	claimed := false
@@ -86,6 +103,8 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 	case captchaEndFailed:
 		storedCount, _ = captcha.CountStoredMessagesForAttempt(attempt.ID)
 		claimed, err = captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
+	case captchaEndLeft:
+		claimed, err = captcha.DeleteCaptchaAttemptByIDAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
 	default:
 		claimed, err = captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
 	}
@@ -97,9 +116,12 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 		unban   *gotgbot.InlineKeyboardMarkup
 		applied bool
 	)
-	if outcome.ending == captchaEndFailed {
+	switch outcome.ending {
+	case captchaEndFailed:
 		name, unban, applied, err = failCaptchaMember(bot, attempt, outcome)
-	} else {
+	case captchaEndLeft:
+		// Nobody to unmute, and the claim scheduled nothing.
+	default:
 		err = keepScheduledUnmuteOnFailure(attempt.ChatID, attempt.UserID, unmuteCaptchaUser(bot, attempt.ChatID, attempt.UserID))
 	}
 	if attempt.MessageID > 0 {

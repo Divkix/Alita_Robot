@@ -219,6 +219,14 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 		}
 		return settled
 	}
+	left := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
+		t.Helper()
+		settled, err := settleCaptchaAttempt(bot, attempt, captchaLeft)
+		if err != nil {
+			t.Fatalf("settleCaptchaAttempt() error = %v", err)
+		}
+		return settled
+	}
 	type ending func(*testing.T, *gotgbot.Bot, *db.CaptchaAttempts) bool
 	for _, tt := range []struct {
 		name          string
@@ -232,6 +240,10 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 		{"timeout then timeout", timeout, timeout},
 		{"release then timeout", release, timeout},
 		{"timeout then release", timeout, release},
+		{"left then pass", left, pass},
+		{"left then timeout", left, timeout},
+		{"release then left", release, left},
+		{"timeout then left", timeout, left},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
@@ -643,4 +655,83 @@ func TestCaptchaRestartSettlesExpiredAndKeepsRunningTimeouts(t *testing.T) {
 	}
 	assertDeleted(t, client, running.ChatID, 123)
 	assertCaptchaRows(t, running, 0)
+}
+
+// /approve on a member held by a challenge releases them: the mute is lifted,
+// the prompt removed, and no ending is left to punish them later.
+func TestApproveReleasesAPendingCaptcha(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	attempt := pendingCaptchaAttempt(t, f.chat.Id, 123)
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadApprovals(d)
+
+	if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/approve 42").Update, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !approvals.IsUserApproved(f.chat.Id, 42) {
+		t.Fatal("member 42 not approved")
+	}
+	assertParams(t, f.client.onlyCall(t, "restrictChatMember"), targetParams(f.chat.Id, 42))
+	assertDeleted(t, f.client, f.chat.Id, 123)
+	assertCaptchaRows(t, attempt, 0)
+	if settled, err := settleCaptchaAttempt(f.bot, attempt, captchaFailed(captchaFailedTimeout, "ban")); settled || err != nil {
+		t.Fatalf("timeout after /approve = (%v, %v), want (false, nil)", settled, err)
+	}
+	if got, want := memberCalls(f.client), (map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 1}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("member calls = %v, want only the unmute", got)
+	}
+}
+
+// A member who leaves while held loses the challenge: the prompt goes, nothing
+// is done to the member, and joining again starts a fresh challenge with
+// nothing of the old one left over.
+func TestLeaveEndsAPendingCaptchaAndRejoinStartsAFreshOne(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	actor := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+	old := pendingCaptchaAttempt(t, chat.Id, 123)
+	if err := captcha.StoreMessageForCaptcha(42, chat.Id, old.ID, db.TEXT, "held", "", ""); err != nil {
+		t.Fatalf("StoreMessageForCaptcha() error = %v", err)
+	}
+	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadGreetings(d)
+	dispatch := func(from, to gotgbot.ChatMember) {
+		t.Helper()
+		if err := d.ProcessUpdate(bot, newChatMemberContext(bot, chat, actor, from, to).Update, nil); err != nil {
+			t.Fatalf("ProcessUpdate() error = %v", err)
+		}
+	}
+
+	dispatch(gotgbot.ChatMemberRestricted{User: member, IsMember: true}, gotgbot.ChatMemberLeft{User: member})
+	assertDeleted(t, client, chat.Id, 123)
+	assertCaptchaRows(t, old, 0)
+	if settled, err := settleCaptchaAttempt(bot, old, captchaFailed(captchaFailedTimeout, "ban")); settled || err != nil {
+		t.Fatalf("timeout after the leave = (%v, %v), want (false, nil)", settled, err)
+	}
+	if got, want := memberCalls(client), (map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 0}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("member calls after the leave = %v, want none", got)
+	}
+
+	dispatch(gotgbot.ChatMemberLeft{User: member}, gotgbot.ChatMemberMember{User: member})
+	client.onlyCall(t, "sendPhoto")
+	fresh, err := captcha.GetCaptchaAttempt(42, chat.Id)
+	if err != nil || fresh == nil || fresh.ID == old.ID {
+		t.Fatalf("attempt after rejoin = (%+v, %v), want a fresh one", fresh, err)
+	}
+	if fresh.Attempts != 0 || fresh.RefreshCount != 0 || fresh.PreviousMessageID != 0 {
+		t.Fatalf("fresh attempt = %+v, want nothing carried over from the old one", fresh)
+	}
+	if n, err := captcha.CountStoredMessagesForAttempt(fresh.ID); err != nil || n != 0 {
+		t.Fatalf("stored messages of the fresh attempt = (%d, %v), want 0", n, err)
+	}
+	if users, err := captcha.GetMutedUsersForChat(chat.Id); err != nil || len(users) != 0 {
+		t.Fatalf("scheduled unmutes after rejoin = (%+v, %v), want none", users, err)
+	}
 }

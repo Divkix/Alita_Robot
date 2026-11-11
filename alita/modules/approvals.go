@@ -16,7 +16,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
-	dbcaptcha "github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -77,12 +76,8 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
-	if attempt, err := dbcaptcha.GetCaptchaAttemptIncludingExpired(targetUserID, chat.Id); err != nil {
-		log.Errorf("[Approvals] Failed to load captcha attempt for approved user %d: %v", targetUserID, err)
-	} else if attempt != nil {
-		if _, releaseErr := settleCaptchaAttempt(b, attempt, captchaReleased); releaseErr != nil {
-			log.Errorf("[Approvals] Approved user %d but captcha release will retry: %v", targetUserID, releaseErr)
-		}
+	if err := settleMemberCaptcha(b, chat.Id, targetUserID, captchaReleased); err != nil {
+		log.Errorf("[Approvals] Approved user %d but captcha release will retry: %v", targetUserID, err)
 	}
 
 	reasonStr := ""
