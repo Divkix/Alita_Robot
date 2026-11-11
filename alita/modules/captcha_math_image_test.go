@@ -25,36 +25,6 @@ message_type_video_note: "video note"
 message_type_unknown: "unknown"
 `
 
-func TestIsPermanentTelegramError(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{"nil error", nil, false},
-		{"unrelated error", errors.New("network timeout"), false},
-		{"message to delete not found", errors.New("message to delete not found"), true},
-		{"message can't be deleted", errors.New("message can't be deleted"), true},
-		{"bot was kicked", errors.New("bot was kicked"), true},
-		{"chat not found", errors.New("chat not found"), true},
-		{"group chat was deactivated", errors.New("group chat was deactivated"), true},
-		{"bot is not a member", errors.New("bot is not a member"), true},
-		{"CHAT_NOT_FOUND", errors.New("CHAT_NOT_FOUND"), true},
-		{"PEER_ID_INVALID", errors.New("PEER_ID_INVALID"), true},
-		{"partial match", errors.New("something CHAT_NOT_FOUND something"), true},
-		{"false positive", errors.New("chat found successfully"), false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := isPermanentTelegramError(tc.err)
-			if got != tc.want {
-				t.Fatalf("isPermanentTelegramError(%v) = %v, want %v", tc.err, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestIsPermanentUnmuteError(t *testing.T) {
 	tests := []struct {
 		name string

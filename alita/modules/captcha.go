@@ -302,29 +302,6 @@ func startCaptchaLifecycleTask(task func(context.Context)) bool {
 	return true
 }
 
-func isPermanentTelegramError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	permanentErrors := []string{
-		"message to delete not found",
-		"message can't be deleted",
-		"bot was kicked",
-		"chat not found",
-		"group chat was deactivated",
-		"bot is not a member",
-		"CHAT_NOT_FOUND",
-		"PEER_ID_INVALID",
-	}
-	for _, pe := range permanentErrors {
-		if strings.Contains(errStr, pe) {
-			return true
-		}
-	}
-	return false
-}
-
 func isPermanentUnmuteError(err error) bool {
 	if err == nil {
 		return false
@@ -1518,15 +1495,6 @@ func unmuteCaptchaUser(bot *gotgbot.Bot, chatID, userID int64) error {
 		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Mute,
 	})
 	return err
-}
-
-func restoreCaptchaPermissions(bot *gotgbot.Bot, chatID, userID int64) error {
-	err := unmuteCaptchaUser(bot, chatID, userID)
-	if err != nil {
-		scheduleErr := captcha.CreateMutedUser(userID, chatID, time.Now())
-		return errors.Join(err, scheduleErr)
-	}
-	return captcha.DeleteMutedUser(userID, chatID)
 }
 
 // captchaVerifyCallback decides a tap: a right answer settles the attempt as
