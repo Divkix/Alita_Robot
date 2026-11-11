@@ -1621,9 +1621,9 @@ func restoreCaptchaPermissions(bot *gotgbot.Bot, chatID, userID int64) error {
 	return captcha.DeleteMutedUser(userID, chatID)
 }
 
-// captchaVerifyCallback completes a correct answer by deleting the attempt and its stored rows.
-// It never replays stored messages: their only replacement is a type/count summary using
-// captcha_stored_messages_summary, removed after 30 seconds.
+// captchaVerifyCallback decides a tap: a right answer settles the attempt as
+// passed, then confirms and welcomes the member; a wrong one counts and fails
+// the attempt at the limit.
 func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -1711,64 +1711,20 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 	}
 
 	if selectedAnswer == attempt.Answer {
-		storedMessages, storedErr := captcha.GetStoredMessagesForAttempt(attempt.ID)
-		if storedErr != nil {
-			log.Warnf("[Captcha] Failed to read stored messages for attempt %d: %v", attempt.ID, storedErr)
-		}
-
-		claimed, claimErr := captcha.CompleteCaptchaAttemptAtomic(
-			attempt.ID,
-			targetUserID,
-			chat.Id,
-			selectedAnswer,
-			attempt.MessageID,
-			expectedRefreshCount,
-		)
-		if claimErr != nil || !claimed {
+		settled, settleErr := settleCaptchaAttempt(bot, attempt, captchaPassed(selectedAnswer, expectedRefreshCount, user.FirstName, settings.MaxAttempts))
+		if !settled {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_expired_or_not_found")
 			_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return err
 		}
-
-		if err = keepScheduledUnmuteOnFailure(chat.Id, targetUserID, unmuteCaptchaUser(bot, chat.Id, targetUserID)); err != nil {
-			log.Errorf("Failed to unmute user %d on verify: %v", targetUserID, err)
-			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
+		if settleErr != nil {
+			log.Errorf("Failed to unmute user %d on verify: %v", targetUserID, settleErr)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_failed_verify")
 			_, _ = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return err
+			return settleErr
 		}
-		// The correct answer counts as an attempt of its own.
-		actionlog.Join(bot, chat, "CAPTCHA_PASSED", targetUserID, user.FirstName,
-			actionlog.Field{Name: "Attempts", Value: fmt.Sprintf("%d/%d", attempt.Attempts+1, settings.MaxAttempts)},
-		)
-
-		if storedErr == nil && len(storedMessages) > 0 {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			var messageTypes []string
-			for _, msg := range storedMessages {
-				msgTypeStr := messageTypeToString(tr, msg.MessageType)
-				if !slices.Contains(messageTypes, msgTypeStr) {
-					messageTypes = append(messageTypes, msgTypeStr)
-				}
-			}
-			summaryText, _ := tr.GetString("captcha_stored_messages_summary",
-				captchaStoredSummaryParams(formatting.MentionHtml(targetUserID, user.FirstName), len(storedMessages), strings.Join(messageTypes, ", ")))
-
-			summaryMsg, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, summaryText, &gotgbot.SendMessageOpts{
-				ParseMode: formatting.HTML,
-			})
-
-			if summaryMsg != nil {
-				time.AfterFunc(30*time.Second, func() {
-					defer error_handling.RecoverFromPanic("captchaSummaryMsgDelete", "captcha")
-					_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, summaryMsg.MessageId)
-				})
-			}
-		}
-
-		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		msgTemplate, _ := tr.GetString("greetings_captcha_verified_success")

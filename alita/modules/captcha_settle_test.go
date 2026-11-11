@@ -5,6 +5,8 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -91,6 +93,39 @@ func TestCaptchaPassLiftsTheMuteByTheFailureRule(t *testing.T) {
 	}
 }
 
+// After a pass the chat sees how many messages of which kinds the member sent
+// while held, never the messages, and the confirmation.
+func TestCaptchaPassSummarisesWhatTheMemberSentWhileHeld(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+	for _, kind := range []int{db.TEXT, db.PHOTO, db.TEXT} {
+		if err := captcha.StoreMessageForCaptcha(42, attempt.ChatID, attempt.ID, kind, "secret words", "", ""); err != nil {
+			t.Fatalf("StoreMessageForCaptcha() error = %v", err)
+		}
+	}
+
+	if err := tapCaptcha(bot, attempt, "7"); err != nil {
+		t.Fatalf("captchaVerifyCallback() error = %v", err)
+	}
+	var texts []string
+	for _, call := range client.callsFor("sendMessage") {
+		texts = append(texts, fmt.Sprint(call.Params["text"]))
+	}
+	joined := strings.Join(texts, "\n")
+	for _, want := range []string{"tried to send 3 message(s) (text, photo)", "has been verified and can now chat"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("sent messages %q, want one containing %q", texts, want)
+		}
+	}
+	if strings.Contains(joined, "secret words") {
+		t.Errorf("sent messages %q replay a stored message", texts)
+	}
+	assertDeleted(t, client, attempt.ChatID, 123)
+	assertCaptchaRows(t, attempt, 0)
+}
+
 func TestSettleCaptchaReleaseLiftsTheMuteByTheFailureRule(t *testing.T) {
 	temporary := errors.New("temporary Telegram failure")
 	for _, tt := range []struct {
@@ -163,14 +198,23 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 	}
 	pass := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
 		t.Helper()
-		chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
-		member := gotgbot.User{Id: 42, FirstName: "Member"}
-		data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"})
 		before := len(bot.BotClient.(*moduleBotClient).callsFor("restrictChatMember"))
-		if err := captchaModule.captchaVerifyCallback(bot, newModuleCallbackContext(bot, chat, member, data)); err != nil {
+		if err := tapCaptcha(bot, attempt, "7"); err != nil {
 			t.Fatalf("captchaVerifyCallback() error = %v", err)
 		}
 		return len(bot.BotClient.(*moduleBotClient).callsFor("restrictChatMember")) > before
+	}
+	// timeout is the timer firing on a chat that kicks on failure.
+	timeout := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
+		t.Helper()
+		if err := captcha.SetCaptchaEnabled(attempt.ChatID, "Captcha Chat", true); err != nil {
+			t.Fatalf("SetCaptchaEnabled() error = %v", err)
+		}
+		claimed, err := expireCaptchaAttempt(bot, attempt)
+		if err != nil {
+			t.Fatalf("expireCaptchaAttempt() error = %v", err)
+		}
+		return claimed
 	}
 	type ending func(*testing.T, *gotgbot.Bot, *db.CaptchaAttempts) bool
 	for _, tt := range []struct {
@@ -180,6 +224,8 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 		{"release then release", release, release},
 		{"pass then release", pass, release},
 		{"release then pass", release, pass},
+		{"pass then timeout", pass, timeout},
+		{"timeout then pass", timeout, pass},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
@@ -189,18 +235,65 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 			if !tt.first(t, bot, attempt) {
 				t.Fatal("first ending did not settle the attempt")
 			}
-			restricts := len(client.callsFor("restrictChatMember"))
-			deletes := len(client.callsFor("deleteMessage"))
+			counts := func() map[string]int {
+				got := map[string]int{}
+				for _, method := range []string{"restrictChatMember", "banChatMember", "unbanChatMember", "deleteMessage"} {
+					got[method] = len(client.callsFor(method))
+				}
+				return got
+			}
+			before := counts()
 			if tt.second(t, bot, attempt) {
 				t.Fatal("second ending settled the attempt again")
 			}
-			if got := len(client.callsFor("restrictChatMember")); got != restricts {
-				t.Fatalf("restrictChatMember calls after second ending = %d, want %d", got, restricts)
-			}
-			if got := len(client.callsFor("deleteMessage")); got != deletes {
-				t.Fatalf("deleteMessage calls after second ending = %d, want %d", got, deletes)
+			if after := counts(); !reflect.DeepEqual(after, before) {
+				t.Fatalf("member and prompt calls after second ending = %v, want %v", after, before)
 			}
 			assertCaptchaRows(t, attempt, 0)
+		})
+	}
+}
+
+// A pass claims only with the right answer on the prompt the member is
+// looking at: a wrong answer, an older image or another prompt settles nothing.
+func TestSettleCaptchaPassClaimsOnlyTheRightAnswerOnTheCurrentPrompt(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		answer       string
+		refreshCount int
+		promptID     int64
+		wantSettled  bool
+	}{
+		{name: "wrong answer", answer: "8", promptID: 123},
+		{name: "older image", answer: "7", refreshCount: 1, promptID: 123},
+		{name: "another prompt", answer: "7", promptID: 456},
+		{name: "right answer on the current prompt", answer: "7", promptID: 123, wantSettled: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+			seen := *attempt
+			seen.MessageID = tt.promptID
+
+			settled, err := settleCaptchaAttempt(bot, &seen, captchaPassed(tt.answer, tt.refreshCount, "Member", 3))
+			if settled != tt.wantSettled || err != nil {
+				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (%v, nil)", settled, err, tt.wantSettled)
+			}
+			if tt.wantSettled {
+				client.onlyCall(t, "restrictChatMember")
+				assertDeleted(t, client, attempt.ChatID, 123)
+				assertCaptchaRows(t, attempt, 0)
+				return
+			}
+			for _, method := range []string{"restrictChatMember", "deleteMessage"} {
+				if calls := client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %d, want none when the claim fails", method, len(calls))
+				}
+			}
+			if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current == nil {
+				t.Fatalf("attempt after a failed claim = (%v, %v), want it kept", current, err)
+			}
 		})
 	}
 }
