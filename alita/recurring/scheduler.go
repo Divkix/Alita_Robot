@@ -4,7 +4,6 @@ package recurring
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -15,12 +14,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/recurringmessages"
-	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
-	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
-	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
@@ -54,7 +50,7 @@ const (
 //     tried on schedule, so content Telegram rejects is not retried every
 //     minute.
 //
-// Sends are paced by the global send limiter.
+// Sends are paced by the global send limiter (media.SendSaved waits for it).
 type Scheduler struct {
 	bot      *gotgbot.Bot
 	interval time.Duration
@@ -229,10 +225,9 @@ func isFloodWait(err error) bool {
 	return flooded
 }
 
-// post renders msg the way a note is rendered and sends it through the
-// limiter: a random part of %%%-separated text, the {chatname}/{count}/{rules}
-// fillings (there is no user, so user fillings read as a person with no
-// name), and the {preview}/{protect}/{nonotif} directives.
+// post sends msg through media.SendSaved as a KindRecurring message, so the
+// kinds table decides how it renders and that it waits for s.limiter. The
+// fillings describe no member, and {chatname} reads the chat's stored title.
 func (s *Scheduler) post(ctx context.Context, msg *models.RecurringMessage) (*gotgbot.Message, error) {
 	chat := &gotgbot.Chat{Id: msg.ChatID, Type: "supergroup"}
 	// The title only fills {chatname}; skip the lookup for other messages.
@@ -241,32 +236,7 @@ func (s *Scheduler) post(ctx context.Context, msg *models.RecurringMessage) (*go
 			chat.Title = info.ChatName
 		}
 	}
-
-	text := msg.Text
-	if parts := strings.Split(text, "%%%"); len(parts) > 1 {
-		text = parts[rand.Intn(len(parts))] // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
-	}
-	text, buttons := formatting.FormattingReplacer(s.bot, chat, nil, text, msg.Buttons)
-	_, _, _, webPreview, protected, noNotif, text := content.NotesParser(text)
-	markup := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
-
-	var sent *gotgbot.Message
-	err := s.limiter.Do(ctx, func() error {
-		var sendErr error
-		sent, sendErr = media.Send(s.bot, media.Content{
-			Text:    text,
-			FileID:  msg.FileID,
-			MsgType: msg.MsgType,
-			Name:    "recurring",
-		}, media.Options{
-			ChatID:      msg.ChatID,
-			ThreadID:    msg.ThreadID,
-			Keyboard:    markup,
-			NoNotif:     noNotif,
-			WebPreview:  webPreview,
-			IsProtected: protected,
-		})
-		return sendErr
-	})
-	return sent, err
+	return media.SendSaved(ctx, s.bot, media.SavedMessage{
+		Kind: media.KindRecurring, Name: "recurring", Text: msg.Text, FileID: msg.FileID, MsgType: msg.MsgType, Buttons: msg.Buttons,
+	}, media.Target{Chat: chat, ChatID: msg.ChatID, ThreadID: msg.ThreadID, Limiter: s.limiter}, media.Rendered)
 }

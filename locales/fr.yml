@@ -621,13 +621,13 @@ greetings_help_msg:
 
   × /setwelcome `<réponse/texte>` : Définit le texte de bienvenue pour le groupe.
 
-  × /welcome `<yes/no/on/off/noformat>` : Sans argument, affiche les paramètres de bienvenue et un aperçu du message de bienvenue. on/off active ou désactive la bienvenue ; noformat affiche l'aperçu sans remplir les variables, avec les codes des boutons au lieu des boutons.
+  × /welcome `<yes/no/on/off/noformat>` : Sans argument, affiche les paramètres de bienvenue et un aperçu du message de bienvenue. on/off active ou désactive la bienvenue ; noformat affiche le message tel qu'il a été saisi : codes de formatage, codes des boutons et variables, sans aucun rendu.
 
   × /resetwelcome : Réinitialise le message de bienvenue par défaut.
 
   × /setgoodbye `<réponse/texte>` : Définit le texte d'au revoir pour le groupe.
 
-  × /goodbye `<yes/no/on/off/noformat>` : Sans argument, affiche les paramètres d'au revoir et un aperçu du message d'au revoir. on/off active ou désactive l'au revoir ; noformat affiche l'aperçu sans remplir les variables, avec les codes des boutons au lieu des boutons.
+  × /goodbye `<yes/no/on/off/noformat>` : Sans argument, affiche les paramètres d'au revoir et un aperçu du message d'au revoir. on/off active ou désactive l'au revoir ; noformat affiche le message tel qu'il a été saisi : codes de formatage, codes des boutons et variables, sans aucun rendu.
 
   × /resetgoodbye : Réinitialise le message d'au revoir par défaut.
 

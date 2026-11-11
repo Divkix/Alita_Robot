@@ -652,13 +652,13 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Sets welcome text for group.
 
-  × /welcome `<yes/no/on/off/noformat>`: With no argument, shows the welcome settings and a preview of the welcome message. on/off enables or disables welcome; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
+  × /welcome `<yes/no/on/off/noformat>`: With no argument, shows the welcome settings and a preview of the welcome message. on/off enables or disables welcome; noformat shows the message as typed: formatting codes, button codes and placeholders, nothing rendered.
 
   × /resetwelcome: Resets the welcome message to default.
 
   × /setgoodbye `<reply/text>`: Sets goodbye text for group.
 
-  × /goodbye `<yes/no/on/off/noformat>`: With no argument, shows the goodbye settings and a preview of the goodbye message. on/off enables or disables goodbye; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
+  × /goodbye `<yes/no/on/off/noformat>`: With no argument, shows the goodbye settings and a preview of the goodbye message. on/off enables or disables goodbye; noformat shows the message as typed: formatting codes, button codes and placeholders, nothing rendered.
 
   × /resetgoodbye: Resets the goodbye message to default.
 

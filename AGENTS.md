@@ -125,7 +125,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   both ways Telegram sends it. Only the intake touches the join claim (`claimJoin`); a stage just answers.
 - Entity offsets are UTF-16: slice with `extraction.ExtractEntityText`, and match both `Entities` and
   `CaptionEntities`.
-- Messages the bot sends on its own, not as a reply, go through `ratelimit.GlobalSendLimiter().Do`.
+- A send no update caused (e.g. a scheduled post) waits for `ratelimit.GlobalSendLimiter().Do`; saved messages
+  get this from the kinds table in `alita/utils/media`.
 - A missing i18n key returns `""` with an error callers ignore, so a typo ships an empty message: copy key names
   from `locales/en.yml`. `locales/config.yml` is the help alt-name pseudo-locale, not a language.
 

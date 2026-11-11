@@ -27,15 +27,39 @@ func newGreetingMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot
 	return newModuleMessageContext(bot, chat, from, text)
 }
 
-func TestGoodbyeNoformatShowsUnexpandedText(t *testing.T) {
-	f := newAdminChatFixture(t)
-	if err := greetings.SetGoodbyeText(f.chat.Id, "Bye raw {first}", "", nil, db.TEXT); err != nil {
-		t.Fatal(err)
+// The raw view of a greeting shows it as an admin types it: no parse mode,
+// formatting codes, button codes and fillings as typed.
+func TestGreetingNoformatShowsTheGreetingAsTyped(t *testing.T) {
+	buttons := []db.Button{{Name: "Site", Url: "https://example.com"}}
+	const want = "*Bye* raw {first}\n[Site](buttonurl://https://example.com)"
+	tests := []struct {
+		command string
+		handler func(*helpers.CommandContext) error
+		set     func(chatID int64) error
+	}{
+		{"/welcome noformat", greetingsModule.welcome, func(chatID int64) error {
+			return greetings.SetWelcomeText(chatID, "<b>Bye</b> raw {first}", "", buttons, db.TEXT)
+		}},
+		{"/goodbye noformat", greetingsModule.goodbye, func(chatID int64) error {
+			return greetings.SetGoodbyeText(chatID, "<b>Bye</b> raw {first}", "", buttons, db.TEXT)
+		}},
 	}
-	if err := commandResponse(greetingsModule.goodbye)(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, "/goodbye noformat")); err != ext.EndGroups {
-		t.Fatalf("goodbye noformat error = %v, want EndGroups", err)
+	for _, tc := range tests {
+		t.Run(tc.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := tc.set(f.chat.Id); err != nil {
+				t.Fatal(err)
+			}
+			if err := commandResponse(tc.handler)(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, tc.command)); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tc.command, err)
+			}
+			call := lastCall(t, f.client, "sendMessage")
+			assertParams(t, call, map[string]any{"text": want})
+			if mode, ok := call.Params["parse_mode"]; ok {
+				t.Errorf("parse_mode = %v, want none", mode)
+			}
+		})
 	}
-	assertParams(t, lastCall(t, f.client, "sendMessage"), map[string]any{"text": "Bye raw {first}"})
 }
 
 func TestGreetingDisplayPropagatesMediaSendErrors(t *testing.T) {

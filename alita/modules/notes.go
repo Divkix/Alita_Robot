@@ -681,7 +681,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if privateNoteOnly {
 			if ctx.Message.Chat.Type == "private" {
-				_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
+				err = sendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId, media.Rendered)
 			} else {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				clickForPrivateText, _ := tr.GetString("notes_click_for_private")
@@ -707,7 +707,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 				)
 			}
 		} else {
-			_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
+			err = sendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId, media.Rendered)
 		}
 	}
 
@@ -831,37 +831,33 @@ func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, n
 		)
 		return err
 	}
-	_, err := media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
+	return sendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId, media.Rendered)
+}
+
+// sendNote sends a note to the chat the message was sent in: a PM command
+// acting on a connected group points ctx.EffectiveChat at that group, which
+// still fills the note's fillings. It answers replyMsgID in threadID.
+func sendNote(b *gotgbot.Bot, ctx *ext.Context, group *gotgbot.Chat, note *db.Notes, replyMsgID, threadID int64, view media.View) error {
+	chatID := ctx.EffectiveChat.Id
+	if msg := ctx.EffectiveMessage; msg != nil {
+		chatID = msg.Chat.Id
+	}
+	_, err := media.SendSaved(tracing.UpdateContext(ctx), b, media.NoteMessage(note), media.Target{
+		Chat:       group,
+		ChatID:     chatID,
+		ThreadID:   threadID,
+		ReplyMsgID: replyMsgID,
+		Member:     ctx.EffectiveUser,
+	}, view)
 	return err
 }
 
 func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64, noteData *db.Notes) error {
-	b, ctx := c.Bot, c.Ctx
 	if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.RequireUserAdmin()}) {
 		return ext.EndGroups
 	}
 
-	noteData.NoteContent = formatting.ReverseHTML2MD(noteData.NoteContent)
-
-	noteData.NoteContent += content.RevertButtons(noteData.Buttons)
-
-	_, err := media.Send(b, media.Content{
-		Text:    noteData.NoteContent,
-		FileID:  noteData.FileID,
-		MsgType: noteData.MsgType,
-		Name:    noteData.NoteName,
-	}, media.Options{
-		ChatID:            ctx.Message.Chat.Id,
-		ReplyMsgID:        replyMsgId,
-		ThreadID:          ctx.Message.MessageThreadId,
-		Keyboard:          &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
-		NoFormat:          true,
-		NoNotif:           noteData.NoNotif,
-		WebPreview:        false,
-		IsProtected:       noteData.IsProtected,
-		AllowWithoutReply: true,
-	})
-	if err != nil {
+	if err := sendNote(c.Bot, c.Ctx, c.Chat, noteData, replyMsgId, c.Ctx.Message.MessageThreadId, media.Raw); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -1053,7 +1049,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 			return ext.EndGroups
 		}
 	}
-	_, err = media.SendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId)
+	err = sendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId, media.Rendered)
 	if err != nil {
 		log.Error(err)
 		return err
