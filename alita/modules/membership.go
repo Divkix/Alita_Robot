@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
@@ -45,8 +46,9 @@ const (
 )
 
 // JoinStage is one guard of membership intake, run in order before the
-// challenge or welcome.
-type JoinStage func(user gotgbot.User) StageAnswer
+// challenge or welcome. ctx is the join's update; its effective sender added
+// user.
+type JoinStage func(bot *gotgbot.Bot, ctx *ext.Context, user gotgbot.User) StageAnswer
 
 // JoinClaim is who holds a join after the intake tried to claim it.
 type JoinClaim int
@@ -83,8 +85,10 @@ type MembershipDeps struct {
 	// Count sees every join the intake claimed, before the stages and
 	// whatever they do with it: a join wave is a raid whoever is in it.
 	Count func(user gotgbot.User)
-	// Stages are the guards, in order. The first that removes or holds the
-	// member ends the join.
+	// Stages are the guards, in order, run on Bot and Ctx. The first that
+	// removes or holds the member ends the join.
+	Bot       *gotgbot.Bot
+	Ctx       *ext.Context
 	Stages    []JoinStage
 	Challenge func(user gotgbot.User) error
 	Welcome   func(user gotgbot.User) error
@@ -135,7 +139,7 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 		deps.Count(user)
 	}
 	for _, stage := range deps.Stages {
-		switch stage(user) {
+		switch stage(deps.Bot, deps.Ctx, user) {
 		case StageRemoved:
 			return JoinRemoved, nil
 		case StageHeld:

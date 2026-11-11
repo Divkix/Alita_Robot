@@ -537,12 +537,14 @@ func membershipDepsForJoin(bot *gotgbot.Bot, ctx *ext.Context) MembershipDeps {
 			return chat_status.IsApproved(bot, chatID, userID)
 		},
 		Count: func(user gotgbot.User) { antiRaidModule.countJoin(bot, ctx, user.Id) },
+		Bot:   bot,
+		Ctx:   ctx,
 		// The guards in the order a newcomer meets them.
 		Stages: []JoinStage{
-			func(user gotgbot.User) StageAnswer { return federationsModule.fedBanStage(bot, ctx, user) },
-			func(user gotgbot.User) StageAnswer { return antiRaidModule.antiRaidStage(bot, ctx, user) },
-			func(user gotgbot.User) StageAnswer { return spamDBModule.spamDBStage(bot, ctx, user) },
-			func(user gotgbot.User) StageAnswer { return locksModule.botsLockStage(bot, ctx, user) },
+			federationsModule.fedBanStage,
+			antiRaidModule.antiRaidStage,
+			spamDBModule.spamDBStage,
+			locksModule.botsLockStage,
 		},
 		Challenge: func(user gotgbot.User) error {
 			ctxCopy := *ctx
