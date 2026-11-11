@@ -228,7 +228,7 @@ func TestPermaPinSendsNewMessageThenPinsIt(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
-	ctx := newModuleMessageContext(bot, chat, user, "/permapin keep this pinned")
+	ctx := newModuleMessageContext(bot, chat, user, "/permapin keep {first} pinned [Docs](buttonurl://https://example.com)")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
 		t.Fatalf("BuildCommandContext failed: %v", err)
@@ -239,6 +239,15 @@ func TestPermaPinSendsNewMessageThenPinsIt(t *testing.T) {
 	sendCalls := client.callsFor("sendMessage")
 	if len(sendCalls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want pin message and confirmation", len(sendCalls))
+	}
+	// Permapin has no fillings: {first} stays as typed, and the button code
+	// becomes a button.
+	if got := sendCalls[0].Params["text"]; got != "keep {first} pinned" {
+		t.Fatalf("permapin text = %#v, want the text as typed", got)
+	}
+	markup, ok := sendCalls[0].Params["reply_markup"].(*gotgbot.InlineKeyboardMarkup)
+	if !ok || len(markup.InlineKeyboard) != 1 || markup.InlineKeyboard[0][0].Url != "https://example.com" {
+		t.Fatalf("permapin reply_markup = %#v, want the Docs button", sendCalls[0].Params["reply_markup"])
 	}
 	assertParams(t, client.onlyCall(t, "pinChatMessage"), map[string]any{"chat_id": chat.Id, "message_id": 9001})
 }

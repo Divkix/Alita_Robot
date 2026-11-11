@@ -22,7 +22,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -247,19 +246,10 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	keyb := keyboard.BuildKeyboard(content.ConvertButtonV2ToDbButton(buttons))
-
-	ppmsg, err := media.Send(c.Bot, media.Content{
-		Text:    pinT.MsgText,
-		FileID:  pinT.FileID,
-		MsgType: pinT.DataType,
-	}, media.Options{
-		ChatID:            c.Chat.Id,
-		ThreadID:          c.Msg.MessageThreadId,
-		Keyboard:          &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb},
-		WebPreview:        false,
-		AllowWithoutReply: true,
-	})
+	ppmsg, err := media.SendSaved(tracing.UpdateContext(c.Ctx), c.Bot, media.SavedMessage{
+		Kind: media.KindPermapin, Text: pinT.MsgText, FileID: pinT.FileID, MsgType: pinT.DataType,
+		Buttons: content.ConvertButtonV2ToDbButton(buttons),
+	}, media.Target{ChatID: c.Chat.Id, ThreadID: c.Msg.MessageThreadId}, media.Rendered)
 	if err != nil {
 		log.Error(err)
 		return err
