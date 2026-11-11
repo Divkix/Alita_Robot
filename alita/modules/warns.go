@@ -21,8 +21,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/settings"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -42,28 +42,12 @@ func warnPunishLock(chatID, userID int64) *sync.Mutex {
 	return &warnPunishShards[uint64(chatID*31+userID)%uint64(len(warnPunishShards))]
 }
 
-// defaultWarnActionTime applies to tban/tmute rows without a usable duration,
-// such as backups taken before warn_action_time existed. Telegram treats a
-// missing or out-of-range until_date as forever, which a warn must never be.
-const defaultWarnActionTime = 60 * 60
-
-func isTimedWarnMode(mode string) bool {
-	return mode == "tban" || mode == "tmute"
-}
-
-func warnActionTime(settings *models.WarnSettings) int {
-	if !models.ValidActionTime(settings.WarnActionTime) {
-		return defaultWarnActionTime
-	}
-	return settings.WarnActionTime
-}
-
 // warnModeLabel renders the mode for display, with the duration for tban/tmute.
-func warnModeLabel(settings *models.WarnSettings) string {
-	if isTimedWarnMode(settings.WarnMode) {
-		return settings.WarnMode + " " + formatDuration(warnActionTime(settings))
+func warnModeLabel(row *models.WarnSettings) string {
+	if settings.IsTimedMode(row.WarnMode) {
+		return row.WarnMode + " " + formatDuration(row.WarnActionTime)
 	}
-	return settings.WarnMode
+	return row.WarnMode
 }
 
 func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -76,30 +60,30 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) > 0 {
 		mode := strings.ToLower(args[0])
-		modeKeys := map[string]string{
-			"ban":   "warns_mode_updated_ban",
-			"kick":  "warns_mode_updated_kick",
-			"mute":  "warns_mode_updated_mute",
-			"tban":  "warns_mode_updated_tban",
-			"tmute": "warns_mode_updated_tmute",
-		}
-		if key, ok := modeKeys[mode]; ok {
+		if settings.WarnMode.Validate(mode) == nil {
 			actionTime := 0
-			if isTimedWarnMode(mode) {
+			if settings.IsTimedMode(mode) || len(args) > 1 && args[1] != "0" {
 				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
 				if seconds == -1 {
 					return ext.EndGroups
 				}
 				actionTime = int(seconds)
 			}
-			if err := warns.SetWarnMode(chat.Id, mode, actionTime); err != nil {
+			changes := map[string]any{settings.WarnMode.Key: mode, settings.WarnActionTime.Key: actionTime}
+			input := settings.WriteContext{ChatID: chat.Id}
+			if len(settings.ValidateChanges(input, changes)) != 0 {
+				replyText, _ = tr.GetString("warns_specify_action")
+				_, _ = msg.Reply(b, replyText, formatting.Shtml())
+				return ext.EndGroups
+			}
+			if err := settings.WarnMode.WriteChanges(input, changes); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
-			replyText, _ = tr.GetString(key)
-			if isTimedWarnMode(mode) {
+			replyText, _ = tr.GetString("warns_mode_updated_" + mode)
+			if settings.IsTimedMode(mode) {
 				replyText = fmt.Sprintf(replyText, formatDuration(actionTime))
 			}
 		} else {
@@ -310,7 +294,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		banRecordID = recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: bannedBy, source: models.BanSourceWarn, reason: reason})
 		punished = true
 	case "tban", "tmute":
-		actionTime := warnActionTime(warnrc)
+		actionTime := warnrc.WarnActionTime
 		untilDate := time.Now().Unix() + int64(actionTime)
 		key := "warns_limit_tbanned"
 		if warnrc.WarnMode == "tban" {
@@ -1042,11 +1026,6 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, resetWarnsDesc, pipelineHandler(warnsModule.resetWarns))
 	helpers.WrapCommand(dispatcher, removeWarnDesc, pipelineHandler(warnsModule.removeWarn))
 	helpers.WrapCommand(dispatcher, warnsStatusDesc, pipelineHandler(warnsModule.warns))
-	settingChecks := []helpers.CheckFunc{
-		helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
-		helpers.RequireBotAdmin(),
-		helpers.RequireUserAdmin(),
-	}
 	resetChecks := []helpers.CheckFunc{
 		groupOnlyChatCheck,
 		helpers.RequireGroup(),
@@ -1059,7 +1038,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		checks  []helpers.CheckFunc
 	}{
 		{"setwarnlimit", helpers.PMGroupArgOwn, warnsModule.setWarnLimit, declaredSettingChecks(settings.WarnLimit)},
-		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode, settingChecks},
+		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode, declaredSettingChecks(settings.WarnMode)},
 		{"setwarntime", helpers.PMGroupArgOwn, warnsModule.setWarnTime, declaredSettingChecks(settings.WarnExpiry)},
 		{"resetallwarns", helpers.PMGroupArgNone, warnsModule.resetAllWarns, resetChecks},
 	} {

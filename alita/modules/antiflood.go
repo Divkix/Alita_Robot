@@ -16,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -36,23 +35,12 @@ const (
 	maxConcurrentMsgDeletions = 5
 )
 
-// floodTimedActionTime is the fallback for tban/tmute rows without a usable
-// duration, such as backups taken before flood_action_time existed.
-const floodTimedActionTime = 60 * 60
-
-func floodActionTime(settings *models.AntifloodSettings) int {
-	if !models.ValidActionTime(settings.FloodActionTime) {
-		return floodTimedActionTime
-	}
-	return settings.FloodActionTime
-}
-
 // floodModeLabel includes the effective duration for timed actions.
-func floodModeLabel(settings *models.AntifloodSettings) string {
-	if settings.Action == "tban" || settings.Action == "tmute" {
-		return settings.Action + " " + formatDuration(floodActionTime(settings))
+func floodModeLabel(row *models.AntifloodSettings) string {
+	if settings.IsTimedMode(row.Action) {
+		return row.Action + " " + formatDuration(row.FloodActionTime)
 	}
-	return settings.Action
+	return row.Action
 }
 
 // floodActionLabel names the flood action for the flood notice and /flood.
@@ -63,7 +51,7 @@ func floodActionLabel(tr *i18n.Translator, settings *models.AntifloodSettings) s
 		}
 		return fallback
 	}
-	duration := formatDuration(floodActionTime(settings))
+	duration := formatDuration(settings.FloodActionTime)
 	durationParams := i18n.TranslationParams{"duration": duration}
 	switch settings.Action {
 	case "mute":
@@ -420,7 +408,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
-		untilDate := time.Now().Unix() + int64(floodActionTime(flood))
+		untilDate := time.Now().Unix() + int64(flood.FloodActionTime)
 		floodTimedUntil = untilDate
 		var err error
 		if flood.Action == "tban" {
@@ -542,17 +530,24 @@ func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
-		if slices.Contains([]string{"ban", "kick", "mute", "tban", "tmute"}, selectedMode) {
+		if settings.FloodMode.Validate(selectedMode) == nil {
 			actionTime := 0
-			timed := selectedMode == "tban" || selectedMode == "tmute"
-			if timed {
+			timed := settings.IsTimedMode(selectedMode)
+			if timed || len(args) > 1 && args[1] != "0" {
 				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
 				if seconds == -1 {
 					return ext.EndGroups
 				}
 				actionTime = int(seconds)
 			}
-			if err := antiflood.SetFloodModeContext(tracing.UpdateContext(ctx), chat.Id, selectedMode, actionTime); err != nil {
+			changes := map[string]any{settings.FloodMode.Key: selectedMode, settings.FloodActionTime.Key: actionTime}
+			input := settings.WriteContext{ChatID: chat.Id}
+			if len(settings.ValidateChanges(input, changes)) != 0 {
+				text, _ := tr.GetString("antiflood_setfloodmode_specify_action")
+				_, _ = msg.Reply(b, text, formatting.Shtml())
+				return ext.EndGroups
+			}
+			if err := settings.FloodMode.WriteChanges(input, changes); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -641,7 +636,7 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(antifloodModule.setFlood))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setfloodmode", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(settings.FloodMode),
 	}, pipelineHandler(antifloodModule.setFloodMode))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "delflood", Aliases: []string{"clearflood"}, PMGroupArg: helpers.PMGroupArgOwn,

@@ -11,7 +11,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
@@ -59,14 +58,6 @@ func boolToggle(key, command string, botAdmin bool, set func(chatID int64, on bo
 	return settingsToggle{key: key, command: command, values: settingsOnOff, botAdmin: botAdmin,
 		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
 			return settingsSaveFailed(command, chatID, set(chatID, value == "on"))
-		}}
-}
-
-// valueToggle is a row of a few named values whose command writes it with set.
-func valueToggle(key, command string, values []string, botAdmin bool, set func(chatID int64, value string) error) settingsToggle {
-	return settingsToggle{key: key, command: command, values: values, botAdmin: botAdmin,
-		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
-			return settingsSaveFailed(command, chatID, set(chatID, value))
 		}}
 }
 
@@ -152,9 +143,7 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("cj", "/captchajoin", settings.CaptchaJoinRequests),
 	declaredSettingsToggle("cm", "/captchamode", settings.CaptchaMode),
 	declaredSettingsToggle("ca", "/captchaaction", settings.CaptchaAction),
-	valueToggle("fm", "/setfloodmode", []string{"mute", "ban", "kick"}, true, func(chatID int64, mode string) error {
-		return antiflood.SetFloodMode(chatID, mode, 0)
-	}),
+	declaredSettingsToggle("fm", "/setfloodmode", settings.FloodMode),
 	declaredSettingsToggle("fd", "/delflood", settings.FloodDelete),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
 	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},

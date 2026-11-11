@@ -23,7 +23,7 @@ var FloodLimit = &Declaration{
 
 var FloodDelete = &Declaration{
 	Key: "antiflood.delete_messages", Type: Switch, Default: false, Right: AdminBot,
-	read: func(chatID int64) any { return antiflood.GetFlood(chatID).DeleteAntifloodMessage },
+	read:  func(chatID int64) any { return antiflood.GetFlood(chatID).DeleteAntifloodMessage },
 	write: func(input WriteContext, value any) error { return antiflood.SetFloodMsgDel(input.ChatID, value.(bool)) },
 }
 
@@ -59,6 +59,8 @@ func ReadFlood(chatID int64) *models.AntifloodSettings {
 func ReadFloodContext(ctx context.Context, chatID int64) *models.AntifloodSettings {
 	row := *antiflood.GetFloodContext(ctx, chatID)
 	row.Limit = FloodLimit.effective(row.Limit).(int)
+	row.Action = FloodMode.effective(row.Action).(string)
+	row.FloodActionTime = effectiveModeDuration(row.Action, row.FloodActionTime, FloodActionTime.Default.(int))
 	return &row
 }
 
@@ -67,5 +69,7 @@ func ReadWarnsContext(ctx context.Context, chatID int64) *models.WarnSettings {
 	row := *warns.GetWarnSettingContext(ctx, chatID)
 	row.WarnLimit = WarnLimit.effective(row.WarnLimit).(int)
 	row.WarnExpiry = WarnExpiry.effective(row.WarnExpiry).(int)
+	row.WarnMode = WarnMode.effective(row.WarnMode).(string)
+	row.WarnActionTime = effectiveModeDuration(row.WarnMode, row.WarnActionTime, WarnActionTime.Default.(int))
 	return &row
 }

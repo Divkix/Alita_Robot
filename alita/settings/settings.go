@@ -14,6 +14,11 @@
 // strongest-right approximation.
 // Flood limits and warning limits/expiry normalize old invalid values for both
 // display and enforcement. Reading warning preferences does not create a row.
+// A sharedWrite owns dependent fields' validation and single persistence call;
+// adapters validate the whole request, then reuse one outcome per WriteKey.
+// Moderation durations default to one hour for timed modes; untimed reads use
+// zero with no changed mark. Untimed writes accept only zero/omitted duration,
+// and switching to an untimed mode clears a previously stored duration.
 package settings
 
 import (
@@ -49,6 +54,9 @@ type Declaration struct {
 	Default      any
 	Right        Right
 	Options      []string
+	toggleValues []string
+	shared       *sharedWrite
+	unchanged    func(any) bool
 	attachment   func() error
 	read         func(int64) any
 	allowed      func(any) error
@@ -76,6 +84,7 @@ var declarations = []*Declaration{
 	Welcome, Goodbye, CleanWelcome, CleanGoodbye, CleanService, AutoApprove,
 	CaptchaEnabled, CaptchaJoinRequests, CaptchaMode, CaptchaTimeout, CaptchaAction, CaptchaMaxAttempts,
 	FloodLimit, FloodDelete, WarnLimit, WarnExpiry,
+	FloodMode, FloodActionTime, WarnMode, WarnActionTime,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.
@@ -90,6 +99,9 @@ func Lookup(key string) (*Declaration, bool) {
 
 // ToggleValues lists the input-free values a /settings button can cycle through.
 func (d *Declaration) ToggleValues() []string {
+	if d.toggleValues != nil {
+		return d.toggleValues
+	}
 	if d.Type == Switch {
 		return switchValues
 	}
@@ -127,7 +139,11 @@ func (d *Declaration) Validate(value any) error {
 
 func (d *Declaration) Read(chatID int64) State {
 	value := d.effective(d.read(chatID))
-	return State{Value: value, Changed: value != d.Default}
+	changed := value != d.Default
+	if d.unchanged != nil {
+		changed = !d.unchanged(value)
+	}
+	return State{Value: value, Changed: changed}
 }
 
 func (d *Declaration) effective(value any) any {
@@ -153,6 +169,16 @@ func CheckAttachments() error {
 // ValidateWrite includes write-only preconditions, so adapters can validate a
 // whole batch before storing any field. Read checks only allowed values.
 func (d *Declaration) ValidateWrite(input WriteContext, value any) error {
+	if err := d.validateValueWrite(input, value); err != nil {
+		return err
+	}
+	if d.shared != nil {
+		return d.shared.validate(input, map[string]any{d.Key: value})
+	}
+	return nil
+}
+
+func (d *Declaration) validateValueWrite(input WriteContext, value any) error {
 	if err := d.Validate(value); err != nil {
 		return err
 	}
@@ -170,6 +196,9 @@ func (d *Declaration) ValidateWrite(input WriteContext, value any) error {
 // Write validates again so no adapter bypasses the rules or attached effect.
 // Rights are enforced by the adapter before the first write in a batch.
 func (d *Declaration) Write(input WriteContext, value any) error {
+	if d.shared != nil {
+		return d.WriteChanges(input, map[string]any{d.Key: value})
+	}
 	if err := d.ValidateWrite(input, value); err != nil {
 		return err
 	}

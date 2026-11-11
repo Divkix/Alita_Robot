@@ -11,7 +11,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -132,24 +131,6 @@ func TestSettingsToggleSetsEveryValue(t *testing.T) {
 				t.Fatalf("%s button after a tap for %q offers %q, want %q", toggle.command, value, got, toggle.next(value))
 			}
 		}
-	}
-}
-
-func TestSettingsFloodToggleClearsTimedDuration(t *testing.T) {
-	f := settingsToggleFixture(t)
-	if err := antiflood.SetFloodMode(f.chat.Id, "tmute", 600); err != nil {
-		t.Fatalf("SetFloodMode() error = %v", err)
-	}
-
-	pressSettingsToggle(t, f, f.admin, "fm", "ban")
-	if text, alert := lastAnswer(t, f.client); alert {
-		t.Fatalf("flood toggle refused: %q", text)
-	}
-	if s := antiflood.GetFlood(f.chat.Id); s.Action != "ban" || s.FloodActionTime != 0 {
-		t.Fatalf("flood settings = %+v, want ban with cleared duration", s)
-	}
-	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != "ban" {
-		t.Fatalf("/setfloodmode after toggle = %q, want ban", got)
 	}
 }
 
@@ -278,7 +259,7 @@ func TestSettingsToggleRejectsForgedValues(t *testing.T) {
 		pressSettingsToggle(t, f, f.admin, forged[0], forged[1])
 	}
 
-	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != settingsDefaultFloodAction {
+	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != "mute" {
 		t.Fatalf("/setfloodmode = %q after a forged tap", got)
 	}
 	if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {

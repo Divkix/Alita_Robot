@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,7 +29,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
-	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -147,17 +145,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 	if fieldBool(t, body, "rules.private_rules") {
 		t.Fatal("rules.private_rules = true, want false")
 	}
-	if fieldInt(t, body, "antiflood.limit") != 0 || fieldString(t, body, "antiflood.action") != "mute" ||
-		fieldInt(t, body, "antiflood.action_time") != 0 || fieldBool(t, body, "antiflood.delete_messages") {
-		t.Fatalf("antiflood defaults = %+v", body.Modules[4])
-	}
-	if options := findSettingsField(t, body, "antiflood.action").Options; !slices.Equal(options, []string{"ban", "kick", "mute", "tban", "tmute"}) {
-		t.Fatalf("antiflood action options = %v, want ban/kick/mute/tban/tmute", options)
-	}
-	actionTime := findSettingsField(t, body, "antiflood.action_time")
-	if actionTime.Type != "int" || !actionTime.Writable || actionTime.Default != float64(0) || actionTime.Changed {
-		t.Fatalf("antiflood.action_time metadata = %+v, want writable int with unchanged default 0", actionTime)
-	}
 	if fieldBool(t, body, "antispam.aispam_enabled") || fieldBool(t, body, "antispam.spamdb_enabled") {
 		t.Fatal("antispam features must default off")
 	}
@@ -165,25 +152,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		!fieldBool(t, body, "antispam.spamdb_cas") || fieldBool(t, body, "antispam.spamdb_lols") ||
 		fieldBool(t, body, "antispam.spamdb_shared") {
 		t.Fatalf("spamdb defaults = %+v", body.Modules[5])
-	}
-	if fieldInt(t, body, "warns.limit") != 3 || fieldString(t, body, "warns.mode") != "mute" ||
-		fieldInt(t, body, "warns.action_time") != 0 || fieldInt(t, body, "warns.expiry") != 0 {
-		t.Fatalf("warns defaults = %+v", body.Modules[7])
-	}
-	for _, key := range []string{"warns.limit", "warns.mode", "warns.action_time", "warns.expiry"} {
-		field := findSettingsField(t, body, key)
-		if !field.Writable || field.Changed || field.Default != field.Value {
-			t.Fatalf("%s metadata = %+v, want writable and unchanged at its default", key, field)
-		}
-	}
-	options := findSettingsField(t, body, "warns.mode").Options
-	if len(options) != 5 {
-		t.Fatalf("warn modes = %v, want five supported actions", options)
-	}
-	for _, mode := range []string{"ban", "kick", "mute", "tban", "tmute"} {
-		if !containsString(options, mode) {
-			t.Fatalf("warn modes = %v, missing %q", options, mode)
-		}
 	}
 	if fieldBool(t, body, "digest.enabled") || fieldString(t, body, "digest.destination") != "" {
 		t.Fatalf("digest defaults = %+v", body.Modules[8])
@@ -269,42 +237,16 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "wrong type", body: `{"changes":{"greetings.welcome_enabled":"yes"}}`, wantKeys: []string{"greetings.welcome_enabled"}},
 		{name: "language option", body: `{"changes":{"language.code":"xx"}}`, wantKeys: []string{"language.code"}},
 		{name: "read-only field", body: `{"changes":{"locks.active":[]}}`, wantKeys: []string{"locks.active"}},
-		{name: "antiflood range", body: `{"changes":{"antiflood.limit":2}}`, wantKeys: []string{"antiflood.limit"}},
-		{name: "flood tban missing duration", body: `{"changes":{"antiflood.action":"tban","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
-		{name: "flood tmute missing duration", body: `{"changes":{"antiflood.action":"tmute","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
-		{name: "flood zero duration", body: `{"changes":{"antiflood.action":"tban","antiflood.action_time":0,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood negative duration", body: `{"changes":{"antiflood.action":"tban","antiflood.action_time":-1,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood duration below minimum", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":59,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood duration above maximum", body: `{"changes":{"antiflood.action":"tban","antiflood.action_time":31622401,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
 		{name: "flood fractional duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":60.5,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
 		{name: "flood string duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":"60","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
 		{name: "flood null duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":null,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood duration alone while untimed", body: `{"changes":{"antiflood.action_time":3600,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood zero duration alone while untimed", body: `{"changes":{"antiflood.action_time":0,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood invalid duration with untimed action", body: `{"changes":{"antiflood.action":"ban","antiflood.action_time":59,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "flood warn is not supported", body: `{"changes":{"antiflood.action":"warn","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
 		{name: "last spam database", body: `{"changes":{"antispam.spamdb_cas":false}}`, wantKeys: []string{"antispam.spamdb_cas"}},
 		{name: "no spam database left", body: `{"changes":{"antispam.spamdb_cas":false,"antispam.spamdb_shared":false}}`, wantKeys: []string{"antispam.spamdb_cas", "antispam.spamdb_shared"}},
-		{name: "warn limit below minimum", body: `{"changes":{"warns.limit":0}}`, wantKeys: []string{"warns.limit"}},
-		{name: "warn limit above maximum", body: `{"changes":{"warns.limit":101}}`, wantKeys: []string{"warns.limit"}},
 		{name: "warn limit fraction", body: `{"changes":{"warns.limit":3.5}}`, wantKeys: []string{"warns.limit"}},
 		{name: "warn limit wrong type", body: `{"changes":{"warns.limit":"3"}}`, wantKeys: []string{"warns.limit"}},
-		{name: "warn mode unknown", body: `{"changes":{"warns.mode":"restrict"}}`, wantKeys: []string{"warns.mode"}},
 		{name: "warn mode wrong type", body: `{"changes":{"warns.mode":true}}`, wantKeys: []string{"warns.mode"}},
-		{name: "warn timed ban without duration", body: `{"changes":{"warns.mode":"tban"}}`, wantKeys: []string{"warns.mode"}},
-		{name: "warn timed mute without duration", body: `{"changes":{"warns.mode":"tmute"}}`, wantKeys: []string{"warns.mode"}},
-		{name: "warn timed action with zero duration", body: `{"changes":{"warns.mode":"tban","warns.action_time":0}}`, wantKeys: []string{"warns.mode", "warns.action_time"}},
-		{name: "warn duration below minimum", body: `{"changes":{"warns.mode":"tmute","warns.action_time":59}}`, wantKeys: []string{"warns.action_time"}},
-		{name: "warn duration above maximum", body: fmt.Sprintf(`{"changes":{"warns.mode":"tban","warns.action_time":%d}}`, models.MaxActionTime+1), wantKeys: []string{"warns.action_time"}},
 		{name: "warn duration wrong type", body: `{"changes":{"warns.mode":"tban","warns.action_time":"60"}}`, wantKeys: []string{"warns.action_time"}},
-		{name: "warn duration alone while untimed", body: `{"changes":{"warns.action_time":60}}`, wantKeys: []string{"warns.action_time"}},
-		{name: "warn zero duration alone while untimed", body: `{"changes":{"warns.action_time":0}}`, wantKeys: []string{"warns.action_time"}},
-		{name: "warn duration with untimed mode", body: `{"changes":{"warns.mode":"ban","warns.action_time":60}}`, wantKeys: []string{"warns.mode", "warns.action_time"}},
-		{name: "warn expiry negative", body: `{"changes":{"warns.expiry":-1}}`, wantKeys: []string{"warns.expiry"}},
-		{name: "warn expiry below minimum", body: `{"changes":{"warns.expiry":59}}`, wantKeys: []string{"warns.expiry"}},
-		{name: "warn expiry above maximum", body: fmt.Sprintf(`{"changes":{"warns.expiry":%d}}`, models.MaxWarnExpiry+1), wantKeys: []string{"warns.expiry"}},
 		{name: "warn expiry wrong type", body: `{"changes":{"warns.expiry":false}}`, wantKeys: []string{"warns.expiry"}},
-		{name: "invalid warn blocks other modules", body: `{"changes":{"greetings.welcome_enabled":false,"warns.limit":7,"warns.mode":"tban","warns.expiry":60}}`, wantKeys: []string{"warns.mode"}},
 		{name: "invalid module blocks valid warns", body: `{"changes":{"captcha.timeout":99,"warns.limit":7,"warns.mode":"tban","warns.action_time":60,"warns.expiry":60}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "digest enabled wrong type", body: `{"changes":{"digest.enabled":"true"}}`, wantKeys: []string{"digest.enabled"}},
 		{name: "digest enabled null", body: `{"changes":{"digest.enabled":null}}`, wantKeys: []string{"digest.enabled"}},
@@ -402,150 +344,6 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 	fixture, chatID := newSettingsFixture(t)
 	empty := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw, `{"changes":{}}`, "application/json")
 	requireAPIError(t, empty, http.StatusBadRequest, "invalid_settings")
-}
-
-func TestSettingsPatchWarnsAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
-	fixture, chatID := newSettingsFixture(t)
-	raw := readFixture(t, "initdata_main.txt")
-	target := settingsPath(chatID)
-
-	// Each step warms the shared warns cache before writing. Separate PATCHes
-	// ensure another setter cannot hide a missing cache invalidation.
-	for _, test := range []struct {
-		name       string
-		changes    map[string]any
-		limit      int
-		mode       string
-		actionTime int
-		expiry     int
-	}{
-		{"minimum limit", map[string]any{"warns.limit": 1}, 1, "mute", 0, 0},
-		{"maximum limit", map[string]any{"warns.limit": 100}, 100, "mute", 0, 0},
-		{"ban", map[string]any{"warns.mode": "ban"}, 100, "ban", 0, 0},
-		{"kick", map[string]any{"warns.mode": "kick"}, 100, "kick", 0, 0},
-		{"mute", map[string]any{"warns.mode": "mute"}, 100, "mute", 0, 0},
-		{"timed ban minimum", map[string]any{"warns.mode": "tban", "warns.action_time": models.MinActionTime}, 100, "tban", models.MinActionTime, 0},
-		{"timed mute reuses stored duration", map[string]any{"warns.mode": "tmute"}, 100, "tmute", models.MinActionTime, 0},
-		{"duration alone while timed", map[string]any{"warns.action_time": models.MaxActionTime}, 100, "tmute", models.MaxActionTime, 0},
-		{"timed ban reuses stored duration", map[string]any{"warns.mode": "tban"}, 100, "tban", models.MaxActionTime, 0},
-		{"ban clears duration", map[string]any{"warns.mode": "ban"}, 100, "ban", 0, 0},
-		{"timed mute maximum", map[string]any{"warns.mode": "tmute", "warns.action_time": models.MaxActionTime}, 100, "tmute", models.MaxActionTime, 0},
-		{"kick with explicit zero clears duration", map[string]any{"warns.mode": "kick", "warns.action_time": 0}, 100, "kick", 0, 0},
-		{"timed ban", map[string]any{"warns.mode": "tban", "warns.action_time": 120}, 100, "tban", 120, 0},
-		{"mute clears duration", map[string]any{"warns.mode": "mute"}, 100, "mute", 0, 0},
-		{"minimum expiry", map[string]any{"warns.expiry": models.MinWarnExpiry}, 100, "mute", 0, models.MinWarnExpiry},
-		{"maximum expiry", map[string]any{"warns.expiry": models.MaxWarnExpiry}, 100, "mute", 0, models.MaxWarnExpiry},
-		{"disable expiry", map[string]any{"warns.expiry": 0}, 100, "mute", 0, 0},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			warns.GetWarnSetting(chatID)
-			payload, err := json.Marshal(map[string]any{"changes": test.changes})
-			if err != nil {
-				t.Fatalf("encode changes: %v", err)
-			}
-			recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw, string(payload), "application/json")
-			if recorder.Code != http.StatusOK {
-				t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
-			}
-			var patch settingsPatchResponse
-			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
-				t.Fatalf("decode patch: %v", err)
-			}
-			if len(patch.Saved) != len(test.changes) || len(patch.Failed) != 0 {
-				t.Fatalf("saved = %v, failed = %v, want every change saved", patch.Saved, patch.Failed)
-			}
-			for key := range test.changes {
-				if !containsString(patch.Saved, key) {
-					t.Fatalf("saved = %v, missing %s", patch.Saved, key)
-				}
-			}
-
-			var stored models.WarnSettings
-			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
-				t.Fatalf("load warn settings: %v", err)
-			}
-			for source, settings := range map[string]*models.WarnSettings{"database": &stored, "getter": warns.GetWarnSetting(chatID)} {
-				if settings.WarnLimit != test.limit || settings.WarnMode != test.mode ||
-					settings.WarnActionTime != test.actionTime || settings.WarnExpiry != test.expiry {
-					t.Fatalf("%s warns = %+v, want limit=%d mode=%s action_time=%d expiry=%d",
-						source, settings, test.limit, test.mode, test.actionTime, test.expiry)
-				}
-			}
-			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
-			if fieldInt(t, after, "warns.limit") != test.limit || fieldString(t, after, "warns.mode") != test.mode ||
-				fieldInt(t, after, "warns.action_time") != test.actionTime || fieldInt(t, after, "warns.expiry") != test.expiry {
-				t.Fatal("GET warns does not reflect the saved settings")
-			}
-			for _, key := range []string{"warns.limit", "warns.mode", "warns.action_time", "warns.expiry"} {
-				field := findSettingsField(t, after, key)
-				if field.Changed != (field.Value != field.Default) {
-					t.Fatalf("%s changed = %v for value=%v default=%v", key, field.Changed, field.Value, field.Default)
-				}
-			}
-		})
-	}
-}
-
-func TestSettingsPatchWarnsValidationPreservesStoredSettings(t *testing.T) {
-	for _, test := range []struct {
-		name       string
-		mode       string
-		actionTime int
-		changes    string
-		errorKey   string
-	}{
-		{"ban rejects duration alone", "ban", 0, `{"warns.action_time":60}`, "warns.action_time"},
-		{"kick rejects zero duration alone", "kick", 0, `{"warns.action_time":0}`, "warns.action_time"},
-		{"mute rejects duration alone", "mute", 0, `{"warns.action_time":60}`, "warns.action_time"},
-		{"timed duration cannot become zero", "tban", 120, `{"warns.limit":7,"warns.action_time":0,"warns.expiry":60}`, "warns.action_time"},
-		{"timed duration cannot become too short", "tmute", 120, `{"warns.limit":7,"warns.action_time":59}`, "warns.action_time"},
-		{"untimed mode rejects nonzero duration", "tban", 120, `{"warns.mode":"ban","warns.action_time":60}`, "warns.action_time"},
-		{"invalid expiry blocks mode and time", "tban", 120, `{"greetings.welcome_enabled":false,"warns.limit":7,"warns.mode":"tmute","warns.action_time":180,"warns.expiry":59}`, "warns.expiry"},
-		{"zero stored duration cannot enable timed mode", "ban", 0, `{"warns.limit":7,"warns.mode":"tban","warns.expiry":60}`, "warns.mode"},
-		{"short stored duration cannot enable timed mode", "ban", models.MinActionTime - 1, `{"warns.limit":7,"warns.mode":"tmute","warns.expiry":60}`, "warns.mode"},
-		{"long stored duration cannot enable timed mode", "ban", models.MaxActionTime + 1, `{"warns.limit":7,"warns.mode":"tban","warns.expiry":60}`, "warns.mode"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			fixture, chatID := newSettingsFixture(t)
-			if err := warns.SetWarnLimit(chatID, 8); err != nil {
-				t.Fatalf("seed warn limit: %v", err)
-			}
-			if err := warns.SetWarnMode(chatID, test.mode, test.actionTime); err != nil {
-				t.Fatalf("seed warn mode: %v", err)
-			}
-			if err := warns.SetWarnExpiry(chatID, 300); err != nil {
-				t.Fatalf("seed warn expiry: %v", err)
-			}
-			warns.GetWarnSetting(chatID)
-
-			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
-				`{"changes":`+test.changes+`}`, "application/json")
-			if recorder.Code != http.StatusBadRequest {
-				t.Fatalf("status = %d, want 400 (body %s)", recorder.Code, recorder.Body.String())
-			}
-			var patch settingsPatchResponse
-			if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
-				t.Fatalf("decode patch: %v", err)
-			}
-			if patch.Error == nil || patch.Error.Code != "invalid_settings" || patch.Errors[test.errorKey] == "" ||
-				len(patch.Saved) != 0 || len(patch.Failed) != 0 {
-				t.Fatalf("patch = %+v, want validation failure for %s without writes", patch, test.errorKey)
-			}
-			var stored models.WarnSettings
-			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
-				t.Fatalf("load warn settings: %v", err)
-			}
-			for source, settings := range map[string]*models.WarnSettings{"database": &stored, "getter": warns.GetWarnSetting(chatID)} {
-				if settings.WarnLimit != 8 || settings.WarnMode != test.mode ||
-					settings.WarnActionTime != test.actionTime || settings.WarnExpiry != 300 {
-					t.Fatalf("refused PATCH changed %s warns: %+v", source, settings)
-				}
-			}
-			if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
-				t.Fatalf("refused PATCH created %d greeting rows", count)
-			}
-		})
-	}
 }
 
 func TestSettingsPatchDigestAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
@@ -1032,89 +830,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	if fieldString(t, after, "antiflood.action") != "tban" || fieldInt(t, after, "antiflood.action_time") != 7200 ||
 		!findSettingsField(t, after, "antiflood.action_time").Changed {
 		t.Fatalf("GET antiflood did not reflect the timed action: %+v", after.Modules[4])
-	}
-}
-
-func TestSettingsPatchAntifloodDurationPersistence(t *testing.T) {
-	for _, test := range []struct {
-		name       string
-		action     string
-		actionTime int
-		changes    string
-		wantAction string
-		wantTime   int
-		wantSaved  []string
-	}{
-		{name: "reuse stored duration", action: "tban", actionTime: 5400, changes: `{"antiflood.action":"tmute"}`, wantAction: "tmute", wantTime: 5400, wantSaved: []string{"antiflood.action"}},
-		{name: "duration alone while timed", action: "tmute", actionTime: 5400, changes: `{"antiflood.action_time":3600}`, wantAction: "tmute", wantTime: 3600, wantSaved: []string{"antiflood.action_time"}},
-		{name: "minimum duration", action: "mute", changes: fmt.Sprintf(`{"antiflood.action":"tban","antiflood.action_time":%d}`, models.MinActionTime), wantAction: "tban", wantTime: models.MinActionTime, wantSaved: []string{"antiflood.action", "antiflood.action_time"}},
-		{name: "maximum duration", action: "mute", changes: fmt.Sprintf(`{"antiflood.action":"tmute","antiflood.action_time":%d}`, models.MaxActionTime), wantAction: "tmute", wantTime: models.MaxActionTime, wantSaved: []string{"antiflood.action", "antiflood.action_time"}},
-		{name: "clear for ban", action: "tban", actionTime: 5400, changes: `{"antiflood.action":"ban"}`, wantAction: "ban", wantSaved: []string{"antiflood.action"}},
-		{name: "clear for mute", action: "tmute", actionTime: 5400, changes: `{"antiflood.action":"mute"}`, wantAction: "mute", wantSaved: []string{"antiflood.action"}},
-		{name: "clear for kick", action: "tban", actionTime: 5400, changes: `{"antiflood.action":"kick"}`, wantAction: "kick", wantSaved: []string{"antiflood.action"}},
-		{name: "untimed clears submitted duration", action: "tmute", actionTime: 5400, changes: `{"antiflood.action":"ban","antiflood.action_time":7200}`, wantAction: "ban", wantSaved: []string{"antiflood.action", "antiflood.action_time"}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			fixture, chatID := newSettingsFixture(t)
-			if err := antiflood.SetFloodMode(chatID, test.action, test.actionTime); err != nil {
-				t.Fatalf("seed flood action: %v", err)
-			}
-			antiflood.GetFlood(chatID)
-			raw := readFixture(t, "initdata_main.txt")
-			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
-				`{"changes":`+test.changes+`}`, "application/json")
-			if recorder.Code != http.StatusOK {
-				t.Fatalf("PATCH status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
-			}
-			var response settingsPatchResponse
-			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-				t.Fatalf("decode patch: %v", err)
-			}
-			if !slices.Equal(response.Saved, test.wantSaved) || len(response.Failed) != 0 {
-				t.Fatalf("saved = %v, failed = %v, want saved %v", response.Saved, response.Failed, test.wantSaved)
-			}
-			var stored models.AntifloodSettings
-			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
-				t.Fatalf("load flood settings: %v", err)
-			}
-			if stored.Action != test.wantAction || stored.FloodActionTime != test.wantTime {
-				t.Fatalf("stored flood action = %s/%d, want %s/%d", stored.Action, stored.FloodActionTime, test.wantAction, test.wantTime)
-			}
-			cached := antiflood.GetFlood(chatID)
-			if cached.Action != test.wantAction || cached.FloodActionTime != test.wantTime {
-				t.Fatalf("cached flood action = %s/%d, want %s/%d", cached.Action, cached.FloodActionTime, test.wantAction, test.wantTime)
-			}
-			after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, settingsPath(chatID), raw, "", ""))
-			if fieldString(t, after, "antiflood.action") != test.wantAction || fieldInt(t, after, "antiflood.action_time") != test.wantTime {
-				t.Fatalf("GET flood action did not reflect the patch: %+v", after.Modules[4])
-			}
-		})
-	}
-}
-
-func TestSettingsPatchAntifloodRejectsUnusableStoredDuration(t *testing.T) {
-	for _, actionTime := range []int{0, models.MinActionTime - 1, models.MaxActionTime + 1} {
-		t.Run(strconv.Itoa(actionTime), func(t *testing.T) {
-			fixture, chatID := newSettingsFixture(t)
-			legacy := models.AntifloodSettings{ChatId: chatID, Action: "tban", FloodActionTime: actionTime}
-			if err := db.DB.Create(&legacy).Error; err != nil {
-				t.Fatalf("seed legacy flood action: %v", err)
-			}
-			antiflood.GetFlood(chatID)
-			recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), readFixture(t, "initdata_main.txt"),
-				`{"changes":{"antiflood.action":"tmute","greetings.welcome_enabled":false}}`, "application/json")
-			assertFieldRefusal(t, recorder, "antiflood.action", "require a duration")
-			var stored models.AntifloodSettings
-			if err := db.DB.Where("chat_id = ?", chatID).Take(&stored).Error; err != nil {
-				t.Fatalf("load flood settings: %v", err)
-			}
-			if stored.Action != "tban" || stored.FloodActionTime != actionTime {
-				t.Fatalf("refused patch changed flood action to %s/%d", stored.Action, stored.FloodActionTime)
-			}
-			if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
-				t.Fatalf("refused patch wrote %d greeting rows", count)
-			}
-		})
 	}
 }
 

@@ -24,9 +24,7 @@ const (
 var settingsPermissions = map[string]permission{
 	"language":    permNone,       // /lang group requires the caller to be an admin
 	"rules":       permNone,       // /setrules requires an admin and the bot admin
-	"antiflood":   permNone,       // /setflood requires an admin and the bot admin
 	"antispam":    permNone,       // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
-	"warns":       permNone,       // /setwarnlimit, /setwarnmode and /setwarntime
 	"digest":      permNone,       // /digest requires an admin and the bot admin
 	"reports":     permNone,       // /reports; auto-mute: settingsFieldPermission
 	"timezone":    permChangeInfo, // /timezone checks can_change_info

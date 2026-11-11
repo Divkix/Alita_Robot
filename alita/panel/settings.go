@@ -16,7 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -28,7 +27,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
-	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
 )
@@ -148,13 +146,6 @@ func readRulesSettings(chatID int64) models.RulesSettings {
 	return *row
 }
 
-func readWarnSettings(chatID int64) models.WarnSettings {
-	if row, ok := readSettingsRow[models.WarnSettings](chatID); ok {
-		return *row
-	}
-	return models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
-}
-
 // panelSettings reads every supported setting and marks the response read-only
 // for a non-admin caller, or one where the bot cannot act.
 func panelSettings(access chatAccess) settingsResponse {
@@ -167,12 +158,6 @@ func panelSettings(access chatAccess) settingsResponse {
 
 	rulesRow := readRulesSettings(chatID)
 
-	flood := antiflood.GetFlood(chatID)
-	if flood.Action == "" {
-		flood.Action = "mute"
-	}
-
-	warn := readWarnSettings(chatID)
 	digestRow := &models.DigestSettings{ChatID: chatID}
 	if row, err := digestsettings.GetContext(context.Background(), chatID); err == nil && row != nil {
 		digestRow = row
@@ -238,8 +223,8 @@ func panelSettings(access chatAccess) settingsResponse {
 		}},
 		{Key: "antiflood", Label: "Antiflood", Fields: []settingsField{
 			declaredSettingsField(chatID, settings.FloodLimit),
-			settingsString("action", flood.Action, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
-			settingsInt("action_time", flood.FloodActionTime, 0, true),
+			declaredSettingsField(chatID, settings.FloodMode),
+			declaredSettingsField(chatID, settings.FloodActionTime),
 			declaredSettingsField(chatID, settings.FloodDelete),
 		}},
 		{Key: "antispam", Label: "Antispam", Fields: []settingsField{
@@ -266,8 +251,8 @@ func panelSettings(access chatAccess) settingsResponse {
 		}},
 		{Key: "warns", Label: "Warnings", Fields: []settingsField{
 			declaredSettingsField(chatID, settings.WarnLimit),
-			settingsString("mode", warn.WarnMode, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
-			settingsInt("action_time", warn.WarnActionTime, 0, true),
+			declaredSettingsField(chatID, settings.WarnMode),
+			declaredSettingsField(chatID, settings.WarnActionTime),
 			declaredSettingsField(chatID, settings.WarnExpiry),
 		}},
 		{Key: "digest", Label: "Weekly digest", Fields: []settingsField{
@@ -366,7 +351,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saved, failed := applySettingsChanges(input, updates, current)
+	saved, failed := applySettingsChanges(input, updates)
 	updated := panelSettings(access)
 	response := settingsPatchResponse{
 		Saved:          saved,
@@ -414,16 +399,12 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 			fieldErrors[key] = message
 			continue
 		}
-		if declaration, declared := settings.Lookup(key); declared {
-			if err := declaration.ValidateWrite(input, value); err != nil {
-				fieldErrors[key] = err.Error()
-				continue
-			}
-		}
 		updates[key] = value
 	}
 
-	validateAntifloodModeChanges(index, updates, fieldErrors)
+	for key, message := range settings.ValidateChanges(input, updates) {
+		fieldErrors[key] = message
+	}
 	validateSpamDatabaseChanges(index, updates, fieldErrors)
 	// /probation block takes at least one kind; turning probation off is how
 	// a chat blocks nothing.
@@ -435,7 +416,6 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 		}
 	}
 
-	validateWarnModeChanges(index, updates, fieldErrors)
 	if message := validateNightModeChanges(index, updates, nightTypes, fieldErrors); message != "" {
 		for _, key := range nightModeKeys {
 			if _, changed := updates[key]; changed {
@@ -452,29 +432,6 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 	}
 
 	return updates, fieldErrors
-}
-
-// validateAntifloodModeChanges checks the effective action and duration
-// together: tban/tmute need a usable duration, other actions take none.
-func validateAntifloodModeChanges(index map[string]settingsField, updates map[string]any, fieldErrors map[string]string) {
-	action, actionTime := antifloodModeValues(index, updates)
-	_, actionChanged := updates["antiflood.action"]
-	_, timeChanged := updates["antiflood.action_time"]
-	if !actionChanged && !timeChanged {
-		return
-	}
-	if action == "tban" || action == "tmute" {
-		if !models.ValidActionTime(actionTime) {
-			if actionChanged {
-				fieldErrors["antiflood.action"] = "temporary flood actions require a duration between 60 and 31622400 seconds"
-			}
-			if timeChanged {
-				fieldErrors["antiflood.action_time"] = "must be between 60 and 31622400 seconds"
-			}
-		}
-	} else if timeChanged && !actionChanged {
-		fieldErrors["antiflood.action_time"] = "requires a tban or tmute flood action"
-	}
 }
 
 // validateSpamDatabaseChanges mirrors the table constraint that refuses a row
@@ -499,23 +456,6 @@ func validateSpamDatabaseChanges(index map[string]settingsField, updates map[str
 			}
 		}
 	}
-}
-
-// antifloodModeValues resolves the action and duration from the same snapshot
-// used to validate the batch. Untimed actions always clear the duration.
-func antifloodModeValues(index map[string]settingsField, updates map[string]any) (string, int) {
-	action, changed := updates["antiflood.action"].(string)
-	if !changed {
-		action, _ = index["antiflood.action"].Value.(string)
-	}
-	actionTime, changed := updates["antiflood.action_time"].(int)
-	if !changed {
-		actionTime, _ = index["antiflood.action_time"].Value.(int)
-	}
-	if action != "tban" && action != "tmute" {
-		actionTime = 0
-	}
-	return action, actionTime
 }
 
 var nightModeKeys = []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"}
@@ -579,37 +519,6 @@ func validateNightModeChanges(index map[string]settingsField, updates map[string
 	return ""
 }
 
-// validateWarnModeChanges checks the effective mode and duration together, so
-// a batch can switch to a timed action without depending on field order.
-func validateWarnModeChanges(index map[string]settingsField, updates map[string]any, fieldErrors map[string]string) {
-	mode, modeChanged := updates["warns.mode"].(string)
-	seconds, timeChanged := updates["warns.action_time"].(int)
-	if !modeChanged && !timeChanged {
-		return
-	}
-	if !modeChanged {
-		mode, _ = index["warns.mode"].Value.(string)
-	}
-	if !timeChanged {
-		seconds, _ = index["warns.action_time"].Value.(int)
-	}
-	message := ""
-	if mode == "tban" || mode == "tmute" {
-		if !models.ValidActionTime(seconds) {
-			message = "a timed action needs between 60 and 31622400 seconds"
-		}
-	} else if timeChanged && (!modeChanged || seconds != 0) {
-		message = "action duration is only available for tban and tmute"
-	}
-	if message != "" {
-		for _, key := range []string{"warns.mode", "warns.action_time"} {
-			if _, changed := updates[key]; changed {
-				fieldErrors[key] = message
-			}
-		}
-	}
-}
-
 // probationBlockKeys are the panel fields of /probation block.
 var probationBlockKeys = []string{"antispam.probation_block_links", "antispam.probation_block_forwards", "antispam.probation_block_media"}
 
@@ -669,12 +578,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
-	case "antiflood":
-		if fieldKey == "action_time" {
-			if n := value.(int); n != 0 && !models.ValidActionTime(n) {
-				return "must be 0 (unset) or between 60 and 31622400 seconds"
-			}
-		}
 	case "antispam":
 		return validateAntispamValue(fieldKey, value)
 	case "digest":
@@ -700,7 +603,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 	}
 	return ""
 }
-
 
 func validateAntispamValue(field string, value any) string {
 	switch field {
@@ -769,7 +671,7 @@ func plainText(text string) string {
 // run before disables so switching the spam databases can proceed in either
 // direction without tripping the last-database constraint. Flood action and
 // duration share one setter call, with outcomes reported for each requested key.
-func applySettingsChanges(input settings.WriteContext, updates map[string]any, current map[string]settingsField) ([]string, map[string]string) {
+func applySettingsChanges(input settings.WriteContext, updates map[string]any) ([]string, map[string]string) {
 	chatID := input.ChatID
 	keys := make([]string, 0, len(updates))
 	for key := range updates {
@@ -794,32 +696,30 @@ func applySettingsChanges(input settings.WriteContext, updates map[string]any, c
 
 	saved := make([]string, 0, len(keys))
 	failed := make(map[string]string)
-	floodAction, floodActionTime := antifloodModeValues(current, updates)
-	var floodModeErr, warnModeErr, nightErr error
-	floodModeApplied, warnModeApplied, nightApplied := false, false, false
+	applied := make(map[string]error)
+	var nightErr error
+	nightApplied := false
 	for _, key := range ordered {
 		var err error
-		switch key {
-		case "antiflood.action", "antiflood.action_time":
-			if !floodModeApplied {
-				floodModeErr = antiflood.SetFloodMode(chatID, floodAction, floodActionTime)
-				floodModeApplied = true
+		if declaration, declared := settings.Lookup(key); declared {
+			writeKey := declaration.WriteKey()
+			var done bool
+			err, done = applied[writeKey]
+			if !done {
+				err = declaration.WriteChanges(input, updates)
+				applied[writeKey] = err
 			}
-			err = floodModeErr
-		case "warns.mode", "warns.action_time":
-			if !warnModeApplied {
-				warnModeErr = applyWarnModeChange(chatID, updates)
-				warnModeApplied = true
+		} else {
+			switch key {
+			case "nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types":
+				if !nightApplied {
+					nightErr = applyNightModeChanges(chatID, updates)
+					nightApplied = true
+				}
+				err = nightErr
+			default:
+				err = applySettingChange(input, key, updates[key])
 			}
-			err = warnModeErr
-		case "nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types":
-			if !nightApplied {
-				nightErr = applyNightModeChanges(chatID, updates)
-				nightApplied = true
-			}
-			err = nightErr
-		default:
-			err = applySettingChange(input, key, updates[key])
 		}
 		if err != nil {
 			log.WithError(err).Warnf("[Panel] save %s for chat %d", key, chatID)
@@ -833,9 +733,6 @@ func applySettingsChanges(input settings.WriteContext, updates map[string]any, c
 
 func applySettingChange(input settings.WriteContext, key string, value any) error {
 	chatID := input.ChatID
-	if declaration, ok := settings.Lookup(key); ok {
-		return declaration.Write(input, value)
-	}
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
 	case "language":
@@ -865,20 +762,6 @@ func applySettingChange(input settings.WriteContext, key string, value any) erro
 	return fmt.Errorf("unknown setting %q", key)
 }
 
-func applyWarnModeChange(chatID int64, updates map[string]any) error {
-	row := readWarnSettings(chatID)
-	if mode, ok := updates["warns.mode"].(string); ok {
-		row.WarnMode = mode
-	}
-	if seconds, ok := updates["warns.action_time"].(int); ok {
-		row.WarnActionTime = seconds
-	}
-	if row.WarnMode != "tban" && row.WarnMode != "tmute" {
-		row.WarnActionTime = 0
-	}
-	return warns.SetWarnMode(chatID, row.WarnMode, row.WarnActionTime)
-}
-
 func applyNightModeChanges(chatID int64, updates map[string]any) error {
 	if enabled, changed := updates["nightmode.enabled"].(bool); changed && !enabled {
 		return nightmode.Disable(chatID)
@@ -902,7 +785,6 @@ func applyNightModeChanges(chatID int64, updates map[string]any) error {
 	}
 	return nightmode.Enable(chatID, start, end, types)
 }
-
 
 func applyAntispamChange(chatID int64, field string, value any) error {
 	switch field {

@@ -51,8 +51,6 @@ type settingsSection struct {
 // the bot actually does, not the Go fallbacks: GORM drops zero values that have
 // a default tag, so goodbye and allow_connect end up true once their row exists.
 const (
-	settingsDefaultFloodAction     = "mute"
-	settingsDefaultWarnMode        = "mute"
 	settingsDefaultBlacklistAction = "warn"
 	settingsDefaultLanguage        = "en"
 	settingsMaxListedItems         = 15
@@ -167,7 +165,7 @@ func antifloodSettingsSection(chatID int64) settingsSection {
 	})
 	return settingsSection{Title: "Antiflood", Rows: []settingsRow{
 		limit,
-		stringRow("/setfloodmode", floodModeLabel(f), settingsDefaultFloodAction),
+		{Command: "/setfloodmode", Value: floodModeLabel(f), Changed: settings.FloodMode.Read(chatID).Changed},
 		declaredBoolRow("/delflood", settings.FloodDelete, chatID),
 	}}
 }
@@ -223,7 +221,7 @@ func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	mode := warnModeLabel(w)
 	return settingsSection{Title: "Warns", Rows: []settingsRow{
 		declaredSettingsRow("/setwarnlimit", settings.WarnLimit.Read(chatID), strconv.Itoa),
-		stringRow("/setwarnmode", mode, settingsDefaultWarnMode),
+		{Command: "/setwarnmode", Value: mode, Changed: settings.WarnMode.Read(chatID).Changed},
 		declaredSettingsRow("/setwarntime", settings.WarnExpiry.Read(chatID), func(value int) string {
 			if value == 0 {
 				return "off"

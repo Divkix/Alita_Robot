@@ -23,8 +23,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -47,6 +47,7 @@ type settingContract struct {
 	defaultLabel string
 	statusToken  string
 	refusalKey   string
+	refusals     map[string]string
 	seedInvalid  func(int64) error
 	edges        []settingContractEdge
 	button       string
@@ -199,7 +200,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			key: "antiflood.limit", command: "/setflood", botAdmin: true,
 			defaultValue: 0, defaultLabel: "off", refusalKey: "antiflood_errors_set_in_limit",
 			seedInvalid: func(chatID int64) error { return antiflood.SetFlood(chatID, 2) },
-			edges: []settingContractEdge{{0, "off", "off", true}, {3, "3", "3", true}, {2, "2", "2", false}, {100, "100", "100", true}, {101, "101", "101", false}},
+			edges:       []settingContractEdge{{0, "off", "off", true}, {3, "3", "3", true}, {-1, "-1", "-1", false}, {1, "1", "1", false}, {2, "2", "2", false}, {100, "100", "100", true}, {101, "101", "101", false}},
 		},
 		{
 			key: "antiflood.delete_messages", command: "/delflood", button: "fd", botAdmin: true,
@@ -207,19 +208,51 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			statusOn: "antiflood_flood_deleter_already_enabled", statusOff: "antiflood_flood_deleter_already_disabled",
 			setOn: "antiflood_flood_deleter_enabled", setOff: "antiflood_flood_deleter_disabled",
 			refusalKey: "antiflood_flood_deleter_invalid_option",
-			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+			edges:      []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
 		{
 			key: "warns.limit", command: "/setwarnlimit", botAdmin: true,
 			defaultValue: 3, defaultLabel: "3", refusalKey: "warns_limit_range_error",
 			seedInvalid: func(chatID int64) error { return warns.SetWarnLimit(chatID, 101) },
-			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {100, "100", "100", true}, {101, "101", "101", false}},
+			edges:       []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {100, "100", "100", true}, {101, "101", "101", false}},
 		},
 		{
 			key: "warns.expiry", command: "/setwarntime", botAdmin: true,
 			defaultValue: 0, defaultLabel: "off", refusalKey: "extraction_time_limit_exceeded",
 			seedInvalid: func(chatID int64) error { return warns.SetWarnExpiry(chatID, 5) },
-			edges: []settingContractEdge{{0, "off", "off", true}, {60, "1m", "1m", true}, {31622400, "366d", "366d", true}, {31622460, "527041m", "527041m", false}},
+			edges:       []settingContractEdge{{0, "off", "off", true}, {60, "1m", "1m", true}, {31622400, "366d", "366d", true}, {31622460, "527041m", "527041m", false}},
+		},
+		{
+			key: "antiflood.action", command: "/setfloodmode", button: "fm", botAdmin: true,
+			defaultValue: "mute", defaultLabel: "mute", refusalKey: "antiflood_setfloodmode_unknown_type",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.AntifloodSettings{}).Create(map[string]any{"chat_id": chatID, "action": nil, "flood_limit": 0}).Error
+			},
+			edges: []settingContractEdge{{"mute", "mute", "mute", true}, {"ban", "ban", "ban", true}, {"kick", "kick", "kick", true}, {"warn", "warn", "warn", false}},
+		},
+		{
+			key: "warns.mode", command: "/setwarnmode", botAdmin: true,
+			defaultValue: "mute", defaultLabel: "mute", refusalKey: "warns_mode_unknown",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.WarnSettings{}).Create(map[string]any{"chat_id": chatID, "warn_mode": nil, "warn_limit": 3}).Error
+			},
+			edges: []settingContractEdge{{"mute", "mute", "mute", true}, {"ban", "ban", "ban", true}, {"kick", "kick", "kick", true}, {"warn", "warn", "warn", false}},
+		},
+		{
+			key: "antiflood.action_time", command: "/setfloodmode", botAdmin: true,
+			defaultValue: 0, defaultLabel: "mute", refusalKey: "extraction_time_limit_exceeded",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Create(&models.AntifloodSettings{ChatId: chatID, Action: "tmute", FloodActionTime: 5}).Error
+			},
+			refusals: map[string]string{"tmute 0m": "extraction_invalid_time_amount", "tmute 59s": "extraction_invalid_time_type", "tmute 31622401s": "extraction_invalid_time_type"},
+			edges:    []settingContractEdge{{0, "tmute 0m", "tmute 0m", false}, {60, "tmute 1m", "tmute 1m", true}, {59, "tmute 59s", "tmute 59s", false}, {3600, "tmute 1h", "tmute 1h", true}, {31622400, "tban 366d", "tban 366d", true}, {31622401, "tmute 31622401s", "tmute 31622401s", false}, {31622460, "tmute 527041m", "tmute 527041m", false}},
+		},
+		{
+			key: "warns.action_time", command: "/setwarnmode", botAdmin: true,
+			defaultValue: 0, defaultLabel: "mute", refusalKey: "extraction_time_limit_exceeded",
+			seedInvalid: func(chatID int64) error { return warns.SetWarnMode(chatID, "tmute", 5) },
+			refusals:    map[string]string{"tmute 0m": "extraction_invalid_time_amount", "tmute 59s": "extraction_invalid_time_type", "tmute 31622401s": "extraction_invalid_time_type"},
+			edges:       []settingContractEdge{{0, "tmute 0m", "tmute 0m", false}, {60, "tmute 1m", "tmute 1m", true}, {59, "tmute 59s", "tmute 59s", false}, {3600, "tmute 1h", "tmute 1h", true}, {31622400, "tban 366d", "tban 366d", true}, {31622401, "tmute 31622401s", "tmute 31622401s", false}, {31622460, "tmute 527041m", "tmute 527041m", false}},
 		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
@@ -236,7 +269,11 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				if err := setting.seedInvalid(f.chat.Id); err != nil {
 					t.Fatal(err)
 				}
-				assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+				if isContractModeDuration(setting) {
+					assertContractRead(t, f, setting, 3600, "tmute 1h", false)
+				} else {
+					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+				}
 			})
 			for _, rights := range []struct {
 				name        string
@@ -280,7 +317,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						}
 					}
 					if !setting.noPanel {
-						response := contractPanelRequest(t, f, actor, http.MethodPatch, contractChanges(t, map[string]any{setting.key: edge.value}))
+						response := contractPanelRequest(t, f, actor, http.MethodPatch, contractChanges(t, contractSettingChanges(setting, edge)))
 						if accepted && rights.botAdmin {
 							if response.Code != http.StatusOK {
 								t.Fatalf("exact right refused: %d %s", response.Code, response.Body.String())
@@ -303,7 +340,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					}
 					f := newSettingContractFixture(t, setting)
 					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
-					changes := map[string]any{setting.key: edge.value}
+					changes := contractSettingChanges(setting, edge)
 					if !edge.accept {
 						sibling := "antiraid.raid_time"
 						if sibling == setting.key {
@@ -357,13 +394,21 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 							if reply != translated(t, "antiraid_auto_disabled") {
 								t.Fatalf("off reply = %q", reply)
 							}
-						} else if edge.input != "off" && !strings.Contains(reply, edge.label) {
+						} else if edge.input != "off" && !strings.Contains(reply, lastContractWord(edge.label)) {
 							t.Fatalf("command reply = %q, want accepted %s", reply, edge.label)
 						}
 						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
 					} else {
-						if reply != translated(t, setting.refusalKey) {
-							t.Fatalf("command accepted invalid value: %q", reply)
+						key := setting.refusalKey
+						if specific := setting.refusals[edge.input]; specific != "" {
+							key = specific
+						}
+						refusal := translated(t, key)
+						if strings.Contains(refusal, "%s") {
+							refusal = fmt.Sprintf(refusal, lastContractWord(edge.input))
+						}
+						if reply != refusal {
+							t.Fatalf("command accepted invalid value: %q, want %q", reply, refusal)
 						}
 						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
 					}
@@ -388,6 +433,31 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						}
 					})
 				}
+			}
+			if setting.key == "antiflood.action" || setting.key == "warns.mode" {
+				testContractModeRelationship(t, setting)
+			}
+			if setting.key == "warns.expiry" {
+				t.Run("invalid preferences enforce declared defaults", func(t *testing.T) {
+					f := newSettingContractFixture(t, setting)
+					contractRights(f, false, true, true)
+					if err := db.DB.Model(&models.WarnSettings{}).Create(map[string]any{
+						"chat_id": f.chat.Id, "warn_limit": 101, "warn_mode": nil, "warn_expiry": 5,
+					}).Error; err != nil {
+						t.Fatal(err)
+					}
+					seedDatedWarns(t, f.chat.Id, f.member.Id, []string{"first", "second"}, []time.Duration{2 * time.Hour, time.Hour})
+					dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+					LoadWarns(dispatcher)
+					ctx := newWarnReplyContext(f.bot, f.chat, f.admin, f.member, "/warn third")
+					if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+						t.Fatal(err)
+					}
+					assertParams(t, f.client.onlyCall(t, "restrictChatMember"), targetParams(f.chat.Id, f.member.Id))
+					if count, _ := warns.GetWarns(f.member.Id, f.chat.Id); count != 0 {
+						t.Fatalf("warnings after the default-limit mute = %d, want reset", count)
+					}
+				})
 			}
 			if setting.changeInfo && !setting.noPanel {
 				t.Run("rights remain independent in a batch", func(t *testing.T) {
@@ -711,7 +781,7 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 		command = "/captcha"
 	} else if strings.HasPrefix(setting.key, "warns.") {
 		command = "/warnings"
-	} else if setting.key == "antiflood.limit" {
+	} else if strings.HasPrefix(setting.key, "antiflood.") && setting.key != "antiflood.delete_messages" {
 		command = "/flood"
 	} else if setting.button != "" {
 		command = setting.command
@@ -739,7 +809,7 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			}
 		}
 		if strings.HasPrefix(setting.key, "antiflood.") || strings.HasPrefix(setting.key, "warns.") {
-			found = found || strings.Contains(text, label) || (value == 0 && (strings.Contains(text, "not currently enforcing") || strings.Contains(text, "never")))
+			found = found || strings.Contains(text, label) || strings.Contains(text, "not currently enforcing") || (isContractModeDuration(setting) && strings.Contains(text, lastContractWord(label))) || (value == 0 && strings.Contains(text, "never"))
 		} else if strings.Contains(text, setting.statusToken+fmt.Sprint(value)) || strings.Contains(text, setting.statusToken+label) {
 			found = true
 		}
@@ -760,7 +830,11 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			summaryLabel = "on"
 		}
 	}
-	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, summaryLabel, changed)
+	summaryChanged := changed
+	if isContractModeDuration(setting) {
+		summaryChanged = label != "mute"
+	}
+	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, summaryLabel, summaryChanged)
 	if setting.button != "" {
 		var values []string
 		for _, edge := range setting.edges {
@@ -796,8 +870,13 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			if module.Key+"."+field.Key != setting.key {
 				continue
 			}
-			if string(field.Value) != contractJSON(t, value) || string(field.Default) != contractJSON(t, setting.defaultValue) || field.Changed != changed {
-				t.Fatalf("panel field = %+v, want value %v default %v changed %t", field, value, setting.defaultValue, changed)
+			def := setting.defaultValue
+			if isContractModeDuration(setting) {
+				def = 3600
+				changed = value != 0 && value != 3600
+			}
+			if string(field.Value) != contractJSON(t, value) || string(field.Default) != contractJSON(t, def) || field.Changed != changed {
+				t.Fatalf("panel field = %+v, want value %v default %v changed %t", field, value, def, changed)
 			}
 			return
 		}
@@ -854,6 +933,27 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 	}
 }
 
+func isContractModeDuration(setting settingContract) bool {
+	return setting.key == "antiflood.action_time" || setting.key == "warns.action_time"
+}
+
+func lastContractWord(label string) string {
+	words := strings.Fields(label)
+	return words[len(words)-1]
+}
+
+func contractSettingChanges(setting settingContract, edge settingContractEdge) map[string]any {
+	changes := map[string]any{setting.key: edge.value}
+	if isContractModeDuration(setting) {
+		key := "antiflood.action"
+		if strings.HasPrefix(setting.key, "warns.") {
+			key = "warns.mode"
+		}
+		changes[key] = strings.Fields(edge.input)[0]
+	}
+	return changes
+}
+
 func contractPanelRequest(t *testing.T, f adminChatFixture, actor gotgbot.User, method, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	return contractPanelRequestTo(t, f, actor, method, body, panel.New(f.bot, panel.Deps{}))
@@ -885,5 +985,186 @@ func contractPanelRequestTo(t *testing.T, f adminChatFixture, actor gotgbot.User
 func invalidCaptchaStoredValue(field string) func(int64) error {
 	return func(chatID int64) error {
 		return db.DB.Model(&models.CaptchaSettings{}).Create(map[string]any{"chat_id": chatID, field: nil}).Error
+	}
+}
+
+func testContractModeRelationship(t *testing.T, setting settingContract) {
+	t.Helper()
+	module, _, _ := strings.Cut(setting.key, ".")
+	timeKey := module + ".action_time"
+	for _, tc := range []struct {
+		name    string
+		mode    string
+		seconds any
+		accept  bool
+	}{
+		{"untimed duration", "ban", 60, false},
+		{"untimed zero", "ban", 0, true},
+		{"untimed omitted", "ban", nil, true},
+		{"timed missing", "tban", nil, false},
+		{"timed zero", "tmute", 0, false},
+		{"timed minute", "tmute", 60, true},
+	} {
+		t.Run("relationship/"+tc.name, func(t *testing.T) {
+			f := newSettingContractFixture(t, setting)
+			changes := map[string]any{setting.key: tc.mode}
+			if tc.seconds != nil {
+				changes[timeKey] = tc.seconds
+			}
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, changes))
+			if !tc.accept {
+				if response.Code != http.StatusBadRequest {
+					t.Fatalf("relationship accepted: %d %s", response.Code, response.Body.String())
+				}
+				assertContractRowCount(t, f, setting, 0)
+				return
+			}
+			if response.Code != http.StatusOK {
+				t.Fatalf("relationship refused: %d %s", response.Code, response.Body.String())
+			}
+			label := tc.mode
+			if tc.seconds == 60 {
+				label += " 1m"
+			}
+			assertContractRead(t, f, setting, tc.mode, label, true)
+		})
+	}
+	t.Run("untimed refuses unused command duration", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		contractDispatch(t, f, f.admin, setting.command+" ban 1m")
+		assertContractRowCount(t, f, setting, 0)
+		assertContractRead(t, f, setting, "mute", "mute", false)
+		contractDispatch(t, f, f.admin, setting.command+" ban 0")
+		assertContractRead(t, f, setting, "ban", "ban", true)
+	})
+	t.Run("untimed duration only", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{timeKey: 60, "antiraid.raid_time": 60}))
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), timeKey) {
+			t.Fatalf("unused duration = %d %s", response.Code, response.Body.String())
+		}
+		assertContractRowCount(t, f, setting, 0)
+		assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+		response = contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{timeKey: 0}))
+		if response.Code != http.StatusOK {
+			t.Fatalf("inactive duration = %d %s", response.Code, response.Body.String())
+		}
+		assertContractRead(t, f, setting, "mute", "mute", false)
+	})
+	t.Run("timed invalid stored duration uses default without repairing read", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		if module == "antiflood" {
+			if err := antiflood.SetFloodMode(f.chat.Id, "tmute", 5); err != nil {
+				t.Fatal(err)
+			}
+		} else if err := warns.SetWarnMode(f.chat.Id, "tmute", 5); err != nil {
+			t.Fatal(err)
+		}
+		assertContractRead(t, f, setting, "tmute", "tmute 1h", true)
+		var seconds int
+		if module == "antiflood" {
+			seconds = antiflood.GetFlood(f.chat.Id).FloodActionTime
+		} else {
+			seconds = warns.GetWarnSetting(f.chat.Id).WarnActionTime
+		}
+		if seconds != 5 {
+			t.Fatalf("read repaired cached/stored duration to %d", seconds)
+		}
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: "tban"}))
+		if response.Code != http.StatusOK {
+			t.Fatalf("normalized duration refused: %d %s", response.Code, response.Body.String())
+		}
+		assertContractRead(t, f, setting, "tban", "tban 1h", true)
+	})
+	for _, surface := range []string{"command", "panel", "button"} {
+		if surface == "button" && setting.button == "" {
+			continue
+		}
+		t.Run("untimed clears/"+surface, func(t *testing.T) {
+			f := newSettingContractFixture(t, setting)
+			contractDispatch(t, f, f.admin, setting.command+" tmute 1h")
+			switch surface {
+			case "command":
+				contractDispatch(t, f, f.admin, setting.command+" ban")
+			case "button":
+				contractPress(t, f, f.admin, setting.button, "ban")
+			default:
+				response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: "ban"}))
+				if response.Code != http.StatusOK {
+					t.Fatalf("untimed save = %d %s", response.Code, response.Body.String())
+				}
+			}
+			assertContractRead(t, f, setting, "ban", "ban", true)
+			var seconds int
+			if module == "antiflood" {
+				seconds = antiflood.GetFlood(f.chat.Id).FloodActionTime
+			} else {
+				seconds = warns.GetWarnSetting(f.chat.Id).WarnActionTime
+			}
+			if seconds != 0 {
+				t.Fatalf("untimed duration persisted as %d", seconds)
+			}
+		})
+		if surface == "button" {
+			t.Run("button refuses timed modes", func(t *testing.T) {
+				f := newSettingContractFixture(t, setting)
+				for _, value := range []string{"tmute", "tban"} {
+					contractPress(t, f, f.admin, setting.button, value)
+					if text, _ := lastAnswer(t, f.client); text != translated(t, "common_callback_invalid_request") {
+						t.Fatalf("timed button = %q", text)
+					}
+				}
+				assertContractRowCount(t, f, setting, 0)
+			})
+		}
+	}
+	for _, fail := range []bool{false, true} {
+		t.Run(fmt.Sprintf("shared write/failure=%t", fail), func(t *testing.T) {
+			f := newSettingContractFixture(t, setting)
+			table := "antiflood_settings"
+			if module == "warns" {
+				table = "warns_settings"
+			}
+			written := false
+			name := "contract_shared_mode_write"
+			if err := db.DB.Callback().Create().Before("gorm:create").Register(name, func(tx *gorm.DB) {
+				if tx.Statement.Table == table {
+					if fail || written {
+						_ = tx.AddError(errors.New("shared mode write refused"))
+					}
+					written = true
+				}
+			}); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = db.DB.Callback().Create().Remove(name) })
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+				setting.key: "tban", timeKey: 7200, "antiraid.raid_time": 60,
+			}))
+			var result struct {
+				Saved  []string          `json:"saved"`
+				Failed map[string]string `json:"failed"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Contains(result.Saved, "antiraid.raid_time") {
+				t.Fatalf("independent field lost: %d %s", response.Code, response.Body.String())
+			}
+			for _, key := range []string{setting.key, timeKey} {
+				if fail {
+					if response.Code != http.StatusInternalServerError || slices.Contains(result.Saved, key) || result.Failed[key] != "shared mode write refused" {
+						t.Fatalf("shared failure = %d %s", response.Code, response.Body.String())
+					}
+				} else if response.Code != http.StatusOK || !slices.Contains(result.Saved, key) || len(result.Failed) != 0 {
+					t.Fatalf("shared success = %d %s", response.Code, response.Body.String())
+				}
+			}
+			if fail {
+				assertContractRowCount(t, f, setting, 0)
+			} else {
+				assertContractRead(t, f, setting, "tban", "tban 2h", true)
+			}
+		})
 	}
 }
