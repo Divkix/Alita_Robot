@@ -193,3 +193,29 @@ func TestExpiredCaptchaEndsAsReleaseAfterApproveOrCaptchaOff(t *testing.T) {
 		})
 	}
 }
+
+// A newcomer who is gone by the time the undelivered challenge is rolled back
+// leaves nothing to unmute: they are welcomed and no unmute is scheduled.
+func TestUndeliveredCaptchaForAGoneMemberSchedulesNoUnmute(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	client.errors["sendPhoto"] = errors.New("http2: timeout awaiting response headers")
+	client.errors["getChat"] = errors.New("Forbidden: the group chat was deactivated")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+	t.Cleanup(func() { _ = captcha.DeleteMutedUser(42, chat.Id) })
+
+	err := SendCaptcha(bot, newModuleMessageContext(bot, chat, gotgbot.User{Id: 777000}, "join"), 42, "Member")
+	if !errors.Is(err, errCaptchaDeliverySkipped) {
+		t.Fatalf("SendCaptcha() error = %v, want the challenge skipped so the member is welcomed", err)
+	}
+	if attempt, getErr := captcha.GetCaptchaAttempt(42, chat.Id); getErr != nil || attempt != nil {
+		t.Fatalf("GetCaptchaAttempt() = (%+v, %v), want no attempt", attempt, getErr)
+	}
+	if users, getErr := captcha.GetMutedUsersForChat(chat.Id); getErr != nil || len(users) != 0 {
+		t.Fatalf("scheduled unmutes = (%+v, %v), want none for a member who is gone", users, getErr)
+	}
+}

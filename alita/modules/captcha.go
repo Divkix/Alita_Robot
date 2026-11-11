@@ -1161,7 +1161,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 			if preAttempt != nil {
 				var rbErr error
 				if muted {
-					rbErr = rollbackCaptchaAttempt(bot, preAttempt)
+					_, rbErr = settleCaptchaAttempt(bot, preAttempt, captchaReleased)
 				} else {
 					_, rbErr = captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, preAttempt.ChatID)
 				}
@@ -1308,7 +1308,8 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	}
 	if verifyCount == 0 {
 		log.Errorf("[Captcha] No verify buttons could be encoded for attempt %d", preAttempt.ID)
-		return errors.Join(errors.New("captcha keyboard empty: no encodable options"), rollbackCaptchaAttempt(bot, preAttempt))
+		_, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased)
+		return errors.Join(errors.New("captcha keyboard empty: no encodable options"), rollbackErr)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1356,7 +1357,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 			err = errors.New("telegram returned no captcha message")
 		}
 		sendErr := fmt.Errorf("deliver captcha to user %d in chat %d: %w", userID, chat.Id, err)
-		if rollbackErr := rollbackCaptchaAttempt(bot, preAttempt); rollbackErr != nil {
+		if _, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased); rollbackErr != nil {
 			return errors.Join(sendErr, fmt.Errorf("roll back captcha for user %d in chat %d: %w", userID, chat.Id, rollbackErr))
 		}
 		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{
@@ -1371,7 +1372,8 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	if err != nil {
 		log.Errorf("Failed to set captcha attempt message ID: %v", err)
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, sent.MessageId)
-		return errors.Join(err, rollbackCaptchaAttempt(bot, preAttempt))
+		_, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased)
+		return errors.Join(err, rollbackErr)
 	}
 
 	preAttempt.MessageID = sent.MessageId
@@ -1381,14 +1383,6 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	scheduleCaptchaTimeout(bot, preAttempt)
 
 	return nil
-}
-
-func rollbackCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) error {
-	claimed, err := captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
-	if err != nil || !claimed {
-		return err
-	}
-	return restoreCaptchaPermissions(bot, attempt.ChatID, attempt.UserID)
 }
 
 func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
