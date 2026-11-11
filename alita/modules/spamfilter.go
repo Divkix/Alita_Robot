@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -91,8 +92,7 @@ func moderationSpam(m *moduleStruct) *moderationCommand {
 			if err := helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Msg.ReplyToMessage.MessageId); err != nil {
 				return err
 			}
-			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			return err
+			return c.punish(t, punishment.Ban, 0)
 		},
 		cleanup: func(c *moderationCtx, t *target) error {
 			sample, err := storeSpamSample(c, t.userID)

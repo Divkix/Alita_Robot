@@ -310,7 +310,7 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 }
 
 func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int64, timeStr, reason string) {
-	return extractTimeAt(b, ctx, inputVal, time.Now().Unix())
+	return ExtractTimeAt(b, ctx, inputVal, time.Now().Unix())
 }
 
 // ExtractDuration parses a single duration in the /tban format and returns it
@@ -327,14 +327,16 @@ func ExtractDuration(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (seconds
 		return -1
 	}
 	timeNow := time.Now().Unix()
-	untilDate, _, _ := extractTimeAt(b, ctx, inputVal, timeNow)
+	untilDate, _, _ := ExtractTimeAt(b, ctx, inputVal, timeNow)
 	if untilDate == -1 {
 		return -1
 	}
 	return untilDate - timeNow
 }
 
-func extractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow int64) (banTime int64, timeStr, reason string) {
+// ExtractTimeAt is ExtractTime for a period starting at timeNow, so the
+// caller can subtract the same instant to get the duration typed.
+func ExtractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow int64) (banTime int64, timeStr, reason string) {
 	msg := ctx.EffectiveMessage
 
 	banTime, amount, unit, reason, err := parseTemporaryDuration(inputVal, timeNow)

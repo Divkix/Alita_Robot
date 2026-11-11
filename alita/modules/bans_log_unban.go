@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -105,7 +106,13 @@ func (moduleStruct) banLogUnbanCallback(b *gotgbot.Bot, ctx *ext.Context) error 
 	if !lifted {
 		return answer("bans_log_unban_already")
 	}
-	if err := unbanRecorded(b, rec); err != nil {
+	// The claim already closed the record, so Lift finds no open one to close.
+	if err := liftPunishment(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
+		ChatID:  rec.ChatId,
+		Target:  punishment.Target{ID: rec.UserId, SenderChat: chat_status.IsChannelId(rec.UserId)},
+		Mode:    punishment.Ban,
+		ActorID: admin.Id,
+	}); err != nil {
 		if reopenErr := bans.Reopen(rec.ID, admin.Id); reopenErr != nil {
 			log.WithError(reopenErr).WithField("record_id", rec.ID).Error("[Bans] Failed to reopen the ban record after a failed unban")
 		}
@@ -174,15 +181,4 @@ func carriesCallback(msg *gotgbot.Message, data string) bool {
 		}
 	}
 	return false
-}
-
-// unbanRecorded lifts rec's ban in Telegram the way /unban does: a channel
-// through the sender-chat endpoint, a user only if still banned.
-func unbanRecorded(b *gotgbot.Bot, rec *models.BanRecord) error {
-	if chat_status.IsChannelId(rec.UserId) {
-		_, err := b.UnbanChatSenderChat(rec.ChatId, rec.UserId, nil)
-		return err
-	}
-	_, err := b.UnbanChatMember(rec.ChatId, rec.UserId, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true})
-	return err
 }
