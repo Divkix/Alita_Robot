@@ -121,24 +121,19 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 
 		// The preview goes with the status reply, to the chat the command was
 		// sent in, not the connected group a PM command swapped in.
+		view := media.Rendered
 		if noformat {
-			greetingText += content.RevertButtons(buttons)
-			_, err := media.SendGreeting(bot, msg.Chat.Id, greetingText, fileID, greetingDataType, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil}, ctx.EffectiveMessage.MessageThreadId)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		} else {
-			_, err := media.SendSaved(tracing.UpdateContext(ctx), bot, greetingMessage(greetingText, fileID, greetingDataType, buttons), media.Target{
-				Chat:     chat,
-				ChatID:   msg.Chat.Id,
-				ThreadID: ctx.EffectiveMessage.MessageThreadId,
-				Member:   user,
-			}, media.Rendered)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
+			view = media.Raw
+		}
+		_, err = media.SendSaved(tracing.UpdateContext(ctx), bot, greetingMessage(greetingText, fileID, greetingDataType, buttons), media.Target{
+			Chat:     chat,
+			ChatID:   msg.Chat.Id,
+			ThreadID: ctx.EffectiveMessage.MessageThreadId,
+			Member:   user,
+		}, view)
+		if err != nil {
+			log.Error(err)
+			return err
 		}
 
 	} else {

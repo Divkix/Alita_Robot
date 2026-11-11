@@ -600,13 +600,13 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Define texto de boas-vindas para o grupo.
 
-  × /welcome `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de boas-vindas e uma prévia da mensagem de boas-vindas. on/off ativa ou desativa as boas-vindas; noformat mostra a prévia sem preencher os marcadores e com os códigos dos botões em vez de botões.
+  × /welcome `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de boas-vindas e uma prévia da mensagem de boas-vindas. on/off ativa ou desativa as boas-vindas; noformat mostra a mensagem como foi digitada: códigos de formatação, códigos dos botões e marcadores, sem renderizar nada.
 
   × /resetwelcome: Reseta a mensagem de boas-vindas para o padrão.
 
   × /setgoodbye `<reply/text>`: Define texto de despedida para o grupo.
 
-  × /goodbye `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de despedida e uma prévia da mensagem de despedida. on/off ativa ou desativa a despedida; noformat mostra a prévia sem preencher os marcadores e com os códigos dos botões em vez de botões.
+  × /goodbye `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de despedida e uma prévia da mensagem de despedida. on/off ativa ou desativa a despedida; noformat mostra a mensagem como foi digitada: códigos de formatação, códigos dos botões e marcadores, sem renderizar nada.
 
   × /resetgoodbye: Reseta a mensagem de despedida para o padrão.
 

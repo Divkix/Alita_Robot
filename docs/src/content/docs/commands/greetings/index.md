@@ -10,10 +10,10 @@ Welcome new members to your groups or say Goodbye after they leave!
 
 *Admin Commands:*
 × /setwelcome `<reply/text>`: Sets welcome text for group.
-× /welcome `<yes/no/on/off/noformat>`: With no argument, shows the welcome settings and a preview of the welcome message. on/off enables or disables welcome; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
+× /welcome `<yes/no/on/off/noformat>`: With no argument, shows the welcome settings and a preview of the welcome message. on/off enables or disables welcome; noformat shows the message as typed: formatting codes, button codes and placeholders, nothing rendered.
 × /resetwelcome: Resets the welcome message to default.
 × /setgoodbye `<reply/text>`: Sets goodbye text for group.
-× /goodbye `<yes/no/on/off/noformat>`: With no argument, shows the goodbye settings and a preview of the goodbye message. on/off enables or disables goodbye; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
+× /goodbye `<yes/no/on/off/noformat>`: With no argument, shows the goodbye settings and a preview of the goodbye message. on/off enables or disables goodbye; noformat shows the message as typed: formatting codes, button codes and placeholders, nothing rendered.
 × /resetgoodbye: Resets the goodbye message to default.
 × /cleanservice `<yes/no/on/off>`: Delete join and leave service messages, such as the 'x joined the group' notification.
 × /cleanwelcome `<yes/no/on/off>`: Delete the old welcome message, whenever a new member joins.
@@ -89,7 +89,8 @@ The panel uses these same setting rights, with its additional caller-and-bot-adm
 access gate. In particular, switching welcome or goodbye does not need
 `can_change_info`; the three clean switches still need it.
 
-**Preview without placeholders:** Append `noformat` to `/welcome` or `/goodbye`
-(e.g., `/welcome noformat`) to preview the stored message with `{placeholders}` left
-unfilled and buttons shown as `[text](buttonurl://…)` codes instead of a keyboard.
-Text formatting (bold, links, etc.) still renders. Admin only, like the plain view.
+**See the message as typed:** Append `noformat` to `/welcome` or `/goodbye`
+(e.g., `/welcome noformat`) to see the stored message as you would type it:
+formatting codes such as `*bold*`, `{placeholders}` left unfilled and buttons shown
+as `[text](buttonurl://…)` codes instead of a keyboard. Nothing is rendered, so you
+can copy it to edit it. Admin only, like the plain view.

@@ -609,13 +609,13 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Mengatur teks selamat datang untuk grup.
 
-  × /welcome `<yes/no/on/off/noformat>`: Tanpa argumen, menampilkan pengaturan selamat datang dan pratinjau pesan selamat datang. on/off mengaktifkan atau menonaktifkan pesan selamat datang; noformat menampilkan pratinjau tanpa mengisi placeholder dan dengan kode tombol, bukan tombol.
+  × /welcome `<yes/no/on/off/noformat>`: Tanpa argumen, menampilkan pengaturan selamat datang dan pratinjau pesan selamat datang. on/off mengaktifkan atau menonaktifkan pesan selamat datang; noformat menampilkan pesan apa adanya seperti diketik: kode pemformatan, kode tombol, dan placeholder, tanpa dirender.
 
   × /resetwelcome: Mengatur ulang pesan selamat datang ke default.
 
   × /setgoodbye `<reply/text>`: Mengatur teks selamat tinggal untuk grup.
 
-  × /goodbye `<yes/no/on/off/noformat>`: Tanpa argumen, menampilkan pengaturan selamat tinggal dan pratinjau pesan selamat tinggal. on/off mengaktifkan atau menonaktifkan pesan selamat tinggal; noformat menampilkan pratinjau tanpa mengisi placeholder dan dengan kode tombol, bukan tombol.
+  × /goodbye `<yes/no/on/off/noformat>`: Tanpa argumen, menampilkan pengaturan selamat tinggal dan pratinjau pesan selamat tinggal. on/off mengaktifkan atau menonaktifkan pesan selamat tinggal; noformat menampilkan pesan apa adanya seperti diketik: kode pemformatan, kode tombol, dan placeholder, tanpa dirender.
 
   × /resetgoodbye: Mengatur ulang pesan selamat tinggal ke default.
 
