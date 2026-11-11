@@ -13,10 +13,11 @@ import (
 // write.
 type permission int
 
+const permNone permission = 0 // admin only, as requireWritable already checks
+
 const (
-	permNone       permission = iota // admin only, as requireWritable already checks
-	permChangeInfo                   // caller can_change_info (creator always has it)
-	permRestrict                     // caller AND bot can_restrict_members
+	permChangeInfo permission = 1 << iota // caller can_change_info (creator always has it)
+	permRestrict                         // caller AND bot can_restrict_members
 )
 
 // settingsFieldPermission maps a declaration's neutral policy to Telegram rights.
@@ -82,20 +83,23 @@ func (p *Panel) requirePermission(w http.ResponseWriter, r *http.Request, access
 			return false
 		}
 		if !memberCan(botMember, permRestrict) {
-			writeJSONError(w, http.StatusConflict, "bot_missing_permission", "the bot is missing the "+permissionRight(perm)+" right in this chat, so changes are disabled")
+			writeJSONError(w, http.StatusConflict, "bot_missing_permission", "the bot is missing the "+permissionRight(permRestrict)+" right in this chat, so changes are disabled")
 			return false
 		}
 	}
 	return true
 }
 
-// permissionRight names the Telegram right a permission stands for in a
-// refusal message.
+// permissionRight names one Telegram right in a refusal message, not a union.
 func permissionRight(perm permission) string {
-	if perm == permChangeInfo {
+	switch perm {
+	case permChangeInfo:
 		return "can_change_info"
+	case permRestrict:
+		return "can_restrict_members"
+	default:
+		panic("permission text requires one right")
 	}
-	return "can_restrict_members"
 }
 
 // memberCan reports whether a member holds perm. A creator holds every right.
