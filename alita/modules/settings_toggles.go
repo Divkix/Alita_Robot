@@ -10,7 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
-	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
@@ -69,6 +68,9 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 				parsed = value == "on"
 			}
 			err := declaration.Write(settings.WriteContext{ChatID: chatID, Title: title, Bot: b}, parsed)
+			if key := settings.RefusalKey(err); key != "" {
+				return key
+			}
 			if declaration == settings.CaptchaEnabled && err != nil {
 				if parsed == true {
 					return "captcha_enable_failed"
@@ -150,7 +152,7 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("fm", "/setfloodmode", settings.FloodMode),
 	declaredSettingsToggle("fd", "/delflood", settings.FloodDelete),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
-	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},
+	declaredSettingsToggle("ai", "/aispam", settings.AISpamEnabled),
 	declaredSettingsToggle("pb", "/probation", settings.ProbationEnabled),
 	declaredSettingsToggle("pv", "/probation notice", settings.ProbationNotice),
 	declaredSettingsToggle("we", "/welcome", settings.Welcome),
@@ -196,16 +198,6 @@ func setAntiRaidToggle(_ *gotgbot.Bot, chatID int64, _ string, value string) str
 		return "error_generic"
 	}
 	return ""
-}
-
-// setAISpamToggle is /aispam on|off, which refuses to turn the filter on
-// when the operator has not set it up.
-func setAISpamToggle(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
-	on := value == "on"
-	if refusal := aispamEnableRefusalKey(); on && refusal != "" {
-		return refusal
-	}
-	return settingsSaveFailed("/aispam", chatID, aispam.SetAISpamEnabled(chatID, on))
 }
 
 // settingsToggleRows are the buttons for the toggles among sections' rows.

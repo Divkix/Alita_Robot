@@ -22,13 +22,17 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"gorm.io/gorm"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/settings"
 )
@@ -64,6 +68,12 @@ type settingContract struct {
 // Expectations come from the command contract, not the declarations. Later
 // settings add rows here, including their optional button input and side effect.
 func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
+	previousConfig := *config.AppConfig
+	t.Cleanup(func() { *config.AppConfig = previousConfig })
+	config.AppConfig.TypeSafeAPIKey = "contract-test-key"
+	config.AppConfig.EnableAISpam = true
+	config.AppConfig.EnableSpamDB = true
+	config.AppConfig.EnableReputation = true
 	useRealLocales(t)
 	for _, setting := range []settingContract{
 		{
@@ -304,6 +314,42 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			defaultValue: false, defaultLabel: "links, forwards", refusalKey: "probation_invalid_block",
 			edges: []settingContractEdge{{false, "links,forwards", "links, forwards", true}, {true, "links,forwards,media", "links, forwards, media", true}, {"video", "video", "video", false}},
 		},
+		{
+			key: "antispam.spamdb_action", command: "/spamdb action",
+			defaultValue: "ban", defaultLabel: "ban", refusalKey: "spamdb_invalid_action",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.SpamDBSettings{}).Create(map[string]any{"chat_id": chatID, "action": nil}).Error
+			},
+			edges: []settingContractEdge{{"ban", "ban", "ban", true}, {"mute", "mute", "mute", true}, {"log", "log", "log", true}, {"warn", "warn", "warn", false}},
+		},
+		{
+			key: "antispam.aispam_enabled", command: "/aispam", button: "ai",
+			defaultValue: false, defaultLabel: "off", statusToken: "filter is <b>", refusalKey: "aispam_invalid_option",
+			setOn: "aispam_enabled_success", setOff: "aispam_disabled_success",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "antispam.spamdb_enabled", command: "/spamdb",
+			defaultValue: false, defaultLabel: "off", statusToken: "check is <b>", refusalKey: "spamdb_invalid_option",
+			setOn: "spamdb_enabled_success", setOff: "spamdb_disabled_success",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "antispam.spamdb_cas", command: "/spamdb db cas",
+			defaultValue: true, defaultLabel: "on", statusToken: "CAS (", refusalKey: "spamdb_db_usage",
+			edges:    []settingContractEdge{{false, "off", "off", false}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+			refusals: map[string]string{"off": "spamdb_db_last"},
+		},
+		{
+			key: "antispam.spamdb_lols", command: "/spamdb db lols",
+			defaultValue: false, defaultLabel: "off", statusToken: "lols.bot (", refusalKey: "spamdb_db_usage",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "antispam.spamdb_shared", command: "/spamdb db shared",
+			defaultValue: false, defaultLabel: "off", statusToken: "Shared bans (", refusalKey: "spamdb_db_usage",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
 			t.Run("default without creating a row", func(t *testing.T) {
@@ -448,6 +494,17 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 							if reply != translated(t, "antiraid_auto_disabled") {
 								t.Fatalf("off reply = %q", reply)
 							}
+						} else if strings.HasPrefix(setting.command, "/spamdb db ") {
+							key := "spamdb_db_disabled"
+							if edge.value == true {
+								key = "spamdb_db_enabled_idle"
+							}
+							name := strings.TrimPrefix(setting.command, "/spamdb db ")
+							database := map[string]string{"cas": "CAS", "lols": "lols.bot", "shared": "Shared bans"}[name]
+							want := translatedWith(t, key, i18n.TranslationParams{"database": database})
+							if !strings.HasPrefix(reply, want) {
+								t.Fatalf("database reply = %q, want %q", reply, want)
+							}
 						} else if edge.input != "off" && !strings.Contains(reply, lastContractWord(edge.label)) {
 							t.Fatalf("command reply = %q, want accepted %s", reply, edge.label)
 						}
@@ -461,7 +518,10 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						if strings.Contains(refusal, "%s") {
 							refusal = fmt.Sprintf(refusal, lastContractWord(edge.input))
 						}
-						if reply != refusal && !(key == "probation_usage" && strings.HasPrefix(reply, refusal+"\n")) {
+						if key == "spamdb_db_last" {
+							refusal = translatedWith(t, key, i18n.TranslationParams{"database": "CAS"})
+						}
+						if reply != refusal && (key != "probation_usage" || !strings.HasPrefix(reply, refusal+"\n")) {
 							t.Fatalf("command accepted invalid value: %q, want %q", reply, refusal)
 						}
 						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
@@ -490,6 +550,28 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			}
 			if setting.key == "antiflood.action" || setting.key == "warns.mode" {
 				testContractModeRelationship(t, setting)
+			}
+			if setting.key == "antispam.spamdb_action" {
+				t.Run("invalid action enforces default ban", func(t *testing.T) {
+					f := newSettingContractFixture(t, setting)
+					if err := setting.seedInvalid(f.chat.Id); err != nil {
+						t.Fatal(err)
+					}
+					if err := spamdbsettings.SetSpamDBEnabled(f.chat.Id, true); err != nil {
+						t.Fatal(err)
+					}
+					dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASListed)
+					spamDBJoin(t, dispatcher, f.bot, f.chat, f.member)
+					assertParams(t, f.client.onlyCall(t, "banChatMember"), targetParams(f.chat.Id, f.member.Id))
+					var row models.SpamDBSettings
+					if err := db.DB.Where("chat_id = ?", f.chat.Id).Take(&row).Error; err != nil || row.Action != "" {
+						t.Fatalf("normalization repaired persistence: %+v, %v", row, err)
+					}
+				})
+			}
+			testContractSpamPreconditions(t, setting)
+			if strings.HasPrefix(setting.command, "/spamdb db ") {
+				testContractSpamDatabases(t, setting)
 			}
 			if setting.restrict {
 				t.Run("bot needs restrict-members", func(t *testing.T) {
@@ -849,6 +931,8 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	LoadAntiflood(dispatcher)
 	LoadWarns(dispatcher)
 	LoadProbation(dispatcher)
+	LoadSpamDB(dispatcher)
+	LoadAISpam(dispatcher)
 	LoadConnections(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
@@ -866,6 +950,8 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 		command = "/flood"
 	} else if strings.HasPrefix(setting.key, "antispam.probation_") {
 		command = "/probation"
+	} else if strings.HasPrefix(setting.key, "antispam.spamdb_") {
+		command = "/spamdb"
 	} else if setting.button != "" {
 		command = setting.command
 	}
@@ -897,7 +983,7 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			found = true
 		}
 	}
-	if !found {
+	if !found && setting.key != "antispam.spamdb_action" {
 		t.Fatalf("status replies = %v, want %s%v", replies, setting.statusToken, value)
 	}
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
@@ -917,8 +1003,9 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 	if isContractModeDuration(setting) {
 		summaryChanged = label != "mute"
 	}
-	summaryCommand := setting.command
-	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), summaryCommand, summaryLabel, summaryChanged)
+	if !strings.HasPrefix(setting.key, "antispam.spamdb_") {
+		assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, summaryLabel, summaryChanged)
+	}
 	if setting.button != "" {
 		var values []string
 		for _, edge := range setting.edges {
@@ -1009,6 +1096,10 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.WarnSettings{}
 	} else if strings.HasPrefix(setting.key, "antispam.probation_") {
 		model = &models.ProbationSettings{}
+	} else if strings.HasPrefix(setting.key, "antispam.spamdb_") {
+		model = &models.SpamDBSettings{}
+	} else if setting.key == "antispam.aispam_enabled" {
+		model = &models.AISpamSettings{}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
@@ -1297,4 +1388,180 @@ func testContractProbationBlocks(t *testing.T, setting settingContract) {
 			assertContractRead(t, f, setting, changes[setting.key], label, changes[setting.key] != setting.defaultValue)
 		}
 	})
+}
+
+func testContractSpamPreconditions(t *testing.T, setting settingContract) {
+	t.Helper()
+	var reasons []string
+	switch setting.key {
+	case "antispam.aispam_enabled":
+		reasons = []string{"aispam_no_key", "aispam_globally_disabled"}
+	case "antispam.spamdb_enabled":
+		reasons = []string{"spamdb_globally_disabled"}
+	case "antispam.spamdb_shared":
+		reasons = []string{"spamdb_db_shared_disabled"}
+	}
+	for _, reason := range reasons {
+		t.Run("operator/"+reason, func(t *testing.T) {
+			f := newSettingContractFixture(t, setting)
+			previous := *config.AppConfig
+			t.Cleanup(func() { *config.AppConfig = previous })
+			switch reason {
+			case "aispam_no_key":
+				config.AppConfig.TypeSafeAPIKey = ""
+				config.AppConfig.EnableAISpam = false // Missing key wins over the operator switch.
+			case "aispam_globally_disabled":
+				config.AppConfig.EnableAISpam = false
+			case "spamdb_globally_disabled":
+				config.AppConfig.EnableSpamDB = false
+			case "spamdb_db_shared_disabled":
+				config.AppConfig.EnableReputation = false
+			}
+			contractDispatch(t, f, f.admin, setting.command+" on")
+			reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+			if reply != translated(t, reason) {
+				t.Fatalf("operator refusal = %q, want %s", reply, reason)
+			}
+			if setting.button != "" {
+				contractPress(t, f, f.admin, setting.button, "on")
+				if text, alert := lastAnswer(t, f.client); !alert || text != reply {
+					t.Fatalf("operator button refusal = %q alert %t", text, alert)
+				}
+			}
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: true, "antiraid.raid_time": 60}))
+			var result struct {
+				Errors map[string]string `json:"errors"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != http.StatusBadRequest || result.Errors[setting.key] != reply {
+				t.Fatalf("operator batch = %d %s", response.Code, response.Body.String())
+			}
+			assertContractRowCount(t, f, setting, 0)
+			assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+			seedEnabled := func() {
+				var err error
+				switch setting.key {
+				case "antispam.aispam_enabled":
+					err = aispam.SetAISpamEnabled(f.chat.Id, true)
+				case "antispam.spamdb_enabled":
+					err = spamdbsettings.SetSpamDBEnabled(f.chat.Id, true)
+				case "antispam.spamdb_shared":
+					err = spamdbsettings.SetSpamDBDatabase(f.chat.Id, "shared", true)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Operator preconditions forbid enabling, never switching off.
+			seedEnabled()
+			contractDispatch(t, f, f.admin, setting.command+" off")
+			assertContractRead(t, f, setting, false, "off", false)
+			if setting.button != "" {
+				seedEnabled()
+				contractPress(t, f, f.admin, setting.button, "off")
+				if text, alert := lastAnswer(t, f.client); alert {
+					t.Fatalf("operator blocked disable button: %q", text)
+				}
+			}
+			seedEnabled()
+			response = contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: false}))
+			if response.Code != http.StatusOK {
+				t.Fatalf("operator blocked disable panel: %d %s", response.Code, response.Body.String())
+			}
+			assertContractRead(t, f, setting, false, "off", false)
+		})
+	}
+}
+
+func testContractSpamDatabases(t *testing.T, setting settingContract) {
+	t.Helper()
+	name := strings.TrimPrefix(setting.command, "/spamdb db ")
+	databaseName := map[string]string{"cas": "CAS", "lols": "lols.bot", "shared": "Shared bans"}[name]
+	t.Run("last database refused", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		if err := spamdbsettings.SetSpamDBDatabase(f.chat.Id, name, true); err != nil {
+			t.Fatal(err)
+		}
+		if name != "cas" {
+			if err := spamdbsettings.SetSpamDBDatabase(f.chat.Id, "cas", false); err != nil {
+				t.Fatal(err)
+			}
+		}
+		contractDispatch(t, f, f.admin, setting.command+" off")
+		reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+		want := strings.ReplaceAll(translated(t, "spamdb_db_last"), "{database}", databaseName)
+		if reply != want {
+			t.Fatalf("last database reply = %q, want %q", reply, want)
+		}
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: false, "antiraid.raid_time": 60}))
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "at least one spam database must stay on") {
+			t.Fatalf("last database batch = %d %s", response.Code, response.Body.String())
+		}
+		assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+		row, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), f.chat.Id)
+		if err != nil || len(spamDBSources(row)) != 1 {
+			t.Fatalf("last database changed: %+v, %v", row, err)
+		}
+	})
+	if name == "cas" {
+		return
+	}
+	t.Run("failed enable preserves last database and independent outcomes", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		assertContractRead(t, f, setting, false, "off", false)
+		callback := "fail_spam_database_enable"
+		if err := db.DB.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
+			if tx.Statement.Table == "spam_db_settings" {
+				_ = tx.AddError(errors.New("database enable failed"))
+			}
+		}); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = db.DB.Callback().Create().Remove(callback) })
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+			setting.key: true, "antispam.spamdb_cas": false, "antiraid.raid_time": 60,
+		}))
+		var result struct {
+			Saved  []string          `json:"saved"`
+			Failed map[string]string `json:"failed"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if response.Code != http.StatusInternalServerError || len(result.Saved) != 1 || result.Saved[0] != "antiraid.raid_time" ||
+			result.Failed[setting.key] == "" || result.Failed["antispam.spamdb_cas"] != "at least one spam database must stay on" {
+			t.Fatalf("failed enable = %d %s", response.Code, response.Body.String())
+		}
+		assertContractRead(t, f, setting, false, "off", false)
+		assertContractRowCount(t, f, setting, 0)
+	})
+	for _, reversed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("switchover/reversed=%t", reversed), func(t *testing.T) {
+			f := newSettingContractFixture(t, setting)
+			for _, casOn := range []bool{false, true} {
+				first := fmt.Sprintf(`"antispam.spamdb_cas":%t`, casOn)
+				second := fmt.Sprintf(`%q:%t`, setting.key, !casOn)
+				if reversed {
+					first, second = second, first
+				}
+				response := contractPanelRequest(t, f, f.admin, http.MethodPatch, `{"changes":{`+first+`,`+second+`}}`)
+				var result struct {
+					Saved  []string          `json:"saved"`
+					Failed map[string]string `json:"failed"`
+				}
+				if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+					t.Fatal(err)
+				}
+				if response.Code != http.StatusOK || len(result.Saved) != 2 || len(result.Failed) != 0 {
+					t.Fatalf("switchover = %d %s", response.Code, response.Body.String())
+				}
+				row, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), f.chat.Id)
+				if err != nil || row.CheckCAS != casOn || (name == "lols" && row.CheckLols == casOn) || (name == "shared" && row.CheckShared == casOn) {
+					t.Fatalf("switchover settings = %+v, %v", row, err)
+				}
+			}
+		})
+	}
 }

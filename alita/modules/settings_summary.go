@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -61,10 +60,6 @@ func boolRow(command string, value, def bool) settingsRow {
 		text = "on"
 	}
 	return settingsRow{Command: command, Value: text, Changed: value != def}
-}
-
-func intRow(command string, value, def int) settingsRow {
-	return settingsRow{Command: command, Value: strconv.Itoa(value), Changed: value != def}
 }
 
 func stringRow(command, value, def string) settingsRow {
@@ -117,7 +112,7 @@ func collectChatSettings(ctx context.Context, chatID int64) []settingsSection {
 		captchaSettingsSection(ctx, chatID),
 		antifloodSettingsSection(chatID),
 		antiraidSettingsSection(chatID),
-		{Title: "AI Spam", Rows: []settingsRow{boolRow("/aispam", aispam.IsAISpamEnabled(chatID), false)}},
+		{Title: "AI Spam", Rows: []settingsRow{declaredBoolRow("/aispam", settings.AISpamEnabled, chatID)}},
 		probationSettingsSection(ctx, chatID),
 		warnsSettingsSection(ctx, chatID),
 		locksSettingsSection(ctx, chatID),

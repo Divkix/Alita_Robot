@@ -131,7 +131,7 @@ func checkJoinRequestSpamDB(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 	request := ctx.ChatJoinRequest
 	chat, applicant := request.Chat, request.From
 	reqCtx := tracing.UpdateContext(ctx)
-	settings, err := spamdbsettings.GetSpamDBSettingsContext(reqCtx, chat.Id)
+	settings, err := chatsettings.ReadSpamDBContext(reqCtx, chat.Id)
 	if err != nil || !settings.Enabled {
 		return false, nil
 	}

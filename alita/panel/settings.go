@@ -14,7 +14,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -24,7 +23,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
-	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
 )
@@ -173,11 +171,6 @@ func panelSettings(access chatAccess) settingsResponse {
 		night = row
 	}
 
-	spamDB := &models.SpamDBSettings{ChatID: chatID, Action: spamdbsettings.ActionBan, CheckCAS: true}
-	if row, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err == nil && row != nil {
-		spamDB = row
-	}
-
 	locked := make([]string, 0)
 	for perm, on := range locks.GetChatLocks(chatID) {
 		if on {
@@ -220,13 +213,12 @@ func panelSettings(access chatAccess) settingsResponse {
 			declaredSettingsField(chatID, settings.FloodDelete),
 		}},
 		{Key: "antispam", Label: "Antispam", Fields: []settingsField{
-			settingsBool("aispam_enabled", aispam.IsAISpamEnabled(chatID), false, true),
-			settingsBool("spamdb_enabled", spamDB.Enabled, false, true),
-			settingsString("spamdb_action", spamDB.Action, spamdbsettings.ActionBan, true,
-				[]string{spamdbsettings.ActionBan, spamdbsettings.ActionMute, spamdbsettings.ActionLog}),
-			settingsBool("spamdb_cas", spamDB.CheckCAS, true, true),
-			settingsBool("spamdb_lols", spamDB.CheckLols, false, true),
-			settingsBool("spamdb_shared", spamDB.CheckShared, false, true),
+			declaredSettingsField(chatID, settings.AISpamEnabled),
+			declaredSettingsField(chatID, settings.SpamDBEnabled),
+			declaredSettingsField(chatID, settings.SpamDBAction),
+			declaredSettingsField(chatID, settings.SpamDBCAS),
+			declaredSettingsField(chatID, settings.SpamDBLols),
+			declaredSettingsField(chatID, settings.SpamDBShared),
 			declaredSettingsField(chatID, settings.ProbationEnabled),
 			declaredSettingsField(chatID, settings.ProbationTime),
 			declaredSettingsField(chatID, settings.ProbationMessages),
@@ -394,10 +386,9 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 		updates[key] = value
 	}
 
-	for key, message := range settings.ValidateChanges(input, updates) {
-		fieldErrors[key] = message
+	for key, err := range settings.ValidateChanges(input, updates) {
+		fieldErrors[key] = settingError(err)
 	}
-	validateSpamDatabaseChanges(index, updates, fieldErrors)
 
 	if message := validateNightModeChanges(index, updates, nightTypes, fieldErrors); message != "" {
 		for _, key := range nightModeKeys {
@@ -415,30 +406,6 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 	}
 
 	return updates, fieldErrors
-}
-
-// validateSpamDatabaseChanges mirrors the table constraint that refuses a row
-// with no spam database left on. It checks the batch as a whole, so enabling
-// one and disabling another is allowed.
-func validateSpamDatabaseChanges(index map[string]settingsField, updates map[string]any, fieldErrors map[string]string) {
-	databases := []string{"antispam.spamdb_cas", "antispam.spamdb_lols", "antispam.spamdb_shared"}
-	anyOn, anyChanged := false, false
-	for _, key := range databases {
-		on, changed := updates[key].(bool)
-		if !changed {
-			value, _ := index[key].Value.(bool)
-			on = value
-		}
-		anyOn = anyOn || on
-		anyChanged = anyChanged || changed
-	}
-	if anyChanged && !anyOn {
-		for _, key := range databases {
-			if _, changed := updates[key]; changed {
-				fieldErrors[key] = "at least one spam database must stay on"
-			}
-		}
-	}
 }
 
 var nightModeKeys = []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"}
@@ -543,8 +510,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
-	case "antispam":
-		return validateAntispamValue(fieldKey, value)
 	case "digest":
 		if fieldKey == "enabled" && value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableDigest) {
 			return settingsRefusal("digest_globally_disabled")
@@ -569,28 +534,11 @@ func validateSettingValue(key string, field settingsField, value any) string {
 	return ""
 }
 
-func validateAntispamValue(field string, value any) string {
-	switch field {
-	case "aispam_enabled":
-		if !value.(bool) {
-			return ""
-		}
-		if config.AppConfig == nil || config.AppConfig.TypeSafeAPIKey == "" {
-			return settingsRefusal("aispam_no_key")
-		}
-		if !config.AppConfig.EnableAISpam {
-			return settingsRefusal("aispam_globally_disabled")
-		}
-	case "spamdb_enabled":
-		if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableSpamDB) {
-			return settingsRefusal("spamdb_globally_disabled")
-		}
-	case "spamdb_shared":
-		if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableReputation) {
-			return settingsRefusal("spamdb_db_shared_disabled")
-		}
+func settingError(err error) string {
+	if key := settings.RefusalKey(err); key != "" {
+		return settingsRefusal(key)
 	}
-	return ""
+	return err.Error()
 }
 
 // settingsRefusal reuses the command's English wording without the HTML that
@@ -676,7 +624,7 @@ func applySettingsChanges(input settings.WriteContext, updates map[string]any) (
 		}
 		if err != nil {
 			log.WithError(err).Warnf("[Panel] save %s for chat %d", key, chatID)
-			failed[key] = err.Error()
+			failed[key] = settingError(err)
 			continue
 		}
 		saved = append(saved, key)
@@ -692,8 +640,6 @@ func applySettingChange(input settings.WriteContext, key string, value any) erro
 		return lang.ChangeGroupLanguage(chatID, value.(string))
 	case "rules":
 		return rules.SetPrivateRules(chatID, value.(bool))
-	case "antispam":
-		return applyAntispamChange(chatID, fieldKey, value)
 	case "digest":
 		switch fieldKey {
 		case "enabled":
@@ -737,22 +683,4 @@ func applyNightModeChanges(chatID int64, updates map[string]any) error {
 		types = strings.Split(names, ",")
 	}
 	return nightmode.Enable(chatID, start, end, types)
-}
-
-func applyAntispamChange(chatID int64, field string, value any) error {
-	switch field {
-	case "aispam_enabled":
-		return aispam.SetAISpamEnabled(chatID, value.(bool))
-	case "spamdb_enabled":
-		return spamdbsettings.SetSpamDBEnabled(chatID, value.(bool))
-	case "spamdb_action":
-		return spamdbsettings.SetSpamDBAction(chatID, value.(string))
-	case "spamdb_cas":
-		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseCAS, value.(bool))
-	case "spamdb_lols":
-		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseLols, value.(bool))
-	case "spamdb_shared":
-		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseShared, value.(bool))
-	}
-	return fmt.Errorf("unknown antispam setting %q", field)
 }

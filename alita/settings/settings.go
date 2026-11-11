@@ -21,15 +21,33 @@
 // and switching to an untimed mode clears a previously stored duration.
 // Probation uses the same caller-and-bot restrict-members policy on every surface;
 // its related block flags validate together and persist through one shared write.
+// Operator preconditions return Refusal locale keys for each adapter to render.
+// They participate in ValidateChanges before any batch write. Related independent
+// switches validate their combined state, then enabled switches write first.
 package settings
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
+
+// Refusal identifies an existing locale key without coupling declarations to a
+// renderer. Commands translate it in their language; the panel uses plain English.
+type Refusal string
+
+func (r Refusal) Error() string { return string(r) }
+
+func RefusalKey(err error) string {
+	var refusal Refusal
+	if errors.As(err, &refusal) {
+		return string(refusal)
+	}
+	return ""
+}
 
 type Type string
 
@@ -90,6 +108,7 @@ var declarations = []*Declaration{
 	FloodMode, FloodActionTime, WarnMode, WarnActionTime,
 	ProbationEnabled, ProbationTime, ProbationMessages, ProbationMinLength,
 	ProbationBlockLinks, ProbationBlockForwards, ProbationBlockMedia, ProbationNotice,
+	AISpamEnabled, SpamDBEnabled, SpamDBAction, SpamDBCAS, SpamDBLols, SpamDBShared,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.
@@ -201,7 +220,7 @@ func (d *Declaration) validateValueWrite(input WriteContext, value any) error {
 // Write validates again so no adapter bypasses the rules or attached effect.
 // Rights are enforced by the adapter before the first write in a batch.
 func (d *Declaration) Write(input WriteContext, value any) error {
-	if d.shared != nil {
+	if d.shared != nil && d.shared.write != nil {
 		return d.WriteChanges(input, map[string]any{d.Key: value})
 	}
 	if err := d.ValidateWrite(input, value); err != nil {

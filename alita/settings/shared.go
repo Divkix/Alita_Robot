@@ -5,6 +5,8 @@ package settings
 // values on a normalized read; adapters never resolve dependent fields themselves.
 // write revalidates and stores the same resolved snapshot; it must not re-read
 // dependent fields between validating their relationship and persisting them.
+// A nil write keeps per-field persistence/outcomes while sharing batch validation;
+// adapters must write enabled switches first before disabling another member.
 type sharedWrite struct {
 	fields   []*Declaration
 	validate func(WriteContext, map[string]any) error
@@ -14,7 +16,7 @@ type sharedWrite struct {
 // WriteKey identifies fields that must share one write and one outcome in a
 // batch. Adapters cache the outcome, including nil, once per key per request.
 func (d *Declaration) WriteKey() string {
-	if d.shared != nil {
+	if d.shared != nil && d.shared.write != nil {
 		return d.shared.fields[0].Key
 	}
 	return d.Key
@@ -23,13 +25,13 @@ func (d *Declaration) WriteKey() string {
 // ValidateChanges checks declared fields and their relationships before any
 // write. Undeclared keys remain the adapter's responsibility. A relationship
 // failure is reported against every requested field in that shared write.
-func ValidateChanges(input WriteContext, changes map[string]any) map[string]string {
-	failures := make(map[string]string)
+func ValidateChanges(input WriteContext, changes map[string]any) map[string]error {
+	failures := make(map[string]error)
 	checked := make(map[*sharedWrite]bool)
 	for key, value := range changes {
 		if d, ok := Lookup(key); ok {
 			if err := d.validateValueWrite(input, value); err != nil {
-				failures[key] = err.Error()
+				failures[key] = err
 			}
 		}
 	}
@@ -41,7 +43,7 @@ func ValidateChanges(input WriteContext, changes map[string]any) map[string]stri
 		checked[d.shared] = true
 		invalid := false
 		for _, field := range d.shared.fields {
-			invalid = invalid || failures[field.Key] != ""
+			invalid = invalid || failures[field.Key] != nil
 		}
 		if invalid {
 			continue
@@ -49,7 +51,7 @@ func ValidateChanges(input WriteContext, changes map[string]any) map[string]stri
 		if err := d.shared.validate(input, changes); err != nil {
 			for _, field := range d.shared.fields {
 				if _, changed := changes[field.Key]; changed {
-					failures[field.Key] = err.Error()
+					failures[field.Key] = err
 				}
 			}
 		}
@@ -61,7 +63,7 @@ func ValidateChanges(input WriteContext, changes map[string]any) map[string]stri
 // group's requested values. Call once per WriteKey after validating the whole
 // request; every requested field in that group receives this same outcome.
 func (d *Declaration) WriteChanges(input WriteContext, changes map[string]any) error {
-	if d.shared == nil {
+	if d.shared == nil || d.shared.write == nil {
 		return d.Write(input, changes[d.Key])
 	}
 	for _, field := range d.shared.fields {

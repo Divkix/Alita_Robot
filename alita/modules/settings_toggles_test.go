@@ -10,7 +10,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
-	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -108,7 +107,6 @@ func TestSettingsSummaryOffersEveryToggle(t *testing.T) {
 func TestSettingsToggleSetsEveryValue(t *testing.T) {
 	f := settingsToggleFixture(t)
 	f.makeOwner()
-	withAISpamTestConfig(t, "test-key-123456", true, config.AppConfig.MessageDump)
 
 	for _, toggle := range settingsToggles {
 		if toggle.declaration != nil {
@@ -192,9 +190,6 @@ func TestSettingsToggleRefusals(t *testing.T) {
 		value   string
 		command string
 		denyKey string
-		// atWrite marks a refusal by the write itself, after which the
-		// summary is drawn again like after any failed write.
-		atWrite bool
 	}{
 		{
 			name: "admin who is not the owner", key: "an", value: "on", command: "/anonadmin",
@@ -209,15 +204,6 @@ func TestSettingsToggleRefusals(t *testing.T) {
 				f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = []byte("[" + adminJSON + "]")
 			},
 			denyKey: "connections_is_user_connected_bot_not_admin",
-		},
-		{
-			name: "aispam without a key", key: "ai", value: "on", command: "/aispam",
-			user: func(f adminChatFixture) gotgbot.User { return f.admin },
-			setup: func(t *testing.T, _ adminChatFixture) {
-				withAISpamTestConfig(t, "", true, config.AppConfig.MessageDump)
-			},
-			denyKey: "aispam_no_key",
-			atWrite: true,
 		},
 	}
 	for _, tt := range tests {
@@ -239,7 +225,7 @@ func TestSettingsToggleRefusals(t *testing.T) {
 			if got := settingsRowValue(t, f.chat.Id, tt.command); got != before {
 				t.Fatalf("%s = %q after a refused tap, want %q", tt.command, got, before)
 			}
-			if calls := f.client.callsFor("editMessageText"); !tt.atWrite && len(calls) != 0 {
+			if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {
 				t.Fatalf("a refused tap edited the summary: %v", calls[0].Params)
 			}
 		})

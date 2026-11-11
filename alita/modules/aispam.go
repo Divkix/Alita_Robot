@@ -20,13 +20,13 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -103,7 +103,7 @@ var aispamDesc = helpers.CommandDescriptor{
 	Group:          aispamModule.handlerGroup,
 	Disableable:    true,
 	PMGroupArg:     helpers.PMGroupArgOwn,
-	RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)},
+	RequiredChecks: declaredSettingChecks(settings.AISpamEnabled),
 }
 
 // aispamTask carries the cheap facts gathered on the update path. Everything
@@ -166,7 +166,7 @@ func (m moduleStruct) checkAISpam(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !config.AppConfig.EnableAISpam || config.AppConfig.TypeSafeAPIKey == "" {
 		return ext.ContinueGroups
 	}
-	if !aispam.IsAISpamEnabled(chat.Id) || aispamBreakerPaused(chat.Id) {
+	if !settings.AISpamEnabled.Read(chat.Id).Value.(bool) || aispamBreakerPaused(chat.Id) {
 		return ext.ContinueGroups
 	}
 	if aispamCarvedOut(b, ctx, chat.Id, user.Id) {
@@ -789,7 +789,7 @@ func aispamTruncate(s string, limit int) string {
 // rather than leaving an admin believing their chat is protected.
 func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()[1:]
-	enabled := aispam.IsAISpamEnabled(c.Chat.Id)
+	enabled := settings.AISpamEnabled.Read(c.Chat.Id).Value.(bool)
 
 	if len(args) == 0 {
 		return aispamReply(c, aispamStatusText(c.Tr, enabled))
@@ -801,13 +801,11 @@ func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 		return aispamReply(c, text)
 	}
 
-	if want {
-		if refusal, refused := aispamEnableRefusal(c.Tr); refused {
-			return aispamReply(c, refusal)
+	if err := settings.AISpamEnabled.Write(settings.WriteContext{ChatID: c.Chat.Id}, want); err != nil {
+		if key := settings.RefusalKey(err); key != "" {
+			text, _ := c.Tr.GetString(key)
+			return aispamReply(c, text)
 		}
-	}
-
-	if err := aispam.SetAISpamEnabled(c.Chat.Id, want); err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Error("[AISpam] failed to save the setting")
 		text, _ := c.Tr.GetString("common_settings_save_failed")
 		if replyErr := aispamReply(c, text); replyErr != nil {
@@ -843,27 +841,6 @@ func aispamStatusText(tr *i18n.Translator, enabled bool) string {
 	parts = append(parts, notice)
 
 	return strings.Join(parts, "\n\n")
-}
-
-func aispamEnableRefusal(tr *i18n.Translator) (string, bool) {
-	key := aispamEnableRefusalKey()
-	if key == "" {
-		return "", false
-	}
-	text, _ := tr.GetString(key)
-	return text, true
-}
-
-// aispamEnableRefusalKey is the i18n key of the reason the filter cannot be
-// turned on, or "" when it can.
-func aispamEnableRefusalKey() string {
-	if config.AppConfig.TypeSafeAPIKey == "" {
-		return "aispam_no_key"
-	}
-	if !config.AppConfig.EnableAISpam {
-		return "aispam_globally_disabled"
-	}
-	return ""
 }
 
 func aispamReply(c *helpers.CommandContext, text string) error {

@@ -17,7 +17,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
@@ -28,7 +27,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
-	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -145,14 +143,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 	if fieldBool(t, body, "rules.private_rules") {
 		t.Fatal("rules.private_rules = true, want false")
 	}
-	if fieldBool(t, body, "antispam.aispam_enabled") || fieldBool(t, body, "antispam.spamdb_enabled") {
-		t.Fatal("antispam features must default off")
-	}
-	if fieldString(t, body, "antispam.spamdb_action") != "ban" ||
-		!fieldBool(t, body, "antispam.spamdb_cas") || fieldBool(t, body, "antispam.spamdb_lols") ||
-		fieldBool(t, body, "antispam.spamdb_shared") {
-		t.Fatalf("spamdb defaults = %+v", body.Modules[5])
-	}
 	if fieldBool(t, body, "digest.enabled") || fieldString(t, body, "digest.destination") != "" {
 		t.Fatalf("digest defaults = %+v", body.Modules[8])
 	}
@@ -213,8 +203,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		"nightmode":   &models.NightModeSettings{},
 		"warn_users":  &models.Warns{},
 		"warn_entry":  &models.WarnEntry{},
-		"spam_db":     &models.SpamDBSettings{},
-		"ai_spam":     &models.AISpamSettings{},
 		"lock":        &models.LockSettings{},
 		"log_channel": &models.LogChannel{},
 	} {
@@ -240,8 +228,6 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "flood fractional duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":60.5,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
 		{name: "flood string duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":"60","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
 		{name: "flood null duration", body: `{"changes":{"antiflood.action":"tmute","antiflood.action_time":null,"greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action_time"}},
-		{name: "last spam database", body: `{"changes":{"antispam.spamdb_cas":false}}`, wantKeys: []string{"antispam.spamdb_cas"}},
-		{name: "no spam database left", body: `{"changes":{"antispam.spamdb_cas":false,"antispam.spamdb_shared":false}}`, wantKeys: []string{"antispam.spamdb_cas", "antispam.spamdb_shared"}},
 		{name: "warn limit fraction", body: `{"changes":{"warns.limit":3.5}}`, wantKeys: []string{"warns.limit"}},
 		{name: "warn limit wrong type", body: `{"changes":{"warns.limit":"3"}}`, wantKeys: []string{"warns.limit"}},
 		{name: "warn mode wrong type", body: `{"changes":{"warns.mode":true}}`, wantKeys: []string{"warns.mode"}},
@@ -761,9 +747,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	greetings.GetGreetingSettings(chatID)
 	antiflood.GetFlood(chatID)
 	rules.GetChatRulesInfo(chatID)
-	if _, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err != nil {
-		t.Fatalf("seed spamdb cache: %v", err)
-	}
 	if got := lang.GetGroupLanguage(context.Background(), chatID); got != "en" {
 		t.Fatalf("seeded language = %q, want en", got)
 	}
@@ -779,9 +762,7 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		"antiflood.limit":5,
 		"antiflood.action":"tban",
 		"antiflood.action_time":7200,
-		"antiflood.delete_messages":true,
-		"antispam.spamdb_action":"log",
-		"antispam.spamdb_lols":true
+		"antiflood.delete_messages":true
 	}}`
 	recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw, body, "application/json")
 	if recorder.Code != http.StatusOK {
@@ -791,8 +772,8 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
 		t.Fatalf("decode patch response: %v", err)
 	}
-	if len(patch.Saved) != 13 || len(patch.Failed) != 0 {
-		t.Fatalf("saved = %v, failed = %v; want all 13 saved", patch.Saved, patch.Failed)
+	if len(patch.Saved) != 11 || len(patch.Failed) != 0 {
+		t.Fatalf("saved = %v, failed = %v; want all 11 saved", patch.Saved, patch.Failed)
 	}
 
 	// The bot's own getters answer with the new values at once.
@@ -810,13 +791,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	flood := antiflood.GetFlood(chatID)
 	if flood.Limit != 5 || flood.Action != "tban" || flood.FloodActionTime != 7200 || !flood.DeleteAntifloodMessage {
 		t.Fatalf("antiflood settings after patch = %+v", flood)
-	}
-	spamdb, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
-	if err != nil {
-		t.Fatalf("spam db settings after patch: %v", err)
-	}
-	if spamdb.Action != "log" || !spamdb.CheckLols || !spamdb.CheckCAS {
-		t.Fatalf("spam db settings after patch = %+v", spamdb)
 	}
 
 	// The next GET reflects the same values and marks them changed.
@@ -1019,7 +993,7 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	}
 }
 
-func TestSettingsPatchRefusesGloballyDisabledFeatures(t *testing.T) {
+func TestSettingsPatchRefusesGloballyDisabledDigest(t *testing.T) {
 	rawLocale, err := os.ReadFile(filepath.Join("..", "..", "locales", "en.yml"))
 	if err != nil {
 		t.Fatalf("read locales/en.yml: %v", err)
@@ -1030,35 +1004,11 @@ func TestSettingsPatchRefusesGloballyDisabledFeatures(t *testing.T) {
 	}
 	t.Cleanup(restoreI18n)
 
-	fixture, chatID := newSettingsFixture(t)
 	raw := readFixture(t, "initdata_main.txt")
-	target := settingsPath(chatID)
 
 	restore := *config.AppConfig
 	t.Cleanup(func() { *config.AppConfig = restore })
 
-	config.AppConfig.EnableAISpam = false
-	config.AppConfig.TypeSafeAPIKey = "test-key"
-	recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.aispam_enabled":true}}`, "application/json")
-	assertFieldRefusal(t, recorder, "antispam.aispam_enabled", "switched it off globally")
-	if count := countChatRows(t, &models.AISpamSettings{}, chatID); count != 0 {
-		t.Fatalf("refused AI spam write created %d rows", count)
-	}
-
-	config.AppConfig.EnableAISpam = true
-	config.AppConfig.TypeSafeAPIKey = ""
-	recorder = panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.aispam_enabled":true}}`, "application/json")
-	assertFieldRefusal(t, recorder, "antispam.aispam_enabled", "has not configured an API key")
-
-	config.AppConfig.EnableSpamDB = false
-	recorder = panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.spamdb_enabled":true}}`, "application/json")
-	assertFieldRefusal(t, recorder, "antispam.spamdb_enabled", "switched it off")
-	if count := countChatRows(t, &models.SpamDBSettings{}, chatID); count != 0 {
-		t.Fatalf("refused spam database write created %d rows", count)
-	}
 	config.AppConfig.EnableDigest = false
 	for _, missingConfig := range []bool{false, true} {
 		t.Run(fmt.Sprintf("digest/config_missing=%t", missingConfig), func(t *testing.T) {
@@ -1105,84 +1055,6 @@ func TestSettingsPatchRefusesGloballyDisabledFeatures(t *testing.T) {
 		})
 	}
 
-	// Turning the feature off is never refused by the kill switch.
-	config.AppConfig.EnableAISpam = false
-	if err := aispam.SetAISpamEnabled(chatID, true); err != nil {
-		t.Fatalf("seed AI spam: %v", err)
-	}
-	off := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.aispam_enabled":false}}`, "application/json")
-	if off.Code != http.StatusOK {
-		t.Fatalf("disable status = %d, want 200 (body %s)", off.Code, off.Body.String())
-	}
-	if aispam.IsAISpamEnabled(chatID) {
-		t.Fatal("AI spam stayed on after the panel disabled it")
-	}
-}
-
-// Shared bans is a third spam database in the panel: off by default, refused
-// while the operator has not enabled the network, and part of the at-least-one
-// rule.
-func TestSettingsSharedSpamDatabase(t *testing.T) {
-	rawLocale, err := os.ReadFile(filepath.Join("..", "..", "locales", "en.yml"))
-	if err != nil {
-		t.Fatalf("read locales/en.yml: %v", err)
-	}
-	restoreI18n, err := i18n.OverrideLocalesForTest(map[string]string{"en": string(rawLocale)})
-	if err != nil {
-		t.Fatalf("override locales: %v", err)
-	}
-	t.Cleanup(restoreI18n)
-
-	fixture, chatID := newSettingsFixture(t)
-	raw := readFixture(t, "initdata_main.txt")
-	target := settingsPath(chatID)
-
-	restore := *config.AppConfig
-	t.Cleanup(func() { *config.AppConfig = restore })
-
-	body := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, target, raw, "", ""))
-	if fieldBool(t, body, "antispam.spamdb_shared") {
-		t.Fatal("antispam.spamdb_shared = true, want the shared source off by default")
-	}
-
-	// Without the operator's network the panel refuses the same way the
-	// command does, and writes nothing.
-	config.AppConfig.EnableReputation = false
-	recorder := panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.spamdb_shared":true}}`, "application/json")
-	assertFieldRefusal(t, recorder, "antispam.spamdb_shared", "shared reputation")
-	if count := countChatRows(t, &models.SpamDBSettings{}, chatID); count != 0 {
-		t.Fatalf("refused shared write created %d rows", count)
-	}
-
-	// Enables run before disables, so switching shared on and CAS off in one
-	// batch does not trip the last-database constraint.
-	config.AppConfig.EnableReputation = true
-	recorder = panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.spamdb_shared":true,"antispam.spamdb_cas":false}}`, "application/json")
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("enable shared status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
-	}
-	settings, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
-	if err != nil {
-		t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
-	}
-	if !settings.CheckShared || settings.CheckCAS {
-		t.Fatalf("spam db settings after patch = %+v, want shared only", settings)
-	}
-
-	// Shared is the last database now, so the panel refuses to leave none on.
-	recorder = panelRequest(t, fixture.handler, http.MethodPatch, target, raw,
-		`{"changes":{"antispam.spamdb_shared":false}}`, "application/json")
-	assertFieldRefusal(t, recorder, "antispam.spamdb_shared", "at least one spam database must stay on")
-	settings, err = spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID)
-	if err != nil {
-		t.Fatalf("GetSpamDBSettingsContext() error = %v", err)
-	}
-	if !settings.CheckShared {
-		t.Fatal("Shared bans was switched off as the last database")
-	}
 }
 
 func assertFieldRefusal(t *testing.T, recorder *httptest.ResponseRecorder, key, wantText string) {
