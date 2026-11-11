@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 // captchaEnding is the kind of a captchaOutcome.
@@ -27,6 +29,7 @@ type captchaEnding int
 const (
 	captchaEndReleased captchaEnding = iota + 1
 	captchaEndPassed
+	captchaEndFailed
 )
 
 // captchaOutcome is how a captcha attempt ended.
@@ -39,6 +42,9 @@ type captchaOutcome struct {
 	refreshCount int
 	name         string
 	maxAttempts  int
+	// A failure applies action, the chat's failure action, for cause.
+	cause  string
+	action string
 }
 
 // captchaReleased lets the member in without a verdict: approved, captcha
@@ -51,16 +57,24 @@ func captchaPassed(answer string, refreshCount int, name string, maxAttempts int
 	return captchaOutcome{ending: captchaEndPassed, answer: answer, refreshCount: refreshCount, name: name, maxAttempts: maxAttempts}
 }
 
+// captchaFailed is running out of time or attempts (cause), punished with
+// the chat's failure action.
+func captchaFailed(cause, action string) captchaOutcome {
+	return captchaOutcome{ending: captchaEndFailed, cause: cause, action: action}
+}
+
 // settleCaptchaAttempt ends attempt with outcome, in one order for every
 // outcome: claim the attempt, deal with the mute, clear or keep the scheduled
 // unmute, remove the prompt, report. settled is false when another ending
-// already claimed the attempt; then nothing else happens. err is only work
-// left to retry: the scheduled unmute it kept for the unmute worker.
+// already claimed the attempt; then nothing else happens. err is work left to
+// retry, the scheduled unmute it kept for the unmute worker, or the failure
+// action Telegram refused.
 func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (settled bool, err error) {
 	// The claim deletes the attempt with its stored messages and schedules a
 	// fallback unmute in one transaction, so a crash right after it cannot
-	// leave the member muted. A pass reads the stored messages before.
+	// leave the member muted. Reports read the stored messages before.
 	var stored []*models.StoredMessages
+	var storedCount int64
 	claimed := false
 	switch outcome.ending {
 	case captchaEndPassed:
@@ -69,21 +83,66 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 			log.Warnf("[Captcha] Failed to read stored messages for attempt %d: %v", attempt.ID, storedErr)
 		}
 		claimed, err = captcha.CompleteCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID, outcome.answer, attempt.MessageID, outcome.refreshCount)
+	case captchaEndFailed:
+		storedCount, _ = captcha.CountStoredMessagesForAttempt(attempt.ID)
+		claimed, err = captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
 	default:
 		claimed, err = captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
 	}
 	if err != nil || !claimed {
 		return false, err
 	}
-	err = keepScheduledUnmuteOnFailure(attempt.ChatID, attempt.UserID, unmuteCaptchaUser(bot, attempt.ChatID, attempt.UserID))
+	var (
+		name    string
+		unban   *gotgbot.InlineKeyboardMarkup
+		applied bool
+	)
+	if outcome.ending == captchaEndFailed {
+		name, unban, applied, err = failCaptchaMember(bot, attempt, outcome)
+	} else {
+		err = keepScheduledUnmuteOnFailure(attempt.ChatID, attempt.UserID, unmuteCaptchaUser(bot, attempt.ChatID, attempt.UserID))
+	}
 	if attempt.MessageID > 0 {
 		_ = helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID)
 	}
+	switch {
 	// A member still held has not passed.
-	if outcome.ending == captchaEndPassed && err == nil {
+	case outcome.ending == captchaEndPassed && err == nil:
 		reportCaptchaPass(bot, attempt, outcome, stored)
+	case applied:
+		reportCaptchaFailure(bot, attempt.ChatID, attempt.UserID, name, outcome.action, outcome.cause, storedCount, unban)
 	}
 	return true, err
+}
+
+// failCaptchaMember applies outcome's failure action to the claimed
+// attempt's member and clears or keeps the scheduled unmute: a 24-hour mute
+// keeps it as its timer, a kick or ban clears it, and an action that fails
+// lifts the mute as for a release. A member who is gone, or whom someone else
+// banned, gets nothing: a kick would lift that ban. name is the member's
+// first name for the report, unban the log entry's Unban button of a ban.
+func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (name string, unban *gotgbot.InlineKeyboardMarkup, applied bool, err error) {
+	chatID, userID := attempt.ChatID, attempt.UserID
+	name = "User"
+	member, memberErr := bot.GetChatMember(chatID, userID, nil)
+	if memberErr == nil && member.GetUser().FirstName != "" {
+		name = member.GetUser().FirstName
+	}
+	if error_handling.IsMissingChatMemberError(memberErr) || (memberErr == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
+		log.Debugf("[Captcha] User %d is no longer a member of chat %d; skipping %s", userID, chatID, outcome.action)
+		return name, nil, false, captcha.DeleteMutedUser(userID, chatID)
+	}
+	unban, err = executeCaptchaFailureAction(bot, chatID, userID, outcome.action, outcome.cause)
+	if err != nil {
+		if outcome.action == "kick" {
+			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
+		}
+		return name, nil, false, errors.Join(err, restoreCaptchaPermissions(bot, chatID, userID))
+	}
+	if outcome.action == "mute" {
+		return name, unban, true, nil
+	}
+	return name, unban, true, captcha.DeleteMutedUser(userID, chatID)
 }
 
 // reportCaptchaPass logs the pass with its attempts, the correct answer

@@ -3,17 +3,22 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 // pendingCaptchaAttempt stores an unexpired attempt for member 42 whose
@@ -207,14 +212,11 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 	// timeout is the timer firing on a chat that kicks on failure.
 	timeout := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
 		t.Helper()
-		if err := captcha.SetCaptchaEnabled(attempt.ChatID, "Captcha Chat", true); err != nil {
-			t.Fatalf("SetCaptchaEnabled() error = %v", err)
-		}
-		claimed, err := expireCaptchaAttempt(bot, attempt)
+		settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "kick"))
 		if err != nil {
-			t.Fatalf("expireCaptchaAttempt() error = %v", err)
+			t.Fatalf("settleCaptchaAttempt() error = %v", err)
 		}
-		return claimed
+		return settled
 	}
 	type ending func(*testing.T, *gotgbot.Bot, *db.CaptchaAttempts) bool
 	for _, tt := range []struct {
@@ -226,6 +228,9 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 		{"release then pass", release, pass},
 		{"pass then timeout", pass, timeout},
 		{"timeout then pass", timeout, pass},
+		{"timeout then timeout", timeout, timeout},
+		{"release then timeout", release, timeout},
+		{"timeout then release", timeout, release},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
@@ -354,4 +359,226 @@ func TestUndeliveredCaptchaForAGoneMemberSchedulesNoUnmute(t *testing.T) {
 	if users, getErr := captcha.GetMutedUsersForChat(chat.Id); getErr != nil || len(users) != 0 {
 		t.Fatalf("scheduled unmutes = (%+v, %v), want none for a member who is gone", users, getErr)
 	}
+}
+
+// memberCalls counts the calls that act on a member.
+func memberCalls(client *moduleBotClient) map[string]int {
+	got := map[string]int{}
+	for _, method := range []string{"unbanChatMember", "banChatMember", "restrictChatMember"} {
+		got[method] = len(client.callsFor(method))
+	}
+	return got
+}
+
+// A newcomer who does not answer in time gets the chat's failure action
+// once, the group a notice and a ban its record; a 24-hour mute keeps its
+// scheduled unmute, which is its timer.
+func TestCaptchaTimeoutAppliesTheChatsFailureActionOnce(t *testing.T) {
+	for _, tt := range []struct{ action, method string }{
+		{"kick", "unbanChatMember"},
+		{"ban", "banChatMember"},
+		{"mute", "restrictChatMember"},
+	} {
+		t.Run(tt.action, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+
+			settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, tt.action))
+			if !settled || err != nil {
+				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
+			}
+			want := map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 0, tt.method: 1}
+			if got := memberCalls(client); !reflect.DeepEqual(got, want) {
+				t.Fatalf("member calls = %v, want %v", got, want)
+			}
+			assertParams(t, client.onlyCall(t, tt.method), targetParams(attempt.ChatID, 42))
+			assertParams(t, client.onlyCall(t, "sendMessage"), map[string]any{"chat_id": attempt.ChatID})
+			assertDeleted(t, client, attempt.ChatID, 123)
+
+			records := banRecordsOf(t, attempt.ChatID)
+			if tt.action == "ban" {
+				if len(records) != 1 || records[0].UserId != 42 || records[0].Source != models.BanSourceCaptcha ||
+					records[0].SourceDetail != captchaFailedTimeout || records[0].BannedBy != 0 || records[0].Until != nil {
+					t.Fatalf("ban records = %+v, want one permanent captcha ban by the bot", records)
+				}
+			} else if len(records) != 0 {
+				t.Fatalf("ban records = %+v, want none for %s", records, tt.action)
+			}
+			if tt.action != "mute" {
+				assertCaptchaRows(t, attempt, 0)
+				return
+			}
+			// The 24h end is captcha's own schedule; Telegram gets no until_date.
+			if until := client.onlyCall(t, "restrictChatMember").Params["until_date"]; until != nil {
+				t.Fatalf("failure mute until_date = %v, want none", until)
+			}
+			assertCaptchaRows(t, attempt, 1)
+			users, _ := captcha.GetMutedUsersForChat(attempt.ChatID)
+			if left := time.Until(users[0].UnmuteAt); left < 23*time.Hour || left > 24*time.Hour {
+				t.Fatalf("scheduled unmute in %v, want 24h", left)
+			}
+		})
+	}
+}
+
+// When the failure action fails the mute is lifted as for a release, and
+// nothing claims the action happened.
+func TestCaptchaFailureActionThatFailsLiftsTheMuteAsForARelease(t *testing.T) {
+	temporary := errors.New("temporary Telegram failure")
+	for _, tt := range []struct {
+		name, action, method string
+		actionErr            error
+		// The mute and the unmute are both restrictChatMember calls.
+		wantMember    map[string]int
+		wantScheduled int
+	}{
+		{name: "kick", action: "kick", method: "unbanChatMember", actionErr: temporary,
+			wantMember: map[string]int{"unbanChatMember": 2, "banChatMember": 0, "restrictChatMember": 1}},
+		{name: "ban", action: "ban", method: "banChatMember", actionErr: temporary,
+			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 1, "restrictChatMember": 1}},
+		{name: "mute, unmute fails too", action: "mute", method: "restrictChatMember", actionErr: temporary,
+			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 2}, wantScheduled: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.errors[tt.method] = tt.actionErr
+			bot := newModuleTestBot(client)
+			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+
+			settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, tt.action))
+			if !settled || !errors.Is(err, tt.actionErr) {
+				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, the action's error)", settled, err)
+			}
+			if got := memberCalls(client); !reflect.DeepEqual(got, tt.wantMember) {
+				t.Fatalf("member calls = %v, want %v", got, tt.wantMember)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("sendMessage calls = %d, want no notice of an action that failed", len(calls))
+			}
+			if records := banRecordsOf(t, attempt.ChatID); len(records) != 0 {
+				t.Fatalf("ban records = %+v, want none", records)
+			}
+			assertDeleted(t, client, attempt.ChatID, 123)
+			assertCaptchaRows(t, attempt, tt.wantScheduled)
+			if tt.wantScheduled == 1 {
+				users, _ := captcha.GetMutedUsersForChat(attempt.ChatID)
+				if time.Until(users[0].UnmuteAt) > time.Minute {
+					t.Fatalf("scheduled unmute at %v, want the release's, not the 24h mute's", users[0].UnmuteAt)
+				}
+			}
+		})
+	}
+}
+
+// A newcomer who left before the timer fired, or whom someone else banned,
+// gets no action, and that ban is not lifted.
+func TestCaptchaFailureLeavesAGoneOrBannedMemberAlone(t *testing.T) {
+	for _, state := range []string{"left", "kicked", "missing"} {
+		for _, action := range []string{"kick", "ban", "mute"} {
+			t.Run(state+"/"+action, func(t *testing.T) {
+				client := newModuleBotClient()
+				if state == "missing" {
+					client.errors["getChatMember"] = &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: member not found"}
+				} else {
+					client.membersByUser = map[string]json.RawMessage{
+						"42": json.RawMessage(fmt.Sprintf(`{"status":%q,"until_date":0,"user":{"id":42,"is_bot":false,"first_name":"Member"}}`, state)),
+					}
+				}
+				bot := newModuleTestBot(client)
+				attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+
+				settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, action))
+				if !settled || err != nil {
+					t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
+				}
+				if got, want := memberCalls(client), (map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 0}); !reflect.DeepEqual(got, want) {
+					t.Fatalf("member calls = %v, want none", got)
+				}
+				if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+					t.Fatalf("sendMessage calls = %d, want no notice", len(calls))
+				}
+				assertDeleted(t, client, attempt.ChatID, 123)
+				assertCaptchaRows(t, attempt, 0)
+			})
+		}
+	}
+}
+
+// A newcomer muted as the failure action is unmuted by the unmute worker
+// once the 24 hours are up.
+func TestCaptchaFailureMuteIsLiftedAfter24Hours(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+	if settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "mute")); !settled || err != nil {
+		t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
+	}
+	unmuteExpiredCaptchaUsers(bot)
+	// The worker also lifts other chats' due unmutes; count this chat's.
+	if calls := callsToChat(client, "restrictChatMember", attempt.ChatID); len(calls) != 1 {
+		t.Fatalf("restrictChatMember calls = %d, want the mute only before 24h", len(calls))
+	}
+
+	// 24 hours pass.
+	if err := db.DB.Model(&models.CaptchaMutedUsers{}).Where("chat_id = ?", attempt.ChatID).
+		Update("unmute_at", time.Now().Add(-time.Minute)).Error; err != nil {
+		t.Fatalf("move unmute_at error = %v", err)
+	}
+	unmuteExpiredCaptchaUsers(bot)
+	calls := callsToChat(client, "restrictChatMember", attempt.ChatID)
+	if len(calls) != 2 {
+		t.Fatalf("restrictChatMember calls = %d, want the mute and its lift", len(calls))
+	}
+	assertParams(t, calls[1], targetParams(attempt.ChatID, 42))
+	assertCaptchaRows(t, attempt, 0)
+}
+
+// Wrong answers up to the limit fail the attempt: the chat's action is
+// applied once and the alert names it.
+func TestCaptchaWrongAnswersUpToTheLimitFailTheAttempt(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+	if err := captcha.SetCaptchaFailureAction(attempt.ChatID, "Captcha Chat", "ban"); err != nil {
+		t.Fatalf("SetCaptchaFailureAction() error = %v", err)
+	}
+	if err := captcha.SetCaptchaMaxAttempts(attempt.ChatID, "Captcha Chat", 2); err != nil {
+		t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
+	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadCaptcha(dispatcher)
+	chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"})
+	tap := func() {
+		t.Helper()
+		ctx := newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)
+		if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+			t.Fatalf("ProcessUpdate() error = %v", err)
+		}
+	}
+	tr := i18n.MustNewTranslator("en")
+
+	tap()
+	remaining, _ := tr.GetString("captcha_wrong_answer_remaining", i18n.TranslationParams{"d": 1})
+	assertParams(t, client.onlyCall(t, "answerCallbackQuery"), map[string]any{"text": remaining})
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none before the limit", len(calls))
+	}
+
+	tap()
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(attempt.ChatID, 42))
+	banned, _ := tr.GetString("captcha_action_banned")
+	final, _ := tr.GetString("captcha_wrong_answer_final", i18n.TranslationParams{"s": banned})
+	answers := client.callsFor("answerCallbackQuery")
+	if len(answers) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 2", len(answers))
+	}
+	assertParams(t, answers[1], map[string]any{"text": final, "show_alert": true})
+	assertDeleted(t, client, attempt.ChatID, 123)
+	if records := banRecordsOf(t, attempt.ChatID); len(records) != 1 || records[0].SourceDetail != captchaFailedWrongAnswers {
+		t.Fatalf("ban records = %+v, want one for wrong answers", records)
+	}
+	assertCaptchaRows(t, attempt, 0)
 }

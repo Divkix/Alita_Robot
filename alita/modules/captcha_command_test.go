@@ -361,7 +361,7 @@ func TestRunOrphanedCaptchaRecoveryResumesValidAttempts(t *testing.T) {
 	}
 }
 
-func TestCleanupExpiredCaptchaAttemptsDeletesMessagesAndRecords(t *testing.T) {
+func TestCaptchaCleanupTickSettlesOnlyExpiredAttempts(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 
@@ -405,16 +405,12 @@ func TestCleanupExpiredCaptchaAttemptsDeletesMessagesAndRecords(t *testing.T) {
 		t.Fatalf("active stored message setup error = %v", err)
 	}
 
-	if err := cleanupExpiredCaptchaAttempts(context.Background(), bot); err != nil {
-		t.Fatalf("cleanupExpiredCaptchaAttempts() error = %v", err)
+	if err := runCaptchaCleanupTick(context.Background(), bot); err != nil {
+		t.Fatalf("runCaptchaCleanupTick() error = %v", err)
 	}
 
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want expired captcha message deleted once", len(calls))
-	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want expired captcha failure action", len(calls))
-	}
+	assertDeleted(t, client, expired.ChatID, expired.MessageID)
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(expired.ChatID, expired.UserID))
 	gotExpired, err := captcha.GetCaptchaAttemptByID(expired.ID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttemptByID(expired) error = %v", err)
@@ -445,7 +441,7 @@ func TestCleanupExpiredCaptchaAttemptsDeletesMessagesAndRecords(t *testing.T) {
 	}
 }
 
-func TestCleanupExpiredCaptchaAttemptsHonorsCancelledContext(t *testing.T) {
+func TestCaptchaCleanupTickHonorsCancelledContext(t *testing.T) {
 	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
 		t.Fatalf("captcha attempt cleanup setup error = %v", err)
 	}
@@ -465,8 +461,8 @@ func TestCleanupExpiredCaptchaAttemptsHonorsCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if err := cleanupExpiredCaptchaAttempts(ctx, newModuleTestBot(newModuleBotClient())); !errors.Is(err, context.Canceled) {
-		t.Fatalf("cleanupExpiredCaptchaAttempts(cancelled) error = %v, want context.Canceled", err)
+	if err := runCaptchaCleanupTick(ctx, newModuleTestBot(newModuleBotClient())); !errors.Is(err, context.Canceled) {
+		t.Fatalf("runCaptchaCleanupTick(cancelled) error = %v, want context.Canceled", err)
 	}
 	got, err := captcha.GetCaptchaAttemptByID(attempt.ID)
 	if err != nil {
@@ -1293,254 +1289,6 @@ func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
 	}
 	if got, want := calls[0].Params["permissions"], (gotgbot.ChatPermissions{CanSendPolls: true}); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unmute permissions = %+v, want the chat's defaults %+v", got, want)
-	}
-}
-
-func TestCaptchaVerifyCallbackFinalWrongAnswerAppliesFailureAction(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := captcha.SetCaptchaFailureAction(chat.Id, chat.Title, "ban"); err != nil {
-		t.Fatalf("SetCaptchaFailureAction() error = %v", err)
-	}
-	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, 1); err != nil {
-		t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
-	}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
-		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
-	}
-
-	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"}))
-	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
-		t.Fatalf("captchaVerifyCallback(final wrong) error = %v", err)
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want failure ban", len(calls))
-	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want final wrong answer", len(calls))
-	}
-}
-
-func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) {
-	tests := []struct {
-		name           string
-		action         string
-		wantBan        int
-		wantUnban      int
-		wantRestrict   int
-		withStoredText bool
-	}{
-		{name: "kick", action: "kick", wantUnban: 1},
-		{name: "ban", action: "ban", wantBan: 1},
-		{name: "mute with stored messages", action: "mute", wantRestrict: 1, withStoredText: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-			member := gotgbot.User{Id: 42, FirstName: "Member"}
-			attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-			if err != nil {
-				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-			}
-			if tt.withStoredText {
-				if err := captcha.StoreMessageForCaptcha(member.Id, chat.Id, attempt.ID, db.TEXT, "blocked", "", ""); err != nil {
-					t.Fatalf("StoreMessageForCaptcha() error = %v", err)
-				}
-			}
-
-			claimed, applied := handleCaptchaTimeout(bot, chat.Id, member.Id, attempt.ID, 456, tt.action, captchaFailedTimeout)
-			if !claimed || !applied {
-				t.Fatalf("handleCaptchaTimeout(%s) = (%v, %v), want claimed and applied", tt.name, claimed, applied)
-			}
-
-			if current, err := captcha.GetCaptchaAttempt(member.Id, chat.Id); err != nil || current != nil {
-				t.Fatalf("GetCaptchaAttempt() after timeout = %#v, %v; want nil, nil", current, err)
-			}
-			if calls := client.callsFor("banChatMember"); len(calls) != tt.wantBan {
-				t.Fatalf("banChatMember calls = %d, want %d", len(calls), tt.wantBan)
-			}
-			if calls := client.callsFor("unbanChatMember"); len(calls) != tt.wantUnban {
-				t.Fatalf("unbanChatMember calls = %d, want %d", len(calls), tt.wantUnban)
-			}
-			if calls := client.callsFor("restrictChatMember"); len(calls) != tt.wantRestrict {
-				t.Fatalf("restrictChatMember calls = %d, want %d", len(calls), tt.wantRestrict)
-			}
-			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-				t.Fatalf("sendMessage calls = %d, want timeout notice", len(calls))
-			}
-			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-				t.Fatalf("deleteMessage calls = %d, want captcha message cleanup", len(calls))
-			}
-			records := banRecordsOf(t, chat.Id)
-			if tt.action == "ban" {
-				if len(records) != 1 || records[0].UserId != member.Id || records[0].Source != models.BanSourceCaptcha ||
-					records[0].SourceDetail != captchaFailedTimeout || records[0].BannedBy != 0 || records[0].Until != nil {
-					t.Fatalf("ban records = %+v, want one permanent captcha ban by the bot", records)
-				}
-			} else if len(records) != 0 {
-				t.Fatalf("%s recorded bans %+v, want none", tt.action, records)
-			}
-			if tt.action == "mute" {
-				// The 24h end is captcha's own schedule; Telegram gets no until_date.
-				if call := client.onlyCall(t, "restrictChatMember"); call.Params["until_date"] != nil {
-					t.Fatalf("failure mute until_date = %v, want none", call.Params["until_date"])
-				}
-				users, err := captcha.GetMutedUsersForChat(chat.Id)
-				if err != nil || len(users) != 1 || time.Until(users[0].UnmuteAt) < 23*time.Hour || time.Until(users[0].UnmuteAt) > 24*time.Hour {
-					t.Fatalf("unmute schedule = %+v, %v; want one in 24h", users, err)
-				}
-			}
-		})
-	}
-
-	t.Run("missing attempt", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		if claimed, applied := handleCaptchaTimeout(bot, uniqueModuleChatID(), 42, 999999, 456, "kick", captchaFailedTimeout); claimed || applied {
-			t.Fatalf("handleCaptchaTimeout(missing) = (%v, %v), want false, false", claimed, applied)
-		}
-		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-			t.Fatalf("sendMessage calls = %d, want none for missing attempt", len(calls))
-		}
-	})
-
-	t.Run("identity mismatch", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-		attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
-		if err != nil {
-			t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-		}
-		if claimed, applied := handleCaptchaTimeout(bot, chat.Id, 43, attempt.ID, 456, "kick", captchaFailedTimeout); claimed || applied {
-			t.Fatalf("handleCaptchaTimeout(mismatch) = (%v, %v), want false, false", claimed, applied)
-		}
-		if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current == nil {
-			t.Fatalf("GetCaptchaAttemptByID() after mismatch = %#v, %v; want retained attempt", current, err)
-		}
-		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-			t.Fatalf("sendMessage calls = %d, want none for identity mismatch", len(calls))
-		}
-	})
-}
-
-// Departed members need neither another moderation action nor a fallback
-// unmute. In particular, a kick must not lift another guard's existing ban.
-func TestHandleCaptchaTimeoutLeavesDepartedMembersUntouched(t *testing.T) {
-	for _, state := range []string{"kicked", "left", "missing"} {
-		for _, action := range []string{"kick", "ban", "mute"} {
-			t.Run(state+"/"+action, func(t *testing.T) {
-				client := newModuleBotClient()
-				if state == "missing" {
-					client.errors["getChatMember"] = &gotgbot.TelegramError{Method: "getChatMember", Code: 400, Description: "Bad Request: member not found"}
-				} else {
-					client.membersByUser = map[string]json.RawMessage{
-						"42": json.RawMessage(fmt.Sprintf(`{"status":%q,"until_date":0,"user":{"id":42,"is_bot":false,"first_name":"Member"}}`, state)),
-					}
-				}
-				bot := newModuleTestBot(client)
-				chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-				attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
-				if err != nil {
-					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-				}
-				if err := captcha.CreateMutedUser(42, chat.Id, time.Now()); err != nil {
-					t.Fatalf("CreateMutedUser() error = %v", err)
-				}
-				claimed, applied := handleCaptchaTimeout(bot, chat.Id, 42, attempt.ID, 456, action, captchaFailedTimeout)
-				if !claimed || applied {
-					t.Fatalf("handleCaptchaTimeout() = (%v, %v), want claimed, not applied", claimed, applied)
-				}
-				for _, method := range []string{"unbanChatMember", "banChatMember", "restrictChatMember", "sendMessage"} {
-					if calls := client.callsFor(method); len(calls) != 0 {
-						t.Fatalf("%s calls = %d, want none for a departed member", method, len(calls))
-					}
-				}
-				if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-					t.Fatalf("deleteMessage calls = %d, want captcha message cleanup", len(calls))
-				}
-				if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current != nil {
-					t.Fatalf("attempt after timeout = %#v, %v; want released", current, err)
-				}
-				if users, err := captcha.GetMutedUsersForChat(chat.Id); err != nil || len(users) != 0 {
-					t.Fatalf("GetMutedUsersForChat() = (%+v, %v), want no departed-member unmute", users, err)
-				}
-			})
-		}
-	}
-}
-
-func TestExpireCaptchaAttemptReleasesWhenCaptchaWasDisabled(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChat"] = []byte(`{
-		"id": -1001,
-		"type": "supergroup",
-		"title": "Captcha Chat",
-		"permissions": {"can_send_messages": true}
-	}`)
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chatID, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
-		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
-	}
-	attempt.MessageID = 123
-
-	handled, err := expireCaptchaAttempt(bot, attempt)
-	if err != nil || !handled {
-		t.Fatalf("expireCaptchaAttempt() = (%v, %v), want (true, nil)", handled, err)
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want none after captcha disable", len(calls))
-	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want permission restoration", len(calls))
-	}
-	if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current != nil {
-		t.Fatalf("attempt after release = %#v, %v; want nil, nil", current, err)
-	}
-}
-
-func TestHandleCaptchaTimeoutRestoresPermissionsWhenActionFails(t *testing.T) {
-	client := newModuleBotClient()
-	client.errors["banChatMember"] = errors.New("telegram unavailable")
-	client.responses["getChat"] = []byte(`{
-		"id": -1001,
-		"type": "supergroup",
-		"title": "Captcha Chat",
-		"permissions": {"can_send_messages": true}
-	}`)
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
-	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
-		t.Fatalf("SetCaptchaEnabled() error = %v", err)
-	}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(42, chatID, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-
-	claimed, applied := handleCaptchaTimeout(bot, chatID, 42, attempt.ID, 123, "ban", captchaFailedTimeout)
-	if !claimed || applied {
-		t.Fatalf("handleCaptchaTimeout() = (%v, %v), want claimed with failed action", claimed, applied)
-	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want fail-open permission restoration", len(calls))
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-		t.Fatalf("sendMessage calls = %d, want no false action-success notice", len(calls))
 	}
 }
 

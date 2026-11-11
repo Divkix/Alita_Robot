@@ -15,6 +15,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/bans"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
@@ -120,13 +121,20 @@ func TestCaptchaFailureEntryHasTheButtonOnlyForABan(t *testing.T) {
 	f := newAdminChatFixture(t)
 	withBanLogChannel(t, f)
 
-	unban := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{Text: "Unban", CallbackData: unbanLogData(77)}}}}
-	reportCaptchaFailure(f.bot, f.chat.Id, f.member.Id, "Member", "kick", "timeout", 0, nil)
-	reportCaptchaFailure(f.bot, f.chat.Id, f.member.Id, "Member", "ban", "timeout", 0, unban)
+	for _, action := range []string{"kick", "ban"} {
+		attempt, err := captcha.CreateCaptchaAttemptPreMessage(f.member.Id, f.chat.Id, "7", 2)
+		if err != nil {
+			t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+		}
+		if settled, err := settleCaptchaAttempt(f.bot, attempt, captchaFailed(captchaFailedTimeout, action)); !settled || err != nil {
+			t.Fatalf("settleCaptchaAttempt(%s) = (%v, %v), want (true, nil)", action, settled, err)
+		}
+	}
+	record := singleBanRecord(t, f.chat.Id)
 
 	entries := logUnbanButtons(t, f)
-	if len(entries) != 2 || len(entries[0]) != 0 || len(entries[1]) != 1 || entries[1][0] != unbanLogData(77) {
-		t.Fatalf("captcha entries' Unban buttons = %v, want none on the kick and record 77's on the ban", entries)
+	if len(entries) != 2 || len(entries[0]) != 0 || len(entries[1]) != 1 || entries[1][0] != unbanLogData(record.ID) {
+		t.Fatalf("captcha entries' Unban buttons = %v, want none on the kick and record %d's on the ban", entries, record.ID)
 	}
 }
 
