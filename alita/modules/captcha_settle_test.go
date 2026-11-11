@@ -439,6 +439,8 @@ func TestCaptchaFailureActionThatFailsLiftsTheMuteAsForARelease(t *testing.T) {
 			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 1, "restrictChatMember": 1}},
 		{name: "mute, unmute fails too", action: "mute", method: "restrictChatMember", actionErr: temporary,
 			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 2}, wantScheduled: 1},
+		{name: "mute, member gone meanwhile", action: "mute", method: "restrictChatMember", actionErr: errors.New("Bad Request: USER_NOT_PARTICIPANT"),
+			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 2}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()

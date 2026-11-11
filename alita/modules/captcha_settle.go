@@ -137,7 +137,7 @@ func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 		if outcome.action == "kick" {
 			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
 		}
-		return name, nil, false, errors.Join(err, restoreCaptchaPermissions(bot, chatID, userID))
+		return name, nil, false, errors.Join(err, keepScheduledUnmuteOnFailure(chatID, userID, unmuteCaptchaUser(bot, chatID, userID)))
 	}
 	if outcome.action == "mute" {
 		return name, unban, true, nil

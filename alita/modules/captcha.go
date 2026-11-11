@@ -1508,7 +1508,8 @@ func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action,
 	if err != nil {
 		err = fmt.Errorf("%s: %w", action, err)
 		if mute {
-			err = errors.Join(err, captcha.DeleteMutedUser(userID, chatID))
+			// Back to the claim's fallback unmute, for the release rule to keep or clear.
+			err = errors.Join(err, captcha.CreateMutedUser(userID, chatID, time.Now()))
 		}
 		return nil, err
 	}
