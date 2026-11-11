@@ -23,13 +23,7 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 	case settings.RestrictUser:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict()}
 	case settings.OwnerBot:
-		return []helpers.CheckFunc{
-			helpers.RequireConnectedMember(helpers.BotAdminRequired),
-			func(c *helpers.CommandContext) bool {
-				// Members may view the mode; only the owner may change it.
-				return len(c.Ctx.Args()) == 1 || helpers.RequireUserOwner()(c)
-			},
-		}
+		return []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired), settingOwnerWriteCheck}
 	case settings.FederationAdmin:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), federationChatCheck}
 	default:
@@ -40,14 +34,29 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 // declaredGroupSettingChecks keeps group-only commands' permission replies while
 // deriving the same policy as connected commands.
 func declaredGroupSettingChecks(declaration *settings.Declaration) []helpers.CheckFunc {
-	checks := declaredSettingChecks(declaration)
-	admin := []helpers.CheckFunc{helpers.RequireUserAdmin()}
 	switch declaration.Right {
-	case settings.Admin, settings.ChangeInfo, settings.FederationAdmin:
-	case settings.AdminBot, settings.ChangeInfoBot, settings.Restrict, settings.RestrictUser:
-		admin = append([]helpers.CheckFunc{helpers.RequireBotAdmin()}, admin...)
+	case settings.Admin:
+		return []helpers.CheckFunc{helpers.RequireUserAdmin()}
+	case settings.AdminBot:
+		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin()}
+	case settings.ChangeInfo:
+		return []helpers.CheckFunc{helpers.RequireUserAdmin(), helpers.CanUserChangeInfo()}
+	case settings.ChangeInfoBot:
+		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin(), helpers.CanUserChangeInfo()}
+	case settings.Restrict:
+		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	case settings.RestrictUser:
+		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin(), helpers.CanUserRestrict()}
 	case settings.OwnerBot:
-		return []helpers.CheckFunc{helpers.RequireBotAdmin(), checks[1]}
+		return []helpers.CheckFunc{helpers.RequireBotAdmin(), settingOwnerWriteCheck}
+	case settings.FederationAdmin:
+		return []helpers.CheckFunc{helpers.RequireUserAdmin(), federationChatCheck}
+	default:
+		panic(fmt.Sprintf("unmapped setting right: %d", declaration.Right))
 	}
-	return append(admin, checks[1:]...)
+}
+
+func settingOwnerWriteCheck(c *helpers.CommandContext) bool {
+	// Members may view the mode; only the owner may change it.
+	return len(c.Ctx.Args()) == 1 || helpers.RequireUserOwner()(c)
 }

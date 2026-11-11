@@ -85,11 +85,13 @@ const (
 )
 
 type Declaration struct {
-	Key          string
-	Type         Type
-	Default      any
-	Right        Right
-	Options      []string
+	Key     string
+	Type    Type
+	Default any
+	Right   Right
+	Options []string
+	// FailureKey optionally supplies a locale key for command/button write failures.
+	FailureKey   func(any) string
 	toggleValues []string
 	shared       *sharedWrite
 	unchanged    func(any) bool
@@ -205,6 +207,16 @@ func (d *Declaration) effective(value any) any {
 		return d.Default
 	}
 	return value
+}
+
+func storedValue[T any](load func(context.Context, int64) (*T, error), value func(*T) any) func(context.Context, int64) any {
+	return func(ctx context.Context, chatID int64) any {
+		row, err := load(ctx, chatID)
+		if err != nil || row == nil {
+			return nil
+		}
+		return value(row)
+	}
 }
 
 // CheckAttachments fails startup when a module has not attached a required

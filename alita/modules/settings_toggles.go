@@ -58,11 +58,8 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 			if key := settings.RefusalKey(err); key != "" {
 				return key
 			}
-			if declaration == settings.CaptchaEnabled && err != nil {
-				if parsed == true {
-					return "captcha_enable_failed"
-				}
-				return "captcha_disable_failed"
+			if err != nil && declaration.FailureKey != nil {
+				return declaration.FailureKey(parsed)
 			}
 			return settingsSaveFailed(command, chatID, err)
 		},

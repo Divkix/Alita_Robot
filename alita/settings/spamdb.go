@@ -9,11 +9,20 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 )
 
-var SpamDBEnabled = spamDBDeclaration("antispam.spamdb_enabled", Switch, false,
-	func(row *models.SpamDBSettings) any { return row.Enabled },
-	func(input WriteContext, value any) error {
-		return spamdbsettings.SetSpamDBEnabled(input.ChatID, value.(bool))
-	})
+var SpamDBEnabled = func() *Declaration {
+	d := spamDBDeclaration("antispam.spamdb_enabled", Switch, false,
+		func(row *models.SpamDBSettings) any { return row.Enabled },
+		func(input WriteContext, value any) error {
+			return spamdbsettings.SetSpamDBEnabled(input.ChatID, value.(bool))
+		})
+	d.precondition = func(_ WriteContext, value any) error {
+		if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableSpamDB) {
+			return Refusal("spamdb_globally_disabled")
+		}
+		return nil
+	}
+	return d
+}()
 
 var SpamDBAction = func() *Declaration {
 	d := spamDBDeclaration("antispam.spamdb_action", Choice, spamdbsettings.ActionBan,
@@ -32,26 +41,11 @@ var SpamDBCAS, SpamDBLols, SpamDBShared = spamDatabases()
 var ErrLastSpamDatabase = errors.New("at least one spam database must stay on")
 
 func spamDBDeclaration(key string, kind Type, def any, read func(*models.SpamDBSettings) any, write func(WriteContext, any) error) *Declaration {
-	d := &Declaration{
+	return &Declaration{
 		Key: key, Type: kind, Default: def, Right: Admin,
-		read: func(ctx context.Context, chatID int64) any {
-			row, err := spamdbsettings.GetSpamDBSettingsContext(ctx, chatID)
-			if err != nil || row == nil {
-				return nil
-			}
-			return read(row)
-		},
+		read:  storedValue(spamdbsettings.GetSpamDBSettingsContext, read),
 		write: write,
 	}
-	if key == "antispam.spamdb_enabled" {
-		d.precondition = func(_ WriteContext, value any) error {
-			if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableSpamDB) {
-				return Refusal("spamdb_globally_disabled")
-			}
-			return nil
-		}
-	}
-	return d
 }
 
 func spamDatabases() (*Declaration, *Declaration, *Declaration) {

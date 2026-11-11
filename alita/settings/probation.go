@@ -51,13 +51,7 @@ func probationNumber(key string, kind Type, def, minValue, maxValue int, message
 func probationDeclaration(key string, kind Type, def any, read func(*models.ProbationSettings) any, write func(WriteContext, any) error) *Declaration {
 	return &Declaration{
 		Key: key, Type: kind, Default: def, Right: RestrictUser,
-		read: func(ctx context.Context, chatID int64) any {
-			row, err := probation.GetSettings(ctx, chatID)
-			if err != nil || row == nil {
-				return nil
-			}
-			return read(row)
-		},
+		read:  storedValue(probation.GetSettings, read),
 		write: write,
 	}
 }
