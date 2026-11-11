@@ -38,6 +38,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 	"github.com/divkix/Alita_Robot/alita/utils/slogrus"
@@ -169,9 +170,9 @@ func main() {
 
 	stats.StartFlusher()
 
-	digestScheduler := digest.NewScheduler(b)
-	memberSnapshotter := membersnapshot.New(b)
-	recurringScheduler := recurring.NewScheduler(b)
+	digest.Register(b)
+	membersnapshot.Register(b)
+	recurring.Register(b)
 
 	// Registered first so it runs last: every other handler's logs and spans
 	// are exported before the providers close.
@@ -190,24 +191,12 @@ func main() {
 			return stats.StopFlusher()
 		},
 		func() error {
-			log.Info("[Shutdown] Stopping digest scheduler...")
-			digestScheduler.Stop()
-			return nil
-		},
-		func() error {
-			log.Info("[Shutdown] Stopping member count snapshots...")
-			memberSnapshotter.Stop()
-			return nil
-		},
-		func() error {
-			log.Info("[Shutdown] Stopping recurring messages scheduler...")
-			recurringScheduler.Stop()
+			log.Info("[Shutdown] Stopping periodic jobs...")
+			jobs.Stop()
 			return nil
 		},
 	)
-	digestScheduler.Start()
-	memberSnapshotter.Start()
-	recurringScheduler.Start()
+	jobs.Start()
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")

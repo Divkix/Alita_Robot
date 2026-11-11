@@ -576,15 +576,3 @@ func TestSchedulerClaimsNothingDuringALongFloodWait(t *testing.T) {
 		t.Fatal("message was claimed during the flood wait")
 	}
 }
-
-func TestSchedulerStopIsIdempotentAndSafeWithoutStart(t *testing.T) {
-	s := newTestScheduler(&recurringBotClient{})
-	s.Stop()
-	s.Stop()
-
-	started := newTestScheduler(&recurringBotClient{})
-	started.Start()
-	started.Start()
-	started.Stop()
-	started.Stop()
-}

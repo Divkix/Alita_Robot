@@ -238,8 +238,4 @@ func TestShutdownDuringACallReleasesItsClaim(t *testing.T) {
 	if _, ok := storedCount(t, chatID, "2099-03-10"); !ok {
 		t.Fatal("the chat was not measured after a cancelled call")
 	}
-
-	// Stop is safe twice and on a snapshotter that never started.
-	s.Stop()
-	s.Stop()
 }

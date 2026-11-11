@@ -6,14 +6,12 @@ package membersnapshot
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
@@ -52,11 +50,6 @@ type Snapshotter struct {
 	// now is the clock a tick reads. Tests replace it to pin the day;
 	// production never writes it after construction.
 	now func() time.Time
-
-	startOnce sync.Once
-	stopOnce  sync.Once
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
 }
 
 // New returns a snapshotter for bot. It does not start ticking.
@@ -64,42 +57,14 @@ func New(bot *gotgbot.Bot) *Snapshotter {
 	return &Snapshotter{bot: bot, interval: defaultInterval, pace: defaultPace, now: time.Now}
 }
 
-// Start begins the ticker. Calling it twice does nothing.
-func (s *Snapshotter) Start() {
-	s.startOnce.Do(func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		s.cancel = cancel
-		s.wg.Add(1)
-		go func() {
-			defer s.wg.Done()
-			defer error_handling.RecoverFromPanic("memberSnapshotter", "membersnapshot")
-
-			ticker := time.NewTicker(s.interval)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					jobs.Run(ctx, "memberSnapshotterTick", func(ctx context.Context) error {
-						s.runDue(ctx, s.now())
-						return nil
-					})
-				}
-			}
-		}()
-	})
-}
-
-// Stop stops the ticker and waits for a running tick, which stops between two
-// chats (an in-flight call is cancelled and its claim released). It is
-// idempotent and safe on a snapshotter that was never started.
-func (s *Snapshotter) Stop() {
-	s.stopOnce.Do(func() {
-		if s.cancel != nil {
-			s.cancel()
-		}
-		s.wg.Wait()
+// Register registers bot's snapshotter as the periodic job
+// memberSnapshotterTick; jobs.Start begins it. Stopping the jobs ends a tick
+// between two chats (an in-flight call is cancelled and its claim released).
+func Register(bot *gotgbot.Bot) {
+	s := New(bot)
+	jobs.Register("memberSnapshotterTick", s.interval, func(ctx context.Context) error {
+		s.runDue(ctx, s.now())
+		return nil
 	})
 }
 

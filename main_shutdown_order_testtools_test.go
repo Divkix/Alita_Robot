@@ -8,10 +8,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 )
 
-// The stats flusher drains into the database, so its flush must run before the
-// database-close handler. Registration is DB close first, then the flush;
-// shutdown runs handlers in reverse order.
-func TestShutdownFlushesStatsBeforeClosingDatabase(t *testing.T) {
+// The periodic jobs and the stats flusher write to the database, so they must
+// stop and flush before the database-close handler, and the jobs stop first so
+// the final flush sees their last counters. Registration is DB close, flush,
+// jobs stop; shutdown runs handlers in reverse order.
+func TestShutdownStopsJobsAndFlushesStatsBeforeClosingDatabase(t *testing.T) {
 	manager := shutdown.NewManager()
 
 	var order []string
@@ -24,11 +25,15 @@ func TestShutdownFlushesStatsBeforeClosingDatabase(t *testing.T) {
 			order = append(order, "stats flush")
 			return nil
 		},
+		func() error {
+			order = append(order, "jobs stop")
+			return nil
+		},
 	)
 
 	manager.ExecuteHandlersForTest()
 
-	if len(order) != 2 || order[0] != "stats flush" || order[1] != "db close" {
-		t.Fatalf("handler order = %v, want [stats flush, db close]", order)
+	if len(order) != 3 || order[0] != "jobs stop" || order[1] != "stats flush" || order[2] != "db close" {
+		t.Fatalf("handler order = %v, want [jobs stop, stats flush, db close]", order)
 	}
 }
