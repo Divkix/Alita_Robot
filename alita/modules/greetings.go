@@ -41,8 +41,8 @@ import (
 var recentJoinProcessTTL = 5 * time.Second
 
 // membershipHandlerGroup holds membership intake's join and leave handlers.
-// It runs after the join-guard watchers (-6, -5, -4) and the users tracker
-// (-1), and its handlers end the update, so later groups never see a join.
+// It runs after the federation watcher (-6) and the users tracker (-1), and
+// its handlers end the update, so later groups never see a join.
 const membershipHandlerGroup = 0
 
 var (
@@ -100,13 +100,6 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 	return claimed
 }
 
-// claimRecentJoinForBan is claimRecentJoinProcessing for a guard about to ban
-// the newcomer. A Redis error falls back to this replica's claim instead of
-// failing closed, so an outage does not let a banned user in.
-func claimRecentJoinForBan(chatID, userID int64) bool {
-	return claimJoin(chatID, userID) != ClaimLost
-}
-
 // claimJoin is membership intake's join claim. A Redis error falls back to a
 // claim local to this replica, which lets the guard stages run but not the
 // challenge or welcome, so an outage neither lets a banned user in nor greets
@@ -124,6 +117,12 @@ func claimJoin(chatID, userID int64) JoinClaim {
 		return ClaimShared
 	}
 	return ClaimLost
+}
+
+// markJoinHandled claims userID's join for a guard that removed them on
+// another update, so a later update of that join does nothing.
+func markJoinHandled(chatID, userID int64) {
+	claimJoin(chatID, userID)
 }
 
 // tryClaimRecentJoinProcessing takes the join claim in Redis, or in this
@@ -646,9 +645,9 @@ func membershipDepsForJoin(bot *gotgbot.Bot, ctx *ext.Context) MembershipDeps {
 			return chat_status.IsApproved(bot, chatID, userID)
 		},
 		Count: func(user gotgbot.User) { antiRaidModule.countJoin(bot, ctx, user.Id) },
-		// The guards in the order a newcomer meets them. Federation ban still
-		// runs as its own watcher (group -6) ahead of this one.
+		// The guards in the order a newcomer meets them.
 		Stages: []JoinStage{
+			func(user gotgbot.User) StageAnswer { return federationsModule.fedBanStage(bot, ctx, user) },
 			func(user gotgbot.User) StageAnswer { return antiRaidModule.antiRaidStage(bot, ctx, user) },
 			func(user gotgbot.User) StageAnswer { return spamDBModule.spamDBStage(bot, ctx, user) },
 			func(user gotgbot.User) StageAnswer { return locksModule.botsLockStage(bot, ctx, user) },
