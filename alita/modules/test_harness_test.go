@@ -61,6 +61,8 @@ type moduleBotClient struct {
 	errors    map[string]error
 	// errorsByChat fails a method for one chat_id, keyed "method|chat_id".
 	errorsByChat map[string]error
+	// errorsByUser fails a method for one user_id, keyed "method|user_id".
+	errorsByUser map[string]error
 	// adminsByChat overrides getChatAdministrators per chat_id.
 	adminsByChat map[string]json.RawMessage
 	// membersByUser overrides getChatMember per user_id.
@@ -144,6 +146,9 @@ func (c *moduleBotClient) RequestWithContext(_ context.Context, _ string, method
 		return nil, err
 	}
 	if err := c.errorsByChat[method+"|"+fmt.Sprint(params["chat_id"])]; err != nil {
+		return nil, err
+	}
+	if err := c.errorsByUser[method+"|"+fmt.Sprint(params["user_id"])]; err != nil {
 		return nil, err
 	}
 	if method == "getChatMember" {

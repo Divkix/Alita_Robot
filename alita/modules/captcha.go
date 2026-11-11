@@ -302,29 +302,6 @@ func startCaptchaLifecycleTask(task func(context.Context)) bool {
 	return true
 }
 
-func isPermanentTelegramError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	permanentErrors := []string{
-		"message to delete not found",
-		"message can't be deleted",
-		"bot was kicked",
-		"chat not found",
-		"group chat was deactivated",
-		"bot is not a member",
-		"CHAT_NOT_FOUND",
-		"PEER_ID_INVALID",
-	}
-	for _, pe := range permanentErrors {
-		if strings.Contains(errStr, pe) {
-			return true
-		}
-	}
-	return false
-}
-
 func isPermanentUnmuteError(err error) bool {
 	if err == nil {
 		return false
@@ -367,7 +344,7 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) error {
 
 	for _, attempt := range attempts {
 		if attempt.MessageID <= 0 {
-			released, err := releaseIncompleteCaptchaAttempt(bot, attempt)
+			released, _, err := settleCaptchaAttempt(bot, attempt, captchaReleased)
 			if err != nil {
 				log.Warnf("[CaptchaRecovery] Failed to release incomplete attempt %d: %v", attempt.ID, err)
 			}
@@ -392,18 +369,6 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) error {
 
 	log.Infof("[CaptchaRecovery] Completed: %d expired, %d resumed, %d incomplete released", expiredCount, resumedCount, releasedCount)
 	return nil
-}
-
-func releaseIncompleteCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, error) {
-	claimed, deleteErr := captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
-	if deleteErr != nil || !claimed {
-		return false, deleteErr
-	}
-	unmuteErr := unmuteCaptchaUser(bot, attempt.ChatID, attempt.UserID)
-	if unmuteErr == nil || isPermanentUnmuteError(unmuteErr) {
-		return true, errors.Join(unmuteErr, captcha.DeleteMutedUser(attempt.UserID, attempt.ChatID))
-	}
-	return true, unmuteErr
 }
 
 // secureIntn returns a cryptographically secure random integer in [0, max).
@@ -682,8 +647,10 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 }
 
-// disableCaptchaForChat clears pending attempts and restores the members they
-// held. The declaration invokes it after persisting captcha off.
+// disableCaptchaForChat settles every pending attempt as released and lifts
+// the mutes left only as a scheduled unmute, by the same failure rule. The
+// declaration invokes it after persisting captcha off; its error is only
+// what retrying can fix, left to the unmute worker.
 func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 	attempts, err := captcha.GetCaptchaAttemptsForChat(chatID)
 	if err != nil {
@@ -694,33 +661,23 @@ func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 		return err
 	}
 
-	usersToRestore := make(map[int64]struct{}, len(attempts)+len(mutedUsers))
-	var cleanupErr error
+	settled := make(map[int64]struct{}, len(attempts))
+	var releaseErr error
 	for _, attempt := range attempts {
-		claimed, err := captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, chatID)
-		if err != nil {
-			cleanupErr = errors.Join(cleanupErr, err)
-			continue
+		settled[attempt.UserID] = struct{}{}
+		if _, _, err := settleCaptchaAttempt(bot, attempt, captchaReleased); err != nil {
+			releaseErr = errors.Join(releaseErr, err)
 		}
-		if !claimed {
-			continue
-		}
-		if attempt.MessageID > 0 {
-			if err := helpers.DeleteMessageWithErrorHandling(bot, chatID, attempt.MessageID); err != nil && !isPermanentTelegramError(err) {
-				cleanupErr = errors.Join(cleanupErr, err)
-			}
-		}
-		usersToRestore[attempt.UserID] = struct{}{}
 	}
 	for _, user := range mutedUsers {
-		usersToRestore[user.UserID] = struct{}{}
-	}
-	for userID := range usersToRestore {
-		if err := restoreCaptchaPermissions(bot, chatID, userID); err != nil {
-			cleanupErr = errors.Join(cleanupErr, err)
+		if _, ok := settled[user.UserID]; ok {
+			continue
+		}
+		if err := liftCaptchaMute(bot, chatID, user.UserID); err != nil {
+			releaseErr = errors.Join(releaseErr, err)
 		}
 	}
-	return cleanupErr
+	return releaseErr
 }
 
 // captchaJoinCommand controls PM verification of join requests independently of
@@ -1173,7 +1130,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 			if preAttempt != nil {
 				var rbErr error
 				if muted {
-					rbErr = rollbackCaptchaAttempt(bot, preAttempt)
+					_, _, rbErr = settleCaptchaAttempt(bot, preAttempt, captchaReleased)
 				} else {
 					_, rbErr = captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, preAttempt.ChatID)
 				}
@@ -1320,7 +1277,8 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	}
 	if verifyCount == 0 {
 		log.Errorf("[Captcha] No verify buttons could be encoded for attempt %d", preAttempt.ID)
-		return errors.Join(errors.New("captcha keyboard empty: no encodable options"), rollbackCaptchaAttempt(bot, preAttempt))
+		_, _, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased)
+		return errors.Join(errors.New("captcha keyboard empty: no encodable options"), rollbackErr)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1368,7 +1326,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 			err = errors.New("telegram returned no captcha message")
 		}
 		sendErr := fmt.Errorf("deliver captcha to user %d in chat %d: %w", userID, chat.Id, err)
-		if rollbackErr := rollbackCaptchaAttempt(bot, preAttempt); rollbackErr != nil {
+		if _, _, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased); rollbackErr != nil {
 			return errors.Join(sendErr, fmt.Errorf("roll back captcha for user %d in chat %d: %w", userID, chat.Id, rollbackErr))
 		}
 		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{
@@ -1383,7 +1341,8 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	if err != nil {
 		log.Errorf("Failed to set captcha attempt message ID: %v", err)
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, sent.MessageId)
-		return errors.Join(err, rollbackCaptchaAttempt(bot, preAttempt))
+		_, _, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased)
+		return errors.Join(err, rollbackErr)
 	}
 
 	preAttempt.MessageID = sent.MessageId
@@ -1393,14 +1352,6 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	scheduleCaptchaTimeout(bot, preAttempt)
 
 	return nil
-}
-
-func rollbackCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) error {
-	claimed, err := captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
-	if err != nil || !claimed {
-		return err
-	}
-	return restoreCaptchaPermissions(bot, attempt.ChatID, attempt.UserID)
 }
 
 func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
@@ -1432,32 +1383,18 @@ func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
 }
 
 func expireCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, error) {
-	if chat_status.IsApproved(bot, attempt.ChatID, attempt.UserID) {
-		if attempt.MessageID > 0 {
-			_ = helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID)
+	outcome := captchaReleased
+	if !chat_status.IsApproved(bot, attempt.ChatID, attempt.UserID) {
+		settings, err := chatsettings.ReadCaptcha(attempt.ChatID)
+		if err != nil {
+			return false, fmt.Errorf("load captcha settings for chat %d: %w", attempt.ChatID, err)
 		}
-		return releaseIncompleteCaptchaAttempt(bot, attempt)
-	}
-	settings, err := chatsettings.ReadCaptcha(attempt.ChatID)
-	if err != nil {
-		return false, fmt.Errorf("load captcha settings for chat %d: %w", attempt.ChatID, err)
-	}
-	if !settings.Enabled {
-		if attempt.MessageID > 0 {
-			_ = helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID)
+		if settings.Enabled {
+			outcome = captchaFailed(captchaFailedTimeout, settings.FailureAction)
 		}
-		return releaseIncompleteCaptchaAttempt(bot, attempt)
 	}
-	claimed, _ := handleCaptchaTimeout(
-		bot,
-		attempt.ChatID,
-		attempt.UserID,
-		attempt.ID,
-		attempt.MessageID,
-		settings.FailureAction,
-		captchaFailedTimeout,
-	)
-	return claimed, nil
+	settled, _, err := settleCaptchaAttempt(bot, attempt, outcome)
+	return settled, err
 }
 
 // Why a captcha failed, as the log channel entry names it.
@@ -1465,82 +1402,6 @@ const (
 	captchaFailedTimeout      = "timeout"
 	captchaFailedWrongAnswers = "wrong answers"
 )
-
-func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint, fallbackMessageID int64, action, cause string) (bool, bool) {
-	attempt, err := captcha.GetCaptchaAttemptByID(attemptID)
-	if err != nil || attempt == nil {
-		log.Debugf("[Captcha] Timeout handler skipped - attempt not found for attempt_id=%d", attemptID)
-		return false, false
-	}
-	if attempt.UserID != userID || attempt.ChatID != chatID {
-		log.WithFields(log.Fields{
-			"attempt_id":   attemptID,
-			"attempt_user": attempt.UserID,
-			"attempt_chat": attempt.ChatID,
-			"user_id":      userID,
-			"chat_id":      chatID,
-		}).Warn("[Captcha] Timeout handler skipped - attempt identity mismatch")
-		return false, false
-	}
-
-	storedMsgCount, _ := captcha.CountStoredMessagesForAttempt(attemptID)
-
-	deleted, err := captcha.ReleaseCaptchaAttemptAtomic(attemptID, userID, chatID)
-	if err != nil || !deleted {
-		log.Debugf("[Captcha] Timeout handler skipped - attempt already handled for attempt_id=%d", attemptID)
-		return false, false
-	}
-
-	messageID := attempt.MessageID
-	if messageID == 0 {
-		messageID = fallbackMessageID
-	}
-	if messageID > 0 {
-		_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, messageID)
-	}
-
-	member, err := bot.GetChatMember(chatID, userID, nil)
-	var userName string
-	if err == nil {
-		user := member.GetUser()
-		if user.FirstName != "" {
-			userName = user.FirstName
-		} else {
-			userName = "User"
-		}
-	} else {
-		userName = "User"
-	}
-
-	// Missing or departed members need no moderation. In particular, kicking
-	// someone already banned by another guard would lift that guard's ban.
-	if error_handling.IsMissingChatMemberError(err) || (err == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
-		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
-			log.Errorf("[Captcha] Failed to clear fallback unmute for departed user %d: %v", userID, err)
-		}
-		log.Debugf("[Captcha] User %d is no longer a member of chat %d; skipping %s", userID, chatID, action)
-		return true, false
-	}
-
-	unban, err := executeCaptchaFailureAction(bot, chatID, userID, action, cause)
-	if err != nil {
-		log.Errorf("[Captcha] Failed to apply %s to user %d in chat %d: %v", action, userID, chatID, err)
-		if action == "kick" {
-			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
-		}
-		if restoreErr := restoreCaptchaPermissions(bot, chatID, userID); restoreErr != nil {
-			log.Errorf("[Captcha] Failed to restore permissions after action failure: %v", restoreErr)
-		}
-		return true, false
-	}
-	if action != "mute" {
-		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
-			log.Errorf("[Captcha] Failed to clear fallback unmute for user %d: %v", userID, err)
-		}
-	}
-	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount, unban)
-	return true, true
-}
 
 // reportCaptchaFailure logs an applied failure action to the log channel and
 // posts the group notice, which deletes itself after 30 seconds. The log
@@ -1617,7 +1478,8 @@ func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action,
 	if err != nil {
 		err = fmt.Errorf("%s: %w", action, err)
 		if mute {
-			err = errors.Join(err, captcha.DeleteMutedUser(userID, chatID))
+			// Back to the claim's fallback unmute, for the release rule to keep or clear.
+			err = errors.Join(err, captcha.CreateMutedUser(userID, chatID, time.Now()))
 		}
 		return nil, err
 	}
@@ -1636,18 +1498,9 @@ func unmuteCaptchaUser(bot *gotgbot.Bot, chatID, userID int64) error {
 	return err
 }
 
-func restoreCaptchaPermissions(bot *gotgbot.Bot, chatID, userID int64) error {
-	err := unmuteCaptchaUser(bot, chatID, userID)
-	if err != nil {
-		scheduleErr := captcha.CreateMutedUser(userID, chatID, time.Now())
-		return errors.Join(err, scheduleErr)
-	}
-	return captcha.DeleteMutedUser(userID, chatID)
-}
-
-// captchaVerifyCallback completes a correct answer by deleting the attempt and its stored rows.
-// It never replays stored messages: their only replacement is a type/count summary using
-// captcha_stored_messages_summary, removed after 30 seconds.
+// captchaVerifyCallback decides a tap: a right answer settles the attempt as
+// passed, then confirms and welcomes the member; a wrong one counts and fails
+// the attempt at the limit.
 func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -1735,64 +1588,20 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 	}
 
 	if selectedAnswer == attempt.Answer {
-		storedMessages, storedErr := captcha.GetStoredMessagesForAttempt(attempt.ID)
-		if storedErr != nil {
-			log.Warnf("[Captcha] Failed to read stored messages for attempt %d: %v", attempt.ID, storedErr)
-		}
-
-		claimed, claimErr := captcha.CompleteCaptchaAttemptAtomic(
-			attempt.ID,
-			targetUserID,
-			chat.Id,
-			selectedAnswer,
-			attempt.MessageID,
-			expectedRefreshCount,
-		)
-		if claimErr != nil || !claimed {
+		settled, _, settleErr := settleCaptchaAttempt(bot, attempt, captchaPassed(selectedAnswer, expectedRefreshCount, user.FirstName, settings.MaxAttempts))
+		if !settled {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_expired_or_not_found")
 			_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return err
 		}
-
-		if err = restoreCaptchaPermissions(bot, chat.Id, targetUserID); err != nil {
-			log.Errorf("Failed to unmute user %d on verify: %v", targetUserID, err)
-			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
+		if settleErr != nil {
+			log.Errorf("Failed to unmute user %d on verify: %v", targetUserID, settleErr)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_failed_verify")
 			_, _ = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return err
+			return settleErr
 		}
-		// The correct answer counts as an attempt of its own.
-		actionlog.Join(bot, chat, "CAPTCHA_PASSED", targetUserID, user.FirstName,
-			actionlog.Field{Name: "Attempts", Value: fmt.Sprintf("%d/%d", attempt.Attempts+1, settings.MaxAttempts)},
-		)
-
-		if storedErr == nil && len(storedMessages) > 0 {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			var messageTypes []string
-			for _, msg := range storedMessages {
-				msgTypeStr := messageTypeToString(tr, msg.MessageType)
-				if !slices.Contains(messageTypes, msgTypeStr) {
-					messageTypes = append(messageTypes, msgTypeStr)
-				}
-			}
-			summaryText, _ := tr.GetString("captcha_stored_messages_summary",
-				captchaStoredSummaryParams(formatting.MentionHtml(targetUserID, user.FirstName), len(storedMessages), strings.Join(messageTypes, ", ")))
-
-			summaryMsg, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, summaryText, &gotgbot.SendMessageOpts{
-				ParseMode: formatting.HTML,
-			})
-
-			if summaryMsg != nil {
-				time.AfterFunc(30*time.Second, func() {
-					defer error_handling.RecoverFromPanic("captchaSummaryMsgDelete", "captcha")
-					_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, summaryMsg.MessageId)
-				})
-			}
-		}
-
-		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		msgTemplate, _ := tr.GetString("greetings_captcha_verified_success")
@@ -1835,31 +1644,32 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		}
 
 		if attempt.Attempts >= settings.MaxAttempts {
-			claimed, applied := handleCaptchaTimeout(bot, chat.Id, targetUserID, attempt.ID, attempt.MessageID, settings.FailureAction, captchaFailedWrongAnswers)
-			if applied {
-				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				actionText, _ := tr.GetString("captcha_action_kicked")
-				switch settings.FailureAction {
-				case "ban":
-					actionText, _ = tr.GetString("captcha_action_banned")
-				case "mute":
-					actionText, _ = tr.GetString("captcha_action_muted")
-				}
-
-				text, _ := tr.GetString("captcha_wrong_answer_final", i18n.TranslationParams{"s": actionText})
-				_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{
-					Text:      text,
-					ShowAlert: true,
-				})
-				return err
+			settled, applied, settleErr := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedWrongAnswers, settings.FailureAction))
+			if !settled {
+				return ext.EndGroups
 			}
-			if claimed {
-				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			if settleErr != nil {
+				log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Captcha] Failed to fail user %d after wrong answers: %v", targetUserID, settleErr)
+			}
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			if !applied {
 				text, _ := tr.GetString("captcha_error_processing")
 				_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 				return err
 			}
-			return ext.EndGroups
+			actionText, _ := tr.GetString("captcha_action_kicked")
+			switch settings.FailureAction {
+			case "ban":
+				actionText, _ = tr.GetString("captcha_action_banned")
+			case "mute":
+				actionText, _ = tr.GetString("captcha_action_muted")
+			}
+			text, _ := tr.GetString("captcha_wrong_answer_final", i18n.TranslationParams{"s": actionText})
+			_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{
+				Text:      text,
+				ShowAlert: true,
+			})
+			return err
 		}
 
 		remainingAttempts := settings.MaxAttempts - attempt.Attempts
@@ -2217,7 +2027,7 @@ func cleanupExpiredCaptchaAttempts(ctx context.Context, bot *gotgbot.Bot) error 
 		}
 
 		if attempt.MessageID <= 0 {
-			_, err = releaseIncompleteCaptchaAttempt(bot, attempt)
+			_, _, err = settleCaptchaAttempt(bot, attempt, captchaReleased)
 		} else {
 			_, err = expireCaptchaAttempt(bot, attempt)
 		}
