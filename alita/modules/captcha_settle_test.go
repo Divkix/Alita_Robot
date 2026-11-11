@@ -608,6 +608,53 @@ func TestCaptchaWrongAnswersUpToTheLimitFailTheAttempt(t *testing.T) {
 	assertCaptchaRows(t, attempt, 0)
 }
 
+// The last wrong answer of a member the action cannot reach, gone or banned by
+// someone else, or one Telegram refuses, names no action in the alert.
+func TestCaptchaFinalWrongAnswerWithNoActionNamesNone(t *testing.T) {
+	useRealLocales(t)
+	for _, tt := range []struct {
+		name   string
+		member string
+		errs   map[string]error
+	}{
+		{name: "left", member: "left"},
+		{name: "banned by someone else", member: "kicked"},
+		{name: "refused", errs: map[string]error{"banChatMember": errors.New("temporary Telegram failure")}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			for method, err := range tt.errs {
+				client.errors[method] = err
+			}
+			if tt.member != "" {
+				client.membersByUser = map[string]json.RawMessage{
+					"42": json.RawMessage(fmt.Sprintf(`{"status":%q,"until_date":0,"user":{"id":42,"is_bot":false,"first_name":"Member"}}`, tt.member)),
+				}
+			}
+			bot := newModuleTestBot(client)
+			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+			if err := captcha.SetCaptchaFailureAction(attempt.ChatID, "Captcha Chat", "ban"); err != nil {
+				t.Fatalf("SetCaptchaFailureAction() error = %v", err)
+			}
+			if err := captcha.SetCaptchaMaxAttempts(attempt.ChatID, "Captcha Chat", 1); err != nil {
+				t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
+			}
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadCaptcha(dispatcher)
+			chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
+			data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"})
+			ctx := newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)
+			if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
+				t.Fatalf("ProcessUpdate() error = %v", err)
+			}
+
+			text, _ := i18n.MustNewTranslator("en").GetString("captcha_error_processing")
+			assertParams(t, client.onlyCall(t, "answerCallbackQuery"), map[string]any{"text": text})
+			assertCaptchaRows(t, attempt, 0)
+		})
+	}
+}
+
 // startCaptchaAfterRestart starts the captcha lifecycle as the bot does when
 // it starts, over the attempts stored now, and stops it when the test ends.
 func startCaptchaAfterRestart(t *testing.T, bot *gotgbot.Bot) error {

@@ -1644,13 +1644,15 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		}
 
 		if attempt.Attempts >= settings.MaxAttempts {
-			settled, _, settleErr := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedWrongAnswers, settings.FailureAction))
+			settled, applied, settleErr := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedWrongAnswers, settings.FailureAction))
 			if !settled {
 				return ext.EndGroups
 			}
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			if settleErr != nil {
 				log.Errorf("[Captcha] Failed to fail user %d after wrong answers: %v", targetUserID, settleErr)
+			}
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			if !applied {
 				text, _ := tr.GetString("captcha_error_processing")
 				_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 				return err
