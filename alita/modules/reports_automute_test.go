@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -233,8 +234,8 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 		if len(calls) != 2 {
 			t.Fatalf("restrictions = %d, want the auto-mute and its lift", len(calls))
 		}
-		if !callPermissions(t, calls[1]).CanSendMessages {
-			t.Fatal("second restriction is not the lift")
+		if got, want := callPermissions(t, calls[1]), (gotgbot.ChatPermissions{CanSendMessages: true, CanSendPolls: true}); !reflect.DeepEqual(got, want) {
+			t.Fatalf("lift permissions = %+v, want the chat's defaults %+v", got, want)
 		}
 		if m := storedAutoMute(t, f); m != nil {
 			t.Fatalf("auto-mute record = %+v after dismiss, want none", m)

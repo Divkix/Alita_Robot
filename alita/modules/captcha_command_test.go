@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1252,6 +1253,46 @@ func TestCaptchaVerifyCallbackCorrectAnswerUnmutesAndCleansAttempt(t *testing.T)
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want success answer", len(calls))
+	}
+}
+
+// Releasing the captcha hold restores the chat's own defaults exactly, never
+// a broader permission set.
+func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
+	client := newModuleBotClient()
+	client.responses["getChat"] = []byte(`{
+		"id": -1001,
+		"type": "supergroup",
+		"title": "Captcha Chat",
+		"permissions": {
+			"can_send_messages": false,
+			"can_send_photos": false,
+			"can_send_polls": true,
+			"can_invite_users": false
+		}
+	}`)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+
+	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData(
+		"captcha_verify",
+		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"},
+	))
+	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
+		t.Fatalf("captchaVerifyCallback() error = %v", err)
+	}
+
+	calls := client.callsFor("restrictChatMember")
+	if len(calls) != 1 {
+		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
+	}
+	if got, want := calls[0].Params["permissions"], (gotgbot.ChatPermissions{CanSendPolls: true}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("unmute permissions = %+v, want the chat's defaults %+v", got, want)
 	}
 }
 
