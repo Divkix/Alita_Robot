@@ -12,7 +12,8 @@
 // No Redis is involved, so a cache-less deployment still counts.
 //
 // Day and hour keys are UTC. Member counters are capped per flush by
-// memberCounterLimit. Joins count only after claimRecentJoinProcessing wins;
+// memberCounterLimit. Joins count only for a join membership intake admits
+// (shared claim won, no guard removed or held the member);
 // leaves count in leftMember. Shutdown must flush before closing the database.
 package stats
 

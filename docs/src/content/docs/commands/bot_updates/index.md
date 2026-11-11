@@ -18,7 +18,7 @@ When the bot is added to a chat:
 2. **Channels**: The join is ignored. The bot stays in the channel without posting, so the channel can serve as a log channel (see `/setlog`).
 3. **Supergroups**: The bot sends a welcome message and remains in the chat.
 
-This handler runs at **group -1**, after the captcha (-10), antiraid (-5) and admin-cache (-2) handlers and before the default command group (0), so the bot leaves unsupported chats before command handlers run.
+This handler runs at **group -1**, after the captcha (-10) and admin-cache (-2) handlers and before the default command group (0), so the bot leaves unsupported chats before command handlers run.
 
 ### Admin Cache Auto-Update
 

@@ -562,7 +562,9 @@ func TestFedSubscribeLogExportAndDelete(t *testing.T) {
 	}
 }
 
-func TestEnforceFedBanOnJoinAndMessage(t *testing.T) {
+// The watcher bans a fbanned member on an ordinary message; a join's service
+// message it leaves to membership intake.
+func TestEnforceFedBanOnMessageLeavesJoinsToIntake(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	ownerID := uniquePositiveUserID()
@@ -574,21 +576,21 @@ func TestEnforceFedBanOnJoinAndMessage(t *testing.T) {
 	require.NoError(t, federations.JoinFed(group.Id, group.Title, fed.FedID))
 	_, _, err = federations.Fban(fed.FedID, 42, ownerID, "raid")
 	require.NoError(t, err)
-
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	joinCtx := newModuleMessageContext(bot, group, member, "hello")
+	t.Cleanup(func() { clearJoinClaim(group.Id, member.Id) })
+
+	joinCtx := newModuleMessageContext(bot, group, member, "")
 	joinCtx.EffectiveMessage.NewChatMembers = []gotgbot.User{member}
 	if err := federationsModule.enforceFedBan(bot, joinCtx); err != ext.ContinueGroups {
 		t.Fatalf("enforceFedBan join: %v", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) == 0 {
-		t.Fatal("expected ban on fban join")
-	}
+	require.Empty(t, client.callsFor("banChatMember"), "the watcher left the join to intake")
 
 	msgCtx := newModuleMessageContext(bot, group, member, "still here")
 	if err := federationsModule.enforceFedBan(bot, msgCtx); err != ext.ContinueGroups {
 		t.Fatalf("enforceFedBan message: %v", err)
 	}
+	require.Len(t, client.callsFor("banChatMember"), 1)
 }
 
 func TestParseFedBanCSVWithoutHeader(t *testing.T) {

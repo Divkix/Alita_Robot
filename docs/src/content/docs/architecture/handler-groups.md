@@ -14,10 +14,7 @@ This page documents every handler group the bot registers outside the default gr
 | Group | Module | Handler | Filter | Return on Match | Notes |
 |-------|--------|---------|--------|-----------------|-------|
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
-| -6 | Federations | `enforceFedBan` | `message.All` | `ContinueGroups` (always) | Bans senders and new members who are banned in the chat's federation; later groups still run |
-| -6 | Federations | `enforceFedBanOnJoin` | ChatMember (user joined) | `ContinueGroups` (always) | Bans a joiner who is banned in the chat's federation when the join arrives as a ChatMemberUpdated, also without a service message; a join takes the join claim before the ban, so of the two updates of one join only one bans and posts the notice, and a failed ban gives the claim back for the captcha |
-| -5 | AntiRaid | `onJoin` | Message with `new_chat_members` | `ContinueGroups` (always) | While raid mode is on (or once the auto-antiraid join threshold is reached, which turns it on), temp-bans each new joiner for the raid action time; skips the bot, admins, approved users and newcomers the chat's federation has banned (fed-ban, group -6, has already banned them for good; they still count towards the threshold); does nothing if the bot cannot restrict |
-| -4 | SpamDB | `checkSpamDB` | Message with `new_chat_members` | `ContinueGroups` (always) | When the operator has `ENABLE_SPAMDB` on and the chat has `/spamdb` enabled in a group or supergroup, looks up each new joiner in CAS and applies the chat's action (ban, mute or log only) to a listed one, reporting to the log channel only and taking the join so greetings and captcha stay quiet for a ban or mute; skips bots, admins and approved users; a failed lookup lets the joiner in |
+| -6 | Federations | `enforceFedBan` | `message.All` | `ContinueGroups` (always) | Bans senders who are banned in the chat's federation and marks their join handled, so a later update of it is not challenged or welcomed; leaves joins to membership intake, whose first stage is the federation ban; later groups still run |
 | -2 | BotUpdates | `adminCacheAutoUpdate` | MyChatMember (bot's own admin status change) | `ContinueGroups` | Invalidates and reloads the admin cache when the bot is promoted or demoted |
 | -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined; channel joins are filtered out and never reach it) | `EndGroups` for private chats and basic groups (it leaves basic groups), `ContinueGroups` for supergroups | Early interceptor for bot group joins; leaves basic groups and stays in channels |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
@@ -41,7 +38,7 @@ This page documents every handler group the bot registers outside the default gr
 Understanding these rules is essential for debugging why a message did or did not trigger a particular watcher.
 
 - **Captcha is first (group -10).** Any message from a user with a pending captcha is stored for moderator review and deleted. The message never reaches antiraid, antiflood, blacklists, or filters.
-- **AntiRaid bans raid joiners (group -5).** During raid mode, users who join (seen through the join service message) are temp-banned for the raid action time, except those fed-banned in the chat's federation, whom fed-ban (group -6) has already banned permanently. The handler always returns `ContinueGroups`, so later groups still see the join message.
+- **Join guards are membership intake's stages (group 0).** In order: federation ban, antiraid, spam databases, bots lock; they see joins reported as a service message, as a member update, or both, and the first that removes or holds a newcomer ends the join. The federation ban bans for good, with the federation's notice unless it is quiet, waits out a short flood wait, and after a long one lets the newcomer on to antiraid. During raid mode antiraid temp-bans a newcomer for the raid action time, except those fed-banned in the chat's federation; a failed raid ban lets the newcomer on to the spam database check. Every join the intake claims counts towards the auto-antiraid threshold, whatever a stage then does with it.
 - **Filters use ContinueGroups; Blacklists depend on the action.** Filters send their reply and never block later watchers. A blacklist `mute`/`ban`/`kick`/`tban`/`tmute`/`delete`/`none` action returns `ContinueGroups`, so the message is still checked by filters. The `warn` action (the default) returns `EndGroups`, so reports, filters, pins and the log channel skip that message. One exception: when a non-admin sends `<keyword> noformat`, Filters replies with the admin-only error and returns `EndGroups`, so pins and the log channel skip that update.
 - **Locks use ContinueGroups (groups 5-6).** A locked message is deleted, but blacklists, reports/reactions, filters and pins still see the update.
 :::
@@ -57,24 +54,22 @@ Understanding these rules is essential for debugging why a message did or did no
 ### Scenario 2: User sends a flood of messages
 
 1. Captcha (group -10) passes through (no pending captcha).
-2. AntiRaid (group -5) does not match (it only handles join service messages).
-3. Users (group -1) logs activity, continues.
-4. Commands (group 0) fire normally for earlier messages.
-5. **Antiflood (group 4)** triggers once the flood threshold is reached: it deletes the flooding message(s), applies the configured action (mute/kick/ban, or tmute/tban from older data), posts a notice, and returns `ContinueGroups`.
-6. Locks, blacklists, reports/reactions, filters, pins and the log channel still receive the update, although the message is already deleted from the chat.
+2. Users (group -1) logs activity, continues.
+3. Commands (group 0) fire normally for earlier messages.
+4. **Antiflood (group 4)** triggers once the flood threshold is reached: it deletes the flooding message(s), applies the configured action (mute/kick/ban, or tmute/tban from older data), posts a notice, and returns `ContinueGroups`.
+5. Locks, blacklists, reports/reactions, filters, pins and the log channel still receive the update, although the message is already deleted from the chat.
 
 ### Scenario 3: Message matches both a blacklist word and a filter
 
 1. Captcha (group -10) passes through.
-2. AntiRaid (group -5) does not match (it only handles join service messages).
-3. Users (group -1) logs activity, continues.
-4. Commands (group 0) — not a command, passes.
-5. Antiflood (group 4) — not flooding, continues.
-6. **Locks (groups 5-6)** check the chat's content-type and restriction locks. Message passes (no lock violation).
-7. **Blacklists (group 7)** matches the word, takes the configured action (e.g., mute user), returns `ContinueGroups`.
-8. Group 8: Reports does nothing (the message does not mention @admin/@admins); Reactions adds an emoji reaction if a configured keyword matches, and returns `ContinueGroups`.
-9. **Filters (group 9)** matches the filter pattern, sends the configured response, returns `ContinueGroups`.
-10. Pins (group 10) does not match (the message is not a linked-channel post).
+2. Users (group -1) logs activity, continues.
+3. Commands (group 0) — not a command, passes.
+4. Antiflood (group 4) — not flooding, continues.
+5. **Locks (groups 5-6)** check the chat's content-type and restriction locks. Message passes (no lock violation).
+6. **Blacklists (group 7)** matches the word, takes the configured action (e.g., mute user), returns `ContinueGroups`.
+7. Group 8: Reports does nothing (the message does not mention @admin/@admins); Reactions adds an emoji reaction if a configured keyword matches, and returns `ContinueGroups`.
+8. **Filters (group 9)** matches the filter pattern, sends the configured response, returns `ContinueGroups`.
+9. Pins (group 10) does not match (the message is not a linked-channel post).
 
 Both the blacklist action and the filter response are triggered for the same message.
 

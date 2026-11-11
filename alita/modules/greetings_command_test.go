@@ -275,7 +275,7 @@ func TestMemberJoinAndLeaveSendConfiguredGreetings(t *testing.T) {
 		gotgbot.ChatMemberLeft{User: member},
 		gotgbot.ChatMemberMember{User: member},
 	)
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	if err := greetingsModule.newMember(bot, joinCtx); err != ext.EndGroups {
 		t.Fatalf("newMember error = %v, want EndGroups", err)
 	}
@@ -316,7 +316,7 @@ func TestCleanServiceProcessesJoinAndDeletesServiceMessage(t *testing.T) {
 		t.Fatalf("SetShouldCleanService setup error = %v", err)
 	}
 
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	ctx := newServiceJoinContext(bot, chat, admin, []gotgbot.User{member})
 	if err := greetingsModule.cleanService(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("cleanService error = %v, want EndGroups", err)
@@ -345,7 +345,7 @@ func TestCleanServiceProcessesMultipleNewMembersWithoutCaptcha(t *testing.T) {
 		t.Fatalf("SetShouldCleanService setup error = %v", err)
 	}
 	for _, member := range members {
-		clearRecentJoinProcessing(chat.Id, member.Id)
+		clearJoinClaim(chat.Id, member.Id)
 	}
 
 	ctx := newServiceJoinContext(bot, chat, admin, members)
@@ -378,10 +378,8 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 		t.Fatalf("sendMessage calls = %d, want none for bot join", len(calls))
 	}
 
-	clearRecentJoinProcessing(chat.Id, member.Id)
-	if !claimRecentJoinProcessing(chat.Id, member.Id) {
-		t.Fatal("claimRecentJoinProcessing setup returned false")
-	}
+	clearJoinClaim(chat.Id, member.Id)
+	markJoinHandled(chat.Id, member.Id)
 	if err := processSingleNewMember(bot, ctx, member, false); err != nil {
 		t.Fatalf("processSingleNewMember() error = %v", err)
 	}
@@ -389,7 +387,7 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 		t.Fatalf("sendMessage calls = %d, want none for duplicate join", len(calls))
 	}
 
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
@@ -419,7 +417,7 @@ func TestProcessSingleNewMemberCaptchaSuccessSkipsWelcome(t *testing.T) {
 	}
 
 	ctx := newServiceJoinContext(bot, chat, admin, []gotgbot.User{member})
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	if err := processSingleNewMember(bot, ctx, member, true); err != nil {
 		t.Fatalf("processSingleNewMember() error = %v", err)
 	}
@@ -464,7 +462,7 @@ func TestProcessSingleNewMemberSkipsCaptchaForApprovedUser(t *testing.T) {
 	}
 
 	ctx := newServiceJoinContext(bot, chat, gotgbot.User{Id: 777000, FirstName: "Telegram"}, []gotgbot.User{member})
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	if err := processSingleNewMember(bot, ctx, member, true); err != nil {
 		t.Fatalf("processSingleNewMember() error = %v", err)
 	}
@@ -502,7 +500,7 @@ func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T
 	previousHooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previousHooks) })
 	hook := logrustest.NewGlobal()
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	if err := greetingsModule.cleanService(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("cleanService() error = %v, want EndGroups after rollback", err)
 	}
@@ -581,7 +579,7 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 				gotgbot.ChatMemberLeft{User: member},
 				gotgbot.ChatMemberMember{User: member},
 			)
-			clearRecentJoinProcessing(chat.Id, member.Id)
+			clearJoinClaim(chat.Id, member.Id)
 			errNewMember := greetingsModule.newMember(bot, ctx)
 			if errNewMember != ext.EndGroups {
 				t.Fatalf("newMember error = %v, want EndGroups", errNewMember)
@@ -625,11 +623,11 @@ func TestCaptchaDeliveryRollbackFailureReachesDispatcher(t *testing.T) {
 			if serviceMessage {
 				second := gotgbot.User{Id: 4849, FirstName: "SecondMember"}
 				ctx = newServiceJoinContext(bot, chat, admin, []gotgbot.User{member, second})
-				clearRecentJoinProcessing(chat.Id, second.Id)
+				clearJoinClaim(chat.Id, second.Id)
 				run = greetingsModule.cleanService
 				wantAttempts = 2
 			}
-			clearRecentJoinProcessing(chat.Id, member.Id)
+			clearJoinClaim(chat.Id, member.Id)
 			previousHooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 			t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previousHooks) })
 			hook := logrustest.NewGlobal()

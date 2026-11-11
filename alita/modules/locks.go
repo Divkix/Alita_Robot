@@ -366,13 +366,15 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+// botsLockStage is membership intake's bots lock: while bots are locked, a bot
+// added by someone who is neither an admin nor approved is banned. ctx is the
+// join's update; its effective sender added the bot.
+func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.User) StageAnswer {
 	chat := ctx.EffectiveChat
 	sender := ctx.EffectiveSender
-	mem := ctx.ChatMember.NewChatMember.MergeChatMember().User
 
-	if !locks.IsPermLocked(chat.Id, "bots") {
-		return ext.ContinueGroups
+	if !mem.IsBot || !locks.IsPermLocked(chat.Id, "bots") {
+		return StageNotApplicable
 	}
 
 	var senderID int64
@@ -381,57 +383,50 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
-		return ext.ContinueGroups
+		return StageNotApplicable
 	}
 	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
-		return ext.ContinueGroups
+		return StageNotApplicable
 	}
 
-	if !chat_status.IsBotAdmin(b, ctx, nil) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
-		text, _ := tr.GetString("locks_bot_lock_no_permission")
-		_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
+	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
+	notice := func(key string) {
+		// A ChatMember update has no message to reply to, so send to the chat.
+		text, _ := tr.GetString(key)
+		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
+			log.WithContext(tracing.UpdateContext(ctx)).Error(err)
 		}
-		return ext.ContinueGroups
+	}
+	if !chat_status.IsBotAdmin(b, ctx, nil) {
+		notice("locks_bot_lock_no_permission")
+		return StageFailed
 	}
 	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		// A ChatMember update has no message to reply to, so send to the chat.
-		tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
-		text, _ := tr.GetString("locks_bot_lock_no_ban_permission")
-		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.ContinueGroups
+		notice("locks_bot_lock_no_ban_permission")
+		return StageFailed
 	}
 
 	// A permanent ban, not a kick: the removed bot cannot simply be added again.
-	result, err := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+	reqCtx := tracing.UpdateContext(ctx)
+	result, err := punishment.Apply(reqCtx, b, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
 		Source: models.BanSourceLock, Detail: "bots",
 	})
 	if err != nil {
-		log.Error(err)
-		return err
+		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
+		return StageFailed
+	}
+	if !result.Applied {
+		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %s", mem.Id, chat.Id, result.Refusal)
+		return StageFailed
 	}
 	var addedBy string
 	if sender != nil {
 		addedBy = fmt.Sprintf("%s (%d)", sender.Name(), senderID)
 	}
 	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
-	text, _ := tr.GetString("locks_bot_only_admins")
-	_, err = b.SendMessage(chat.Id, text, formatting.Shtml())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.ContinueGroups
+	notice("locks_bot_only_admins")
+	return StageRemoved
 }
 
 func LoadLocks(dispatcher *ext.Dispatcher) {
@@ -460,16 +455,6 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)
-	dispatcher.AddHandler(
-		handlers.NewChatMember(
-			func(u *gotgbot.ChatMemberUpdated) bool {
-				mem := u.NewChatMember.MergeChatMember()
-				oldMem := u.OldChatMember.MergeChatMember()
-				return mem.User.IsBot && mem.Status == "member" && oldMem.Status == "left"
-			},
-			locksModule.botLockHandler,
-		),
-	)
 }
 
 func init() {

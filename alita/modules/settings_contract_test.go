@@ -1326,6 +1326,8 @@ func TestAntiRaidRepairsStoredTimesThroughDispatcher(t *testing.T) {
 			t.Cleanup(func() { _, _ = antiRaidModule.disableRaid(f.chat.Id) })
 			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 			LoadAntiRaid(dispatcher)
+			// Antiraid bans joiners as a stage of membership intake, which greetings runs.
+			LoadGreetings(dispatcher)
 			LoadConnections(dispatcher)
 			started := time.Now().Unix()
 			switch surface {

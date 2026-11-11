@@ -60,7 +60,7 @@ func newJoinCaptchaFixture(t *testing.T, enabled bool) joinCaptchaFixture {
 		if err := db.DB.Where("chat_id = ?", f.chat.Id).Delete(&models.JoinRequestCaptcha{}).Error; err != nil {
 			t.Errorf("clean join-request captcha rows: %v", err)
 		}
-		clearRecentJoinProcessing(f.chat.Id, f.applicant.Id)
+		clearJoinClaim(f.chat.Id, f.applicant.Id)
 	})
 	return f
 }
@@ -671,7 +671,7 @@ func TestJoinRequestCaptchaPassedApplicantSkipsRegularCaptchaAndGetsWelcome(t *t
 			if err := SendCaptcha(f.bot, serviceCtx, f.applicant.Id, f.applicant.FirstName); !errors.Is(err, errCaptchaDisabled) {
 				t.Fatalf("SendCaptcha() after PM pass error = %v, want errCaptchaDisabled", err)
 			}
-			clearRecentJoinProcessing(f.chat.Id, f.applicant.Id)
+			clearJoinClaim(f.chat.Id, f.applicant.Id)
 			if serviceMessage {
 				if err := processSingleNewMember(f.bot, serviceCtx, f.applicant, true); err != nil {
 					t.Fatalf("processSingleNewMember() error = %v", err)

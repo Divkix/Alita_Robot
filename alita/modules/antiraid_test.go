@@ -13,11 +13,11 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -691,34 +691,6 @@ func TestAntiRaidCallbackRejectsInvalidAndUnknownActions(t *testing.T) {
 	}
 }
 
-func TestAntiRaidOnJoinBansDuringActiveRaid(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
-	user := gotgbot.User{Id: 4249, FirstName: "Raider"}
-	if enabled, err := antiRaidModule.enableRaid(chat.Id, 3600); err != nil || !enabled {
-		t.Fatalf("enableRaid() = (%v, %v), want true, nil", enabled, err)
-	}
-	t.Cleanup(func() {
-		_, _ = antiRaidModule.disableRaid(chat.Id)
-	})
-
-	msg := &gotgbot.Message{
-		MessageId:      202,
-		Date:           1,
-		Chat:           chat,
-		From:           &user,
-		NewChatMembers: []gotgbot.User{user},
-	}
-	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 202, Message: msg}, nil)
-	if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("onJoin() error = %v, want ContinueGroups", err)
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
-}
-
 func TestBanRaidMemberRejectsUnsafeActionTimes(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -736,86 +708,23 @@ func TestBanRaidMemberRejectsUnsafeActionTimes(t *testing.T) {
 	}
 }
 
-func TestAntiRaidJoinRunsBeforeGreetingsGroup(t *testing.T) {
+// The bot, approved members and Telegram's service account are never
+// raid-banned, also while a raid is on.
+func TestAntiRaidStageSkipsExemptNewcomers(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
-	member := gotgbot.User{Id: 4252, FirstName: "Raider"}
+	member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Member"}
+	if err := approvals.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
+		t.Fatalf("AddApprovedUser setup error = %v", err)
+	}
 	if enabled, err := antiRaidModule.enableRaid(chat.Id, 3600); err != nil || !enabled {
 		t.Fatalf("enableRaid() = (%v, %v), want true, nil", enabled, err)
 	}
 	t.Cleanup(func() {
 		_, _ = antiRaidModule.disableRaid(chat.Id)
 	})
-
-	greetingsHandled := false
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	dispatcher.AddHandler(handlers.NewMessage(
-		func(msg *gotgbot.Message) bool { return msg.NewChatMembers != nil },
-		func(_ *gotgbot.Bot, _ *ext.Context) error {
-			greetingsHandled = true
-			return ext.EndGroups
-		},
-	))
-	LoadAntiRaid(dispatcher)
-
-	update := &gotgbot.Update{
-		UpdateId: 303,
-		Message: &gotgbot.Message{
-			MessageId:      303,
-			Date:           1,
-			Chat:           chat,
-			From:           &member,
-			NewChatMembers: []gotgbot.User{member},
-		},
-	}
-	if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
-		t.Fatalf("ProcessUpdate() error = %v", err)
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want AntiRaid to run before group 0 consumes the join", len(calls))
-	}
-	if !greetingsHandled {
-		t.Fatal("group 0 greetings handler did not run after AntiRaid")
-	}
-}
-
-func TestAntiRaidOnJoinSkipsIneligibleUpdates(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	member := gotgbot.User{Id: 4250, FirstName: "Member"}
-
-	noChatCtx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 301}, nil)
-	if err := antiRaidModule.onJoin(bot, noChatCtx); err != ext.ContinueGroups {
-		t.Fatalf("onJoin(no chat) error = %v, want ContinueGroups", err)
-	}
-
-	privateChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", Title: "Private"}
-	privateCtx := newModuleMessageContext(bot, privateChat, member, "joined")
-	privateCtx.EffectiveMessage.NewChatMembers = []gotgbot.User{member}
-	if err := antiRaidModule.onJoin(bot, privateCtx); err != ext.ContinueGroups {
-		t.Fatalf("onJoin(private) error = %v, want ContinueGroups", err)
-	}
-
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
-	if err := approvals.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
-		t.Fatalf("AddApprovedUser setup error = %v", err)
-	}
-	msg := &gotgbot.Message{
-		MessageId: 302,
-		Date:      1,
-		Chat:      chat,
-		From:      &member,
-		NewChatMembers: []gotgbot.User{
-			{Id: bot.Id, FirstName: "Alita"},
-			member,
-			{Id: 777000, FirstName: "Telegram"},
-		},
-	}
-	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 302, Message: msg}, nil)
-	if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("onJoin(skip members) error = %v, want ContinueGroups", err)
-	}
+	raidJoin(t, bot, chat, member, gotgbot.User{Id: bot.Id, FirstName: "Alita"}, gotgbot.User{Id: 777000, FirstName: "Telegram"})
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want no bans for skipped members", len(calls))
 	}
@@ -870,7 +779,7 @@ func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
 	}
 }
 
-func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
+func TestAntiRaidStageAppliesConfiguredAction(t *testing.T) {
 	t.Run("no action when raid inactive and threshold disabled", func(t *testing.T) {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
@@ -881,17 +790,7 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 			t.Fatalf("SetAutoAntiRaidThreshold setup error = %v", err)
 		}
 
-		msg := &gotgbot.Message{
-			MessageId:      401,
-			Date:           1,
-			Chat:           chat,
-			From:           &raider,
-			NewChatMembers: []gotgbot.User{raider},
-		}
-		ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 401, Message: msg}, nil)
-		if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
-			t.Fatalf("onJoin(no threshold) error = %v, want ContinueGroups", err)
-		}
+		raidJoin(t, bot, chat, raider)
 		if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 			t.Fatalf("banChatMember calls = %d, want no action when threshold disabled", len(calls))
 		}
@@ -913,17 +812,7 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 			clearJoinTracking(chat.Id)
 		})
 
-		msg := &gotgbot.Message{
-			MessageId:      402,
-			Date:           1,
-			Chat:           chat,
-			From:           &raider,
-			NewChatMembers: []gotgbot.User{raider},
-		}
-		ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 402, Message: msg}, nil)
-		if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
-			t.Fatalf("onJoin(auto-trigger) error = %v, want ContinueGroups", err)
-		}
+		raidJoin(t, bot, chat, raider)
 
 		if !antiRaidModule.isRaidActive(chat.Id) {
 			t.Fatal("isRaidActive = false after threshold reached, want true")
@@ -948,22 +837,16 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 		if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 2); err != nil {
 			t.Fatalf("SetAutoAntiRaidThreshold(2) error = %v", err)
 		}
+		// The first joiner is let in: no welcome, so the notice is all the chat hears.
+		if err := greetings.SetWelcomeToggle(chat.Id, false); err != nil {
+			t.Fatalf("SetWelcomeToggle() error = %v", err)
+		}
 		t.Cleanup(func() {
 			_, _ = antiRaidModule.disableRaid(chat.Id)
 			clearJoinTracking(chat.Id)
 		})
 
-		msg := &gotgbot.Message{
-			MessageId:      403,
-			Date:           1,
-			Chat:           chat,
-			From:           &members[0],
-			NewChatMembers: members,
-		}
-		ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 403, Message: msg}, nil)
-		if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
-			t.Fatalf("onJoin(batch) error = %v, want ContinueGroups", err)
-		}
+		raidJoin(t, bot, chat, members...)
 		if calls := client.callsFor("banChatMember"); len(calls) != 2 {
 			t.Fatalf("banChatMember calls = %d, want triggering and subsequent members", len(calls))
 		}

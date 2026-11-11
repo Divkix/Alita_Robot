@@ -45,10 +45,10 @@ CGO_ENABLED=0 go build ./...   # compile check
 
 ## Handlers
 
-- Handler groups run in order: `-10` captcha sweeper · `-6` fed-ban · `-5` antiraid · `-4` spamdb · `-2`
-  admin-cache · `-1` users tracker + bot-joined · `0` commands/help/greetings · `1` connected-chat guard ·
-  `2` probation · `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists · `8` reports+reactions ·
-  `9` filters · `10` pins · `11` log-channel.
+- Handler groups run in order: `-10` captcha sweeper · `-6` fed-ban watcher (ordinary messages) · `-2` admin-cache ·
+  `-1` users tracker + bot-joined · `0` commands/help + membership intake (`membershipHandlerGroup`: joins, leaves) ·
+  `1` connected-chat guard · `2` probation · `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists ·
+  `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
 - gotgbot stops a group at its first matching handler: watchers return `ext.ContinueGroups`, commands
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` with `RegisterLegacyModule(name, priority, load)`. Names must be unique (a duplicate
@@ -121,7 +121,8 @@ CGO_ENABLED=0 go build ./...   # compile check
 
 - Approved users skip every automatic check (antiflood, antiraid, aispam, spam filter, locks, blacklists, captcha,
   probation, report auto-mute); a new one skips them too.
-- A join arrives as both a `ChatMemberUpdated` and a service message: dedupe through `claimRecentJoinProcessing`.
+- A join guard is a stage of membership intake: add a `JoinStage` in `membershipDepsForJoin`, which takes the join
+  both ways Telegram sends it. Only the intake touches the join claim (`claimJoin`); a stage just answers.
 - Entity offsets are UTF-16: slice with `extraction.ExtractEntityText`, and match both `Entities` and
   `CaptionEntities`.
 - Messages the bot sends on its own, not as a reply, go through `ratelimit.GlobalSendLimiter().Do`.
