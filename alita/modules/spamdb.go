@@ -7,7 +7,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -25,14 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
-// spamDBHandlerGroup runs the join check after fed-bans (-6) and antiraid (-5)
-// and before greetings and captcha (0).
-const spamDBHandlerGroup = -4
-
-var spamDBModule = moduleStruct{
-	moduleName:   "SpamDB",
-	handlerGroup: spamDBHandlerGroup,
-}
+var spamDBModule = moduleStruct{moduleName: "SpamDB"}
 
 var spamDBDesc = helpers.CommandDescriptor{
 	Name:           "spamdb",
@@ -85,72 +77,66 @@ var spamDBPunishments = map[string]punishment.Mode{
 	spamdbsettings.ActionMute: punishment.Mute,
 }
 
-// checkSpamDB looks every new member up in the chat's databases and, when one
-// lists them, applies the chat's action and reports it to the log channel
-// only, so a raid does not flood the group with notices. A failed lookup lets
-// the member in.
-func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
+// spamDBStage is membership intake's spam database check: it looks the
+// newcomer up in the chat's databases and, when one lists them, applies the
+// chat's action and reports it to the log channel only, so a raid does not
+// flood the group with notices. A ban removes the member and a mute holds
+// them, so no captcha can lift it; a log-only match, a failed lookup or a
+// failed ban lets them on.
+func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot.User) StageAnswer {
 	chat := ctx.EffectiveChat
-	msg := ctx.EffectiveMessage
-	if !config.AppConfig.EnableSpamDB || chat == nil || msg == nil {
-		return ext.ContinueGroups
+	if !config.AppConfig.EnableSpamDB || chat == nil || (chat.Type != "group" && chat.Type != "supergroup") {
+		return StageNotApplicable
 	}
-	if chat.Type != "group" && chat.Type != "supergroup" {
-		return ext.ContinueGroups
+	if member.IsBot || !chat_status.IsValidUserId(member.Id) {
+		return StageNotApplicable
 	}
 
 	reqCtx := tracing.UpdateContext(ctx)
 	settings, err := chatsettings.ReadSpamDBContext(reqCtx, chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chat.Id, "error": err}).Warn("[SpamDB] could not read the chat settings")
-		return ext.ContinueGroups
+		return StageNotApplicable
 	}
 	if !settings.Enabled {
-		return ext.ContinueGroups
+		return StageNotApplicable
 	}
-	sources := spamDBSources(settings)
-
-	for _, member := range msg.NewChatMembers {
-		if member.IsBot || !chat_status.IsValidUserId(member.Id) {
-			continue
-		}
-		if chat_status.IsApprovedForUpdate(b, ctx, chat.Id, member.Id) ||
-			chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, member.Id) {
-			continue
-		}
-
-		source, err := spamDBChecker.Check(reqCtx, member.Id, sources)
-		if err != nil {
-			log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": err}).Debug("[SpamDB] lookup failed; letting the member in")
-			continue
-		}
-		if source == "" {
-			continue
-		}
-
-		outcome := settings.Action
-		var logMarkup *gotgbot.InlineKeyboardMarkup
-		if settings.Action != spamdbsettings.ActionLog {
-			result, err := punishment.Apply(reqCtx, b, punishment.Request{
-				ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: spamDBPunishments[settings.Action],
-				Source: models.BanSourceSpamDB, Detail: source.Name(),
-			})
-			if err != nil || !result.Applied {
-				log.WithContext(reqCtx).WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": result.Refusal}).Warnf("[SpamDB] %s failed", settings.Action)
-				outcome += " (failed)"
-			} else {
-				logMarkup = result.LogMarkup
-				// Take the join so greetings send no welcome or captcha: a captcha
-				// would lift the mute and its timeout kick would undo the ban.
-				claimRecentJoinProcessing(chat.Id, member.Id)
-			}
-		}
-		actionlog.AutomatedWithMarkup(b, chat, logMarkup, "SPAMDB", member.Id, member.FirstName,
-			actionlog.Field{Name: "Listed in", Value: source.Name()},
-			actionlog.Field{Name: "Action", Value: outcome},
-		)
+	if chat_status.IsApprovedForUpdate(b, ctx, chat.Id, member.Id) ||
+		chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, member.Id) {
+		return StageNotApplicable
 	}
-	return ext.ContinueGroups
+
+	source, err := spamDBChecker.Check(reqCtx, member.Id, spamDBSources(settings))
+	if err != nil {
+		log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": err}).Debug("[SpamDB] lookup failed; letting the member in")
+		return StageNotApplicable
+	}
+	if source == "" {
+		return StageNotApplicable
+	}
+
+	answer, outcome := StageNotApplicable, settings.Action
+	var logMarkup *gotgbot.InlineKeyboardMarkup
+	if mode, punishes := spamDBPunishments[settings.Action]; punishes {
+		result, err := punishment.Apply(reqCtx, b, punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: mode,
+			Source: models.BanSourceSpamDB, Detail: source.Name(),
+		})
+		switch {
+		case err != nil || !result.Applied:
+			log.WithContext(reqCtx).WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": result.Refusal}).Warnf("[SpamDB] %s failed", settings.Action)
+			answer, outcome = StageFailed, outcome+" (failed)"
+		case mode == punishment.Mute:
+			answer, logMarkup = StageHeld, result.LogMarkup
+		default:
+			answer, logMarkup = StageRemoved, result.LogMarkup
+		}
+	}
+	actionlog.AutomatedWithMarkup(b, chat, logMarkup, "SPAMDB", member.Id, member.FirstName,
+		actionlog.Field{Name: "Listed in", Value: source.Name()},
+		actionlog.Field{Name: "Action", Value: outcome},
+	)
+	return answer
 }
 
 // spamdb is the /spamdb command: a bare call reports the settings, on/off
@@ -342,11 +328,6 @@ func LoadSpamDB(dispatcher *ext.Dispatcher) {
 	})
 
 	helpers.WrapCommand(dispatcher, spamDBDesc, spamDBModule.spamdb)
-
-	dispatcher.AddHandlerToGroup(
-		handlers.NewMessage(func(msg *gotgbot.Message) bool { return msg.NewChatMembers != nil }, spamDBModule.checkSpamDB),
-		spamDBModule.handlerGroup,
-	)
 }
 
 func init() {

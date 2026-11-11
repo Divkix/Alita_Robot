@@ -81,6 +81,12 @@ the chat with notices. The notice names the database that listed the member.
 Without a log channel the action still happens silently.
 `ban` and `mute` need the bot to be an admin allowed to ban users.
 
+A new member is looked up once, whether Telegram reports the join with a
+service message, only as a member update (as large groups get it), or both.
+A member the check bans or mutes gets no captcha and no welcome, so solving a
+captcha cannot lift the mute. A `log` match, a failed lookup and a failed ban
+or mute let the member in, to the captcha or welcome as usual.
+
 ## What Is Skipped
 
 - Admins and approved users.

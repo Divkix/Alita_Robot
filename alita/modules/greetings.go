@@ -645,10 +645,11 @@ func membershipDepsForJoin(bot *gotgbot.Bot, ctx *ext.Context) MembershipDeps {
 		IsApproved: func(chatID, userID int64) bool {
 			return chat_status.IsApproved(bot, chatID, userID)
 		},
-		// The guards in the order a newcomer meets them. Federation ban,
-		// antiraid and the spam databases still run as their own watchers
-		// (groups -6, -5, -4) ahead of this one.
+		// The guards in the order a newcomer meets them. Federation ban and
+		// antiraid still run as their own watchers (groups -6, -5) ahead of
+		// this one.
 		Stages: []JoinStage{
+			func(user gotgbot.User) StageAnswer { return spamDBModule.spamDBStage(bot, ctx, user) },
 			func(user gotgbot.User) StageAnswer { return locksModule.botsLockStage(bot, ctx, user) },
 		},
 		Challenge: func(user gotgbot.User) error {
