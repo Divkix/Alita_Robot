@@ -670,8 +670,10 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 }
 
-// disableCaptchaForChat clears pending attempts and restores the members they
-// held. The declaration invokes it after persisting captcha off.
+// disableCaptchaForChat settles every pending attempt as released and lifts
+// the mutes left only as a scheduled unmute, by the same failure rule. The
+// declaration invokes it after persisting captcha off; its error is only
+// what retrying can fix, left to the unmute worker.
 func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 	attempts, err := captcha.GetCaptchaAttemptsForChat(chatID)
 	if err != nil {
@@ -682,33 +684,23 @@ func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 		return err
 	}
 
-	usersToRestore := make(map[int64]struct{}, len(attempts)+len(mutedUsers))
-	var cleanupErr error
+	settled := make(map[int64]struct{}, len(attempts))
+	var releaseErr error
 	for _, attempt := range attempts {
-		claimed, err := captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, chatID)
-		if err != nil {
-			cleanupErr = errors.Join(cleanupErr, err)
-			continue
+		settled[attempt.UserID] = struct{}{}
+		if _, err := settleCaptchaAttempt(bot, attempt, captchaReleased); err != nil {
+			releaseErr = errors.Join(releaseErr, err)
 		}
-		if !claimed {
-			continue
-		}
-		if attempt.MessageID > 0 {
-			if err := helpers.DeleteMessageWithErrorHandling(bot, chatID, attempt.MessageID); err != nil && !isPermanentTelegramError(err) {
-				cleanupErr = errors.Join(cleanupErr, err)
-			}
-		}
-		usersToRestore[attempt.UserID] = struct{}{}
 	}
 	for _, user := range mutedUsers {
-		usersToRestore[user.UserID] = struct{}{}
-	}
-	for userID := range usersToRestore {
-		if err := restoreCaptchaPermissions(bot, chatID, userID); err != nil {
-			cleanupErr = errors.Join(cleanupErr, err)
+		if _, ok := settled[user.UserID]; ok {
+			continue
+		}
+		if err := keepScheduledUnmuteOnFailure(chatID, user.UserID, unmuteCaptchaUser(bot, chatID, user.UserID)); err != nil {
+			releaseErr = errors.Join(releaseErr, err)
 		}
 	}
-	return cleanupErr
+	return releaseErr
 }
 
 // captchaJoinCommand controls PM verification of join requests independently of

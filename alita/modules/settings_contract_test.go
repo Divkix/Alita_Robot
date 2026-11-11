@@ -1108,6 +1108,70 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						}
 						assertContractRead(t, f, setting, false, "off", false)
 					})
+					t.Run("release with a member gone/"+surface, func(t *testing.T) {
+						f := newSettingContractFixture(t, setting)
+						if err := captcha.SetCaptchaEnabled(f.chat.Id, f.chat.Title, true); err != nil {
+							t.Fatal(err)
+						}
+						stayed, gone, scheduled := f.member.Id, f.member.Id+1, f.member.Id+2
+						for i, userID := range []int64{stayed, gone} {
+							attempt, err := captcha.CreateCaptchaAttemptPreMessage(userID, f.chat.Id, "7", 2)
+							if err != nil {
+								t.Fatal(err)
+							}
+							if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, int64(123+i)); err != nil {
+								t.Fatal(err)
+							}
+						}
+						if err := captcha.CreateMutedUser(scheduled, f.chat.Id, time.Now().Add(time.Hour)); err != nil {
+							t.Fatal(err)
+						}
+						f.client.errorsByUser = map[string]error{
+							fmt.Sprintf("restrictChatMember|%d", gone): errors.New("Bad Request: USER_NOT_PARTICIPANT"),
+						}
+						switch surface {
+						case "command":
+							contractDispatch(t, f, f.admin, "/captcha off")
+							if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); reply != translated(t, "captcha_disabled_success") {
+								t.Fatalf("reply = %q, want success", reply)
+							}
+						case "button":
+							contractPress(t, f, f.admin, "cp", "off")
+							if text, alert := lastAnswer(t, f.client); alert {
+								t.Fatalf("answer = %q, want no failure alert", text)
+							}
+						case "panel":
+							response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: false}))
+							if response.Code != http.StatusOK {
+								t.Fatalf("disable = %d %s", response.Code, response.Body.String())
+							}
+						}
+						unmuted := map[string]bool{}
+						for _, call := range f.client.callsFor("restrictChatMember") {
+							if permissions, ok := call.Params["permissions"].(gotgbot.ChatPermissions); ok && permissions.CanSendMessages {
+								unmuted[fmt.Sprint(call.Params["user_id"])] = true
+							}
+						}
+						for _, userID := range []int64{stayed, scheduled} {
+							if !unmuted[fmt.Sprint(userID)] {
+								t.Fatalf("member %d was not unmuted: %v", userID, unmuted)
+							}
+						}
+						deleted := map[string]bool{}
+						for _, call := range f.client.callsFor("deleteMessage") {
+							deleted[fmt.Sprint(call.Params["message_id"])] = true
+						}
+						if !deleted["123"] || !deleted["124"] {
+							t.Fatalf("deleted prompts = %v, want 123 and 124", deleted)
+						}
+						if attempts, err := captcha.GetCaptchaAttemptsForChat(f.chat.Id); err != nil || len(attempts) != 0 {
+							t.Fatalf("pending attempts = %+v, %v", attempts, err)
+						}
+						if users, err := captcha.GetMutedUsersForChat(f.chat.Id); err != nil || len(users) != 0 {
+							t.Fatalf("scheduled unmutes = %+v, %v", users, err)
+						}
+						assertContractRead(t, f, setting, false, "off", false)
+					})
 					t.Run("release failure/"+surface, func(t *testing.T) {
 						f := newSettingContractFixture(t, setting)
 						if err := captcha.SetCaptchaEnabled(f.chat.Id, f.chat.Title, true); err != nil {
@@ -1115,6 +1179,10 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						}
 						assertContractRead(t, f, setting, true, "on", true)
 						if err := captcha.CreateMutedUser(f.member.Id, f.chat.Id, time.Now().Add(time.Hour)); err != nil {
+							t.Fatal(err)
+						}
+						attempt, err := captcha.CreateCaptchaAttemptPreMessage(f.member.Id+1, f.chat.Id, "7", 2)
+						if err != nil {
 							t.Fatal(err)
 						}
 						f.client.errors["restrictChatMember"] = errors.New("telegram refused the unmute")
@@ -1142,8 +1210,11 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 								t.Fatalf("release failure = %d %s", response.Code, response.Body.String())
 							}
 						}
-						if held, err := captcha.GetMutedUsersForChat(f.chat.Id); err != nil || len(held) != 1 {
-							t.Fatalf("failed release lost held member: %+v, %v", held, err)
+						if held, err := captcha.GetMutedUsersForChat(f.chat.Id); err != nil || len(held) != 2 {
+							t.Fatalf("failed release lost held members: %+v, %v", held, err)
+						}
+						if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current != nil {
+							t.Fatalf("pending attempt = %+v, %v", current, err)
 						}
 						assertContractRead(t, f, setting, false, "off", false)
 						assertContractRowCount(t, f, setting, 1)
