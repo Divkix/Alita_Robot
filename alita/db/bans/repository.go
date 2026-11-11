@@ -20,9 +20,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-// liftChunk bounds the IDs one LiftUsers statement names.
-const liftChunk = 500
-
 // openRow selects the open row of a chat and user: the one the partial
 // unique index uq_ban_records_open covers.
 var openRow = clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "lifted_at IS NULL"}}}
@@ -116,24 +113,6 @@ func Lift(chatID, userID, liftedBy int64) (bool, error) {
 		return false, fmt.Errorf("lift ban: %w", res.Error)
 	}
 	return res.RowsAffected > 0, nil
-}
-
-// LiftUsers closes the bans in force of userIDs in chatID, like Lift, and
-// returns how many it closed.
-func LiftUsers(chatID int64, userIDs []int64, liftedBy int64) (int64, error) {
-	var closed int64
-	now := time.Now().UTC()
-	for start := 0; start < len(userIDs); start += liftChunk {
-		end := min(start+liftChunk, len(userIDs))
-		res := inForce(db.DB.Model(&models.BanRecord{}), now).
-			Where("chat_id = ? AND user_id IN ?", chatID, userIDs[start:end]).
-			Updates(map[string]any{"lifted_at": now, "lifted_by": liftedBy})
-		if res.Error != nil {
-			return closed, fmt.Errorf("lift bans: %w", res.Error)
-		}
-		closed += res.RowsAffected
-	}
-	return closed, nil
 }
 
 // Latest returns the newest record of userID in chatID, open, expired or

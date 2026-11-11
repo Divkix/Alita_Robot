@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -50,10 +51,8 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 		return
 	}
 
-	// Telegram takes until_date in whole seconds; the stored value must match
-	// the one it reports back.
-	until := time.Now().Add(reportAutoMuteDuration).Truncate(time.Second)
-	claimed, err := reports.ClaimAutoMute(chat.Id, target.Id, until)
+	// The claim's end is a placeholder until Telegram accepts the mute.
+	claimed, err := reports.ClaimAutoMute(chat.Id, target.Id, time.Now())
 	if err != nil {
 		log.Errorf("[Reports] failed to record auto-mute of %d in %d: %v", target.Id, chat.Id, err)
 		return
@@ -77,16 +76,26 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 		release()
 		return
 	}
-	if _, err := b.RestrictChatMember(chat.Id, target.Id, MutedPermissions, &gotgbot.RestrictChatMemberOpts{
-		UntilDate: until.Unix(),
-	}); err != nil {
+	result, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: target.Id}, Mode: punishment.Mute, Duration: reportAutoMuteDuration,
+	})
+	if err != nil {
 		log.Debugf("[Reports] auto-mute of %d in %d failed: %v", target.Id, chat.Id, err)
 		release()
 		return
 	}
-	// An admin who decided while the mute was being applied found no
-	// restriction to lift and dropped the record: lift it now.
-	if current, err := reports.GetAutoMute(chat.Id, target.Id); err == nil && current == nil {
+	// The stored end must match the until_date Telegram reports back.
+	until := time.Unix(result.UntilDate, 0)
+	recorded, err := reports.SetAutoMuteUntil(chat.Id, target.Id, until)
+	if err != nil {
+		// A record left with the claim's placeholder end would never let a
+		// dismissal lift the mute: drop the claim and lift it now.
+		log.Errorf("[Reports] failed to record the end of the auto-mute of %d in %d: %v", target.Id, chat.Id, err)
+		release()
+	}
+	if err != nil || !recorded {
+		// Or an admin who decided while the mute was being applied found no
+		// restriction to lift and dropped the record.
 		liftReportAutoMute(b, ctx, chat.Id, target.Id, until)
 		return
 	}
@@ -184,8 +193,9 @@ func liftReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64, 
 		// An admin unmuted, muted again or changed the restriction since.
 		return
 	}
-	// unmuteCaptchaUser restores the chat's default permissions.
-	if err := unmuteCaptchaUser(b, chatID, userID); err != nil {
+	if _, err := punishment.Lift(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
+		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Mute,
+	}); err != nil {
 		log.Warnf("[Reports] failed to lift the auto-mute of %d in %d: %v", userID, chatID, err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 var FloodMode, FloodActionTime = moderationMode("antiflood.action", "antiflood.action_time",
@@ -28,6 +29,25 @@ var WarnMode, WarnActionTime = moderationMode("warns.mode", "warns.action_time",
 // IsTimedMode reports whether moderation needs a duration supplied by the user.
 func IsTimedMode(mode string) bool {
 	return mode == "tban" || mode == "tmute"
+}
+
+// PunishmentMode maps a stored moderation mode (ban, kick, mute, tban, tmute)
+// to the punishment it applies and whether it takes a duration. An unknown
+// mode maps to "", which punishment.Apply refuses.
+func PunishmentMode(mode string) (punishment.Mode, bool) {
+	switch mode {
+	case "ban":
+		return punishment.Ban, false
+	case "tban":
+		return punishment.Ban, true
+	case "kick":
+		return punishment.Kick, false
+	case "mute":
+		return punishment.Mute, false
+	case "tmute":
+		return punishment.Mute, true
+	}
+	return "", false
 }
 
 func effectiveModeDuration(mode string, seconds, def int) int {
@@ -54,7 +74,7 @@ func moderationMode(modeKey, timeKey string, read func(context.Context, int64) (
 		Key: timeKey, Type: Duration, Default: 3600, Right: AdminBot,
 		allowed: func(value any) error {
 			if n := value.(int); n != 0 && !models.ValidActionTime(n) {
-				return fmt.Errorf("must be 0 (unset) or between 60 and 31622400 seconds")
+				return fmt.Errorf("must be 0 (unset) or between %d and %d seconds", models.MinActionTime, models.MaxActionTime)
 			}
 			return nil
 		},
@@ -79,7 +99,7 @@ func moderationMode(modeKey, timeKey string, read func(context.Context, int64) (
 		}
 		if IsTimedMode(selected) {
 			if !models.ValidActionTime(seconds) {
-				return "", 0, fmt.Errorf("a timed action needs between 60 and 31622400 seconds")
+				return "", 0, fmt.Errorf("a timed action needs between %d and %d seconds", models.MinActionTime, models.MaxActionTime)
 			}
 		} else if seconds != 0 {
 			return "", 0, fmt.Errorf("action duration is only available for tban and tmute")

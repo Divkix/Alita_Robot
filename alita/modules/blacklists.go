@@ -18,12 +18,14 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -386,7 +388,21 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// blacklistNoticeKeys names each punishing action's notice.
+var blacklistNoticeKeys = map[string]string{
+	"mute":  "_bl_watcher_muted_user",
+	"ban":   "_bl_watcher_banned_user",
+	"kick":  "_bl_watcher_kicked_user",
+	"tban":  "_bl_watcher_tbanned_user",
+	"tmute": "_bl_watcher_tmuted_user",
+}
+
 func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.blacklistWatcherWithPunisher(b, ctx, punishment.Apply)
+}
+
+//nolint:gocyclo // The ordered exemptions, match and action form one watcher pass.
+func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Context, apply punisher) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	if user == nil {
@@ -447,119 +463,60 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 
-	// notify renders the action's locale line and posts it to the chat.
-	notify := func(key string, args ...any) error {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
-		args = append([]any{formatting.MentionHtml(user.Id(), user.Name())}, args...)
-		args = append(args, fmt.Sprintf(reason, html.EscapeString(i)))
-		_, err := b.SendMessage(chat.Id, fmt.Sprintf(temp, args...), formatting.Shtml())
-		if err != nil {
+	if matched.Action == "warn" {
+		if user.IsAnonymousChannel() {
+			return ext.ContinueGroups
+		}
+		err := warnsModule.warnThisUser(b, ctx, user.Id(), fmt.Sprintf(reason, i), "warn", models.WarnEntry{WarnedBy: b.Id})
+		if err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
 			log.Error(err)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return ext.ContinueGroups
 	}
-	// logAction posts the action to the log channel. The matched trigger is a
-	// field of its own, so leaving it out takes one line.
-	// banRecordID is the record of a ban the action made, for the entry's
-	// Unban button.
-	var banRecordID int64
-	logAction := func(action string) {
-		actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "BLACKLIST", user.Id(), user.Name(),
-			actionlog.Field{Name: "Action", Value: action},
-			actionlog.Field{Name: "Trigger", Value: i},
-		)
-	}
-
-	var err error
-	switch matched.Action {
-	case "mute":
-		if user.IsAnonymousChannel() {
-			return ext.ContinueGroups
-		}
-
-		_, err = b.RestrictChatMember(chat.Id, user.Id(), MutedPermissions, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		logAction(matched.Action)
-		if err = notify("_bl_watcher_muted_user"); err != nil {
-			return err
-		}
-	case "ban":
-		if user.IsAnonymousChannel() {
-			_, err = b.BanChatSenderChat(chat.Id, user.Id(), nil)
-		} else {
-			_, err = b.BanChatMember(chat.Id, user.Id(), nil)
-		}
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		banRecordID = recordBan(banRecord{chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist, reason: banReason})
-		logAction(matched.Action)
-		if err = notify("_bl_watcher_banned_user"); err != nil {
-			return err
-		}
-	case "kick":
-		if user.IsAnonymousChannel() {
-			return ext.ContinueGroups
-		}
-
-		if err = kickMember(b, chat.Id, user.Id()); err != nil {
-			log.Error(err)
-			return err
-		}
-		logAction(matched.Action)
-		if err = notify("_bl_watcher_kicked_user"); err != nil {
-			return err
-		}
-	case "tban", "tmute":
-		// banChatSenderChat takes no until_date, so a channel would be banned
-		// for good; leave it like mute and kick do.
-		if user.IsAnonymousChannel() {
-			return ext.ContinueGroups
-		}
-
-		actionTime := blacklistActionTime(matched)
-		untilDate := time.Now().Unix() + int64(actionTime)
-		key := "_bl_watcher_tbanned_user"
-		if matched.Action == "tban" {
-			_, err = b.BanChatMember(chat.Id, user.Id(), &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
-		} else {
-			key = "_bl_watcher_tmuted_user"
-			_, err = b.RestrictChatMember(chat.Id, user.Id(), MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
-		}
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		if matched.Action == "tban" {
-			banRecordID = recordBan(banRecord{
-				chatID: chat.Id, userID: user.Id(), source: models.BanSourceBlacklist,
-				reason: banReason, untilUnix: untilDate,
-			})
-		}
-		logAction(matched.Action + " " + formatDuration(actionTime))
-		if err = notify(key, formatDuration(actionTime)); err != nil {
-			return err
-		}
-	case "warn":
-		if user.IsAnonymousChannel() {
-			return ext.ContinueGroups
-		}
-
-		err = warnsModule.warnThisUser(b, ctx, user.Id(), fmt.Sprintf(reason, i), "warn", models.WarnEntry{WarnedBy: b.Id})
-		if err != nil {
-			if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
-				log.Error(err)
-			}
-			return err
-		}
-	case "none":
+	key, ok := blacklistNoticeKeys[matched.Action]
+	if !ok {
 		return ext.ContinueGroups
 	}
 
+	// A channel is banned for good or left alone: the module refuses it any
+	// other mode, and banChatSenderChat takes no until_date.
+	mode, timed := chatsettings.PunishmentMode(matched.Action)
+	request := punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: user.Id(), SenderChat: user.IsAnonymousChannel()},
+		Mode: mode, Source: models.BanSourceBlacklist, Reason: banReason,
+	}
+	action := matched.Action
+	var durationArgs []any
+	if timed {
+		actionTime := blacklistActionTime(matched)
+		request.Duration = time.Duration(actionTime) * time.Second
+		action += " " + formatDuration(actionTime)
+		durationArgs = []any{formatDuration(actionTime)}
+	}
+	result, err := apply(tracing.UpdateContext(ctx), b, request)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if !result.Applied {
+		return ext.ContinueGroups
+	}
+	// The matched trigger is a log field of its own.
+	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "BLACKLIST", user.Id(), user.Name(),
+		actionlog.Field{Name: "Action", Value: action},
+		actionlog.Field{Name: "Trigger", Value: i},
+	)
+	// The notice shows the trigger HTML-escaped, unlike the record's reason.
+	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
+	args := append([]any{formatting.MentionHtml(user.Id(), user.Name())}, durationArgs...)
+	args = append(args, fmt.Sprintf(reason, html.EscapeString(i)))
+	if _, err := b.SendMessage(chat.Id, fmt.Sprintf(temp, args...), formatting.Shtml()); err != nil {
+		log.Error(err)
+		return err
+	}
 	return ext.ContinueGroups
 }
 

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1255,6 +1256,8 @@ func TestCaptchaVerifyCallbackCorrectAnswerUnmutesAndCleansAttempt(t *testing.T)
 	}
 }
 
+// Releasing the captcha hold restores the chat's own defaults exactly, never
+// a broader permission set.
 func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
 	client := newModuleBotClient()
 	client.responses["getChat"] = []byte(`{
@@ -1264,6 +1267,7 @@ func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
 		"permissions": {
 			"can_send_messages": false,
 			"can_send_photos": false,
+			"can_send_polls": true,
 			"can_invite_users": false
 		}
 	}`)
@@ -1287,12 +1291,8 @@ func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
 	}
-	permissions, ok := calls[0].Params["permissions"].(gotgbot.ChatPermissions)
-	if !ok {
-		t.Fatalf("permissions type = %T, want ChatPermissions", calls[0].Params["permissions"])
-	}
-	if permissions.CanSendMessages || permissions.CanSendPhotos || permissions.CanInviteUsers {
-		t.Fatalf("unmute permissions = %+v, want chat defaults preserved", permissions)
+	if got, want := calls[0].Params["permissions"], (gotgbot.ChatPermissions{CanSendPolls: true}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("unmute permissions = %+v, want the chat's defaults %+v", got, want)
 	}
 }
 
@@ -1376,6 +1376,7 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 		withStoredText bool
 	}{
 		{name: "kick", action: "kick", wantUnban: 1},
+		{name: "ban", action: "ban", wantBan: 1},
 		{name: "mute with stored messages", action: "mute", wantRestrict: 1, withStoredText: true},
 	}
 
@@ -1417,6 +1418,25 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 			}
 			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
 				t.Fatalf("deleteMessage calls = %d, want captcha message cleanup", len(calls))
+			}
+			records := banRecordsOf(t, chat.Id)
+			if tt.action == "ban" {
+				if len(records) != 1 || records[0].UserId != member.Id || records[0].Source != models.BanSourceCaptcha ||
+					records[0].SourceDetail != captchaFailedTimeout || records[0].BannedBy != 0 || records[0].Until != nil {
+					t.Fatalf("ban records = %+v, want one permanent captcha ban by the bot", records)
+				}
+			} else if len(records) != 0 {
+				t.Fatalf("%s recorded bans %+v, want none", tt.action, records)
+			}
+			if tt.action == "mute" {
+				// The 24h end is captcha's own schedule; Telegram gets no until_date.
+				if call := client.onlyCall(t, "restrictChatMember"); call.Params["until_date"] != nil {
+					t.Fatalf("failure mute until_date = %v, want none", call.Params["until_date"])
+				}
+				users, err := captcha.GetMutedUsersForChat(chat.Id)
+				if err != nil || len(users) != 1 || time.Until(users[0].UnmuteAt) < 23*time.Hour || time.Until(users[0].UnmuteAt) > 24*time.Hour {
+					t.Fatalf("unmute schedule = %+v, %v; want one in 24h", users, err)
+				}
 			}
 		})
 	}

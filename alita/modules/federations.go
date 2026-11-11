@@ -32,6 +32,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -696,15 +697,17 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	}
 	chatIDs = federations.ChatsContainingUser(userID, chatIDs)
 	for _, chatID := range chatIDs {
+		// Federation bans are permanent and carry no reason on record.
 		err := retryAfterFlood(func() error {
-			_, err := b.BanChatMember(chatID, userID, nil)
+			_, err := punishment.Apply(context.Background(), b, punishment.Request{
+				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
+				Source: models.BanSourceFed, Detail: fedID, ActorID: actorID,
+			})
 			return err
 		})
 		if err != nil {
 			log.Debugf("[Federations] active fban chat %d user %d: %v", chatID, userID, err)
-			continue
 		}
-		recordBan(banRecord{chatID: chatID, userID: userID, bannedBy: actorID, source: models.BanSourceFed, detail: fedID})
 	}
 	if lookupErr == nil {
 		return
@@ -722,14 +725,14 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	}
 	for _, chatID := range chatIDs {
 		err := retryAfterFlood(func() error {
-			_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true})
+			_, err := punishment.Lift(context.Background(), b, punishment.LiftRequest{
+				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
+			})
 			return err
 		})
 		if err != nil {
 			log.Debugf("[Federations] active fban undo chat %d user %d: %v", chatID, userID, err)
-			continue
 		}
-		liftBanRecord(chatID, userID, 0)
 	}
 }
 
@@ -755,14 +758,14 @@ func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	}
 	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
 		err := retryAfterFlood(func() error {
-			_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true})
+			_, err := punishment.Lift(context.Background(), b, punishment.LiftRequest{
+				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: actorID,
+			})
 			return err
 		})
 		if err != nil {
 			log.Debugf("[Federations] active unfban chat %d user %d: %v", chatID, userID, err)
-			continue
 		}
-		liftBanRecord(chatID, userID, actorID)
 	}
 }
 
@@ -1197,7 +1200,10 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	}
 	// Antiraid leaves fbanned newcomers to this ban, so wait out a short flood.
 	if err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
-		_, err := b.BanChatMember(chat.Id, userID, nil)
+		_, err := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
+			Source: models.BanSourceFed, Detail: sourceFed, ActorID: ban.BannedBy,
+		})
 		return err
 	}); err != nil {
 		log.Debugf("[Federations] passive fban: %v", err)
@@ -1206,7 +1212,6 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		}
 		return
 	}
-	recordBan(banRecord{chatID: chat.Id, userID: userID, bannedBy: ban.BannedBy, source: models.BanSourceFed, detail: sourceFed})
 	if !join {
 		// The sender may have joined unseen; keep greetings from challenging
 		// them if that join's update comes later.

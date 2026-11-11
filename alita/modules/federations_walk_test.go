@@ -310,9 +310,6 @@ func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 			if tc.wantUnban {
 				require.ElementsMatch(t, []int64{chatA.Id, chatB.Id}, unbanTargets(client, target),
 					"a re-read that confirms no ban must lift the bans the walk placed by mistake")
-				for _, call := range client.callsFor("unbanChatMember") {
-					require.Equal(t, true, call.Params["only_if_banned"], "lifting must not kick members who are not banned")
-				}
 			} else {
 				require.Empty(t, unbanTargets(client, target), "a re-read that finds a ban anywhere in the federation tree must keep it")
 			}

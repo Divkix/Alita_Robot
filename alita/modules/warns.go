@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"slices"
@@ -28,6 +29,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -255,77 +257,90 @@ func logWarnRemoval(b *gotgbot.Bot, chat *gotgbot.Chat, admin *gotgbot.User, tag
 	actionlog.Warn(b, chat, admin, tag, userID, name)
 }
 
+// warnLimitReplyKeys names each warn mode's reply at the limit.
+var warnLimitReplyKeys = map[string]string{
+	"kick":  "warns_limit_kicked",
+	"mute":  "warns_limit_muted",
+	"ban":   "warns_limit_banned",
+	"tban":  "warns_limit_tbanned",
+	"tmute": "warns_limit_tmuted",
+}
+
 // punishAtWarnLimit applies the chat's warn mode to u, who just reached the
 // warn limit, and returns the reply. punished is false for an unknown mode.
 // A ban is recorded as issued by bannedBy (0 for the bot) for reason, the
-// reason of the warn that reached the limit; banRecordID is its record (0
-// when the mode bans nobody or the record write failed).
-func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, banRecordID int64, err error) {
-	userId := u.Id
-	switch warnrc.WarnMode {
-	case "kick":
-		err = kickMember(b, chat.Id, userId)
-		temp, _ := tr.GetString("warns_limit_kicked")
-		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
-		if err != nil {
-			log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
-			return "", false, 0, err
-		}
-		punished = true
-	case "mute":
-		_, err = chat.RestrictMember(b, userId,
-			MutedPermissions,
-			nil,
-		)
-		temp, _ := tr.GetString("warns_limit_muted")
-		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
-		if err != nil {
-			log.Errorf("[warn] warnlimit: mute (%d) - %s", userId, err)
-			return "", false, 0, err
-		}
-		punished = true
-	case "ban":
-		_, err = chat.BanMember(b, userId, nil)
-		temp, _ := tr.GetString("warns_limit_banned")
-		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
-		if err != nil {
-			log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
-			return "", false, 0, err
-		}
-		banRecordID = recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: bannedBy, source: models.BanSourceWarn, reason: reason})
-		punished = true
-	case "tban", "tmute":
-		actionTime := warnrc.WarnActionTime
-		untilDate := time.Now().Unix() + int64(actionTime)
-		key := "warns_limit_tbanned"
-		if warnrc.WarnMode == "tban" {
-			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
-		} else {
-			key = "warns_limit_tmuted"
-			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
-		}
-		if err != nil {
-			log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)
-			return "", false, 0, err
-		}
-		if warnrc.WarnMode == "tban" {
-			banRecordID = recordBan(banRecord{
-				chatID: chat.Id, userID: userId, bannedBy: bannedBy,
-				source: models.BanSourceWarn, reason: reason, untilUnix: untilDate,
-			})
-		}
-		temp, _ := tr.GetString(key)
-		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName), formatDuration(actionTime))
-		punished = true
-	default:
-		log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+// reason of the warn that reached the limit; logMarkup is its log entry's
+// Unban button (nil when the mode bans nobody or the record write failed).
+func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chatID int64, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, logMarkup *gotgbot.InlineKeyboardMarkup, err error) {
+	key, ok := warnLimitReplyKeys[warnrc.WarnMode]
+	if !ok {
+		log.WithContext(ctx).Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+		return "", false, nil, nil
 	}
-	return reply, punished, banRecordID, nil
+	mode, timed := chatsettings.PunishmentMode(warnrc.WarnMode)
+	request := punishment.Request{
+		ChatID: chatID, Target: punishment.Target{ID: u.Id}, Mode: mode,
+		Source: models.BanSourceWarn, Reason: reason, ActorID: bannedBy,
+	}
+	args := []any{numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName)}
+	if timed {
+		request.Duration = time.Duration(warnrc.WarnActionTime) * time.Second
+		args = append(args, formatDuration(warnrc.WarnActionTime))
+	}
+	result, err := apply(ctx, b, request)
+	if err != nil {
+		log.WithContext(ctx).Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, u.Id, err)
+		return "", false, nil, err
+	}
+	if !result.Applied {
+		log.WithContext(ctx).Warnf("[Warns] Warn mode %s not applied: %s", warnrc.WarnMode, result.Refusal)
+		return "", false, nil, nil
+	}
+	temp, _ := tr.GetString(key)
+	return fmt.Sprintf(temp, args...), true, result.LogMarkup, nil
+}
+
+// deleteWarnTrigger deletes what a /dwarn replied to, or the /swarn command
+// itself; other warn types delete nothing.
+func deleteWarnTrigger(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat, warnType string) {
+	switch warnType {
+	case "dwarn":
+		if msg.ReplyToMessage != nil {
+			if _, deleteErr := msg.ReplyToMessage.Delete(b, nil); deleteErr != nil {
+				log.Errorf("[Warns] Failed to delete message: %v", deleteErr)
+			}
+		}
+	case "swarn":
+		// From PM there is no command message in the group to delete.
+		if !inPM(msg) {
+			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+		}
+	}
+}
+
+// warnKeyboard is a warn reply's buttons below the limit: remove the warn,
+// and open the rules when the chat has them.
+func warnKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat, userID int64, removeWarnText, rulesButtonText string) gotgbot.InlineKeyboardMarkup {
+	row := []gotgbot.InlineKeyboardButton{{
+		Text:         removeWarnText,
+		CallbackData: moderationButtonData("rmWarn", msg, chat, map[string]string{"u": fmt.Sprint(userID)}),
+	}}
+	if len(rules.GetChatRulesInfo(chat.Id).Rules) >= 1 {
+		row = append(row, gotgbot.InlineKeyboardButton{
+			Text: rulesButtonText,
+			Url:  fmt.Sprintf("t.me/%s?start=rules_%d", b.Username, chat.Id),
+		})
+	}
+	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{row}}
 }
 
 // warnThisUser warns userId; issuer carries who issues the warn (warnIssuer
 // for admin commands, the bot itself for automatic warns).
-func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry) (err error) {
+func (m moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry) error {
+	return m.warnThisUserWithPunisher(b, ctx, userId, reason, warnType, issuer, punishment.Apply)
+}
+
+func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry, apply punisher) (err error) {
 	var (
 		reply    string
 		keyboard gotgbot.InlineKeyboardMarkup
@@ -372,33 +387,20 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		return ext.EndGroups
 	}
 
-	switch warnType {
-	case "dwarn":
-		if msg.ReplyToMessage != nil {
-			if _, deleteErr := msg.ReplyToMessage.Delete(b, nil); deleteErr != nil {
-				log.Errorf("[Warns] Failed to delete message: %v", deleteErr)
-			}
-		}
-	case "swarn":
-		// From PM there is no command message in the group to delete.
-		if !inPM(msg) {
-			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-		}
-	}
+	deleteWarnTrigger(b, msg, chat, warnType)
 
 	// logWarn posts an admin's warn under the warns log category. The bot's
 	// own warns (blacklists) are no admin's: they log under automated, and
 	// only at the limit.
-	// banRecordID is the record of a ban the warn limit made, for the
-	// entry's Unban button.
-	var banRecordID int64
+	// logMarkup is the Unban button of a ban the warn limit made.
+	var logMarkup *gotgbot.InlineKeyboardMarkup
 	logWarn := func(tag string, extra ...actionlog.Field) {
 		if issuer.WarnedBy == b.Id {
 			return
 		}
 		fields := append([]actionlog.Field{{Name: "Warns", Value: fmt.Sprintf("%d/%d", numWarns, warnrc.WarnLimit)}}, extra...)
 		fields = append(fields, actionlog.Field{Name: "Reason", Value: shownReason(reason, func(s string) string { return s })})
-		actionlog.WarnWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), ctx.EffectiveUser, tag, u.Id, u.FirstName, fields...)
+		actionlog.WarnWithMarkup(b, chat, logMarkup, ctx.EffectiveUser, tag, u.Id, u.FirstName, fields...)
 	}
 
 	if numWarns >= warnrc.WarnLimit {
@@ -408,7 +410,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		if bannedBy == b.Id {
 			bannedBy = 0
 		}
-		reply, punished, banRecordID, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns, bannedBy, reason)
+		reply, punished, logMarkup, err = punishAtWarnLimit(tracing.UpdateContext(ctx), b, apply, chat.Id, tr, warnrc, u, numWarns, bannedBy, reason)
 		if err != nil {
 			// The warn stays written though the limit's action failed.
 			logWarn("WARN")
@@ -422,7 +424,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			// Only the bot's own warns (blacklists) are automated; an admin's
 			// warn at the limit is a human action.
 			if issuer.WarnedBy == b.Id {
-				actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "WARNLIMIT", u.Id, u.FirstName,
+				actionlog.AutomatedWithMarkup(b, chat, logMarkup, "WARNLIMIT", u.Id, u.FirstName,
 					actionlog.Field{Name: "Warns", Value: fmt.Sprintf("%d/%d", numWarns, warnrc.WarnLimit)},
 					actionlog.Field{Name: "Action", Value: warnModeLabel(warnrc)},
 					actionlog.Field{Name: "By", Value: "blacklist"},
@@ -436,35 +438,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		reply += warnEntryLines(b, tr, entries, html.EscapeString)
 	} else {
 		logWarn("WARN")
-		rules := rules.GetChatRulesInfo(chat.Id)
-		removeWarnData := moderationButtonData("rmWarn", msg, chat, map[string]string{"u": fmt.Sprint(u.Id)})
-		if len(rules.Rules) >= 1 {
-			keyboard = gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         removeWarnText,
-							CallbackData: removeWarnData,
-						},
-						{
-							Text: rulesButtonText,
-							Url:  fmt.Sprintf("t.me/%s?start=rules_%d", b.Username, chat.Id),
-						},
-					},
-				},
-			}
-		} else {
-			keyboard = gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         removeWarnText,
-							CallbackData: removeWarnData,
-						},
-					},
-				},
-			}
-		}
+		keyboard = warnKeyboard(b, msg, chat, u.Id, removeWarnText, rulesButtonText)
 
 		temp, _ := tr.GetString("warns_user_warning")
 		reply = fmt.Sprintf(temp, formatting.MentionHtml(u.Id, u.FirstName), numWarns, warnrc.WarnLimit)

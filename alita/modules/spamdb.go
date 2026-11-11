@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/spamdb"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -77,6 +78,13 @@ func spamDBSources(settings *models.SpamDBSettings) []spamdb.Source {
 	return sources
 }
 
+// spamDBPunishments maps the chat's spam database action to its punishment;
+// ActionLog punishes nobody.
+var spamDBPunishments = map[string]punishment.Mode{
+	spamdbsettings.ActionBan:  punishment.Ban,
+	spamdbsettings.ActionMute: punishment.Mute,
+}
+
 // checkSpamDB looks every new member up in the chat's databases and, when one
 // lists them, applies the chat's action and reports it to the log channel
 // only, so a raid does not flood the group with notices. A failed lookup lets
@@ -121,37 +129,28 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		outcome := settings.Action
-		var banRecordID int64
-		if err := applySpamDBAction(b, chat.Id, member.Id, settings.Action); err != nil {
-			log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": err}).Warnf("[SpamDB] %s failed", settings.Action)
-			outcome += " (failed)"
-		} else if settings.Action != spamdbsettings.ActionLog {
-			if settings.Action == spamdbsettings.ActionBan {
-				banRecordID = recordBan(banRecord{chatID: chat.Id, userID: member.Id, source: models.BanSourceSpamDB, detail: source.Name()})
+		var logMarkup *gotgbot.InlineKeyboardMarkup
+		if settings.Action != spamdbsettings.ActionLog {
+			result, err := punishment.Apply(reqCtx, b, punishment.Request{
+				ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: spamDBPunishments[settings.Action],
+				Source: models.BanSourceSpamDB, Detail: source.Name(),
+			})
+			if err != nil || !result.Applied {
+				log.WithContext(reqCtx).WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": result.Refusal}).Warnf("[SpamDB] %s failed", settings.Action)
+				outcome += " (failed)"
+			} else {
+				logMarkup = result.LogMarkup
+				// Take the join so greetings send no welcome or captcha: a captcha
+				// would lift the mute and its timeout kick would undo the ban.
+				claimRecentJoinProcessing(chat.Id, member.Id)
 			}
-			// Take the join so greetings send no welcome or captcha: a captcha
-			// would lift the mute and its timeout kick would undo the ban.
-			claimRecentJoinProcessing(chat.Id, member.Id)
 		}
-		actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "SPAMDB", member.Id, member.FirstName,
+		actionlog.AutomatedWithMarkup(b, chat, logMarkup, "SPAMDB", member.Id, member.FirstName,
 			actionlog.Field{Name: "Listed in", Value: source.Name()},
 			actionlog.Field{Name: "Action", Value: outcome},
 		)
 	}
 	return ext.ContinueGroups
-}
-
-func applySpamDBAction(b *gotgbot.Bot, chatID, userID int64, action string) error {
-	switch action {
-	case spamdbsettings.ActionBan:
-		_, err := b.BanChatMember(chatID, userID, nil)
-		return err
-	case spamdbsettings.ActionMute:
-		_, err := b.RestrictChatMember(chatID, userID, MutedPermissions, nil)
-		return err
-	default:
-		return nil
-	}
 }
 
 // spamdb is the /spamdb command: a bare call reports the settings, on/off

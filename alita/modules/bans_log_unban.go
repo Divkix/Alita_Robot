@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -17,28 +16,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
-
-// banLogUnbanNamespace is the callback namespace of the Unban button under a
-// ban's log channel entry: banlogunban|v1|r=<ban record id>.
-const banLogUnbanNamespace = "banlogunban"
-
-// unbanLogMarkup is the Unban button for the log channel entry of the ban
-// with record recordID in chatID, labelled in the group's language, or nil
-// when the ban has no record (its write failed, or the action was no ban).
-func unbanLogMarkup(chatID, recordID int64) *gotgbot.InlineKeyboardMarkup {
-	if recordID == 0 {
-		return nil
-	}
-	data := encodeCallbackData(banLogUnbanNamespace, map[string]string{"r": strconv.FormatInt(recordID, 10)})
-	if data == "" {
-		return nil
-	}
-	tr := i18n.MustNewTranslator(lang.GetGroupLanguage(context.Background(), chatID))
-	label, _ := tr.GetString("bans_log_unban_button")
-	return &gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{Text: label, CallbackData: data}}}}
-}
 
 // banLogUnbanCallback lifts a ban from the Unban button of its log channel
 // entry. The entry lives in the channel, but the presser is authorised
@@ -105,7 +85,13 @@ func (moduleStruct) banLogUnbanCallback(b *gotgbot.Bot, ctx *ext.Context) error 
 	if !lifted {
 		return answer("bans_log_unban_already")
 	}
-	if err := unbanRecorded(b, rec); err != nil {
+	// The claim already closed the record, so Lift finds no open one to close.
+	if err := liftPunishment(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
+		ChatID:  rec.ChatId,
+		Target:  punishment.Target{ID: rec.UserId, SenderChat: chat_status.IsChannelId(rec.UserId)},
+		Mode:    punishment.Ban,
+		ActorID: admin.Id,
+	}); err != nil {
 		if reopenErr := bans.Reopen(rec.ID, admin.Id); reopenErr != nil {
 			log.WithError(reopenErr).WithField("record_id", rec.ID).Error("[Bans] Failed to reopen the ban record after a failed unban")
 		}
@@ -133,7 +119,7 @@ func (moduleStruct) banLogUnbanCallback(b *gotgbot.Bot, ctx *ext.Context) error 
 // message. An entry too old to read cannot be checked: the press may still
 // unban, but never edits it.
 func logUnbanTarget(query *gotgbot.CallbackQuery) (int64, *gotgbot.Message, bool) {
-	decoded, ok := decodeCallbackData(query.Data, banLogUnbanNamespace)
+	decoded, ok := decodeCallbackData(query.Data, punishment.LogUnbanNamespace)
 	if !ok || query.Message == nil {
 		return 0, nil, false
 	}
@@ -174,15 +160,4 @@ func carriesCallback(msg *gotgbot.Message, data string) bool {
 		}
 	}
 	return false
-}
-
-// unbanRecorded lifts rec's ban in Telegram the way /unban does: a channel
-// through the sender-chat endpoint, a user only if still banned.
-func unbanRecorded(b *gotgbot.Bot, rec *models.BanRecord) error {
-	if chat_status.IsChannelId(rec.UserId) {
-		_, err := b.UnbanChatSenderChat(rec.ChatId, rec.UserId, nil)
-		return err
-	}
-	_, err := b.UnbanChatMember(rec.ChatId, rec.UserId, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true})
-	return err
 }

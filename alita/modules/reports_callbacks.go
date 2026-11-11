@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -122,7 +124,7 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return answer("reports_already_handled")
 	}
 
-	if err := applyReportDecision(b, actionName, rep); err != nil {
+	if err := applyReportDecision(tracing.UpdateContext(ctx), b, actionName, rep, user.Id); err != nil {
 		if reopenErr := reports.Reopen(closed, action.status); reopenErr != nil {
 			log.Errorf("[Reports] failed to reopen reports %v after a failed %s: %v", closed, actionName, reopenErr)
 		}
@@ -132,12 +134,6 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if action.eventAction != "" {
 		recordModerationEvent(rep.ChatId, user.Id, rep.ReportedUserId, action.eventAction, "")
-	}
-	if actionName == "ban" {
-		recordBan(banRecord{
-			chatID: rep.ChatId, userID: rep.ReportedUserId, bannedBy: user.Id,
-			source: models.BanSourceReport, reason: rep.Reason,
-		})
 	}
 	settleReportAutoMute(b, ctx, rep.ChatId, rep.ReportedUserId, action.status)
 
@@ -185,17 +181,16 @@ func reportCardAllowed(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, so
 	return true
 }
 
-func applyReportDecision(b *gotgbot.Bot, action string, rep *models.Report) error {
-	var err error
+// applyReportDecision carries out a card's ban, mute or delete, as admin
+// actorID; dismiss does nothing. A ban is recorded with the report's reason.
+func applyReportDecision(ctx context.Context, b *gotgbot.Bot, action string, rep *models.Report, actorID int64) error {
 	switch action {
-	case "ban":
-		_, err = b.BanChatMember(rep.ChatId, rep.ReportedUserId, nil)
-	case "mute":
-		_, err = b.RestrictChatMember(rep.ChatId, rep.ReportedUserId, MutedPermissions, nil)
 	case "delete":
-		err = helpers.DeleteMessageWithErrorHandling(b, rep.ChatId, rep.ReportedMessageId)
+		return helpers.DeleteMessageWithErrorHandling(b, rep.ChatId, rep.ReportedMessageId)
+	case "dismiss":
+		return nil
 	}
-	return err
+	return applyReportPunishment(ctx, b, rep.ChatId, rep.ReportedUserId, punishment.Mode(action), actorID, rep.Reason)
 }
 
 // closeReportCard appends the decision to the card and drops its action

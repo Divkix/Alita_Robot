@@ -2,7 +2,9 @@ package modules
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,7 +12,9 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/gorm"
 
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
@@ -197,6 +201,40 @@ func TestReportAutoMuteSkipsProtectedTargets(t *testing.T) {
 	})
 }
 
+// A mute whose end cannot be stored is lifted at once: a record left with the
+// claim's placeholder end would never let a dismissal lift it.
+func TestReportAutoMuteLiftedWhenItsEndCannotBeStored(t *testing.T) {
+	f := newAutoMuteFixture(t, 2)
+	const name = "test:fail_auto_mute_end"
+	if err := db.DB.Callback().Update().Before("gorm:update").Register(name, func(tx *gorm.DB) {
+		if tx.Statement.Table != "report_auto_mutes" {
+			return
+		}
+		// Telegram now reports the member under the auto-mute just applied.
+		mutes := targetRestrictions(f)
+		f.client.membersByChat[fmt.Sprintf("%d|%d", f.chat.Id, f.target.Id)] = json.RawMessage(fmt.Sprintf(
+			`{"status":"restricted","user":{"id":43,"is_bot":false,"first_name":"Target"},"is_member":true,"can_send_messages":false,"until_date":%v}`,
+			mutes[len(mutes)-1].Params["until_date"]))
+		_ = tx.AddError(errors.New("auto-mute store unavailable"))
+	}); err != nil {
+		t.Fatalf("register update failure: %v", err)
+	}
+	t.Cleanup(func() { _ = db.DB.Callback().Update().Remove(name) })
+
+	f.reportMessage(t, reporterUser(51), 505)
+	f.reportMessage(t, reporterUser(52), 505)
+	calls := targetRestrictions(f)
+	if len(calls) != 2 || !callPermissions(t, calls[1]).CanSendMessages {
+		t.Fatalf("restrictions = %v, want the auto-mute and its lift", calls)
+	}
+	if m := storedAutoMute(t, f); m != nil {
+		t.Fatalf("auto-mute record = %+v, want none", m)
+	}
+	if got := autoMuteLogEntries(f); len(got) != 0 {
+		t.Fatalf("log entries = %q, want none for a lifted auto-mute", got)
+	}
+}
+
 // autoMutedCard reports message 505 by two members in a chat that
 // auto-mutes at 2 and returns the card's actions and the mute's until_date.
 func autoMutedCard(t *testing.T) (reportCardFixture, map[string]string, int64) {
@@ -224,6 +262,8 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 		f, actions, until := autoMutedCard(t)
 		f.client.membersByChat[memberKey(f)] = json.RawMessage(fmt.Sprintf(
 			`{"status":"restricted","user":{"id":43,"is_bot":false,"first_name":"Target"},"is_member":true,"can_send_messages":false,"until_date":%d}`, until))
+		f.client.chatsByID = map[string]json.RawMessage{fmt.Sprint(f.chat.Id): json.RawMessage(fmt.Sprintf(
+			`{"id":%d,"type":"supergroup","title":"Group","permissions":{"can_send_messages":true,"can_send_polls":true}}`, f.chat.Id))}
 		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["dismiss"]); err != ext.EndGroups {
 			t.Fatalf("dismiss press error = %v, want EndGroups", err)
 		}
@@ -231,8 +271,8 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 		if len(calls) != 2 {
 			t.Fatalf("restrictions = %d, want the auto-mute and its lift", len(calls))
 		}
-		if !callPermissions(t, calls[1]).CanSendMessages {
-			t.Fatal("dismiss did not restore sending")
+		if got, want := callPermissions(t, calls[1]), (gotgbot.ChatPermissions{CanSendMessages: true, CanSendPolls: true}); !reflect.DeepEqual(got, want) {
+			t.Fatalf("lift permissions = %+v, want the chat's defaults %+v", got, want)
 		}
 		if m := storedAutoMute(t, f); m != nil {
 			t.Fatalf("auto-mute record = %+v after dismiss, want none", m)

@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 var mutesModule = moduleStruct{moduleName: "Mutes"}
@@ -86,14 +87,11 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_time := extractTemporalTarget(c, t)
-			if _time == -1 {
+			d, ok := extractTemporalTarget(c, t)
+			if !ok {
 				return ext.EndGroups
 			}
-			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions,
-				&gotgbot.RestrictChatMemberOpts{UntilDate: _time},
-			)
-			return err
+			return c.punish(t, punishment.Mute, d)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			muteUser, err := c.Bot.GetChat(t.userID, nil)
@@ -128,8 +126,7 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
-			return err
+			return c.punish(t, punishment.Mute, 0)
 		},
 		reply:       muteReplyWithButton,
 		logAction:   "mute",
@@ -144,8 +141,7 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 		extract:  extractUserOnly,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
-			return err
+			return c.punish(t, punishment.Mute, 0)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			if c.sentInPM() {
@@ -184,8 +180,7 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 				log.Error(err)
 				return err
 			}
-			_, err = c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
-			return err
+			return c.punish(t, punishment.Mute, 0)
 		},
 		reply:       muteReplyWithButton,
 		logAction:   "dmute",
@@ -223,14 +218,7 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 			return nil
 		},
 		execute: func(c *moderationCtx, t *target) error {
-			chat, err := c.Bot.GetChat(c.Chat.Id, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			unmutePermissions := resolveUnmutePermissions(chat)
-			_, err = c.Chat.RestrictMember(c.Bot, t.userID, unmutePermissions, nil)
-			return err
+			return c.lift(t, punishment.Mute)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			muteUser, err := c.Bot.GetChat(t.userID, nil)

@@ -1,4 +1,4 @@
-package modules
+package punishment
 
 import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -24,7 +24,7 @@ var MutedPermissions = gotgbot.ChatPermissions{
 	CanSendOtherMessages:  false,
 }
 
-// defaultUnmutePermissions represents a safe fallback when chat defaults are unavailable.
+// defaultUnmutePermissions is the fallback when Telegram supplies no defaults.
 func defaultUnmutePermissions() gotgbot.ChatPermissions {
 	return gotgbot.ChatPermissions{
 		CanSendMessages:       true,
@@ -44,8 +44,8 @@ func defaultUnmutePermissions() gotgbot.ChatPermissions {
 	}
 }
 
-// resolveUnmutePermissions uses chat default permissions when available.
-func resolveUnmutePermissions(chatInfo *gotgbot.ChatFullInfo) gotgbot.ChatPermissions {
+// unmutePermissions restores the chat defaults verbatim when available.
+func unmutePermissions(chatInfo *gotgbot.ChatFullInfo) gotgbot.ChatPermissions {
 	if chatInfo != nil && chatInfo.Permissions != nil {
 		return *chatInfo.Permissions
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	keyboardutils "github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -262,8 +263,12 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 	return
 }
 
-//nolint:gocyclo // The ordered skip checks, flood counting and per-mode punishment form one watcher pass.
 func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.checkFloodWithPunisher(b, ctx, punishment.Apply)
+}
+
+//nolint:gocyclo // The ordered exemptions and flood-message deletion form one watcher pass.
+func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, apply punisher) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	if user == nil {
@@ -357,83 +362,33 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
 	}
 
-	// floodTimedUntil is the until_date of a tban or tmute, 0 otherwise.
-	var floodTimedUntil int64
-	switch flood.Action {
-	case "mute":
-		if !user.IsUser() {
-			return ext.ContinueGroups
-		}
-		keyboard = [][]gotgbot.InlineKeyboardButton{
-			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id(), 0)},
-		}
-
-		_, err := chat.RestrictMember(b, userId,
-			MutedPermissions,
-			nil,
-		)
-		if err != nil {
-			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
-			return err
-		}
-	case "kick":
-		if !user.IsUser() {
-			return ext.ContinueGroups
-		}
-		keyboard = nil
-		if err := kickMember(b, chat.Id, userId); err != nil {
-			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
-			return err
-		}
-	case "ban":
-		if user.IsUser() {
-			_, err := chat.BanMember(b, userId, nil)
-			if err != nil {
-				log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
-				return err
-			}
-		} else {
-			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", user.Id(), 0)},
-			}
-			_, err := chat.BanSenderChat(b, userId, nil)
-			if err != nil {
-				log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
-				return err
-			}
-		}
-	case "tban", "tmute":
-		// banChatSenderChat takes no until_date, so a channel would be banned
-		// for good; leave it like mute and kick do.
-		if !user.IsUser() {
-			return ext.ContinueGroups
-		}
-		untilDate := time.Now().Unix() + int64(flood.FloodActionTime)
-		floodTimedUntil = untilDate
-		var err error
-		if flood.Action == "tban" {
-			keyboard = nil
-			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
-		} else {
-			keyboard = [][]gotgbot.InlineKeyboardButton{
-				{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", user.Id(), 0)},
-			}
-			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
-		}
-		if err != nil {
-			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
-			return err
-		}
-	default:
-		log.Warnf("[Antiflood] chat %d has unhandled flood action %q; no punishment applied", chatId, flood.Action)
+	mode, timed := chatsettings.PunishmentMode(flood.Action)
+	request := punishment.Request{
+		ChatID: chatId, Target: punishment.Target{ID: userId, SenderChat: !user.IsUser()},
+		Mode: mode, Source: models.BanSourceAntiflood,
+	}
+	if timed {
+		request.Duration = time.Duration(flood.FloodActionTime) * time.Second
+	}
+	result, err := apply(tracing.UpdateContext(ctx), b, request)
+	if err != nil {
+		log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
+		return err
+	}
+	if !result.Applied {
 		return ext.ContinueGroups
 	}
-	var banRecordID int64
-	if flood.Action == "ban" || flood.Action == "tban" {
-		banRecordID = recordBan(banRecord{chatID: chatId, userID: userId, source: models.BanSourceAntiflood, untilUnix: floodTimedUntil})
+	if request.Mode == punishment.Mute {
+		keyboard = [][]gotgbot.InlineKeyboardButton{
+			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", userId, 0)},
+		}
+	} else if request.Target.SenderChat && request.Mode == punishment.Ban {
+		keyboard = [][]gotgbot.InlineKeyboardButton{
+			{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", userId, 0)},
+		}
 	}
 	logAction := floodModeLabel(flood)
-	actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chatId, banRecordID), "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
+	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		trSprintf(tr, strings.ToLower(m.moduleName)+"_checkflood_perform_action", formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood)),
 		&gotgbot.SendMessageOpts{

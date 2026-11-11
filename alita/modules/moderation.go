@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"html"
 	"strings"
@@ -19,6 +21,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // moderationCtx holds the decomposed context for a moderation command.
@@ -59,9 +63,9 @@ type target struct {
 	reason    string
 	timeVal   string // used by time-based commands (e.g., tban)
 	isChannel bool   // true if original target was a channel ID
-	// untilUnix is the until_date a temporary ban was made with, 0 for a
-	// permanent one.
-	untilUnix int64
+	// punished is the result of the punishment execute applied, whose ban
+	// record and log Unban button the log entry carries.
+	punished punishment.Result
 }
 
 // extractFromArgs resolves the target from command arguments using ExtractUserAndText.
@@ -172,10 +176,6 @@ type moderationCommand struct {
 	// succeeds. Variants set their base action; empty (unmute, kickme, banme,
 	// restrict) records nothing.
 	eventAction string
-	// selfBan records the ban execute made in ban_records although it records
-	// no event (banme). An eventAction of ban records the ban too, and one of
-	// unban closes the record of the ban it lifted.
-	selfBan bool
 }
 
 // buildModerationCtx creates the common decomposed context from a gotgbot update.
@@ -229,20 +229,6 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cmd.eventAction != "" {
 		recordModerationEvent(mc.Chat.Id, mc.User.Id, tgt.userID, cmd.eventAction, tgt.reason)
 	}
-	var banRecordID int64
-	if cmd.selfBan || cmd.eventAction == models.ModerationActionBan {
-		banRecordID = recordBan(banRecord{
-			chatID:    mc.Chat.Id,
-			userID:    tgt.userID,
-			bannedBy:  mc.User.Id,
-			source:    models.BanSourceManual,
-			reason:    tgt.reason,
-			untilUnix: tgt.untilUnix,
-		})
-	}
-	if cmd.eventAction == models.ModerationActionUnban {
-		liftBanRecord(mc.Chat.Id, tgt.userID, mc.User.Id)
-	}
 
 	// Cleanup runs after the record: the ban or kick stands even when the
 	// command message's delete fails.
@@ -265,7 +251,7 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		if cmd.logUser {
 			actionlog.User(mc.Bot, mc.Chat, mc.User, cmd.logAction)
 		} else {
-			actionlog.AdminWithMarkup(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason, unbanLogMarkup(mc.Chat.Id, banRecordID))
+			actionlog.AdminWithMarkup(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason, tgt.punished.LogMarkup)
 		}
 	}
 	return ext.EndGroups
@@ -352,25 +338,69 @@ func validateTarget(c *moderationCtx, userID int64, checkInChat bool, notInChatK
 }
 
 // extractTemporalTarget parses the duration from the target reason via
-// ExtractTime, storing the normalized timeVal/reason back on the target.
-// Returns the Telegram until_date, or -1 when it already replied. A call
+// ExtractTimeAt, storing the normalized timeVal/reason back on the target.
+// Returns the duration typed, or false when it already replied. A call
 // without any time gets the command's help; a malformed time keeps the
 // extractor's reply, which names the accepted units.
-func extractTemporalTarget(c *moderationCtx, t *target) int64 {
+func extractTemporalTarget(c *moderationCtx, t *target) (time.Duration, bool) {
 	if len(strings.Fields(t.reason)) == 0 {
 		text, _ := c.Tr.GetString("extraction_no_time_specified")
 		if err := c.replyCommandHelp(html.EscapeString(text)); err != nil {
 			log.Error(err)
 		}
-		return -1
+		return 0, false
 	}
-	_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
-	if _time == -1 {
-		return -1
+	now := time.Now().Unix()
+	until, timeVal, reason := extraction.ExtractTimeAt(c.Bot, c.Ctx, t.reason, now)
+	if until == -1 {
+		return 0, false
 	}
 	t.timeVal = timeVal
 	t.reason = reason
-	return _time
+	return time.Duration(until-now) * time.Second, true
+}
+
+// punish applies mode to the target for d (0 for good) as the command's
+// issuer, keeping the result for the log entry.
+func (c *moderationCtx) punish(t *target, mode punishment.Mode, d time.Duration) error {
+	var err error
+	t.punished, err = applyPunishment(tracing.UpdateContext(c.Ctx), c.Bot, punishment.Request{
+		ChatID: c.Chat.Id, Target: punishment.Target{ID: t.userID, SenderChat: t.isChannel},
+		Mode: mode, Duration: d, Source: models.BanSourceManual, Reason: t.reason, ActorID: c.User.Id,
+	})
+	return err
+}
+
+// lift removes the target's ban or mute as the command's issuer.
+func (c *moderationCtx) lift(t *target, mode punishment.Mode) error {
+	return liftPunishment(tracing.UpdateContext(c.Ctx), c.Bot, punishment.LiftRequest{
+		ChatID: c.Chat.Id, Target: punishment.Target{ID: t.userID, SenderChat: t.isChannel}, Mode: mode, ActorID: c.User.Id,
+	})
+}
+
+// punisher is the punishment.Apply seam watchers take so tests can observe
+// their decision.
+type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
+
+// applyPunishment is punishment.Apply for an action that never asks for one
+// the module refuses: a refusal is an error too.
+func applyPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
+	result, err := punishment.Apply(ctx, b, request)
+	return result, refusalError(result, err)
+}
+
+// liftPunishment is punishment.Lift for a moderator's action; a refusal is an
+// error too.
+func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.LiftRequest) error {
+	result, err := punishment.Lift(ctx, b, request)
+	return refusalError(result, err)
+}
+
+func refusalError(result punishment.Result, err error) error {
+	if err == nil && !result.Applied {
+		return errors.New(result.Refusal)
+	}
+	return err
 }
 
 // pipelineHandler adapts a legacy (bot,ctx) moderation handler to the command

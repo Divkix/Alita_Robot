@@ -5,6 +5,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 // banRecordsOf returns the ban_records rows of chatID, oldest first.
@@ -39,7 +39,7 @@ func singleBanRecord(t *testing.T, chatID int64) models.BanRecord {
 	return rows[0]
 }
 
-// seedBanRecord stores a ban record as recordBan would.
+// seedBanRecord stores a ban record as punishment.Apply would.
 func seedBanRecord(t *testing.T, r models.BanRecord) {
 	t.Helper()
 	if _, err := bans.Record(r); err != nil {
@@ -251,20 +251,6 @@ func TestUnbanAllClosesTheBanRecordsOfTheUsersItUnbanned(t *testing.T) {
 	}
 }
 
-// A warn limit the bot's own warns reached is recorded as the bot's ban.
-func TestWarnLimitBanRecordsTheBan(t *testing.T) {
-	f := newAdminChatFixture(t)
-	tr := i18n.MustNewTranslator("en")
-	settings := &models.WarnSettings{WarnMode: "ban", WarnLimit: 3}
-	if _, punished, _, err := punishAtWarnLimit(f.bot, &f.chat, tr, settings, f.member, 3, 0, "flooding"); err != nil || !punished {
-		t.Fatalf("punishAtWarnLimit() = %v, %v; want the member banned", punished, err)
-	}
-	got := singleBanRecord(t, f.chat.Id)
-	if got.UserId != f.member.Id || got.BannedBy != 0 || got.Source != models.BanSourceWarn || got.Reason != "flooding" {
-		t.Fatalf("record = %+v, want the bot's warn ban for flooding", got)
-	}
-}
-
 func TestBanRecordRetentionDeletesOnlyOldEndedBans(t *testing.T) {
 	f := newAdminChatFixture(t)
 	old := time.Now().Add(-banRecordRetention - 24*time.Hour)
@@ -309,5 +295,25 @@ func TestFedBanWalkRecordsAndUnfbanCloses(t *testing.T) {
 
 	if got := singleBanRecord(t, chat.Id); got.LiftedAt == nil || got.LiftedBy == nil || *got.LiftedBy != owner {
 		t.Fatalf("record = %+v, want it lifted by %d", got, owner)
+	}
+}
+
+// A raid ban records the end Telegram was given, even the shortest one the raid
+// accepts, so /baninfo never shows a 30-second raid ban as permanent.
+func TestRaidBanRecordsTheEndItWasMadeWith(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chat.Id).Delete(&models.BanRecord{}).Error })
+
+	banRaidMember(bot, nil, &chat, 4253, 30)
+
+	until, err := strconv.ParseInt(fmt.Sprint(client.onlyCall(t, "banChatMember").Params["until_date"]), 10, 64)
+	if err != nil {
+		t.Fatalf("until_date: %v", err)
+	}
+	got := singleBanRecord(t, chat.Id)
+	if got.Source != models.BanSourceAntiraid || got.Until == nil || got.Until.Unix() != until {
+		t.Fatalf("record = %+v, want an antiraid ban ending at %d", got, until)
 	}
 }

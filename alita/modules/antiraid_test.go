@@ -724,13 +724,13 @@ func TestBanRaidMemberRejectsUnsafeActionTimes(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
 
-	banRaidMember(bot, &chat, 4249, 29)
-	banRaidMember(bot, &chat, 4250, 366*24*60*60+1)
+	banRaidMember(bot, nil, &chat, 4249, 29)
+	banRaidMember(bot, nil, &chat, 4250, 366*24*60*60+1)
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want unsafe action times rejected", len(calls))
 	}
 
-	banRaidMember(bot, &chat, 4251, 30)
+	banRaidMember(bot, nil, &chat, 4251, 30)
 	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
 		t.Fatalf("banChatMember calls = %d, want exact 30-second action accepted", len(calls))
 	}

@@ -50,9 +50,10 @@ func CountOpenReporters(chatID, userID int64) (int, error) {
 }
 
 // ClaimAutoMute records that the auto-mute mutes userID in chatID until
-// until. It returns false when a mute is already recorded for the user, so
-// of two reports crossing the threshold at once only one mutes, and the same
-// reports never mute the user again before an admin decides.
+// until, a placeholder SetAutoMuteUntil replaces once Telegram has muted. It
+// returns false when a mute is already recorded for the user, so of two
+// reports crossing the threshold at once only one mutes, and the same reports
+// never mute the user again before an admin decides.
 func ClaimAutoMute(chatID, userID int64, until time.Time) (bool, error) {
 	res := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "user_id"}},
@@ -60,6 +61,19 @@ func ClaimAutoMute(chatID, userID int64, until time.Time) (bool, error) {
 	}).Create(&models.ReportAutoMute{ChatId: chatID, UserId: userID, MutedUntil: until})
 	if res.Error != nil {
 		return false, fmt.Errorf("claim report auto-mute: %w", res.Error)
+	}
+	return res.RowsAffected > 0, nil
+}
+
+// SetAutoMuteUntil records until, the until_date Telegram accepted, as the
+// end of the auto-mute claimed for userID in chatID. It returns false when the
+// claim was released meanwhile.
+func SetAutoMuteUntil(chatID, userID int64, until time.Time) (bool, error) {
+	res := db.DB.Model(&models.ReportAutoMute{}).
+		Where("chat_id = ? AND user_id = ?", chatID, userID).
+		Update("muted_until", until)
+	if res.Error != nil {
+		return false, fmt.Errorf("set report auto-mute end: %w", res.Error)
 	}
 	return res.RowsAffected > 0, nil
 }

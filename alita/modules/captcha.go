@@ -39,6 +39,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
@@ -1293,7 +1294,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		return err
 	}
 
-	if _, err = chat.RestrictMember(bot, userID, MutedPermissions, nil); err != nil {
+	if _, err = chat.RestrictMember(bot, userID, punishment.MutedPermissions, nil); err != nil {
 		if _, delErr := captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, chat.Id); delErr != nil {
 			log.Errorf("[Captcha] Failed to delete attempt %d after mute failure: %v", preAttempt.ID, delErr)
 		} else if isMissingRestrictRightError(err) {
@@ -1521,26 +1522,23 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		return true, false
 	}
 
-	if err := executeCaptchaFailureAction(bot, chatID, userID, action); err != nil {
+	unban, err := executeCaptchaFailureAction(bot, chatID, userID, action, cause)
+	if err != nil {
 		log.Errorf("[Captcha] Failed to apply %s to user %d in chat %d: %v", action, userID, chatID, err)
 		if action == "kick" {
-			_, _ = bot.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
 		}
 		if restoreErr := restoreCaptchaPermissions(bot, chatID, userID); restoreErr != nil {
 			log.Errorf("[Captcha] Failed to restore permissions after action failure: %v", restoreErr)
 		}
 		return true, false
 	}
-	var banRecordID int64
-	if action == "ban" {
-		banRecordID = recordBan(banRecord{chatID: chatID, userID: userID, source: models.BanSourceCaptcha, detail: cause})
-	}
 	if action != "mute" {
 		if err := captcha.DeleteMutedUser(userID, chatID); err != nil {
 			log.Errorf("[Captcha] Failed to clear fallback unmute for user %d: %v", userID, err)
 		}
 	}
-	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount, unbanLogMarkup(chatID, banRecordID))
+	reportCaptchaFailure(bot, chatID, userID, userName, action, cause, storedMsgCount, unban)
 	return true, true
 }
 
@@ -1600,35 +1598,41 @@ func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64
 	return msg
 }
 
-func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action string) error {
-	switch action {
-	case "kick":
-		if err := kickMember(bot, chatID, userID); err != nil {
-			return fmt.Errorf("kick: %w", err)
-		}
-	case "ban":
-		if _, err := bot.BanChatMember(chatID, userID, nil); err != nil {
-			return fmt.Errorf("ban: %w", err)
-		}
-	case "mute":
-		unmuteAt := time.Now().Add(24 * time.Hour)
+// executeCaptchaFailureAction applies the chat's failure action and returns
+// the log entry's Unban button (nil unless a ban was recorded). A mute gets no
+// Telegram until_date: captcha's unmute worker lifts it after 24 hours.
+func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action, cause string) (*gotgbot.InlineKeyboardMarkup, error) {
+	mode, _ := chatsettings.PunishmentMode(action)
+	mute := mode == punishment.Mute
+	unmuteAt := time.Now().Add(24 * time.Hour)
+	if mute {
 		if err := captcha.CreateMutedUser(userID, chatID, unmuteAt); err != nil {
-			return fmt.Errorf("store automatic unmute: %w", err)
+			return nil, fmt.Errorf("store automatic unmute: %w", err)
 		}
-		if _, muteErr := bot.RestrictChatMember(chatID, userID, MutedPermissions, nil); muteErr != nil {
-			return errors.Join(fmt.Errorf("mute: %w", muteErr), captcha.DeleteMutedUser(userID, chatID))
+	}
+	result, err := applyPunishment(context.Background(), bot, punishment.Request{
+		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: mode,
+		Source: models.BanSourceCaptcha, Detail: cause,
+	})
+	if err != nil {
+		err = fmt.Errorf("%s: %w", action, err)
+		if mute {
+			err = errors.Join(err, captcha.DeleteMutedUser(userID, chatID))
 		}
+		return nil, err
+	}
+	if mute {
 		log.Infof("User %d muted in chat %d, will be unmuted at %s", userID, chatID, unmuteAt.Format(time.RFC3339))
 	}
-	return nil
+	return result.LogMarkup, nil
 }
 
+// unmuteCaptchaUser releases a pending hold or an expired failure mute: both
+// restore the group's defaults, as any lifted mute.
 func unmuteCaptchaUser(bot *gotgbot.Bot, chatID, userID int64) error {
-	chat, err := bot.GetChat(chatID, nil)
-	if err != nil {
-		return err
-	}
-	_, err = bot.RestrictChatMember(chatID, userID, resolveUnmutePermissions(chat), nil)
+	_, err := punishment.Lift(context.Background(), bot, punishment.LiftRequest{
+		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Mute,
+	})
 	return err
 }
 
@@ -2277,7 +2281,9 @@ func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
 		if currentErr != nil {
 			log.Errorf("[CaptchaUnmute] Failed to reload schedule for user %d: %v", user.UserID, currentErr)
 		} else if current != nil && current.UnmuteAt.After(user.UnmuteAt) {
-			if _, remuteErr := bot.RestrictChatMember(user.ChatID, user.UserID, MutedPermissions, nil); remuteErr != nil {
+			if _, remuteErr := punishment.Apply(context.Background(), bot, punishment.Request{
+				ChatID: user.ChatID, Target: punishment.Target{ID: user.UserID}, Mode: punishment.Mute, Source: models.BanSourceCaptcha,
+			}); remuteErr != nil {
 				log.Errorf("[CaptchaUnmute] Failed to restore newer mute for user %d: %v", user.UserID, remuteErr)
 			}
 		}

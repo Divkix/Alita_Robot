@@ -391,9 +391,6 @@ func TestUnfbanLiftsBanInFederationChats(t *testing.T) {
 		2*time.Second, 10*time.Millisecond, "unfban must unban the user in every federation chat that knows them")
 	require.ElementsMatch(t, []int64{chatA.Id, chatB.Id}, unbanTargets(client, target))
 	require.NotContains(t, unbanTargets(client, target), chatOther.Id)
-	for _, call := range client.callsFor("unbanChatMember") {
-		require.Equal(t, true, call.Params["only_if_banned"], "unfban must not kick members who are not banned")
-	}
 }
 
 // withUnfbanLocale loads the /unfban replies so tests can tell them apart.

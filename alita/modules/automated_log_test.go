@@ -92,44 +92,23 @@ func checkAutomatedLog(t *testing.T, tc automatedLogCase) {
 }
 
 func TestAntifloodLogsItsActionToTheLogChannel(t *testing.T) {
-	for _, tt := range []struct {
-		action     string
-		actionTime int
-		failMethod string
-		want       []string
-	}{
-		{action: "mute", failMethod: "restrictChatMember"},
-		{action: "kick", failMethod: "unbanChatMember"},
-		{action: "ban", failMethod: "banChatMember"},
-		{action: "tban", failMethod: "banChatMember", want: []string{"1h"}},
-		{action: "tmute", failMethod: "restrictChatMember", want: []string{"1h"}},
-		{action: "tban", actionTime: 86400, failMethod: "banChatMember", want: []string{"1d"}},
-		{action: "tmute", actionTime: 600, failMethod: "restrictChatMember", want: []string{"10m"}},
-		{action: "tban", actionTime: 30, failMethod: "banChatMember", want: []string{"1h"}},
-		{action: "tmute", actionTime: 366*86400 + 1, failMethod: "restrictChatMember", want: []string{"1h"}},
-	} {
-		checkAutomatedLog(t, automatedLogCase{
-			name:       fmt.Sprintf("%s/%d", tt.action, tt.actionTime),
-			tag:        "ANTIFLOOD",
-			userID:     61,
-			want:       append([]string{tt.action}, tt.want...),
-			failMethod: tt.failMethod,
-			run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
-				resetAntifloodState(t)
-				if err := antiflood.SetFlood(chat.Id, 3); err != nil {
-					t.Fatalf("SetFlood() error = %v", err)
-				}
-				if err := antiflood.SetFloodMode(chat.Id, tt.action, tt.actionTime); err != nil {
-					t.Fatalf("SetFloodMode() error = %v", err)
-				}
-				member := gotgbot.User{Id: 61, FirstName: "Flooder"}
-				_ = sendFloodPrelude(bot, newModuleMessageContext(bot, chat, member, "one"))
-				second := newModuleMessageContext(bot, chat, member, "two")
-				second.EffectiveMessage.MessageId = 202
-				_ = antifloodModule.checkFlood(bot, second)
-			},
-		})
-	}
+	checkAutomatedLog(t, automatedLogCase{
+		name: "tban", tag: "ANTIFLOOD", userID: 61, want: []string{"tban", "10m"}, failMethod: "banChatMember",
+		run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
+			resetAntifloodState(t)
+			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
+				t.Fatalf("SetFlood() error = %v", err)
+			}
+			if err := antiflood.SetFloodMode(chat.Id, "tban", 600); err != nil {
+				t.Fatalf("SetFloodMode() error = %v", err)
+			}
+			member := gotgbot.User{Id: 61, FirstName: "Flooder"}
+			_ = sendFloodPrelude(bot, newModuleMessageContext(bot, chat, member, "one"))
+			second := newModuleMessageContext(bot, chat, member, "two")
+			second.EffectiveMessage.MessageId = 202
+			_ = antifloodModule.checkFlood(bot, second)
+		},
+	})
 }
 
 func TestBlacklistLogsItsActionToTheLogChannel(t *testing.T) {

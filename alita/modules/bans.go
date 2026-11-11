@@ -12,26 +12,22 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/bans"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var bansModule = moduleStruct{moduleName: "Bans"}
-
-func kickMember(b *gotgbot.Bot, chatID, userID int64) error {
-	_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
-	return err
-}
 
 func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationDkick(&m).run(b, ctx)
@@ -83,7 +79,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 				log.Error(err)
 				return err
 			}
-			return kickMember(c.Bot, c.Chat.Id, t.userID)
+			return c.punish(t, punishment.Kick, 0)
 		},
 		reply:       kickReply,
 		logAction:   "dkick",
@@ -98,13 +94,11 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_time := extractTemporalTarget(c, t)
-			if _time == -1 {
+			d, ok := extractTemporalTarget(c, t)
+			if !ok {
 				return ext.EndGroups
 			}
-			_, err := c.Chat.BanMember(c.Bot, t.userID, &gotgbot.BanChatMemberOpts{UntilDate: _time})
-			t.untilUnix = _time
-			return err
+			return c.punish(t, punishment.Ban, d)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			banUser, err := c.Bot.GetChat(t.userID, nil)
@@ -200,11 +194,8 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
 				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-				_, err := c.Bot.BanChatSenderChat(c.Chat.Id, t.userID, nil)
-				return err
 			}
-			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			return err
+			return c.punish(t, punishment.Ban, 0)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			var text string
@@ -236,7 +227,7 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			return kickMember(c.Bot, c.Chat.Id, t.userID)
+			return c.punish(t, punishment.Kick, 0)
 		},
 		reply:       kickReply,
 		logAction:   "kick",
@@ -260,7 +251,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 			return target{userID: c.User.Id}, nil
 		},
 		execute: func(c *moderationCtx, t *target) error {
-			return kickMember(c.Bot, c.Chat.Id, t.userID)
+			return c.punish(t, punishment.Kick, 0)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kickme_ok_out")
@@ -283,8 +274,7 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 		extract:  extractUserOnly,
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			return err
+			return c.punish(t, punishment.Ban, 0)
 		},
 		cleanup: func(c *moderationCtx, _ *target) error {
 			if c.sentInPM() {
@@ -329,8 +319,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 				log.Error(err)
 				return err
 			}
-			_, err = c.Chat.BanMember(c.Bot, t.userID, nil)
-			return err
+			return c.punish(t, punishment.Ban, 0)
 		},
 		reply:       banReplyWithButton,
 		logAction:   "dban",
@@ -382,11 +371,8 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
 				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-				_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
-				return err
 			}
-			_, err := c.Chat.UnbanMember(c.Bot, t.userID, nil)
-			return err
+			return c.lift(t, punishment.Ban)
 		},
 		cleanup: func(c *moderationCtx, t *target) error {
 			spamFilterUnbanHam(c.Chat.Id, t.userID, c.User.Id)
@@ -594,12 +580,16 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		return err
 	}
 
+	mode, _ := chatsettings.PunishmentMode(action)
+	if _, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: userId}, Mode: mode,
+		Source: models.BanSourceManual, ActorID: user.Id,
+	}); err != nil {
+		log.Error(err)
+		return err
+	}
 	switch action {
 	case "kick":
-		if err := kickMember(b, chat.Id, userId); err != nil {
-			log.Error(err)
-			return err
-		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionKick, "")
 		temp, _ := tr.GetString("bans_restrict_kicked")
 		helpText = fmt.Sprintf(temp,
@@ -607,14 +597,6 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			formatting.MentionHtml(userId, actionUser.FirstName),
 		)
 	case "mute":
-		_, err := chat.RestrictMember(b, userId,
-			MutedPermissions,
-			nil,
-		)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionMute, "")
 		temp, _ := tr.GetString("bans_restrict_muted")
 		helpText = fmt.Sprintf(temp,
@@ -622,13 +604,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			formatting.MentionHtml(int64(userId), actionUser.FirstName),
 		)
 	case "ban":
-		_, err := chat.BanMember(b, int64(userId), &gotgbot.BanChatMemberOpts{})
-		if err != nil {
-			log.Error(err)
-			return err
-		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
-		recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: user.Id, source: models.BanSourceManual})
 		temp, _ := tr.GetString("bans_restrict_banned")
 		helpText = fmt.Sprintf(temp,
 			formatting.MentionHtml(user.Id, user.FirstName),
@@ -791,47 +767,21 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 
 	var helpText string
 
+	// Only a channel's unban takes the sender-chat endpoint it was banned with.
+	if err := liftPunishment(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
+		ChatID:  chat.Id,
+		Target:  punishment.Target{ID: userId, SenderChat: action == "unban" && chat_status.IsChannelId(userId)},
+		Mode:    punishment.Mode(strings.TrimPrefix(action, "un")),
+		ActorID: user.Id,
+	}); err != nil {
+		return failAction(err)
+	}
 	switch action {
 	case "unmute":
-
-		c, err := b.GetChat(chat.Id, nil)
-		if err != nil {
-			return failAction(err)
-		}
-		unmutePermissions := resolveUnmutePermissions(c)
-
-		_, err = chat.RestrictMember(b, userId,
-			unmutePermissions,
-			nil,
-		)
-		if err != nil {
-			return failAction(err)
-		}
-
 		temp, _ := tr.GetString("bans_unrestrict_unmuted")
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	case "unban":
-		if chat_status.IsChannelId(userId) {
-			// Anonymous channel bans use BanChatSenderChat; unban must use the
-			// matching sender-chat endpoint, not UnbanChatMember (which rejects
-			// channel IDs and leaves the channel permanently banned).
-			_, err := chat.UnbanSenderChat(b, userId, nil)
-			if err != nil {
-				return failAction(err)
-			}
-		} else {
-			_, err := chat.Unban(b,
-				userId,
-				&gotgbot.UnbanChatMemberOpts{
-					OnlyIfBanned: true,
-				},
-			)
-			if err != nil {
-				return failAction(err)
-			}
-		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionUnban, "")
-		liftBanRecord(chat.Id, userId, user.Id)
 		spamFilterUnbanHam(chat.Id, userId, user.Id)
 
 		temp, _ := tr.GetString("bans_unrestrict_unbanned")
@@ -870,7 +820,7 @@ func moderationSkick(m *moduleStruct) *moderationCommand {
 		extract:  extractUserOnly,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			return kickMember(c.Bot, c.Chat.Id, t.userID)
+			return c.punish(t, punishment.Kick, 0)
 		},
 		cleanup: func(c *moderationCtx, _ *target) error {
 			if c.sentInPM() {
@@ -910,8 +860,7 @@ func moderationBanme(m *moduleStruct) *moderationCommand {
 			return target{userID: c.User.Id}, nil
 		},
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			return err
+			return c.punish(t, punishment.Ban, 0)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			text, _ := c.Tr.GetString("bans_banme_ok")
@@ -924,7 +873,6 @@ func moderationBanme(m *moduleStruct) *moderationCommand {
 		},
 		logAction: "banme",
 		logUser:   true,
-		selfBan:   true,
 	}
 }
 
@@ -980,23 +928,21 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Debugf("[Bans] unbanall GetChatUsersCached %d: %v", chatID, err)
 			users = nil
 		}
-		unbanned := make([]int64, 0, len(users))
+		unbanned := 0
 		for _, userID := range users {
 			if !chat_status.IsValidUserId(userID) || userID == b.Id {
 				continue
 			}
-			if _, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true}); err != nil {
+			// A record that fails to close is logged by Lift; the unban stands.
+			if result, err := punishment.Lift(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
+				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: query.From.Id,
+			}); !result.Applied {
 				log.Debugf("[Bans] unbanall user %d: %v", userID, err)
 				continue
 			}
-			unbanned = append(unbanned, userID)
+			unbanned++
 		}
-		// Close the records of the bans it lifted; a failed write changes
-		// nothing else, like every ban record write.
-		if _, err := bans.LiftUsers(chatID, unbanned, query.From.Id); err != nil {
-			log.WithError(err).WithField("chat_id", chatID).Error("[Bans] Failed to close the ban records of /unbanall")
-		}
-		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": len(unbanned)})
+		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": unbanned})
 	case "no":
 		helpText, _ = tr.GetString("bans_unbanall_cancel")
 	default:
@@ -1147,7 +1093,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansModule.unbanAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banListNamespace+"|"), bansModule.banListCallback))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banLogUnbanNamespace+"|"), bansModule.banLogUnbanCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(punishment.LogUnbanNamespace+"|"), bansModule.banLogUnbanCallback))
 }
 
 func init() {

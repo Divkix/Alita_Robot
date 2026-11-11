@@ -24,9 +24,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -342,17 +342,25 @@ func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) erro
 	return fmt.Errorf("anti-raid state changed concurrently")
 }
 
-func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTime int) {
-	untilDate, ok := extraction.TemporaryUntilDate(time.Now().Unix(), int64(actionTime))
-	if !ok {
-		log.Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
+func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64, actionTime int) {
+	reqCtx := tracing.UpdateContext(ctx)
+	// A zero duration would be a permanent ban in the module; raid never bans for good.
+	if actionTime == 0 {
+		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
 		return
 	}
-	if _, err := chat.BanMember(bot, userID, &gotgbot.BanChatMemberOpts{UntilDate: untilDate}); err != nil {
-		log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
+	result, err := punishment.Apply(reqCtx, bot, punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
+		Duration: time.Duration(actionTime) * time.Second, Source: models.BanSourceAntiraid,
+	})
+	if err != nil {
+		log.WithContext(reqCtx).WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
 		return
 	}
-	recordBan(banRecord{chatID: chat.Id, userID: userID, source: models.BanSourceAntiraid, untilUnix: untilDate})
+	if !result.Applied {
+		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d: %s", actionTime, userID, chat.Id, result.Refusal)
+		return
+	}
 	// Take the join so greetings sends the banned user no captcha or welcome.
 	// Only a ban that went through does this; a failed one leaves the captcha.
 	claimRecentJoinProcessing(chat.Id, userID)
@@ -396,7 +404,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Fed-ban (group -6) has banned a fbanned newcomer for good; a raid
 			// ban with an until_date on top could make that ban temporary.
 			if !fedBannedInChat(ctx, chat.Id, member.Id) {
-				banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+				banRaidMember(bot, ctx, chat, member.Id, settings.RaidActionTime)
 			}
 		}
 

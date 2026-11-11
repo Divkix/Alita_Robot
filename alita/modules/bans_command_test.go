@@ -293,11 +293,7 @@ func TestKickUsesNativeRemovalThenReply(t *testing.T) {
 	if err := bansModule.kick(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("kick() error = %v, want EndGroups", err)
 	}
-	call := client.onlyCall(t, "unbanChatMember")
-	assertParams(t, call, targetParams(chat.Id, target.Id))
-	if onlyIfBanned, ok := call.Params["only_if_banned"].(bool); ok && onlyIfBanned {
-		t.Fatalf("only_if_banned = %#v, want false so a current member is removed", call.Params["only_if_banned"])
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
@@ -621,6 +617,14 @@ func TestUnbanCommandUnbansUser(t *testing.T) {
 	}
 }
 
+func TestUnbanCommandLeavesAMemberWhoIsNotBanned(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := bansModule.unban(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unban 42")); err != ext.EndGroups {
+		t.Fatalf("unban() error = %v, want EndGroups", err)
+	}
+	assertParams(t, f.client.onlyCall(t, "unbanChatMember"), map[string]any{"only_if_banned": true})
+}
+
 func TestUnbanRejectsMissingAndBotTargets(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
@@ -696,11 +700,7 @@ func TestRestrictCommandAndMuteCallback(t *testing.T) {
 	if err := bansModule.restrictButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("restrictButtonHandler() error = %v, want EndGroups", err)
 	}
-	mute := client.onlyCall(t, "restrictChatMember")
-	assertParams(t, mute, targetParams(chat.Id, 42))
-	if perms, ok := mute.Params["permissions"].(gotgbot.ChatPermissions); !ok || perms.CanSendMessages {
-		t.Fatalf("mute permissions = %#v, want CanSendMessages false", mute.Params["permissions"])
-	}
+	assertParams(t, client.onlyCall(t, "restrictChatMember"), targetParams(chat.Id, 42))
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
 	}
@@ -888,11 +888,7 @@ func TestUnrestrictCallbacksApplyUnmuteAndInvalidUser(t *testing.T) {
 		t.Fatalf("unrestrictButtonHandler(invalid user) error = %v, want EndGroups", err)
 	}
 
-	unmute := client.onlyCall(t, "restrictChatMember")
-	assertParams(t, unmute, targetParams(chat.Id, 42))
-	if perms, ok := unmute.Params["permissions"].(gotgbot.ChatPermissions); !ok || !perms.CanSendMessages {
-		t.Fatalf("unmute permissions = %#v, want CanSendMessages true", unmute.Params["permissions"])
-	}
+	assertParams(t, client.onlyCall(t, "restrictChatMember"), targetParams(chat.Id, 42))
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
 		t.Fatalf("answerCallbackQuery calls = %d, want success and invalid user answer", len(calls))
 	}

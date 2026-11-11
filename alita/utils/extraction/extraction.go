@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 )
 
 var (
@@ -34,20 +35,6 @@ var (
 	quotedTextRegex = regexp.MustCompile(`(?s)(\s+)?"(.*?)"\s?(.*)?`)
 	wordRegex       = regexp.MustCompile(`(?s)(\s+)?([A-Za-z0-9-_+=}\][{;:'",<.>?/|*\\()]+)\s?(.*)?`)
 )
-
-const (
-	minTemporaryDurationSeconds int64 = 30
-	maxTemporaryDurationSeconds int64 = 366 * 24 * 60 * 60
-)
-
-func TemporaryUntilDate(now, durationSeconds int64) (int64, bool) {
-	if durationSeconds < minTemporaryDurationSeconds ||
-		durationSeconds > maxTemporaryDurationSeconds ||
-		now > math.MaxInt64-durationSeconds {
-		return 0, false
-	}
-	return now + durationSeconds, true
-}
 
 func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	msg := ctx.EffectiveMessage
@@ -323,7 +310,7 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 }
 
 func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int64, timeStr, reason string) {
-	return extractTimeAt(b, ctx, inputVal, time.Now().Unix())
+	return ExtractTimeAt(b, ctx, inputVal, time.Now().Unix())
 }
 
 // ExtractDuration parses a single duration in the /tban format and returns it
@@ -340,14 +327,16 @@ func ExtractDuration(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (seconds
 		return -1
 	}
 	timeNow := time.Now().Unix()
-	untilDate, _, _ := extractTimeAt(b, ctx, inputVal, timeNow)
+	untilDate, _, _ := ExtractTimeAt(b, ctx, inputVal, timeNow)
 	if untilDate == -1 {
 		return -1
 	}
 	return untilDate - timeNow
 }
 
-func extractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow int64) (banTime int64, timeStr, reason string) {
+// ExtractTimeAt is ExtractTime for a period starting at timeNow, so the
+// caller can subtract the same instant to get the duration typed.
+func ExtractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow int64) (banTime int64, timeStr, reason string) {
 	msg := ctx.EffectiveMessage
 
 	banTime, amount, unit, reason, err := parseTemporaryDuration(inputVal, timeNow)
@@ -437,7 +426,7 @@ func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, 
 		return -1, 0, "", "", errTimeLimitExceeded
 	}
 
-	banTime, ok := TemporaryUntilDate(now, timeNum*multiplier)
+	banTime, ok := window.UntilDate(now, timeNum*multiplier)
 	if !ok {
 		return -1, 0, "", "", errTimeLimitExceeded
 	}

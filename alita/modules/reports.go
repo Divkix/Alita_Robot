@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -439,6 +441,16 @@ var legacyReportStatus = map[string]string{
 	"resolved": models.ReportStatusDismissed,
 }
 
+// applyReportPunishment punishes userID in chatID on admin actorID's report
+// decision. A ban is recorded with reason; a refusal is an error.
+func applyReportPunishment(ctx context.Context, b *gotgbot.Bot, chatID, userID int64, mode punishment.Mode, actorID int64, reason string) error {
+	_, err := applyPunishment(ctx, b, punishment.Request{
+		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: mode,
+		Source: models.BanSourceReport, Reason: reason, ActorID: actorID,
+	})
+	return err
+}
+
 func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -552,7 +564,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		kickedText, _ := tr.GetString("reports_user_kicked")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
-		if err := kickMember(b, chat.Id, userId); err != nil {
+		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Kick, user.Id, ""); err != nil {
 			reopen()
 			log.Error(err)
 			return err
@@ -563,14 +575,12 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		bannedText, _ := tr.GetString("reports_user_banned")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", bannedText, actionBy)
-		_, err := chat.BanMember(b, userId, nil)
-		if err != nil {
+		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Ban, user.Id, ""); err != nil {
 			reopen()
 			log.Error(err)
 			return err
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
-		recordBan(banRecord{chatID: chat.Id, userID: userId, bannedBy: user.Id, source: models.BanSourceReport})
 
 	case "delete":
 		replyQuery, _ = tr.GetString("reports_success_delete")
