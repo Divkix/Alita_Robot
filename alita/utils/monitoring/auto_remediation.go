@@ -106,16 +106,16 @@ func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemedia
 	return manager
 }
 
-// Start registers the remediation check as the periodic job autoRemediation;
+// Register registers the remediation check as the periodic job autoRemediation;
 // jobs.Start begins it. It registers nothing while performance monitoring is
 // off.
-func (m *AutoRemediationManager) Start() {
+func (m *AutoRemediationManager) Register() {
 	if !m.enabled {
 		log.Info("[AutoRemediation] Auto-remediation is disabled")
 		return
 	}
 
-	log.Info("[AutoRemediation] Starting auto-remediation monitoring")
+	log.Info("[AutoRemediation] Registering auto-remediation job")
 	jobs.Register("autoRemediation", m.monitorInterval, func(context.Context) error {
 		m.checkAndRemediate()
 		return nil

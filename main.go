@@ -149,11 +149,11 @@ func main() {
 		monitoring.SetGlobalCollector(statsCollector)
 		error_handling.SetOnErrorCallback(monitoring.GlobalRecordError)
 		tracing.SetOnProcessUpdateCallback(monitoring.GlobalRecordMessage)
-		statsCollector.Start()
+		statsCollector.Register()
 	}
 
 	if config.AppConfig.EnablePerformanceMonitoring {
-		monitoring.NewAutoRemediationManager(statsCollector).Start()
+		monitoring.NewAutoRemediationManager(statsCollector).Register()
 	}
 
 	monitoring.NewActivityMonitor().Start()

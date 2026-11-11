@@ -57,7 +57,7 @@ func NewActivityMonitor() *ActivityMonitor {
 // Start computes the activity metrics once and registers the activity check
 // as the periodic job activityCheck; jobs.Start begins it. Call it once.
 func (am *ActivityMonitor) Start() {
-	log.Info("[ActivityMonitor] Starting activity monitoring service")
+	log.Info("[ActivityMonitor] Registering activity check job")
 	log.Infof("[ActivityMonitor] Check interval: %v, Inactivity threshold: %v, Auto-cleanup: %v",
 		am.checkInterval, am.inactivityThreshold, am.enableAutoCleanup)
 

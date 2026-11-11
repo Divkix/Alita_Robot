@@ -67,10 +67,10 @@ func NewBackgroundStatsCollector() *BackgroundStatsCollector {
 	}
 }
 
-// Start registers the three collectors as the periodic jobs systemStats,
+// Register registers the three collectors as the periodic jobs systemStats,
 // databaseStats and statsReport; jobs.Start begins them.
-func (collector *BackgroundStatsCollector) Start() {
-	log.Info("Starting background statistics collection")
+func (collector *BackgroundStatsCollector) Register() {
+	log.Info("Registering background statistics jobs")
 	jobs.Register("systemStats", collector.systemStatsInterval, func(context.Context) error {
 		collector.collectSystemStats()
 		return nil
