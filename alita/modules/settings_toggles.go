@@ -12,7 +12,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -25,7 +25,7 @@ const settingsTogglesPerRow = 2
 type settingsToggle struct {
 	key         string // callback field k, short to fit the 64-byte cap
 	command     string // the summary row it changes
-	declaration *settings.Declaration
+	declaration *chatsettings.Declaration
 	values      []string // the values a tap cycles through, as the row shows them
 	// botAdmin is set when the command needs the bot to be an admin.
 	botAdmin bool
@@ -46,16 +46,16 @@ func (t settingsToggle) next(current string) string {
 
 var settingsOnOff = []string{"off", "on"}
 
-func declaredSettingsToggle(key, command string, declaration *settings.Declaration) settingsToggle {
+func declaredSettingsToggle(key, command string, declaration *chatsettings.Declaration) settingsToggle {
 	toggle := settingsToggle{
 		key: key, command: command, declaration: declaration, values: declaration.ToggleValues(),
 		set: func(ctx context.Context, b *gotgbot.Bot, chatID int64, title string, value string) string {
 			var parsed any = value
-			if declaration.Type == settings.Switch {
+			if declaration.Type == chatsettings.Switch {
 				parsed = value == "on"
 			}
-			err := declaration.Write(settings.WriteContext{Context: ctx, ChatID: chatID, Title: title, Bot: b}, parsed)
-			if key := settings.RefusalKey(err); key != "" {
+			err := declaration.Write(chatsettings.WriteContext{Context: ctx, ChatID: chatID, Title: title, Bot: b}, parsed)
+			if key := chatsettings.RefusalKey(err); key != "" {
 				return key
 			}
 			if err != nil && declaration.FailureKey != nil {
@@ -65,20 +65,20 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 		},
 	}
 	switch declaration.Right {
-	case settings.Admin:
-	case settings.AdminBot:
+	case chatsettings.Admin:
+	case chatsettings.AdminBot:
 		toggle.botAdmin = true
-	case settings.ChangeInfo:
+	case chatsettings.ChangeInfo:
 		toggle.right = canChangeInfoRight
-	case settings.ChangeInfoBot:
+	case chatsettings.ChangeInfoBot:
 		toggle.botAdmin, toggle.right = true, canChangeInfoRight
-	case settings.Restrict:
+	case chatsettings.Restrict:
 		toggle.botAdmin, toggle.right = true, restrictRight
-	case settings.RestrictUser:
+	case chatsettings.RestrictUser:
 		toggle.botAdmin, toggle.right = true, userRestrictRight
-	case settings.OwnerBot:
+	case chatsettings.OwnerBot:
 		toggle.botAdmin, toggle.right = true, ownerRight
-	case settings.FederationAdmin:
+	case chatsettings.FederationAdmin:
 		toggle.right = inFedRight
 	default:
 		panic("unmapped setting right")
@@ -137,31 +137,31 @@ func inFedRight(_ *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, _ int64) s
 // Each matches its summary row's Command and cycles exactly the values that row shows.
 // Declared rows carry only their callback key, command and declaration.
 var settingsToggles = []settingsToggle{
-	declaredSettingsToggle("cp", "/captcha", settings.CaptchaEnabled),
-	declaredSettingsToggle("cj", "/captchajoin", settings.CaptchaJoinRequests),
-	declaredSettingsToggle("cm", "/captchamode", settings.CaptchaMode),
-	declaredSettingsToggle("ca", "/captchaaction", settings.CaptchaAction),
-	declaredSettingsToggle("fm", "/setfloodmode", settings.FloodMode),
-	declaredSettingsToggle("fd", "/delflood", settings.FloodDelete),
+	declaredSettingsToggle("cp", "/captcha", chatsettings.CaptchaEnabled),
+	declaredSettingsToggle("cj", "/captchajoin", chatsettings.CaptchaJoinRequests),
+	declaredSettingsToggle("cm", "/captchamode", chatsettings.CaptchaMode),
+	declaredSettingsToggle("ca", "/captchaaction", chatsettings.CaptchaAction),
+	declaredSettingsToggle("fm", "/setfloodmode", chatsettings.FloodMode),
+	declaredSettingsToggle("fd", "/delflood", chatsettings.FloodDelete),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
-	declaredSettingsToggle("ai", "/aispam", settings.AISpamEnabled),
-	declaredSettingsToggle("pb", "/probation", settings.ProbationEnabled),
-	declaredSettingsToggle("pv", "/probation notice", settings.ProbationNotice),
-	declaredSettingsToggle("we", "/welcome", settings.Welcome),
-	declaredSettingsToggle("cw", "/cleanwelcome", settings.CleanWelcome),
-	declaredSettingsToggle("gb", "/goodbye", settings.Goodbye),
-	declaredSettingsToggle("cg", "/cleangoodbye", settings.CleanGoodbye),
-	declaredSettingsToggle("cs", "/cleanservice", settings.CleanService),
-	declaredSettingsToggle("aa", "/autoapprove", settings.AutoApprove),
-	declaredSettingsToggle("rp", "/reports", settings.ReportsEnabled),
-	declaredSettingsToggle("pr", "/privaterules", settings.PrivateRules),
-	declaredSettingsToggle("pn", "/privnote", settings.PrivateNotes),
-	declaredSettingsToggle("ap", "/antichannelpin", settings.AntiChannelPin),
-	declaredSettingsToggle("cl", "/cleanlinked", settings.CleanLinked),
-	declaredSettingsToggle("dd", "/disabledel", settings.DeleteDisabledCommands),
-	declaredSettingsToggle("qf", "/quietfed", settings.QuietFed),
-	declaredSettingsToggle("ac", "/allowconnect", settings.AllowConnect),
-	declaredSettingsToggle("an", "/anonadmin", settings.AnonAdmin),
+	declaredSettingsToggle("ai", "/aispam", chatsettings.AISpamEnabled),
+	declaredSettingsToggle("pb", "/probation", chatsettings.ProbationEnabled),
+	declaredSettingsToggle("pv", "/probation notice", chatsettings.ProbationNotice),
+	declaredSettingsToggle("we", "/welcome", chatsettings.Welcome),
+	declaredSettingsToggle("cw", "/cleanwelcome", chatsettings.CleanWelcome),
+	declaredSettingsToggle("gb", "/goodbye", chatsettings.Goodbye),
+	declaredSettingsToggle("cg", "/cleangoodbye", chatsettings.CleanGoodbye),
+	declaredSettingsToggle("cs", "/cleanservice", chatsettings.CleanService),
+	declaredSettingsToggle("aa", "/autoapprove", chatsettings.AutoApprove),
+	declaredSettingsToggle("rp", "/reports", chatsettings.ReportsEnabled),
+	declaredSettingsToggle("pr", "/privaterules", chatsettings.PrivateRules),
+	declaredSettingsToggle("pn", "/privnote", chatsettings.PrivateNotes),
+	declaredSettingsToggle("ap", "/antichannelpin", chatsettings.AntiChannelPin),
+	declaredSettingsToggle("cl", "/cleanlinked", chatsettings.CleanLinked),
+	declaredSettingsToggle("dd", "/disabledel", chatsettings.DeleteDisabledCommands),
+	declaredSettingsToggle("qf", "/quietfed", chatsettings.QuietFed),
+	declaredSettingsToggle("ac", "/allowconnect", chatsettings.AllowConnect),
+	declaredSettingsToggle("an", "/anonadmin", chatsettings.AnonAdmin),
 }
 
 // settingsTogglesByKey and settingsTogglesByCommand index settingsToggles for
@@ -181,7 +181,7 @@ var settingsTogglesByKey, settingsTogglesByCommand = func() (byKey, byCommand ma
 func setAntiRaidToggle(_ context.Context, _ *gotgbot.Bot, chatID int64, _ string, value string) string {
 	var err error
 	if value == "on" {
-		_, err = antiRaidModule.enableRaid(chatID, settings.ReadAntiRaid(chatID).RaidTime)
+		_, err = antiRaidModule.enableRaid(chatID, chatsettings.ReadAntiRaid(chatID).RaidTime)
 	} else {
 		_, err = antiRaidModule.disableRaid(chatID)
 	}

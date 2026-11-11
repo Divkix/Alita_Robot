@@ -17,7 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -349,21 +349,21 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 
 // pinToggleConfig is one on/off pin setting and the replies of its command.
 type pinToggleConfig struct {
-	setting                               *settings.Declaration
+	setting                               *chatsettings.Declaration
 	enabledKey, disabledKey               string
 	currentEnabledKey, currentDisabledKey string
 }
 
 var (
 	antiChannelPinToggle = pinToggleConfig{
-		setting:            settings.AntiChannelPin,
+		setting:            chatsettings.AntiChannelPin,
 		enabledKey:         "pins_antichannelpin_enabled",
 		disabledKey:        "pins_antichannelpin_disabled",
 		currentEnabledKey:  "pins_antichannelpin_current_enabled",
 		currentDisabledKey: "pins_antichannelpin_current_disabled",
 	}
 	cleanLinkedToggle = pinToggleConfig{
-		setting:            settings.CleanLinked,
+		setting:            chatsettings.CleanLinked,
 		enabledKey:         "pins_cleanlinked_enabled",
 		disabledKey:        "pins_cleanlinked_disabled",
 		currentEnabledKey:  "pins_cleanlinked_current_enabled",
@@ -397,7 +397,7 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 			text, _ = tr.GetString("pins_input_not_recognized")
 			return replyPinToggle(b, msg, text)
 		}
-		if err := cfg.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
+		if err := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
 			log.Errorf("[Pins] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -620,11 +620,11 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antichannelpin", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: declaredSettingChecks(settings.AntiChannelPin),
+		RequiredChecks: declaredSettingChecks(chatsettings.AntiChannelPin),
 	}, pipelineHandler(pinsModule.antichannelpin))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "cleanlinked", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: declaredSettingChecks(settings.CleanLinked),
+		RequiredChecks: declaredSettingChecks(chatsettings.CleanLinked),
 	}, pipelineHandler(pinsModule.cleanlinked))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unpinallbtn"), pinsModule.unpinallCallback))

@@ -6,7 +6,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
 
 // permission is the Telegram right the equivalent bot command checks before a
@@ -23,18 +23,18 @@ const (
 
 // settingsFieldPermission maps a declaration's neutral policy to Telegram rights.
 func settingsFieldPermission(module, field string) permission {
-	if declaration, ok := settings.Lookup(module + "." + field); ok {
+	if declaration, ok := chatsettings.Lookup(module + "." + field); ok {
 		switch declaration.Right {
-		case settings.Admin, settings.AdminBot:
+		case chatsettings.Admin, chatsettings.AdminBot:
 			// The panel's access envelope already requires both admins.
 			return permNone
-		case settings.ChangeInfo, settings.ChangeInfoBot:
+		case chatsettings.ChangeInfo, chatsettings.ChangeInfoBot:
 			return permChangeInfo
-		case settings.Restrict:
+		case chatsettings.Restrict:
 			return permRestrict | permBotRestrict
-		case settings.RestrictUser:
+		case chatsettings.RestrictUser:
 			return permRestrict
-		case settings.OwnerBot, settings.FederationAdmin:
+		case chatsettings.OwnerBot, chatsettings.FederationAdmin:
 			panic("owner/federation settings have no panel editor")
 		default:
 			panic("unmapped setting right")

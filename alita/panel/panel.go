@@ -7,8 +7,6 @@
 // non-admins are read-only. Each write uses requirePermission with the Telegram rights checked by
 // the equivalent bot command. Never use chat_status reply-sending helpers here; the linter enforces
 // this boundary so panel refusals do not send messages into the chat.
-// Captcha configuration needs no restrict-members right, matching its commands;
-// the panel's caller-and-bot-admin write envelope still applies.
 //
 // The embedded frontend in web is plain HTML, CSS and vanilla JavaScript with no build step.
 // Render server data with DOM APIs, never innerHTML.
@@ -31,7 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
 
 //go:embed web
@@ -75,7 +73,7 @@ func New(bot *gotgbot.Bot, deps Deps) http.Handler {
 
 // newPanel builds the handler state before the response policy wraps it.
 func newPanel(bot *gotgbot.Bot, deps Deps) *Panel {
-	if err := settings.CheckAttachments(); err != nil {
+	if err := chatsettings.CheckAttachments(); err != nil {
 		panic("panel: " + err.Error())
 	}
 	if deps.SessionMaxAge <= 0 {

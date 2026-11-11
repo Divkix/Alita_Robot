@@ -13,7 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -55,13 +55,13 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 		toogleOption := args[1]
 		switch toogleOption {
 		case "on", "true", "yes":
-			if err := settings.AllowConnect.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
+			if err := chatsettings.AllowConnect.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
 			}
 		case "off", "false", "no":
-			if err := settings.AllowConnect.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
+			if err := chatsettings.AllowConnect.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
@@ -70,7 +70,7 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 			text, _ = tr.GetString("connections_invalid_option")
 		}
 	} else {
-		currSetting := settings.AllowConnect.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
+		currSetting := chatsettings.AllowConnect.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currSetting {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_currently_on")
 		} else {
@@ -328,7 +328,7 @@ func allowConnectAdminCheck(c *helpers.CommandContext) bool {
 	if c.Msg.Chat.Type != "private" && !chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id) {
 		return false
 	}
-	return helpers.RunChecks(c, declaredSettingChecks(settings.AllowConnect))
+	return helpers.RunChecks(c, declaredSettingChecks(chatsettings.AllowConnect))
 }
 
 // connectionTargetCheck applies the shared policy only after the command has

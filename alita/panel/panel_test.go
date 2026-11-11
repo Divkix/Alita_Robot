@@ -23,16 +23,16 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/internal/testdb"
 )
 
 func TestMain(m *testing.M) {
-	settings.AttachCaptchaRelease(func(_ *gotgbot.Bot, _ int64) error {
+	chatsettings.AttachCaptchaRelease(func(_ *gotgbot.Bot, _ int64) error {
 		return errors.New("captcha release is exercised by the cross-surface module tests")
 	})
-	settings.AttachNightModeLockTypes([]string{"all", "media", "photo", "url"})
+	chatsettings.AttachNightModeLockTypes([]string{"all", "media", "photo", "url"})
 	os.Exit(testdb.Run(m,
 		&models.GreetingSettings{},
 		&models.RulesSettings{},

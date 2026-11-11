@@ -24,7 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
@@ -55,7 +55,7 @@ const (
 
 type greetingConfig struct {
 	gType       greetingType
-	setting     *settings.Declaration
+	setting     *chatsettings.Declaration
 	statusKey   string
 	enabledKey  string
 	disabledKey string
@@ -64,7 +64,7 @@ type greetingConfig struct {
 
 var welcomeConfig = greetingConfig{
 	gType:       greetingWelcome,
-	setting:     settings.Welcome,
+	setting:     chatsettings.Welcome,
 	statusKey:   "greetings_welcome_status",
 	enabledKey:  "greetings_welcome_enabled",
 	disabledKey: "greetings_welcome_disabled",
@@ -73,7 +73,7 @@ var welcomeConfig = greetingConfig{
 
 var goodbyeConfig = greetingConfig{
 	gType:       greetingGoodbye,
-	setting:     settings.Goodbye,
+	setting:     chatsettings.Goodbye,
 	statusKey:   "greetings_goodbye_status",
 	enabledKey:  "greetings_goodbye_enable",
 	disabledKey: "greetings_goodbye_disable",
@@ -174,7 +174,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 
 	if len(args) == 0 || strings.ToLower(args[0]) == "noformat" {
 		noformat := len(args) > 0 && strings.ToLower(args[0]) == "noformat"
-		greetPrefs := settings.ReadGreetings(chat.Id)
+		greetPrefs := chatsettings.ReadGreetings(chat.Id)
 
 		var buttons []db.Button
 		var fileID string
@@ -246,7 +246,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			}
 			return ext.EndGroups
 		}
-		if err := config.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
+		if err := config.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", config.setting.Key, chat.Id, err)
 			key = "common_settings_save_failed"
 		}
@@ -377,7 +377,7 @@ func (m moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 type greetingToggleConfig struct {
-	setting              *settings.Declaration
+	setting              *chatsettings.Declaration
 	showEnabled          string
 	showDisabled         string
 	setEnabled           string
@@ -387,7 +387,7 @@ type greetingToggleConfig struct {
 }
 
 var cleanWelcomeToggleConfig = greetingToggleConfig{
-	setting:              settings.CleanWelcome,
+	setting:              chatsettings.CleanWelcome,
 	showEnabled:          "greetings_clean_welcome_should",
 	showDisabled:         "greetings_clean_welcome_not",
 	setEnabled:           "greetings_clean_welcome_enable",
@@ -397,7 +397,7 @@ var cleanWelcomeToggleConfig = greetingToggleConfig{
 }
 
 var cleanGoodbyeToggleConfig = greetingToggleConfig{
-	setting:              settings.CleanGoodbye,
+	setting:              chatsettings.CleanGoodbye,
 	showEnabled:          "greetings_clean_goodbye_should",
 	showDisabled:         "greetings_clean_goodbye_not",
 	setEnabled:           "greetings_clean_goodbye_enable",
@@ -407,7 +407,7 @@ var cleanGoodbyeToggleConfig = greetingToggleConfig{
 }
 
 var delJoinedToggleConfig = greetingToggleConfig{
-	setting:              settings.CleanService,
+	setting:              chatsettings.CleanService,
 	showEnabled:          "greetings_clean_service_should",
 	showDisabled:         "greetings_clean_service_not",
 	setEnabled:           "greetings_clean_service_enable",
@@ -417,7 +417,7 @@ var delJoinedToggleConfig = greetingToggleConfig{
 }
 
 var autoApproveToggleConfig = greetingToggleConfig{
-	setting:              settings.AutoApprove,
+	setting:              chatsettings.AutoApprove,
 	showEnabled:          "greetings_auto_approve_enabled",
 	showDisabled:         "greetings_auto_approve_disabled",
 	setEnabled:           "greetings_auto_approve_enable",
@@ -455,7 +455,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		if dbErr := cfg.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); dbErr != nil {
+		if dbErr := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
@@ -464,7 +464,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 		text, _ := tr.GetString(cfg.setDisabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	case "on", "yes":
-		if dbErr := cfg.setting.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); dbErr != nil {
+		if dbErr := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
@@ -500,7 +500,7 @@ func (m moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstName string) error {
 	defer error_handling.RecoverFromPanic("SendWelcomeMessage", "Greetings")
 	chat := ctx.EffectiveChat
-	greetPrefs := settings.ReadGreetings(chat.Id)
+	greetPrefs := chatsettings.ReadGreetings(chat.Id)
 
 	if greetPrefs.WelcomeSettings.ShouldWelcome {
 		user := &gotgbot.User{
@@ -538,7 +538,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	newMember := ctx.ChatMember.NewChatMember.MergeChatMember().User
-	captchaSettings, err := settings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
+	captchaSettings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 		captchaSettings = &db.CaptchaSettings{Enabled: false}
@@ -552,7 +552,7 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	leftMember := ctx.ChatMember.OldChatMember.MergeChatMember().User
-	greetPrefs := settings.ReadGreetings(chat.Id)
+	greetPrefs := chatsettings.ReadGreetings(chat.Id)
 
 	if leftMember.Id == bot.Id {
 		return ext.EndGroups
@@ -670,7 +670,7 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if msg.NewChatMembers != nil {
-		captchaSettings, err := settings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
+		captchaSettings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Greetings][cleanService] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 			captchaSettings = &db.CaptchaSettings{Enabled: false}
@@ -686,7 +686,7 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	greetPrefs := settings.ReadGreetings(chat.Id)
+	greetPrefs := chatsettings.ReadGreetings(chat.Id)
 
 	if greetPrefs.ShouldCleanService {
 		_, err := msg.Delete(bot, nil)
@@ -714,7 +714,7 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !m.loadPendingJoins(chat.Id, user.Id) {
 
-		if settings.AutoApprove.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
+		if chatsettings.AutoApprove.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 			if _, err := bot.ApproveChatJoinRequest(chat.Id, user.Id, nil); err != nil {
 				if isJoinRequestGone(err) || helpers.IsExpectedTelegramError(err) {
 					log.Debugf("[Greetings] Expected error auto-approving join for user %d in chat %d: %v", user.Id, chat.Id, err)
@@ -1007,10 +1007,10 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 	)
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "welcome", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: declaredSettingChecks(settings.Welcome),
+		Name: "welcome", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: declaredSettingChecks(chatsettings.Welcome),
 	}, greetingsModule.welcome)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "goodbye", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: declaredSettingChecks(settings.Goodbye),
+		Name: "goodbye", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: declaredSettingChecks(chatsettings.Goodbye),
 	}, greetingsModule.goodbye)
 	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	for _, cfg := range []struct {
@@ -1023,10 +1023,10 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		{"resetwelcome", helpers.PMGroupArgNone, greetingsModule.resetWelcome, changeInfoChecks},
 		{"setgoodbye", helpers.PMGroupArgOwn, greetingsModule.setGoodbye, changeInfoChecks},
 		{"resetgoodbye", helpers.PMGroupArgNone, greetingsModule.resetGoodbye, changeInfoChecks},
-		{"cleanwelcome", helpers.PMGroupArgOwn, greetingsModule.cleanWelcome, declaredSettingChecks(settings.CleanWelcome)},
-		{"cleangoodbye", helpers.PMGroupArgOwn, greetingsModule.cleanGoodbye, declaredSettingChecks(settings.CleanGoodbye)},
-		{"cleanservice", helpers.PMGroupArgOwn, greetingsModule.delJoined, declaredSettingChecks(settings.CleanService)},
-		{"autoapprove", helpers.PMGroupArgOwn, greetingsModule.autoApprove, declaredSettingChecks(settings.AutoApprove)},
+		{"cleanwelcome", helpers.PMGroupArgOwn, greetingsModule.cleanWelcome, declaredSettingChecks(chatsettings.CleanWelcome)},
+		{"cleangoodbye", helpers.PMGroupArgOwn, greetingsModule.cleanGoodbye, declaredSettingChecks(chatsettings.CleanGoodbye)},
+		{"cleanservice", helpers.PMGroupArgOwn, greetingsModule.delJoined, declaredSettingChecks(chatsettings.CleanService)},
+		{"autoapprove", helpers.PMGroupArgOwn, greetingsModule.autoApprove, declaredSettingChecks(chatsettings.AutoApprove)},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,

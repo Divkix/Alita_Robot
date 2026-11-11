@@ -26,7 +26,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -104,7 +104,7 @@ var aispamDesc = helpers.CommandDescriptor{
 	Group:          aispamModule.handlerGroup,
 	Disableable:    true,
 	PMGroupArg:     helpers.PMGroupArgOwn,
-	RequiredChecks: declaredSettingChecks(settings.AISpamEnabled),
+	RequiredChecks: declaredSettingChecks(chatsettings.AISpamEnabled),
 }
 
 // aispamTask carries the cheap facts gathered on the update path. Everything
@@ -167,7 +167,7 @@ func (m moduleStruct) checkAISpam(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !config.AppConfig.EnableAISpam || config.AppConfig.TypeSafeAPIKey == "" {
 		return ext.ContinueGroups
 	}
-	if !settings.AISpamEnabled.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) || aispamBreakerPaused(chat.Id) {
+	if !chatsettings.AISpamEnabled.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) || aispamBreakerPaused(chat.Id) {
 		return ext.ContinueGroups
 	}
 	if aispamCarvedOut(b, ctx, chat.Id, user.Id) {
@@ -790,7 +790,7 @@ func aispamTruncate(s string, limit int) string {
 // rather than leaving an admin believing their chat is protected.
 func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()[1:]
-	enabled := settings.AISpamEnabled.ReadContext(tracing.UpdateContext(c.Ctx), c.Chat.Id).Value.(bool)
+	enabled := chatsettings.AISpamEnabled.ReadContext(tracing.UpdateContext(c.Ctx), c.Chat.Id).Value.(bool)
 
 	if len(args) == 0 {
 		return aispamReply(c, aispamStatusText(c.Tr, enabled))
@@ -802,8 +802,8 @@ func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 		return aispamReply(c, text)
 	}
 
-	if err := settings.AISpamEnabled.Write(settings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, want); err != nil {
-		if key := settings.RefusalKey(err); key != "" {
+	if err := chatsettings.AISpamEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, want); err != nil {
+		if key := chatsettings.RefusalKey(err); key != "" {
 			text, _ := c.Tr.GetString(key)
 			return aispamReply(c, text)
 		}

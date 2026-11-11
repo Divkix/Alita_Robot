@@ -13,7 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -144,7 +144,7 @@ func settleReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64
 	if muted == nil {
 		return
 	}
-	if threshold := settings.ReadReports(chatID).MuteThreshold; threshold > 0 {
+	if threshold := chatsettings.ReadReports(chatID).MuteThreshold; threshold > 0 {
 		count, err := reports.CountOpenReporters(chatID, userID)
 		if err != nil {
 			log.Errorf("[Reports] failed to count reporters of %d in %d: %v", userID, chatID, err)
@@ -197,7 +197,7 @@ func reportsMuteSetting(ctx context.Context, tr *i18n.Translator, chatID int64, 
 		"max": models.ReportMuteThresholdMax,
 	})
 	if len(args) == 0 {
-		return reportsMuteStatus(tr, settings.ReadReports(chatID).MuteThreshold) + "\n\n" + usage
+		return reportsMuteStatus(tr, chatsettings.ReadReports(chatID).MuteThreshold) + "\n\n" + usage
 	}
 	if len(args) > 1 {
 		return usage
@@ -205,12 +205,12 @@ func reportsMuteSetting(ctx context.Context, tr *i18n.Translator, chatID int64, 
 	var threshold int
 	if on, ok := parseToggleArg(args[0]); !ok || on {
 		n, err := strconv.Atoi(args[0])
-		if err != nil || settings.ReportMuteThreshold.Validate(n) != nil {
+		if err != nil || chatsettings.ReportMuteThreshold.Validate(n) != nil {
 			return usage
 		}
 		threshold = n
 	}
-	if err := settings.ReportMuteThreshold.Write(settings.WriteContext{Context: ctx, ChatID: chatID}, threshold); err != nil {
+	if err := chatsettings.ReportMuteThreshold.Write(chatsettings.WriteContext{Context: ctx, ChatID: chatID}, threshold); err != nil {
 		log.Errorf("[Reports] %v", err)
 		text, _ := tr.GetString("common_settings_save_failed")
 		return text

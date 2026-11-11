@@ -3,28 +3,28 @@ package modules
 import (
 	"fmt"
 
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // declaredSettingChecks maps neutral setting rights into the command pipeline.
-func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFunc {
+func declaredSettingChecks(declaration *chatsettings.Declaration) []helpers.CheckFunc {
 	switch declaration.Right {
-	case settings.Admin:
+	case chatsettings.Admin:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)}
-	case settings.AdminBot:
+	case chatsettings.AdminBot:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)}
-	case settings.ChangeInfo:
+	case chatsettings.ChangeInfo:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
-	case settings.ChangeInfoBot:
+	case chatsettings.ChangeInfoBot:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()}
-	case settings.Restrict:
+	case chatsettings.Restrict:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
-	case settings.RestrictUser:
+	case chatsettings.RestrictUser:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict()}
-	case settings.OwnerBot:
+	case chatsettings.OwnerBot:
 		return []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired), settingOwnerWriteCheck}
-	case settings.FederationAdmin:
+	case chatsettings.FederationAdmin:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), federationChatCheck}
 	default:
 		panic(fmt.Sprintf("unmapped setting right: %d", declaration.Right))
@@ -33,23 +33,23 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 
 // declaredGroupSettingChecks keeps group-only commands' permission replies while
 // deriving the same policy as connected commands.
-func declaredGroupSettingChecks(declaration *settings.Declaration) []helpers.CheckFunc {
+func declaredGroupSettingChecks(declaration *chatsettings.Declaration) []helpers.CheckFunc {
 	switch declaration.Right {
-	case settings.Admin:
+	case chatsettings.Admin:
 		return []helpers.CheckFunc{helpers.RequireUserAdmin()}
-	case settings.AdminBot:
+	case chatsettings.AdminBot:
 		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin()}
-	case settings.ChangeInfo:
+	case chatsettings.ChangeInfo:
 		return []helpers.CheckFunc{helpers.RequireUserAdmin(), helpers.CanUserChangeInfo()}
-	case settings.ChangeInfoBot:
+	case chatsettings.ChangeInfoBot:
 		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin(), helpers.CanUserChangeInfo()}
-	case settings.Restrict:
+	case chatsettings.Restrict:
 		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
-	case settings.RestrictUser:
+	case chatsettings.RestrictUser:
 		return []helpers.CheckFunc{helpers.RequireBotAdmin(), helpers.RequireUserAdmin(), helpers.CanUserRestrict()}
-	case settings.OwnerBot:
+	case chatsettings.OwnerBot:
 		return []helpers.CheckFunc{helpers.RequireBotAdmin(), settingOwnerWriteCheck}
-	case settings.FederationAdmin:
+	case chatsettings.FederationAdmin:
 		return []helpers.CheckFunc{helpers.RequireUserAdmin(), federationChatCheck}
 	default:
 		panic(fmt.Sprintf("unmapped setting right: %d", declaration.Right))

@@ -12,7 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -203,14 +203,14 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		param := strings.ToLower(args[0])
 		switch param {
 		case "on", "true", "yes":
-			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
+			if err := chatsettings.DeleteDisabledCommands.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("error_generic")
 			} else {
 				text, _ = tr.GetString("disabling_delete_enabled")
 			}
 		case "off", "false", "no":
-			if err := settings.DeleteDisabledCommands.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
+			if err := chatsettings.DeleteDisabledCommands.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("error_generic")
 			} else {
@@ -220,7 +220,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("disabling_invalid_option")
 		}
 	} else {
-		currStatus := settings.DeleteDisabledCommands.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
+		currStatus := chatsettings.DeleteDisabledCommands.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currStatus {
 			text, _ = tr.GetString("disabling_delete_current_enabled")
 		} else {
@@ -255,7 +255,7 @@ func LoadDisabling(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disabledel",
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: declaredSettingChecks(settings.DeleteDisabledCommands),
+		RequiredChecks: declaredSettingChecks(chatsettings.DeleteDisabledCommands),
 	}, pipelineHandler(disablingModule.disabledel))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "enable",

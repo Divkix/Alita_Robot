@@ -21,7 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -44,7 +44,7 @@ func warnPunishLock(chatID, userID int64) *sync.Mutex {
 
 // warnModeLabel renders the mode for display, with the duration for tban/tmute.
 func warnModeLabel(row *models.WarnSettings) string {
-	if settings.IsTimedMode(row.WarnMode) {
+	if chatsettings.IsTimedMode(row.WarnMode) {
 		return row.WarnMode + " " + formatDuration(row.WarnActionTime)
 	}
 	return row.WarnMode
@@ -60,31 +60,31 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) > 0 {
 		mode := strings.ToLower(args[0])
-		if settings.WarnMode.Validate(mode) == nil {
+		if chatsettings.WarnMode.Validate(mode) == nil {
 			actionTime := 0
-			changes := map[string]any{settings.WarnMode.Key: mode}
-			if settings.IsTimedMode(mode) {
+			changes := map[string]any{chatsettings.WarnMode.Key: mode}
+			if chatsettings.IsTimedMode(mode) {
 				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
 				if seconds == -1 {
 					return ext.EndGroups
 				}
 				actionTime = int(seconds)
-				changes[settings.WarnActionTime.Key] = actionTime
+				changes[chatsettings.WarnActionTime.Key] = actionTime
 			}
-			input := settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
-			if len(settings.ValidateChanges(input, changes)) != 0 {
+			input := chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
+			if len(chatsettings.ValidateChanges(input, changes)) != 0 {
 				replyText, _ = tr.GetString("warns_specify_action")
 				_, _ = msg.Reply(b, replyText, formatting.Shtml())
 				return ext.EndGroups
 			}
-			if err := settings.WarnMode.WriteChanges(input, changes); err != nil {
+			if err := chatsettings.WarnMode.WriteChanges(input, changes); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			replyText, _ = tr.GetString("warns_mode_updated_" + mode)
-			if settings.IsTimedMode(mode) {
+			if chatsettings.IsTimedMode(mode) {
 				replyText = fmt.Sprintf(replyText, formatDuration(actionTime))
 			}
 		} else {
@@ -104,9 +104,9 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 // warnExpiryLabel renders the chat's warn expiry for display.
-func warnExpiryLabel(tr *i18n.Translator, settings *models.WarnSettings) string {
-	if settings.WarnExpiry > 0 {
-		return formatDuration(settings.WarnExpiry)
+func warnExpiryLabel(tr *i18n.Translator, preferences *models.WarnSettings) string {
+	if preferences.WarnExpiry > 0 {
+		return formatDuration(preferences.WarnExpiry)
 	}
 	label, _ := tr.GetString("warns_expiry_never")
 	return label
@@ -122,15 +122,15 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyText string
 	switch {
 	case len(args) == 0:
-		settings := settings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
-		if settings.WarnExpiry > 0 {
+		preferences := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
+		if preferences.WarnExpiry > 0 {
 			temp, _ := tr.GetString("warns_expiry_current")
-			replyText = fmt.Sprintf(temp, formatDuration(settings.WarnExpiry))
+			replyText = fmt.Sprintf(temp, formatDuration(preferences.WarnExpiry))
 		} else {
 			replyText, _ = tr.GetString("warns_expiry_current_off")
 		}
 	case slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) && len(args) == 1:
-		if err := settings.WarnExpiry.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0); err != nil {
+		if err := chatsettings.WarnExpiry.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0); err != nil {
 			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -142,7 +142,7 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 		if seconds == -1 {
 			return ext.EndGroups
 		}
-		if err := settings.WarnExpiry.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, int(seconds)); err != nil {
+		if err := chatsettings.WarnExpiry.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, int(seconds)); err != nil {
 			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -360,7 +360,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	mu := warnPunishLock(chat.Id, userId)
 	mu.Lock()
 	defer mu.Unlock()
-	warnrc := settings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
+	warnrc := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
 	issuer.Reason = reason
 	numWarns, entries, err := warns.WarnUser(userId, chat.Id, issuer)
 	if err != nil {
@@ -571,7 +571,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	warnrc := settings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
+	warnrc := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc), warnExpiryLabel(tr, warnrc))
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
@@ -619,7 +619,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	text := ""
 
 	if numWarns != 0 {
-		warnrc := settings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
+		warnrc := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
 		if len(entries) > 0 {
 			temp, _ := tr.GetString("warns_user_warnings_list")
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
@@ -742,10 +742,10 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			temp, _ := tr.GetString("warns_invalid_number")
 			replyText = fmt.Sprintf(temp, html.EscapeString(args[0]))
 		} else {
-			if settings.WarnLimit.Validate(num) != nil {
+			if chatsettings.WarnLimit.Validate(num) != nil {
 				replyText, _ = tr.GetString("warns_limit_range_error")
 			} else {
-				if err := settings.WarnLimit.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, num); err != nil {
+				if err := chatsettings.WarnLimit.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, num); err != nil {
 					log.Errorf("[Warns] SetWarnLimit failed for chat %d: %v", chat.Id, err)
 					errText, _ := tr.GetString("common_settings_save_failed")
 					_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -1038,9 +1038,9 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		handler func(*gotgbot.Bot, *ext.Context) error
 		checks  []helpers.CheckFunc
 	}{
-		{"setwarnlimit", helpers.PMGroupArgOwn, warnsModule.setWarnLimit, declaredSettingChecks(settings.WarnLimit)},
-		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode, declaredSettingChecks(settings.WarnMode)},
-		{"setwarntime", helpers.PMGroupArgOwn, warnsModule.setWarnTime, declaredSettingChecks(settings.WarnExpiry)},
+		{"setwarnlimit", helpers.PMGroupArgOwn, warnsModule.setWarnLimit, declaredSettingChecks(chatsettings.WarnLimit)},
+		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode, declaredSettingChecks(chatsettings.WarnMode)},
+		{"setwarntime", helpers.PMGroupArgOwn, warnsModule.setWarnTime, declaredSettingChecks(chatsettings.WarnExpiry)},
 		{"resetallwarns", helpers.PMGroupArgNone, warnsModule.resetAllWarns, resetChecks},
 	} {
 		desc := helpers.CommandDescriptor{

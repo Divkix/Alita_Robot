@@ -3,36 +3,20 @@
 // right, non-creating read and write (including any side effect). Adapters parse
 // and render; they enforce Right using their own permission responders, validate
 // the whole batch before writing, and never call a declared setting's repository
-// setter. Bot action paths also use Read so invalid stored values use Default.
+// setter. Bot action paths also use ReadContext so invalid stored values use Default.
 //
 // This package may import repositories and config, never modules, panel, helpers
 // or chat_status. Module-owned effects attach here at startup; a missing required
-// attachment must refuse a write before storing anything. Read checks allowed
-// values, not write preconditions, and never repairs or creates a database row.
+// attachment must refuse a write before storing anything. Reads check allowed
+// values, not write preconditions, and never repair or create a database row.
 // Switch declarations also supply the input-free on/off button cycle. Adapters
 // map neutral rights independently; panel batches require their union, never a
 // strongest-right approximation.
-// Flood limits and warning limits/expiry normalize old invalid values for both
-// display and enforcement. Reading warning preferences does not create a row.
 // A sharedWrite owns dependent fields' validation and single persistence call;
 // adapters validate the whole request, then reuse one outcome per WriteKey.
-// Moderation durations default to one hour for timed modes; untimed reads use
-// zero with no changed mark. Untimed writes accept only zero/omitted duration,
-// and switching to an untimed mode clears a previously stored duration.
-// Probation requires caller restrict-members and bot-admin status on every surface;
-// its related block flags validate together and persist through one shared write.
 // Operator preconditions return Refusal locale keys for each adapter to render.
 // They participate in ValidateChanges before any batch write. Related independent
 // switches validate their combined state, then enabled switches write first.
-// Reports and private-rule reads do not create rows. Weekly digest writes,
-// including off and destination changes, honor the operator's kill switch.
-// Timezone requires caller change-info, not bot-admin status.
-// Night-mode fields share one write and require the locks owner's startup
-// attachment. Invalid stored windows/types disable the effective configuration.
-// Private notes, pin switches, connections and anonymous-admin mode also use
-// non-creating reads. The anonymous-admin command keeps its member-readable
-// status; only its writes and /settings taps require the owner.
-// Quiet federation mode requires a chat administrator and federation membership.
 package settings
 
 import (

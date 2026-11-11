@@ -11,7 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
@@ -19,7 +19,7 @@ import (
 )
 
 var languagesModule = moduleStruct{moduleName: "Languages"}
-var languageGroupSettingChecks = declaredGroupSettingChecks(settings.Language)
+var languageGroupSettingChecks = declaredGroupSettingChecks(chatsettings.Language)
 
 func (moduleStruct) genFullLanguageKb(langCode string) [][]gotgbot.InlineKeyboardButton {
 	return withHelpTranslateRow(keyboard.MakeLanguageKeyboard(), langCode)
@@ -47,7 +47,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	cLang := lang.GetLanguage(ctx)
 	if msg.Chat.Type != "private" {
-		cLang = settings.Language.ReadContext(tracing.UpdateContext(ctx), ctx.EffectiveChat.Id).Value.(string)
+		cLang = chatsettings.Language.ReadContext(tracing.UpdateContext(ctx), ctx.EffectiveChat.Id).Value.(string)
 	}
 	tr := i18n.MustNewTranslator(cLang)
 
@@ -55,7 +55,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	if args := ctx.Args(); msg.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
 		group := ctx.EffectiveChat
 		// lang.GetLanguage(ctx) answers in the PM's language; name the group's.
-		groupLang := settings.Language.ReadContext(tracing.UpdateContext(ctx), group.Id).Value.(string)
+		groupLang := chatsettings.Language.ReadContext(tracing.UpdateContext(ctx), group.Id).Value.(string)
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
 		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id), cLang)
 	} else if msg.Chat.Type == "private" {
@@ -111,7 +111,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		})
 		return ext.EndGroups
 	}
-	if settings.Language.Validate(language) != nil {
+	if chatsettings.Language.Validate(language) != nil {
 		log.Warnf("[Language] Unsupported callback language: %s", language)
 		currentTr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errText, _ := currentTr.GetString("language_invalid_selection")
@@ -151,7 +151,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	} else {
-		if err := settings.Language.Write(settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: b}, language); err != nil {
+		if err := chatsettings.Language.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: b}, language); err != nil {
 			log.Errorf("[Language] ChangeGroupLanguage failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
@@ -189,7 +189,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadLanguage(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(languagesModule.moduleName, true)
 	SetModuleHelpBuilder(languagesModule.moduleName, languagesModule.genFullLanguageKb)
-	connectedChecks := declaredSettingChecks(settings.Language)
+	connectedChecks := declaredSettingChecks(chatsettings.Language)
 	groupChecks := languageGroupSettingChecks
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))

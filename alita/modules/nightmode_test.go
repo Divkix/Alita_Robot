@@ -18,7 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
 
 // pinNightModeNow fixes the clock night mode reads at the given UTC time.
@@ -362,7 +362,7 @@ func TestInvalidStoredNightModeIsOffWithoutRepairingData(t *testing.T) {
 			}
 			cached := nightModeOf(t, f.chat.Id)
 			before := *cached
-			normalized, err := settings.ReadNightModeContext(t.Context(), f.chat.Id)
+			normalized, err := chatsettings.ReadNightModeContext(t.Context(), f.chat.Id)
 			if err != nil || normalized.Enabled {
 				t.Fatalf("effective night mode = %+v, error = %v, want off", normalized, err)
 			}

@@ -38,7 +38,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/panel"
-	"github.com/divkix/Alita_Robot/alita/settings"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
@@ -506,7 +506,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 	}
 	t.Run("every offered setting is declared and covered", func(t *testing.T) {
 		declared := make(map[string]bool)
-		for declaration := range settings.All() {
+		for declaration := range chatsettings.All() {
 			if declared[declaration.Key] {
 				t.Fatalf("duplicate declaration for %s", declaration.Key)
 			}
@@ -584,7 +584,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			}
 		}
 	})
-	for declaration := range settings.All() {
+	for declaration := range chatsettings.All() {
 		setting, covered := byKey[declaration.Key]
 		if !covered {
 			continue // The coverage subtest reports the missing contract.
@@ -1151,8 +1151,8 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					t.Run("release not attached/"+surface, func(t *testing.T) {
 						f := newSettingContractFixture(t, setting)
 						handler := panel.New(f.bot, panel.Deps{})
-						settings.AttachCaptchaRelease(nil)
-						t.Cleanup(func() { settings.AttachCaptchaRelease(disableCaptchaForChat) })
+						chatsettings.AttachCaptchaRelease(nil)
+						t.Cleanup(func() { chatsettings.AttachCaptchaRelease(disableCaptchaForChat) })
 						switch surface {
 						case "command":
 							contractDispatch(t, f, f.admin, "/captcha off")
@@ -1178,8 +1178,8 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					})
 				}
 				t.Run("panel requires release at construction", func(t *testing.T) {
-					settings.AttachCaptchaRelease(nil)
-					t.Cleanup(func() { settings.AttachCaptchaRelease(disableCaptchaForChat) })
+					chatsettings.AttachCaptchaRelease(nil)
+					t.Cleanup(func() { chatsettings.AttachCaptchaRelease(disableCaptchaForChat) })
 					defer func() {
 						if failure := recover(); failure == nil || !strings.Contains(fmt.Sprint(failure), "captcha release is not attached") {
 							t.Fatalf("construction failure = %v", failure)
@@ -1231,8 +1231,8 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 		f := newSettingContractFixture(t, settingContract{})
 		handler := panel.New(f.bot, panel.Deps{})
 		types := slices.DeleteFunc(slices.Clone(locksModule.getLockMapAsArray()), func(value string) bool { return value == "bots" })
-		settings.AttachNightModeLockTypes(nil)
-		t.Cleanup(func() { settings.AttachNightModeLockTypes(types) })
+		chatsettings.AttachNightModeLockTypes(nil)
+		t.Cleanup(func() { chatsettings.AttachNightModeLockTypes(types) })
 		contractDispatch(t, f, f.admin, "/nightmode off")
 		if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); reply != translated(t, "common_settings_save_failed") {
 			t.Fatalf("unattached night mode command = %q", reply)
