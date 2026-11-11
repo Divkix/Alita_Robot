@@ -192,7 +192,7 @@ var (
 
 type joinClaim struct{ exp time.Time }
 
-func recentJoinProcessingKey(chatID, userID int64) string {
+func joinClaimKey(chatID, userID int64) string {
 	return fmt.Sprintf("alita:recentJoinProcessing:%d:%d", chatID, userID)
 }
 
@@ -201,10 +201,10 @@ func recentJoinProcessingKey(chatID, userID int64) string {
 // challenge or welcome, so an outage neither lets a banned user in nor greets
 // anyone twice.
 func claimJoin(chatID, userID int64) JoinClaim {
-	claimed, err := tryClaimRecentJoinProcessing(chatID, userID)
+	claimed, err := tryClaimJoin(chatID, userID)
 	if err != nil {
-		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, using the local claim: %v", recentJoinProcessingKey(chatID, userID), err)
-		if claimRecentJoinLocally(recentJoinProcessingKey(chatID, userID)) {
+		log.Debugf("[Membership] Redis SETNX failed for join dedupe key %s, using the local claim: %v", joinClaimKey(chatID, userID), err)
+		if claimJoinLocally(joinClaimKey(chatID, userID)) {
 			return ClaimLocal
 		}
 		return ClaimLost
@@ -221,10 +221,10 @@ func markJoinHandled(chatID, userID int64) {
 	claimJoin(chatID, userID)
 }
 
-// tryClaimRecentJoinProcessing takes the join claim in Redis, or in this
+// tryClaimJoin takes the join claim in Redis, or in this
 // replica without Redis. It returns the Redis error instead of a decision.
-func tryClaimRecentJoinProcessing(chatID, userID int64) (bool, error) {
-	key := recentJoinProcessingKey(chatID, userID)
+func tryClaimJoin(chatID, userID int64) (bool, error) {
+	key := joinClaimKey(chatID, userID)
 
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		_, err := rdb.SetArgs(cache.Context, key, true, redis.SetArgs{
@@ -239,10 +239,10 @@ func tryClaimRecentJoinProcessing(chatID, userID int64) (bool, error) {
 		}
 		return false, err
 	}
-	return claimRecentJoinLocally(key), nil
+	return claimJoinLocally(key), nil
 }
 
-func claimRecentJoinLocally(key string) bool {
+func claimJoinLocally(key string) bool {
 	now := time.Now()
 	for {
 		newClaim := joinClaim{exp: now.Add(recentJoinProcessTTL)}
@@ -269,12 +269,12 @@ func expireRecentJoinClaim(key string, claim joinClaim) {
 	})
 }
 
-func clearRecentJoinProcessing(chatID, userID int64) {
-	key := recentJoinProcessingKey(chatID, userID)
+func clearJoinClaim(chatID, userID int64) {
+	key := joinClaimKey(chatID, userID)
 
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		if err := rdb.Del(cache.Context, key).Err(); err != nil {
-			log.Debugf("[Greetings] Failed to clear shared join dedupe key %s: %v", key, err)
+			log.Debugf("[Membership] Failed to clear shared join dedupe key %s: %v", key, err)
 		}
 	}
 

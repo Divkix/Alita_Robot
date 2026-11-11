@@ -101,7 +101,7 @@ func TestJoinGuardsWelcomeNewcomerTheyDoNotBan(t *testing.T) {
 				t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
 				require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
 				tc.setup(t, client, bot, chat, member)
-				clearRecentJoinProcessing(chat.Id, member.Id)
+				clearJoinClaim(chat.Id, member.Id)
 
 				dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 				LoadFederations(dispatcher)
@@ -194,7 +194,7 @@ func TestRaidSwitchedOnByJoinStillChallengesNewcomersItDidNotBan(t *testing.T) {
 				{Id: uniquePositiveUserID(), FirstName: "C"},
 			}
 			for _, member := range members {
-				clearRecentJoinProcessing(chat.Id, member.Id)
+				clearJoinClaim(chat.Id, member.Id)
 			}
 
 			for _, via := range way {
@@ -302,7 +302,7 @@ func TestAntiRaidCountsJoinsSeenOnlyAsMemberUpdates(t *testing.T) {
 	second := first
 	second.member = gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Second"}
 	second.adder = second.member
-	clearRecentJoinProcessing(second.chat.Id, second.member.Id)
+	clearJoinClaim(second.chat.Id, second.member.Id)
 	require.NoError(t, captcha.SetCaptchaEnabled(first.chat.Id, first.chat.Title, true))
 	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(first.chat.Id, 2))
 	t.Cleanup(func() { _, _ = antiRaidModule.disableRaid(first.chat.Id) })
@@ -355,7 +355,7 @@ func TestJoinGuardBanThatFailsStillChallengesNewcomer(t *testing.T) {
 			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
 			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
 			guard.setup(t, chat, member)
-			clearRecentJoinProcessing(chat.Id, member.Id)
+			clearJoinClaim(chat.Id, member.Id)
 
 			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
 				MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
@@ -401,7 +401,7 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 				require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
 				require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, captchaOn))
 				guard.setup(t, chat, member)
-				clearRecentJoinProcessing(chat.Id, member.Id)
+				clearJoinClaim(chat.Id, member.Id)
 
 				dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
 					MessageId: 11, Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
@@ -449,7 +449,7 @@ func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT))
 			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
-			clearRecentJoinProcessing(chat.Id, member.Id)
+			clearJoinClaim(chat.Id, member.Id)
 			withUnreachableRedis(t)
 
 			updates := map[string]*gotgbot.Update{
@@ -545,7 +545,7 @@ func TestFedBanEnforcedOnEveryJoinUpdateExactlyOnce(t *testing.T) {
 						_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
 						require.NoError(t, err)
 					}
-					clearRecentJoinProcessing(chat.Id, member.Id)
+					clearJoinClaim(chat.Id, member.Id)
 					updates := joinUpdates(chat, member)
 
 					if order[0] == "concurrent" {
@@ -612,7 +612,7 @@ func TestFedBanOnJoinPostsOneNoticeWhenServiceMessageFollowsTheKick(t *testing.T
 			require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
 			_, _, err = federations.Fban(fed.FedID, member.Id, ownerID, "spam")
 			require.NoError(t, err)
-			clearRecentJoinProcessing(chat.Id, member.Id)
+			clearJoinClaim(chat.Id, member.Id)
 
 			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, ChatMember: &gotgbot.ChatMemberUpdated{
 				Chat:          chat,
@@ -679,7 +679,7 @@ func TestAntiRaidLeavesFedBannedNewcomerToFedBan(t *testing.T) {
 			t.Cleanup(func() {
 				_, _ = antiRaidModule.disableRaid(chat.Id)
 			})
-			clearRecentJoinProcessing(chat.Id, member.Id)
+			clearJoinClaim(chat.Id, member.Id)
 
 			updates := map[string]*gotgbot.Update{
 				"service message": {UpdateId: 1, Message: &gotgbot.Message{
@@ -728,7 +728,7 @@ func TestFedBannedJoinCountsTowardsAutoAntiRaid(t *testing.T) {
 	})
 
 	for i, member := range []gotgbot.User{fbanned, newcomer} {
-		clearRecentJoinProcessing(chat.Id, member.Id)
+		clearJoinClaim(chat.Id, member.Id)
 		dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: int64(i + 1), Message: &gotgbot.Message{
 			MessageId: int64(11 + i), Date: 1, Chat: chat, From: &member, NewChatMembers: []gotgbot.User{member},
 		}})

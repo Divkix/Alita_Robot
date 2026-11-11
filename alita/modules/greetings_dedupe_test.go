@@ -13,7 +13,7 @@ import (
 func TestJoinClaimNoCacheFallback(t *testing.T) {
 	withNilCacheMarshal(t)
 	t.Cleanup(func() {
-		clearRecentJoinProcessing(-100123, 456)
+		clearJoinClaim(-100123, 456)
 	})
 
 	if got := claimJoin(-100123, 456); got != ClaimShared {
@@ -23,7 +23,7 @@ func TestJoinClaimNoCacheFallback(t *testing.T) {
 		t.Fatalf("second claimJoin() = %v, want ClaimLost duplicate", got)
 	}
 
-	clearRecentJoinProcessing(-100123, 456)
+	clearJoinClaim(-100123, 456)
 	if got := claimJoin(-100123, 456); got != ClaimShared {
 		t.Fatalf("claim after clear = %v, want ClaimShared", got)
 	}
@@ -37,7 +37,7 @@ func TestJoinClaimIsAtomic(t *testing.T) {
 	userID := time.Now().UnixNano()/1e6 + 1
 
 	t.Cleanup(func() {
-		clearRecentJoinProcessing(chatID, userID)
+		clearJoinClaim(chatID, userID)
 	})
 
 	if got := claimJoin(chatID, userID); got != ClaimShared {
@@ -47,7 +47,7 @@ func TestJoinClaimIsAtomic(t *testing.T) {
 		t.Fatalf("second claimJoin() = %v, want ClaimLost (duplicate)", got)
 	}
 
-	clearRecentJoinProcessing(chatID, userID)
+	clearJoinClaim(chatID, userID)
 
 	const N = 20
 	var wg sync.WaitGroup

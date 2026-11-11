@@ -478,7 +478,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	// A ban keeps the join claim: a guard that banned the newcomer on one
 	// update of the join must not see the join again on the other.
 	if ctx.ChatMember.NewChatMember.GetStatus() != "kicked" {
-		clearRecentJoinProcessing(chat.Id, leftMember.Id)
+		clearJoinClaim(chat.Id, leftMember.Id)
 	}
 
 	captchaAttempt, err := captcha.GetCaptchaAttemptIncludingExpired(leftMember.Id, chat.Id)

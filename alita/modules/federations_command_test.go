@@ -577,7 +577,7 @@ func TestEnforceFedBanOnMessageLeavesJoinsToIntake(t *testing.T) {
 	_, _, err = federations.Fban(fed.FedID, 42, ownerID, "raid")
 	require.NoError(t, err)
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	t.Cleanup(func() { clearRecentJoinProcessing(group.Id, member.Id) })
+	t.Cleanup(func() { clearJoinClaim(group.Id, member.Id) })
 
 	joinCtx := newModuleMessageContext(bot, group, member, "")
 	joinCtx.EffectiveMessage.NewChatMembers = []gotgbot.User{member}

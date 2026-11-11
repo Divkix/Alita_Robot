@@ -57,7 +57,7 @@ func newIntakeJoin(t *testing.T, memberIsBot bool) intakeJoin {
 	}
 	t.Cleanup(func() { cache.InvalidateAdminCache(j.chat.Id) })
 	require.NoError(t, greetings.SetWelcomeText(j.chat.Id, "Welcome {first}", "", nil, db.TEXT))
-	clearRecentJoinProcessing(j.chat.Id, j.member.Id)
+	clearJoinClaim(j.chat.Id, j.member.Id)
 	return j
 }
 

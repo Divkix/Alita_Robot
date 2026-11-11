@@ -79,7 +79,7 @@ func TestCaptchaJoinWithoutRestrictRightSendsWelcomeAndOneNotice(t *testing.T) {
 	notice := rightsNoticeText(t)
 
 	first := gotgbot.User{Id: 4801, FirstName: "First"}
-	clearRecentJoinProcessing(chat.Id, first.Id)
+	clearJoinClaim(chat.Id, first.Id)
 	if err := processSingleNewMember(bot, &ext.Context{EffectiveChat: &chat}, first, true); err != nil {
 		t.Fatalf("processSingleNewMember(first) error = %v", err)
 	}
@@ -97,7 +97,7 @@ func TestCaptchaJoinWithoutRestrictRightSendsWelcomeAndOneNotice(t *testing.T) {
 	}
 
 	second := gotgbot.User{Id: 4802, FirstName: "Second"}
-	clearRecentJoinProcessing(chat.Id, second.Id)
+	clearJoinClaim(chat.Id, second.Id)
 	if err := processSingleNewMember(bot, &ext.Context{EffectiveChat: &chat}, second, true); err != nil {
 		t.Fatalf("processSingleNewMember(second) error = %v", err)
 	}
@@ -121,7 +121,7 @@ func TestCaptchaJoinWhenMuteLacksRightSendsWelcome(t *testing.T) {
 	member := gotgbot.User{Id: 4803, FirstName: "Newcomer"}
 	notice := rightsNoticeText(t)
 
-	clearRecentJoinProcessing(chat.Id, member.Id)
+	clearJoinClaim(chat.Id, member.Id)
 	if err := processSingleNewMember(bot, &ext.Context{EffectiveChat: &chat}, member, true); err != nil {
 		t.Fatalf("processSingleNewMember() error = %v", err)
 	}

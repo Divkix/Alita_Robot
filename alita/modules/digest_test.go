@@ -283,7 +283,7 @@ func TestGreetingsCountOneJoinAcrossBothJoinUpdates(t *testing.T) {
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Chat"}
 			member := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Joiner"}
 			adder := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Adder"}
-			t.Cleanup(func() { clearRecentJoinProcessing(chat.Id, member.Id) })
+			t.Cleanup(func() { clearJoinClaim(chat.Id, member.Id) })
 
 			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 			LoadGreetings(dispatcher)

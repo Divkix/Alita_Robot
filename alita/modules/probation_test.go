@@ -108,14 +108,14 @@ func deletedIDs(client *moduleBotClient, chatID int64) map[int64]bool {
 func TestProbationStartsOnJoinOnlyWhenOnAndForTheClaimWinner(t *testing.T) {
 	off := newAdminChatFixture(t)
 	newcomer := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Newcomer"}
-	clearRecentJoinProcessing(off.chat.Id, newcomer.Id)
+	clearJoinClaim(off.chat.Id, newcomer.Id)
 	joinChat(t, off, newcomer)
 	if onProbation(t, off.chat.Id, newcomer.Id) {
 		t.Fatal("a join in a chat with probation off put the member on probation")
 	}
 
 	f := probationFixture(t, nil)
-	clearRecentJoinProcessing(f.chat.Id, newcomer.Id)
+	clearJoinClaim(f.chat.Id, newcomer.Id)
 	joinChat(t, f, newcomer)
 	if !onProbation(t, f.chat.Id, newcomer.Id) {
 		t.Fatal("a join in a chat with probation on did not start probation")
@@ -126,16 +126,16 @@ func TestProbationStartsOnJoinOnlyWhenOnAndForTheClaimWinner(t *testing.T) {
 		t.Fatalf("AddApprovedUser() error = %v", err)
 	}
 	t.Cleanup(func() { _ = approvals.RemoveApprovedUser(f.chat.Id, approved.Id) })
-	clearRecentJoinProcessing(f.chat.Id, approved.Id)
+	clearJoinClaim(f.chat.Id, approved.Id)
 	joinChat(t, f, approved)
 
 	bot := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Helper", IsBot: true}
-	clearRecentJoinProcessing(f.chat.Id, bot.Id)
+	clearJoinClaim(f.chat.Id, bot.Id)
 	joinChat(t, f, bot)
 
 	// A guard already removed this member on another update.
 	taken := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Taken"}
-	clearRecentJoinProcessing(f.chat.Id, taken.Id)
+	clearJoinClaim(f.chat.Id, taken.Id)
 	markJoinHandled(f.chat.Id, taken.Id)
 	joinChat(t, f, taken)
 

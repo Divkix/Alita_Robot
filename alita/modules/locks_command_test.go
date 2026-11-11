@@ -380,7 +380,7 @@ func TestLockWatchersDoNotDeleteForAdmins(t *testing.T) {
 // dispatchBotJoin delivers adder adding addedBot to chat as a member update.
 func dispatchBotJoin(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat, adder, addedBot gotgbot.User) {
 	t.Helper()
-	clearRecentJoinProcessing(chat.Id, addedBot.Id)
+	clearJoinClaim(chat.Id, addedBot.Id)
 	dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 3, ChatMember: &gotgbot.ChatMemberUpdated{
 		Chat:          chat,
 		From:          adder,
