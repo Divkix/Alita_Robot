@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
+	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
 // captchaEnding is the kind of a captchaOutcome.
@@ -192,7 +193,12 @@ func reportCaptchaPass(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 	}
 	text, _ := tr.GetString("captcha_stored_messages_summary",
 		captchaStoredSummaryParams(formatting.MentionHtml(attempt.UserID, outcome.name), len(stored), strings.Join(kinds, ", ")))
-	sent, _ := helpers.SendMessageWithErrorHandling(bot, attempt.ChatID, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
+	var sent *gotgbot.Message
+	_ = ratelimit.GlobalSendLimiter().Do(context.Background(), func() error {
+		var sendErr error
+		sent, sendErr = helpers.SendMessageWithErrorHandling(bot, attempt.ChatID, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
+		return sendErr
+	})
 	if sent != nil {
 		time.AfterFunc(30*time.Second, func() {
 			defer error_handling.RecoverFromPanic("captchaSummaryMsgDelete", "captcha")
