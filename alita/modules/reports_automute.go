@@ -88,10 +88,14 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 	until := time.Unix(result.UntilDate, 0)
 	recorded, err := reports.SetAutoMuteUntil(chat.Id, target.Id, until)
 	if err != nil {
+		// A record left with the claim's placeholder end would never let a
+		// dismissal lift the mute: drop the claim and lift it now.
 		log.Errorf("[Reports] failed to record the end of the auto-mute of %d in %d: %v", target.Id, chat.Id, err)
-	} else if !recorded {
-		// An admin who decided while the mute was being applied found no
-		// restriction to lift and dropped the record: lift it now.
+		release()
+	}
+	if err != nil || !recorded {
+		// Or an admin who decided while the mute was being applied found no
+		// restriction to lift and dropped the record.
 		liftReportAutoMute(b, ctx, chat.Id, target.Id, until)
 		return
 	}
