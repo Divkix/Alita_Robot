@@ -18,6 +18,8 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	case settings.ChangeInfoBot:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()}
+	case settings.Restrict:
+		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 	default:
 		panic(fmt.Sprintf("unmapped setting right: %d", declaration.Right))
 	}

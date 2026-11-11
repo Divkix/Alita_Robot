@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
-	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -87,6 +86,8 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 		toggle.right = canChangeInfoRight
 	case settings.ChangeInfoBot:
 		toggle.botAdmin, toggle.right = true, canChangeInfoRight
+	case settings.Restrict:
+		toggle.botAdmin, toggle.right = true, restrictRight
 	default:
 		panic("unmapped setting right")
 	}
@@ -116,7 +117,10 @@ func canChangeInfoRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 
 func restrictRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
 	if !chat_status.CanUserRestrict(b, ctx, chat, userID) {
-		return "chat_status_restrict_button_error"
+		return "chat_status_restrict_cmd_error"
+	}
+	if !chat_status.BotHasPermissionForUpdate(b, ctx, chat, func(member *gotgbot.MergedChatMember) bool { return member.CanRestrictMembers }) {
+		return "chat_status_bot_restrict_group_error"
 	}
 	return ""
 }
@@ -147,8 +151,8 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("fd", "/delflood", settings.FloodDelete),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
 	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},
-	withRight(boolToggle("pb", "/probation", true, probation.SetEnabled), restrictRight),
-	withRight(boolToggle("pv", "/probation notice", true, probation.SetNotice), restrictRight),
+	declaredSettingsToggle("pb", "/probation", settings.ProbationEnabled),
+	declaredSettingsToggle("pv", "/probation notice", settings.ProbationNotice),
 	declaredSettingsToggle("we", "/welcome", settings.Welcome),
 	declaredSettingsToggle("cw", "/cleanwelcome", settings.CleanWelcome),
 	declaredSettingsToggle("gb", "/goodbye", settings.Goodbye),

@@ -53,6 +53,7 @@ type settingContract struct {
 	button       string
 	noPanel      bool
 	changeInfo   bool
+	restrict     bool
 	botAdmin     bool
 	statusOn     string
 	statusOff    string
@@ -254,6 +255,55 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			refusals:    map[string]string{"tmute 0m": "extraction_invalid_time_amount", "tmute 59s": "extraction_invalid_time_type", "tmute 31622401s": "extraction_invalid_time_type"},
 			edges:       []settingContractEdge{{0, "tmute 0m", "tmute 0m", false}, {60, "tmute 1m", "tmute 1m", true}, {59, "tmute 59s", "tmute 59s", false}, {3600, "tmute 1h", "tmute 1h", true}, {31622400, "tban 366d", "tban 366d", true}, {31622401, "tmute 31622401s", "tmute 31622401s", false}, {31622460, "tmute 527041m", "tmute 527041m", false}},
 		},
+		{
+			key: "antispam.probation_time", command: "/probation time", botAdmin: true, restrict: true,
+			defaultValue: 86400, defaultLabel: "1d", refusalKey: "probation_invalid_time",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.ProbationSettings{}).Create(map[string]any{"chat_id": chatID, "duration_seconds": 5}).Error
+			},
+			edges: []settingContractEdge{{3599, "3599s", "3599s", false}, {3600, "1h", "1h", true}, {2592000, "30d", "30d", true}, {2592001, "2592001s", "2592001s", false}},
+		},
+		{
+			key: "antispam.probation_messages", command: "/probation messages", botAdmin: true, restrict: true,
+			defaultValue: 5, defaultLabel: "5", statusToken: "<b>", refusalKey: "probation_invalid_messages",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.ProbationSettings{}).Create(map[string]any{"chat_id": chatID, "message_count": 101}).Error
+			},
+			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {100, "100", "100", true}, {101, "101", "101", false}},
+		},
+		{
+			key: "antispam.probation_min_length", command: "/probation minlen", botAdmin: true, restrict: true,
+			defaultValue: 20, defaultLabel: "20", statusToken: "<b>", refusalKey: "probation_invalid_minlen",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.ProbationSettings{}).Create(map[string]any{"chat_id": chatID, "min_length": 501}).Error
+			},
+			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {500, "500", "500", true}, {501, "501", "501", false}},
+		},
+		{
+			key: "antispam.probation_enabled", command: "/probation", button: "pb", botAdmin: true, restrict: true,
+			defaultValue: false, defaultLabel: "off", statusToken: "probation is <b>", refusalKey: "probation_usage",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "antispam.probation_notice", command: "/probation notice", button: "pv", botAdmin: true, restrict: true,
+			defaultValue: false, defaultLabel: "off", statusToken: "<b>Notice:</b> ", refusalKey: "probation_usage",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "antispam.probation_block_links", command: "/probation block", botAdmin: true, restrict: true,
+			defaultValue: true, defaultLabel: "links, forwards", refusalKey: "probation_invalid_block",
+			edges: []settingContractEdge{{false, "forwards", "forwards", true}, {true, "links,forwards", "links, forwards", true}, {"video", "video", "video", false}},
+		},
+		{
+			key: "antispam.probation_block_forwards", command: "/probation block", botAdmin: true, restrict: true,
+			defaultValue: true, defaultLabel: "links, forwards", refusalKey: "probation_invalid_block",
+			edges: []settingContractEdge{{false, "links", "links", true}, {true, "links,forwards", "links, forwards", true}, {"video", "video", "video", false}},
+		},
+		{
+			key: "antispam.probation_block_media", command: "/probation block", botAdmin: true, restrict: true,
+			defaultValue: false, defaultLabel: "links, forwards", refusalKey: "probation_invalid_block",
+			edges: []settingContractEdge{{false, "links,forwards", "links, forwards", true}, {true, "links,forwards,media", "links, forwards, media", true}, {"video", "video", "video", false}},
+		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
 			t.Run("default without creating a row", func(t *testing.T) {
@@ -280,26 +330,30 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				callerAdmin bool
 				botAdmin    bool
 				changeInfo  bool
+				restrict    bool
 			}{
-				{"member", false, true, false},
-				{"exact right", true, true, setting.changeInfo},
-				{"no change info", true, true, false},
-				{"bot member", true, false, setting.changeInfo},
+				{"member", false, true, false, setting.restrict},
+				{"exact right", true, true, setting.changeInfo, setting.restrict},
+				{"no change info", true, true, false, setting.restrict},
+				{"no restrict", true, true, setting.changeInfo, false},
+				{"bot member", true, false, setting.changeInfo, setting.restrict},
 			} {
 				t.Run("rights/"+rights.name, func(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
-					contractRights(f, rights.changeInfo, rights.botAdmin, false)
+					contractRights(f, rights.changeInfo, rights.botAdmin, rights.restrict)
 					actor := f.member
 					if rights.callerAdmin {
 						actor = f.admin
 					}
 					edge := setting.edges[1]
-					accepted := rights.callerAdmin && (!setting.botAdmin || rights.botAdmin) && (!setting.changeInfo || rights.changeInfo)
+					accepted := rights.callerAdmin && (!setting.botAdmin || rights.botAdmin) && (!setting.changeInfo || rights.changeInfo) && (!setting.restrict || rights.restrict)
 					refusal := "connections_is_user_connected_user_not_admin"
 					if setting.botAdmin && !rights.botAdmin {
 						refusal = "connections_is_user_connected_bot_not_admin"
 					} else if rights.callerAdmin && setting.changeInfo && !rights.changeInfo {
 						refusal = "chat_status_change_info_cmd_error"
+					} else if rights.callerAdmin && setting.restrict && !rights.restrict {
+						refusal = "chat_status_restrict_cmd_error"
 					}
 					contractDispatch(t, f, actor, setting.command+" "+edge.input)
 					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
@@ -407,7 +461,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						if strings.Contains(refusal, "%s") {
 							refusal = fmt.Sprintf(refusal, lastContractWord(edge.input))
 						}
-						if reply != refusal {
+						if reply != refusal && !(key == "probation_usage" && strings.HasPrefix(reply, refusal+"\n")) {
 							t.Fatalf("command accepted invalid value: %q, want %q", reply, refusal)
 						}
 						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
@@ -436,6 +490,32 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			}
 			if setting.key == "antiflood.action" || setting.key == "warns.mode" {
 				testContractModeRelationship(t, setting)
+			}
+			if setting.restrict {
+				t.Run("bot needs restrict-members", func(t *testing.T) {
+					f := newSettingContractFixture(t, setting)
+					f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)] = json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + string(f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)]) + "," + string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]) + "]")
+					contractDispatch(t, f, f.admin, setting.command+" "+setting.edges[1].input)
+					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+					if reply != translated(t, "chat_status_bot_restrict_group_error") {
+						t.Fatalf("bot-right refusal = %q", reply)
+					}
+					if setting.button != "" {
+						contractPress(t, f, f.admin, setting.button, setting.edges[1].input)
+						if text, alert := lastAnswer(t, f.client); !alert || text != reply {
+							t.Fatalf("button bot-right refusal = %q alert %t", text, alert)
+						}
+					}
+					response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, contractSettingChanges(setting, setting.edges[1])))
+					if response.Code != http.StatusConflict {
+						t.Fatalf("panel bot-right refusal = %d %s", response.Code, response.Body.String())
+					}
+					assertContractRowCount(t, f, setting, 0)
+				})
+			}
+			if setting.key == "antispam.probation_block_links" {
+				testContractProbationBlocks(t, setting)
 			}
 			if setting.key == "warns.expiry" {
 				t.Run("invalid preferences enforce declared defaults", func(t *testing.T) {
@@ -729,7 +809,7 @@ func TestAntiRaidRepairsStoredTimesThroughDispatcher(t *testing.T) {
 func newSettingContractFixture(t *testing.T, setting settingContract) adminChatFixture {
 	t.Helper()
 	f := newAdminChatFixture(t)
-	contractRights(f, setting.changeInfo, true, false)
+	contractRights(f, setting.changeInfo, true, setting.restrict)
 	if err := chats.EnsureChatInDb(f.chat.Id, f.chat.Title); err != nil {
 		t.Fatal(err)
 	}
@@ -768,6 +848,7 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	LoadCaptcha(dispatcher)
 	LoadAntiflood(dispatcher)
 	LoadWarns(dispatcher)
+	LoadProbation(dispatcher)
 	LoadConnections(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
@@ -783,6 +864,8 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 		command = "/warnings"
 	} else if strings.HasPrefix(setting.key, "antiflood.") && setting.key != "antiflood.delete_messages" {
 		command = "/flood"
+	} else if strings.HasPrefix(setting.key, "antispam.probation_") {
+		command = "/probation"
 	} else if setting.button != "" {
 		command = setting.command
 	}
@@ -824,7 +907,7 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 		t.Fatal(err)
 	}
 	summaryLabel := label
-	if enabled, ok := value.(bool); ok {
+	if enabled, ok := value.(bool); ok && !strings.Contains(setting.key, "probation_block_") {
 		summaryLabel = "off"
 		if enabled {
 			summaryLabel = "on"
@@ -834,7 +917,8 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 	if isContractModeDuration(setting) {
 		summaryChanged = label != "mute"
 	}
-	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, summaryLabel, summaryChanged)
+	summaryCommand := setting.command
+	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), summaryCommand, summaryLabel, summaryChanged)
 	if setting.button != "" {
 		var values []string
 		for _, edge := range setting.edges {
@@ -923,6 +1007,8 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.AntifloodSettings{}
 	} else if strings.HasPrefix(setting.key, "warns.") {
 		model = &models.WarnSettings{}
+	} else if strings.HasPrefix(setting.key, "antispam.probation_") {
+		model = &models.ProbationSettings{}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
@@ -1167,4 +1253,48 @@ func testContractModeRelationship(t *testing.T, setting settingContract) {
 			}
 		})
 	}
+}
+
+func testContractProbationBlocks(t *testing.T, setting settingContract) {
+	t.Helper()
+	t.Run("block at least one kind before any write", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		contractDispatch(t, f, f.admin, "/probation block")
+		if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); reply != translated(t, "probation_invalid_block") {
+			t.Fatalf("empty block refusal = %q", reply)
+		}
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+			"antispam.probation_block_links": false, "antispam.probation_block_forwards": false,
+			"antispam.probation_block_media": false, "antiraid.raid_time": 60,
+		}))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("empty block batch = %d %s", response.Code, response.Body.String())
+		}
+		assertContractRowCount(t, f, setting, 0)
+		assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+	})
+	t.Run("block kinds swap together", func(t *testing.T) {
+		f := newSettingContractFixture(t, setting)
+		for _, changes := range []map[string]any{
+			{"antispam.probation_block_links": false, "antispam.probation_block_forwards": false, "antispam.probation_block_media": true},
+			{"antispam.probation_block_links": true, "antispam.probation_block_forwards": true, "antispam.probation_block_media": false},
+		} {
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, changes))
+			var result struct {
+				Saved  []string          `json:"saved"`
+				Failed map[string]string `json:"failed"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != http.StatusOK || len(result.Saved) != 3 || len(result.Failed) != 0 {
+				t.Fatalf("block swap = %d %s", response.Code, response.Body.String())
+			}
+			label := "media"
+			if changes[setting.key] == true {
+				label = "links, forwards"
+			}
+			assertContractRead(t, f, setting, changes[setting.key], label, changes[setting.key] != setting.defaultValue)
+		}
+	})
 }

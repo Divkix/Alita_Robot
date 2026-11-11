@@ -26,7 +26,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
-	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
@@ -190,20 +189,18 @@ func declaredSettingsRow(command string, state settings.State, format func(int) 
 	return settingsRow{Command: command, Value: format(state.Value.(int)), Changed: state.Changed}
 }
 
-func probationSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	s, err := probation.GetSettings(ctx, chatID)
-	if err != nil {
-		log.Warnf("[Settings] read probation settings for chat %d: %v", chatID, err)
-		s = models.DefaultProbationSettings(chatID)
-	}
-	def := models.DefaultProbationSettings(chatID)
+func probationSettingsSection(_ context.Context, chatID int64) settingsSection {
+	links := settings.ProbationBlockLinks.Read(chatID)
+	forwards := settings.ProbationBlockForwards.Read(chatID)
+	media := settings.ProbationBlockMedia.Read(chatID)
+	blocked := &models.ProbationSettings{BlockLinks: links.Value.(bool), BlockForwards: forwards.Value.(bool), BlockMedia: media.Value.(bool)}
 	return settingsSection{Title: "Probation", Rows: []settingsRow{
-		boolRow("/probation", s.Enabled, false),
-		{Command: "/probation time", Value: formatDuration(s.DurationSeconds), Changed: s.DurationSeconds != def.DurationSeconds},
-		intRow("/probation messages", s.MessageCount, def.MessageCount),
-		intRow("/probation minlen", s.MinLength, def.MinLength),
-		stringRow("/probation block", probationSettingSummary(s), probationSettingSummary(def)),
-		boolRow("/probation notice", s.Notice, false),
+		declaredBoolRow("/probation", settings.ProbationEnabled, chatID),
+		declaredSettingsRow("/probation time", settings.ProbationTime.Read(chatID), formatDuration),
+		declaredSettingsRow("/probation messages", settings.ProbationMessages.Read(chatID), strconv.Itoa),
+		declaredSettingsRow("/probation minlen", settings.ProbationMinLength.Read(chatID), strconv.Itoa),
+		{Command: "/probation block", Value: probationSettingSummary(blocked), Changed: links.Changed || forwards.Changed || media.Changed},
+		declaredBoolRow("/probation notice", settings.ProbationNotice, chatID),
 	}}
 }
 

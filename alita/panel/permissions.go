@@ -44,15 +44,13 @@ func settingsFieldPermission(module, field string) permission {
 			return permNone
 		case settings.ChangeInfo, settings.ChangeInfoBot:
 			return permChangeInfo
+		case settings.Restrict:
+			return permRestrict
 		default:
 			panic("unmapped setting right")
 		}
 	}
 	perm := settingsPermissions[module]
-	// /probation checks can_restrict_members, unlike /aispam and /spamdb.
-	if module == "antispam" && strings.HasPrefix(field, "probation_") {
-		perm = max(perm, permRestrict)
-	}
 	if module == "reports" && field == "mute_threshold" {
 		perm = max(perm, permRestrict)
 	}

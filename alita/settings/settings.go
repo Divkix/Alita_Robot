@@ -19,6 +19,8 @@
 // Moderation durations default to one hour for timed modes; untimed reads use
 // zero with no changed mark. Untimed writes accept only zero/omitted duration,
 // and switching to an untimed mode clears a previously stored duration.
+// Probation uses the same caller-and-bot restrict-members policy on every surface;
+// its related block flags validate together and persist through one shared write.
 package settings
 
 import (
@@ -46,6 +48,7 @@ const (
 	AdminBot            // caller and bot must both be administrators
 	ChangeInfo          // caller is an admin with can_change_info
 	ChangeInfoBot       // ChangeInfo, with the bot an administrator
+	Restrict            // caller and bot administrators with can_restrict_members
 )
 
 type Declaration struct {
@@ -85,6 +88,8 @@ var declarations = []*Declaration{
 	CaptchaEnabled, CaptchaJoinRequests, CaptchaMode, CaptchaTimeout, CaptchaAction, CaptchaMaxAttempts,
 	FloodLimit, FloodDelete, WarnLimit, WarnExpiry,
 	FloodMode, FloodActionTime, WarnMode, WarnActionTime,
+	ProbationEnabled, ProbationTime, ProbationMessages, ProbationMinLength,
+	ProbationBlockLinks, ProbationBlockForwards, ProbationBlockMedia, ProbationNotice,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.

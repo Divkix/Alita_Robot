@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -23,7 +22,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
-	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
@@ -180,12 +178,6 @@ func panelSettings(access chatAccess) settingsResponse {
 		spamDB = row
 	}
 
-	probationRow := models.DefaultProbationSettings(chatID)
-	if row, err := probation.GetSettings(context.Background(), chatID); err == nil && row != nil {
-		probationRow = row
-	}
-	probationDefault := models.DefaultProbationSettings(chatID)
-
 	locked := make([]string, 0)
 	for perm, on := range locks.GetChatLocks(chatID) {
 		if on {
@@ -235,14 +227,14 @@ func panelSettings(access chatAccess) settingsResponse {
 			settingsBool("spamdb_cas", spamDB.CheckCAS, true, true),
 			settingsBool("spamdb_lols", spamDB.CheckLols, false, true),
 			settingsBool("spamdb_shared", spamDB.CheckShared, false, true),
-			settingsBool("probation_enabled", probationRow.Enabled, false, true),
-			settingsInt("probation_time", probationRow.DurationSeconds, probationDefault.DurationSeconds, true),
-			settingsInt("probation_messages", probationRow.MessageCount, probationDefault.MessageCount, true),
-			settingsInt("probation_min_length", probationRow.MinLength, probationDefault.MinLength, true),
-			settingsBool("probation_block_links", probationRow.BlockLinks, true, true),
-			settingsBool("probation_block_forwards", probationRow.BlockForwards, true, true),
-			settingsBool("probation_block_media", probationRow.BlockMedia, false, true),
-			settingsBool("probation_notice", probationRow.Notice, false, true),
+			declaredSettingsField(chatID, settings.ProbationEnabled),
+			declaredSettingsField(chatID, settings.ProbationTime),
+			declaredSettingsField(chatID, settings.ProbationMessages),
+			declaredSettingsField(chatID, settings.ProbationMinLength),
+			declaredSettingsField(chatID, settings.ProbationBlockLinks),
+			declaredSettingsField(chatID, settings.ProbationBlockForwards),
+			declaredSettingsField(chatID, settings.ProbationBlockMedia),
+			declaredSettingsField(chatID, settings.ProbationNotice),
 		}},
 		{Key: "antiraid", Label: "Antiraid", Fields: []settingsField{
 			declaredSettingsField(chatID, settings.RaidTime),
@@ -406,15 +398,6 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 		fieldErrors[key] = message
 	}
 	validateSpamDatabaseChanges(index, updates, fieldErrors)
-	// /probation block takes at least one kind; turning probation off is how
-	// a chat blocks nothing.
-	if !anyKeyOn(index, updates, probationBlockKeys) {
-		for _, key := range probationBlockKeys {
-			if _, changed := updates[key]; changed {
-				fieldErrors[key] = "probation must block at least one of links, forwards and media"
-			}
-		}
-	}
 
 	if message := validateNightModeChanges(index, updates, nightTypes, fieldErrors); message != "" {
 		for _, key := range nightModeKeys {
@@ -519,24 +502,6 @@ func validateNightModeChanges(index map[string]settingsField, updates map[string
 	return ""
 }
 
-// probationBlockKeys are the panel fields of /probation block.
-var probationBlockKeys = []string{"antispam.probation_block_links", "antispam.probation_block_forwards", "antispam.probation_block_media"}
-
-// anyKeyOn reports whether one of keys is on after updates, or true when
-// updates changes none of them.
-func anyKeyOn(index map[string]settingsField, updates map[string]any, keys []string) bool {
-	anyOn, anyChanged := false, false
-	for _, key := range keys {
-		on, changed := updates[key].(bool)
-		if !changed {
-			on, _ = index[key].Value.(bool)
-		}
-		anyOn = anyOn || on
-		anyChanged = anyChanged || changed
-	}
-	return anyOn || !anyChanged
-}
-
 func decodeSettingValue(field settingsField, raw json.RawMessage) (any, string) {
 	switch field.Type {
 	case "bool":
@@ -623,18 +588,6 @@ func validateAntispamValue(field string, value any) string {
 	case "spamdb_shared":
 		if value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableReputation) {
 			return settingsRefusal("spamdb_db_shared_disabled")
-		}
-	case "probation_time":
-		if n := value.(int); n < int(models.ProbationDurationMin/time.Second) || n > int(models.ProbationDurationMax/time.Second) {
-			return "must be between 3600 and 2592000 seconds (1 hour to 30 days)"
-		}
-	case "probation_messages":
-		if n := value.(int); n < models.ProbationMessagesMin || n > models.ProbationMessagesMax {
-			return "must be between 1 and 100"
-		}
-	case "probation_min_length":
-		if n := value.(int); n < models.ProbationMinLengthMin || n > models.ProbationMinLengthMax {
-			return "must be between 1 and 500"
 		}
 	}
 	return ""
@@ -800,22 +753,6 @@ func applyAntispamChange(chatID int64, field string, value any) error {
 		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseLols, value.(bool))
 	case "spamdb_shared":
 		return spamdbsettings.SetSpamDBDatabase(chatID, spamdbsettings.DatabaseShared, value.(bool))
-	case "probation_enabled":
-		return probation.SetEnabled(chatID, value.(bool))
-	case "probation_time":
-		return probation.SetDuration(chatID, time.Duration(value.(int))*time.Second)
-	case "probation_messages":
-		return probation.SetMessageCount(chatID, value.(int))
-	case "probation_min_length":
-		return probation.SetMinLength(chatID, value.(int))
-	case "probation_block_links":
-		return probation.SetBlock(chatID, probation.BlockLinks, value.(bool))
-	case "probation_block_forwards":
-		return probation.SetBlock(chatID, probation.BlockForwards, value.(bool))
-	case "probation_block_media":
-		return probation.SetBlock(chatID, probation.BlockMedia, value.(bool))
-	case "probation_notice":
-		return probation.SetNotice(chatID, value.(bool))
 	}
 	return fmt.Errorf("unknown antispam setting %q", field)
 }
