@@ -263,12 +263,16 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 	return
 }
 
+// punisher is the punishment.Apply seam watchers take so tests can observe
+// their decision.
+type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
+
 func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.checkFloodWithPunisher(b, ctx, punishment.Apply)
 }
 
 //nolint:gocyclo // The ordered exemptions and flood-message deletion form one watcher pass.
-func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, apply func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)) error {
+func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, apply punisher) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	if user == nil {

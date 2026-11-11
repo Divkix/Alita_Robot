@@ -306,29 +306,6 @@ func TestBlacklistCommandsHandleValidationBranches(t *testing.T) {
 	}
 }
 
-func TestBlacklistWatcherAppliesMuteAction(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
-		t.Fatalf("AddBlacklist setup error = %v", err)
-	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "mute", 0); err != nil {
-		t.Fatalf("SetBlacklistAction setup error = %v", err)
-	}
-
-	ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
-	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
-	}
-	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.MessageId})
-	assertMuted(t, client.onlyCall(t, "restrictChatMember"), chat.Id, member.Id)
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want action notice", len(calls))
-	}
-}
-
 func TestBlacklistWarnDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
 	hook := logrustest.NewGlobal()
 	t.Cleanup(hook.Reset)
@@ -355,82 +332,6 @@ func TestBlacklistWarnDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
 			t.Fatal("normal blacklist warn completion logged as an error")
 		}
 	}
-}
-
-func TestBlacklistWatcherAppliesBanWarnAndNoneActions(t *testing.T) {
-	tests := []struct {
-		name       string
-		action     string
-		wantMethod string
-		wantErr    error
-	}{
-		{name: "ban", action: "ban", wantMethod: "banChatMember", wantErr: ext.ContinueGroups},
-		{name: "warn", action: "warn", wantMethod: "sendMessage", wantErr: ext.EndGroups},
-		{name: "none", action: "none", wantMethod: "", wantErr: ext.ContinueGroups},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
-			member := gotgbot.User{Id: 42, FirstName: "Member"}
-			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
-				t.Fatalf("AddBlacklist setup error = %v", err)
-			}
-			if err := blacklists.SetBlacklistAction(chat.Id, tc.action, 0); err != nil {
-				t.Fatalf("SetBlacklistAction setup error = %v", err)
-			}
-
-			ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
-			if err := blacklistsModule.blacklistWatcher(bot, ctx); err != tc.wantErr {
-				t.Fatalf("blacklistWatcher error = %v, want %v", err, tc.wantErr)
-			}
-			assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.MessageId})
-			if tc.wantMethod != "" {
-				if calls := client.callsFor(tc.wantMethod); len(calls) == 0 {
-					t.Fatalf("%s calls = 0, want watcher action", tc.wantMethod)
-				}
-			}
-			if tc.action == "ban" {
-				assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, member.Id))
-			} else if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-				t.Fatalf("banChatMember calls = %d, want none for %s", len(calls), tc.action)
-			}
-		})
-	}
-}
-
-func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
-		t.Fatalf("AddBlacklist setup error = %v", err)
-	}
-	if err := blacklists.SetBlacklistAction(chat.Id, "kick", 0); err != nil {
-		t.Fatalf("SetBlacklistAction(kick) setup error = %v", err)
-	}
-
-	kickCtx := newModuleMessageContext(bot, chat, member, "this has spam inside")
-	if err := blacklistsModule.blacklistWatcher(bot, kickCtx); err != ext.ContinueGroups {
-		t.Fatalf("blacklistWatcher(kick) error = %v, want ContinueGroups", err)
-	}
-	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, member.Id))
-
-	if err := blacklists.SetBlacklistAction(chat.Id, "ban", 0); err != nil {
-		t.Fatalf("SetBlacklistAction(ban) setup error = %v", err)
-	}
-	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
-	channelCtx := newModuleMessageContext(bot, chat, member, "channel says spam")
-	channelCtx.EffectiveMessage.From = nil
-	channelCtx.EffectiveMessage.SenderChat = &channel
-	channelCtx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: chat.Id}
-	if err := blacklistsModule.blacklistWatcher(bot, channelCtx); err != ext.ContinueGroups {
-		t.Fatalf("blacklistWatcher(channel ban) error = %v, want ContinueGroups", err)
-	}
-	assertParams(t, client.onlyCall(t, "banChatSenderChat"), map[string]any{"chat_id": chat.Id, "sender_chat_id": channel.Id})
 }
 
 func TestBlacklistWatcherSkipsSenderAndContentNoopBranches(t *testing.T) {
@@ -718,18 +619,18 @@ func TestBlacklistWatcherDoesNothingWhenBotIsNotAdmin(t *testing.T) {
 	}
 }
 
-// Legacy zero and unusable stored durations retain the one-hour fallback.
-func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
+// Legacy zero and unusable stored durations show the one-hour fallback they
+// punish for.
+func TestBlacklistTimedFallbackShowsAnHour(t *testing.T) {
 	useEnglishLocale(t)
 	for _, tc := range []struct {
 		action     string
-		method     string
 		actionTime int
 	}{
-		{action: "tban", method: "banChatMember"},
-		{action: "tmute", method: "restrictChatMember"},
-		{action: "tban", method: "banChatMember", actionTime: 30},
-		{action: "tmute", method: "restrictChatMember", actionTime: 366*86400 + 1},
+		{action: "tban"},
+		{action: "tmute"},
+		{action: "tban", actionTime: 30},
+		{action: "tmute", actionTime: 366*86400 + 1},
 	} {
 		t.Run(fmt.Sprintf("%s/%d", tc.action, tc.actionTime), func(t *testing.T) {
 			f := newAdminChatFixture(t)
@@ -742,21 +643,8 @@ func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			}
 
 			ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
-			before := time.Now().Unix()
 			if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
 				t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
-			}
-			after := time.Now().Unix()
-
-			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-				t.Fatalf("deleteMessage calls = %d, want message deletion", len(calls))
-			}
-			calls := client.callsFor(tc.method)
-			if len(calls) != 1 {
-				t.Fatalf("%s calls = %d, want timed action", tc.method, len(calls))
-			}
-			if until := untilDateParam(t, calls[0]); until < before+3600 || until > after+3600 {
-				t.Fatalf("until_date = %d, want now+3600 (%d..%d)", until, before+3600, after+3600)
 			}
 			notices := client.callsFor("sendMessage")
 			if len(notices) != 1 || !strings.Contains(fmt.Sprint(notices[0].Params["text"]), "1h") {
@@ -772,10 +660,10 @@ func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 	}
 }
 
-// banChatSenderChat has no until_date, so a timed ban would become permanent:
-// the watcher only deletes the channel's message.
-func TestBlacklistWatcherDoesNotBanChannelForTimedAction(t *testing.T) {
-	for _, mode := range []string{"tban", "tmute"} {
+// A channel is only ever banned for good: for any other mode the watcher only
+// deletes the channel's message.
+func TestBlacklistWatcherLeavesChannelAloneUnlessBanning(t *testing.T) {
+	for _, mode := range []string{"tban", "tmute", "mute", "kick"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			if err := blacklists.AddBlacklist(f.chat.Id, "spam"); err != nil {

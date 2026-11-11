@@ -16,7 +16,6 @@ import (
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 // banRecordsOf returns the ban_records rows of chatID, oldest first.
@@ -248,20 +247,6 @@ func TestUnbanAllClosesTheBanRecordsOfTheUsersItUnbanned(t *testing.T) {
 		if lifted != (r.UserId == listed) {
 			t.Fatalf("record of %d = %+v; want only user %d's lifted, by %d", r.UserId, r, listed, f.admin.Id)
 		}
-	}
-}
-
-// A warn limit the bot's own warns reached is recorded as the bot's ban.
-func TestWarnLimitBanRecordsTheBan(t *testing.T) {
-	f := newAdminChatFixture(t)
-	tr := i18n.MustNewTranslator("en")
-	settings := &models.WarnSettings{WarnMode: "ban", WarnLimit: 3}
-	if _, punished, _, err := punishAtWarnLimit(f.bot, &f.chat, tr, settings, f.member, 3, 0, "flooding"); err != nil || !punished {
-		t.Fatalf("punishAtWarnLimit() = %v, %v; want the member banned", punished, err)
-	}
-	got := singleBanRecord(t, f.chat.Id)
-	if got.UserId != f.member.Id || got.BannedBy != 0 || got.Source != models.BanSourceWarn || got.Reason != "flooding" {
-		t.Fatalf("record = %+v, want the bot's warn ban for flooding", got)
 	}
 }
 

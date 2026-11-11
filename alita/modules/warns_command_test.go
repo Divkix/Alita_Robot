@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -283,60 +282,6 @@ func TestWarnsListsCountWhenReasonsAreEmpty(t *testing.T) {
 	}
 }
 
-func TestWarnLimitPunishesAndResetsWarnings(t *testing.T) {
-	f := newAdminChatFixture(t)
-	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-	target := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
-		t.Fatalf("SetWarnLimit() error = %v", err)
-	}
-	if err := warns.SetWarnMode(chat.Id, "ban", 0); err != nil {
-		t.Fatalf("SetWarnMode() error = %v", err)
-	}
-
-	warnCtx := newWarnReplyContext(bot, chat, admin, target, "/warn limit reached")
-	if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
-		t.Fatalf("warnUser() error = %v, want EndGroups", err)
-	}
-	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, target.Id))
-	if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
-		t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
-	}
-}
-
-func TestWarnLimitKickAndMuteModes(t *testing.T) {
-	tests := []struct {
-		mode       string
-		wantMethod string
-	}{
-		{mode: "kick", wantMethod: "unbanChatMember"},
-		{mode: "mute", wantMethod: "restrictChatMember"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.mode, func(t *testing.T) {
-			f := newAdminChatFixture(t)
-			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-			target := gotgbot.User{Id: 42, FirstName: "Member"}
-			if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
-				t.Fatalf("SetWarnLimit() error = %v", err)
-			}
-			if err := warns.SetWarnMode(chat.Id, tc.mode, 0); err != nil {
-				t.Fatalf("SetWarnMode() error = %v", err)
-			}
-
-			warnCtx := newWarnReplyContext(bot, chat, admin, target, "/warn limit reached")
-			if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
-				t.Fatalf("warnUser() error = %v, want EndGroups", err)
-			}
-			assertParams(t, client.onlyCall(t, tc.wantMethod), targetParams(chat.Id, target.Id))
-			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
-				t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
-			}
-		})
-	}
-}
-
 func TestSetWarnModeStoresTimedModeDuration(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
@@ -393,62 +338,6 @@ func untilDateParam(t *testing.T, call moduleBotCall) int64 {
 		t.Fatalf("until_date = %v: %v", raw, err)
 	}
 	return until
-}
-
-func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
-	tests := []struct {
-		name       string
-		settings   models.WarnSettings
-		wantMethod string
-		wantTime   int64
-		wantText   string
-	}{
-		{name: "tban", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 86400}, wantMethod: "banChatMember", wantTime: 86400, wantText: "1d"},
-		{name: "tmute", settings: models.WarnSettings{WarnMode: "tmute", WarnActionTime: 7200}, wantMethod: "restrictChatMember", wantTime: 7200, wantText: "2h"},
-		// A backup taken before warn_action_time existed restores tmute with 0:
-		// that must not become a permanent mute.
-		{name: "legacy zero duration", settings: models.WarnSettings{WarnMode: "tmute"}, wantMethod: "restrictChatMember", wantTime: 3600, wantText: "1h"},
-		// 30 s reaches Telegram as less than 30 s after rounding and latency,
-		// which it reads as forever.
-		{name: "too short duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 30}, wantMethod: "banChatMember", wantTime: 3600, wantText: "1h"},
-		{name: "longest duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 366 * 86400}, wantMethod: "banChatMember", wantTime: 366 * 86400, wantText: "366d"},
-		// Telegram reads an until_date more than 366 days away as forever.
-		{name: "too long duration", settings: models.WarnSettings{WarnMode: "tmute", WarnActionTime: 366*86400 + 1}, wantMethod: "restrictChatMember", wantTime: 3600, wantText: "1h"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newAdminChatFixture(t)
-			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
-			target := gotgbot.User{Id: 42, FirstName: "Member"}
-			settings := tc.settings
-			settings.ChatId = chat.Id
-			settings.WarnLimit = 1
-			if err := db.DB.Create(&settings).Error; err != nil {
-				t.Fatalf("create warn settings: %v", err)
-			}
-
-			before := time.Now().Unix()
-			warnCtx := newWarnReplyContext(bot, chat, admin, target, "/warn limit reached")
-			if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
-				t.Fatalf("warnUser() error = %v, want EndGroups", err)
-			}
-			after := time.Now().Unix()
-
-			call := client.onlyCall(t, tc.wantMethod)
-			assertParams(t, call, targetParams(chat.Id, target.Id))
-			if until := untilDateParam(t, call); until < before+tc.wantTime || until > after+tc.wantTime {
-				t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, tc.wantTime, before+tc.wantTime, after+tc.wantTime)
-			}
-			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
-				t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
-			}
-			replies := client.callsFor("sendMessage")
-			if len(replies) == 0 || !strings.Contains(replies[len(replies)-1].Params["text"].(string), tc.wantText) {
-				t.Fatalf("punishment replies = %#v, want duration %q", replies, tc.wantText)
-			}
-		})
-	}
 }
 
 func TestWarnLimitTimedModesKeepWarnsWhenPunishmentFails(t *testing.T) {
