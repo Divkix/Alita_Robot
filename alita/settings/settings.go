@@ -19,7 +19,7 @@
 // Moderation durations default to one hour for timed modes; untimed reads use
 // zero with no changed mark. Untimed writes accept only zero/omitted duration,
 // and switching to an untimed mode clears a previously stored duration.
-// Probation uses the same caller-and-bot restrict-members policy on every surface;
+// Probation requires caller restrict-members and bot-admin status on every surface;
 // its related block flags validate together and persist through one shared write.
 // Operator preconditions return Refusal locale keys for each adapter to render.
 // They participate in ValidateChanges before any batch write. Related independent
@@ -79,6 +79,7 @@ const (
 	ChangeInfo            // caller is an admin with can_change_info
 	ChangeInfoBot         // ChangeInfo, with the bot an administrator
 	Restrict              // caller and bot administrators with can_restrict_members
+	RestrictUser          // caller can_restrict_members; bot must be an administrator
 	OwnerBot              // only the owner may write; bot must be an administrator
 	FederationAdmin       // caller is an admin of a chat that belongs to a federation
 )

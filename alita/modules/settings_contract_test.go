@@ -63,6 +63,7 @@ type settingContract struct {
 	noPanel       bool
 	changeInfo    bool
 	restrict      bool
+	botRestrict   bool
 	botAdmin      bool
 	silentMember  bool
 	owner         bool
@@ -370,7 +371,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
 		{
-			key: "reports.mute_threshold", command: "/reports mute", botAdmin: true, restrict: true,
+			key: "reports.mute_threshold", command: "/reports mute", botAdmin: true, restrict: true, botRestrict: true,
 			defaultValue: 0, defaultLabel: "off", refusalKey: "reports_automute_usage",
 			seedInvalid: func(chatID int64) error {
 				return db.DB.Model(&models.ReportChatSettings{}).Create(map[string]any{"chat_id": chatID, "status": true, "mute_threshold": -1}).Error
@@ -937,26 +938,40 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				testContractSpamDatabases(t, setting)
 			}
 			if setting.restrict {
-				t.Run("bot needs restrict-members", func(t *testing.T) {
+				t.Run("bot restrict-members policy", func(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
 					f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)] = json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)
 					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + string(f.client.membersByChat[fmt.Sprintf("%d|999", f.chat.Id)]) + "," + string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]) + "]")
 					contractDispatch(t, f, f.admin, setting.command+" "+setting.edges[1].input)
 					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
-					if reply != translated(t, "chat_status_bot_restrict_group_error") {
+					if setting.botRestrict && reply != translated(t, "chat_status_bot_restrict_group_error") {
 						t.Fatalf("bot-right refusal = %q", reply)
+					}
+					if !setting.botRestrict {
+						edge := setting.edges[1]
+						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
 					}
 					if setting.button != "" {
 						contractPress(t, f, f.admin, setting.button, setting.edges[1].input)
-						if text, alert := lastAnswer(t, f.client); !alert || text != reply {
+						text, alert := lastAnswer(t, f.client)
+						if alert != setting.botRestrict || (alert && text != reply) {
 							t.Fatalf("button bot-right refusal = %q alert %t", text, alert)
 						}
 					}
 					response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, contractSettingChanges(setting, setting.edges[1])))
-					if response.Code != http.StatusConflict {
-						t.Fatalf("panel bot-right refusal = %d %s", response.Code, response.Body.String())
+					wantStatus := http.StatusOK
+					if setting.botRestrict {
+						wantStatus = http.StatusConflict
 					}
-					assertContractRowCount(t, f, setting, 0)
+					if response.Code != wantStatus {
+						t.Fatalf("panel bot-right policy = %d %s", response.Code, response.Body.String())
+					}
+					if setting.botRestrict {
+						assertContractRowCount(t, f, setting, 0)
+					} else {
+						edge := setting.edges[1]
+						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
+					}
 				})
 			}
 			if setting.key == "antispam.probation_block_links" {

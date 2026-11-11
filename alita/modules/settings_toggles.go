@@ -77,6 +77,8 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 		toggle.botAdmin, toggle.right = true, canChangeInfoRight
 	case settings.Restrict:
 		toggle.botAdmin, toggle.right = true, restrictRight
+	case settings.RestrictUser:
+		toggle.botAdmin, toggle.right = true, userRestrictRight
 	case settings.OwnerBot:
 		toggle.botAdmin, toggle.right = true, ownerRight
 	case settings.FederationAdmin:
@@ -103,9 +105,16 @@ func canChangeInfoRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 	return ""
 }
 
-func restrictRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
+func userRestrictRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
 	if !chat_status.CanUserRestrict(b, ctx, chat, userID) {
 		return "chat_status_restrict_cmd_error"
+	}
+	return ""
+}
+
+func restrictRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
+	if key := userRestrictRight(b, ctx, chat, userID); key != "" {
+		return key
 	}
 	if !chat_status.BotHasPermissionForUpdate(b, ctx, chat, func(member *gotgbot.MergedChatMember) bool { return member.CanRestrictMembers }) {
 		return "chat_status_bot_restrict_group_error"

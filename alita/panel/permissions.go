@@ -16,8 +16,9 @@ type permission int
 const permNone permission = 0 // admin only, as requireWritable already checks
 
 const (
-	permChangeInfo permission = 1 << iota // caller can_change_info (creator always has it)
-	permRestrict                         // caller AND bot can_restrict_members
+	permChangeInfo  permission = 1 << iota // caller can_change_info (creator always has it)
+	permRestrict                           // caller can_restrict_members
+	permBotRestrict                        // bot can_restrict_members
 )
 
 // settingsFieldPermission maps a declaration's neutral policy to Telegram rights.
@@ -30,6 +31,8 @@ func settingsFieldPermission(module, field string) permission {
 		case settings.ChangeInfo, settings.ChangeInfoBot:
 			return permChangeInfo
 		case settings.Restrict:
+			return permRestrict | permBotRestrict
+		case settings.RestrictUser:
 			return permRestrict
 		case settings.OwnerBot, settings.FederationAdmin:
 			panic("owner/federation settings have no panel editor")
@@ -54,7 +57,7 @@ func settingsPermission(changes map[string]any) permission {
 }
 
 // requirePermission runs requireWritable, then checks perm with fresh
-// getChatMember calls for the caller (and the bot for permRestrict). On refusal
+// getChatMember calls for the caller (and the bot for permBotRestrict). On refusal
 // it writes 403 {"code":"missing_permission"} for the caller or
 // 409 {"code":"bot_missing_permission"} for the bot and returns false.
 func (p *Panel) requirePermission(w http.ResponseWriter, r *http.Request, access chatAccess, userID int64, perm permission) bool {
@@ -76,7 +79,7 @@ func (p *Panel) requirePermission(w http.ResponseWriter, r *http.Request, access
 			return false
 		}
 	}
-	if perm&permRestrict != 0 {
+	if perm&permBotRestrict != 0 {
 		botMember, err := p.bot.GetChatMemberWithContext(r.Context(), access.ChatID, p.bot.Id, nil)
 		if err != nil {
 			writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return the bot's membership: "+err.Error())

@@ -222,7 +222,7 @@ func (p *Panel) handleListDelete(kind listKind) http.HandlerFunc {
 // checks can_restrict_members for the caller and the bot.
 func listWritePermission(kind listKind) permission {
 	if kind == listBlacklists {
-		return permRestrict
+		return permRestrict | permBotRestrict
 	}
 	return permChangeInfo
 }

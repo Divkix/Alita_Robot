@@ -20,6 +20,8 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()}
 	case settings.Restrict:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	case settings.RestrictUser:
+		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict()}
 	case settings.OwnerBot:
 		return []helpers.CheckFunc{
 			helpers.RequireConnectedMember(helpers.BotAdminRequired),
@@ -42,7 +44,7 @@ func declaredGroupSettingChecks(declaration *settings.Declaration) []helpers.Che
 	admin := []helpers.CheckFunc{helpers.RequireUserAdmin()}
 	switch declaration.Right {
 	case settings.Admin, settings.ChangeInfo, settings.FederationAdmin:
-	case settings.AdminBot, settings.ChangeInfoBot, settings.Restrict:
+	case settings.AdminBot, settings.ChangeInfoBot, settings.Restrict, settings.RestrictUser:
 		admin = append([]helpers.CheckFunc{helpers.RequireBotAdmin()}, admin...)
 	case settings.OwnerBot:
 		return []helpers.CheckFunc{helpers.RequireBotAdmin(), checks[1]}
