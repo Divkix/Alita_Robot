@@ -6,6 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -32,11 +33,7 @@ func checkAdminSetting(chatID int64) (*models.AdminSettings, error) {
 
 	err := db.GetRecord(adminSrc, models.AdminSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		adminSrc = &models.AdminSettings{ChatId: chatID, AnonAdmin: false}
-		if err := db.CreateRecord(adminSrc); err != nil {
-			log.Errorf("[Database][checkAdminSetting]: %v ", err)
-			return adminSrc, err
-		}
+		return &models.AdminSettings{ChatId: chatID}, nil
 	} else if err != nil {
 		log.Errorf("[Database][checkAdminSetting]: %v ", err)
 		return &models.AdminSettings{ChatId: chatID, AnonAdmin: false}, err
@@ -45,11 +42,10 @@ func checkAdminSetting(chatID int64) (*models.AdminSettings, error) {
 }
 
 func SetAnonAdminMode(chatID int64, val bool) error {
-	if _, err := checkAdminSetting(chatID); err != nil {
-		log.Errorf("[Database] SetAnonAdminMode: ensure settings for %d: %v", chatID, err)
-	}
-
-	err := db.UpdateRecordWithZeroValues(&models.AdminSettings{}, models.AdminSettings{ChatId: chatID}, map[string]any{"anon_admin": val})
+	err := db.DB.Model(&models.AdminSettings{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"anon_admin"}),
+	}).Create(map[string]any{"chat_id": chatID, "anon_admin": val}).Error
 	if err != nil {
 		log.Errorf("[Database] SetAnonAdminMode: %v - %d", err, chatID)
 		return err

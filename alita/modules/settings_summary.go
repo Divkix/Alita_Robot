@@ -301,26 +301,18 @@ func rulesSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	}}
 }
 
-func notesSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	private := false
-	if n, ok := readChatSetting[models.NotesSettings](ctx, chatID); ok {
-		private = n.Private
-	}
+func notesSettingsSection(_ context.Context, chatID int64) settingsSection {
 	return settingsSection{Title: "Notes & Filters", Rows: []settingsRow{
 		countRow("/notes", len(notes.GetNotesList(chatID, true))),
-		boolRow("/privnote", private, false),
+		declaredBoolRow("/privnote", settings.PrivateNotes, chatID),
 		countRow("/filters", int(filters.CountFilters(chatID))),
 	}}
 }
 
-func pinsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	p, ok := readChatSetting[models.PinSettings](ctx, chatID)
-	if !ok {
-		p = &models.PinSettings{}
-	}
+func pinsSettingsSection(_ context.Context, chatID int64) settingsSection {
 	return settingsSection{Title: "Pins", Rows: []settingsRow{
-		boolRow("/antichannelpin", p.AntiChannelPin, false),
-		boolRow("/cleanlinked", p.CleanLinked, false),
+		declaredBoolRow("/antichannelpin", settings.AntiChannelPin, chatID),
+		declaredBoolRow("/cleanlinked", settings.CleanLinked, chatID),
 	}}
 }
 
@@ -380,20 +372,12 @@ func federationSettingsSection(chatID int64) settingsSection {
 	}}
 }
 
-func chatSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	allowConnect := true
-	if c, ok := readChatSetting[models.ConnectionChatSettings](ctx, chatID); ok {
-		allowConnect = c.AllowConnect
-	}
-	anonAdmin := false
-	if a, ok := readChatSetting[models.AdminSettings](ctx, chatID); ok {
-		anonAdmin = a.AnonAdmin
-	}
+func chatSettingsSection(_ context.Context, chatID int64) settingsSection {
 	return settingsSection{Title: "Chat", Rows: []settingsRow{
 		declaredStringRow("/lang group", settings.Language.Read(chatID)),
 		declaredStringRow("/timezone", settings.Timezone.Read(chatID)),
-		boolRow("/allowconnect", allowConnect, true),
-		boolRow("/anonadmin", anonAdmin, false),
+		declaredBoolRow("/allowconnect", settings.AllowConnect, chatID),
+		declaredBoolRow("/anonadmin", settings.AnonAdmin, chatID),
 	}}
 }
 

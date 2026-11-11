@@ -9,8 +9,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -599,10 +599,10 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	tr := c.Tr
 	var text string
 
-	adminSettings := admin.GetAdminSettings(chat.Id)
+	anonAdmin := settings.AnonAdmin.Read(chat.Id).Value.(bool)
 
 	if len(args) == 1 {
-		if adminSettings.AnonAdmin {
+		if anonAdmin {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled")
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		} else {
@@ -612,11 +612,11 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	} else {
 		switch args[1] {
 		case "on", "true", "yes":
-			if adminSettings.AnonAdmin {
+			if anonAdmin {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
-				if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
+				if err := settings.AnonAdmin.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
@@ -626,11 +626,11 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			}
 		case "off", "no", "false":
-			if !adminSettings.AnonAdmin {
+			if !anonAdmin {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
-				if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
+				if err := settings.AnonAdmin.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
@@ -761,15 +761,9 @@ var (
 		},
 	}
 	anonAdminDesc = helpers.CommandDescriptor{
-		Name:       "anonadmin",
-		PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireConnectedMember(helpers.BotAdminRequired),
-			func(c *helpers.CommandContext) bool {
-				// Members may view the mode; only the owner may change it.
-				return len(c.Ctx.Args()) == 1 || helpers.RequireUserOwner()(c)
-			},
-		},
+		Name:           "anonadmin",
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: declaredSettingChecks(settings.AnonAdmin),
 	}
 	setGTitleDesc = helpers.CommandDescriptor{
 		Name:       "setgtitle",

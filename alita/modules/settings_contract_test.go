@@ -63,6 +63,8 @@ type settingContract struct {
 	changeInfo    bool
 	restrict      bool
 	botAdmin      bool
+	silentMember  bool
+	owner         bool
 	statusOn      string
 	statusOff     string
 	setOn         string
@@ -441,6 +443,41 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			},
 			edges: []settingContractEdge{{"media,url", "23:00 07:00 MEDIA,url,media", "23:00-07:00 media, url", true}, {"all", "23:00 07:00 all", "23:00-07:00 all", true}, {"bots", "23:00 07:00 bots", "bots", false}, {"unknown", "23:00 07:00 unknown", "unknown", false}, {"", "23:00 07:00", "empty", false}},
 		},
+		{
+			key: "notes.private_notes", command: "/privnote", button: "pn", noPanel: true, directChecks: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "notes_private_status_on", statusOff: "notes_private_status_off",
+			setOn: "notes_private_enabled", setOff: "notes_private_disabled", refusalKey: "notes_private_invalid_option",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "pins.anti_channel_pin", command: "/antichannelpin", button: "ap", noPanel: true, botAdmin: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "pins_antichannelpin_current_enabled", statusOff: "pins_antichannelpin_current_disabled",
+			setOn: "pins_antichannelpin_enabled", setOff: "pins_antichannelpin_disabled", refusalKey: "pins_input_not_recognized",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "pins.clean_linked", command: "/cleanlinked", button: "cl", noPanel: true, botAdmin: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "pins_cleanlinked_current_enabled", statusOff: "pins_cleanlinked_current_disabled",
+			setOn: "pins_cleanlinked_enabled", setOff: "pins_cleanlinked_disabled", refusalKey: "pins_input_not_recognized",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "connections.allow_connect", command: "/allowconnect", button: "ac", noPanel: true, silentMember: true,
+			defaultValue: true, defaultLabel: "on",
+			statusOn: "connections_allow_connect_currently_on", statusOff: "connections_allow_connect_currently_off",
+			setOn: "connections_allow_connect_turned_on", setOff: "connections_allow_connect_turned_off", refusalKey: "connections_invalid_option",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "admin.anon_admin", command: "/anonadmin", button: "an", noPanel: true, botAdmin: true, owner: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "admin_anon_admin_enabled", statusOff: "admin_anon_admin_disabled",
+			setOn: "admin_anon_admin_enabled_now", setOff: "admin_anon_admin_already_disabled", refusalKey: "admin_anon_admin_invalid_arg",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
 	} {
 		if setting.key == "nightmode.lock_types" {
 			// Expectations come from the locks owner, not the declaration's attachment.
@@ -481,25 +518,33 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				botAdmin    bool
 				changeInfo  bool
 				restrict    bool
+				owner       bool
 			}{
-				{"member", false, true, false, setting.restrict},
-				{"exact right", true, true, setting.changeInfo, setting.restrict},
-				{"no change info", true, true, false, setting.restrict},
-				{"no restrict", true, true, setting.changeInfo, false},
-				{"bot member", true, false, setting.changeInfo, setting.restrict},
+				{"member", false, true, false, setting.restrict, false},
+				{"exact right", true, true, setting.changeInfo, setting.restrict, setting.owner},
+				{"admin not owner", true, true, setting.changeInfo, setting.restrict, false},
+				{"no change info", true, true, false, setting.restrict, setting.owner},
+				{"no restrict", true, true, setting.changeInfo, false, setting.owner},
+				{"bot member", true, false, setting.changeInfo, setting.restrict, setting.owner},
 			} {
 				t.Run("rights/"+rights.name, func(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
 					contractRights(f, rights.changeInfo, rights.botAdmin, rights.restrict)
+					if rights.owner {
+						contractMakeOwner(f)
+					}
 					actor := f.member
 					if rights.callerAdmin {
 						actor = f.admin
 					}
 					edge := setting.edges[1]
-					accepted := rights.callerAdmin && (!setting.botAdmin || rights.botAdmin) && (!setting.changeInfo || rights.changeInfo) && (!setting.restrict || rights.restrict)
+					accepted := rights.callerAdmin && (!setting.owner || rights.owner) && (!setting.botAdmin || rights.botAdmin) && (!setting.changeInfo || rights.changeInfo) && (!setting.restrict || rights.restrict)
 					refusal := "connections_is_user_connected_user_not_admin"
 					if setting.directChecks {
 						refusal = "chat_status_user_admin_cmd_error"
+					}
+					if setting.owner && !rights.owner {
+						refusal = "chat_status_owner_cmd_error"
 					}
 					if setting.botAdmin && !rights.botAdmin {
 						refusal = "connections_is_user_connected_bot_not_admin"
@@ -512,8 +557,12 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						refusal = "chat_status_restrict_cmd_error"
 					}
 					reply := contractSet(t, f, actor, setting, edge.input)
-					if !accepted && reply != translated(t, refusal) {
-						t.Fatalf("command refusal = %q, want %s", reply, refusal)
+					wantReply := translated(t, refusal)
+					if setting.silentMember && !rights.callerAdmin {
+						wantReply = ""
+					}
+					if !accepted && reply != wantReply {
+						t.Fatalf("command refusal = %q, want %q", reply, wantReply)
 					}
 					if !accepted {
 						assertContractRowCount(t, f, setting, 0)
@@ -521,8 +570,18 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					if setting.button != "" {
 						contractPress(t, f, actor, setting.button, edge.input)
 						text, alert := lastAnswer(t, f.client)
-						if accepted == alert || (!accepted && text != reply) {
-							t.Fatalf("button answer = %q alert %t, command = %q accepted %t", text, alert, reply, accepted)
+						want := reply
+						if (setting.directChecks || setting.silentMember) && !rights.callerAdmin {
+							want = translated(t, "connections_is_user_connected_user_not_admin")
+						}
+						if setting.owner && !rights.owner && rights.botAdmin {
+							want = translated(t, "chat_status_owner_button_error")
+							if !rights.callerAdmin {
+								want = translated(t, "connections_is_user_connected_user_not_admin")
+							}
+						}
+						if accepted == alert || (!accepted && text != want) {
+							t.Fatalf("button answer = %q alert %t, want %q accepted %t", text, alert, want, accepted)
 						}
 					}
 					if !setting.noPanel {
@@ -595,8 +654,9 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 							if edge.value == true {
 								key = setting.setOn
 							}
-							if reply != translated(t, key) {
-								t.Fatalf("command reply = %q, want %s", reply, key)
+							want := contractSwitchReply(t, f, key)
+							if reply != want {
+								t.Fatalf("command reply = %q, want %q", reply, want)
 							}
 						} else if edge.input == "off" && setting.command == "/autoantiraid" {
 							if reply != translated(t, "antiraid_auto_disabled") {
@@ -1125,6 +1185,9 @@ func newSettingContractFixture(t *testing.T, setting settingContract) adminChatF
 	t.Helper()
 	f := newAdminChatFixture(t)
 	contractRights(f, setting.changeInfo, true, setting.restrict)
+	if setting.owner {
+		contractMakeOwner(f)
+	}
 	if err := chats.EnsureChatInDb(f.chat.Id, f.chat.Title); err != nil {
 		t.Fatal(err)
 	}
@@ -1178,6 +1241,9 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	loadTimezone(dispatcher)
 	loadNightMode(dispatcher)
 	LoadLanguage(dispatcher)
+	LoadNotes(dispatcher)
+	LoadPin(dispatcher)
+	LoadAdmin(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -1186,7 +1252,11 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 func contractSet(t *testing.T, f adminChatFixture, actor gotgbot.User, setting settingContract, input string) string {
 	t.Helper()
 	if setting.key != "language.code" {
+		before := len(f.client.callsFor("sendMessage"))
 		contractDispatch(t, f, actor, setting.command+" "+input)
+		if len(f.client.callsFor("sendMessage")) == before {
+			return ""
+		}
 		return fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
 	}
 	contractDispatch(t, f, actor, "/lang group")
@@ -1335,7 +1405,7 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			if value == true {
 				key = setting.statusOn
 			}
-			found = found || strings.HasPrefix(text, translated(t, key))
+			found = found || strings.HasPrefix(text, contractSwitchReply(t, f, key))
 			continue
 		}
 		if isContractRemaining(setting) {
@@ -1489,6 +1559,14 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.ChatTimezone{}
 	} else if strings.HasPrefix(setting.key, "nightmode.") {
 		model = &models.NightModeSettings{}
+	} else if strings.HasPrefix(setting.key, "notes.") {
+		model = &models.NotesSettings{}
+	} else if strings.HasPrefix(setting.key, "pins.") {
+		model = &models.PinSettings{}
+	} else if strings.HasPrefix(setting.key, "connections.") {
+		model = &models.ConnectionChatSettings{}
+	} else if strings.HasPrefix(setting.key, "admin.") {
+		model = &models.AdminSettings{}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
@@ -1963,4 +2041,20 @@ func testContractSpamDatabases(t *testing.T, setting settingContract) {
 			}
 		})
 	}
+}
+
+func contractSwitchReply(t *testing.T, f adminChatFixture, key string) string {
+	t.Helper()
+	text := translated(t, key)
+	if strings.Contains(text, "%s") {
+		text = fmt.Sprintf(text, f.chat.Title)
+	}
+	return text
+}
+
+func contractMakeOwner(f adminChatFixture) {
+	from := fmt.Sprintf(`"status":"administrator","user":{"id":%d,`, f.admin.Id)
+	to := fmt.Sprintf(`"status":"creator","user":{"id":%d,`, f.admin.Id)
+	f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(strings.ReplaceAll(string(f.client.membersByUser[fmt.Sprint(f.admin.Id)]), from, to))
+	f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(strings.ReplaceAll(string(f.client.adminsByChat[fmt.Sprint(f.chat.Id)]), from, to))
 }

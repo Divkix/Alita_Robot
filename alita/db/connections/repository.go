@@ -17,10 +17,13 @@ import (
 )
 
 func ToggleAllowConnect(chatID int64, pref bool) error {
-	if _, err := checkChatConnectionSetting(chatID); err != nil {
-		log.Errorf("[Database] ToggleAllowConnect: ensure settings for %d: %v", chatID, err)
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
 	}
-	err := db.UpdateRecordWithZeroValues(&models.ConnectionChatSettings{}, models.ConnectionChatSettings{ChatId: chatID}, map[string]any{"allow_connect": pref})
+	err := db.DB.Model(&models.ConnectionChatSettings{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"allow_connect"}),
+	}).Create(map[string]any{"chat_id": chatID, "allow_connect": pref}).Error
 	if err != nil {
 		log.Errorf("[Database] ToggleAllowConnect: %d - %v", chatID, err)
 		return err
@@ -48,17 +51,7 @@ func checkChatConnectionSetting(chatID int64) (*models.ConnectionChatSettings, e
 	connectionSrc := &models.ConnectionChatSettings{}
 	err := db.GetRecord(connectionSrc, models.ConnectionChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-			log.Errorf("[Database] GetChatConnectionSetting: Failed to ensure chat exists for %d: %v", chatID, err)
-			return &models.ConnectionChatSettings{ChatId: chatID, AllowConnect: false}, err
-		}
-
-		connectionSrc = &models.ConnectionChatSettings{ChatId: chatID, AllowConnect: false}
-		if err := db.CreateRecord(connectionSrc); err != nil {
-			log.Errorf("[Database] GetChatConnectionSetting: %d - %v", chatID, err)
-			return connectionSrc, err
-		}
-		return connectionSrc, nil
+		return &models.ConnectionChatSettings{ChatId: chatID, AllowConnect: true}, nil
 	}
 	if err != nil {
 		log.Errorf("[Database] GetChatConnectionSetting: %d - %v", chatID, err)

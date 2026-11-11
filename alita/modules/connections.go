@@ -13,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -53,13 +54,13 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 		toogleOption := args[1]
 		switch toogleOption {
 		case "on", "true", "yes":
-			if err := connections.ToggleAllowConnect(chat.Id, true); err != nil {
+			if err := settings.AllowConnect.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
 			}
 		case "off", "false", "no":
-			if err := connections.ToggleAllowConnect(chat.Id, false); err != nil {
+			if err := settings.AllowConnect.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
@@ -68,7 +69,7 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 			text, _ = tr.GetString("connections_invalid_option")
 		}
 	} else {
-		currSetting := connections.GetChatConnectionSetting(chat.Id).AllowConnect
+		currSetting := settings.AllowConnect.Read(chat.Id).Value.(bool)
 		if currSetting {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_currently_on")
 		} else {
@@ -322,12 +323,12 @@ func connectionPMOnlyCheck(key string) helpers.CheckFunc {
 }
 
 // allowConnectAdminCheck keeps group non-admins silent, without anonymous proof.
-var allowConnectAdminCheck = checkInPMOrGroup(
-	helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired),
-	func(c *helpers.CommandContext) bool {
-		return chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
-	},
-)
+func allowConnectAdminCheck(c *helpers.CommandContext) bool {
+	if c.Msg.Chat.Type != "private" && !chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id) {
+		return false
+	}
+	return helpers.RunChecks(c, declaredSettingChecks(settings.AllowConnect))
+}
 
 // connectionTargetCheck applies the shared policy only after the command has
 // read its actual target; a saved connection is not /connect's target.

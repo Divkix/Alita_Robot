@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -280,14 +281,14 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "yes", "true":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_enabled")
-			if err := notes.TooglePrivateNote(chat.Id, true); err != nil {
+			if err := settings.PrivateNotes.Write(settings.WriteContext{ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
 				txt, _ = tr.GetString("error_generic")
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_disabled")
-			if err := notes.TooglePrivateNote(chat.Id, false); err != nil {
+			if err := settings.PrivateNotes.Write(settings.WriteContext{ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
 				txt, _ = tr.GetString("error_generic")
 			}
@@ -296,7 +297,7 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			txt, _ = tr.GetString("notes_private_invalid_option")
 		}
 	} else {
-		tmp := notes.GetNotes(chat.Id).PrivateNotesEnabled()
+		tmp := settings.PrivateNotes.Read(chat.Id).Value.(bool)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if tmp {
 			txt, _ = tr.GetString("notes_private_status_on")
@@ -943,7 +944,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		Name:           "privnote",
 		Aliases:        []string{"privatenotes"},
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireUserAdmin()},
+		RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck}, declaredGroupSettingChecks(settings.PrivateNotes)...),
 	}, pipelineHandler(notesModule.privNote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "get",

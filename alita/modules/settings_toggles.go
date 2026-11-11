@@ -9,11 +9,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/admin"
-	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
-	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
@@ -88,6 +85,8 @@ func declaredSettingsToggle(key, command string, declaration *settings.Declarati
 		toggle.botAdmin, toggle.right = true, canChangeInfoRight
 	case settings.Restrict:
 		toggle.botAdmin, toggle.right = true, restrictRight
+	case settings.OwnerBot:
+		toggle.botAdmin, toggle.right = true, ownerRight
 	default:
 		panic("unmapped setting right")
 	}
@@ -161,13 +160,13 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("aa", "/autoapprove", settings.AutoApprove),
 	declaredSettingsToggle("rp", "/reports", settings.ReportsEnabled),
 	declaredSettingsToggle("pr", "/privaterules", settings.PrivateRules),
-	boolToggle("pn", "/privnote", false, notes.TooglePrivateNote),
-	boolToggle("ap", "/antichannelpin", true, antiChannelPinToggle.set),
-	boolToggle("cl", "/cleanlinked", true, cleanLinkedToggle.set),
+	declaredSettingsToggle("pn", "/privnote", settings.PrivateNotes),
+	declaredSettingsToggle("ap", "/antichannelpin", settings.AntiChannelPin),
+	declaredSettingsToggle("cl", "/cleanlinked", settings.CleanLinked),
 	boolToggle("dd", "/disabledel", true, disabling.ToggleDel),
 	withRight(boolToggle("qf", "/quietfed", false, federations.SetQuietFed), inFedRight),
-	boolToggle("ac", "/allowconnect", false, connections.ToggleAllowConnect),
-	withRight(boolToggle("an", "/anonadmin", true, admin.SetAnonAdminMode), ownerRight),
+	declaredSettingsToggle("ac", "/allowconnect", settings.AllowConnect),
+	declaredSettingsToggle("an", "/anonadmin", settings.AnonAdmin),
 }
 
 // settingsTogglesByKey and settingsTogglesByCommand index settingsToggles for

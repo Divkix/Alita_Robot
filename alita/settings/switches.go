@@ -1,0 +1,78 @@
+package settings
+
+import (
+	"github.com/divkix/Alita_Robot/alita/db/admin"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/db/pins"
+)
+
+var PrivateNotes = &Declaration{
+	Key: "notes.private_notes", Type: Switch, Default: false, Right: Admin,
+	read: func(chatID int64) any {
+		row := notes.GetNotes(chatID)
+		if row.ID == 0 {
+			return nil
+		}
+		return row.Private
+	},
+	write: func(input WriteContext, value any) error {
+		return notes.TooglePrivateNote(input.ChatID, value.(bool))
+	},
+}
+
+var AntiChannelPin = &Declaration{
+	Key: "pins.anti_channel_pin", Type: Switch, Default: false, Right: AdminBot,
+	read: func(chatID int64) any {
+		row := pins.GetPinData(chatID)
+		if row.ID == 0 {
+			return nil
+		}
+		return row.AntiChannelPin
+	},
+	write: func(input WriteContext, value any) error {
+		return pins.SetAntiChannelPin(input.ChatID, value.(bool))
+	},
+}
+
+var CleanLinked = &Declaration{
+	Key: "pins.clean_linked", Type: Switch, Default: false, Right: AdminBot,
+	read: func(chatID int64) any {
+		row := pins.GetPinData(chatID)
+		if row.ID == 0 {
+			return nil
+		}
+		return row.CleanLinked
+	},
+	write: func(input WriteContext, value any) error {
+		return pins.SetCleanLinked(input.ChatID, value.(bool))
+	},
+}
+
+var AllowConnect = &Declaration{
+	Key: "connections.allow_connect", Type: Switch, Default: true, Right: Admin,
+	read: func(chatID int64) any {
+		row := connections.GetChatConnectionSetting(chatID)
+		if row.ID == 0 {
+			return nil
+		}
+		return row.AllowConnect
+	},
+	write: func(input WriteContext, value any) error {
+		return connections.ToggleAllowConnect(input.ChatID, value.(bool))
+	},
+}
+
+var AnonAdmin = &Declaration{
+	Key: "admin.anon_admin", Type: Switch, Default: false, Right: OwnerBot,
+	read: func(chatID int64) any {
+		row := admin.GetAdminSettings(chatID)
+		if row.ID == 0 {
+			return nil
+		}
+		return row.AnonAdmin
+	},
+	write: func(input WriteContext, value any) error {
+		return admin.SetAnonAdminMode(input.ChatID, value.(bool))
+	},
+}

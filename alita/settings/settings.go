@@ -29,6 +29,9 @@
 // Timezone requires caller change-info, not bot-admin status.
 // Night-mode fields share one write and require the locks owner's startup
 // attachment. Invalid stored windows/types disable the effective configuration.
+// Private notes, pin switches, connections and anonymous-admin mode also use
+// non-creating reads. The anonymous-admin command keeps its member-readable
+// status; only its writes and /settings taps require the owner.
 package settings
 
 import (
@@ -73,6 +76,7 @@ const (
 	ChangeInfo          // caller is an admin with can_change_info
 	ChangeInfoBot       // ChangeInfo, with the bot an administrator
 	Restrict            // caller and bot administrators with can_restrict_members
+	OwnerBot            // only the owner may write; bot must be an administrator
 )
 
 type Declaration struct {
@@ -118,6 +122,7 @@ var declarations = []*Declaration{
 	ReportsEnabled, ReportMuteThreshold, DigestEnabled, DigestDestination,
 	Timezone, Language, PrivateRules,
 	NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes,
+	PrivateNotes, AntiChannelPin, CleanLinked, AllowConnect, AnonAdmin,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.

@@ -20,6 +20,14 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()}
 	case settings.Restrict:
 		return []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	case settings.OwnerBot:
+		return []helpers.CheckFunc{
+			helpers.RequireConnectedMember(helpers.BotAdminRequired),
+			func(c *helpers.CommandContext) bool {
+				// Members may view the mode; only the owner may change it.
+				return len(c.Ctx.Args()) == 1 || helpers.RequireUserOwner()(c)
+			},
+		}
 	default:
 		panic(fmt.Sprintf("unmapped setting right: %d", declaration.Right))
 	}
@@ -34,6 +42,8 @@ func declaredGroupSettingChecks(declaration *settings.Declaration) []helpers.Che
 	case settings.Admin, settings.ChangeInfo:
 	case settings.AdminBot, settings.ChangeInfoBot, settings.Restrict:
 		admin = append([]helpers.CheckFunc{helpers.RequireBotAdmin()}, admin...)
+	case settings.OwnerBot:
+		return []helpers.CheckFunc{helpers.RequireBotAdmin(), checks[1]}
 	}
 	return append(admin, checks[1:]...)
 }
