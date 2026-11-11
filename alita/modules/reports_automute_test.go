@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -224,6 +225,8 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 		f, actions, until := autoMutedCard(t)
 		f.client.membersByChat[memberKey(f)] = json.RawMessage(fmt.Sprintf(
 			`{"status":"restricted","user":{"id":43,"is_bot":false,"first_name":"Target"},"is_member":true,"can_send_messages":false,"until_date":%d}`, until))
+		f.client.chatsByID = map[string]json.RawMessage{fmt.Sprint(f.chat.Id): json.RawMessage(fmt.Sprintf(
+			`{"id":%d,"type":"supergroup","title":"Group","permissions":{"can_send_messages":true,"can_send_polls":true}}`, f.chat.Id))}
 		if err := pressCard(t, f, reportCardChannel, 9001, admin, actions["dismiss"]); err != ext.EndGroups {
 			t.Fatalf("dismiss press error = %v, want EndGroups", err)
 		}
@@ -231,8 +234,8 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 		if len(calls) != 2 {
 			t.Fatalf("restrictions = %d, want the auto-mute and its lift", len(calls))
 		}
-		if !callPermissions(t, calls[1]).CanSendMessages {
-			t.Fatal("dismiss did not restore sending")
+		if got, want := callPermissions(t, calls[1]), (gotgbot.ChatPermissions{CanSendMessages: true, CanSendPolls: true}); !reflect.DeepEqual(got, want) {
+			t.Fatalf("lift permissions = %+v, want the chat's defaults %+v", got, want)
 		}
 		if m := storedAutoMute(t, f); m != nil {
 			t.Fatalf("auto-mute record = %+v after dismiss, want none", m)

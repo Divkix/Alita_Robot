@@ -311,6 +311,15 @@ func TestReportCardButtonsRecordOneEvent(t *testing.T) {
 			if got.Action != tt.event {
 				t.Fatalf("%s event action = %q, want %q", tt.action, got.Action, tt.event)
 			}
+			if tt.action == "ban" {
+				record := singleBanRecord(t, f.chat.Id)
+				if record.UserId != f.target.Id || record.BannedBy != reportCardAdminID || record.Source != models.BanSourceReport ||
+					record.Reason != storedReports(t, f.chat.Id)[0].Reason || record.Until != nil {
+					t.Fatalf("ban record = %+v, want the admin's permanent report ban with the report's reason", record)
+				}
+			} else if rows := banRecordsOf(t, f.chat.Id); len(rows) != 0 {
+				t.Fatalf("mute recorded bans %+v, want none", rows)
+			}
 		})
 	}
 }
@@ -369,6 +378,14 @@ func TestLegacyReportButtonsRecordOneEvent(t *testing.T) {
 			}
 			if got.Action != tt.event {
 				t.Fatalf("%s event action = %q, want %q", tt.action, got.Action, tt.event)
+			}
+			if tt.action == "ban" {
+				record := singleBanRecord(t, chat.Id)
+				if record.UserId != 43 || record.BannedBy != admin.Id || record.Source != models.BanSourceReport || record.Reason != "" || record.Until != nil {
+					t.Fatalf("ban record = %+v, want the admin's permanent report ban", record)
+				}
+			} else if rows := banRecordsOf(t, chat.Id); len(rows) != 0 {
+				t.Fatalf("kick recorded bans %+v, want none", rows)
 			}
 		})
 	}

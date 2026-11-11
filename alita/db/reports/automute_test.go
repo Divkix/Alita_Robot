@@ -53,6 +53,33 @@ func TestAutoMuteClaimAndRelease(t *testing.T) {
 	}
 }
 
+// The claim is taken before Telegram mutes; the end Telegram accepted then
+// replaces the claim's, unless an admin released the claim meanwhile.
+func TestSetAutoMuteUntil(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportAutoMute{}).Error })
+	until := time.Now().Add(24 * time.Hour).Truncate(time.Second)
+
+	if _, err := ClaimAutoMute(chatID, 43, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := SetAutoMuteUntil(chatID, 43, until); err != nil || !ok {
+		t.Fatalf("SetAutoMuteUntil() = %v, %v, want true", ok, err)
+	}
+	if m, err := GetAutoMute(chatID, 43); err != nil || m == nil || !m.MutedUntil.Equal(until) {
+		t.Fatalf("GetAutoMute() = %+v, %v, want the mute until %v", m, err, until)
+	}
+	if _, err := ReleaseAutoMute(chatID, 43); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := SetAutoMuteUntil(chatID, 43, until); err != nil || ok {
+		t.Fatalf("SetAutoMuteUntil() after release = %v, %v, want false", ok, err)
+	}
+	if m, _ := GetAutoMute(chatID, 43); m != nil {
+		t.Fatalf("released auto-mute came back: %+v", m)
+	}
+}
+
 func TestDeleteAutoMutesBefore(t *testing.T) {
 	chatID := newReportCaseChat(t)
 	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportAutoMute{}).Error })

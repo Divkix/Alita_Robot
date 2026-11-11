@@ -1376,6 +1376,7 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 		withStoredText bool
 	}{
 		{name: "kick", action: "kick", wantUnban: 1},
+		{name: "ban", action: "ban", wantBan: 1},
 		{name: "mute with stored messages", action: "mute", wantRestrict: 1, withStoredText: true},
 	}
 
@@ -1417,6 +1418,25 @@ func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) 
 			}
 			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
 				t.Fatalf("deleteMessage calls = %d, want captcha message cleanup", len(calls))
+			}
+			records := banRecordsOf(t, chat.Id)
+			if tt.action == "ban" {
+				if len(records) != 1 || records[0].UserId != member.Id || records[0].Source != models.BanSourceCaptcha ||
+					records[0].SourceDetail != captchaFailedTimeout || records[0].BannedBy != 0 || records[0].Until != nil {
+					t.Fatalf("ban records = %+v, want one permanent captcha ban by the bot", records)
+				}
+			} else if len(records) != 0 {
+				t.Fatalf("%s recorded bans %+v, want none", tt.action, records)
+			}
+			if tt.action == "mute" {
+				// The 24h end is captcha's own schedule; Telegram gets no until_date.
+				if call := client.onlyCall(t, "restrictChatMember"); call.Params["until_date"] != nil {
+					t.Fatalf("failure mute until_date = %v, want none", call.Params["until_date"])
+				}
+				users, err := captcha.GetMutedUsersForChat(chat.Id)
+				if err != nil || len(users) != 1 || time.Until(users[0].UnmuteAt) < 23*time.Hour || time.Until(users[0].UnmuteAt) > 24*time.Hour {
+					t.Fatalf("unmute schedule = %+v, %v; want one in 24h", users, err)
+				}
 			}
 		})
 	}
