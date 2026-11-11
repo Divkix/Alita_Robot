@@ -622,6 +622,14 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			}})
 		}
 
+		// With /ephemeral on, only the asker sees the PM redirect. The panel
+		// button is a URL button, which ephemeral messages accept.
+		if sendEphemeral(b, ctx, moduleHelpString, gotgbot.SendMessageOpts{
+			ParseMode:   formatting.HTML,
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows},
+		}) {
+			return ext.EndGroups
+		}
 		_, err := msg.Reply(b,
 			moduleHelpString,
 			&gotgbot.SendMessageOpts{
