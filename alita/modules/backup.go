@@ -2,6 +2,7 @@ package modules
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -21,9 +22,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
@@ -166,20 +167,6 @@ func cleanupExpiredPending() {
 			delete(pendingResets, k)
 		}
 	}
-}
-
-func startPendingCleanupTicker() {
-	go func() {
-		defer error_handling.RecoverFromPanic("pendingBackupCleanup", "backup")
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			func() {
-				defer error_handling.RecoverFromPanic("pendingBackupCleanupTick", "backup")
-				cleanupExpiredPending()
-			}()
-		}
-	}()
 }
 
 func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
@@ -741,5 +728,8 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Backup", 270, LoadBackup)
-	startPendingCleanupTicker()
+	jobs.Register("pendingBackupCleanup", 5*time.Minute, func(context.Context) error {
+		cleanupExpiredPending()
+		return nil
+	})
 }

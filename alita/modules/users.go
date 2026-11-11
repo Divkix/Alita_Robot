@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
@@ -130,17 +132,6 @@ func sweepUsersThrottleCaches(now time.Time) {
 	sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
 	sweepUpdateCache(chatMemberUpdateCache, now, chatUpdateInterval)
 	sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
-}
-
-func usersThrottleSweepLoop() {
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	for now := range ticker.C {
-		func() {
-			defer error_handling.RecoverFromPanic("usersThrottleSweep", "users")
-			sweepUsersThrottleCaches(now)
-		}()
-	}
 }
 
 func shouldUpdateUser(cache *sync.Map, userID int64, username, name string, interval time.Duration) bool {
@@ -285,5 +276,8 @@ func LoadUsers(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Users", 100, LoadUsers)
-	go usersThrottleSweepLoop()
+	jobs.Register("usersThrottleSweep", time.Minute, func(context.Context) error {
+		sweepUsersThrottleCaches(time.Now())
+		return nil
+	})
 }
