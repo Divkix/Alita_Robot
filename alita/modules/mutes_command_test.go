@@ -45,13 +45,10 @@ func TestMuteReplyRestrictsUserAndSendsUnmuteButton(t *testing.T) {
 	}
 }
 
-// assertMuted fails unless call restricts userID in chatID from sending.
+// assertMuted fails unless call restricts userID in chatID.
 func assertMuted(t *testing.T, call moduleBotCall, chatID, userID int64) {
 	t.Helper()
 	assertParams(t, call, targetParams(chatID, userID))
-	if perms, ok := call.Params["permissions"].(gotgbot.ChatPermissions); !ok || perms.CanSendMessages {
-		t.Fatalf("mute permissions = %#v, want CanSendMessages false", call.Params["permissions"])
-	}
 }
 
 func TestMuteCommandRejectsMissingChannelAndProtectedTargets(t *testing.T) {
@@ -299,11 +296,7 @@ func TestUnmuteCommandRestoresPermissions(t *testing.T) {
 	if err := mutesModule.unmute(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("unmute error = %v, want EndGroups", err)
 	}
-	unmute := client.onlyCall(t, "restrictChatMember")
-	assertParams(t, unmute, targetParams(chat.Id, 42))
-	if perms, ok := unmute.Params["permissions"].(gotgbot.ChatPermissions); !ok || !perms.CanSendMessages {
-		t.Fatalf("unmute permissions = %#v, want CanSendMessages true", unmute.Params["permissions"])
-	}
+	assertParams(t, client.onlyCall(t, "restrictChatMember"), targetParams(chat.Id, 42))
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want unmute confirmation", len(calls))
 	}

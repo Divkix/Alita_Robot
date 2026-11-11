@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -76,7 +77,9 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !isDeletedAccount(merged.User.FirstName) {
 			continue
 		}
-		if err := kickMember(b, chat.Id, userID); err != nil {
+		if _, err := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Kick,
+		}); err != nil {
 			log.Debugf("[Misc] zombies kick %d: %v", userID, err)
 			continue
 		}

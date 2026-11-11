@@ -1629,12 +1629,12 @@ func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action,
 	return result.LogMarkup, nil
 }
 
+// unmuteCaptchaUser releases a pending hold or an expired failure mute: both
+// restore the group's defaults, as any lifted mute.
 func unmuteCaptchaUser(bot *gotgbot.Bot, chatID, userID int64) error {
-	chat, err := bot.GetChat(chatID, nil)
-	if err != nil {
-		return err
-	}
-	_, err = bot.RestrictChatMember(chatID, userID, punishment.UnmutePermissions(chat), nil)
+	_, err := punishment.Lift(context.Background(), bot, punishment.LiftRequest{
+		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Mute,
+	})
 	return err
 }
 
@@ -2283,7 +2283,9 @@ func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
 		if currentErr != nil {
 			log.Errorf("[CaptchaUnmute] Failed to reload schedule for user %d: %v", user.UserID, currentErr)
 		} else if current != nil && current.UnmuteAt.After(user.UnmuteAt) {
-			if _, remuteErr := bot.RestrictChatMember(user.ChatID, user.UserID, punishment.MutedPermissions, nil); remuteErr != nil {
+			if _, remuteErr := punishment.Apply(context.Background(), bot, punishment.Request{
+				ChatID: user.ChatID, Target: punishment.Target{ID: user.UserID}, Mode: punishment.Mute, Source: models.BanSourceCaptcha,
+			}); remuteErr != nil {
 				log.Errorf("[CaptchaUnmute] Failed to restore newer mute for user %d: %v", user.UserID, remuteErr)
 			}
 		}

@@ -155,7 +155,13 @@ func testPunishmentLifts(t *testing.T) {
 						if mode == punishment.Mute {
 							method = "restrictChatMember"
 						}
-						wantPermissions := punishment.DefaultUnmutePermissions()
+						// Without chat defaults: send anything and invite, but no info, pin or topic rights.
+						wantPermissions := gotgbot.ChatPermissions{
+							CanSendMessages: true, CanSendPhotos: true, CanSendVideos: true, CanSendAudios: true,
+							CanSendDocuments: true, CanSendVideoNotes: true, CanSendVoiceNotes: true,
+							CanAddWebPagePreviews: true, CanInviteUsers: true, CanManageTopics: new(bool),
+							CanSendPolls: true, CanSendOtherMessages: true,
+						}
 						if defaults {
 							wantPermissions = gotgbot.ChatPermissions{CanSendMessages: true, CanSendPolls: true}
 							f.client.chatsByID[fmt.Sprint(f.chat.Id)] = []byte(`{"id":-1001,"type":"supergroup","permissions":{"can_send_messages":true,"can_send_polls":true}}`)

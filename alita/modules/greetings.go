@@ -33,6 +33,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -871,7 +872,10 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			}
 		}
 	case "ban":
-		if _, banErr := chat.BanMember(b, joinUser.Id, nil); banErr != nil {
+		if _, banErr := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: joinUser.Id}, Mode: punishment.Ban,
+			Source: models.BanSourceJoinRequest, ActorID: user.Id,
+		}); banErr != nil {
 			if helpers.IsExpectedTelegramError(banErr) {
 				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUser.Id, chat.Id, banErr)
 			} else {
@@ -880,7 +884,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			}
 		} else {
 			recordModerationEvent(chat.Id, user.Id, joinUser.Id, models.ModerationActionBan, "")
-			recordBan(banRecord{chatID: chat.Id, userID: joinUser.Id, bannedBy: user.Id, source: models.BanSourceJoinRequest})
 		}
 		// The ban stands even when the request itself is already gone.
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil && !isJoinRequestGone(err) {

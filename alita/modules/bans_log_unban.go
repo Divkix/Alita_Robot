@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -20,26 +19,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
-
-// banLogUnbanNamespace is the callback namespace of the Unban button under a
-// ban's log channel entry: banlogunban|v1|r=<ban record id>.
-const banLogUnbanNamespace = "banlogunban"
-
-// unbanLogMarkup is the Unban button for the log channel entry of the ban
-// with record recordID in chatID, labelled in the group's language, or nil
-// when the ban has no record (its write failed, or the action was no ban).
-func unbanLogMarkup(chatID, recordID int64) *gotgbot.InlineKeyboardMarkup {
-	if recordID == 0 {
-		return nil
-	}
-	data := encodeCallbackData(banLogUnbanNamespace, map[string]string{"r": strconv.FormatInt(recordID, 10)})
-	if data == "" {
-		return nil
-	}
-	tr := i18n.MustNewTranslator(lang.GetGroupLanguage(context.Background(), chatID))
-	label, _ := tr.GetString("bans_log_unban_button")
-	return &gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{Text: label, CallbackData: data}}}}
-}
 
 // banLogUnbanCallback lifts a ban from the Unban button of its log channel
 // entry. The entry lives in the channel, but the presser is authorised
@@ -140,7 +119,7 @@ func (moduleStruct) banLogUnbanCallback(b *gotgbot.Bot, ctx *ext.Context) error 
 // message. An entry too old to read cannot be checked: the press may still
 // unban, but never edits it.
 func logUnbanTarget(query *gotgbot.CallbackQuery) (int64, *gotgbot.Message, bool) {
-	decoded, ok := decodeCallbackData(query.Data, banLogUnbanNamespace)
+	decoded, ok := decodeCallbackData(query.Data, punishment.LogUnbanNamespace)
 	if !ok || query.Message == nil {
 		return 0, nil, false
 	}

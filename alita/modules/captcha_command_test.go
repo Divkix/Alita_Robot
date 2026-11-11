@@ -1255,47 +1255,6 @@ func TestCaptchaVerifyCallbackCorrectAnswerUnmutesAndCleansAttempt(t *testing.T)
 	}
 }
 
-func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChat"] = []byte(`{
-		"id": -1001,
-		"type": "supergroup",
-		"title": "Captcha Chat",
-		"permissions": {
-			"can_send_messages": false,
-			"can_send_photos": false,
-			"can_invite_users": false
-		}
-	}`)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-
-	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData(
-		"captcha_verify",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"},
-	))
-	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
-		t.Fatalf("captchaVerifyCallback() error = %v", err)
-	}
-
-	calls := client.callsFor("restrictChatMember")
-	if len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
-	}
-	permissions, ok := calls[0].Params["permissions"].(gotgbot.ChatPermissions)
-	if !ok {
-		t.Fatalf("permissions type = %T, want ChatPermissions", calls[0].Params["permissions"])
-	}
-	if permissions.CanSendMessages || permissions.CanSendPhotos || permissions.CanInviteUsers {
-		t.Fatalf("unmute permissions = %+v, want chat defaults preserved", permissions)
-	}
-}
-
 func TestCaptchaVerifyCallbackFinalWrongAnswerAppliesFailureAction(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

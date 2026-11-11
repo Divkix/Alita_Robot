@@ -140,20 +140,6 @@ func TestLiftLeavesAnExpiredTemporaryBan(t *testing.T) {
 	}
 }
 
-func TestLiftUsersClosesOnlyTheNamedBans(t *testing.T) {
-	chatID := newBanChat(t)
-	for _, userID := range []int64{1, 2, 3} {
-		record(t, models.BanRecord{ChatId: chatID, UserId: userID, Source: models.BanSourceManual})
-	}
-	closed, err := LiftUsers(chatID, []int64{1, 3, 4}, 8)
-	if err != nil || closed != 2 {
-		t.Fatalf("LiftUsers() = %d, %v; want 2", closed, err)
-	}
-	if got, err := Latest(chatID, 2); err != nil || got == nil || got.LiftedAt != nil {
-		t.Fatalf("user 2 = %+v, %v; want still open", got, err)
-	}
-}
-
 func TestLatestWithoutRecordIsNil(t *testing.T) {
 	chatID := newBanChat(t)
 	got, err := Latest(chatID, 42)

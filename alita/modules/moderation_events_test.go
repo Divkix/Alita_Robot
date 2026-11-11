@@ -425,6 +425,9 @@ func TestJoinRequestBanRecordsOneEvent(t *testing.T) {
 		if calls := client.callsFor("banChatMember"); len(calls) != 1 {
 			t.Fatalf("banChatMember calls = %d, want the ban action", len(calls))
 		}
+		if r := singleBanRecord(t, chat.Id); r.UserId != 5151 || r.BannedBy != admin.Id || r.Source != models.BanSourceJoinRequest || r.Until != nil {
+			t.Fatalf("join-request ban record = %+v, want a permanent join_request ban of 5151 by %d", r, admin.Id)
+		}
 
 		got := singleModerationEvent(t, chat.Id)
 		if got.ChatId != chat.Id || got.ActorId != admin.Id || got.TargetUserId != 5151 {

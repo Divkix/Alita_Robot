@@ -7,8 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/bans"
-	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 )
 
 // banRecordRetention is how long a ban record is kept after the ban was
@@ -16,59 +14,6 @@ import (
 const banRecordRetention = 90 * 24 * time.Hour
 
 var banRecordRetentionOnce sync.Once
-
-// banEnd is the end of a ban made at now with Telegram until_date untilUnix:
-// nil for a permanent ban, as Telegram reads 0 and out-of-range dates.
-func banEnd(untilUnix int64, now time.Time) *time.Time {
-	if untilUnix <= 0 {
-		return nil
-	}
-	until := time.Unix(untilUnix, 0).UTC()
-	if d := until.Sub(now); d < window.MinSeconds*time.Second || d > window.MaxSeconds*time.Second {
-		return nil
-	}
-	return &until
-}
-
-// banRecord is a ban the bot just issued, for recordBan.
-type banRecord struct {
-	chatID   int64
-	userID   int64
-	bannedBy int64 // 0 when the bot banned on its own
-	source   string
-	detail   string
-	reason   string
-	// untilUnix is the Telegram until_date the ban was made with, 0 for a
-	// permanent ban.
-	untilUnix int64
-}
-
-// recordBan stores a ban Telegram has just accepted and returns its record's
-// ID, or 0 when the write failed. A failed write is logged and changes
-// nothing else: the ban already happened, so it is never undone, refused or
-// answered differently over its record.
-func recordBan(ban banRecord) int64 {
-	now := time.Now()
-	id, err := bans.Record(models.BanRecord{
-		ChatId:       ban.chatID,
-		UserId:       ban.userID,
-		BannedBy:     ban.bannedBy,
-		Reason:       ban.reason,
-		Source:       ban.source,
-		SourceDetail: ban.detail,
-		CreatedAt:    now,
-		Until:        banEnd(ban.untilUnix, now),
-	})
-	if err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"chat_id": ban.chatID,
-			"user_id": ban.userID,
-			"source":  ban.source,
-		}).Error("[Bans] Failed to record the ban")
-		return 0
-	}
-	return id
-}
 
 // sweepExpiredBanRecords deletes the records lifted, or of temporary bans
 // ended, more than banRecordRetention before now. Every replica sweeps; the

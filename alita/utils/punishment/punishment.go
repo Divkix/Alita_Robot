@@ -116,8 +116,12 @@ func Apply(ctx context.Context, bot *gotgbot.Bot, request Request) (Result, erro
 	return result, nil
 }
 
+// LogUnbanNamespace is the callback namespace of the Unban button under a
+// ban's log channel entry: banlogunban|v1|r=<ban record id>.
+const LogUnbanNamespace = "banlogunban"
+
 func unbanLogMarkup(ctx context.Context, chatID, recordID int64) *gotgbot.InlineKeyboardMarkup {
-	data, err := callbackcodec.Encode("banlogunban", map[string]string{"r": strconv.FormatInt(recordID, 10)})
+	data, err := callbackcodec.Encode(LogUnbanNamespace, map[string]string{"r": strconv.FormatInt(recordID, 10)})
 	if err != nil {
 		return nil
 	}
@@ -152,7 +156,7 @@ func Lift(ctx context.Context, bot *gotgbot.Bot, request LiftRequest) (Result, e
 		var chat *gotgbot.ChatFullInfo
 		chat, err = bot.GetChatWithContext(ctx, request.ChatID, nil)
 		if err == nil {
-			_, err = bot.RestrictChatMemberWithContext(ctx, request.ChatID, request.Target.ID, UnmutePermissions(chat), nil)
+			_, err = bot.RestrictChatMemberWithContext(ctx, request.ChatID, request.Target.ID, unmutePermissions(chat), nil)
 		}
 	default:
 		return Result{Reason: "unsupported lift mode"}, nil

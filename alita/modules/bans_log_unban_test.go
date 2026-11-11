@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/bans"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 const banLogChannelID int64 = -1009955000001
@@ -50,7 +51,7 @@ func logUnbanButtons(t *testing.T, f adminChatFixture) [][]string {
 			}
 			for _, row := range keyboard.InlineKeyboard {
 				for _, button := range row {
-					if strings.HasPrefix(button.CallbackData, banLogUnbanNamespace+"|") {
+					if strings.HasPrefix(button.CallbackData, punishment.LogUnbanNamespace+"|") {
 						found = append(found, button.CallbackData)
 					}
 				}
@@ -68,7 +69,7 @@ func seedOpenBan(t *testing.T, chatID, userID int64) models.BanRecord {
 }
 
 func unbanLogData(recordID int64) string {
-	return encodeCallbackData(banLogUnbanNamespace, map[string]string{"r": strconv.FormatInt(recordID, 10)})
+	return encodeCallbackData(punishment.LogUnbanNamespace, map[string]string{"r": strconv.FormatInt(recordID, 10)})
 }
 
 // pressLogUnban presses data as from on a log entry in chat that carries it
@@ -119,8 +120,9 @@ func TestCaptchaFailureEntryHasTheButtonOnlyForABan(t *testing.T) {
 	f := newAdminChatFixture(t)
 	withBanLogChannel(t, f)
 
-	reportCaptchaFailure(f.bot, f.chat.Id, f.member.Id, "Member", "kick", "timeout", 0, unbanLogMarkup(f.chat.Id, 0))
-	reportCaptchaFailure(f.bot, f.chat.Id, f.member.Id, "Member", "ban", "timeout", 0, unbanLogMarkup(f.chat.Id, 77))
+	unban := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{Text: "Unban", CallbackData: unbanLogData(77)}}}}
+	reportCaptchaFailure(f.bot, f.chat.Id, f.member.Id, "Member", "kick", "timeout", 0, nil)
+	reportCaptchaFailure(f.bot, f.chat.Id, f.member.Id, "Member", "ban", "timeout", 0, unban)
 
 	entries := logUnbanButtons(t, f)
 	if len(entries) != 2 || len(entries[0]) != 0 || len(entries[1]) != 1 || entries[1][0] != unbanLogData(77) {
@@ -309,11 +311,7 @@ func TestLogUnbanButtonFailureKeepsTheBanOpen(t *testing.T) {
 }
 
 func TestLogUnbanButtonFitsTelegramLimit(t *testing.T) {
-	useEnglishLocale(t)
-	if markup := unbanLogMarkup(-1001234567890, 1<<62); markup == nil || len(markup.InlineKeyboard[0][0].CallbackData) > 64 {
-		t.Fatalf("unbanLogMarkup() for the largest record = %+v, want a button within 64 bytes", markup)
-	}
-	if markup := unbanLogMarkup(-1001234567890, 0); markup != nil {
-		t.Fatalf("unbanLogMarkup() without a record = %+v, want nil", markup)
+	if data := unbanLogData(1 << 62); data == "" || len(data) > 64 {
+		t.Fatalf("Unban data for the largest record = %q, want it within 64 bytes", data)
 	}
 }

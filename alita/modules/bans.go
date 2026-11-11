@@ -12,7 +12,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/bans"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -28,11 +27,6 @@ import (
 )
 
 var bansModule = moduleStruct{moduleName: "Bans"}
-
-func kickMember(b *gotgbot.Bot, chatID, userID int64) error {
-	_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
-	return err
-}
 
 func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationDkick(&m).run(b, ctx)
@@ -932,23 +926,21 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Debugf("[Bans] unbanall GetChatUsersCached %d: %v", chatID, err)
 			users = nil
 		}
-		unbanned := make([]int64, 0, len(users))
+		unbanned := 0
 		for _, userID := range users {
 			if !chat_status.IsValidUserId(userID) || userID == b.Id {
 				continue
 			}
-			if _, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true}); err != nil {
+			// A record that fails to close is logged by Lift; the unban stands.
+			if result, err := punishment.Lift(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
+				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: query.From.Id,
+			}); !result.Applied {
 				log.Debugf("[Bans] unbanall user %d: %v", userID, err)
 				continue
 			}
-			unbanned = append(unbanned, userID)
+			unbanned++
 		}
-		// Close the records of the bans it lifted; a failed write changes
-		// nothing else, like every ban record write.
-		if _, err := bans.LiftUsers(chatID, unbanned, query.From.Id); err != nil {
-			log.WithError(err).WithField("chat_id", chatID).Error("[Bans] Failed to close the ban records of /unbanall")
-		}
-		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": len(unbanned)})
+		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": unbanned})
 	case "no":
 		helpText, _ = tr.GetString("bans_unbanall_cancel")
 	default:
@@ -1099,7 +1091,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansModule.unbanAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banListNamespace+"|"), bansModule.banListCallback))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banLogUnbanNamespace+"|"), bansModule.banLogUnbanCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(punishment.LogUnbanNamespace+"|"), bansModule.banLogUnbanCallback))
 }
 
 func init() {

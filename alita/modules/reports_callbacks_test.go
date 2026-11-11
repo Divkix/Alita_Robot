@@ -193,11 +193,6 @@ func TestCardMuteAndDismiss(t *testing.T) {
 			fmt.Sprint(mutes[0].Params["user_id"]) != "43" {
 			t.Fatalf("restrictChatMember calls = %v, want user 43 muted in the reported group", mutes)
 		}
-		var perms gotgbot.ChatPermissions
-		raw, _ := json.Marshal(mutes[0].Params["permissions"])
-		if err := json.Unmarshal(raw, &perms); err != nil || perms.CanSendMessages {
-			t.Fatalf("mute permissions = %s, want sending disabled", raw)
-		}
 		requireReportStatus(t, f.chat.Id, models.ReportStatusMuted)
 	})
 
