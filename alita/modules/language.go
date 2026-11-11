@@ -12,13 +12,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
-	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 var languagesModule = moduleStruct{moduleName: "Languages"}
+var languageGroupSettingChecks = declaredGroupSettingChecks(settings.Language)
 
 func (moduleStruct) genFullLanguageKb(langCode string) [][]gotgbot.InlineKeyboardButton {
 	return withHelpTranslateRow(keyboard.MakeLanguageKeyboard(), langCode)
@@ -131,8 +131,10 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if chat.Type != "private" {
-		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		policyContext := *ctx
+		policyContext.EffectiveChat = chat
+		command := helpers.CommandContext{Bot: b, Ctx: &policyContext, Chat: chat, User: &user, Tr: tr}
+		if !helpers.RunChecks(&command, languageGroupSettingChecks) {
 			return ext.EndGroups
 		}
 	}
@@ -187,7 +189,7 @@ func LoadLanguage(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(languagesModule.moduleName, true)
 	SetModuleHelpBuilder(languagesModule.moduleName, languagesModule.genFullLanguageKb)
 	connectedChecks := declaredSettingChecks(settings.Language)
-	groupChecks := declaredGroupSettingChecks(settings.Language)
+	groupChecks := languageGroupSettingChecks
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{

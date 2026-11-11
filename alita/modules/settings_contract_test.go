@@ -672,6 +672,24 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						refusal = "chat_status_restrict_cmd_error"
 					}
 					reply := contractSet(t, f, actor, setting, edge.input)
+					if setting.key == "language.code" {
+						// A forged selector callback must enforce rights even
+						// when the caller never opened the command's keyboard.
+						dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+						LoadLanguage(dispatcher)
+						data := encodeCallbackData("change_language", map[string]string{"l": edge.input})
+						if err := dispatcher.ProcessUpdate(f.bot, newModuleCallbackContext(f.bot, f.chat, actor, data).Update, nil); err != nil {
+							t.Fatal(err)
+						}
+						if !accepted {
+							if text, _ := lastAnswer(t, f.client); text != translated(t, "chat_status_user_admin_button_error") {
+								t.Fatalf("language selector refusal = %q", text)
+							}
+							assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+						} else {
+							assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
+						}
+					}
 					wantReply := translated(t, refusal)
 					if setting.silentMember && !rights.callerAdmin {
 						wantReply = ""

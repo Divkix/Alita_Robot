@@ -105,42 +105,7 @@ func TestLanguageCallbackRejectsInvalidSelection(t *testing.T) {
 	}
 }
 
-func TestLanguageCallbackHandlesGroupPermissionsAndInvalidUser(t *testing.T) {
-	t.Run("group admin changes group language", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Language Chat"}
-		data := encodeCallbackData("change_language", map[string]string{"l": "hi"})
-
-		ctx := newModuleCallbackContext(bot, chat, admin, data)
-		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
-			t.Fatalf("langBtnHandler(group admin) error = %v, want EndGroups", err)
-		}
-		if lang := lang.GetLanguage(ctx); lang != "hi" {
-			t.Fatalf("group language = %q, want hi", lang)
-		}
-		if calls := client.callsFor("editMessageText"); len(calls) != 1 {
-			t.Fatalf("editMessageText calls = %d, want group language edit", len(calls))
-		}
-	})
-
-	t.Run("group member rejected", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		member := gotgbot.User{Id: 42, FirstName: "Member"}
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Language Chat"}
-		data := encodeCallbackData("change_language", map[string]string{"l": "es"})
-
-		ctx := newModuleCallbackContext(bot, chat, member, data)
-		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
-			t.Fatalf("langBtnHandler(group member) error = %v, want EndGroups", err)
-		}
-		if calls := client.callsFor("editMessageText"); len(calls) != 0 {
-			t.Fatalf("editMessageText calls = %d, want no edit for non-admin", len(calls))
-		}
-	})
-
+func TestLanguageCallbackRejectsInvalidUser(t *testing.T) {
 	t.Run("invalid callback user", func(t *testing.T) {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
