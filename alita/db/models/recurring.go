@@ -6,8 +6,8 @@ import "time"
 // Interval seconds.
 //
 // The content is stored the way notes store theirs (Text with the notes
-// directives, FileID, MsgType, Buttons) and sent through the same media
-// sender. NextRunAt is the exactly-once claim: a replica posts an occurrence
+// directives, FileID, MsgType, Buttons) and sent as a recurring saved message
+// through media.SendSaved. NextRunAt is the exactly-once claim: a replica posts an occurrence
 // only when its compare-and-set moving next_run_at forward wins. EndsAt, when
 // set, is the instant after which no occurrence is posted. LastMessageID is
 // the message the last occurrence posted, which DeletePrevious removes once
