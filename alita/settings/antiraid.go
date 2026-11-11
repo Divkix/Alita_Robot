@@ -10,42 +10,34 @@ import (
 
 const maxRaidDuration = 366 * 24 * 60 * 60
 
-var RaidTime = &Declaration{
-	Key: "antiraid.raid_time", Type: Duration, Default: 21600, Right: AdminBot,
-	read: func(chatID int64) any {
-		row := antiraid.GetAntiRaidSettings(chatID)
-		if row.ID == 0 {
-			return nil
-		}
-		return row.RaidTime
-	},
-	allowed: func(value any) error {
-		if n := value.(int); n < 1 || n > maxRaidDuration {
-			return fmt.Errorf("must be between 1 and %d seconds", maxRaidDuration)
-		}
-		return nil
-	},
-	write: func(input WriteContext, value any) error { return antiraid.SetRaidTime(input.ChatID, value.(int)) },
-}
+var RaidTime = raidDuration("antiraid.raid_time", 21600, 1,
+	func(row *models.AntiRaidSettings) int { return row.RaidTime },
+	antiraid.SetRaidTime,
+)
 
-var RaidActionTime = &Declaration{
-	Key: "antiraid.raid_action_time", Type: Duration, Default: 3600, Right: AdminBot,
-	read: func(chatID int64) any {
-		row := antiraid.GetAntiRaidSettings(chatID)
-		if row.ID == 0 {
+var RaidActionTime = raidDuration("antiraid.raid_action_time", 3600, 30,
+	func(row *models.AntiRaidSettings) int { return row.RaidActionTime },
+	antiraid.SetRaidActionTime,
+)
+
+func raidDuration(key string, def, minSeconds int, read func(*models.AntiRaidSettings) int, write func(int64, int) error) *Declaration {
+	return &Declaration{
+		Key: key, Type: Duration, Default: def, Right: AdminBot,
+		read: func(chatID int64) any {
+			row := antiraid.GetAntiRaidSettings(chatID)
+			if row.ID == 0 {
+				return nil
+			}
+			return read(row)
+		},
+		allowed: func(value any) error {
+			if n := value.(int); n < minSeconds || n > maxRaidDuration {
+				return fmt.Errorf("must be between %d and %d seconds", minSeconds, maxRaidDuration)
+			}
 			return nil
-		}
-		return row.RaidActionTime
-	},
-	allowed: func(value any) error {
-		if n := value.(int); n < 30 || n > maxRaidDuration {
-			return fmt.Errorf("must be between 30 and %d seconds", maxRaidDuration)
-		}
-		return nil
-	},
-	write: func(input WriteContext, value any) error {
-		return antiraid.SetRaidActionTime(input.ChatID, value.(int))
-	},
+		},
+		write: func(input WriteContext, value any) error { return write(input.ChatID, value.(int)) },
+	}
 }
 
 var AutoAntiRaidThreshold = &Declaration{
