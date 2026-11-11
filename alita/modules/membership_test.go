@@ -10,7 +10,12 @@ import (
 func testMembershipDeps(claim func(int64, int64) bool, approved map[int64]bool, challengeErr error) (MembershipDeps, *[]int64, *[]int64) {
 	var challenged, welcomed []int64
 	return MembershipDeps{
-		Claim: claim,
+		Claim: func(chatID, uid int64) JoinClaim {
+			if claim == nil || claim(chatID, uid) {
+				return ClaimShared
+			}
+			return ClaimLost
+		},
 		IsApproved: func(_, uid int64) bool {
 			return approved[uid]
 		},
@@ -160,27 +165,5 @@ func TestProcessSingleJoinWelcomeErrorContext(t *testing.T) {
 	}
 	if got, want := err.Error(), "join welcome failed: adapter failure"; got != want {
 		t.Fatalf("err = %q, want stage and underlying cause %q", got, want)
-	}
-}
-
-func TestProcessJoinsMultiMember(t *testing.T) {
-	claimed := map[int64]bool{2: true}
-	deps, challenged, welcomed := testMembershipDeps(
-		func(_, uid int64) bool {
-			if claimed[uid] {
-				return false
-			}
-			claimed[uid] = true
-			return true
-		},
-		map[int64]bool{3: true}, nil,
-	)
-	members := []gotgbot.User{{Id: 2}, {Id: 3}, {Id: 4}}
-	out := ProcessJoins(1, 999, members, true, deps)
-	if len(out) != 3 || out[0] != JoinIgnore || out[1] != JoinWelcome || out[2] != JoinChallenge {
-		t.Fatalf("outcomes = %v", out)
-	}
-	if len(*challenged) != 1 || len(*welcomed) != 1 {
-		t.Fatalf("challenged=%v welcomed=%v", *challenged, *welcomed)
 	}
 }

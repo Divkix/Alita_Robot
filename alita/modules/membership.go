@@ -12,12 +12,47 @@ import (
 // falls through to welcome, matching the historic greetings/captcha behavior.
 var ErrChallengeDisabled = errors.New("challenge disabled")
 
+// JoinOutcome is the one verdict membership intake gives a join.
 type JoinOutcome int
 
 const (
 	JoinIgnore JoinOutcome = iota
 	JoinWelcome
 	JoinChallenge
+	// JoinRemoved: a guard stage removed the member.
+	JoinRemoved
+	// JoinHeld: a guard stage kept the member from speaking (a mute).
+	JoinHeld
+)
+
+// StageAnswer is what a guard stage did with a join.
+type StageAnswer int
+
+const (
+	// StageNotApplicable: the guard has nothing against the member.
+	StageNotApplicable StageAnswer = iota
+	StageRemoved
+	StageHeld
+	// StageFailed: the guard tried and could not act; the member goes on to
+	// the next stage as if it had not applied.
+	StageFailed
+)
+
+// JoinStage is one guard of membership intake, run in order before the
+// challenge or welcome.
+type JoinStage func(user gotgbot.User) StageAnswer
+
+// JoinClaim is who holds a join after the intake tried to claim it.
+type JoinClaim int
+
+const (
+	// ClaimLost: another update or replica already took this join.
+	ClaimLost JoinClaim = iota
+	// ClaimShared: this update holds the claim every replica sees.
+	ClaimShared
+	// ClaimLocal: the shared claim failed, so this replica claimed the join
+	// for itself. Guards still run; nothing that could be sent twice is.
+	ClaimLocal
 )
 
 type JoinInput struct {
@@ -37,10 +72,13 @@ func DecideJoin(in JoinInput) JoinOutcome {
 }
 
 type MembershipDeps struct {
-	Claim      func(chatID, userID int64) bool
+	Claim      func(chatID, userID int64) JoinClaim
 	IsApproved func(chatID, userID int64) bool
-	Challenge  func(user gotgbot.User) error
-	Welcome    func(user gotgbot.User) error
+	// Stages are the guards, in order. The first that removes or holds the
+	// member ends the join.
+	Stages    []JoinStage
+	Challenge func(user gotgbot.User) error
+	Welcome   func(user gotgbot.User) error
 	// Probation puts a member who is not approved on probation when the chat
 	// has it on. It runs only for the update that won the join claim.
 	Probation func(chatID int64, user gotgbot.User)
@@ -77,7 +115,23 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 	if user.Id == botID {
 		return JoinIgnore, nil
 	}
-	if deps.Claim != nil && !deps.Claim(chatID, user.Id) {
+	claim := ClaimShared
+	if deps.Claim != nil {
+		claim = deps.Claim(chatID, user.Id)
+	}
+	if claim == ClaimLost {
+		return JoinIgnore, nil
+	}
+	for _, stage := range deps.Stages {
+		switch stage(user) {
+		case StageRemoved:
+			return JoinRemoved, nil
+		case StageHeld:
+			return JoinHeld, nil
+		case StageNotApplicable, StageFailed:
+		}
+	}
+	if claim == ClaimLocal {
 		return JoinIgnore, nil
 	}
 	// Both join updates (the new_chat_members service message and the
@@ -112,16 +166,4 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 		}
 	}
 	return JoinWelcome, nil
-}
-
-func ProcessJoins(chatID, botID int64, members []gotgbot.User, captchaEnabled bool, deps MembershipDeps) []JoinOutcome {
-	out := make([]JoinOutcome, 0, len(members))
-	for _, m := range members {
-		o, err := ProcessSingleJoin(chatID, botID, m, captchaEnabled, deps)
-		if err != nil {
-			logJoinOperationError("Failed to process join", err)
-		}
-		out = append(out, o)
-	}
-	return out
 }

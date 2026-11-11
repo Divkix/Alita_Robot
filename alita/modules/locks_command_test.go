@@ -377,89 +377,63 @@ func TestLockWatchersDoNotDeleteForAdmins(t *testing.T) {
 	}
 }
 
-func TestBotLockHandlerBansNonAdminAddedBot(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
-	adder := gotgbot.User{Id: 42, FirstName: "Member"}
-	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
-	if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
-		t.Fatalf("UpdateLock bots setup error = %v", err)
-	}
-	update := &gotgbot.Update{
-		UpdateId: 3,
-		ChatMember: &gotgbot.ChatMemberUpdated{
-			Chat:          chat,
-			From:          adder,
-			OldChatMember: gotgbot.ChatMemberLeft{User: addedBot},
-			NewChatMember: gotgbot.ChatMemberMember{User: addedBot},
-		},
-	}
-	ctx := ext.NewContext(bot, update, nil)
-
-	if err := locksModule.botLockHandler(bot, ctx); err != ext.ContinueGroups {
-		t.Fatalf("botLockHandler error = %v, want ContinueGroups", err)
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want bot lock notice", len(calls))
-	}
+// dispatchBotJoin delivers adder adding addedBot to chat as a member update.
+func dispatchBotJoin(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat, adder, addedBot gotgbot.User) {
+	t.Helper()
+	clearRecentJoinProcessing(chat.Id, addedBot.Id)
+	dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 3, ChatMember: &gotgbot.ChatMemberUpdated{
+		Chat:          chat,
+		From:          adder,
+		Date:          1,
+		OldChatMember: gotgbot.ChatMemberLeft{User: addedBot},
+		NewChatMember: gotgbot.ChatMemberMember{User: addedBot},
+	}})
 }
 
-func newBotLockContext(
-	bot *gotgbot.Bot,
-	chat gotgbot.Chat,
-	adder gotgbot.User,
-	addedBot gotgbot.User,
-) *ext.Context {
-	update := &gotgbot.Update{
-		UpdateId: 3,
-		ChatMember: &gotgbot.ChatMemberUpdated{
-			Chat:          chat,
-			From:          adder,
-			OldChatMember: gotgbot.ChatMemberLeft{User: addedBot},
-			NewChatMember: gotgbot.ChatMemberMember{User: addedBot},
-		},
+func sentLocaleText(client *moduleBotClient, key string) int {
+	want, _ := i18n.MustNewTranslator("en").GetString(key)
+	n := 0
+	for _, call := range client.callsFor("sendMessage") {
+		if got, _ := call.Params["text"].(string); got == want {
+			n++
+		}
 	}
-	ctx := ext.NewContext(bot, update, nil)
-	ctx.EffectiveSender = &gotgbot.Sender{User: &adder, ChatId: chat.Id}
-	return ctx
+	return n
 }
 
-func TestBotLockHandlerSkipsUnlockedChat(t *testing.T) {
+func TestBotsLockSkipsUnlockedChat(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	unlockedChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Unlocked Lock Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
 
-	unlockedCtx := newBotLockContext(bot, unlockedChat, member, addedBot)
-	if err := locksModule.botLockHandler(bot, unlockedCtx); err != ext.ContinueGroups {
-		t.Fatalf("botLockHandler unlocked error = %v, want ContinueGroups", err)
-	}
+	dispatchBotJoin(t, bot, unlockedChat, member, addedBot)
 
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want none for unlocked bot lock", len(calls))
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-		t.Fatalf("sendMessage calls = %d, want none for unlocked bot lock", len(calls))
+	if n := sentLocaleText(client, "locks_bot_only_admins"); n != 0 {
+		t.Fatalf("bots-lock notices = %d, want none for unlocked bot lock", n)
 	}
 }
 
-func TestBotLockHandlerReportsAndPropagatesGotgbotErrors(t *testing.T) {
+// A Telegram error in the bots lock leaves the bot to the rest of the intake;
+// a lookup failure still reports the missing right.
+func TestBotsLockReportsGotgbotErrors(t *testing.T) {
+	useRealLocales(t)
 	requestErr := errors.New("telegram request failed")
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
 
 	for _, tt := range []struct {
-		name   string
-		method string
+		name                   string
+		method                 string
+		wantBans, wantNoRights int
 	}{
-		{name: "bot admin lookup failure reports missing permission", method: "getChatMember"},
-		{name: "ban failure", method: "banChatMember"},
-		{name: "notice send failure", method: "sendMessage"},
+		{name: "bot admin lookup failure reports missing permission", method: "getChatMember", wantNoRights: 1},
+		{name: "ban failure", method: "banChatMember", wantBans: 1},
+		{name: "notice send failure", method: "sendMessage", wantBans: 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
@@ -469,20 +443,17 @@ func TestBotLockHandlerReportsAndPropagatesGotgbotErrors(t *testing.T) {
 			if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
 				t.Fatalf("UpdateLock bots setup error = %v", err)
 			}
-			ctx := newBotLockContext(bot, chat, member, addedBot)
 
-			err := locksModule.botLockHandler(bot, ctx)
-			if tt.method == "getChatMember" {
-				if err != ext.ContinueGroups {
-					t.Fatalf("botLockHandler() error = %v, want ContinueGroups for permission notice", err)
-				}
-				if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-					t.Fatalf("sendMessage calls = %d, want no-permission notice", len(calls))
-				}
-				return
+			dispatchBotJoin(t, bot, chat, member, addedBot)
+
+			if calls := client.callsFor("banChatMember"); len(calls) != tt.wantBans {
+				t.Fatalf("banChatMember calls = %d, want %d", len(calls), tt.wantBans)
 			}
-			if !errors.Is(err, requestErr) {
-				t.Fatalf("botLockHandler() error = %v, want request error", err)
+			if n := sentLocaleText(client, "locks_bot_lock_no_permission"); n != tt.wantNoRights {
+				t.Fatalf("no-permission notices = %d, want %d", n, tt.wantNoRights)
+			}
+			if tt.method == "banChatMember" && sentLocaleText(client, "locks_bot_only_admins") != 0 {
+				t.Fatal("a failed ban posted the bots-lock notice")
 			}
 		})
 	}
@@ -545,9 +516,9 @@ func TestLockWatchersDoNotDeleteForAnonymousAdmins(t *testing.T) {
 	}
 }
 
-// When the bot is an admin without ban rights, the bot lock tells the chat
+// When the bot is an admin without ban rights, the bots lock tells the chat
 // so instead of failing silently.
-func TestBotLockHandlerReportsMissingBanPermission(t *testing.T) {
+func TestBotsLockReportsMissingBanPermission(t *testing.T) {
 	useRealLocales(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -562,21 +533,19 @@ func TestBotLockHandlerReportsMissingBanPermission(t *testing.T) {
 		t.Fatalf("UpdateLock bots setup error = %v", err)
 	}
 
-	if err := locksModule.botLockHandler(bot, newBotLockContext(bot, chat, member, addedBot)); err != ext.ContinueGroups {
-		t.Fatalf("botLockHandler error = %v, want ContinueGroups", err)
-	}
+	dispatchBotJoin(t, bot, chat, member, addedBot)
+
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want none without ban rights", len(calls))
 	}
-	sent := client.callsFor("sendMessage")
-	if len(sent) != 1 {
-		t.Fatalf("sendMessage calls = %d, want the missing-permission notice", len(sent))
-	}
-	if got := fmt.Sprint(sent[0].Params["chat_id"]); got != fmt.Sprint(chat.Id) {
-		t.Errorf("notice chat_id = %s, want %d", got, chat.Id)
-	}
 	want, _ := i18n.MustNewTranslator("en").GetString("locks_bot_lock_no_ban_permission")
-	if got, _ := sent[0].Params["text"].(string); got != want {
-		t.Errorf("notice text = %q, want %q", got, want)
+	for _, call := range client.callsFor("sendMessage") {
+		if got, _ := call.Params["text"].(string); got == want {
+			if chatID := fmt.Sprint(call.Params["chat_id"]); chatID != fmt.Sprint(chat.Id) {
+				t.Errorf("notice chat_id = %s, want %d", chatID, chat.Id)
+			}
+			return
+		}
 	}
+	t.Fatalf("sendMessage calls = %v, want the missing-permission notice", client.callsFor("sendMessage"))
 }

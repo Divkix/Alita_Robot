@@ -336,13 +336,12 @@ func TestBotsLockLogsTheBannedBot(t *testing.T) {
 			}
 			adder := gotgbot.User{Id: 42, FirstName: "Member"}
 			addedBot := gotgbot.User{Id: 4243, IsBot: true, FirstName: "Added Bot"}
-			ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 3, ChatMember: &gotgbot.ChatMemberUpdated{
+			dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 3, ChatMember: &gotgbot.ChatMemberUpdated{
 				Chat:          chat,
 				From:          adder,
 				OldChatMember: gotgbot.ChatMemberLeft{User: addedBot},
 				NewChatMember: gotgbot.ChatMemberMember{User: addedBot},
-			}}, nil)
-			_ = locksModule.botLockHandler(bot, ctx)
+			}})
 		},
 	})
 }

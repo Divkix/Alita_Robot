@@ -40,6 +40,11 @@ import (
 
 var recentJoinProcessTTL = 5 * time.Second
 
+// membershipHandlerGroup holds membership intake's join and leave handlers.
+// It runs after the join-guard watchers (-6, -5, -4) and the users tracker
+// (-1), and its handlers end the update, so later groups never see a join.
+const membershipHandlerGroup = 0
+
 var (
 	greetingsModule      = moduleStruct{moduleName: "Greetings"}
 	recentJoinProcessing sync.Map
@@ -99,12 +104,26 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 // the newcomer. A Redis error falls back to this replica's claim instead of
 // failing closed, so an outage does not let a banned user in.
 func claimRecentJoinForBan(chatID, userID int64) bool {
+	return claimJoin(chatID, userID) != ClaimLost
+}
+
+// claimJoin is membership intake's join claim. A Redis error falls back to a
+// claim local to this replica, which lets the guard stages run but not the
+// challenge or welcome, so an outage neither lets a banned user in nor greets
+// anyone twice.
+func claimJoin(chatID, userID int64) JoinClaim {
 	claimed, err := tryClaimRecentJoinProcessing(chatID, userID)
 	if err != nil {
 		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, using the local claim: %v", recentJoinProcessingKey(chatID, userID), err)
-		return claimRecentJoinLocally(recentJoinProcessingKey(chatID, userID))
+		if claimRecentJoinLocally(recentJoinProcessingKey(chatID, userID)) {
+			return ClaimLocal
+		}
+		return ClaimLost
 	}
-	return claimed
+	if claimed {
+		return ClaimShared
+	}
+	return ClaimLost
 }
 
 // tryClaimRecentJoinProcessing takes the join claim in Redis, or in this
@@ -618,11 +637,19 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// membershipDepsForJoin adapts membership intake to the join in ctx, whose
+// effective sender is the member who added the newcomer.
 func membershipDepsForJoin(bot *gotgbot.Bot, ctx *ext.Context) MembershipDeps {
 	return MembershipDeps{
-		Claim: claimRecentJoinProcessing,
+		Claim: claimJoin,
 		IsApproved: func(chatID, userID int64) bool {
 			return chat_status.IsApproved(bot, chatID, userID)
+		},
+		// The guards in the order a newcomer meets them. Federation ban,
+		// antiraid and the spam databases still run as their own watchers
+		// (groups -6, -5, -4) ahead of this one.
+		Stages: []JoinStage{
+			func(user gotgbot.User) StageAnswer { return locksModule.botsLockStage(bot, ctx, user) },
 		},
 		Challenge: func(user gotgbot.User) error {
 			ctxCopy := *ctx
@@ -980,33 +1007,33 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		),
 	)
 
-	dispatcher.AddHandler(
+	dispatcher.AddHandlerToGroup(
 		handlers.NewChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
 				wasMember, isMember := chat_status.ExtractJoinLeftStatusChange(u)
 				return !wasMember && isMember
 			},
 			greetingsModule.newMember,
-		),
+		), membershipHandlerGroup,
 	)
 
-	dispatcher.AddHandler(
+	dispatcher.AddHandlerToGroup(
 		handlers.NewChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
 				wasMember, isMember := chat_status.ExtractJoinLeftStatusChange(u)
 				return wasMember && !isMember
 			},
 			greetingsModule.leftMember,
-		),
+		), membershipHandlerGroup,
 	)
 
-	dispatcher.AddHandler(
+	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {
 				return msg.LeftChatMember != nil || msg.NewChatMembers != nil
 			},
 			greetingsModule.cleanService,
-		),
+		), membershipHandlerGroup,
 	)
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
