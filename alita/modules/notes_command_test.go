@@ -574,9 +574,7 @@ func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want note response", len(calls))
 	}
-	if got := calls[0].Params["text"]; got != "be kind" {
-		t.Fatalf("note text = %q, want be kind", got)
-	}
+	assertSavedSend(t, calls[0], chat.Id, 101, false)
 }
 
 // The notes list is read through the cache, so it can still name a note whose
@@ -649,9 +647,7 @@ func TestNotesWatcherPrivateAdminOnlyAndNoFormatBranches(t *testing.T) {
 	if len(calls) != 3 {
 		t.Fatalf("sendMessage calls = %d, want private redirect, admin denial, raw note", len(calls))
 	}
-	if text := calls[len(calls)-1].Params["text"].(string); !strings.Contains(text, "admin text") {
-		t.Fatalf("raw admin note text = %q, want stored note content", text)
-	}
+	assertSavedSend(t, calls[len(calls)-1], chat.Id, 101, true)
 }
 
 func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
@@ -895,7 +891,5 @@ func TestGetNoteNoFormatRequiresAdminAndSendsRawNote(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want raw note response", len(calls))
 	}
-	if got := calls[0].Params["text"]; got == "<b>raw</b>" {
-		t.Fatalf("raw note text was not reversed from HTML markdown: %q", got)
-	}
+	assertSavedSend(t, calls[0], chat.Id, 101, true)
 }

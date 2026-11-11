@@ -243,6 +243,20 @@ func assertParams(t *testing.T, call moduleBotCall, want map[string]any) {
 	}
 }
 
+// assertSavedSend fails unless call is a saved message sent to chatID in reply
+// to message replyTo, in the raw view when raw is set. How the message renders
+// is media.SendSaved's to test.
+func assertSavedSend(t *testing.T, call moduleBotCall, chatID, replyTo int64, raw bool) {
+	t.Helper()
+	assertParams(t, call, map[string]any{"chat_id": chatID})
+	if rp, _ := call.Params["reply_parameters"].(*gotgbot.ReplyParameters); rp == nil || rp.MessageId != replyTo {
+		t.Errorf("%s: reply_parameters = %+v, want a reply to %d", call.Method, call.Params["reply_parameters"], replyTo)
+	}
+	if _, parsed := call.Params["parse_mode"]; parsed == raw {
+		t.Errorf("%s: parse_mode = %v, want raw view %v", call.Method, call.Params["parse_mode"], raw)
+	}
+}
+
 // assertDeleted fails unless deleteMessage was sent for each id in chatID.
 func assertDeleted(t *testing.T, client *moduleBotClient, chatID int64, ids ...int64) {
 	t.Helper()
