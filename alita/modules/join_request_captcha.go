@@ -28,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -139,10 +140,16 @@ func checkJoinRequestSpamDB(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 	if err != nil || source == "" {
 		return false, nil // External lookups fail open, as they do on normal joins.
 	}
-	var banRecordID int64
+	var logMarkup *gotgbot.InlineKeyboardMarkup
 	outcome := settings.Action
+	// A listed applicant is only banned here; mute and ban both decline the
+	// request below, and an applicant who never joined has nothing to mute.
 	if settings.Action == spamdbsettings.ActionBan {
-		if _, err = bot.BanChatMemberWithContext(reqCtx, chat.Id, applicant.Id, nil); err != nil {
+		result, err := punishment.Apply(reqCtx, bot, punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: applicant.Id}, Mode: punishment.Ban,
+			Source: models.BanSourceSpamDB, Detail: source.Name(),
+		})
+		if err != nil {
 			if isJoinRequestGone(err) {
 				return true, nil
 			}
@@ -150,7 +157,7 @@ func checkJoinRequestSpamDB(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 				Warnf("[JoinCaptcha] Spam DB ban failed; declining the request: %v", err)
 			outcome += " (failed)"
 		} else {
-			banRecordID = recordBan(banRecord{chatID: chat.Id, userID: applicant.Id, source: models.BanSourceSpamDB, detail: source.Name()})
+			logMarkup = result.LogMarkup
 		}
 	}
 	handled := settings.Action != spamdbsettings.ActionLog
@@ -159,7 +166,7 @@ func checkJoinRequestSpamDB(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 			return true, err
 		}
 	}
-	actionlog.AutomatedWithMarkup(bot, &chat, unbanLogMarkup(chat.Id, banRecordID), "SPAMDB", applicant.Id, applicant.FirstName,
+	actionlog.AutomatedWithMarkup(bot, &chat, logMarkup, "SPAMDB", applicant.Id, applicant.FirstName,
 		actionlog.Field{Name: "Listed in", Value: source.Name()},
 		actionlog.Field{Name: "Action", Value: outcome},
 		actionlog.Field{Name: "Stage", Value: "join request"})

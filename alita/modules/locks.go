@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
@@ -407,17 +408,20 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	_, err := chat.BanMember(b, mem.Id, nil)
+	// A permanent ban, not a kick: the removed bot cannot simply be added again.
+	result, err := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
+		Source: models.BanSourceLock, Detail: "bots",
+	})
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	banRecordID := recordBan(banRecord{chatID: chat.Id, userID: mem.Id, source: models.BanSourceLock, detail: "bots"})
 	var addedBy string
 	if sender != nil {
 		addedBy = fmt.Sprintf("%s (%d)", sender.Name(), senderID)
 	}
-	actionlog.AutomatedWithMarkup(b, chat, unbanLogMarkup(chat.Id, banRecordID), "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
+	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 	text, _ := tr.GetString("locks_bot_only_admins")
