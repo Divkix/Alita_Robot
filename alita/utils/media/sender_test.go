@@ -565,6 +565,32 @@ func TestSendSavedMediaTypes(t *testing.T) {
 	}
 }
 
+// An ephemeral target shows every media type to one user, without a reply.
+func TestSendSavedEphemeralTargetShowsTheMessageOnlyToThatUser(t *testing.T) {
+	t.Parallel()
+
+	for _, msgType := range []int{db.TEXT, db.STICKER, db.DOCUMENT, db.PHOTO, db.AUDIO, db.VOICE, db.VIDEO, db.VIDEO_NOTE} {
+		t.Run(fmt.Sprint(msgType), func(t *testing.T) {
+			t.Parallel()
+			to := groupTarget()
+			to.EphemeralTo = 1
+			msg := SavedMessage{Kind: KindNote, Text: "hi", MsgType: msgType, FileID: "file-1"}
+			client := sendSaved(t, msg, to, Rendered)
+			params, _ := client.params["ephemeral_message_parameters"].(*gotgbot.EphemeralMessageParameters)
+			if params == nil || params.ReceiverUserId != 1 {
+				t.Fatalf("%s ephemeral_message_parameters = %#v, want receiver 1", client.method, client.params["ephemeral_message_parameters"])
+			}
+			if _, ok := client.params["reply_parameters"]; ok {
+				t.Fatalf("%s carried reply_parameters", client.method)
+			}
+		})
+	}
+	client := sendSaved(t, SavedMessage{Kind: KindNote, Text: "hi"}, groupTarget(), Rendered)
+	if _, ok := client.params["ephemeral_message_parameters"]; ok {
+		t.Fatal("a target without EphemeralTo was sent ephemerally")
+	}
+}
+
 func TestSendSavedRawViewIsOneRecipeForEveryKind(t *testing.T) {
 	t.Parallel()
 
