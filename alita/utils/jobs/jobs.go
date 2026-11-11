@@ -17,8 +17,8 @@ import (
 // trace, so the database, Redis and Bot API calls it makes on ctx become
 // child spans. It logs and records an error fn returns, and recovers a panic
 // as error_handling.RecoverFromPanic does, and counts the tick in the
-// alita_job_* metrics. name must be a fixed string: it names the span and
-// labels the metrics.
+// alita_job_* metrics. name must come from a fixed, bounded set: it names the
+// span and labels the metrics.
 func Run(ctx context.Context, name string, fn func(context.Context) error) {
 	ctx, span := tracing.StartSpan(ctx, "job "+name,
 		trace.WithNewRoot(),

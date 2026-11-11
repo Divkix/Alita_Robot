@@ -13,8 +13,8 @@ var std = &registry{}
 // Register adds the periodic job name, which runs tick through Run every
 // interval once Start is called; a job registered after Start begins at once.
 // Registering a name again does nothing, and registering starts nothing, so
-// package init and repeated Load calls may register freely. name must be a
-// fixed string (see Run).
+// package init and repeated Load calls may register freely. name must come
+// from a fixed, bounded set (see Run).
 //
 // A tick never overlaps the previous one of the same job: ticks missed while
 // one runs are dropped, as with time.Ticker.
