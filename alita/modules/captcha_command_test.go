@@ -74,86 +74,8 @@ func TestCaptchaCommandRightsThroughDispatcher(t *testing.T) {
 	}
 }
 
-func TestCaptchaCleanupTickSettlesOnlyExpiredAttempts(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-
-	if err := db.DB.Where("1 = 1").Delete(&models.StoredMessages{}).Error; err != nil {
-		t.Fatalf("stored message cleanup setup error = %v", err)
-	}
-	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
-		t.Fatalf("captcha attempt cleanup setup error = %v", err)
-	}
-
-	now := time.Now()
-	expired := db.CaptchaAttempts{
-		UserID:    7101,
-		ChatID:    uniqueModuleChatID(),
-		Answer:    "4",
-		MessageID: 9101,
-		CreatedAt: now.Add(-2 * time.Hour),
-		ExpiresAt: now.Add(-time.Hour),
-	}
-	active := db.CaptchaAttempts{
-		UserID:    7102,
-		ChatID:    uniqueModuleChatID(),
-		Answer:    "5",
-		MessageID: 9102,
-		CreatedAt: now,
-		ExpiresAt: now.Add(time.Hour),
-	}
-	if err := captcha.SetCaptchaEnabled(expired.ChatID, "Captcha Chat", true); err != nil {
-		t.Fatalf("SetCaptchaEnabled(expired) error = %v", err)
-	}
-	if err := db.DB.Create(&expired).Error; err != nil {
-		t.Fatalf("expired captcha attempt setup error = %v", err)
-	}
-	if err := db.DB.Create(&active).Error; err != nil {
-		t.Fatalf("active captcha attempt setup error = %v", err)
-	}
-	if err := captcha.StoreMessageForCaptcha(expired.UserID, expired.ChatID, expired.ID, db.TEXT, "expired", "", ""); err != nil {
-		t.Fatalf("expired stored message setup error = %v", err)
-	}
-	if err := captcha.StoreMessageForCaptcha(active.UserID, active.ChatID, active.ID, db.TEXT, "active", "", ""); err != nil {
-		t.Fatalf("active stored message setup error = %v", err)
-	}
-
-	if err := runCaptchaCleanupTick(context.Background(), bot); err != nil {
-		t.Fatalf("runCaptchaCleanupTick() error = %v", err)
-	}
-
-	assertDeleted(t, client, expired.ChatID, expired.MessageID)
-	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(expired.ChatID, expired.UserID))
-	gotExpired, err := captcha.GetCaptchaAttemptByID(expired.ID)
-	if err != nil {
-		t.Fatalf("GetCaptchaAttemptByID(expired) error = %v", err)
-	}
-	if gotExpired != nil {
-		t.Fatalf("expired captcha attempt still exists: %+v", gotExpired)
-	}
-	gotActive, err := captcha.GetCaptchaAttemptByID(active.ID)
-	if err != nil {
-		t.Fatalf("GetCaptchaAttemptByID(active) error = %v", err)
-	}
-	if gotActive == nil {
-		t.Fatal("active captcha attempt was deleted")
-	}
-	expiredMessages, err := captcha.CountStoredMessagesForAttempt(expired.ID)
-	if err != nil {
-		t.Fatalf("CountStoredMessagesForAttempt(expired) error = %v", err)
-	}
-	if expiredMessages != 0 {
-		t.Fatalf("expired stored messages = %d, want 0", expiredMessages)
-	}
-	activeMessages, err := captcha.CountStoredMessagesForAttempt(active.ID)
-	if err != nil {
-		t.Fatalf("CountStoredMessagesForAttempt(active) error = %v", err)
-	}
-	if activeMessages != 1 {
-		t.Fatalf("active stored messages = %d, want 1", activeMessages)
-	}
-}
-
+// The cleanup tick is bounded by its context: a cancelled tick settles
+// nothing. No seam above the unexported tick can cancel one mid-run.
 func TestCaptchaCleanupTickHonorsCancelledContext(t *testing.T) {
 	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
 		t.Fatalf("captcha attempt cleanup setup error = %v", err)
@@ -184,21 +106,6 @@ func TestCaptchaCleanupTickHonorsCancelledContext(t *testing.T) {
 	if got == nil {
 		t.Fatal("cancelled cleanup deleted the captcha attempt")
 	}
-}
-
-func TestRunCaptchaCleanupTickHandlesEmptyAndCancelledContexts(t *testing.T) {
-	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
-		t.Fatalf("captcha attempt cleanup setup error = %v", err)
-	}
-
-	bot := newModuleTestBot(newModuleBotClient())
-	if err := runCaptchaCleanupTick(context.Background(), bot); err != nil {
-		t.Fatalf("cleanup with no attempts: %v", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_ = runCaptchaCleanupTick(ctx, bot)
 }
 
 // The unmute worker's tick lifts every due captcha mute and clears its

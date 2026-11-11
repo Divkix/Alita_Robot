@@ -719,6 +719,9 @@ func TestCaptchaRestartSettlesStoredAttempts(t *testing.T) {
 	}
 	assertDeleted(t, client, expired.ChatID, 123)
 	assertCaptchaRows(t, expired, 0)
+	if n, err := captcha.CountStoredMessagesForAttempt(expired.ID); err != nil || n != 0 {
+		t.Fatalf("expired attempt's held messages = (%d, %v), want 0", n, err)
+	}
 	for _, attempt := range []*db.CaptchaAttempts{unsent, refused} {
 		if calls := callsToChat(client, "restrictChatMember", attempt.ChatID); len(calls) != 1 {
 			t.Fatalf("unsent attempt unmutes = %d, want 1", len(calls))
