@@ -74,6 +74,9 @@ func DecideJoin(in JoinInput) JoinOutcome {
 type MembershipDeps struct {
 	Claim      func(chatID, userID int64) JoinClaim
 	IsApproved func(chatID, userID int64) bool
+	// Count sees every join the intake claimed, before the stages and
+	// whatever they do with it: a join wave is a raid whoever is in it.
+	Count func(user gotgbot.User)
 	// Stages are the guards, in order. The first that removes or holds the
 	// member ends the join.
 	Stages    []JoinStage
@@ -121,6 +124,9 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 	}
 	if claim == ClaimLost {
 		return JoinIgnore, nil
+	}
+	if deps.Count != nil {
+		deps.Count(user)
 	}
 	for _, stage := range deps.Stages {
 		switch stage(user) {

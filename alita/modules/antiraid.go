@@ -41,7 +41,7 @@ const (
 
 var (
 	antiRaidModule = antiRaidStruct{
-		moduleStruct: moduleStruct{moduleName: "AntiRaid", handlerGroup: -5},
+		moduleStruct: moduleStruct{moduleName: "AntiRaid"},
 	}
 	antiRaidStateMu sync.Mutex
 
@@ -342,12 +342,14 @@ func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) erro
 	return fmt.Errorf("anti-raid state changed concurrently")
 }
 
-func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64, actionTime int) {
+// banRaidMember bans userID for actionTime seconds and reports whether the
+// ban went through.
+func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64, actionTime int) bool {
 	reqCtx := tracing.UpdateContext(ctx)
 	// A zero duration would be a permanent ban in the module; raid never bans for good.
 	if actionTime == 0 {
 		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
-		return
+		return false
 	}
 	result, err := punishment.Apply(reqCtx, bot, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
@@ -355,104 +357,89 @@ func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 	})
 	if err != nil {
 		log.WithContext(reqCtx).WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
-		return
+		return false
 	}
 	if !result.Applied {
 		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d: %s", actionTime, userID, chat.Id, result.Refusal)
-		return
+		return false
 	}
-	// Take the join so greetings sends the banned user no captcha or welcome.
-	// Only a ban that went through does this; a failed one leaves the captcha.
-	claimRecentJoinProcessing(chat.Id, userID)
+	return true
 }
 
-func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
+// raidGuards reports whether antiraid acts on userID joining the chat in
+// ctx: a group the bot can ban in, and a newcomer who is not the bot, an
+// approved user or an admin.
+func raidGuards(bot *gotgbot.Bot, ctx *ext.Context, userID int64) bool {
 	chat := ctx.EffectiveChat
-
-	if chat == nil {
-		return ext.ContinueGroups
+	if chat == nil || (chat.Type != "group" && chat.Type != "supergroup") || userID == bot.Id {
+		return false
 	}
-	if chat.Type != "group" && chat.Type != "supergroup" {
-		return ext.ContinueGroups
-	}
-
 	if !chat_status.IsBotAdmin(bot, ctx, chat) {
-		return ext.ContinueGroups
+		return false
 	}
 	if !chat_status.CanBotRestrict(bot, ctx, chat) {
-		log.WithFields(log.Fields{
-			"chatId": chat.Id,
-		}).Debug("Antiraid action skipped: bot lacks restrict permissions")
-		return ext.ContinueGroups
+		log.WithFields(log.Fields{"chatId": chat.Id}).Debug("Antiraid action skipped: bot lacks restrict permissions")
+		return false
 	}
+	return !chat_status.IsApproved(bot, chat.Id, userID) && !chat_status.IsUserAdmin(bot, chat.Id, userID)
+}
 
+// countJoin counts userID's join towards the chat's auto-antiraid threshold
+// and switches the raid on when the join reaches it. The switch writes one log
+// entry and posts one notice: raiders banned during it get none of their own,
+// as a raid can be hundreds of joins.
+func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID int64) {
+	chat := ctx.EffectiveChat
+	if chat == nil {
+		return
+	}
+	// Settings and raid state first: they are cached, the bot's rights may not be.
 	settings := chatsettings.ReadAntiRaid(chat.Id)
-	isActive := a.isRaidActive(chat.Id)
-
-	for _, member := range msg.NewChatMembers {
-		if member.Id == bot.Id {
-			continue
-		}
-		if chat_status.IsApproved(bot, chat.Id, member.Id) {
-			continue
-		}
-		if chat_status.IsUserAdmin(bot, chat.Id, member.Id) {
-			continue
-		}
-		banRaider := func() {
-			// Fed-ban (group -6) has banned a fbanned newcomer for good; a raid
-			// ban with an until_date on top could make that ban temporary.
-			if !fedBannedInChat(ctx, chat.Id, member.Id) {
-				banRaidMember(bot, ctx, chat, member.Id, settings.RaidActionTime)
-			}
-		}
-
-		if isActive {
-			banRaider()
-			continue
-		}
-
-		if settings.AutoAntiRaidThreshold <= 0 {
-			continue
-		}
-
-		count, err := trackJoin(chat.Id, member.Id)
-		if err != nil {
-			log.WithError(err).Warnf("[AntiRaid] Failed to track join for chat %d", chat.Id)
-			continue
-		}
-
-		if count >= settings.AutoAntiRaidThreshold {
-			enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
-			if err != nil {
-				log.WithError(err).Warnf("[AntiRaid] Failed to auto-enable raid in chat %d", chat.Id)
-				continue
-			}
-			isActive = true
-			if !enabled {
-				banRaider()
-				continue
-			}
-			log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
-			// One entry for the raid: joiners banned during it get none of
-			// their own, as a raid can be hundreds of joins.
-			actionlog.Automated(bot, chat, "ANTIRAID", 0, "",
-				actionlog.Field{Name: "Joins", Value: strconv.Itoa(count)},
-				actionlog.Field{Name: "Threshold", Value: strconv.Itoa(settings.AutoAntiRaidThreshold)},
-				actionlog.Field{Name: "Duration", Value: formatDuration(settings.RaidTime)},
-				actionlog.Field{Name: "Joiners banned for", Value: formatDuration(settings.RaidActionTime)},
-			)
-
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
-			_, _ = chat.SendMessage(bot, text, formatting.Shtml())
-
-			banRaider()
-		}
+	if settings.AutoAntiRaidThreshold <= 0 || a.isRaidActive(chat.Id) || !raidGuards(bot, ctx, userID) {
+		return
 	}
+	count, err := trackJoin(chat.Id, userID)
+	if err != nil {
+		log.WithError(err).Warnf("[AntiRaid] Failed to track join for chat %d", chat.Id)
+		return
+	}
+	if count < settings.AutoAntiRaidThreshold {
+		return
+	}
+	enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
+	if err != nil {
+		log.WithError(err).Warnf("[AntiRaid] Failed to auto-enable raid in chat %d", chat.Id)
+		return
+	}
+	if !enabled {
+		// Another join switched it on first and reported it.
+		return
+	}
+	log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
+	actionlog.Automated(bot, chat, "ANTIRAID", 0, "",
+		actionlog.Field{Name: "Joins", Value: strconv.Itoa(count)},
+		actionlog.Field{Name: "Threshold", Value: strconv.Itoa(settings.AutoAntiRaidThreshold)},
+		actionlog.Field{Name: "Duration", Value: formatDuration(settings.RaidTime)},
+		actionlog.Field{Name: "Joiners banned for", Value: formatDuration(settings.RaidActionTime)},
+	)
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
+	_, _ = chat.SendMessage(bot, text, formatting.Shtml())
+}
 
-	return ext.ContinueGroups
+// antiRaidStage is membership intake's raid guard: while a raid is on it bans
+// the newcomer for the raid action time. A newcomer the chat's federation
+// banned is left to that permanent ban, which a timed ban could shorten. A
+// failed ban lets the member on to the next stage.
+func (a *antiRaidStruct) antiRaidStage(bot *gotgbot.Bot, ctx *ext.Context, member gotgbot.User) StageAnswer {
+	chat := ctx.EffectiveChat
+	if chat == nil || !a.isRaidActive(chat.Id) || !raidGuards(bot, ctx, member.Id) || fedBannedInChat(ctx, chat.Id, member.Id) {
+		return StageNotApplicable
+	}
+	if !banRaidMember(bot, ctx, chat, member.Id, chatsettings.ReadAntiRaid(chat.Id).RaidActionTime) {
+		return StageFailed
+	}
+	return StageRemoved
 }
 
 func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -858,16 +845,6 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 		Name: "autoantiraid", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: declaredSettingChecks(chatsettings.AutoAntiRaidThreshold),
 	}, pipelineHandler(antiRaidModule.autoAntiRaid))
-
-	dispatcher.AddHandlerToGroup(
-		handlers.NewMessage(
-			func(msg *gotgbot.Message) bool {
-				return msg.NewChatMembers != nil
-			},
-			antiRaidModule.onJoin,
-		),
-		antiRaidModule.handlerGroup,
-	)
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("antiraid"), antiRaidModule.callbackHandler))
 }

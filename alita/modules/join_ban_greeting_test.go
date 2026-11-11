@@ -2,7 +2,9 @@ package modules
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +19,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
@@ -198,6 +203,88 @@ func TestRaidSwitchedOnByJoinStillChallengesNewcomersItDidNotBan(t *testing.T) {
 		require.True(t, captchaSentTo(t, chat.Id, member.Id), "%s joined before the raid and was not banned", member.FirstName)
 	}
 	require.False(t, captchaSentTo(t, chat.Id, members[2].Id), "C was banned on join")
+}
+
+// With a raid on, antiraid bans a newcomer for the raid action time however
+// Telegram reports the join, and neither challenge nor welcome follows. A
+// member it removed is not looked up in the spam databases, and a ban that
+// failed leaves the member to the next stage.
+func TestAntiRaidStageGivesEveryJoinWayOneVerdict(t *testing.T) {
+	type want struct{ bans, challenges, welcomes, logs, notices, lookups int }
+	for _, tc := range []struct {
+		name    string
+		captcha bool
+		// auto: the join crosses a threshold of one instead of meeting a raid.
+		auto   bool
+		banErr bool
+		want   want
+	}{
+		{name: "raid on", want: want{bans: 1}},
+		{name: "raid on, captcha on", captcha: true, want: want{bans: 1}},
+		{name: "raid switched on by the join", auto: true, want: want{bans: 1, logs: 1, notices: 1}},
+		// Antiraid's ban fails, so the spam database check bans (and fails) too.
+		{name: "raid ban failed", captcha: true, banErr: true, want: want{bans: 2, challenges: 1, logs: 1, lookups: 1}},
+	} {
+		for _, way := range joinWays {
+			t.Run(tc.name+"/"+strings.Join(way, " then "), func(t *testing.T) {
+				useRealLocales(t)
+				_, cas := withSpamDBCAS(t, true, http.StatusOK, spamDBCASListed)
+				withMiniredis(t) // after the spam database's memory cache: raid counting needs Redis
+				j := newIntakeJoin(t, false)
+				require.NoError(t, captcha.SetCaptchaEnabled(j.chat.Id, j.chat.Title, tc.captcha))
+				require.NoError(t, logchannels.Set(j.chat.Id, j.chat.Title, spamDBLogChannel))
+				require.NoError(t, spamdbsettings.SetSpamDBEnabled(j.chat.Id, true))
+				require.NoError(t, spamdbsettings.SetSpamDBAction(j.chat.Id, spamdbsettings.ActionBan))
+				t.Cleanup(func() { _, _ = antiRaidModule.disableRaid(j.chat.Id) })
+				if tc.auto {
+					require.NoError(t, antiraid.SetAutoAntiRaidThreshold(j.chat.Id, 1))
+				} else {
+					enabled, err := antiRaidModule.enableRaid(j.chat.Id, 3600)
+					require.NoError(t, err)
+					require.True(t, enabled)
+				}
+				if tc.banErr {
+					j.client.errors["banChatMember"] = errors.New("Bad Request: not enough rights to restrict/unrestrict chat member")
+				}
+				notice, err := i18n.MustNewTranslator("en").GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": "1"})
+				require.NoError(t, err)
+
+				j.deliver(t, way)
+
+				logs := callsToChat(j.client, "sendMessage", spamDBLogChannel)
+				got := want{j.bans(), j.challenges(t), j.welcomes(), len(logs), j.sent(notice), int(cas.hits.Load())}
+				require.Equal(t, tc.want, got)
+				if !tc.banErr {
+					_, temporary := j.client.onlyCall(t, "banChatMember").Params["until_date"]
+					require.True(t, temporary, "a raid ban lasts the raid action time")
+					require.Equal(t, models.BanSourceAntiraid, singleBanRecord(t, j.chat.Id).Source)
+				}
+			})
+		}
+	}
+}
+
+// A join Telegram reports only as a member update counts towards the
+// auto-antiraid threshold like one with a service message.
+func TestAntiRaidCountsJoinsSeenOnlyAsMemberUpdates(t *testing.T) {
+	withMiniredis(t)
+	first := newIntakeJoin(t, false)
+	second := first
+	second.member = gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Second"}
+	second.adder = second.member
+	clearRecentJoinProcessing(second.chat.Id, second.member.Id)
+	require.NoError(t, captcha.SetCaptchaEnabled(first.chat.Id, first.chat.Title, true))
+	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(first.chat.Id, 2))
+	t.Cleanup(func() { _, _ = antiRaidModule.disableRaid(first.chat.Id) })
+
+	first.deliver(t, []string{viaUpdate})
+	second.deliver(t, []string{viaUpdate})
+
+	require.True(t, antiRaidModule.isRaidActive(first.chat.Id), "the second join must switch the raid on")
+	require.Equal(t, 0, first.bans())
+	require.True(t, captchaSentTo(t, first.chat.Id, first.member.Id), "the join before the raid is challenged")
+	require.Equal(t, 1, second.bans())
+	require.False(t, captchaSentTo(t, second.chat.Id, second.member.Id), "the join that switched the raid on is banned")
 }
 
 // When banChatMember fails (flood limit, rights changed inside the admin-cache
@@ -530,7 +617,7 @@ func TestFedBanOnJoinPostsOneNoticeWhenServiceMessageFollowsTheKick(t *testing.T
 }
 
 // During a raid, fed-ban (group -6) bans a fbanned newcomer for good on
-// whichever join update comes first. Antiraid (group -5) must not ban them again
+// whichever join update comes first. Antiraid's intake stage must not ban them again
 // with an until_date, which could turn the permanent ban into a temporary one;
 // everyone else still gets the raid's temp-ban.
 func TestAntiRaidLeavesFedBannedNewcomerToFedBan(t *testing.T) {

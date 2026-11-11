@@ -1212,7 +1212,11 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		}
 		return
 	}
-	if !join {
+	if join {
+		// The join claim is this ban's, so the intake never sees the join:
+		// count it towards the raid threshold here.
+		antiRaidModule.countJoin(b, ctx, userID)
+	} else {
 		// The sender may have joined unseen; keep greetings from challenging
 		// them if that join's update comes later.
 		claimRecentJoinProcessing(chat.Id, userID)

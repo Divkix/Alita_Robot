@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
@@ -250,13 +249,13 @@ func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
 	})
 }
 
-// raidJoin posts one service message with members joining chat.
+// raidJoin posts one service message with members joining chat, added by
+// the first of them, through the join guards.
 func raidJoin(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat, members ...gotgbot.User) {
 	t.Helper()
-	msg := &gotgbot.Message{MessageId: 501, Date: 1, Chat: chat, From: &members[0], NewChatMembers: members}
-	if err := antiRaidModule.onJoin(bot, ext.NewContext(bot, &gotgbot.Update{UpdateId: 501, Message: msg}, nil)); err != ext.ContinueGroups {
-		t.Fatalf("onJoin() error = %v, want ContinueGroups", err)
-	}
+	dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 501, Message: &gotgbot.Message{
+		MessageId: 501, Date: 1, Chat: chat, From: &members[0], NewChatMembers: members,
+	}})
 }
 
 func TestAntiRaidAutoTriggerLogsOneEntry(t *testing.T) {
