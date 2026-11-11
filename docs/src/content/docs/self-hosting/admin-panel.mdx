@@ -168,9 +168,10 @@ checked against the bot token on arrival.
   `tmute`, set **Flood temp-ban/mute length** in seconds (60 to 31,622,400,
   or 1 minute to 366 days). A usable saved duration can be reused when switching
   between temporary actions. Changing to an untimed action clears the duration;
-  changing only the duration while the action is untimed is refused. The API
-  exposes this value as `antiflood.action_time`, defaulting to `0` (unset), and
-  saves the action and duration together. Invalid settings reject the whole
+  a duration-only edit while the action is untimed accepts `0` but refuses a
+  nonzero duration. The API exposes this as `antiflood.action_time`, with default
+  metadata `3600` (one hour); its effective value is `0` for untimed modes.
+  The action and duration save together. Invalid settings reject the whole
   batch before any values are written.
 - **Filters**, **Notes** and **Blacklists** search as you type, and admins
   can delete entries or bulk-import them from a folded import box that
@@ -186,6 +187,27 @@ checked against the bot token on arrival.
 - A user with no groups sees an empty state explaining how to add the bot or how
   to `/connect` a group.
 
+### Shared defaults, bounds and rights
+
+Commands, `/settings` buttons and the panel use the same declared settings.
+Welcome and goodbye are both **on** for a group that has never configured them.
+Raid duration accepts **1 second to 366 days** (default **6 hours**); raid ban
+duration accepts **30 seconds to 366 days** (default **1 hour**).
+Invalid stored settings read as their declared default without rewriting the row.
+
+Every panel save requires both you and the bot to be chat admins. Beyond that:
+
+- Welcome, goodbye and captcha settings need no change-info or restrict-members
+  right. Turning captcha off also releases members held by pending captchas.
+- Clean-welcome, clean-goodbye, clean-service and timezone need your
+  `can_change_info` right.
+- Probation needs your `can_restrict_members` right, not the bot's restrict right.
+- The report mute threshold needs `can_restrict_members` for both you and the bot.
+
+A batch needs the **union** of all changed settings' rights: a restrict-members
+right does not substitute for change-info, or the other way round. A missing
+right refuses the entire batch before any write.
+
 ### Warning settings
 
 The **Warnings** group in **Settings** configures what happens when a member
@@ -195,15 +217,15 @@ reaches the warning limit; the separate **Warnings** screen lists their warnings
 |---------|---------|-----------------|
 | `warns.limit` | `3` | `1`–`100` warnings. |
 | `warns.mode` | `mute` | `ban`, `kick`, `mute`, `tban` (temporary ban), or `tmute` (temporary mute). |
-| `warns.action_time` | `0` (unset) | Punishment duration in seconds, `60`–`31622400` (366 days), for `tban` or `tmute`. |
+| `warns.action_time` | `3600` (one hour) | Effective value `0` for untimed modes; `60`–`31622400` seconds (366 days) for `tban` or `tmute`. |
 | `warns.expiry` | `0` (never) | How long a warning counts, in seconds: `0` to disable expiry, or `60`–`31622400` (366 days). |
 
 Choosing `tban` or `tmute` requires a usable duration in the same save or one
 already stored. Switching between timed modes keeps that duration; choosing
-`ban`, `kick`, or `mute` clears it. A duration cannot be saved on its own while
-the mode is untimed: save the timed mode and duration together. An invalid
-setting prevents the entire batch from being saved, including changes to other
-modules. Opening Settings does not create a warning settings row.
+`ban`, `kick`, or `mute` clears it. While the mode is untimed, a duration-only
+save accepts `0` but refuses a nonzero duration: save the timed mode and duration
+together. Invalid settings prevent the entire batch from being saved, including
+other modules. Opening Settings does not create a warning settings row.
 
 ### Weekly digest settings
 
@@ -221,9 +243,9 @@ group. Resetting the destination saves an empty string, not the word `default`.
 Opening Settings only reads the digest choice; it does not create a settings row.
 
 The operator's `ENABLE_DIGEST` kill switch defaults to `true`. With
-`ENABLE_DIGEST=false`, no digests are sent and the panel refuses to enable them
+`ENABLE_DIGEST=false`, no digests are sent and every digest write is refused
 with “The digest is disabled by the bot operator.” Admins can still view the
-stored choice, turn it off, or change its destination.
+stored choice, but cannot turn it on or off or change its destination.
 
 ### Report settings
 

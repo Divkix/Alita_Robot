@@ -13,6 +13,12 @@ This page documents all permission checking functions in Alita Robot.
 - **Total Functions**: 35
 - **Location**: `alita/utils/chat_status/ (chat_status.go, access.go, update_memo.go, permission_responder.go)`
 
+Shared chat-setting rights are declared in `alita/settings`, not in each surface.
+Commands and `/settings` buttons enforce each declaration's policy; the panel
+also requires caller and bot admin status for every write and checks the union
+of all rights in a batch. See [panel settings policies](/self-hosting/admin-panel/#shared-defaults-bounds-and-rights)
+for greeting, captcha, probation and report requirements.
+
 ## Function Summary
 
 | Function | Returns | Description |

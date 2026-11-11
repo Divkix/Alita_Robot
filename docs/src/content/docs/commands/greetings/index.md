@@ -20,6 +20,9 @@ Welcome new members to your groups or say Goodbye after they leave!
 × /cleangoodbye `<yes/no/on/off>`: Delete the old goodbye message, whenever a member leaves.
 × /autoapprove `<yes/no/on/off>`: Automatically approve chat join requests.
 
+Welcome and goodbye are **on by default**, including in the panel. Clean-welcome,
+clean-goodbye, clean-service and automatic approval are off by default.
+
 **Captcha Integration**
 When Captcha module is enabled:
 1. New members are muted upon joining
@@ -81,6 +84,10 @@ For detailed command usage, refer to the commands table above.
 - `/cleanwelcome`, `/cleangoodbye` — Requires **Change Group Info** admin permission
 - `/cleanservice`, `/autoapprove` — Requires **Change Group Info** admin permission, and the bot must be an admin in the group
 - Join-request buttons — Approve/Decline need **Invite Users** (admin and bot); Ban also needs **Ban Users** (admin and bot)
+
+The panel uses these same setting rights, with its additional caller-and-bot-admin
+access gate. In particular, switching welcome or goodbye does not need
+`can_change_info`; the three clean switches still need it.
 
 **Preview without placeholders:** Append `noformat` to `/welcome` or `/goodbye`
 (e.g., `/welcome noformat`) to preview the stored message with `{placeholders}` left

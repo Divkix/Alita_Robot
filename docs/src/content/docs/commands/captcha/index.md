@@ -108,6 +108,15 @@ This module can be accessed using the following aliases:
 
 ## Required Permissions
 
+Changing captcha settings requires a group admin. `/captcha` and
+`/captchamaxattempts` additionally require the bot to be an admin. Configuration
+does not require the caller's or bot's `can_restrict_members` right; the panel
+uses the same policy within its caller-and-bot-admin access gate. Turning captcha
+off through a command, button or panel releases the members pending captcha holds.
+
+The following bot rights are needed to perform verification actions, not to save
+the settings:
+
 **Bot Requirements:**
 - Ban users (for kick/ban actions)
 - Restrict members (for muting during verification)
