@@ -229,9 +229,6 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cmd.eventAction != "" {
 		recordModerationEvent(mc.Chat.Id, mc.User.Id, tgt.userID, cmd.eventAction, tgt.reason)
 	}
-	if cmd.eventAction == models.ModerationActionUnban {
-		liftBanRecord(mc.Chat.Id, tgt.userID, mc.User.Id)
-	}
 
 	// Cleanup runs after the record: the ban or kick stands even when the
 	// command message's delete fails.

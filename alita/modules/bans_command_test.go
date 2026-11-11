@@ -621,6 +621,14 @@ func TestUnbanCommandUnbansUser(t *testing.T) {
 	}
 }
 
+func TestUnbanCommandLeavesAMemberWhoIsNotBanned(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := bansModule.unban(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unban 42")); err != ext.EndGroups {
+		t.Fatalf("unban() error = %v, want EndGroups", err)
+	}
+	assertParams(t, f.client.onlyCall(t, "unbanChatMember"), map[string]any{"only_if_banned": true})
+}
+
 func TestUnbanRejectsMissingAndBotTargets(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin

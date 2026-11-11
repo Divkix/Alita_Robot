@@ -376,11 +376,8 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
 				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
-				_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
-				return err
 			}
-			_, err := c.Chat.UnbanMember(c.Bot, t.userID, nil)
-			return err
+			return c.lift(t, punishment.Ban)
 		},
 		cleanup: func(c *moderationCtx, t *target) error {
 			spamFilterUnbanHam(c.Chat.Id, t.userID, c.User.Id)

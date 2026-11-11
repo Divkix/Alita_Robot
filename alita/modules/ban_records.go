@@ -70,17 +70,6 @@ func recordBan(ban banRecord) int64 {
 	return id
 }
 
-// liftBanRecord closes the record of a ban Telegram has just lifted, as
-// liftedBy (0 for the bot). Like recordBan, a failed write is only logged.
-func liftBanRecord(chatID, userID, liftedBy int64) {
-	if _, err := bans.Lift(chatID, userID, liftedBy); err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"chat_id": chatID,
-			"user_id": userID,
-		}).Error("[Bans] Failed to close the ban record")
-	}
-}
-
 // sweepExpiredBanRecords deletes the records lifted, or of temporary bans
 // ended, more than banRecordRetention before now. Every replica sweeps; the
 // delete is idempotent.
