@@ -16,12 +16,12 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/joinrequestcaptchas"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -85,7 +85,7 @@ func joinCaptchaTranslator(chatID int64) *i18n.Translator {
 func handleJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 	request := ctx.ChatJoinRequest
 	chat, applicant := request.Chat, request.From
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.WithContext(tracing.UpdateContext(ctx)).Warnf("[JoinCaptcha] Cannot read settings; using normal join-request handling: %v", err)
 		return false, nil
@@ -299,7 +299,7 @@ func (moduleStruct) joinCaptchaCallback(bot *gotgbot.Bot, ctx *ext.Context) erro
 	if selected == "" {
 		return refreshJoinRequestCaptcha(bot, ctx, attempt, joinCaptchaTranslator(attempt.ChatID))
 	}
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), attempt.ChatID)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), attempt.ChatID)
 	if err != nil {
 		return joinCaptchaError(bot, ctx, attempt.ChatID, err)
 	}
@@ -351,7 +351,7 @@ func refreshJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *mode
 		_, err := ctx.CallbackQuery.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return err
 	}
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), attempt.ChatID)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), attempt.ChatID)
 	if err != nil {
 		return joinCaptchaError(bot, ctx, attempt.ChatID, err)
 	}

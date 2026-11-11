@@ -274,13 +274,10 @@ func TestSettingsToggleRefusals(t *testing.T) {
 func TestSettingsToggleRejectsForgedValues(t *testing.T) {
 	f := settingsToggleFixture(t)
 
-	for _, forged := range [][2]string{{"cm", "emoji"}, {"fm", "tban"}, {"we", "maybe"}, {"zz", "on"}} {
+	for _, forged := range [][2]string{{"fm", "tban"}, {"zz", "on"}} {
 		pressSettingsToggle(t, f, f.admin, forged[0], forged[1])
 	}
 
-	if got := settingsRowValue(t, f.chat.Id, "/captchamode"); got != settingsDefaultCaptchaMode {
-		t.Fatalf("/captchamode = %q after a forged tap", got)
-	}
 	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != settingsDefaultFloodAction {
 		t.Fatalf("/setfloodmode = %q after a forged tap", got)
 	}

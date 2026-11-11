@@ -17,7 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
@@ -53,10 +52,6 @@ type settingsSection struct {
 // the bot actually does, not the Go fallbacks: GORM drops zero values that have
 // a default tag, so goodbye and allow_connect end up true once their row exists.
 const (
-	settingsDefaultCaptchaMode     = "math"
-	settingsDefaultCaptchaTimeout  = 2
-	settingsDefaultCaptchaAction   = "kick"
-	settingsDefaultCaptchaAttempts = 3
 	settingsDefaultFloodAction     = "mute"
 	settingsDefaultWarnLimit       = 3
 	settingsDefaultWarnMode        = "mute"
@@ -149,20 +144,19 @@ func collectChatSettings(ctx context.Context, chatID int64) []settingsSection {
 	return sections
 }
 
-func captchaSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	s, err := captcha.GetCaptchaSettingsContext(ctx, chatID)
-	if err != nil || s == nil {
-		s = &models.CaptchaSettings{CaptchaMode: settingsDefaultCaptchaMode, Timeout: settingsDefaultCaptchaTimeout,
-			FailureAction: settingsDefaultCaptchaAction, MaxAttempts: settingsDefaultCaptchaAttempts}
-	}
+func captchaSettingsSection(_ context.Context, chatID int64) settingsSection {
 	return settingsSection{Title: "Captcha", Rows: []settingsRow{
-		boolRow("/captcha", s.Enabled, false),
-		boolRow("/captchajoin", s.JoinRequests, false),
-		stringRow("/captchamode", s.CaptchaMode, settingsDefaultCaptchaMode),
-		intRow("/captchatime", s.Timeout, settingsDefaultCaptchaTimeout),
-		stringRow("/captchaaction", s.FailureAction, settingsDefaultCaptchaAction),
-		intRow("/captchamaxattempts", s.MaxAttempts, settingsDefaultCaptchaAttempts),
+		declaredBoolRow("/captcha", settings.CaptchaEnabled, chatID),
+		declaredBoolRow("/captchajoin", settings.CaptchaJoinRequests, chatID),
+		declaredStringRow("/captchamode", settings.CaptchaMode.Read(chatID)),
+		declaredSettingsRow("/captchatime", settings.CaptchaTimeout.Read(chatID), strconv.Itoa),
+		declaredStringRow("/captchaaction", settings.CaptchaAction.Read(chatID)),
+		declaredSettingsRow("/captchamaxattempts", settings.CaptchaMaxAttempts.Read(chatID), strconv.Itoa),
 	}}
+}
+
+func declaredStringRow(command string, state settings.State) settingsRow {
+	return settingsRow{Command: command, Value: state.Value.(string), Changed: state.Changed}
 }
 
 func antifloodSettingsSection(chatID int64) settingsSection {

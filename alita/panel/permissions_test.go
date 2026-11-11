@@ -47,7 +47,6 @@ func TestSettingsPatchTimezoneNeedsChangeInfo(t *testing.T) {
 	}
 }
 
-
 // The batch's strongest requirement gates the whole batch: a permitted
 // language change is not written when a greeting change beside it is refused.
 func TestSettingsPatchPermissionRefusalWritesNothing(t *testing.T) {

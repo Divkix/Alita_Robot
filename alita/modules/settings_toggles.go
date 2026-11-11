@@ -12,7 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
@@ -74,8 +73,19 @@ func valueToggle(key, command string, values []string, botAdmin bool, set func(c
 func declaredSettingsToggle(key, command string, declaration *settings.Declaration) settingsToggle {
 	toggle := settingsToggle{
 		key: key, command: command, declaration: declaration, values: declaration.ToggleValues(),
-		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
-			return settingsSaveFailed(command, chatID, declaration.Write(chatID, value == "on"))
+		set: func(b *gotgbot.Bot, chatID int64, title string, value string) string {
+			var parsed any = value
+			if declaration.Type == settings.Switch {
+				parsed = value == "on"
+			}
+			err := declaration.Write(settings.WriteContext{ChatID: chatID, Title: title, Bot: b}, parsed)
+			if declaration == settings.CaptchaEnabled && err != nil {
+				if parsed == true {
+					return "captcha_enable_failed"
+				}
+				return "captcha_disable_failed"
+			}
+			return settingsSaveFailed(command, chatID, err)
 		},
 	}
 	switch declaration.Right {
@@ -138,19 +148,10 @@ func inFedRight(_ *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, _ int64) s
 // Each matches its summary row's Command and cycles exactly the values that row shows.
 // Declared rows carry only their callback key, command and declaration.
 var settingsToggles = []settingsToggle{
-	{key: "cp", command: "/captcha", values: settingsOnOff, botAdmin: true, set: setCaptchaToggle},
-	{key: "cj", command: "/captchajoin", values: settingsOnOff,
-		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
-			return settingsSaveFailed("/captchajoin", chatID, captcha.SetCaptchaJoinRequests(chatID, chatName, value == "on"))
-		}},
-	{key: "cm", command: "/captchamode", values: []string{"math", "text"},
-		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
-			return settingsSaveFailed("/captchamode", chatID, captcha.SetCaptchaMode(chatID, chatName, value))
-		}},
-	{key: "ca", command: "/captchaaction", values: []string{"kick", "ban", "mute"},
-		set: func(_ *gotgbot.Bot, chatID int64, chatName, value string) string {
-			return settingsSaveFailed("/captchaaction", chatID, captcha.SetCaptchaFailureAction(chatID, chatName, value))
-		}},
+	declaredSettingsToggle("cp", "/captcha", settings.CaptchaEnabled),
+	declaredSettingsToggle("cj", "/captchajoin", settings.CaptchaJoinRequests),
+	declaredSettingsToggle("cm", "/captchamode", settings.CaptchaMode),
+	declaredSettingsToggle("ca", "/captchaaction", settings.CaptchaAction),
 	valueToggle("fm", "/setfloodmode", []string{"mute", "ban", "kick"}, true, func(chatID int64, mode string) error {
 		return antiflood.SetFloodMode(chatID, mode, 0)
 	}),
@@ -187,28 +188,6 @@ var settingsTogglesByKey, settingsTogglesByCommand = func() (byKey, byCommand ma
 	}
 	return byKey, byCommand
 }()
-
-// setCaptchaToggle is /captcha on|off: turning it off also releases the
-// users a pending captcha holds.
-func setCaptchaToggle(b *gotgbot.Bot, chatID int64, chatName, value string) string {
-	on := value == "on"
-	failKey := "captcha_disable_failed"
-	if on {
-		failKey = "captcha_enable_failed"
-	}
-	if err := captcha.SetCaptchaEnabled(chatID, chatName, on); err != nil {
-		log.Errorf("[Settings] toggle /captcha failed for chat %d: %v", chatID, err)
-		return failKey
-	}
-	if on {
-		return ""
-	}
-	if err := DisableCaptchaForChat(b, chatID); err != nil {
-		log.Errorf("[Settings] captcha cleanup failed for chat %d: %v", chatID, err)
-		return failKey
-	}
-	return ""
-}
 
 // setAntiRaidToggle is /antiraid on|off: on starts raid mode for the chat's
 // raid time. A raid already in the state asked for counts as done.

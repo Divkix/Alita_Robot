@@ -30,6 +30,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -528,7 +529,7 @@ const captchaJoinNamespace = "captcha_on"
 // message in chatID, or false when captcha is already on there or the button
 // cannot be encoded. It reads the settings without creating a row.
 func captchaJoinOfferMarkup(ctx *ext.Context, chatID int64, buttonText string) (gotgbot.InlineKeyboardMarkup, bool) {
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chatID)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chatID)
 	if err == nil && settings != nil && settings.Enabled {
 		return gotgbot.InlineKeyboardMarkup{}, false
 	}
@@ -586,7 +587,7 @@ func (moduleStruct) captchaJoinEnableCallback(bot *gotgbot.Bot, ctx *ext.Context
 		return ext.EndGroups
 	}
 
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		answer("captcha_enable_failed")
 		return err
@@ -596,7 +597,7 @@ func (moduleStruct) captchaJoinEnableCallback(bot *gotgbot.Bot, ctx *ext.Context
 		removeButton("")
 		return ext.EndGroups
 	}
-	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
+	if err := chatsettings.CaptchaEnabled.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, true); err != nil {
 		answer("captcha_enable_failed")
 		return err
 	}
@@ -613,7 +614,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+		settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
@@ -648,7 +649,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "on", "enable", "yes":
-		err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true)
+		err := chatsettings.CaptchaEnabled.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, true)
 		if err != nil {
 			text, _ := tr.GetString("captcha_enable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
@@ -661,18 +662,12 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 
 	case "off", "disable", "no":
-		err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, false)
+		err := chatsettings.CaptchaEnabled.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, false)
 		if err != nil {
 			text, _ := tr.GetString("captcha_disable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
 				log.Warnf("[Captcha] Failed to send disable error message in chat %d: %v", chat.Id, replyErr)
 			}
-			return err
-		}
-		if err = DisableCaptchaForChat(bot, chat.Id); err != nil {
-			log.Errorf("[Captcha] Failed to clean up chat %d after disabling captcha: %v", chat.Id, err)
-			text, _ := tr.GetString("captcha_disable_failed")
-			_, _ = msg.Reply(bot, text, nil)
 			return err
 		}
 		text, _ := tr.GetString("captcha_disabled_success")
@@ -686,9 +681,9 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 }
 
-// DisableCaptchaForChat clears the chat's pending captcha attempts and unmutes
-// the users they held, after captcha has been turned off. The panel runs it too.
-func DisableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
+// disableCaptchaForChat clears pending attempts and restores the members they
+// held. The declaration invokes it after persisting captcha off.
+func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 	attempts, err := captcha.GetCaptchaAttemptsForChat(chatID)
 	if err != nil {
 		return err
@@ -741,7 +736,7 @@ func (moduleStruct) captchaJoinCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	}
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+		settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			_ = reply("captcha_internal_error", nil)
 			return err
@@ -762,7 +757,7 @@ func (moduleStruct) captchaJoinCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	default:
 		return reply("captcha_join_requests_usage", nil)
 	}
-	if err := captcha.SetCaptchaJoinRequests(chat.Id, chat.Title, enabled); err != nil {
+	if err := chatsettings.CaptchaJoinRequests.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, enabled); err != nil {
 		_ = reply("captcha_internal_error", nil)
 		return err
 	}
@@ -786,13 +781,13 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	}
 
 	mode := strings.ToLower(args[0])
-	if mode != "math" && mode != "text" {
+	if chatsettings.CaptchaMode.Validate(mode) != nil {
 		text, _ := tr.GetString("captcha_mode_invalid")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
 
-	err := captcha.SetCaptchaMode(chat.Id, chat.Title, mode)
+	err := chatsettings.CaptchaMode.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, mode)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidCaptchaMode) {
@@ -829,15 +824,14 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		return err
 	}
 
-	timeout64, err := strconv.ParseInt(args[0], 10, 64)
-	if err != nil || timeout64 < 1 || timeout64 > 10 {
+	timeout, err := strconv.Atoi(args[0])
+	if err != nil || chatsettings.CaptchaTimeout.Validate(timeout) != nil {
 		text, _ := tr.GetString("captcha_timeout_invalid")
 		_, err = msg.Reply(bot, text, nil)
 		return err
 	}
-	timeout := int(timeout64)
 
-	err = captcha.SetCaptchaTimeout(chat.Id, chat.Title, timeout)
+	err = chatsettings.CaptchaTimeout.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, timeout)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidTimeout) {
@@ -869,13 +863,13 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	action := strings.ToLower(args[0])
-	if action != "kick" && action != "ban" && action != "mute" {
+	if chatsettings.CaptchaAction.Validate(action) != nil {
 		text, _ := tr.GetString("captcha_action_invalid")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
 
-	err := captcha.SetCaptchaFailureAction(chat.Id, chat.Title, action)
+	err := chatsettings.CaptchaAction.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, action)
 	if err != nil {
 		var text string
 		if errors.Is(err, captcha.ErrInvalidFailureAction) {
@@ -901,7 +895,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+		settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
@@ -911,15 +905,14 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 		return err
 	}
 
-	attempts64, err := strconv.ParseInt(args[0], 10, 64)
-	if err != nil || attempts64 < 1 || attempts64 > 10 {
+	attempts, err := strconv.Atoi(args[0])
+	if err != nil || chatsettings.CaptchaMaxAttempts.Validate(attempts) != nil {
 		text, _ := tr.GetString("captcha_max_attempts_invalid")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
-	attempts := int(attempts64)
 
-	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, attempts); err != nil {
+	if err := chatsettings.CaptchaMaxAttempts.Write(chatsettings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, attempts); err != nil {
 		log.Errorf("Failed to set captcha max attempts: %v", err)
 		text, _ := tr.GetString("captcha_internal_error")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
@@ -1191,7 +1184,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		}
 	}()
 	chat := ctx.EffectiveChat
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha][SendCaptcha] Failed to get settings for chat %d: %v", chat.Id, err)
 		return err
@@ -1444,7 +1437,7 @@ func expireCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, 
 		}
 		return releaseIncompleteCaptchaAttempt(bot, attempt)
 	}
-	settings, err := captcha.GetCaptchaSettings(attempt.ChatID)
+	settings, err := chatsettings.ReadCaptcha(attempt.ChatID)
 	if err != nil {
 		return false, fmt.Errorf("load captcha settings for chat %d: %w", attempt.ChatID, err)
 	}
@@ -1728,7 +1721,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		return err
 	}
 
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1970,7 +1963,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 
 	oldMessageID := attempt.MessageID
 
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 	}
@@ -2107,7 +2100,7 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 
 	// On lookup error fall through to the checks below, so a cache or DB
 	// failure cannot weaken enforcement.
-	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 	} else if settings != nil && !settings.Enabled {
@@ -2330,23 +2323,26 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
 
 	for _, cfg := range []struct {
-		name     string
-		handler  func(*gotgbot.Bot, *ext.Context) error
-		botAdmin helpers.BotAdminRequirement
+		name    string
+		handler func(*gotgbot.Bot, *ext.Context) error
+		setting *chatsettings.Declaration
 	}{
-		{"captcha", captchaModule.captchaCommand, helpers.BotAdminRequired},
-		{"captchamode", captchaModule.captchaModeCommand, helpers.BotAdminNotRequired},
-		{"captchajoin", captchaModule.captchaJoinCommand, helpers.BotAdminNotRequired},
-		{"captchatime", captchaModule.captchaTimeCommand, helpers.BotAdminNotRequired},
-		{"captchaaction", captchaModule.captchaActionCommand, helpers.BotAdminNotRequired},
-		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand, helpers.BotAdminRequired},
-		{"captchapending", captchaModule.viewPendingMessages, helpers.BotAdminNotRequired},
-		{"captchaclear", captchaModule.clearPendingMessages, helpers.BotAdminNotRequired},
+		{"captcha", captchaModule.captchaCommand, chatsettings.CaptchaEnabled},
+		{"captchamode", captchaModule.captchaModeCommand, chatsettings.CaptchaMode},
+		{"captchajoin", captchaModule.captchaJoinCommand, chatsettings.CaptchaJoinRequests},
+		{"captchatime", captchaModule.captchaTimeCommand, chatsettings.CaptchaTimeout},
+		{"captchaaction", captchaModule.captchaActionCommand, chatsettings.CaptchaAction},
+		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand, chatsettings.CaptchaMaxAttempts},
+		{"captchapending", captchaModule.viewPendingMessages, nil},
+		{"captchaclear", captchaModule.clearPendingMessages, nil},
 	} {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,
 			PMGroupArg:     helpers.PMGroupArgOwn,
-			RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(cfg.botAdmin)},
+			RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)},
+		}
+		if cfg.setting != nil {
+			desc.RequiredChecks = declaredSettingChecks(cfg.setting)
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
@@ -2358,6 +2354,7 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
+	chatsettings.AttachCaptchaRelease(disableCaptchaForChat)
 	RegisterLegacyModule("Captcha", 220, LoadCaptcha)
 }
 

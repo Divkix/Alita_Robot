@@ -25,7 +25,7 @@ var RaidTime = &Declaration{
 		}
 		return nil
 	},
-	write: func(chatID int64, value any) error { return antiraid.SetRaidTime(chatID, value.(int)) },
+	write: func(input WriteContext, value any) error { return antiraid.SetRaidTime(input.ChatID, value.(int)) },
 }
 
 var RaidActionTime = &Declaration{
@@ -43,7 +43,9 @@ var RaidActionTime = &Declaration{
 		}
 		return nil
 	},
-	write: func(chatID int64, value any) error { return antiraid.SetRaidActionTime(chatID, value.(int)) },
+	write: func(input WriteContext, value any) error {
+		return antiraid.SetRaidActionTime(input.ChatID, value.(int))
+	},
 }
 
 var AutoAntiRaidThreshold = &Declaration{
@@ -61,7 +63,9 @@ var AutoAntiRaidThreshold = &Declaration{
 		}
 		return nil
 	},
-	write: func(chatID int64, value any) error { return antiraid.SetAutoAntiRaidThreshold(chatID, value.(int)) },
+	write: func(input WriteContext, value any) error {
+		return antiraid.SetAutoAntiRaidThreshold(input.ChatID, value.(int))
+	},
 }
 
 // ReadAntiRaid returns an effective snapshot for raid status and action paths.

@@ -22,8 +22,8 @@ const (
 // settingsPermissions maps a settings module to the right its command checks.
 // Modules not listed are admin-only, which requireWritable already enforces.
 var settingsPermissions = map[string]permission{
-	"language": permNone, // /lang group requires the caller to be an admin
-	"rules":    permNone, // /setrules requires an admin and the bot admin
+	"language":    permNone,       // /lang group requires the caller to be an admin
+	"rules":       permNone,       // /setrules requires an admin and the bot admin
 	"antiflood":   permNone,       // /setflood requires an admin and the bot admin
 	"antispam":    permNone,       // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
 	"warns":       permNone,       // /setwarnlimit, /setwarnmode and /setwarntime

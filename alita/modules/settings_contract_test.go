@@ -24,9 +24,11 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/panel"
+	"github.com/divkix/Alita_Robot/alita/settings"
 )
 
 type settingContractEdge struct {
@@ -170,22 +172,26 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 		{
 			key: "captcha.mode", command: "/captchamode", button: "cm",
 			defaultValue: "math", defaultLabel: "math", statusToken: "Mode: <code>", refusalKey: "captcha_mode_invalid",
-			edges: []settingContractEdge{{"math", "math", "math", true}, {"text", "text", "text", true}, {"image", "image", "image", false}},
+			seedInvalid: invalidCaptchaStoredValue("captcha_mode"),
+			edges:       []settingContractEdge{{"math", "math", "math", true}, {"text", "text", "text", true}, {"image", "image", "image", false}},
 		},
 		{
 			key: "captcha.timeout", command: "/captchatime",
 			defaultValue: 2, defaultLabel: "2", statusToken: "Timeout: <code>", refusalKey: "captcha_timeout_invalid",
-			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
+			seedInvalid: invalidCaptchaStoredValue("timeout"),
+			edges:       []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
 		},
 		{
 			key: "captcha.action", command: "/captchaaction", button: "ca",
 			defaultValue: "kick", defaultLabel: "kick", statusToken: "Failure Action: <code>", refusalKey: "captcha_action_invalid",
-			edges: []settingContractEdge{{"kick", "kick", "kick", true}, {"ban", "ban", "ban", true}, {"mute", "mute", "mute", true}, {"warn", "warn", "warn", false}},
+			seedInvalid: invalidCaptchaStoredValue("failure_action"),
+			edges:       []settingContractEdge{{"kick", "kick", "kick", true}, {"ban", "ban", "ban", true}, {"mute", "mute", "mute", true}, {"warn", "warn", "warn", false}},
 		},
 		{
 			key: "captcha.max_attempts", command: "/captchamaxattempts", botAdmin: true,
 			defaultValue: 3, defaultLabel: "3", statusToken: "Max Attempts: <code>", refusalKey: "captcha_max_attempts_invalid",
-			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
+			seedInvalid: invalidCaptchaStoredValue("max_attempts"),
+			edges:       []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
 		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
@@ -404,6 +410,144 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						}
 					}
 					assertContractRowCount(t, f, setting, 0)
+				})
+			}
+			if setting.key == "captcha.enabled" {
+				for _, surface := range []string{"command", "button", "panel"} {
+					t.Run("release/"+surface, func(t *testing.T) {
+						f := newSettingContractFixture(t, setting)
+						if err := captcha.SetCaptchaEnabled(f.chat.Id, f.chat.Title, true); err != nil {
+							t.Fatal(err)
+						}
+						assertContractRead(t, f, setting, true, "on", true)
+						for _, userID := range []int64{f.member.Id, f.member.Id + 1} {
+							if err := captcha.CreateMutedUser(userID, f.chat.Id, time.Now().Add(time.Hour)); err != nil {
+								t.Fatal(err)
+							}
+						}
+						attempt, err := captcha.CreateCaptchaAttemptPreMessage(f.member.Id, f.chat.Id, "7", 2)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
+							t.Fatal(err)
+						}
+						if err := captcha.StoreMessageForCaptcha(f.member.Id, f.chat.Id, attempt.ID, db.TEXT, "pending", "", ""); err != nil {
+							t.Fatal(err)
+						}
+						switch surface {
+						case "command":
+							contractDispatch(t, f, f.admin, "/captcha off")
+						case "button":
+							contractPress(t, f, f.admin, "cp", "off")
+						case "panel":
+							response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: false}))
+							if response.Code != http.StatusOK {
+								t.Fatalf("disable = %d %s", response.Code, response.Body.String())
+							}
+						}
+						calls := f.client.callsFor("restrictChatMember")
+						if len(calls) != 2 {
+							t.Fatalf("restored members = %d, want both held members", len(calls))
+						}
+						for _, call := range calls {
+							permissions, ok := call.Params["permissions"].(gotgbot.ChatPermissions)
+							if !ok {
+								t.Fatalf("permissions type = %T", call.Params["permissions"])
+							}
+							if !permissions.CanSendMessages {
+								t.Fatalf("held member was not unmuted: %+v", call)
+							}
+						}
+						if current, err := captcha.GetCaptchaAttemptByID(attempt.ID); err != nil || current != nil {
+							t.Fatalf("pending attempt = %+v, %v", current, err)
+						}
+						if count, err := captcha.CountStoredMessagesForAttempt(attempt.ID); err != nil || count != 0 {
+							t.Fatalf("held messages = %d, %v", count, err)
+						}
+						if users, err := captcha.GetMutedUsersForChat(f.chat.Id); err != nil || len(users) != 0 {
+							t.Fatalf("held users = %+v, %v", users, err)
+						}
+						assertContractRead(t, f, setting, false, "off", false)
+					})
+					t.Run("release failure/"+surface, func(t *testing.T) {
+						f := newSettingContractFixture(t, setting)
+						if err := captcha.SetCaptchaEnabled(f.chat.Id, f.chat.Title, true); err != nil {
+							t.Fatal(err)
+						}
+						assertContractRead(t, f, setting, true, "on", true)
+						if err := captcha.CreateMutedUser(f.member.Id, f.chat.Id, time.Now().Add(time.Hour)); err != nil {
+							t.Fatal(err)
+						}
+						f.client.errors["restrictChatMember"] = errors.New("telegram refused the unmute")
+						switch surface {
+						case "command":
+							contractDispatch(t, f, f.admin, "/captcha off")
+							if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); reply != translated(t, "captcha_disable_failed") {
+								t.Fatalf("release failure reply = %q", reply)
+							}
+						case "button":
+							contractPress(t, f, f.admin, "cp", "off")
+							if text, alert := lastAnswer(t, f.client); !alert || text != translated(t, "captcha_disable_failed") {
+								t.Fatalf("release failure answer = %q, alert %t", text, alert)
+							}
+						case "panel":
+							response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: false, "antiraid.raid_time": 60}))
+							var result struct {
+								Saved  []string          `json:"saved"`
+								Failed map[string]string `json:"failed"`
+							}
+							if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+								t.Fatal(err)
+							}
+							if response.Code != http.StatusInternalServerError || slices.Contains(result.Saved, setting.key) || !slices.Contains(result.Saved, "antiraid.raid_time") || !strings.Contains(result.Failed[setting.key], "captcha was turned off, but pending users could not be unmuted") {
+								t.Fatalf("release failure = %d %s", response.Code, response.Body.String())
+							}
+						}
+						if held, err := captcha.GetMutedUsersForChat(f.chat.Id); err != nil || len(held) != 1 {
+							t.Fatalf("failed release lost held member: %+v, %v", held, err)
+						}
+						assertContractRead(t, f, setting, false, "off", false)
+						assertContractRowCount(t, f, setting, 1)
+					})
+					t.Run("release not attached/"+surface, func(t *testing.T) {
+						f := newSettingContractFixture(t, setting)
+						handler := panel.New(f.bot, panel.Deps{})
+						settings.AttachCaptchaRelease(nil)
+						t.Cleanup(func() { settings.AttachCaptchaRelease(disableCaptchaForChat) })
+						switch surface {
+						case "command":
+							contractDispatch(t, f, f.admin, "/captcha off")
+							if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); reply != translated(t, "captcha_disable_failed") {
+								t.Fatalf("unbound write reply = %q", reply)
+							}
+						case "button":
+							contractPress(t, f, f.admin, "cp", "off")
+							if text, alert := lastAnswer(t, f.client); !alert || text != translated(t, "captcha_disable_failed") {
+								t.Fatalf("unbound write answer = %q, alert %t", text, alert)
+							}
+						case "panel":
+							response := contractPanelRequestTo(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: false, "antiraid.raid_time": 60}), handler)
+							if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "captcha release is not attached") {
+								t.Fatalf("unbound batch = %d %s", response.Code, response.Body.String())
+							}
+							assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+						}
+						assertContractRowCount(t, f, setting, 0)
+						if len(f.client.callsFor("restrictChatMember")) != 0 {
+							t.Fatal("unbound write changed member permissions")
+						}
+					})
+				}
+				t.Run("panel requires release at construction", func(t *testing.T) {
+					settings.AttachCaptchaRelease(nil)
+					t.Cleanup(func() { settings.AttachCaptchaRelease(disableCaptchaForChat) })
+					defer func() {
+						if failure := recover(); failure == nil || !strings.Contains(fmt.Sprint(failure), "captcha release is not attached") {
+							t.Fatalf("construction failure = %v", failure)
+						}
+					}()
+					panel.New(newModuleTestBot(newModuleBotClient()), panel.Deps{})
 				})
 			}
 		})
@@ -672,6 +816,11 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 
 func contractPanelRequest(t *testing.T, f adminChatFixture, actor gotgbot.User, method, body string) *httptest.ResponseRecorder {
 	t.Helper()
+	return contractPanelRequestTo(t, f, actor, method, body, panel.New(f.bot, panel.Deps{}))
+}
+
+func contractPanelRequestTo(t *testing.T, f adminChatFixture, actor gotgbot.User, method, body string, handler http.Handler) *httptest.ResponseRecorder {
+	t.Helper()
 	now := time.Now()
 	user, err := json.Marshal(actor)
 	if err != nil {
@@ -687,6 +836,14 @@ func contractPanelRequest(t *testing.T, f adminChatFixture, actor gotgbot.User, 
 	request.Header.Set("X-Telegram-Init-Data", values.Encode())
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
-	panel.New(f.bot, panel.Deps{Now: func() time.Time { return now }}).ServeHTTP(response, request)
+	handler.ServeHTTP(response, request)
 	return response
+}
+
+// NULL passes the schema's CHECK constraints but decodes as an invalid zero
+// value, representing old stored settings without weakening the test schema.
+func invalidCaptchaStoredValue(field string) func(int64) error {
+	return func(chatID int64) error {
+		return db.DB.Model(&models.CaptchaSettings{}).Create(map[string]any{"chat_id": chatID, field: nil}).Error
+	}
 }

@@ -14,16 +14,12 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 	_ "time/tzdata"
-
-	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
@@ -151,10 +147,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 	if fieldBool(t, body, "rules.private_rules") {
 		t.Fatal("rules.private_rules = true, want false")
 	}
-	if fieldString(t, body, "captcha.mode") != "math" || fieldInt(t, body, "captcha.timeout") != 2 ||
-		fieldString(t, body, "captcha.action") != "kick" || fieldInt(t, body, "captcha.max_attempts") != 3 {
-		t.Fatalf("captcha defaults = %+v", body.Modules[3])
-	}
 	if fieldInt(t, body, "antiflood.limit") != 0 || fieldString(t, body, "antiflood.action") != "mute" ||
 		fieldInt(t, body, "antiflood.action_time") != 0 || fieldBool(t, body, "antiflood.delete_messages") {
 		t.Fatalf("antiflood defaults = %+v", body.Modules[4])
@@ -275,7 +267,6 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "unknown field", body: `{"changes":{"greetings.not_a_setting":true}}`, wantKeys: []string{"greetings.not_a_setting"}},
 		{name: "unknown module", body: `{"changes":{"nope":true}}`, wantKeys: []string{"nope"}},
 		{name: "wrong type", body: `{"changes":{"greetings.welcome_enabled":"yes"}}`, wantKeys: []string{"greetings.welcome_enabled"}},
-		{name: "captcha timeout range", body: `{"changes":{"captcha.timeout":11}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "language option", body: `{"changes":{"language.code":"xx"}}`, wantKeys: []string{"language.code"}},
 		{name: "read-only field", body: `{"changes":{"locks.active":[]}}`, wantKeys: []string{"locks.active"}},
 		{name: "antiflood range", body: `{"changes":{"antiflood.limit":2}}`, wantKeys: []string{"antiflood.limit"}},
@@ -294,7 +285,6 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "flood warn is not supported", body: `{"changes":{"antiflood.action":"warn","greetings.welcome_enabled":false}}`, wantKeys: []string{"antiflood.action"}},
 		{name: "last spam database", body: `{"changes":{"antispam.spamdb_cas":false}}`, wantKeys: []string{"antispam.spamdb_cas"}},
 		{name: "no spam database left", body: `{"changes":{"antispam.spamdb_cas":false,"antispam.spamdb_shared":false}}`, wantKeys: []string{"antispam.spamdb_cas", "antispam.spamdb_shared"}},
-		{name: "valid beside invalid", body: `{"changes":{"greetings.welcome_enabled":false,"captcha.timeout":99}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "warn limit below minimum", body: `{"changes":{"warns.limit":0}}`, wantKeys: []string{"warns.limit"}},
 		{name: "warn limit above maximum", body: `{"changes":{"warns.limit":101}}`, wantKeys: []string{"warns.limit"}},
 		{name: "warn limit fraction", body: `{"changes":{"warns.limit":3.5}}`, wantKeys: []string{"warns.limit"}},
@@ -971,9 +961,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	// Read every getter first: each answer is cached, so a setter that failed
 	// to invalidate its key would leave the old value visible below.
 	greetings.GetGreetingSettings(chatID)
-	if _, err := captcha.GetCaptchaSettings(chatID); err != nil {
-		t.Fatalf("seed captcha cache: %v", err)
-	}
 	antiflood.GetFlood(chatID)
 	rules.GetChatRulesInfo(chatID)
 	if _, err := spamdbsettings.GetSpamDBSettingsContext(context.Background(), chatID); err != nil {
@@ -991,11 +978,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		"greetings.clean_goodbye":true,
 		"greetings.clean_service":true,
 		"rules.private_rules":true,
-		"captcha.enabled":true,
-		"captcha.mode":"text",
-		"captcha.timeout":5,
-		"captcha.action":"ban",
-		"captcha.max_attempts":2,
 		"antiflood.limit":5,
 		"antiflood.action":"tban",
 		"antiflood.action_time":7200,
@@ -1011,8 +993,8 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &patch); err != nil {
 		t.Fatalf("decode patch response: %v", err)
 	}
-	if len(patch.Saved) != 18 || len(patch.Failed) != 0 {
-		t.Fatalf("saved = %v, failed = %v; want all 18 saved", patch.Saved, patch.Failed)
+	if len(patch.Saved) != 13 || len(patch.Failed) != 0 {
+		t.Fatalf("saved = %v, failed = %v; want all 13 saved", patch.Saved, patch.Failed)
 	}
 
 	// The bot's own getters answer with the new values at once.
@@ -1026,14 +1008,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	}
 	if !rules.GetChatRulesInfo(chatID).Private {
 		t.Fatal("private rules after patch = false, want true")
-	}
-	captchaSettings, err := captcha.GetCaptchaSettings(chatID)
-	if err != nil {
-		t.Fatalf("captcha settings after patch: %v", err)
-	}
-	if !captchaSettings.Enabled || captchaSettings.CaptchaMode != "text" || captchaSettings.Timeout != 5 ||
-		captchaSettings.FailureAction != "ban" || captchaSettings.MaxAttempts != 2 {
-		t.Fatalf("captcha settings after patch = %+v", captchaSettings)
 	}
 	flood := antiflood.GetFlood(chatID)
 	if flood.Limit != 5 || flood.Action != "tban" || flood.FloodActionTime != 7200 || !flood.DeleteAntifloodMessage {
@@ -1054,9 +1028,6 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 	}
 	if fieldBool(t, after, "greetings.welcome_enabled") || !findSettingsField(t, after, "greetings.welcome_enabled").Changed {
 		t.Fatal("GET greetings.welcome_enabled did not reflect the patch")
-	}
-	if fieldInt(t, after, "captcha.timeout") != 5 || fieldString(t, after, "captcha.mode") != "text" {
-		t.Fatalf("GET captcha = %+v", after.Modules[3])
 	}
 	if fieldString(t, after, "antiflood.action") != "tban" || fieldInt(t, after, "antiflood.action_time") != 7200 ||
 		!findSettingsField(t, after, "antiflood.action_time").Changed {
@@ -1550,58 +1521,6 @@ func TestSettingsPatchReportsPartialFailure(t *testing.T) {
 	// The field that saved is visible through the command's getter.
 	if greetings.GetGreetingSettings(chatID).WelcomeSettings.ShouldWelcome {
 		t.Fatal("the greeting write reported as saved is not visible")
-	}
-}
-
-// Turning captcha off from the panel runs the same cleanup as /captcha off, and
-// a cleanup failure is reported instead of being hidden behind a saved field.
-func TestSettingsPatchCaptchaOffRunsTheCommandCleanup(t *testing.T) {
-	fixture, chatID := newSettingsFixture(t)
-	raw := readFixture(t, "initdata_main.txt")
-	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
-		t.Fatalf("SetCaptchaEnabled() error = %v", err)
-	}
-
-	var cleaned []int64
-	var cleanupErr error
-	fixture.handler = New(&gotgbot.Bot{
-		Token:     fixtureBotToken,
-		BotClient: fixture.client,
-		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
-	}, Deps{
-		SessionMaxAge: 24 * time.Hour,
-		LookupChats:   sqliteLookup,
-		Now:           func() time.Time { return fixtureNow },
-		DisableCaptcha: func(_ *gotgbot.Bot, id int64) error {
-			cleaned = append(cleaned, id)
-			return cleanupErr
-		},
-	})
-
-	recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
-		`{"changes":{"captcha.enabled":false}}`, "application/json")
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
-	}
-	if len(cleaned) != 1 || cleaned[0] != chatID {
-		t.Fatalf("cleanup ran for %v, want once for %d", cleaned, chatID)
-	}
-
-	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
-		t.Fatalf("SetCaptchaEnabled() error = %v", err)
-	}
-	cleanupErr = fmt.Errorf("telegram refused the unmute")
-	recorder = panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
-		`{"changes":{"captcha.enabled":false}}`, "application/json")
-	if recorder.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d, want 500 (body %s)", recorder.Code, recorder.Body.String())
-	}
-	var body settingsPatchResponse
-	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode body: %v", err)
-	}
-	if containsString(body.Saved, "captcha.enabled") || body.Failed["captcha.enabled"] == "" {
-		t.Fatalf("saved = %v, failed = %v, want captcha.enabled reported as failed", body.Saved, body.Failed)
 	}
 }
 

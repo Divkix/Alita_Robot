@@ -17,7 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -112,12 +111,14 @@ func declaredSettingsField(chatID int64, declaration *settings.Declaration) sett
 		fieldType = "bool"
 	case settings.Number, settings.Duration:
 		fieldType = "int"
+	case settings.Choice:
+		fieldType = "string"
 	default:
 		panic("unmapped setting type")
 	}
 	return settingsField{
 		Key: key, Type: fieldType, Value: state.Value, Default: declaration.Default,
-		Changed: state.Changed, Writable: true,
+		Changed: state.Changed, Writable: true, Options: declaration.Options,
 	}
 }
 
@@ -165,17 +166,6 @@ func panelSettings(access chatAccess) settingsResponse {
 	}
 
 	rulesRow := readRulesSettings(chatID)
-
-	captchaRow := &models.CaptchaSettings{
-		ChatID:        chatID,
-		CaptchaMode:   "math",
-		Timeout:       2,
-		FailureAction: "kick",
-		MaxAttempts:   3,
-	}
-	if row, err := captcha.GetCaptchaSettings(chatID); err == nil && row != nil {
-		captchaRow = row
-	}
 
 	flood := antiflood.GetFlood(chatID)
 	if flood.Action == "" {
@@ -240,11 +230,11 @@ func panelSettings(access chatAccess) settingsResponse {
 			settingsBool("private_rules", rulesRow.Private, false, true),
 		}},
 		{Key: "captcha", Label: "Captcha", Fields: []settingsField{
-			settingsBool("enabled", captchaRow.Enabled, false, true),
-			settingsString("mode", captchaRow.CaptchaMode, "math", true, []string{"math", "text"}),
-			settingsInt("timeout", captchaRow.Timeout, 2, true),
-			settingsString("action", captchaRow.FailureAction, "kick", true, []string{"kick", "ban", "mute"}),
-			settingsInt("max_attempts", captchaRow.MaxAttempts, 3, true),
+			declaredSettingsField(chatID, settings.CaptchaEnabled),
+			declaredSettingsField(chatID, settings.CaptchaMode),
+			declaredSettingsField(chatID, settings.CaptchaTimeout),
+			declaredSettingsField(chatID, settings.CaptchaAction),
+			declaredSettingsField(chatID, settings.CaptchaMaxAttempts),
 		}},
 		{Key: "antiflood", Label: "Antiflood", Fields: []settingsField{
 			settingsInt("limit", flood.Limit, 0, true),
@@ -360,7 +350,8 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	current := settingsIndex(panelSettings(access))
-	updates, fieldErrors := validateSettingsChanges(body.Changes, current, p.deps.NightModeLockTypes)
+	input := settings.WriteContext{ChatID: access.ChatID, Title: access.Title, Bot: p.bot}
+	updates, fieldErrors := validateSettingsChanges(input, body.Changes, current, p.deps.NightModeLockTypes)
 	if len(fieldErrors) > 0 {
 		writeJSON(w, http.StatusBadRequest, settingsPatchResponse{
 			Error:  &apiError{Code: "invalid_settings", Message: "one or more settings are invalid"},
@@ -375,15 +366,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saved, failed := applySettingsChanges(access.ChatID, access.Title, updates, current)
-	if enabled, ok := updates["captcha.enabled"].(bool); ok && !enabled && slices.Contains(saved, "captcha.enabled") && p.deps.DisableCaptcha != nil {
-		// Same cleanup /captcha off runs: unmute users still pending a captcha.
-		if err := p.deps.DisableCaptcha(p.bot, access.ChatID); err != nil {
-			log.WithError(err).Warnf("[Panel] captcha cleanup for chat %d", access.ChatID)
-			saved = slices.DeleteFunc(saved, func(key string) bool { return key == "captcha.enabled" })
-			failed["captcha.enabled"] = "captcha was turned off, but pending users could not be unmuted: " + err.Error()
-		}
-	}
+	saved, failed := applySettingsChanges(input, updates, current)
 	updated := panelSettings(access)
 	response := settingsPatchResponse{
 		Saved:          saved,
@@ -403,7 +386,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 // validateSettingsChanges decodes and validates every change against the
 // current snapshot. It returns decoded values, or field-level errors; callers
 // write nothing when errors is non-empty.
-func validateSettingsChanges(changes map[string]json.RawMessage, index map[string]settingsField, nightTypes []string) (map[string]any, map[string]string) {
+func validateSettingsChanges(input settings.WriteContext, changes map[string]json.RawMessage, index map[string]settingsField, nightTypes []string) (map[string]any, map[string]string) {
 	updates := make(map[string]any, len(changes))
 	fieldErrors := make(map[string]string)
 
@@ -430,6 +413,12 @@ func validateSettingsChanges(changes map[string]json.RawMessage, index map[strin
 		if message := validateSettingValue(key, field, value); message != "" {
 			fieldErrors[key] = message
 			continue
+		}
+		if declaration, declared := settings.Lookup(key); declared {
+			if err := declaration.ValidateWrite(input, value); err != nil {
+				fieldErrors[key] = err.Error()
+				continue
+			}
 		}
 		updates[key] = value
 	}
@@ -680,8 +669,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
-	case "captcha":
-		return validateCaptchaValue(fieldKey, value)
 	case "antiflood":
 		if fieldKey == "limit" {
 			if n := value.(int); n != 0 && (n < 3 || n > 100) {
@@ -734,20 +721,6 @@ func validateWarnValue(field string, value any) string {
 	case "expiry":
 		if !models.ValidWarnExpiry(value.(int)) {
 			return "must be 0 (never) or between 60 and 31622400 seconds"
-		}
-	}
-	return ""
-}
-
-func validateCaptchaValue(field string, value any) string {
-	switch field {
-	case "timeout":
-		if n := value.(int); n < 1 || n > 10 {
-			return "must be between 1 and 10 minutes"
-		}
-	case "max_attempts":
-		if n := value.(int); n < 1 || n > 10 {
-			return "must be between 1 and 10"
 		}
 	}
 	return ""
@@ -820,7 +793,8 @@ func plainText(text string) string {
 // run before disables so switching the spam databases can proceed in either
 // direction without tripping the last-database constraint. Flood action and
 // duration share one setter call, with outcomes reported for each requested key.
-func applySettingsChanges(chatID int64, chatName string, updates map[string]any, current map[string]settingsField) ([]string, map[string]string) {
+func applySettingsChanges(input settings.WriteContext, updates map[string]any, current map[string]settingsField) ([]string, map[string]string) {
+	chatID := input.ChatID
 	keys := make([]string, 0, len(updates))
 	for key := range updates {
 		keys = append(keys, key)
@@ -869,7 +843,7 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any,
 			}
 			err = nightErr
 		default:
-			err = applySettingChange(chatID, chatName, key, updates[key])
+			err = applySettingChange(input, key, updates[key])
 		}
 		if err != nil {
 			log.WithError(err).Warnf("[Panel] save %s for chat %d", key, chatID)
@@ -881,9 +855,10 @@ func applySettingsChanges(chatID int64, chatName string, updates map[string]any,
 	return saved, failed
 }
 
-func applySettingChange(chatID int64, chatName, key string, value any) error {
+func applySettingChange(input settings.WriteContext, key string, value any) error {
+	chatID := input.ChatID
 	if declaration, ok := settings.Lookup(key); ok {
-		return declaration.Write(chatID, value)
+		return declaration.Write(input, value)
 	}
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
@@ -891,8 +866,6 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 		return lang.ChangeGroupLanguage(chatID, value.(string))
 	case "rules":
 		return rules.SetPrivateRules(chatID, value.(bool))
-	case "captcha":
-		return applyCaptchaChange(chatID, chatName, fieldKey, value)
 	case "antiflood":
 		return applyAntifloodChange(chatID, fieldKey, value)
 	case "antispam":
@@ -961,22 +934,6 @@ func applyNightModeChanges(chatID int64, updates map[string]any) error {
 		types = strings.Split(names, ",")
 	}
 	return nightmode.Enable(chatID, start, end, types)
-}
-
-func applyCaptchaChange(chatID int64, chatName, field string, value any) error {
-	switch field {
-	case "enabled":
-		return captcha.SetCaptchaEnabled(chatID, chatName, value.(bool))
-	case "mode":
-		return captcha.SetCaptchaMode(chatID, chatName, value.(string))
-	case "timeout":
-		return captcha.SetCaptchaTimeout(chatID, chatName, value.(int))
-	case "action":
-		return captcha.SetCaptchaFailureAction(chatID, chatName, value.(string))
-	case "max_attempts":
-		return captcha.SetCaptchaMaxAttempts(chatID, chatName, value.(int))
-	}
-	return fmt.Errorf("unknown captcha setting %q", field)
 }
 
 func applyAntifloodChange(chatID int64, field string, value any) error {

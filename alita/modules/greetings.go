@@ -246,7 +246,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			}
 			return ext.EndGroups
 		}
-		if err := config.setting.Write(chat.Id, on); err != nil {
+		if err := config.setting.Write(settings.WriteContext{ChatID: chat.Id}, on); err != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", config.setting.Key, chat.Id, err)
 			key = "common_settings_save_failed"
 		}
@@ -455,7 +455,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		if dbErr := cfg.setting.Write(chat.Id, false); dbErr != nil {
+		if dbErr := cfg.setting.Write(settings.WriteContext{ChatID: chat.Id}, false); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
@@ -464,7 +464,7 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 		text, _ := tr.GetString(cfg.setDisabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	case "on", "yes":
-		if dbErr := cfg.setting.Write(chat.Id, true); dbErr != nil {
+		if dbErr := cfg.setting.Write(settings.WriteContext{ChatID: chat.Id}, true); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
@@ -538,7 +538,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	newMember := ctx.ChatMember.NewChatMember.MergeChatMember().User
-	captchaSettings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	captchaSettings, err := settings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 		captchaSettings = &db.CaptchaSettings{Enabled: false}
@@ -670,7 +670,7 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if msg.NewChatMembers != nil {
-		captchaSettings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+		captchaSettings, err := settings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Greetings][cleanService] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 			captchaSettings = &db.CaptchaSettings{Enabled: false}

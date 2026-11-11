@@ -33,7 +33,7 @@ func greetingSwitch(key string, def bool, right Right, read func(*models.Greetin
 			}
 			return read(row)
 		},
-		write: func(chatID int64, value any) error { return write(chatID, value.(bool)) },
+		write: func(input WriteContext, value any) error { return write(input.ChatID, value.(bool)) },
 	}
 }
 
