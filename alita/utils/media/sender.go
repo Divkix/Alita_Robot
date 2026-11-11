@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -226,99 +225,6 @@ func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *g
 	return resolveSendResult(msg, err, opts.ChatID, "video note")
 }
 
-func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Notes, replyMsgID, threadID int64) (*gotgbot.Message, error) {
-	var (
-		buttons []db.Button
-		sent    string
-	)
-
-	buttons = note.Buttons
-
-	rstrings := strings.Split(note.NoteContent, "%%%")
-	if len(rstrings) == 1 {
-		sent = rstrings[0]
-	} else {
-		n := rand.Intn(len(rstrings)) // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
-		sent = rstrings[n]
-	}
-
-	noteCopy := *note
-	noteCopy.NoteContent, buttons = formatting.FormattingReplacer(b, chat, ctx.EffectiveUser, sent, buttons)
-	_, _, _, _, _, _, noteCopy.NoteContent = content.NotesParser(noteCopy.NoteContent)
-
-	keyb := keyboard.BuildKeyboard(buttons)
-	keyboardMarkup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-
-	// Reply in the chat the message was sent in: a PM command acting on a
-	// connected group points ctx.EffectiveChat at that group.
-	chatID := ctx.EffectiveChat.Id
-	if msg := ctx.EffectiveMessage; msg != nil {
-		chatID = msg.Chat.Id
-	}
-
-	return Send(b, Content{
-		Text:    noteCopy.NoteContent,
-		FileID:  noteCopy.FileID,
-		MsgType: noteCopy.MsgType,
-		Name:    noteCopy.NoteName,
-	}, Options{
-		ChatID:            chatID,
-		ReplyMsgID:        replyMsgID,
-		ThreadID:          threadID,
-		Keyboard:          &keyboardMarkup,
-		NoFormat:          false,
-		NoNotif:           noteCopy.NoNotif,
-		WebPreview:        noteCopy.WebPreview,
-		IsProtected:       noteCopy.IsProtected,
-		AllowWithoutReply: true,
-	})
-}
-
-func SendFilter(b *gotgbot.Bot, ctx *ext.Context, filter *db.ChatFilters, replyMsgID int64) (*gotgbot.Message, error) {
-	if filter == nil {
-		return nil, fmt.Errorf("filter data is nil")
-	}
-
-	chat := ctx.EffectiveChat
-
-	var (
-		buttons       []db.Button
-		sent          string
-		tmpfilterData db.ChatFilters
-	)
-	tmpfilterData = *filter
-	buttons = tmpfilterData.Buttons
-
-	rstrings := strings.Split(tmpfilterData.FilterReply, "%%%")
-	if len(rstrings) == 1 {
-		sent = rstrings[0]
-	} else {
-		n := rand.Intn(len(rstrings)) // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
-		sent = rstrings[n]
-	}
-
-	tmpfilterData.FilterReply, buttons = formatting.FormattingReplacer(b, chat, ctx.EffectiveUser, sent, buttons)
-	keyb := keyboard.BuildKeyboard(buttons)
-	keyboardMarkup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-
-	return Send(b, Content{
-		Text:    tmpfilterData.FilterReply,
-		FileID:  tmpfilterData.FileID,
-		MsgType: tmpfilterData.MsgType,
-		Name:    tmpfilterData.KeyWord,
-	}, Options{
-		ChatID:            chat.Id,
-		ReplyMsgID:        replyMsgID,
-		ThreadID:          ctx.Message.MessageThreadId,
-		Keyboard:          &keyboardMarkup,
-		NoFormat:          false,
-		NoNotif:           tmpfilterData.NoNotif,
-		WebPreview:        false,
-		IsProtected:       false,
-		AllowWithoutReply: true,
-	})
-}
-
 func SendGreeting(b *gotgbot.Bot, chatID int64, text, fileID string, msgType int, keyboard *gotgbot.InlineKeyboardMarkup, threadID int64) (*gotgbot.Message, error) {
 	return Send(b, Content{
 		Text:    text,
@@ -490,6 +396,7 @@ func render(b *gotgbot.Bot, msg SavedMessage, to Target, rules kindRules) (strin
 	}
 	opts := Options{WebPreview: msg.WebPreview, IsProtected: msg.IsProtected, NoNotif: msg.NoNotif}
 	switch rules.directives {
+	case directivesNone:
 	case directivesStored:
 		_, _, _, _, _, _, text = content.NotesParser(text)
 	case directivesFromText:

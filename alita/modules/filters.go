@@ -565,46 +565,26 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	view := media.Rendered
 	if noformatMatch {
 		if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
+		view = media.Raw
+	}
 
-		// Copy: filtData aliases the shared read-through cache entry (loader hands
-		// one pointer to all coalesced waiters); mutating it races concurrent watchers.
-		noformatData := *filtData
-		noformatData.FilterReply = formatting.ReverseHTML2MD(noformatData.FilterReply)
-
-		noformatData.FilterReply += content.RevertButtons(noformatData.Buttons)
-
-		var err error
-		_, err = media.Send(b, media.Content{
-			Text:    noformatData.FilterReply,
-			FileID:  noformatData.FileID,
-			MsgType: noformatData.MsgType,
-			Name:    noformatData.KeyWord,
-		}, media.Options{
-			ChatID:            ctx.Message.Chat.Id,
-			ReplyMsgID:        msg.MessageId,
-			ThreadID:          ctx.Message.MessageThreadId,
-			Keyboard:          &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
-			NoFormat:          true,
-			NoNotif:           noformatData.NoNotif,
-			AllowWithoutReply: true,
-		})
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-	} else {
-		var err error
-		_, err = media.SendFilter(b, ctx, filtData, msg.MessageId)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+	// The filter's reply answers the message that triggered it, in its topic.
+	_, err = media.SendSaved(tracing.UpdateContext(ctx), b, media.FilterMessage(filtData), media.Target{
+		Chat:       chat,
+		ChatID:     chat.Id,
+		ThreadID:   msg.MessageThreadId,
+		ReplyMsgID: msg.MessageId,
+		Member:     ctx.EffectiveUser,
+	}, view)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
 	return ext.ContinueGroups
