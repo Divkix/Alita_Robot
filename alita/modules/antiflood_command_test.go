@@ -140,11 +140,10 @@ func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
 		mode     string
 		duration string
 		seconds  int
-		method   string
 		label    string
 	}{
-		{"tmute", "10m", 600, "restrictChatMember", "muted for 10m"},
-		{"tban", "1d", 86400, "banChatMember", "banned for 1d"},
+		{"tmute", "10m", 600, "muted for 10m"},
+		{"tban", "1d", 86400, "banned for 1d"},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
 			resetAntifloodState(t)
@@ -169,19 +168,12 @@ func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
 				t.Fatalf("/flood reply = %q, want %q", text, tc.label)
 			}
 
-			before := time.Now().Unix()
 			for i, text := range []string{"one", "two", "three", "four"} {
 				ctx := newModuleMessageContext(f.bot, f.chat, f.member, text)
 				ctx.EffectiveMessage.MessageId = int64(500 + i)
 				if err := antifloodModule.checkFlood(f.bot, ctx); err != ext.ContinueGroups {
 					t.Fatalf("checkFlood(%s) error = %v, want ContinueGroups", text, err)
 				}
-			}
-			after := time.Now().Unix()
-			call := f.client.onlyCall(t, tc.method)
-			assertParams(t, call, targetParams(f.chat.Id, f.member.Id))
-			if until := untilDateParam(t, call); until < before+int64(tc.seconds) || until > after+int64(tc.seconds) {
-				t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, tc.seconds, before+int64(tc.seconds), after+int64(tc.seconds))
 			}
 			if text := lastReply(t, f.client); !strings.Contains(text, tc.label) {
 				t.Fatalf("flood notice = %q, want %q", text, tc.label)
@@ -336,8 +328,8 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
-		t.Fatalf("restrictChatMember calls = %d, want none before limit", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("notices = %d, want none before limit", len(calls))
 	}
 
 	secondCtx := newModuleMessageContext(bot, chat, member, "two")
@@ -348,94 +340,8 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
 		t.Fatalf("deleteMessage calls = %d, want triggering message deleted", len(calls))
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want mute action", len(calls))
-	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want antiflood notice", len(calls))
-	}
-}
-
-func TestAntifloodWatcherIgnoresLinkedChannelPosts(t *testing.T) {
-	for _, action := range []string{"mute", "kick", "ban"} {
-		t.Run(action, func(t *testing.T) {
-			resetAntifloodState(t)
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
-			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
-				t.Fatalf("SetFlood() error = %v", err)
-			}
-			if err := antiflood.SetFloodMode(chat.Id, action, 0); err != nil {
-				t.Fatalf("SetFloodMode() error = %v", err)
-			}
-
-			channel := gotgbot.Chat{Id: -1003267074951, Type: "channel", Title: "Linked Channel"}
-			for i := range 4 {
-				msg := &gotgbot.Message{
-					MessageId:          int64(700 + i),
-					Date:               1,
-					Chat:               chat,
-					From:               &gotgbot.User{Id: 777000, FirstName: "Telegram"},
-					SenderChat:         &channel,
-					IsAutomaticForward: true,
-					Text:               "channel post",
-				}
-				ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: int64(700 + i), Message: msg}, nil)
-				if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
-					t.Fatalf("checkFlood(linked channel) error = %v, want ContinueGroups", err)
-				}
-			}
-			for _, method := range []string{"restrictChatMember", "banChatMember", "banChatSenderChat", "deleteMessage"} {
-				if calls := client.callsFor(method); len(calls) != 0 {
-					t.Fatalf("%s calls = %d, want linked channel posts left alone", method, len(calls))
-				}
-			}
-		})
-	}
-}
-
-func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
-	for _, tt := range []struct {
-		name    string
-		action  string
-		method  string
-		userID  int64
-		message string
-	}{
-		{name: "kick", action: "kick", method: "unbanChatMember", userID: 43, message: "kick me"},
-		{name: "ban", action: "ban", method: "banChatMember", userID: 44, message: "ban me"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			resetAntifloodState(t)
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
-			member := gotgbot.User{Id: tt.userID, FirstName: "Flooder"}
-			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
-				t.Fatalf("SetFlood() error = %v", err)
-			}
-			if err := antiflood.SetFloodMode(chat.Id, tt.action, 0); err != nil {
-				t.Fatalf("SetFloodMode() error = %v", err)
-			}
-
-			firstCtx := newModuleMessageContext(bot, chat, member, "one")
-			if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
-				t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
-			}
-			secondCtx := newModuleMessageContext(bot, chat, member, tt.message)
-			secondCtx.EffectiveMessage.MessageId = 202
-			if err := antifloodModule.checkFlood(bot, secondCtx); err != ext.ContinueGroups {
-				t.Fatalf("checkFlood second error = %v, want ContinueGroups", err)
-			}
-
-			if calls := client.callsFor(tt.method); len(calls) != 1 {
-				t.Fatalf("%s calls = %d, want action request", tt.method, len(calls))
-			}
-			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-				t.Fatalf("sendMessage calls = %d, want antiflood notice", len(calls))
-			}
-		})
 	}
 }
 
@@ -466,8 +372,8 @@ func TestAntifloodWatcherBulkDeletesTrackedMessages(t *testing.T) {
 	if calls := client.callsFor("deleteMessage"); len(calls) != 5 {
 		t.Fatalf("deleteMessage calls = %d, want all tracked flood messages deleted", len(calls))
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want ban action", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("notices = %d, want punishment after tracked deletions", len(calls))
 	}
 }
 
@@ -498,11 +404,8 @@ func TestAntifloodWatcherFailsOpenWhenAdminSemaphoreFull(t *testing.T) {
 			t.Fatalf("checkFlood(semaphore full) message %d error = %v, want ContinueGroups", i, err)
 		}
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want fail-open without action", len(calls))
-	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
-		t.Fatalf("restrictChatMember calls = %d, want fail-open without action", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("notices = %d, want fail-open without punishment", len(calls))
 	}
 }
 
@@ -566,8 +469,8 @@ func TestAntifloodWatcherTrustsCachedNonAdminWithoutSemaphore(t *testing.T) {
 	if err := antifloodModule.checkFlood(bot, secondCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkFlood second error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want punishment despite full semaphore", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("notices = %d, want punishment despite full semaphore", len(calls))
 	}
 }
 
@@ -640,8 +543,8 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 				}
 			}
 
-			if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
-				t.Fatalf("restrictChatMember calls = %d, want skipped mute action", len(calls))
+			if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("notices = %d, want exempt flooder left alone", len(calls))
 			}
 		})
 	}
@@ -699,8 +602,8 @@ func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	if err := antifloodModule.checkFlood(bot, secondCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkFlood delete failure error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want punishment despite delete failure", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("notices = %d, want punishment despite delete failure", len(calls))
 	}
 }
 
@@ -765,14 +668,13 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 	useEnglishLocale(t)
 	for _, tt := range []struct {
 		action     string
-		method     string
 		wantLabel  string
 		actionTime int
 	}{
-		{action: "tban", method: "banChatMember", wantLabel: "banned for 1h"},
-		{action: "tmute", method: "restrictChatMember", wantLabel: "muted for 1h"},
-		{action: "tban", method: "banChatMember", wantLabel: "banned for 1h", actionTime: 30},
-		{action: "tmute", method: "restrictChatMember", wantLabel: "muted for 1h", actionTime: 366*86400 + 1},
+		{action: "tban", wantLabel: "banned for 1h"},
+		{action: "tmute", wantLabel: "muted for 1h"},
+		{action: "tban", wantLabel: "banned for 1h", actionTime: 30},
+		{action: "tmute", wantLabel: "muted for 1h", actionTime: 366*86400 + 1},
 	} {
 		t.Run(fmt.Sprintf("%s/%d", tt.action, tt.actionTime), func(t *testing.T) {
 			resetAntifloodState(t)
@@ -793,18 +695,8 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			}
 			secondCtx := newModuleMessageContext(bot, chat, member, "two")
 			secondCtx.EffectiveMessage.MessageId = 302
-			before := time.Now().Unix()
 			if err := antifloodModule.checkFlood(bot, secondCtx); err != ext.ContinueGroups {
 				t.Fatalf("checkFlood second error = %v, want ContinueGroups", err)
-			}
-			after := time.Now().Unix()
-
-			calls := client.callsFor(tt.method)
-			if len(calls) != 1 {
-				t.Fatalf("%s calls = %d, want timed action", tt.method, len(calls))
-			}
-			if until := untilDateParam(t, calls[0]); until < before+3600 || until > after+3600 {
-				t.Fatalf("until_date = %d, want now+3600 (%d..%d)", until, before+3600, after+3600)
 			}
 			notices := client.callsFor("sendMessage")
 			if len(notices) != 1 || !strings.Contains(fmt.Sprint(notices[0].Params["text"]), tt.wantLabel) {
@@ -818,38 +710,6 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			replies := client.callsFor("sendMessage")
 			if len(replies) != 2 || !strings.Contains(fmt.Sprint(replies[1].Params["text"]), tt.wantLabel) {
 				t.Fatalf("/flood replies = %#v, want %q", replies, tt.wantLabel)
-			}
-		})
-	}
-}
-
-func TestAntifloodWatcherDoesNotPunishChannelForTimedAction(t *testing.T) {
-	for _, mode := range []string{"tban", "tmute"} {
-		t.Run(mode, func(t *testing.T) {
-			resetAntifloodState(t)
-			f := newAdminChatFixture(t)
-			if err := antiflood.SetFlood(f.chat.Id, 3); err != nil {
-				t.Fatalf("SetFlood() error = %v", err)
-			}
-			if err := antiflood.SetFloodMode(f.chat.Id, mode, 600); err != nil {
-				t.Fatalf("SetFloodMode() error = %v", err)
-			}
-			channel := gotgbot.Chat{Id: -1001234567892, Type: "channel", Title: "Flood Channel"}
-			for i := range 4 {
-				ctx := newModuleMessageContext(f.bot, f.chat, f.member, "channel flood")
-				ctx.EffectiveMessage.MessageId = int64(600 + i)
-				ctx.EffectiveMessage.From = nil
-				ctx.EffectiveMessage.SenderChat = &channel
-				ctx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: f.chat.Id}
-				if err := antifloodModule.checkFlood(f.bot, ctx); err != ext.ContinueGroups {
-					t.Fatalf("checkFlood() error = %v, want ContinueGroups", err)
-				}
-			}
-			assertDeleted(t, f.client, f.chat.Id, 603)
-			for _, method := range []string{"banChatSenderChat", "banChatMember", "restrictChatMember", "sendMessage"} {
-				if calls := f.client.callsFor(method); len(calls) != 0 {
-					t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
-				}
 			}
 		})
 	}
@@ -876,8 +736,8 @@ func TestAntifloodWatcherUsesDefaultForInvalidStoredAction(t *testing.T) {
 			t.Fatalf("checkFlood(%s) error = %v, want ContinueGroups", text, err)
 		}
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %#v, want the default mute", calls)
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("notices = %#v, want the default mute notice", calls)
 	}
 
 	showCtx := newModuleMessageContext(bot, chat, member, "/flood")

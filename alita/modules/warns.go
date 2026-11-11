@@ -28,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -274,7 +275,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 		punished = true
 	case "mute":
 		_, err = chat.RestrictMember(b, userId,
-			MutedPermissions,
+			punishment.MutedPermissions,
 			nil,
 		)
 		temp, _ := tr.GetString("warns_limit_muted")
@@ -302,7 +303,7 @@ func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, 
 			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
 		} else {
 			key = "warns_limit_tmuted"
-			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
+			_, err = chat.RestrictMember(b, userId, punishment.MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 		}
 		if err != nil {
 			log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)

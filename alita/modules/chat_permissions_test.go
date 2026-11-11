@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 func derefBool(ptr *bool, defaultVal bool) bool {
@@ -16,7 +18,7 @@ func derefBool(ptr *bool, defaultVal bool) bool {
 func TestDefaultUnmutePermissions(t *testing.T) {
 	t.Parallel()
 
-	perms := defaultUnmutePermissions()
+	perms := punishment.DefaultUnmutePermissions()
 
 	if !perms.CanSendMessages {
 		t.Errorf("CanSendMessages = false, want true")
@@ -65,7 +67,7 @@ func TestDefaultUnmutePermissions(t *testing.T) {
 func TestResolveUnmutePermissions(t *testing.T) {
 	t.Parallel()
 
-	defaults := defaultUnmutePermissions()
+	defaults := punishment.DefaultUnmutePermissions()
 
 	tests := []struct {
 		name     string
@@ -112,7 +114,7 @@ func TestResolveUnmutePermissions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := resolveUnmutePermissions(tc.input)
+			got := punishment.UnmutePermissions(tc.input)
 
 			if got.CanSendMessages != tc.wantPerm.CanSendMessages {
 				t.Errorf("CanSendMessages = %v, want %v", got.CanSendMessages, tc.wantPerm.CanSendMessages)

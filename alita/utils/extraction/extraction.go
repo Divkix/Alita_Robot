@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 )
 
 var (
@@ -34,20 +35,6 @@ var (
 	quotedTextRegex = regexp.MustCompile(`(?s)(\s+)?"(.*?)"\s?(.*)?`)
 	wordRegex       = regexp.MustCompile(`(?s)(\s+)?([A-Za-z0-9-_+=}\][{;:'",<.>?/|*\\()]+)\s?(.*)?`)
 )
-
-const (
-	minTemporaryDurationSeconds int64 = 30
-	maxTemporaryDurationSeconds int64 = 366 * 24 * 60 * 60
-)
-
-func TemporaryUntilDate(now, durationSeconds int64) (int64, bool) {
-	if durationSeconds < minTemporaryDurationSeconds ||
-		durationSeconds > maxTemporaryDurationSeconds ||
-		now > math.MaxInt64-durationSeconds {
-		return 0, false
-	}
-	return now + durationSeconds, true
-}
 
 func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	msg := ctx.EffectiveMessage
@@ -437,7 +424,7 @@ func parseTemporaryDuration(inputVal string, now int64) (banTime, amount int64, 
 		return -1, 0, "", "", errTimeLimitExceeded
 	}
 
-	banTime, ok := TemporaryUntilDate(now, timeNum*multiplier)
+	banTime, ok := window.UntilDate(now, timeNum*multiplier)
 	if !ok {
 		return -1, 0, "", "", errTimeLimitExceeded
 	}

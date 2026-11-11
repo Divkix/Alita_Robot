@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -191,7 +192,7 @@ func applyReportDecision(b *gotgbot.Bot, action string, rep *models.Report) erro
 	case "ban":
 		_, err = b.BanChatMember(rep.ChatId, rep.ReportedUserId, nil)
 	case "mute":
-		_, err = b.RestrictChatMember(rep.ChatId, rep.ReportedUserId, MutedPermissions, nil)
+		_, err = b.RestrictChatMember(rep.ChatId, rep.ReportedUserId, punishment.MutedPermissions, nil)
 	case "delete":
 		err = helpers.DeleteMessageWithErrorHandling(b, rep.ChatId, rep.ReportedMessageId)
 	}

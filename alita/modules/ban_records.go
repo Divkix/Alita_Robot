@@ -8,6 +8,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/bans"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 )
 
 // banRecordRetention is how long a ban record is kept after the ban was
@@ -16,13 +17,6 @@ const banRecordRetention = 90 * 24 * time.Hour
 
 var banRecordRetentionOnce sync.Once
 
-// Telegram treats a ban that ends less than 30 seconds or more than 366 days
-// from now as permanent.
-const (
-	minTemporaryBan = 30 * time.Second
-	maxTemporaryBan = 366 * 24 * time.Hour
-)
-
 // banEnd is the end of a ban made at now with Telegram until_date untilUnix:
 // nil for a permanent ban, as Telegram reads 0 and out-of-range dates.
 func banEnd(untilUnix int64, now time.Time) *time.Time {
@@ -30,7 +24,7 @@ func banEnd(untilUnix int64, now time.Time) *time.Time {
 		return nil
 	}
 	until := time.Unix(untilUnix, 0).UTC()
-	if d := until.Sub(now); d < minTemporaryBan || d > maxTemporaryBan {
+	if d := until.Sub(now); d < window.MinSeconds*time.Second || d > window.MaxSeconds*time.Second {
 		return nil
 	}
 	return &until

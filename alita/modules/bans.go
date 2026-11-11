@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -608,7 +609,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		)
 	case "mute":
 		_, err := chat.RestrictMember(b, userId,
-			MutedPermissions,
+			punishment.MutedPermissions,
 			nil,
 		)
 		if err != nil {
@@ -798,7 +799,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		if err != nil {
 			return failAction(err)
 		}
-		unmutePermissions := resolveUnmutePermissions(c)
+		unmutePermissions := punishment.UnmutePermissions(c)
 
 		_, err = chat.RestrictMember(b, userId,
 			unmutePermissions,

@@ -39,6 +39,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
@@ -1293,7 +1294,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		return err
 	}
 
-	if _, err = chat.RestrictMember(bot, userID, MutedPermissions, nil); err != nil {
+	if _, err = chat.RestrictMember(bot, userID, punishment.MutedPermissions, nil); err != nil {
 		if _, delErr := captcha.DeleteCaptchaAttemptByIDAtomic(preAttempt.ID, userID, chat.Id); delErr != nil {
 			log.Errorf("[Captcha] Failed to delete attempt %d after mute failure: %v", preAttempt.ID, delErr)
 		} else if isMissingRestrictRightError(err) {
@@ -1615,7 +1616,7 @@ func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action 
 		if err := captcha.CreateMutedUser(userID, chatID, unmuteAt); err != nil {
 			return fmt.Errorf("store automatic unmute: %w", err)
 		}
-		if _, muteErr := bot.RestrictChatMember(chatID, userID, MutedPermissions, nil); muteErr != nil {
+		if _, muteErr := bot.RestrictChatMember(chatID, userID, punishment.MutedPermissions, nil); muteErr != nil {
 			return errors.Join(fmt.Errorf("mute: %w", muteErr), captcha.DeleteMutedUser(userID, chatID))
 		}
 		log.Infof("User %d muted in chat %d, will be unmuted at %s", userID, chatID, unmuteAt.Format(time.RFC3339))
@@ -1628,7 +1629,7 @@ func unmuteCaptchaUser(bot *gotgbot.Bot, chatID, userID int64) error {
 	if err != nil {
 		return err
 	}
-	_, err = bot.RestrictChatMember(chatID, userID, resolveUnmutePermissions(chat), nil)
+	_, err = bot.RestrictChatMember(chatID, userID, punishment.UnmutePermissions(chat), nil)
 	return err
 }
 
@@ -2277,7 +2278,7 @@ func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
 		if currentErr != nil {
 			log.Errorf("[CaptchaUnmute] Failed to reload schedule for user %d: %v", user.UserID, currentErr)
 		} else if current != nil && current.UnmuteAt.After(user.UnmuteAt) {
-			if _, remuteErr := bot.RestrictChatMember(user.ChatID, user.UserID, MutedPermissions, nil); remuteErr != nil {
+			if _, remuteErr := bot.RestrictChatMember(user.ChatID, user.UserID, punishment.MutedPermissions, nil); remuteErr != nil {
 				log.Errorf("[CaptchaUnmute] Failed to restore newer mute for user %d: %v", user.UserID, remuteErr)
 			}
 		}

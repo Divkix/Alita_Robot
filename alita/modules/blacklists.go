@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -477,7 +478,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 
-		_, err = b.RestrictChatMember(chat.Id, user.Id(), MutedPermissions, nil)
+		_, err = b.RestrictChatMember(chat.Id, user.Id(), punishment.MutedPermissions, nil)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -528,7 +529,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = b.BanChatMember(chat.Id, user.Id(), &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
 		} else {
 			key = "_bl_watcher_tmuted_user"
-			_, err = b.RestrictChatMember(chat.Id, user.Id(), MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
+			_, err = b.RestrictChatMember(chat.Id, user.Id(), punishment.MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 		}
 		if err != nil {
 			log.Error(err)

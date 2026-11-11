@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 var mutesModule = moduleStruct{moduleName: "Mutes"}
@@ -90,7 +91,7 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 			if _time == -1 {
 				return ext.EndGroups
 			}
-			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions,
+			_, err := c.Chat.RestrictMember(c.Bot, t.userID, punishment.MutedPermissions,
 				&gotgbot.RestrictChatMemberOpts{UntilDate: _time},
 			)
 			return err
@@ -128,7 +129,7 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
+			_, err := c.Chat.RestrictMember(c.Bot, t.userID, punishment.MutedPermissions, nil)
 			return err
 		},
 		reply:       muteReplyWithButton,
@@ -144,7 +145,7 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 		extract:  extractUserOnly,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
+			_, err := c.Chat.RestrictMember(c.Bot, t.userID, punishment.MutedPermissions, nil)
 			return err
 		},
 		reply: func(c *moderationCtx, t *target) error {
@@ -184,7 +185,7 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 				log.Error(err)
 				return err
 			}
-			_, err = c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
+			_, err = c.Chat.RestrictMember(c.Bot, t.userID, punishment.MutedPermissions, nil)
 			return err
 		},
 		reply:       muteReplyWithButton,
@@ -228,7 +229,7 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 				log.Error(err)
 				return err
 			}
-			unmutePermissions := resolveUnmutePermissions(chat)
+			unmutePermissions := punishment.UnmutePermissions(chat)
 			_, err = c.Chat.RestrictMember(c.Bot, t.userID, unmutePermissions, nil)
 			return err
 		},

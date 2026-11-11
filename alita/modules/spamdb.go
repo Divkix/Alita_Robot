@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/spamdb"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -147,7 +148,7 @@ func applySpamDBAction(b *gotgbot.Bot, chatID, userID int64, action string) erro
 		_, err := b.BanChatMember(chatID, userID, nil)
 		return err
 	case spamdbsettings.ActionMute:
-		_, err := b.RestrictChatMember(chatID, userID, MutedPermissions, nil)
+		_, err := b.RestrictChatMember(chatID, userID, punishment.MutedPermissions, nil)
 		return err
 	default:
 		return nil

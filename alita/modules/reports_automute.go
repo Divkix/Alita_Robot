@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -77,7 +78,7 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 		release()
 		return
 	}
-	if _, err := b.RestrictChatMember(chat.Id, target.Id, MutedPermissions, &gotgbot.RestrictChatMemberOpts{
+	if _, err := b.RestrictChatMember(chat.Id, target.Id, punishment.MutedPermissions, &gotgbot.RestrictChatMemberOpts{
 		UntilDate: until.Unix(),
 	}); err != nil {
 		log.Debugf("[Reports] auto-mute of %d in %d failed: %v", target.Id, chat.Id, err)

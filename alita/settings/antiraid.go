@@ -7,16 +7,15 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 )
-
-const maxRaidDuration = 366 * 24 * 60 * 60
 
 var RaidTime = raidDuration("antiraid.raid_time", 21600, 1,
 	func(row *models.AntiRaidSettings) int { return row.RaidTime },
 	antiraid.SetRaidTime,
 )
 
-var RaidActionTime = raidDuration("antiraid.raid_action_time", 3600, 30,
+var RaidActionTime = raidDuration("antiraid.raid_action_time", 3600, window.MinSeconds,
 	func(row *models.AntiRaidSettings) int { return row.RaidActionTime },
 	antiraid.SetRaidActionTime,
 )
@@ -32,8 +31,8 @@ func raidDuration(key string, def, minSeconds int, read func(*models.AntiRaidSet
 			return read(row)
 		},
 		allowed: func(value any) error {
-			if n := value.(int); n < minSeconds || n > maxRaidDuration {
-				return fmt.Errorf("must be between %d and %d seconds", minSeconds, maxRaidDuration)
+			if n := value.(int); n < minSeconds || n > window.MaxSeconds {
+				return fmt.Errorf("must be between %d and %d seconds", minSeconds, window.MaxSeconds)
 			}
 			return nil
 		},
