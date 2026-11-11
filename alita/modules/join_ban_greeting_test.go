@@ -422,8 +422,8 @@ func TestJoinGuardBanThatSucceedsSkipsCaptchaAndWelcome(t *testing.T) {
 	}
 }
 
-// With Redis down the shared join claim fails closed, but fed-ban must still
-// ban a fbanned newcomer on join, once per join on this replica.
+// With Redis down the intake falls back to a claim local to this replica, so
+// fed-ban must still ban a fbanned newcomer on join, once per join here.
 func TestFedBanOnJoinStillBansWhenRedisIsDown(t *testing.T) {
 	restore, err := i18n.OverrideManagerForTest(`feds_passive_ban: "{user} is fbanned in {name}."`)
 	require.NoError(t, err)
