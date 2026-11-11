@@ -234,7 +234,7 @@ func skipCaptchaWithoutRestrictRight(bot *gotgbot.Bot, ctx *ext.Context, cause e
 	return fmt.Errorf("%w: %w", errCaptchaCannotRestrict, cause)
 }
 
-// StartCaptchaLifecycle restores persisted attempts and starts the cleanup workers.
+// StartCaptchaLifecycle restores persisted attempts and registers the cleanup workers.
 func StartCaptchaLifecycle(bot *gotgbot.Bot) error {
 	if bot == nil {
 		return errors.New("captcha lifecycle requires a bot")
@@ -257,7 +257,7 @@ func StartCaptchaLifecycle(bot *gotgbot.Bot) error {
 			captchaLifecycleErr = recoverJoinRequestCaptchas(bot)
 		}
 		if captchaLifecycleErr == nil {
-			startCaptchaWorkers(bot)
+			registerCaptchaWorkers(bot)
 		} else {
 			StopCaptchaLifecycle()
 		}
@@ -2100,36 +2100,15 @@ func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
 	}
 }
 
-func startCaptchaWorkers(bot *gotgbot.Bot) {
-	startCaptchaLifecycleTask(func(ctx context.Context) {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				jobs.Run(ctx, "captchaCleanup", func(ctx context.Context) error {
-					return runCaptchaCleanupTick(ctx, bot)
-				})
-			case <-ctx.Done():
-				return
-			}
-		}
+// registerCaptchaWorkers registers the expired-attempt cleanup and the unmute
+// sweep as jobs; registering again (a lifecycle restart) does nothing.
+func registerCaptchaWorkers(bot *gotgbot.Bot) {
+	jobs.Register("captchaCleanup", 5*time.Minute, func(ctx context.Context) error {
+		return runCaptchaCleanupTick(ctx, bot)
 	})
-
-	startCaptchaLifecycleTask(func(ctx context.Context) {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				jobs.Run(ctx, "captchaUnmute", func(context.Context) error {
-					unmuteExpiredCaptchaUsers(bot)
-					return nil
-				})
-			case <-ctx.Done():
-				return
-			}
-		}
+	jobs.Register("captchaUnmute", 5*time.Minute, func(context.Context) error {
+		unmuteExpiredCaptchaUsers(bot)
+		return nil
 	})
 }
 
