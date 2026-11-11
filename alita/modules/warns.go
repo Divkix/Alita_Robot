@@ -300,6 +300,40 @@ func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chat
 	return fmt.Sprintf(temp, args...), true, result.LogMarkup, nil
 }
 
+// deleteWarnTrigger deletes what a /dwarn replied to, or the /swarn command
+// itself; other warn types delete nothing.
+func deleteWarnTrigger(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat, warnType string) {
+	switch warnType {
+	case "dwarn":
+		if msg.ReplyToMessage != nil {
+			if _, deleteErr := msg.ReplyToMessage.Delete(b, nil); deleteErr != nil {
+				log.Errorf("[Warns] Failed to delete message: %v", deleteErr)
+			}
+		}
+	case "swarn":
+		// From PM there is no command message in the group to delete.
+		if !inPM(msg) {
+			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+		}
+	}
+}
+
+// warnKeyboard is a warn reply's buttons below the limit: remove the warn,
+// and open the rules when the chat has them.
+func warnKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat, userID int64, removeWarnText, rulesButtonText string) gotgbot.InlineKeyboardMarkup {
+	row := []gotgbot.InlineKeyboardButton{{
+		Text:         removeWarnText,
+		CallbackData: moderationButtonData("rmWarn", msg, chat, map[string]string{"u": fmt.Sprint(userID)}),
+	}}
+	if len(rules.GetChatRulesInfo(chat.Id).Rules) >= 1 {
+		row = append(row, gotgbot.InlineKeyboardButton{
+			Text: rulesButtonText,
+			Url:  fmt.Sprintf("t.me/%s?start=rules_%d", b.Username, chat.Id),
+		})
+	}
+	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{row}}
+}
+
 // warnThisUser warns userId; issuer carries who issues the warn (warnIssuer
 // for admin commands, the bot itself for automatic warns).
 func (m moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry) error {
@@ -353,19 +387,7 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 		return ext.EndGroups
 	}
 
-	switch warnType {
-	case "dwarn":
-		if msg.ReplyToMessage != nil {
-			if _, deleteErr := msg.ReplyToMessage.Delete(b, nil); deleteErr != nil {
-				log.Errorf("[Warns] Failed to delete message: %v", deleteErr)
-			}
-		}
-	case "swarn":
-		// From PM there is no command message in the group to delete.
-		if !inPM(msg) {
-			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-		}
-	}
+	deleteWarnTrigger(b, msg, chat, warnType)
 
 	// logWarn posts an admin's warn under the warns log category. The bot's
 	// own warns (blacklists) are no admin's: they log under automated, and
@@ -416,35 +438,7 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 		reply += warnEntryLines(b, tr, entries, html.EscapeString)
 	} else {
 		logWarn("WARN")
-		rules := rules.GetChatRulesInfo(chat.Id)
-		removeWarnData := moderationButtonData("rmWarn", msg, chat, map[string]string{"u": fmt.Sprint(u.Id)})
-		if len(rules.Rules) >= 1 {
-			keyboard = gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         removeWarnText,
-							CallbackData: removeWarnData,
-						},
-						{
-							Text: rulesButtonText,
-							Url:  fmt.Sprintf("t.me/%s?start=rules_%d", b.Username, chat.Id),
-						},
-					},
-				},
-			}
-		} else {
-			keyboard = gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         removeWarnText,
-							CallbackData: removeWarnData,
-						},
-					},
-				},
-			}
-		}
+		keyboard = warnKeyboard(b, msg, chat, u.Id, removeWarnText, rulesButtonText)
 
 		temp, _ := tr.GetString("warns_user_warning")
 		reply = fmt.Sprintf(temp, formatting.MentionHtml(u.Id, u.FirstName), numWarns, warnrc.WarnLimit)
