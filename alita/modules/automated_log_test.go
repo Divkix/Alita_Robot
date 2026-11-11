@@ -238,7 +238,7 @@ func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 			}
-			_, _ = settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "kick"))
+			_, _, _ = settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "kick"))
 		},
 	})
 }

@@ -126,7 +126,7 @@ func TestCaptchaFailureEntryHasTheButtonOnlyForABan(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 		}
-		if settled, err := settleCaptchaAttempt(f.bot, attempt, captchaFailed(captchaFailedTimeout, action)); !settled || err != nil {
+		if settled, _, err := settleCaptchaAttempt(f.bot, attempt, captchaFailed(captchaFailedTimeout, action)); !settled || err != nil {
 			t.Fatalf("settleCaptchaAttempt(%s) = (%v, %v), want (true, nil)", action, settled, err)
 		}
 	}

@@ -75,7 +75,7 @@ var captchaLeft = captchaOutcome{ending: captchaEndLeft}
 func settleMemberCaptcha(bot *gotgbot.Bot, chatID, userID int64, outcome captchaOutcome) error {
 	attempt, err := captcha.GetCaptchaAttemptIncludingExpired(userID, chatID)
 	if err == nil && attempt != nil {
-		_, err = settleCaptchaAttempt(bot, attempt, outcome)
+		_, _, err = settleCaptchaAttempt(bot, attempt, outcome)
 	}
 	if outcome.ending == captchaEndLeft {
 		err = errors.Join(err, captcha.DeleteMutedUser(userID, chatID))
@@ -86,10 +86,11 @@ func settleMemberCaptcha(bot *gotgbot.Bot, chatID, userID int64, outcome captcha
 // settleCaptchaAttempt ends attempt with outcome, in one order for every
 // outcome: claim the attempt, deal with the mute, clear or keep the scheduled
 // unmute, remove the prompt, report. settled is false when another ending
-// already claimed the attempt; then nothing else happens. err is work left to
-// retry, the scheduled unmute it kept for the unmute worker, or the failure
-// action Telegram refused.
-func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (settled bool, err error) {
+// already claimed the attempt; then nothing else happens. applied is a failure
+// action that happened, so the member can be told which. err is work left to
+// retry: the scheduled unmute it kept for the unmute worker. A failure action
+// Telegram refused is logged here, not returned, since nothing retries it.
+func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (settled, applied bool, err error) {
 	// The claim deletes the attempt with its stored messages and, unless the
 	// member left, schedules a fallback unmute in one transaction, so a crash
 	// right after it cannot leave the member muted. Reports read the stored
@@ -113,12 +114,11 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 		claimed, err = captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
 	}
 	if err != nil || !claimed {
-		return false, err
+		return false, false, err
 	}
 	var (
-		name    string
-		unban   *gotgbot.InlineKeyboardMarkup
-		applied bool
+		name  string
+		unban *gotgbot.InlineKeyboardMarkup
 	)
 	switch outcome.ending {
 	case captchaEndFailed:
@@ -138,7 +138,7 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 	case applied:
 		reportCaptchaFailure(bot, attempt.ChatID, attempt.UserID, name, outcome.action, outcome.cause, storedCount, unban)
 	}
-	return true, err
+	return true, applied, err
 }
 
 // failCaptchaMember applies outcome's failure action to the claimed
@@ -160,10 +160,12 @@ func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 	}
 	unban, err = executeCaptchaFailureAction(bot, chatID, userID, outcome.action, outcome.cause)
 	if err != nil {
+		log.WithFields(log.Fields{"chat_id": chatID, "user_id": userID, "action": outcome.action, "cause": outcome.cause}).
+			Warnf("[Captcha] Failure action refused; lifting the mute as for a release: %v", err)
 		if outcome.action == "kick" {
 			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
 		}
-		return name, nil, false, errors.Join(err, liftCaptchaMute(bot, chatID, userID))
+		return name, nil, false, liftCaptchaMute(bot, chatID, userID)
 	}
 	if outcome.action == "mute" {
 		return name, unban, true, nil

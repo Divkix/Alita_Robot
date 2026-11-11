@@ -154,7 +154,7 @@ func TestSettleCaptchaReleaseLiftsTheMuteByTheFailureRule(t *testing.T) {
 			bot := newModuleTestBot(client)
 			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
-			settled, err := settleCaptchaAttempt(bot, attempt, captchaReleased)
+			settled, _, err := settleCaptchaAttempt(bot, attempt, captchaReleased)
 			if !settled || !errors.Is(err, tt.wantErr) || (tt.wantErr == nil && err != nil) {
 				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, %v)", settled, err, tt.wantErr)
 			}
@@ -171,7 +171,7 @@ func TestSettleCaptchaReleaseWithPromptAlreadyRemoved(t *testing.T) {
 	bot := newModuleTestBot(client)
 	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
-	if settled, err := settleCaptchaAttempt(bot, attempt, captchaReleased); !settled || err != nil {
+	if settled, _, err := settleCaptchaAttempt(bot, attempt, captchaReleased); !settled || err != nil {
 		t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
 	}
 	client.onlyCall(t, "restrictChatMember")
@@ -183,7 +183,7 @@ func TestSettleCaptchaReleaseOfAnAttemptWhosePromptWasNeverSent(t *testing.T) {
 	bot := newModuleTestBot(client)
 	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 0)
 
-	if settled, err := settleCaptchaAttempt(bot, attempt, captchaReleased); !settled || err != nil {
+	if settled, _, err := settleCaptchaAttempt(bot, attempt, captchaReleased); !settled || err != nil {
 		t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
 	}
 	client.onlyCall(t, "restrictChatMember")
@@ -196,7 +196,7 @@ func TestSettleCaptchaReleaseOfAnAttemptWhosePromptWasNeverSent(t *testing.T) {
 func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 	release := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
 		t.Helper()
-		settled, err := settleCaptchaAttempt(bot, attempt, captchaReleased)
+		settled, _, err := settleCaptchaAttempt(bot, attempt, captchaReleased)
 		if err != nil {
 			t.Fatalf("settleCaptchaAttempt() error = %v", err)
 		}
@@ -213,7 +213,7 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 	// timeout is the timer firing on a chat that kicks on failure.
 	timeout := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
 		t.Helper()
-		settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "kick"))
+		settled, _, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "kick"))
 		if err != nil {
 			t.Fatalf("settleCaptchaAttempt() error = %v", err)
 		}
@@ -221,7 +221,7 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 	}
 	left := func(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) bool {
 		t.Helper()
-		settled, err := settleCaptchaAttempt(bot, attempt, captchaLeft)
+		settled, _, err := settleCaptchaAttempt(bot, attempt, captchaLeft)
 		if err != nil {
 			t.Fatalf("settleCaptchaAttempt() error = %v", err)
 		}
@@ -294,7 +294,7 @@ func TestSettleCaptchaPassClaimsOnlyTheRightAnswerOnTheCurrentPrompt(t *testing.
 			seen := *attempt
 			seen.MessageID = tt.promptID
 
-			settled, err := settleCaptchaAttempt(bot, &seen, captchaPassed(tt.answer, tt.refreshCount, "Member", 3))
+			settled, _, err := settleCaptchaAttempt(bot, &seen, captchaPassed(tt.answer, tt.refreshCount, "Member", 3))
 			if settled != tt.wantSettled || err != nil {
 				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (%v, nil)", settled, err, tt.wantSettled)
 			}
@@ -404,7 +404,7 @@ func TestCaptchaTimeoutAppliesTheChatsFailureActionOnce(t *testing.T) {
 			bot := newModuleTestBot(client)
 			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
-			settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, tt.action))
+			settled, _, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, tt.action))
 			if !settled || err != nil {
 				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
 			}
@@ -443,7 +443,8 @@ func TestCaptchaTimeoutAppliesTheChatsFailureActionOnce(t *testing.T) {
 }
 
 // When the failure action fails the mute is lifted as for a release, and
-// nothing claims the action happened.
+// nothing claims the action happened. The refused action is no error: only an
+// unmute kept for the unmute worker is left to retry.
 func TestCaptchaFailureActionThatFailsLiftsTheMuteAsForARelease(t *testing.T) {
 	temporary := errors.New("temporary Telegram failure")
 	for _, tt := range []struct {
@@ -452,13 +453,14 @@ func TestCaptchaFailureActionThatFailsLiftsTheMuteAsForARelease(t *testing.T) {
 		// The mute and the unmute are both restrictChatMember calls.
 		wantMember    map[string]int
 		wantScheduled int
+		wantErr       error
 	}{
 		{name: "kick", action: "kick", method: "unbanChatMember", actionErr: temporary,
 			wantMember: map[string]int{"unbanChatMember": 2, "banChatMember": 0, "restrictChatMember": 1}},
 		{name: "ban", action: "ban", method: "banChatMember", actionErr: temporary,
 			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 1, "restrictChatMember": 1}},
 		{name: "mute, unmute fails too", action: "mute", method: "restrictChatMember", actionErr: temporary,
-			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 2}, wantScheduled: 1},
+			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 2}, wantScheduled: 1, wantErr: temporary},
 		{name: "mute, member gone meanwhile", action: "mute", method: "restrictChatMember", actionErr: errors.New("Bad Request: USER_NOT_PARTICIPANT"),
 			wantMember: map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 2}},
 	} {
@@ -468,9 +470,10 @@ func TestCaptchaFailureActionThatFailsLiftsTheMuteAsForARelease(t *testing.T) {
 			bot := newModuleTestBot(client)
 			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
-			settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, tt.action))
-			if !settled || !errors.Is(err, tt.actionErr) {
-				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, the action's error)", settled, err)
+			settled, _, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, tt.action))
+			var joined interface{ Unwrap() []error }
+			if !settled || (tt.wantErr == nil && err != nil) || !errors.Is(err, tt.wantErr) || errors.As(err, &joined) {
+				t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, %v): only the unmute left to retry", settled, err, tt.wantErr)
 			}
 			if got := memberCalls(client); !reflect.DeepEqual(got, tt.wantMember) {
 				t.Fatalf("member calls = %v, want %v", got, tt.wantMember)
@@ -510,7 +513,7 @@ func TestCaptchaFailureLeavesAGoneOrBannedMemberAlone(t *testing.T) {
 				bot := newModuleTestBot(client)
 				attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
-				settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, action))
+				settled, _, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, action))
 				if !settled || err != nil {
 					t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
 				}
@@ -533,7 +536,7 @@ func TestCaptchaFailureMuteIsLiftedAfter24Hours(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
-	if settled, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "mute")); !settled || err != nil {
+	if settled, _, err := settleCaptchaAttempt(bot, attempt, captchaFailed(captchaFailedTimeout, "mute")); !settled || err != nil {
 		t.Fatalf("settleCaptchaAttempt() = (%v, %v), want (true, nil)", settled, err)
 	}
 	unmuteExpiredCaptchaUsers(bot)
@@ -716,7 +719,7 @@ func TestApproveReleasesAPendingCaptcha(t *testing.T) {
 	assertParams(t, f.client.onlyCall(t, "restrictChatMember"), targetParams(f.chat.Id, 42))
 	assertDeleted(t, f.client, f.chat.Id, 123)
 	assertCaptchaRows(t, attempt, 0)
-	if settled, err := settleCaptchaAttempt(f.bot, attempt, captchaFailed(captchaFailedTimeout, "ban")); settled || err != nil {
+	if settled, _, err := settleCaptchaAttempt(f.bot, attempt, captchaFailed(captchaFailedTimeout, "ban")); settled || err != nil {
 		t.Fatalf("timeout after /approve = (%v, %v), want (false, nil)", settled, err)
 	}
 	if got, want := memberCalls(f.client), (map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 1}); !reflect.DeepEqual(got, want) {
@@ -753,7 +756,7 @@ func TestLeaveEndsAPendingCaptchaAndRejoinStartsAFreshOne(t *testing.T) {
 	dispatch(gotgbot.ChatMemberRestricted{User: member, IsMember: true}, gotgbot.ChatMemberLeft{User: member})
 	assertDeleted(t, client, chat.Id, 123)
 	assertCaptchaRows(t, old, 0)
-	if settled, err := settleCaptchaAttempt(bot, old, captchaFailed(captchaFailedTimeout, "ban")); settled || err != nil {
+	if settled, _, err := settleCaptchaAttempt(bot, old, captchaFailed(captchaFailedTimeout, "ban")); settled || err != nil {
 		t.Fatalf("timeout after the leave = (%v, %v), want (false, nil)", settled, err)
 	}
 	if got, want := memberCalls(client), (map[string]int{"unbanChatMember": 0, "banChatMember": 0, "restrictChatMember": 0}); !reflect.DeepEqual(got, want) {
