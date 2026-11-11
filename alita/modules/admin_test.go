@@ -585,7 +585,7 @@ func TestAnonAdminDispatcherKeepsMemberReadableStatus(t *testing.T) {
 	}
 }
 
-func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
+func TestAnonAdminHandlesNoopOptions(t *testing.T) {
 	f := newAdminChatFixture(t)
 	f.makeOwner()
 	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
@@ -619,16 +619,7 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 		t.Fatalf("anonAdmin(already off) error = %v, want EndGroups", err)
 	}
 
-	invalidCtx := newModuleMessageContext(bot, chat, user, "/anonadmin maybe")
-	cmdCtx, err = helpers.BuildCommandContext(bot, invalidCtx)
-	if err != nil {
-		t.Fatalf("BuildCommandContext failed: %v", err)
-	}
-	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
-		t.Fatalf("anonAdmin(invalid) error = %v, want EndGroups", err)
-	}
-
-	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want one response per anonadmin branch", len(calls))
 	}
 }

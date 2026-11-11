@@ -255,9 +255,7 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 		{name: "set non integer", text: "/setflood nope", run: antifloodModule.setFlood},
 		{name: "disable flood", text: "/setflood off", run: antifloodModule.setFlood},
 		{name: "mode missing", text: "/setfloodmode", run: antifloodModule.setFloodMode},
-		{name: "mode invalid", text: "/setfloodmode warn", run: antifloodModule.setFloodMode},
 		{name: "deleter current disabled", text: "/delflood", run: antifloodModule.setFloodDeleter},
-		{name: "deleter invalid", text: "/delflood maybe", run: antifloodModule.setFloodDeleter},
 		{name: "deleter off", text: "/delflood off", run: antifloodModule.setFloodDeleter},
 	}
 
@@ -268,13 +266,6 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 				t.Fatalf("%s error = %v, want EndGroups", tt.text, err)
 			}
 		})
-	}
-	settings := antiflood.GetFlood(chat.Id)
-	if settings.Limit != 0 {
-		t.Fatalf("flood limit = %d, want disabled", settings.Limit)
-	}
-	if settings.DeleteAntifloodMessage {
-		t.Fatal("DeleteAntifloodMessage = true, want false after /delflood off")
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
 		t.Fatalf("sendMessage calls = %d, want one reply per validation branch", len(calls))

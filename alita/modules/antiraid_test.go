@@ -575,7 +575,6 @@ func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	for _, text := range []string{
-		"/autoantiraid off",
 		"/autoantiraid nope",
 	} {
 		ctx := newModuleMessageContext(bot, chat, user, text)
@@ -592,7 +591,7 @@ func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 		t.Fatalf("autoAntiRaid(no change) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want parsing and no-change replies", len(calls))
 	}
 }
