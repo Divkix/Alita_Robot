@@ -76,8 +76,8 @@ type settingContract struct {
 	helpRefusal   bool
 }
 
-// Expectations come from the command contract, not the declarations. Later
-// settings add rows here, including their optional button input and side effect.
+// Declarations drive coverage; literal command-contract expectations stay
+// independent of their defaults, values and rights.
 func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 	previousConfig := *config.AppConfig
 	t.Cleanup(func() { *config.AppConfig = previousConfig })
@@ -87,7 +87,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 	config.AppConfig.EnableReputation = true
 	config.AppConfig.EnableDigest = true
 	useRealLocales(t)
-	for _, setting := range []settingContract{
+	contracts := []settingContract{
 		{
 			key: "antiraid.raid_action_time", command: "/raidactiontime",
 			botAdmin:     true,
@@ -495,7 +495,99 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			setOn: "feds_quiet_on", setOff: "feds_quiet_off", refusalKey: "feds_invalid_toggle",
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
-	} {
+	}
+	byKey := make(map[string]settingContract, len(contracts))
+	for _, setting := range contracts {
+		if _, exists := byKey[setting.key]; exists {
+			t.Fatalf("duplicate contract for %s", setting.key)
+		}
+		byKey[setting.key] = setting
+	}
+	t.Run("every offered setting is declared and covered", func(t *testing.T) {
+		declared := make(map[string]bool)
+		for declaration := range settings.All() {
+			if declared[declaration.Key] {
+				t.Fatalf("duplicate declaration for %s", declaration.Key)
+			}
+			declared[declaration.Key] = true
+			if _, covered := byKey[declaration.Key]; !covered {
+				t.Errorf("declaration %s has no surface contract", declaration.Key)
+			}
+		}
+		for key := range byKey {
+			if !declared[key] {
+				t.Errorf("surface contract %s has no declaration", key)
+			}
+		}
+		f := newSettingContractFixture(t, settingContract{inFed: true})
+		response := contractPanelRequest(t, f, f.admin, http.MethodGet, "")
+		if response.Code != http.StatusOK {
+			t.Fatalf("panel read = %d %s", response.Code, response.Body.String())
+		}
+		var body struct {
+			Modules []struct {
+				Key    string `json:"key"`
+				Fields []struct {
+					Key      string `json:"key"`
+					Writable bool   `json:"writable"`
+				} `json:"fields"`
+			} `json:"modules"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		for _, module := range body.Modules {
+			for _, field := range module.Fields {
+				if field.Writable {
+					key := module.Key + "." + field.Key
+					setting, covered := byKey[key]
+					if !declared[key] || !covered || setting.noPanel {
+						t.Errorf("writable panel field %s has no declared surface contract", key)
+					}
+				}
+			}
+		}
+		for _, toggle := range settingsToggles {
+			if toggle.key == "ar" && toggle.command == "/antiraid" {
+				continue // Starting/stopping a raid is an action, not a stored setting.
+			}
+			if toggle.declaration == nil {
+				t.Errorf("stored settings button %s has no declaration", toggle.command)
+				continue
+			}
+			setting, covered := byKey[toggle.declaration.Key]
+			if !declared[toggle.declaration.Key] || !covered || setting.button != toggle.key || setting.command != toggle.command {
+				t.Errorf("stored settings button %s has no declared surface contract", toggle.command)
+			}
+		}
+		// Non-declared rows are counts, content, command-only settings or actions.
+		// Any new settings row must be classified here or covered by the table.
+		summaryCommands := map[string]bool{
+			"/antiraid": true, "/locks": true, "/blacklists": true, "/blaction": true,
+			"/setwelcome": true, "/setgoodbye": true, "/reports showblocklist": true,
+			"/setrules": true, "/rulesbutton": true, "/notes": true, "/filters": true,
+			"/disabled": true, "/approved": true, "/reactions": true, "/logchannel": true,
+			"/logcategories": true, "/chatfed": true,
+		}
+		for _, setting := range contracts {
+			summaryCommands[setting.command] = true
+		}
+		pressSettingsButton(t, f.bot, f.admin, map[string]string{"a": "r", "c": fmt.Sprint(f.chat.Id)})
+		summary := fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"])
+		for _, line := range strings.Split(summary, "\n") {
+			if _, row, found := strings.Cut(line, "<code>/"); found {
+				command, _, _ := strings.Cut(row, "</code> — ")
+				if !summaryCommands["/"+command] {
+					t.Errorf("settings summary row /%s has no declared surface contract or read-only classification", command)
+				}
+			}
+		}
+	})
+	for declaration := range settings.All() {
+		setting, covered := byKey[declaration.Key]
+		if !covered {
+			continue // The coverage subtest reports the missing contract.
+		}
 		if setting.key == "nightmode.lock_types" {
 			// Expectations come from the locks owner, not the declaration's attachment.
 			for _, lockType := range locksModule.getLockMapAsArray() {
@@ -514,6 +606,11 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			})
 			t.Run("invalid stored value uses default", func(t *testing.T) {
 				if setting.seedInvalid == nil {
+					// SQL booleans cannot hold an out-of-domain bool; digest
+					// destinations have both NOT NULL and a domain CHECK.
+					if _, boolean := setting.defaultValue.(bool); !boolean && setting.key != "digest.destination" {
+						t.Fatal("missing invalid stored-value case")
+					}
 					return
 				}
 				f := newSettingContractFixture(t, setting)

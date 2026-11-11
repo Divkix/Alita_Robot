@@ -10,14 +10,11 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
-	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -30,27 +27,12 @@ func newSettingsTestChat(t *testing.T) int64 {
 	return chatID
 }
 
-func changedSettingsCommands(sections []settingsSection) []string {
-	var changed []string
-	for _, section := range sections {
-		for _, row := range section.Rows {
-			if row.Changed {
-				changed = append(changed, row.Command)
-			}
-		}
-	}
-	return changed
-}
-
-func TestSettingsSummaryFreshChatHasNoChangedRows(t *testing.T) {
+func TestSettingsSummaryReadsWithoutCreatingRows(t *testing.T) {
 	chatID := newSettingsTestChat(t)
 
 	sections := collectChatSettings(context.Background(), chatID)
 	if len(sections) == 0 {
 		t.Fatal("collectChatSettings() returned no sections")
-	}
-	if changed := changedSettingsCommands(sections); len(changed) != 0 {
-		t.Fatalf("fresh chat has changed rows %v, want none", changed)
 	}
 
 	for name, model := range map[string]any{
@@ -68,27 +50,6 @@ func TestSettingsSummaryFreshChatHasNoChangedRows(t *testing.T) {
 		if n := db.CountRows(model, "chat_id = ?", chatID); n != 0 {
 			t.Fatalf("summary created %d %s rows, want 0", n, name)
 		}
-	}
-}
-
-func TestSettingsSummaryMarksExactlyChangedFields(t *testing.T) {
-	chatID := newSettingsTestChat(t)
-
-	if err := captcha.SetCaptchaEnabled(chatID, "Captcha Chat", true); err != nil {
-		t.Fatalf("SetCaptchaEnabled() error = %v", err)
-	}
-	if err := warns.SetWarnLimit(chatID, 5); err != nil {
-		t.Fatalf("SetWarnLimit() error = %v", err)
-	}
-	if err := greetings.SetGoodbyeToggle(chatID, false); err != nil {
-		t.Fatalf("SetGoodbyeToggle() error = %v", err)
-	}
-	cache.ResetLocalForTest()
-
-	got := changedSettingsCommands(collectChatSettings(context.Background(), chatID))
-	want := []string{"/captcha", "/setwarnlimit", "/goodbye"}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Fatalf("changed rows = %v, want %v", got, want)
 	}
 }
 

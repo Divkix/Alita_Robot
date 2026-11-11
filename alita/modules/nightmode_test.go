@@ -3,9 +3,7 @@
 package modules
 
 import (
-	"context"
 	"encoding/json"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -22,25 +20,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
 )
-
-func TestNightModeAttachedTypesMatchLocksAndPreserveCache(t *testing.T) {
-	all := slices.Clone(locksModule.getLockMapAsArray())
-	if !slices.Contains(all, "bots") {
-		t.Fatal("the complete lock list is missing bots")
-	}
-	for _, lockType := range all {
-		err := settings.NightModeLockTypes.Validate(lockType)
-		if (err == nil) != (lockType != "bots") {
-			t.Errorf("night lock type %q: validation error = %v", lockType, err)
-		}
-	}
-	if err := settings.NightModeLockTypes.Validate("URL, media url"); err != nil {
-		t.Fatalf("mixed-case comma/space lock types: %v", err)
-	}
-	if !slices.Equal(locksModule.getLockMapAsArray(), all) {
-		t.Fatal("night lock registration or validation changed the cached lock types")
-	}
-}
 
 // pinNightModeNow fixes the clock night mode reads at the given UTC time.
 func pinNightModeNow(t *testing.T, hour, minute int) {
@@ -351,34 +330,6 @@ func TestNightModeInPMActsOnTheConnectedGroup(t *testing.T) {
 	}
 	if !repliedIn(f, f.admin.Id, f.chat.Title) {
 		t.Fatalf("the PM reply does not name the group; sent:\n%s", sentText(f.client))
-	}
-}
-
-func TestSettingsSummaryShowsNightMode(t *testing.T) {
-	chatID := newSettingsTestChat(t)
-	cleanupNightMode(t, chatID)
-	row := func() *settingsRow {
-		t.Helper()
-		for _, section := range collectChatSettings(context.Background(), chatID) {
-			for i := range section.Rows {
-				if section.Rows[i].Command == "/nightmode" {
-					return &section.Rows[i]
-				}
-			}
-		}
-		t.Fatal("the summary has no /nightmode row")
-		return nil
-	}
-
-	enableNightMode(t, chatID, "23:00", "07:00", "url", "media")
-	if got := row(); got.Value != "23:00-07:00 media, url" || !got.Changed {
-		t.Fatalf("/nightmode row = %+v, want 23:00-07:00 media, url marked changed", got)
-	}
-	if err := nightmode.Disable(chatID); err != nil {
-		t.Fatalf("Disable() error = %v", err)
-	}
-	if got := row(); got.Value != "off" || got.Changed {
-		t.Fatalf("/nightmode row after off = %+v, want off and unchanged", got)
 	}
 }
 

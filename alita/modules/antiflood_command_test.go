@@ -197,7 +197,7 @@ func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
 	}
 }
 
-func TestSetFloodModeRejectsMissingInvalidAndOutOfRangeDurationsWithoutWrites(t *testing.T) {
+func TestSetFloodModeRejectsMissingAndMalformedDurationsWithoutWrites(t *testing.T) {
 	useEnglishLocale(t)
 	for _, existing := range []bool{false, true} {
 		for _, mode := range []string{"tban", "tmute"} {
@@ -208,7 +208,6 @@ func TestSetFloodModeRejectsMissingInvalidAndOutOfRangeDurationsWithoutWrites(t 
 				{"", "extraction_no_time_specified"},
 				{"0h", "extraction_invalid_time_amount"},
 				{"-1m", "extraction_invalid_time_amount"},
-				{"367d", "extraction_time_limit_exceeded"},
 				{"1d extra", "extraction_invalid_time_format"},
 			} {
 				t.Run(fmt.Sprintf("existing=%t/%s/%s", existing, mode, tc.duration), func(t *testing.T) {

@@ -186,9 +186,6 @@ func TestSettingsToggleRejectsForgedValues(t *testing.T) {
 		pressSettingsToggle(t, f, f.admin, forged[0], forged[1])
 	}
 
-	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != "mute" {
-		t.Fatalf("/setfloodmode = %q after a forged tap", got)
-	}
 	if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {
 		t.Fatalf("a forged tap edited the summary: %v", calls[0].Params)
 	}

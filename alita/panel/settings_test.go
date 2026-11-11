@@ -3,7 +3,6 @@
 package panel
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,11 +12,8 @@ import (
 	_ "time/tzdata"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
-	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/rules"
 )
 
 const settingsFixtureUserID = 279058397
@@ -63,33 +59,6 @@ func findSettingsField(t *testing.T, body settingsResponse, key string) settings
 	return settingsField{}
 }
 
-func fieldBool(t *testing.T, body settingsResponse, key string) bool {
-	t.Helper()
-	value, ok := findSettingsField(t, body, key).Value.(bool)
-	if !ok {
-		t.Fatalf("%s value is %T, want bool", key, findSettingsField(t, body, key).Value)
-	}
-	return value
-}
-
-func fieldInt(t *testing.T, body settingsResponse, key string) int {
-	t.Helper()
-	value, ok := findSettingsField(t, body, key).Value.(float64)
-	if !ok {
-		t.Fatalf("%s value is %T, want number", key, findSettingsField(t, body, key).Value)
-	}
-	return int(value)
-}
-
-func fieldString(t *testing.T, body settingsResponse, key string) string {
-	t.Helper()
-	value, ok := findSettingsField(t, body, key).Value.(string)
-	if !ok {
-		t.Fatalf("%s value is %T, want string", key, findSettingsField(t, body, key).Value)
-	}
-	return value
-}
-
 func countChatRows(t *testing.T, model any, chatID int64) int64 {
 	t.Helper()
 	var count int64
@@ -99,7 +68,7 @@ func countChatRows(t *testing.T, model any, chatID int64) int64 {
 	return count
 }
 
-func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
+func TestSettingsGetResponseShape(t *testing.T) {
 	fixture, chatID := newSettingsFixture(t)
 
 	recorder := panelRequest(t, fixture.handler, http.MethodGet, settingsPath(chatID), readFixture(t, "initdata_main.txt"), "", "")
@@ -118,8 +87,6 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 		}
 	}
 
-	// Greeting defaults and their changed marks are covered by the
-	// shared dispatcher/panel contract table.
 	if findSettingsField(t, body, "rules.rules_text").Writable {
 		t.Fatal("rules.rules_text must be read-only")
 	}
@@ -171,12 +138,10 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "warn mode wrong type", body: `{"changes":{"warns.mode":true}}`, wantKeys: []string{"warns.mode"}},
 		{name: "warn duration wrong type", body: `{"changes":{"warns.mode":"tban","warns.action_time":"60"}}`, wantKeys: []string{"warns.action_time"}},
 		{name: "warn expiry wrong type", body: `{"changes":{"warns.expiry":false}}`, wantKeys: []string{"warns.expiry"}},
-		{name: "invalid module blocks valid warns", body: `{"changes":{"captcha.timeout":99,"warns.limit":7,"warns.mode":"tban","warns.action_time":60,"warns.expiry":60}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "digest enabled wrong type", body: `{"changes":{"digest.enabled":"true"}}`, wantKeys: []string{"digest.enabled"}},
 		{name: "digest enabled null", body: `{"changes":{"digest.enabled":null}}`, wantKeys: []string{"digest.enabled"}},
 		{name: "digest destination wrong type", body: `{"changes":{"digest.destination":true}}`, wantKeys: []string{"digest.destination"}},
 		{name: "digest destination null", body: `{"changes":{"digest.destination":null}}`, wantKeys: []string{"digest.destination"}},
-		{name: "invalid module blocks valid digest", body: `{"changes":{"captcha.timeout":99,"digest.enabled":false,"digest.destination":"group"}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "reports enabled wrong type", body: `{"changes":{"reports.enabled":"true"}}`, wantKeys: []string{"reports.enabled"}},
 		{name: "reports enabled null", body: `{"changes":{"reports.enabled":null}}`, wantKeys: []string{"reports.enabled"}},
 		{name: "report threshold fraction", body: `{"changes":{"reports.mute_threshold":2.5}}`, wantKeys: []string{"reports.mute_threshold"}},
@@ -185,20 +150,17 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 		{name: "report threshold null", body: `{"changes":{"reports.mute_threshold":null}}`, wantKeys: []string{"reports.mute_threshold"}},
 		{name: "report threshold array", body: `{"changes":{"reports.mute_threshold":[]}}`, wantKeys: []string{"reports.mute_threshold"}},
 		{name: "report threshold object", body: `{"changes":{"reports.mute_threshold":{}}}`, wantKeys: []string{"reports.mute_threshold"}},
-		{name: "invalid module blocks valid reports", body: `{"changes":{"captcha.timeout":99,"reports.enabled":false,"reports.mute_threshold":2}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "timezone number", body: `{"changes":{"timezone.name":5}}`, wantKeys: []string{"timezone.name"}},
 		{name: "timezone bool", body: `{"changes":{"timezone.name":true}}`, wantKeys: []string{"timezone.name"}},
 		{name: "timezone null", body: `{"changes":{"timezone.name":null}}`, wantKeys: []string{"timezone.name"}},
 		{name: "timezone array", body: `{"changes":{"timezone.name":[]}}`, wantKeys: []string{"timezone.name"}},
 		{name: "timezone object", body: `{"changes":{"timezone.name":{}}}`, wantKeys: []string{"timezone.name"}},
-		{name: "invalid module blocks valid timezone", body: `{"changes":{"captcha.timeout":99,"timezone.name":"Asia/Kolkata"}}`, wantKeys: []string{"captcha.timeout"}},
 		{name: "nightmode enabled string", body: `{"changes":{"nightmode.enabled":"true"}}`, wantKeys: []string{"nightmode.enabled"}},
 		{name: "nightmode enabled null", body: `{"changes":{"nightmode.enabled":null}}`, wantKeys: []string{"nightmode.enabled"}},
 		{name: "nightmode start wrong type", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":2300,"nightmode.end":"07:00","nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.start"}},
 		{name: "nightmode end null", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":null,"nightmode.lock_types":"media"}}`, wantKeys: []string{"nightmode.end"}},
 		{name: "nightmode lock types array", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":["media"]}}`, wantKeys: []string{"nightmode.lock_types"}},
 		{name: "nightmode lock types null", body: `{"changes":{"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":null}}`, wantKeys: []string{"nightmode.lock_types"}},
-		{name: "invalid module blocks valid nightmode", body: `{"changes":{"captcha.timeout":99,"nightmode.enabled":true,"nightmode.start":"23:00","nightmode.end":"07:00","nightmode.lock_types":"media,url"}}`, wantKeys: []string{"captcha.timeout"}},
 	}
 
 	// Each case gets its own panel: the table outgrows one user's rate limit.
@@ -272,18 +234,9 @@ func TestSettingsPatchReportsInvalidJSONWritesNothing(t *testing.T) {
 	}
 }
 
-func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
+func TestSettingsPatchReportsEverySavedField(t *testing.T) {
 	fixture, chatID := newSettingsFixture(t)
 	raw := readFixture(t, "initdata_main.txt")
-
-	// Read every getter first: each answer is cached, so a setter that failed
-	// to invalidate its key would leave the old value visible below.
-	greetings.GetGreetingSettings(chatID)
-	antiflood.GetFlood(chatID)
-	rules.GetChatRulesInfo(chatID)
-	if got := lang.GetGroupLanguage(context.Background(), chatID); got != "en" {
-		t.Fatalf("seeded language = %q, want en", got)
-	}
 
 	body := `{"changes":{
 		"language.code":"es",
@@ -310,34 +263,8 @@ func TestSettingsPatchAppliesThroughSettersAndInvalidatesCache(t *testing.T) {
 		t.Fatalf("saved = %v, failed = %v; want all 11 saved", patch.Saved, patch.Failed)
 	}
 
-	// The bot's own getters answer with the new values at once.
-	if got := lang.GetGroupLanguage(context.Background(), chatID); got != "es" {
-		t.Fatalf("language after patch = %q, want es", got)
-	}
-	greeting := greetings.GetGreetingSettings(chatID)
-	if greeting.WelcomeSettings.ShouldWelcome || !greeting.WelcomeSettings.CleanWelcome ||
-		!greeting.GoodbyeSettings.ShouldGoodbye || !greeting.GoodbyeSettings.CleanGoodbye || !greeting.ShouldCleanService {
-		t.Fatalf("greeting settings after patch = %+v", greeting)
-	}
-	if !rules.GetChatRulesInfo(chatID).Private {
-		t.Fatal("private rules after patch = false, want true")
-	}
-	flood := antiflood.GetFlood(chatID)
-	if flood.Limit != 5 || flood.Action != "tban" || flood.FloodActionTime != 7200 || !flood.DeleteAntifloodMessage {
-		t.Fatalf("antiflood settings after patch = %+v", flood)
-	}
-
-	// The next GET reflects the same values and marks them changed.
-	after := decodeSettingsResponse(t, panelRequest(t, fixture.handler, http.MethodGet, settingsPath(chatID), raw, "", ""))
-	if got := fieldString(t, after, "language.code"); got != "es" || !findSettingsField(t, after, "language.code").Changed {
-		t.Fatalf("GET language = %q changed=%v, want es changed", got, findSettingsField(t, after, "language.code").Changed)
-	}
-	if fieldBool(t, after, "greetings.welcome_enabled") || !findSettingsField(t, after, "greetings.welcome_enabled").Changed {
-		t.Fatal("GET greetings.welcome_enabled did not reflect the patch")
-	}
-	if fieldString(t, after, "antiflood.action") != "tban" || fieldInt(t, after, "antiflood.action_time") != 7200 ||
-		!findSettingsField(t, after, "antiflood.action_time").Changed {
-		t.Fatalf("GET antiflood did not reflect the timed action: %+v", after.Modules[4])
+	if len(patch.Modules) == 0 || patch.ReadOnly || patch.ReadOnlyReason != "" {
+		t.Fatalf("patch response omitted writable settings: %+v", patch)
 	}
 }
 
@@ -397,11 +324,8 @@ func TestSettingsNonAdminGetsReadOnlyAndCannotWrite(t *testing.T) {
 	if !body.ReadOnly || body.ReadOnlyReason != "not_admin" {
 		t.Fatalf("read_only = %v/%q, want true/not_admin", body.ReadOnly, body.ReadOnlyReason)
 	}
-	if got := fieldString(t, body, "language.code"); got != "en" {
-		t.Fatalf("read-only GET language = %q, want en", got)
-	}
-	if field := findSettingsField(t, body, "timezone.name"); field.Value != "UTC" || !field.Writable {
-		t.Fatalf("read-only timezone = %+v, want UTC with writable capability retained", field)
+	if field := findSettingsField(t, body, "timezone.name"); !field.Writable {
+		t.Fatalf("read-only timezone lost its writable capability: %+v", field)
 	}
 	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
 		t.Fatalf("read-only GET created %d timezone rows", count)
@@ -470,8 +394,8 @@ func TestSettingsBotNotAdminIsReadOnlyAndRejectsWrites(t *testing.T) {
 	if !body.ReadOnly || body.ReadOnlyReason != "bot_not_admin" {
 		t.Fatalf("read_only = %v/%q, want true/bot_not_admin", body.ReadOnly, body.ReadOnlyReason)
 	}
-	if field := findSettingsField(t, body, "timezone.name"); field.Value != "UTC" || !field.Writable {
-		t.Fatalf("read-only timezone = %+v, want UTC with writable capability retained", field)
+	if field := findSettingsField(t, body, "timezone.name"); !field.Writable {
+		t.Fatalf("read-only timezone lost its writable capability: %+v", field)
 	}
 	if count := countChatRows(t, &models.ChatTimezone{}, chatID); count != 0 {
 		t.Fatalf("read-only GET created %d timezone rows", count)

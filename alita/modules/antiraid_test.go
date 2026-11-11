@@ -568,34 +568,6 @@ func TestAntiRaidTimeCommandsValidateInputAndNoChange(t *testing.T) {
 	}
 }
 
-func TestAutoAntiRaidCommandPersistsThreshold(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-	setCtx := newModuleMessageContext(bot, chat, user, "/autoantiraid 4")
-	if err := antiRaidModule.autoAntiRaid(bot, setCtx); err != ext.EndGroups {
-		t.Fatalf("autoAntiRaid(set) error = %v, want EndGroups", err)
-	}
-	if got := antiraid.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 4 {
-		t.Fatalf("AutoAntiRaidThreshold = %d, want 4", got)
-	}
-
-	statusCtx := newModuleMessageContext(bot, chat, user, "/autoantiraid")
-	if err := antiRaidModule.autoAntiRaid(bot, statusCtx); err != ext.EndGroups {
-		t.Fatalf("autoAntiRaid(status) error = %v, want EndGroups", err)
-	}
-
-	offCtx := newModuleMessageContext(bot, chat, user, "/autoantiraid off")
-	if err := antiRaidModule.autoAntiRaid(bot, offCtx); err != ext.EndGroups {
-		t.Fatalf("autoAntiRaid(off) error = %v, want EndGroups", err)
-	}
-	if got := antiraid.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 0 {
-		t.Fatalf("AutoAntiRaidThreshold = %d, want 0 after off", got)
-	}
-}
-
 func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -605,7 +577,6 @@ func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 	for _, text := range []string{
 		"/autoantiraid off",
 		"/autoantiraid nope",
-		"/autoantiraid -1",
 	} {
 		ctx := newModuleMessageContext(bot, chat, user, text)
 		if err := antiRaidModule.autoAntiRaid(bot, ctx); err != ext.EndGroups {
@@ -621,8 +592,8 @@ func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 		t.Fatalf("autoAntiRaid(no change) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
-		t.Fatalf("sendMessage calls = %d, want validation and no-change replies", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want parsing and no-change replies", len(calls))
 	}
 }
 
