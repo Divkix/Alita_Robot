@@ -607,7 +607,7 @@ func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	}
 }
 
-// Idle counters stay in syncHelperMap until the 10-minute cleaner. A message
+// Idle counters stay in syncHelperMap until the antifloodCleanup job. A message
 // after the 60s burst window must replace that pointer and return. Treating
 // the idle entry as absent makes LoadOrStore fail and the handler spin.
 func TestUpdateFloodWithSettingsReplacesIdleCounter(t *testing.T) {
