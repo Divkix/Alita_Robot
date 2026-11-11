@@ -4,6 +4,7 @@ package modules
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -204,6 +205,12 @@ func TestMembershipIntakeGivesEveryJoinOneVerdict(t *testing.T) {
 			)
 		}, check: func(t *testing.T, j intakeJoin) {
 			require.Equal(t, 1, j.sent(localeText(t, "locks_bot_lock_no_ban_permission")), "one missing-right notice per join")
+		}},
+		{name: "bots locked, ban fails", bot: true, want: want{welcomes: 1, bans: 1}, setup: func(t *testing.T, j intakeJoin) {
+			lockBots(t, j.chat.Id)
+			j.client.errors["banChatMember"] = errors.New("Bad Request: not enough rights to restrict/unrestrict chat member")
+		}, check: func(t *testing.T, j intakeJoin) {
+			require.Zero(t, j.sent(localeText(t, "locks_bot_only_admins")), "a failed ban posts no bots-lock notice")
 		}},
 		{name: "Redis failing, newcomer", want: want{}, setup: func(t *testing.T, j intakeJoin) {
 			require.NoError(t, captcha.SetCaptchaEnabled(j.chat.Id, j.chat.Title, true))

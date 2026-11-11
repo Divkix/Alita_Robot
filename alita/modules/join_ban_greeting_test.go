@@ -171,40 +171,68 @@ func welcomeSent(client *moduleBotClient) bool {
 	return false
 }
 
-// One service message adds A, B and C, and C's join crosses the auto-antiraid
-// threshold. Antiraid bans only C, so A and B, whom nothing banned, must still
-// get the captcha.
+// A, B and C join together, and C's join crosses the auto-antiraid threshold.
+// Antiraid bans only C, so A and B, whom nothing banned, must still get the
+// captcha, once each, however Telegram reports the joins; the raid switching
+// on is announced once.
 func TestRaidSwitchedOnByJoinStillChallengesNewcomersItDidNotBan(t *testing.T) {
-	withMiniredis(t)
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
-	require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
-	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 3))
-	t.Cleanup(func() {
-		_, _ = antiRaidModule.disableRaid(chat.Id)
-	})
-	members := []gotgbot.User{
-		{Id: uniquePositiveUserID(), FirstName: "A"},
-		{Id: uniquePositiveUserID(), FirstName: "B"},
-		{Id: uniquePositiveUserID(), FirstName: "C"},
-	}
-	for _, member := range members {
-		clearRecentJoinProcessing(chat.Id, member.Id)
-	}
+	for _, way := range joinWays {
+		t.Run(strings.Join(way, " then "), func(t *testing.T) {
+			useRealLocales(t)
+			withMiniredis(t)
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Join Guard Chat"}
+			require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
+			require.NoError(t, antiraid.SetAutoAntiRaidThreshold(chat.Id, 3))
+			t.Cleanup(func() {
+				_, _ = antiRaidModule.disableRaid(chat.Id)
+			})
+			members := []gotgbot.User{
+				{Id: uniquePositiveUserID(), FirstName: "A"},
+				{Id: uniquePositiveUserID(), FirstName: "B"},
+				{Id: uniquePositiveUserID(), FirstName: "C"},
+			}
+			for _, member := range members {
+				clearRecentJoinProcessing(chat.Id, member.Id)
+			}
 
-	dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
-		MessageId: 11, Date: 1, Chat: chat, From: &members[0], NewChatMembers: members,
-	}})
+			for _, via := range way {
+				if via == viaMessage {
+					dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{
+						MessageId: 11, Date: 1, Chat: chat, From: &members[0], NewChatMembers: members,
+					}})
+					continue
+				}
+				for i, member := range members {
+					dispatchJoinGuards(t, bot, &gotgbot.Update{UpdateId: int64(2 + i), ChatMember: &gotgbot.ChatMemberUpdated{
+						Chat:          chat,
+						From:          member,
+						Date:          1,
+						OldChatMember: gotgbot.ChatMemberLeft{User: member},
+						NewChatMember: gotgbot.ChatMemberMember{User: member},
+					}})
+				}
+			}
 
-	require.True(t, antiRaidModule.isRaidActive(chat.Id), "the third join must switch the raid on")
-	bans := client.callsFor("banChatMember")
-	require.Len(t, bans, 1)
-	require.Equal(t, fmt.Sprint(members[2].Id), fmt.Sprint(bans[0].Params["user_id"]))
-	for _, member := range members[:2] {
-		require.True(t, captchaSentTo(t, chat.Id, member.Id), "%s joined before the raid and was not banned", member.FirstName)
+			require.True(t, antiRaidModule.isRaidActive(chat.Id), "the third join must switch the raid on")
+			bans := client.callsFor("banChatMember")
+			require.Len(t, bans, 1)
+			require.Equal(t, fmt.Sprint(members[2].Id), fmt.Sprint(bans[0].Params["user_id"]))
+			restricts := map[string]int{}
+			for _, call := range client.callsFor("restrictChatMember") {
+				restricts[fmt.Sprint(call.Params["user_id"])]++
+			}
+			for _, member := range members[:2] {
+				require.True(t, captchaSentTo(t, chat.Id, member.Id), "%s joined before the raid and was not banned", member.FirstName)
+				require.Equal(t, 1, restricts[fmt.Sprint(member.Id)], "%s is challenged once", member.FirstName)
+			}
+			require.False(t, captchaSentTo(t, chat.Id, members[2].Id), "C was banned on join")
+			notice, err := i18n.MustNewTranslator("en").GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": "3"})
+			require.NoError(t, err)
+			require.Equal(t, 1, intakeJoin{client: client}.sent(notice), "one notice when the raid switches on")
+		})
 	}
-	require.False(t, captchaSentTo(t, chat.Id, members[2].Id), "C was banned on join")
 }
 
 // With a raid on, antiraid bans a newcomer for the raid action time however
