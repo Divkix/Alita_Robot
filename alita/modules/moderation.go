@@ -378,25 +378,27 @@ func (c *moderationCtx) lift(t *target, mode punishment.Mode) error {
 	})
 }
 
-// applyPunishment is punishment.Apply for a moderator's action: a refusal is
-// an error too, as no command or button asks for one the module refuses.
+// punisher is the punishment.Apply seam watchers take so tests can observe
+// their decision.
+type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
+
+// applyPunishment is punishment.Apply for an action that never asks for one
+// the module refuses: a refusal is an error too.
 func applyPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
 	result, err := punishment.Apply(ctx, b, request)
-	if err == nil && !result.Applied {
-		err = errors.New(result.Reason)
-	}
-	return result, err
+	return result, refusalError(result, err)
 }
 
-// liftPunishment is punishment.Lift for a moderator's action. A lift Telegram
-// accepted counts even when its ban record could not be closed; Lift logged it.
+// liftPunishment is punishment.Lift for a moderator's action; a refusal is an
+// error too.
 func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.LiftRequest) error {
 	result, err := punishment.Lift(ctx, b, request)
-	if result.Applied {
-		return nil
-	}
-	if err == nil {
-		err = errors.New(result.Reason)
+	return refusalError(result, err)
+}
+
+func refusalError(result punishment.Result, err error) error {
+	if err == nil && !result.Applied {
+		return errors.New(result.Refusal)
 	}
 	return err
 }

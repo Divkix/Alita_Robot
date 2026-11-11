@@ -306,7 +306,7 @@ func TestRaidBanRecordsTheEndItWasMadeWith(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
 	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chat.Id).Delete(&models.BanRecord{}).Error })
 
-	banRaidMember(bot, &chat, 4253, 30)
+	banRaidMember(bot, nil, &chat, 4253, 30)
 
 	until, err := strconv.ParseInt(fmt.Sprint(client.onlyCall(t, "banChatMember").Params["until_date"]), 10, 64)
 	if err != nil {

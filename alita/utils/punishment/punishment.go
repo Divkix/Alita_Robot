@@ -33,11 +33,13 @@ type Target struct {
 	SenderChat bool
 }
 
-// Request uses a zero Duration for a permanent action and ActorID 0 for the bot.
+// Request uses ActorID 0 for the bot.
 type Request struct {
-	ChatID   int64
-	Target   Target
-	Mode     Mode
+	ChatID int64
+	Target Target
+	Mode   Mode
+	// Duration 0 means untimed: a permanent ban or mute. Callers normalise a
+	// stored duration first, so a timed setting never reaches Apply as 0.
 	Duration time.Duration
 	Source   string
 	Reason   string
@@ -45,33 +47,33 @@ type Request struct {
 	ActorID  int64
 }
 
+// Result's Refusal says why nothing was applied; it is empty when Applied.
 type Result struct {
 	Applied   bool
 	UntilDate int64
 	RecordID  int64
 	LogMarkup *gotgbot.InlineKeyboardMarkup
-	Reason    string
+	Refusal   string
 }
 
 // Apply reports a refusal without making an API call, or returns the Telegram
 // error. A successful ban remains applied even when its record cannot be saved.
 func Apply(ctx context.Context, bot *gotgbot.Bot, request Request) (Result, error) {
 	if request.Target.SenderChat && (request.Mode != Ban || request.Duration != 0) {
-		return Result{Reason: "sender chats only support permanent bans"}, nil
+		return Result{Refusal: "sender chats only support permanent bans"}, nil
 	}
 	if request.Mode == Kick && request.Duration != 0 {
-		return Result{Reason: "kick does not support a duration"}, nil
+		return Result{Refusal: "kick does not support a duration"}, nil
 	}
 	now := time.Now()
 	var untilDate int64
 	if request.Duration != 0 {
 		var ok bool
-		if request.Duration > window.MaxSeconds*time.Second {
-			return Result{Reason: "duration outside Telegram's temporary window"}, nil
+		if request.Duration%time.Second == 0 {
+			untilDate, ok = window.UntilDate(now.Unix(), int64(request.Duration/time.Second))
 		}
-		untilDate, ok = window.UntilDate(now.Unix(), int64(request.Duration/time.Second))
 		if !ok {
-			return Result{Reason: "duration outside Telegram's temporary window"}, nil
+			return Result{Refusal: "duration outside Telegram's temporary window"}, nil
 		}
 	}
 	var err error
@@ -87,10 +89,10 @@ func Apply(ctx context.Context, bot *gotgbot.Bot, request Request) (Result, erro
 	case Mute:
 		_, err = bot.RestrictChatMemberWithContext(ctx, request.ChatID, request.Target.ID, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 	default:
-		return Result{Reason: "unsupported mode"}, nil
+		return Result{Refusal: "unsupported mode"}, nil
 	}
 	if err != nil {
-		return Result{Reason: err.Error()}, err
+		return Result{Refusal: err.Error()}, err
 	}
 	result := Result{Applied: true, UntilDate: untilDate}
 	if request.Mode != Ban {
@@ -138,8 +140,9 @@ type LiftRequest struct {
 	ActorID int64
 }
 
-// Lift closes a ban's record only after Telegram accepts the unban. Mutes
-// restore the group's own defaults, never an unrestricted permission set.
+// Lift closes a ban's record only after Telegram accepts the unban; a record
+// that cannot be closed is logged and the lift still counts. Mutes restore the
+// group's own defaults, never an unrestricted permission set.
 func Lift(ctx context.Context, bot *gotgbot.Bot, request LiftRequest) (Result, error) {
 	var err error
 	switch request.Mode {
@@ -151,7 +154,7 @@ func Lift(ctx context.Context, bot *gotgbot.Bot, request LiftRequest) (Result, e
 		}
 	case Mute:
 		if request.Target.SenderChat {
-			return Result{Reason: "sender chats cannot be muted"}, nil
+			return Result{Refusal: "sender chats cannot be muted"}, nil
 		}
 		var chat *gotgbot.ChatFullInfo
 		chat, err = bot.GetChatWithContext(ctx, request.ChatID, nil)
@@ -159,17 +162,16 @@ func Lift(ctx context.Context, bot *gotgbot.Bot, request LiftRequest) (Result, e
 			_, err = bot.RestrictChatMemberWithContext(ctx, request.ChatID, request.Target.ID, unmutePermissions(chat), nil)
 		}
 	default:
-		return Result{Reason: "unsupported lift mode"}, nil
+		return Result{Refusal: "unsupported lift mode"}, nil
 	}
 	if err != nil {
-		return Result{Reason: err.Error()}, err
+		return Result{Refusal: err.Error()}, err
 	}
 	if request.Mode == Ban {
 		if _, err := bans.Lift(request.ChatID, request.Target.ID, request.ActorID); err != nil {
 			log.WithContext(ctx).WithError(err).WithFields(log.Fields{
 				"chat_id": request.ChatID, "user_id": request.Target.ID,
 			}).Error("[Bans] Failed to close the ban record")
-			return Result{Applied: true}, err
 		}
 	}
 	return Result{Applied: true}, nil

@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"strconv"
@@ -343,22 +342,23 @@ func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) erro
 	return fmt.Errorf("anti-raid state changed concurrently")
 }
 
-func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTime int) {
+func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64, actionTime int) {
+	reqCtx := tracing.UpdateContext(ctx)
 	// A zero duration would be a permanent ban in the module; raid never bans for good.
 	if actionTime == 0 {
-		log.Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
+		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
 		return
 	}
-	result, err := punishment.Apply(context.Background(), bot, punishment.Request{
+	result, err := punishment.Apply(reqCtx, bot, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
 		Duration: time.Duration(actionTime) * time.Second, Source: models.BanSourceAntiraid,
 	})
 	if err != nil {
-		log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
+		log.WithContext(reqCtx).WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
 		return
 	}
 	if !result.Applied {
-		log.Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d: %s", actionTime, userID, chat.Id, result.Reason)
+		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d: %s", actionTime, userID, chat.Id, result.Refusal)
 		return
 	}
 	// Take the join so greetings sends the banned user no captcha or welcome.
@@ -404,7 +404,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Fed-ban (group -6) has banned a fbanned newcomer for good; a raid
 			// ban with an until_date on top could make that ban temporary.
 			if !fedBannedInChat(ctx, chat.Id, member.Id) {
-				banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+				banRaidMember(bot, ctx, chat, member.Id, settings.RaidActionTime)
 			}
 		}
 

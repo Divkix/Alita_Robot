@@ -2,7 +2,6 @@ package modules
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"time"
 
@@ -77,12 +76,9 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 		release()
 		return
 	}
-	result, err := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+	result, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: target.Id}, Mode: punishment.Mute, Duration: reportAutoMuteDuration,
 	})
-	if err == nil && !result.Applied {
-		err = errors.New(result.Reason)
-	}
 	if err != nil {
 		log.Debugf("[Reports] auto-mute of %d in %d failed: %v", target.Id, chat.Id, err)
 		release()

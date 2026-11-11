@@ -78,6 +78,13 @@ func spamDBSources(settings *models.SpamDBSettings) []spamdb.Source {
 	return sources
 }
 
+// spamDBPunishments maps the chat's spam database action to its punishment;
+// ActionLog punishes nobody.
+var spamDBPunishments = map[string]punishment.Mode{
+	spamdbsettings.ActionBan:  punishment.Ban,
+	spamdbsettings.ActionMute: punishment.Mute,
+}
+
 // checkSpamDB looks every new member up in the chat's databases and, when one
 // lists them, applies the chat's action and reports it to the log channel
 // only, so a raid does not flood the group with notices. A failed lookup lets
@@ -125,11 +132,11 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 		var logMarkup *gotgbot.InlineKeyboardMarkup
 		if settings.Action != spamdbsettings.ActionLog {
 			result, err := punishment.Apply(reqCtx, b, punishment.Request{
-				ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: punishment.Mode(settings.Action),
+				ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: spamDBPunishments[settings.Action],
 				Source: models.BanSourceSpamDB, Detail: source.Name(),
 			})
 			if err != nil || !result.Applied {
-				log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": result.Reason}).Warnf("[SpamDB] %s failed", settings.Action)
+				log.WithContext(reqCtx).WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": result.Refusal}).Warnf("[SpamDB] %s failed", settings.Action)
 				outcome += " (failed)"
 			} else {
 				logMarkup = result.LogMarkup

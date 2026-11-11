@@ -1602,20 +1602,18 @@ func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64
 // the log entry's Unban button (nil unless a ban was recorded). A mute gets no
 // Telegram until_date: captcha's unmute worker lifts it after 24 hours.
 func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action, cause string) (*gotgbot.InlineKeyboardMarkup, error) {
-	mute := action == string(punishment.Mute)
+	mode, _ := chatsettings.PunishmentMode(action)
+	mute := mode == punishment.Mute
 	unmuteAt := time.Now().Add(24 * time.Hour)
 	if mute {
 		if err := captcha.CreateMutedUser(userID, chatID, unmuteAt); err != nil {
 			return nil, fmt.Errorf("store automatic unmute: %w", err)
 		}
 	}
-	result, err := punishment.Apply(context.Background(), bot, punishment.Request{
-		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Mode(action),
+	result, err := applyPunishment(context.Background(), bot, punishment.Request{
+		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: mode,
 		Source: models.BanSourceCaptcha, Detail: cause,
 	})
-	if err == nil && !result.Applied {
-		err = errors.New(result.Reason)
-	}
 	if err != nil {
 		err = fmt.Errorf("%s: %w", action, err)
 		if mute {

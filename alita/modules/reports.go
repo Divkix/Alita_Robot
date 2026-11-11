@@ -444,13 +444,10 @@ var legacyReportStatus = map[string]string{
 // applyReportPunishment punishes userID in chatID on admin actorID's report
 // decision. A ban is recorded with reason; a refusal is an error.
 func applyReportPunishment(ctx context.Context, b *gotgbot.Bot, chatID, userID int64, mode punishment.Mode, actorID int64, reason string) error {
-	result, err := punishment.Apply(ctx, b, punishment.Request{
+	_, err := applyPunishment(ctx, b, punishment.Request{
 		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: mode,
 		Source: models.BanSourceReport, Reason: reason, ActorID: actorID,
 	})
-	if err == nil && !result.Applied {
-		err = errors.New(result.Reason)
-	}
 	return err
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 var FloodMode, FloodActionTime = moderationMode("antiflood.action", "antiflood.action_time",
@@ -28,6 +29,25 @@ var WarnMode, WarnActionTime = moderationMode("warns.mode", "warns.action_time",
 // IsTimedMode reports whether moderation needs a duration supplied by the user.
 func IsTimedMode(mode string) bool {
 	return mode == "tban" || mode == "tmute"
+}
+
+// PunishmentMode maps a stored moderation mode (ban, kick, mute, tban, tmute)
+// to the punishment it applies and whether it takes a duration. An unknown
+// mode maps to "", which punishment.Apply refuses.
+func PunishmentMode(mode string) (punishment.Mode, bool) {
+	switch mode {
+	case "ban":
+		return punishment.Ban, false
+	case "tban":
+		return punishment.Ban, true
+	case "kick":
+		return punishment.Kick, false
+	case "mute":
+		return punishment.Mute, false
+	case "tmute":
+		return punishment.Mute, true
+	}
+	return "", false
 }
 
 func effectiveModeDuration(mode string, seconds, def int) int {

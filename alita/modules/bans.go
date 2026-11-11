@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -579,8 +580,9 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		return err
 	}
 
+	mode, _ := chatsettings.PunishmentMode(action)
 	if _, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
-		ChatID: chat.Id, Target: punishment.Target{ID: userId}, Mode: punishment.Mode(action),
+		ChatID: chat.Id, Target: punishment.Target{ID: userId}, Mode: mode,
 		Source: models.BanSourceManual, ActorID: user.Id,
 	}); err != nil {
 		log.Error(err)

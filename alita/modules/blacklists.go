@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -482,13 +483,14 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 
 	// A channel is banned for good or left alone: the module refuses it any
 	// other mode, and banChatSenderChat takes no until_date.
+	mode, timed := chatsettings.PunishmentMode(matched.Action)
 	request := punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: user.Id(), SenderChat: user.IsAnonymousChannel()},
-		Mode: punishment.Mode(strings.TrimPrefix(matched.Action, "t")), Source: models.BanSourceBlacklist, Reason: banReason,
+		Mode: mode, Source: models.BanSourceBlacklist, Reason: banReason,
 	}
 	action := matched.Action
 	var durationArgs []any
-	if action == "tban" || action == "tmute" {
+	if timed {
 		actionTime := blacklistActionTime(matched)
 		request.Duration = time.Duration(actionTime) * time.Second
 		action += " " + formatDuration(actionTime)

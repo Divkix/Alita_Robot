@@ -274,25 +274,26 @@ var warnLimitReplyKeys = map[string]string{
 func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chatID int64, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, logMarkup *gotgbot.InlineKeyboardMarkup, err error) {
 	key, ok := warnLimitReplyKeys[warnrc.WarnMode]
 	if !ok {
-		log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+		log.WithContext(ctx).Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
 		return "", false, nil, nil
 	}
+	mode, timed := chatsettings.PunishmentMode(warnrc.WarnMode)
 	request := punishment.Request{
-		ChatID: chatID, Target: punishment.Target{ID: u.Id}, Mode: punishment.Mode(strings.TrimPrefix(warnrc.WarnMode, "t")),
+		ChatID: chatID, Target: punishment.Target{ID: u.Id}, Mode: mode,
 		Source: models.BanSourceWarn, Reason: reason, ActorID: bannedBy,
 	}
 	args := []any{numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName)}
-	if chatsettings.IsTimedMode(warnrc.WarnMode) {
+	if timed {
 		request.Duration = time.Duration(warnrc.WarnActionTime) * time.Second
 		args = append(args, formatDuration(warnrc.WarnActionTime))
 	}
 	result, err := apply(ctx, b, request)
 	if err != nil {
-		log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, u.Id, err)
+		log.WithContext(ctx).Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, u.Id, err)
 		return "", false, nil, err
 	}
 	if !result.Applied {
-		log.Warnf("[Warns] Warn mode %s not applied: %s", warnrc.WarnMode, result.Reason)
+		log.WithContext(ctx).Warnf("[Warns] Warn mode %s not applied: %s", warnrc.WarnMode, result.Refusal)
 		return "", false, nil, nil
 	}
 	temp, _ := tr.GetString(key)

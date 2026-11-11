@@ -65,7 +65,7 @@ func TestPunishmentMatrix(t *testing.T) {
 						supported := (!senderChat || mode == punishment.Ban && duration == 0) && (mode != punishment.Kick || duration == 0) &&
 							(duration == 0 || duration >= 30*time.Second && duration <= 366*24*time.Hour)
 						if !supported {
-							if result.Applied || result.Reason == "" || err != nil || len(f.client.callsFor(method)) != 0 {
+							if result.Applied || result.Refusal == "" || err != nil || len(f.client.callsFor(method)) != 0 {
 								t.Fatalf("unsupported action = %+v, %v; calls = %+v", result, err, f.client.calls)
 							}
 						} else {
@@ -76,10 +76,10 @@ func TestPunishmentMatrix(t *testing.T) {
 							}
 							assertParams(t, call, params)
 							if failure == "telegram" {
-								if result.Applied || result.Reason == "" || !errors.Is(err, requestErr) {
+								if result.Applied || result.Refusal == "" || !errors.Is(err, requestErr) {
 									t.Fatalf("refused action = %+v, %v", result, err)
 								}
-							} else if !result.Applied || result.Reason != "" || err != nil {
+							} else if !result.Applied || result.Refusal != "" || err != nil {
 								t.Fatalf("accepted action = %+v, %v", result, err)
 							}
 							if duration != 0 {
@@ -178,7 +178,7 @@ func testPunishmentLifts(t *testing.T) {
 						})
 						supported := mode == punishment.Ban || mode == punishment.Mute && !senderChat
 						refused := supported && (failure == "telegram" || failure == "getChat" && mode == punishment.Mute)
-						if result.Applied != (supported && !refused) || errors.Is(err, requestErr) != refused || result.Applied == (result.Reason != "") {
+						if result.Applied != (supported && !refused) || errors.Is(err, requestErr) != refused || result.Applied == (result.Refusal != "") {
 							t.Fatalf("Lift = %+v, %v", result, err)
 						}
 						record, loadErr := bans.Latest(f.chat.Id, target.ID)

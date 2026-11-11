@@ -263,10 +263,6 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 	return
 }
 
-// punisher is the punishment.Apply seam watchers take so tests can observe
-// their decision.
-type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
-
 func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.checkFloodWithPunisher(b, ctx, punishment.Apply)
 }
@@ -366,11 +362,12 @@ func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, a
 		_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
 	}
 
+	mode, timed := chatsettings.PunishmentMode(flood.Action)
 	request := punishment.Request{
 		ChatID: chatId, Target: punishment.Target{ID: userId, SenderChat: !user.IsUser()},
-		Mode: punishment.Mode(strings.TrimPrefix(flood.Action, "t")), Source: models.BanSourceAntiflood,
+		Mode: mode, Source: models.BanSourceAntiflood,
 	}
-	if chatsettings.IsTimedMode(flood.Action) {
+	if timed {
 		request.Duration = time.Duration(flood.FloodActionTime) * time.Second
 	}
 	result, err := apply(tracing.UpdateContext(ctx), b, request)
