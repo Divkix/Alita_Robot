@@ -366,10 +366,10 @@ func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 	return true
 }
 
-// raidGuards reports whether antiraid acts on userID joining the chat in
+// raidApplies reports whether antiraid acts on userID joining the chat in
 // ctx: a group the bot can ban in, and a newcomer who is not the bot, an
 // approved user or an admin.
-func raidGuards(bot *gotgbot.Bot, ctx *ext.Context, userID int64) bool {
+func raidApplies(bot *gotgbot.Bot, ctx *ext.Context, userID int64) bool {
 	chat := ctx.EffectiveChat
 	if chat == nil || (chat.Type != "group" && chat.Type != "supergroup") || userID == bot.Id {
 		return false
@@ -395,7 +395,7 @@ func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID in
 	}
 	// Settings and raid state first: they are cached, the bot's rights may not be.
 	settings := chatsettings.ReadAntiRaid(chat.Id)
-	if settings.AutoAntiRaidThreshold <= 0 || a.isRaidActive(chat.Id) || !raidGuards(bot, ctx, userID) {
+	if settings.AutoAntiRaidThreshold <= 0 || a.isRaidActive(chat.Id) || !raidApplies(bot, ctx, userID) {
 		return
 	}
 	count, err := trackJoin(chat.Id, userID)
@@ -433,7 +433,7 @@ func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID in
 // failed ban lets the member on to the next stage.
 func (a *antiRaidStruct) antiRaidStage(bot *gotgbot.Bot, ctx *ext.Context, member gotgbot.User) StageAnswer {
 	chat := ctx.EffectiveChat
-	if chat == nil || !a.isRaidActive(chat.Id) || !raidGuards(bot, ctx, member.Id) || fedBannedInChat(ctx, chat.Id, member.Id) {
+	if chat == nil || !a.isRaidActive(chat.Id) || !raidApplies(bot, ctx, member.Id) || fedBannedInChat(ctx, chat.Id, member.Id) {
 		return StageNotApplicable
 	}
 	if !banRaidMember(bot, ctx, chat, member.Id, chatsettings.ReadAntiRaid(chat.Id).RaidActionTime) {
