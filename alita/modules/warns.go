@@ -62,14 +62,15 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 		mode := strings.ToLower(args[0])
 		if settings.WarnMode.Validate(mode) == nil {
 			actionTime := 0
-			if settings.IsTimedMode(mode) || len(args) > 1 && args[1] != "0" {
+			changes := map[string]any{settings.WarnMode.Key: mode}
+			if settings.IsTimedMode(mode) {
 				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
 				if seconds == -1 {
 					return ext.EndGroups
 				}
 				actionTime = int(seconds)
+				changes[settings.WarnActionTime.Key] = actionTime
 			}
-			changes := map[string]any{settings.WarnMode.Key: mode, settings.WarnActionTime.Key: actionTime}
 			input := settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
 			if len(settings.ValidateChanges(input, changes)) != 0 {
 				replyText, _ = tr.GetString("warns_specify_action")

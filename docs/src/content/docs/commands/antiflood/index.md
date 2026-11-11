@@ -69,7 +69,7 @@ Most commands in this module require **admin permissions** in the group.
 **Defaults:**
 - Flood action defaults to **mute** if not explicitly set
 - Message deletion on flood (`/delflood`) defaults to **off**; when off, only the message that triggers antiflood is deleted, and when on, every tracked message of the flood is deleted
-- Temporary actions require a duration from **1 minute to 366 days**, using `m`, `h`, `d`, or `w`. Switching to ban, kick, or mute clears the duration.
+- Temporary actions require a duration from **1 minute to 366 days**, using `m`, `h`, `d`, or `w`. Switching to ban, kick, or mute clears the duration; any extra duration argument on these commands is ignored.
 - Older temporary-action settings without a usable duration keep the **one-hour** fallback. Temporary actions do not punish channel senders.
 
 ## Technical Notes

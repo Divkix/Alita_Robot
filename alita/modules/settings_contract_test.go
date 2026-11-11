@@ -1893,13 +1893,13 @@ func testContractModeRelationship(t *testing.T, setting settingContract) {
 			assertContractRead(t, f, setting, tc.mode, label, true)
 		})
 	}
-	t.Run("untimed refuses unused command duration", func(t *testing.T) {
+	t.Run("untimed ignores unused command duration", func(t *testing.T) {
 		f := newSettingContractFixture(t, setting)
-		contractDispatch(t, f, f.admin, setting.command+" ban 1m")
-		assertContractRowCount(t, f, setting, 0)
-		assertContractRead(t, f, setting, "mute", "mute", false)
-		contractDispatch(t, f, f.admin, setting.command+" ban 0")
-		assertContractRead(t, f, setting, "ban", "ban", true)
+		for _, extra := range []string{"1h", "0", "not-a-duration"} {
+			contractDispatch(t, f, f.admin, setting.command+" tmute 1h")
+			contractDispatch(t, f, f.admin, setting.command+" ban "+extra)
+			assertContractRead(t, f, setting, "ban", "ban", true)
+		}
 	})
 	t.Run("untimed duration only", func(t *testing.T) {
 		f := newSettingContractFixture(t, setting)

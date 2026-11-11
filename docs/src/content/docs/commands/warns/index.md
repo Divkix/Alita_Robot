@@ -20,7 +20,7 @@ If you're looking for automated warnings, read about the blacklist module!
 - /resetwarns: Reset all of a user's warnings to 0.
 - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns. (creator only)
 - /warnings: Get the chat's warning settings.
-- /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
+- /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode. Timed modes require a duration; ban, kick and mute ignore any extra duration and clear the stored duration.
 - /setwarntime <time/off>: Set how long a warn counts, e.g. 30d; off keeps warns forever. Warns issued before the bot recorded warn times never expire; /resetwarns removes them.
 - /setwarnlimit <number>: Set the number of warnings before users are punished.
 

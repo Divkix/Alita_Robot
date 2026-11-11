@@ -532,15 +532,16 @@ func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		if settings.FloodMode.Validate(selectedMode) == nil {
 			actionTime := 0
+			changes := map[string]any{settings.FloodMode.Key: selectedMode}
 			timed := settings.IsTimedMode(selectedMode)
-			if timed || len(args) > 1 && args[1] != "0" {
+			if timed {
 				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
 				if seconds == -1 {
 					return ext.EndGroups
 				}
 				actionTime = int(seconds)
+				changes[settings.FloodActionTime.Key] = actionTime
 			}
-			changes := map[string]any{settings.FloodMode.Key: selectedMode, settings.FloodActionTime.Key: actionTime}
 			input := settings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
 			if len(settings.ValidateChanges(input, changes)) != 0 {
 				text, _ := tr.GetString("antiflood_setfloodmode_specify_action")
