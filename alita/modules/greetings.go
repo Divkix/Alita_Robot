@@ -17,7 +17,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -483,9 +482,6 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := settleMemberCaptcha(bot, chat.Id, leftMember.Id, captchaLeft); err != nil {
 		log.Errorf("Failed to end the captcha of leaving user %d: %v", leftMember.Id, err)
-	}
-	if err := captcha.DeleteMutedUser(leftMember.Id, chat.Id); err != nil {
-		log.Errorf("Failed to delete scheduled captcha unmute for leaving user %d: %v", leftMember.Id, err)
 	}
 	endProbationOnLeave(tracing.UpdateContext(ctx), chat.Id, leftMember.Id)
 
