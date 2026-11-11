@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 	settings.AttachCaptchaRelease(func(_ *gotgbot.Bot, _ int64) error {
 		return errors.New("captcha release is exercised by the cross-surface module tests")
 	})
+	settings.AttachNightModeLockTypes([]string{"all", "media", "photo", "url"})
 	os.Exit(testdb.Run(m,
 		&models.GreetingSettings{},
 		&models.RulesSettings{},

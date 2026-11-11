@@ -1,10 +1,10 @@
 package panel
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"slices"
 	"strings"
@@ -12,23 +12,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/chattz"
-	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
-	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/nightmode"
-	"github.com/divkix/Alita_Robot/alita/db/reports"
-	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
 )
-
-// languageCodes is the set /lang offers and ChangeGroupLanguage accepts.
-var languageCodes = []string{"en", "es", "fr", "hi", "id", "pt", "ru"}
 
 // settingsField is one editable or readable setting. Type is one of bool, int,
 // string or list; Options lists the accepted strings when it is an enum.
@@ -80,10 +70,6 @@ func settingsBool(key string, value, def bool, writable bool) settingsField {
 	return settingsField{Key: key, Type: "bool", Value: value, Default: def, Changed: value != def, Writable: writable}
 }
 
-func settingsInt(key string, value, def int, writable bool) settingsField {
-	return settingsField{Key: key, Type: "int", Value: value, Default: def, Changed: value != def, Writable: writable}
-}
-
 func settingsString(key, value, def string, writable bool, options []string) settingsField {
 	return settingsField{
 		Key:      key,
@@ -105,7 +91,7 @@ func declaredSettingsField(chatID int64, declaration *settings.Declaration) sett
 		fieldType = "bool"
 	case settings.Number, settings.Duration:
 		fieldType = "int"
-	case settings.Choice:
+	case settings.Choice, settings.Text:
 		fieldType = "string"
 	default:
 		panic("unmapped setting type")
@@ -147,29 +133,7 @@ func readRulesSettings(chatID int64) models.RulesSettings {
 func panelSettings(access chatAccess) settingsResponse {
 	chatID := access.ChatID
 
-	language := lang.GetGroupLanguage(context.Background(), chatID)
-	if language == "" {
-		language = "en"
-	}
-
 	rulesRow := readRulesSettings(chatID)
-
-	digestRow := &models.DigestSettings{ChatID: chatID}
-	if row, err := digestsettings.GetContext(context.Background(), chatID); err == nil && row != nil {
-		digestRow = row
-	}
-	reportRow := &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
-	if row, ok := readSettingsRow[models.ReportChatSettings](chatID); ok {
-		reportRow = row
-	}
-	timezone := chattz.DefaultName
-	if name, err := chattz.Name(chatID); err == nil {
-		timezone = name
-	}
-	night := &models.NightModeSettings{ChatID: chatID}
-	if row, err := nightmode.GetContext(context.Background(), chatID); err == nil && row != nil {
-		night = row
-	}
 
 	locked := make([]string, 0)
 	for perm, on := range locks.GetChatLocks(chatID) {
@@ -183,7 +147,7 @@ func panelSettings(access chatAccess) settingsResponse {
 
 	modules := []settingsModule{
 		{Key: "language", Label: "Language", Fields: []settingsField{
-			settingsString("code", language, "en", true, languageCodes),
+			declaredSettingsField(chatID, settings.Language),
 		}},
 		{Key: "greetings", Label: "Greetings", Fields: []settingsField{
 			declaredSettingsField(chatID, settings.Welcome),
@@ -197,7 +161,7 @@ func panelSettings(access chatAccess) settingsResponse {
 			// storing it; the panel has no editor for that, so it reports the
 			// text and writes only the toggle.
 			settingsString("rules_text", rulesRow.Rules, "", false, nil),
-			settingsBool("private_rules", rulesRow.Private, false, true),
+			declaredSettingsField(chatID, settings.PrivateRules),
 		}},
 		{Key: "captcha", Label: "Captcha", Fields: []settingsField{
 			declaredSettingsField(chatID, settings.CaptchaEnabled),
@@ -240,21 +204,21 @@ func panelSettings(access chatAccess) settingsResponse {
 			declaredSettingsField(chatID, settings.WarnExpiry),
 		}},
 		{Key: "digest", Label: "Weekly digest", Fields: []settingsField{
-			settingsBool("enabled", digestRow.Enabled, false, true),
-			settingsString("destination", digestRow.Destination, "", true, []string{"", "log", "group"}),
+			declaredSettingsField(chatID, settings.DigestEnabled),
+			declaredSettingsField(chatID, settings.DigestDestination),
 		}},
 		{Key: "reports", Label: "Reports", Fields: []settingsField{
-			settingsBool("enabled", reportRow.Status, true, true),
-			settingsInt("mute_threshold", reportRow.MuteThreshold, 0, true),
+			declaredSettingsField(chatID, settings.ReportsEnabled),
+			declaredSettingsField(chatID, settings.ReportMuteThreshold),
 		}},
 		{Key: "timezone", Label: "Timezone", Fields: []settingsField{
-			settingsString("name", timezone, chattz.DefaultName, true, nil),
+			declaredSettingsField(chatID, settings.Timezone),
 		}},
 		{Key: "nightmode", Label: "Night mode", Fields: []settingsField{
-			settingsBool("enabled", night.Enabled, false, true),
-			settingsString("start", nightClock(night.StartMinute), "00:00", true, nil),
-			settingsString("end", nightClock(night.EndMinute), "00:00", true, nil),
-			settingsString("lock_types", night.LockTypes, "", true, nil),
+			declaredSettingsField(chatID, settings.NightModeEnabled),
+			declaredSettingsField(chatID, settings.NightModeStart),
+			declaredSettingsField(chatID, settings.NightModeEnd),
+			declaredSettingsField(chatID, settings.NightModeLockTypes),
 		}},
 		{Key: "locks", Label: "Locks", Fields: []settingsField{
 			{Key: "active", Type: "list", Value: locked, Default: []string{}, Changed: len(locked) > 0, Writable: false},
@@ -320,7 +284,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 	current := settingsIndex(panelSettings(access))
 	input := settings.WriteContext{ChatID: access.ChatID, Title: access.Title, Bot: p.bot}
-	updates, fieldErrors := validateSettingsChanges(input, body.Changes, current, p.deps.NightModeLockTypes)
+	updates, fieldErrors := validateSettingsChanges(input, body.Changes, current)
 	if len(fieldErrors) > 0 {
 		writeJSON(w, http.StatusBadRequest, settingsPatchResponse{
 			Error:  &apiError{Code: "invalid_settings", Message: "one or more settings are invalid"},
@@ -355,7 +319,7 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 // validateSettingsChanges decodes and validates every change against the
 // current snapshot. It returns decoded values, or field-level errors; callers
 // write nothing when errors is non-empty.
-func validateSettingsChanges(input settings.WriteContext, changes map[string]json.RawMessage, index map[string]settingsField, nightTypes []string) (map[string]any, map[string]string) {
+func validateSettingsChanges(input settings.WriteContext, changes map[string]json.RawMessage, index map[string]settingsField) (map[string]any, map[string]string) {
 	updates := make(map[string]any, len(changes))
 	fieldErrors := make(map[string]string)
 
@@ -379,10 +343,6 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 			fieldErrors[key] = message
 			continue
 		}
-		if message := validateSettingValue(key, field, value); message != "" {
-			fieldErrors[key] = message
-			continue
-		}
 		updates[key] = value
 	}
 
@@ -390,83 +350,7 @@ func validateSettingsChanges(input settings.WriteContext, changes map[string]jso
 		fieldErrors[key] = settingError(err)
 	}
 
-	if message := validateNightModeChanges(index, updates, nightTypes, fieldErrors); message != "" {
-		for _, key := range nightModeKeys {
-			if _, changed := updates[key]; changed {
-				fieldErrors[key] = message
-			}
-		}
-	}
-
-	// Same refusal as /digest log: a log destination needs a bound log channel.
-	if destination, _ := updates["digest.destination"].(string); destination == digestsettings.DestinationLog {
-		if bound, _ := index["log_channel.bound"].Value.(bool); !bound {
-			fieldErrors["digest.destination"] = settingsRefusal("digest_log_unavailable")
-		}
-	}
-
 	return updates, fieldErrors
-}
-
-var nightModeKeys = []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"}
-
-func nightClock(minute int) string {
-	return fmt.Sprintf("%02d:%02d", minute/60, minute%60)
-}
-
-// validateNightModeChanges validates the entire effective configuration before
-// any write. Disabled windows stay intact; editing them requires enabling in
-// the same batch rather than briefly enabling a supposedly disabled feature.
-func validateNightModeChanges(index map[string]settingsField, updates map[string]any, validTypes []string, fieldErrors map[string]string) string {
-	changed, configChanged := false, false
-	for _, key := range nightModeKeys {
-		if fieldErrors[key] != "" {
-			return ""
-		}
-		if _, ok := updates[key]; ok {
-			changed = true
-			configChanged = configChanged || key != "nightmode.enabled"
-		}
-	}
-	if !changed {
-		return ""
-	}
-	value := func(key string) any {
-		if v, ok := updates[key]; ok {
-			return v
-		}
-		return index[key].Value
-	}
-	if !value("nightmode.enabled").(bool) {
-		if configChanged {
-			return "turn night mode on in the same save to edit its window or lock types"
-		}
-		return ""
-	}
-	var types []string
-	for field := range strings.SplitSeq(value("nightmode.lock_types").(string), ",") {
-		lockType := strings.ToLower(strings.TrimSpace(field))
-		if lockType == "" {
-			continue
-		}
-		if !slices.Contains(validTypes, lockType) {
-			return "unknown night mode lock type: " + field
-		}
-		types = append(types, lockType)
-	}
-	if len(types) == 0 {
-		return settingsRefusal("nightmode_no_types")
-	}
-	start, _ := nightmode.ParseClock(value("nightmode.start").(string))
-	end, _ := nightmode.ParseClock(value("nightmode.end").(string))
-	if start == end {
-		return settingsRefusal("nightmode_same_times")
-	}
-	if _, changed := updates["nightmode.lock_types"]; changed {
-		slices.Sort(types)
-		updates["nightmode.lock_types"] = strings.Join(slices.Compact(types), ",")
-	}
-	return ""
 }
 
 func decodeSettingValue(field settingsField, raw json.RawMessage) (any, string) {
@@ -494,47 +378,13 @@ func decodeSettingValue(field settingsField, raw json.RawMessage) (any, string) 
 	}
 }
 
-func validateSettingValue(key string, field settingsField, value any) string {
-	if declaration, ok := settings.Lookup(key); ok {
-		if err := declaration.Validate(value); err != nil {
-			return err.Error()
-		}
-		return ""
-	}
-	if len(field.Options) > 0 {
-		text, _ := value.(string)
-		if !slices.Contains(field.Options, text) {
-			return "must be one of: " + strings.Join(field.Options, ", ")
-		}
-	}
-
-	moduleKey, fieldKey, _ := strings.Cut(key, ".")
-	switch moduleKey {
-	case "digest":
-		if fieldKey == "enabled" && value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableDigest) {
-			return settingsRefusal("digest_globally_disabled")
-		}
-	case "reports":
-		if fieldKey == "mute_threshold" {
-			if n := value.(int); n != 0 && (n < models.ReportMuteThresholdMin || n > models.ReportMuteThresholdMax) {
-				return "must be 0 (off) or between 2 and 20"
-			}
-		}
-	case "timezone":
-		if _, _, err := chattz.Parse(value.(string)); err != nil {
-			return "must be an IANA timezone such as Asia/Kolkata or UTC"
-		}
-	case "nightmode":
-		if fieldKey == "start" || fieldKey == "end" {
-			if _, ok := nightmode.ParseClock(value.(string)); !ok {
-				return "must be a 24-hour time such as 23:00 or 07:00"
-			}
-		}
-	}
-	return ""
-}
-
 func settingError(err error) string {
+	var inputError *settings.NightModeInputError
+	if errors.As(err, &inputError) {
+		return settingsRefusal(string(inputError.Refusal), i18n.TranslationParams{
+			"input": html.EscapeString(inputError.Input), "type": html.EscapeString(inputError.LockType),
+		})
+	}
 	if key := settings.RefusalKey(err); key != "" {
 		return settingsRefusal(key)
 	}
@@ -543,8 +393,8 @@ func settingError(err error) string {
 
 // settingsRefusal reuses the command's English wording without the HTML that
 // Telegram renders and the panel would show literally.
-func settingsRefusal(localeKey string) string {
-	text, _ := i18n.MustNewTranslator("en").GetString(localeKey)
+func settingsRefusal(localeKey string, params ...i18n.TranslationParams) string {
+	text, _ := i18n.MustNewTranslator("en").GetString(localeKey, params...)
 	if text == "" {
 		return localeKey
 	}
@@ -598,8 +448,6 @@ func applySettingsChanges(input settings.WriteContext, updates map[string]any) (
 	saved := make([]string, 0, len(keys))
 	failed := make(map[string]string)
 	applied := make(map[string]error)
-	var nightErr error
-	nightApplied := false
 	for _, key := range ordered {
 		var err error
 		if declaration, declared := settings.Lookup(key); declared {
@@ -611,16 +459,7 @@ func applySettingsChanges(input settings.WriteContext, updates map[string]any) (
 				applied[writeKey] = err
 			}
 		} else {
-			switch key {
-			case "nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types":
-				if !nightApplied {
-					nightErr = applyNightModeChanges(chatID, updates)
-					nightApplied = true
-				}
-				err = nightErr
-			default:
-				err = applySettingChange(input, key, updates[key])
-			}
+			err = fmt.Errorf("unknown setting %q", key)
 		}
 		if err != nil {
 			log.WithError(err).Warnf("[Panel] save %s for chat %d", key, chatID)
@@ -630,57 +469,4 @@ func applySettingsChanges(input settings.WriteContext, updates map[string]any) (
 		saved = append(saved, key)
 	}
 	return saved, failed
-}
-
-func applySettingChange(input settings.WriteContext, key string, value any) error {
-	chatID := input.ChatID
-	moduleKey, fieldKey, _ := strings.Cut(key, ".")
-	switch moduleKey {
-	case "language":
-		return lang.ChangeGroupLanguage(chatID, value.(string))
-	case "rules":
-		return rules.SetPrivateRules(chatID, value.(bool))
-	case "digest":
-		switch fieldKey {
-		case "enabled":
-			return digestsettings.SetEnabled(chatID, value.(bool))
-		case "destination":
-			return digestsettings.SetDestination(chatID, value.(string))
-		}
-	case "reports":
-		switch fieldKey {
-		case "enabled":
-			return reports.SetChatReportStatus(chatID, value.(bool))
-		case "mute_threshold":
-			return reports.SetChatReportMuteThreshold(chatID, value.(int))
-		}
-	case "timezone":
-		_, err := chattz.Set(chatID, value.(string))
-		return err
-	}
-	return fmt.Errorf("unknown setting %q", key)
-}
-
-func applyNightModeChanges(chatID int64, updates map[string]any) error {
-	if enabled, changed := updates["nightmode.enabled"].(bool); changed && !enabled {
-		return nightmode.Disable(chatID)
-	}
-	row, err := nightmode.Get(chatID)
-	if err != nil {
-		return err
-	}
-	if row == nil {
-		return errors.New("night mode settings are unavailable")
-	}
-	start, end, types := row.StartMinute, row.EndMinute, row.Types()
-	if clock, changed := updates["nightmode.start"].(string); changed {
-		start, _ = nightmode.ParseClock(clock)
-	}
-	if clock, changed := updates["nightmode.end"].(string); changed {
-		end, _ = nightmode.ParseClock(clock)
-	}
-	if names, changed := updates["nightmode.lock_types"].(string); changed {
-		types = strings.Split(names, ",")
-	}
-	return nightmode.Enable(chatID, start, end, types)
 }

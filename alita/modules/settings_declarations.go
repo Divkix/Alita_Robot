@@ -31,6 +31,7 @@ func declaredGroupSettingChecks(declaration *settings.Declaration) []helpers.Che
 	checks := declaredSettingChecks(declaration)
 	admin := []helpers.CheckFunc{helpers.RequireUserAdmin()}
 	switch declaration.Right {
+	case settings.Admin, settings.ChangeInfo:
 	case settings.AdminBot, settings.ChangeInfoBot, settings.Restrict:
 		admin = append([]helpers.CheckFunc{helpers.RequireBotAdmin()}, admin...)
 	}

@@ -59,9 +59,6 @@ type Deps struct {
 	// Now is the clock used for initData validation, memo expiry and rate
 	// limiting. Nil means time.Now.
 	Now func() time.Time
-	// NightModeLockTypes contains only lock names supported by night mode.
-	// Production wires modules.NightModeLockTypes, excluding join-only locks.
-	NightModeLockTypes []string
 }
 
 // panelRequestTimeout bounds one panel request below the HTTP server's 10 s

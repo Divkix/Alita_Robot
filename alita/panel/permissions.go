@@ -19,22 +19,7 @@ const (
 	permRestrict                     // caller AND bot can_restrict_members
 )
 
-// settingsPermissions maps a settings module to the right its command checks.
-// Modules not listed are admin-only, which requireWritable already enforces.
-var settingsPermissions = map[string]permission{
-	"language":    permNone,       // /lang group requires the caller to be an admin
-	"rules":       permNone,       // /setrules requires an admin and the bot admin
-	"digest":      permNone,       // /digest requires an admin and the bot admin
-	"reports":     permNone,       // /reports; auto-mute: settingsFieldPermission
-	"timezone":    permChangeInfo, // /timezone checks can_change_info
-	"nightmode":   permNone,       // /nightmode checks an admin and the bot admin
-	"locks":       permNone,       // read-only summary
-	"log_channel": permNone,       // read-only summary
-}
-
-// settingsFieldPermission is the right one "<module>.<field>" change needs:
-// its module's, raised for a field whose command checks more than the rest
-// of the module.
+// settingsFieldPermission maps a declaration's neutral policy to Telegram rights.
 func settingsFieldPermission(module, field string) permission {
 	if declaration, ok := settings.Lookup(module + "." + field); ok {
 		switch declaration.Right {
@@ -49,11 +34,7 @@ func settingsFieldPermission(module, field string) permission {
 			panic("unmapped setting right")
 		}
 	}
-	perm := settingsPermissions[module]
-	if module == "reports" && field == "mute_threshold" {
-		perm = max(perm, permRestrict)
-	}
-	return perm
+	return permNone
 }
 
 // settingsPermission reports the union of the independent rights a batch needs.

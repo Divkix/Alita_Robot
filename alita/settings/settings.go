@@ -27,6 +27,8 @@
 // Reports and private-rule reads do not create rows. Weekly digest writes,
 // including off and destination changes, honor the operator's kill switch.
 // Timezone requires caller change-info, not bot-admin status.
+// Night-mode fields share one write and require the locks owner's startup
+// attachment. Invalid stored windows/types disable the effective configuration.
 package settings
 
 import (
@@ -115,6 +117,7 @@ var declarations = []*Declaration{
 	AISpamEnabled, SpamDBEnabled, SpamDBAction, SpamDBCAS, SpamDBLols, SpamDBShared,
 	ReportsEnabled, ReportMuteThreshold, DigestEnabled, DigestDestination,
 	Timezone, Language, PrivateRules,
+	NightModeEnabled, NightModeStart, NightModeEnd, NightModeLockTypes,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.

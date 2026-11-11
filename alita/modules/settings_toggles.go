@@ -14,8 +14,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
-	"github.com/divkix/Alita_Robot/alita/db/reports"
-	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
@@ -161,8 +159,8 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("cg", "/cleangoodbye", settings.CleanGoodbye),
 	declaredSettingsToggle("cs", "/cleanservice", settings.CleanService),
 	declaredSettingsToggle("aa", "/autoapprove", settings.AutoApprove),
-	boolToggle("rp", "/reports", true, reports.SetChatReportStatus),
-	boolToggle("pr", "/privaterules", true, rules.SetPrivateRules),
+	declaredSettingsToggle("rp", "/reports", settings.ReportsEnabled),
+	declaredSettingsToggle("pr", "/privaterules", settings.PrivateRules),
 	boolToggle("pn", "/privnote", false, notes.TooglePrivateNote),
 	boolToggle("ap", "/antichannelpin", true, antiChannelPinToggle.set),
 	boolToggle("cl", "/cleanlinked", true, cleanLinkedToggle.set),

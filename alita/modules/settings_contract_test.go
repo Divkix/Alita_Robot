@@ -29,12 +29,16 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/chattz"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/settings"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 type settingContractEdge struct {
@@ -45,24 +49,27 @@ type settingContractEdge struct {
 }
 
 type settingContract struct {
-	key          string
-	command      string
-	defaultValue any
-	defaultLabel string
-	statusToken  string
-	refusalKey   string
-	refusals     map[string]string
-	seedInvalid  func(int64) error
-	edges        []settingContractEdge
-	button       string
-	noPanel      bool
-	changeInfo   bool
-	restrict     bool
-	botAdmin     bool
-	statusOn     string
-	statusOff    string
-	setOn        string
-	setOff       string
+	key           string
+	command       string
+	defaultValue  any
+	defaultLabel  string
+	statusToken   string
+	refusalKey    string
+	refusals      map[string]string
+	seedInvalid   func(int64) error
+	edges         []settingContractEdge
+	button        string
+	noPanel       bool
+	changeInfo    bool
+	restrict      bool
+	botAdmin      bool
+	statusOn      string
+	statusOff     string
+	setOn         string
+	setOff        string
+	directChecks  bool
+	refusalParams map[string]i18n.TranslationParams
+	helpRefusal   bool
 }
 
 // Expectations come from the command contract, not the declarations. Later
@@ -74,6 +81,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 	config.AppConfig.EnableAISpam = true
 	config.AppConfig.EnableSpamDB = true
 	config.AppConfig.EnableReputation = true
+	config.AppConfig.EnableDigest = true
 	useRealLocales(t)
 	for _, setting := range []settingContract{
 		{
@@ -350,7 +358,100 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			defaultValue: false, defaultLabel: "off", statusToken: "Shared bans (", refusalKey: "spamdb_db_usage",
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
+		{
+			key: "reports.enabled", command: "/reports", button: "rp", botAdmin: true,
+			defaultValue: true, defaultLabel: "on", refusalKey: "reports_invalid_input",
+			statusOn: "reports_status_enabled_group", statusOff: "reports_status_disabled_group",
+			setOn: "reports_turned_on_group", setOff: "reports_turned_off_group",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "reports.mute_threshold", command: "/reports mute", botAdmin: true, restrict: true,
+			defaultValue: 0, defaultLabel: "off", refusalKey: "reports_automute_usage",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.ReportChatSettings{}).Create(map[string]any{"chat_id": chatID, "status": true, "mute_threshold": -1}).Error
+			},
+			refusalParams: map[string]i18n.TranslationParams{"1": {"min": 2, "max": 20}, "21": {"min": 2, "max": 20}, "-1": {"min": 2, "max": 20}},
+			edges:         []settingContractEdge{{0, "off", "off", true}, {2, "2", "2", true}, {1, "1", "1", false}, {20, "20", "20", true}, {21, "21", "21", false}, {-1, "-1", "-1", false}},
+		},
+		{
+			key: "rules.private_rules", command: "/privaterules", button: "pr", botAdmin: true,
+			defaultValue: false, defaultLabel: "off", refusalKey: "pins_input_not_recognized",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "digest.enabled", command: "/digest", botAdmin: true, directChecks: true,
+			defaultValue: false, defaultLabel: "off", refusalKey: "digest_usage", helpRefusal: true,
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "digest.destination", command: "/digest", botAdmin: true, directChecks: true,
+			defaultValue: "", defaultLabel: "the log channel", refusalKey: "digest_usage", helpRefusal: true,
+			edges: []settingContractEdge{{"", "", "the log channel", true}, {"group", "here", "this group", true}, {"log", "log", "the log channel", true}, {"other", "other", "other", false}},
+		},
+		{
+			key: "timezone.name", command: "/timezone", changeInfo: true, directChecks: true,
+			defaultValue: "UTC", defaultLabel: "UTC", statusToken: "timezone is <b>", refusalKey: "timezone_invalid", helpRefusal: true,
+			refusalParams: map[string]i18n.TranslationParams{"Not/A_Zone": {"input": "Not/A_Zone"}},
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Create(&models.ChatTimezone{ChatID: chatID, Timezone: "Local"}).Error
+			},
+			edges: []settingContractEdge{{"UTC", "UTC", "UTC", true}, {"Asia/Kolkata", "asia/kolkata", "Asia/Kolkata", true}, {"Europe/Berlin", "Europe/Berlin", "Europe/Berlin", true}, {"Not/A_Zone", "Not/A_Zone", "Not/A_Zone", false}, {"Local", "Local", "Local", false}, {"+05:30", "+05:30", "+05:30", false}, {"../UTC", "../UTC", "../UTC", false}},
+		},
+		{
+			key: "language.code", command: "/lang group", directChecks: true,
+			defaultValue: "en", defaultLabel: "en", refusalKey: "language_invalid_selection",
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).Update("language", "xx").Error
+			},
+			edges: []settingContractEdge{{"en", "en", "en", true}, {"es", "es", "es", true}, {"fr", "fr", "fr", true}, {"hi", "hi", "hi", true}, {"id", "id", "id", true}, {"pt", "pt", "pt", true}, {"ru", "ru", "ru", true}, {"xx", "xx", "xx", false}},
+		},
+		{
+			key: "nightmode.enabled", command: "/nightmode", botAdmin: true, directChecks: true,
+			defaultValue: false, defaultLabel: "off", refusalKey: "nightmode_invalid_time", helpRefusal: true,
+			refusalParams: map[string]i18n.TranslationParams{"maybe": {"input": "maybe"}},
+			edges:         []settingContractEdge{{false, "off", "off", true}, {true, "23:00 07:00 media,url", "23:00-07:00 media, url", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "nightmode.start", command: "/nightmode", botAdmin: true, directChecks: true,
+			defaultValue: "00:00", defaultLabel: "off", refusalKey: "nightmode_invalid_time", helpRefusal: true,
+			refusals:      map[string]string{"07:00 07:00 media,url": "nightmode_same_times"},
+			refusalParams: map[string]i18n.TranslationParams{"24:00 07:00 media,url": {"input": "24:00"}, "-1:00 07:00 media,url": {"input": "-1:00"}},
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Create(&models.NightModeSettings{ChatID: chatID, StartMinute: -1}).Error
+			},
+			edges: []settingContractEdge{{"00:00", "0:00 07:00 media,url", "00:00-07:00 media, url", true}, {"23:59", "23:59 07:00 media,url", "23:59-07:00 media, url", true}, {"24:00", "24:00 07:00 media,url", "24:00", false}, {"-1:00", "-1:00 07:00 media,url", "-1:00", false}, {"07:00", "07:00 07:00 media,url", "07:00", false}},
+		},
+		{
+			key: "nightmode.end", command: "/nightmode", botAdmin: true, directChecks: true,
+			defaultValue: "00:00", defaultLabel: "off", refusalKey: "nightmode_invalid_time", helpRefusal: true,
+			refusalParams: map[string]i18n.TranslationParams{"23:00 24:00 media,url": {"input": "24:00"}},
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Create(&models.NightModeSettings{ChatID: chatID, EndMinute: 1440}).Error
+			},
+			edges: []settingContractEdge{{"00:00", "23:00 0:00 media,url", "23:00-00:00 media, url", true}, {"23:59", "23:00 23:59 media,url", "23:00-23:59 media, url", true}, {"24:00", "23:00 24:00 media,url", "24:00", false}},
+		},
+		{
+			key: "nightmode.lock_types", command: "/nightmode", botAdmin: true, directChecks: true,
+			defaultValue: "", defaultLabel: "off", refusalKey: "nightmode_invalid_type", helpRefusal: true,
+			refusals:      map[string]string{"23:00 07:00": "nightmode_no_types"},
+			refusalParams: map[string]i18n.TranslationParams{"23:00 07:00 bots": {"type": "bots"}, "23:00 07:00 unknown": {"type": "unknown"}},
+			seedInvalid: func(chatID int64) error {
+				return db.DB.Create(&models.NightModeSettings{ChatID: chatID, LockTypes: "bots"}).Error
+			},
+			edges: []settingContractEdge{{"media,url", "23:00 07:00 MEDIA,url,media", "23:00-07:00 media, url", true}, {"all", "23:00 07:00 all", "23:00-07:00 all", true}, {"bots", "23:00 07:00 bots", "bots", false}, {"unknown", "23:00 07:00 unknown", "unknown", false}, {"", "23:00 07:00", "empty", false}},
+		},
 	} {
+		if setting.key == "nightmode.lock_types" {
+			// Expectations come from the locks owner, not the declaration's attachment.
+			for _, lockType := range locksModule.getLockMapAsArray() {
+				if lockType != "bots" && lockType != "all" {
+					setting.edges = append(setting.edges, settingContractEdge{
+						lockType, "23:00 07:00 " + lockType, "23:00-07:00 " + lockType, true,
+					})
+				}
+			}
+		}
 		t.Run(setting.key, func(t *testing.T) {
 			t.Run("default without creating a row", func(t *testing.T) {
 				f := newSettingContractFixture(t, setting)
@@ -369,6 +470,9 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					assertContractRead(t, f, setting, 3600, "tmute 1h", false)
 				} else {
 					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+				}
+				if setting.key == "timezone.name" && chattz.Location(f.chat.Id).String() != "UTC" {
+					t.Fatal("invalid timezone did not use UTC for local-time features")
 				}
 			})
 			for _, rights := range []struct {
@@ -394,15 +498,20 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					edge := setting.edges[1]
 					accepted := rights.callerAdmin && (!setting.botAdmin || rights.botAdmin) && (!setting.changeInfo || rights.changeInfo) && (!setting.restrict || rights.restrict)
 					refusal := "connections_is_user_connected_user_not_admin"
+					if setting.directChecks {
+						refusal = "chat_status_user_admin_cmd_error"
+					}
 					if setting.botAdmin && !rights.botAdmin {
 						refusal = "connections_is_user_connected_bot_not_admin"
+						if setting.directChecks {
+							refusal = "chat_status_bot_not_admin"
+						}
 					} else if rights.callerAdmin && setting.changeInfo && !rights.changeInfo {
 						refusal = "chat_status_change_info_cmd_error"
 					} else if rights.callerAdmin && setting.restrict && !rights.restrict {
 						refusal = "chat_status_restrict_cmd_error"
 					}
-					contractDispatch(t, f, actor, setting.command+" "+edge.input)
-					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+					reply := contractSet(t, f, actor, setting, edge.input)
 					if !accepted && reply != translated(t, refusal) {
 						t.Fatalf("command refusal = %q, want %s", reply, refusal)
 					}
@@ -479,8 +588,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				t.Run("command/"+edge.input, func(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
 					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
-					contractDispatch(t, f, f.admin, setting.command+" "+edge.input)
-					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+					reply := contractSet(t, f, f.admin, setting, edge.input)
 					if edge.accept {
 						if setting.setOn != "" {
 							key := setting.setOff
@@ -505,7 +613,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 							if !strings.HasPrefix(reply, want) {
 								t.Fatalf("database reply = %q, want %q", reply, want)
 							}
-						} else if edge.input != "off" && !strings.Contains(reply, lastContractWord(edge.label)) {
+						} else if !isContractRemaining(setting) && edge.input != "off" && !strings.Contains(reply, lastContractWord(edge.label)) {
 							t.Fatalf("command reply = %q, want accepted %s", reply, edge.label)
 						}
 						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
@@ -515,13 +623,19 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 							key = specific
 						}
 						refusal := translated(t, key)
+						if setting.key == "timezone.name" {
+							refusal = translatedWith(t, key, i18n.TranslationParams{"input": edge.input})
+						}
+						if params := setting.refusalParams[edge.input]; params != nil {
+							refusal = translatedWith(t, key, params)
+						}
 						if strings.Contains(refusal, "%s") {
 							refusal = fmt.Sprintf(refusal, lastContractWord(edge.input))
 						}
 						if key == "spamdb_db_last" {
 							refusal = translatedWith(t, key, i18n.TranslationParams{"database": "CAS"})
 						}
-						if reply != refusal && (key != "probation_usage" || !strings.HasPrefix(reply, refusal+"\n")) {
+						if reply != refusal && ((!setting.helpRefusal && key != "probation_usage") || !strings.HasPrefix(reply, refusal+"\n")) {
 							t.Fatalf("command accepted invalid value: %q, want %q", reply, refusal)
 						}
 						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
@@ -570,6 +684,9 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				})
 			}
 			testContractSpamPreconditions(t, setting)
+			if strings.HasPrefix(setting.key, "digest.") {
+				testContractDigestPreconditions(t, setting)
+			}
 			if strings.HasPrefix(setting.command, "/spamdb db ") {
 				testContractSpamDatabases(t, setting)
 			}
@@ -626,7 +743,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
 					contractRights(f, false, true, true)
 					response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
-						setting.key: true, "reports.mute_threshold": 2,
+						setting.key: setting.edges[1].value, "reports.mute_threshold": 2,
 					}))
 					if response.Code != http.StatusForbidden {
 						t.Fatalf("batch bypassed change-info: %d %s", response.Code, response.Body.String())
@@ -812,6 +929,122 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			}
 		})
 	}
+	t.Run("night mode uses startup lock types and one shared write", func(t *testing.T) {
+		f := newSettingContractFixture(t, settingContract{})
+		name := fmt.Sprintf("contract-night-once-%d", f.chat.Id)
+		written := false
+		if err := db.DB.Callback().Create().Before("gorm:create").Register(name, func(tx *gorm.DB) {
+			if tx.Statement.Table == "night_mode_settings" {
+				if written {
+					_ = tx.AddError(errors.New("night mode was persisted more than once"))
+				}
+				written = true
+			}
+		}); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = db.DB.Callback().Create().Remove(name) })
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+			"nightmode.enabled": true, "nightmode.start": "23:00", "nightmode.end": "7:00", "nightmode.lock_types": " URL,media, MEDIA ",
+		}))
+		if response.Code != http.StatusOK {
+			t.Fatalf("night mode batch = %d %s", response.Code, response.Body.String())
+		}
+		var result struct {
+			Saved []string `json:"saved"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || len(result.Saved) != 4 {
+			t.Fatalf("night outcomes = %+v, %v", result, err)
+		}
+		for _, field := range []settingContract{
+			{key: "nightmode.enabled", command: "/nightmode", defaultValue: false},
+			{key: "nightmode.start", command: "/nightmode", defaultValue: "00:00"},
+			{key: "nightmode.end", command: "/nightmode", defaultValue: "00:00"},
+			{key: "nightmode.lock_types", command: "/nightmode", defaultValue: ""},
+		} {
+			value := map[string]any{"nightmode.enabled": true, "nightmode.start": "23:00", "nightmode.end": "07:00", "nightmode.lock_types": "media,url"}[field.key]
+			assertContractRead(t, f, field, value, "23:00-07:00 media, url", true)
+		}
+	})
+	t.Run("night mode requires startup lock types", func(t *testing.T) {
+		f := newSettingContractFixture(t, settingContract{})
+		handler := panel.New(f.bot, panel.Deps{})
+		types := slices.DeleteFunc(slices.Clone(locksModule.getLockMapAsArray()), func(value string) bool { return value == "bots" })
+		settings.AttachNightModeLockTypes(nil)
+		t.Cleanup(func() { settings.AttachNightModeLockTypes(types) })
+		contractDispatch(t, f, f.admin, "/nightmode off")
+		if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); reply != translated(t, "common_settings_save_failed") {
+			t.Fatalf("unattached night mode command = %q", reply)
+		}
+		response := contractPanelRequestTo(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+			"nightmode.enabled": false, "antiraid.raid_time": 60,
+		}), handler)
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "night mode lock types are not attached") {
+			t.Fatalf("unattached night mode panel = %d %s", response.Code, response.Body.String())
+		}
+		assertContractRowCount(t, f, settingContract{key: "nightmode.enabled"}, 0)
+		assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+		defer func() {
+			if failure := recover(); failure == nil || !strings.Contains(fmt.Sprint(failure), "night mode lock types are not attached") {
+				t.Fatalf("unattached startup = %v", failure)
+			}
+		}()
+		panel.New(f.bot, panel.Deps{})
+	})
+	t.Run("night mode preserves disabled windows and refuses disabled edits", func(t *testing.T) {
+		f := newSettingContractFixture(t, settingContract{})
+		contractDispatch(t, f, f.admin, "/nightmode 23:00 07:00 media,url")
+		contractDispatch(t, f, f.admin, "/nightmode off")
+		for _, key := range []string{"nightmode.start", "nightmode.end", "nightmode.lock_types"} {
+			value := map[string]any{"nightmode.start": "22:00", "nightmode.end": "08:00", "nightmode.lock_types": "photo"}[key]
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{key: value, "antiraid.raid_time": 60}))
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("disabled edit = %d %s", response.Code, response.Body.String())
+			}
+			assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+		}
+		row, err := nightmode.Get(f.chat.Id)
+		if err != nil || row.Enabled || row.StartMinute != 1380 || row.EndMinute != 420 || row.LockTypes != "media,url" {
+			t.Fatalf("disabled window = %+v, %v", row, err)
+		}
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{"nightmode.enabled": true}))
+		if response.Code != http.StatusOK {
+			t.Fatalf("re-enable stored window = %d %s", response.Code, response.Body.String())
+		}
+	})
+	t.Run("night mode shared failure leaves other fields saved", func(t *testing.T) {
+		f := newSettingContractFixture(t, settingContract{})
+		name := fmt.Sprintf("contract-night-failure-%d", f.chat.Id)
+		if err := db.DB.Callback().Create().Before("gorm:create").Register(name, func(tx *gorm.DB) {
+			if tx.Statement.Table == "night_mode_settings" {
+				_ = tx.AddError(errors.New("night mode save failed"))
+			}
+		}); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = db.DB.Callback().Create().Remove(name) })
+		response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+			"nightmode.enabled": true, "nightmode.start": "23:00", "nightmode.end": "07:00", "nightmode.lock_types": "media,url",
+			"antiraid.raid_time": 60,
+		}))
+		var result struct {
+			Saved  []string          `json:"saved"`
+			Failed map[string]string `json:"failed"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if response.Code != http.StatusInternalServerError || !slices.Equal(result.Saved, []string{"antiraid.raid_time"}) || len(result.Failed) != 4 {
+			t.Fatalf("shared failure = %d %s", response.Code, response.Body.String())
+		}
+		for _, key := range []string{"nightmode.enabled", "nightmode.start", "nightmode.end", "nightmode.lock_types"} {
+			if result.Failed[key] != "night mode save failed" {
+				t.Fatalf("%s failure = %q", key, result.Failed[key])
+			}
+		}
+		assertContractRowCount(t, f, settingContract{key: "nightmode.enabled"}, 0)
+		assertContractRead(t, f, settingContract{key: "antiraid.raid_time", command: "/raidtime", defaultValue: 21600, statusToken: "Raid: "}, 60, "1m", true)
+	})
 }
 
 func TestAntiRaidRepairsStoredTimesThroughDispatcher(t *testing.T) {
@@ -895,6 +1128,11 @@ func newSettingContractFixture(t *testing.T, setting settingContract) adminChatF
 	if err := chats.EnsureChatInDb(f.chat.Id, f.chat.Title); err != nil {
 		t.Fatal(err)
 	}
+	if strings.HasPrefix(setting.key, "digest.") {
+		if err := logchannels.Set(f.chat.Id, f.chat.Title, -10099990001); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return f
 }
 
@@ -934,9 +1172,134 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	LoadSpamDB(dispatcher)
 	LoadAISpam(dispatcher)
 	LoadConnections(dispatcher)
+	LoadReports(dispatcher)
+	LoadRules(dispatcher)
+	LoadDigest(dispatcher)
+	loadTimezone(dispatcher)
+	loadNightMode(dispatcher)
+	LoadLanguage(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func contractSet(t *testing.T, f adminChatFixture, actor gotgbot.User, setting settingContract, input string) string {
+	t.Helper()
+	if setting.key != "language.code" {
+		contractDispatch(t, f, actor, setting.command+" "+input)
+		return fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+	}
+	contractDispatch(t, f, actor, "/lang group")
+	if actor.Id != f.admin.Id {
+		return fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLanguage(dispatcher)
+	data := encodeCallbackData("change_language", map[string]string{"l": input})
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleCallbackContext(f.bot, f.chat, actor, data).Update, nil); err != nil {
+		t.Fatal(err)
+	}
+	text, _ := lastAnswer(t, f.client)
+	return text
+}
+
+func isContractRemaining(setting settingContract) bool {
+	for _, prefix := range []string{"reports.", "rules.", "digest.", "timezone.", "language.", "nightmode."} {
+		if strings.HasPrefix(setting.key, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func testContractDigestPreconditions(t *testing.T, setting settingContract) {
+	t.Helper()
+	for _, edge := range setting.edges {
+		if !edge.accept {
+			continue
+		}
+		t.Run("operator off/"+edge.input, func(t *testing.T) {
+			f := newSettingContractFixture(t, setting)
+			config.AppConfig.EnableDigest = false
+			t.Cleanup(func() { config.AppConfig.EnableDigest = true })
+			reply := contractSet(t, f, f.admin, setting, edge.input)
+			if reply != translated(t, "digest_globally_disabled") {
+				t.Fatalf("digest operator refusal = %q", reply)
+			}
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: edge.value, "antiraid.raid_time": 60}))
+			var result struct {
+				Errors map[string]string `json:"errors"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != http.StatusBadRequest || result.Errors[setting.key] != "❌ The digest is disabled by the bot operator." {
+				t.Fatalf("digest panel refusal = %d %s", response.Code, response.Body.String())
+			}
+			assertContractRowCount(t, f, setting, 0)
+			assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+		})
+	}
+	if setting.key == "digest.destination" {
+		t.Run("log needs a destination", func(t *testing.T) {
+			f := newSettingContractFixture(t, settingContract{})
+			reply := contractSet(t, f, f.admin, setting, "log")
+			if reply != translated(t, "digest_log_unavailable") {
+				t.Fatalf("digest command log refusal = %q", reply)
+			}
+			response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: "log", "antiraid.raid_time": 60}))
+			if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "This chat has no log channel") {
+				t.Fatalf("digest panel log refusal = %d %s", response.Code, response.Body.String())
+			}
+			assertContractRowCount(t, f, setting, 0)
+			assertContractRowCount(t, f, settingContract{key: "antiraid.raid_time"}, 0)
+		})
+	}
+}
+
+func contractRemainingStatus(t *testing.T, f adminChatFixture, setting settingContract, value any, label, text string) bool {
+	t.Helper()
+	switch setting.key {
+	case "reports.mute_threshold":
+		want := translated(t, "reports_automute_status_off")
+		if value != 0 {
+			want = translatedWith(t, "reports_automute_status_on", i18n.TranslationParams{"count": value})
+		}
+		return strings.Contains(text, want)
+	case "rules.private_rules":
+		key := "rules_private_current_group"
+		if value == true {
+			key = "rules_private_current_pm"
+		}
+		return text == fmt.Sprintf(translated(t, key), f.chat.Title) || text == translated(t, key)
+	case "digest.enabled":
+		key := "digest_status_disabled"
+		if value == true {
+			key = "digest_status_enabled"
+		}
+		return strings.Contains(text, translated(t, key))
+	case "digest.destination":
+		return strings.Contains(text, "Destination: <b>"+label+"</b>") && strings.Contains(text, "(the default)") == (value == "")
+	case "timezone.name":
+		return strings.Contains(text, "timezone is <b>"+fmt.Sprint(value)+"</b>")
+	case "language.code":
+		tr := i18n.MustNewTranslator(value.(string))
+		want, err := tr.GetString("language_current_group")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return text == fmt.Sprintf(want, keyboard.GetLangFormat(value.(string)))
+	default:
+		if strings.HasPrefix(setting.key, "nightmode.") {
+			if label == "off" {
+				return text == translated(t, "nightmode_status_off")
+			}
+			window, types, _ := strings.Cut(label, " ")
+			start, end, _ := strings.Cut(window, "-")
+			return strings.Contains(text, "from <b>"+start+"</b> to <b>"+end+"</b>") && strings.Contains(text, "<code>"+types+"</code>")
+		}
+	}
+	return false
 }
 
 func assertContractRead(t *testing.T, f adminChatFixture, setting settingContract, value any, label string, changed bool) {
@@ -955,6 +1318,12 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 	} else if setting.button != "" {
 		command = setting.command
 	}
+	if isContractRemaining(setting) {
+		command = setting.command
+		if strings.HasPrefix(setting.key, "nightmode.") {
+			command = "/nightmode"
+		}
+	}
 	before := len(f.client.callsFor("sendMessage"))
 	contractDispatch(t, f, f.admin, command)
 	replies := f.client.callsFor("sendMessage")[before:]
@@ -966,7 +1335,11 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			if value == true {
 				key = setting.statusOn
 			}
-			found = found || text == translated(t, key)
+			found = found || strings.HasPrefix(text, translated(t, key))
+			continue
+		}
+		if isContractRemaining(setting) {
+			found = found || contractRemainingStatus(t, f, setting, value, label, text)
 			continue
 		}
 		if strings.HasPrefix(setting.key, "captcha.") {
@@ -1003,7 +1376,10 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 	if isContractModeDuration(setting) {
 		summaryChanged = label != "mute"
 	}
-	if !strings.HasPrefix(setting.key, "antispam.spamdb_") {
+	if strings.HasPrefix(setting.key, "nightmode.") {
+		summaryLabel, summaryChanged = label, label != "off"
+	}
+	if !strings.HasPrefix(setting.key, "antispam.spamdb_") && !strings.HasPrefix(setting.key, "digest.") {
 		assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, summaryLabel, summaryChanged)
 	}
 	if setting.button != "" {
@@ -1085,6 +1461,9 @@ func contractChanges(t *testing.T, changes map[string]any) string {
 
 func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingContract, want int64) {
 	t.Helper()
+	if setting.key == "language.code" {
+		return // The panel fixture already needs an existing chat row.
+	}
 	var model any = &models.AntiRaidSettings{}
 	if strings.HasPrefix(setting.key, "greetings.") {
 		model = &models.GreetingSettings{}
@@ -1100,6 +1479,16 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.SpamDBSettings{}
 	} else if setting.key == "antispam.aispam_enabled" {
 		model = &models.AISpamSettings{}
+	} else if strings.HasPrefix(setting.key, "reports.") {
+		model = &models.ReportChatSettings{}
+	} else if strings.HasPrefix(setting.key, "rules.") {
+		model = &models.RulesSettings{}
+	} else if strings.HasPrefix(setting.key, "digest.") {
+		model = &models.DigestSettings{}
+	} else if strings.HasPrefix(setting.key, "timezone.") {
+		model = &models.ChatTimezone{}
+	} else if strings.HasPrefix(setting.key, "nightmode.") {
+		model = &models.NightModeSettings{}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
@@ -1121,6 +1510,16 @@ func lastContractWord(label string) string {
 
 func contractSettingChanges(setting settingContract, edge settingContractEdge) map[string]any {
 	changes := map[string]any{setting.key: edge.value}
+	if strings.HasPrefix(setting.key, "nightmode.") && edge.input != "off" && setting.key != "nightmode.enabled" {
+		changes["nightmode.enabled"] = true
+		changes["nightmode.start"] = "23:00"
+		changes["nightmode.end"] = "07:00"
+		changes["nightmode.lock_types"] = "media,url"
+		changes[setting.key] = edge.value
+	}
+	if setting.key == "nightmode.enabled" && edge.value == true {
+		changes["nightmode.start"], changes["nightmode.end"], changes["nightmode.lock_types"] = "23:00", "07:00", "media,url"
+	}
 	if isContractModeDuration(setting) {
 		key := "antiflood.action"
 		if strings.HasPrefix(setting.key, "warns.") {
