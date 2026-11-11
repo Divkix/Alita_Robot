@@ -170,6 +170,14 @@ func TestMembershipIntakeGivesEveryJoinOneVerdict(t *testing.T) {
 			require.NoError(t, captcha.SetCaptchaEnabled(j.chat.Id, j.chat.Title, true))
 			approve(t, j.chat.Id, j.member.Id)
 		}},
+		{name: "approved newcomer during a raid, captcha on", want: want{welcomes: 1}, setup: func(t *testing.T, j intakeJoin) {
+			require.NoError(t, captcha.SetCaptchaEnabled(j.chat.Id, j.chat.Title, true))
+			approve(t, j.chat.Id, j.member.Id)
+			enabled, err := antiRaidModule.enableRaid(j.chat.Id, 3600)
+			require.NoError(t, err)
+			require.True(t, enabled)
+			t.Cleanup(func() { _, _ = antiRaidModule.disableRaid(j.chat.Id) })
+		}},
 		{name: "admin newcomer, fbanned during a raid", want: want{welcomes: 1}, setup: func(t *testing.T, j intakeJoin) {
 			j.client.adminsByChat = map[string]json.RawMessage{fmt.Sprint(j.chat.Id): adminListJSON(j.member.Id)}
 			ownerID := uniquePositiveUserID()
@@ -197,6 +205,14 @@ func TestMembershipIntakeGivesEveryJoinOneVerdict(t *testing.T) {
 		{name: "bot added by an approved user, bots locked", bot: true, want: want{welcomes: 1}, setup: func(t *testing.T, j intakeJoin) {
 			lockBots(t, j.chat.Id)
 			approve(t, j.chat.Id, j.adder.Id)
+		}},
+		{name: "bots locked, bot not an admin", bot: true, want: want{welcomes: 1}, setup: func(t *testing.T, j intakeJoin) {
+			require.NoError(t, captcha.SetCaptchaEnabled(j.chat.Id, j.chat.Title, true))
+			lockBots(t, j.chat.Id)
+			j.client.adminsByChat = map[string]json.RawMessage{fmt.Sprint(j.chat.Id): json.RawMessage(`[]`)}
+			j.client.membersByChat = map[string]json.RawMessage{fmt.Sprint(j.chat.Id) + "|999": json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`)}
+		}, check: func(t *testing.T, j intakeJoin) {
+			require.Equal(t, 1, j.sent(localeText(t, "locks_bot_lock_no_permission")), "one missing-admin notice per join")
 		}},
 		{name: "bots locked, bot cannot restrict", bot: true, want: want{welcomes: 1}, setup: func(t *testing.T, j intakeJoin) {
 			lockBots(t, j.chat.Id)
