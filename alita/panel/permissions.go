@@ -24,10 +24,6 @@ const (
 var settingsPermissions = map[string]permission{
 	"language": permNone, // /lang group requires the caller to be an admin
 	"rules":    permNone, // /setrules requires an admin and the bot admin
-	// Captcha mutes new members, and switching it off unmutes the users it
-	// still holds: both writes restrict members, so the caller and the bot
-	// need the same right the captcha watcher uses.
-	"captcha":     permRestrict,
 	"antiflood":   permNone,       // /setflood requires an admin and the bot admin
 	"antispam":    permNone,       // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
 	"warns":       permNone,       // /setwarnlimit, /setwarnmode and /setwarntime

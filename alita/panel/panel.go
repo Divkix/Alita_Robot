@@ -7,6 +7,8 @@
 // non-admins are read-only. Each write uses requirePermission with the Telegram rights checked by
 // the equivalent bot command. Never use chat_status reply-sending helpers here; the linter enforces
 // this boundary so panel refusals do not send messages into the chat.
+// Captcha configuration needs no restrict-members right, matching its commands;
+// the panel's caller-and-bot-admin write envelope still applies.
 //
 // The embedded frontend in web is plain HTML, CSS and vanilla JavaScript with no build step.
 // Render server data with DOM APIs, never innerHTML.

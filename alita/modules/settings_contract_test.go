@@ -155,6 +155,38 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			setOn:      "greetings_auto_approve_enable", setOff: "greetings_auto_approve_disable",
 			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
 		},
+		{
+			key: "captcha.enabled", command: "/captcha", button: "cp", botAdmin: true,
+			defaultValue: false, defaultLabel: "off", statusToken: "Status: <code>",
+			refusalKey: "captcha_usage", setOn: "captcha_enabled_success", setOff: "captcha_disabled_success",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "captcha.join_requests", command: "/captchajoin", button: "cj", noPanel: true,
+			defaultValue: false, defaultLabel: "off", statusToken: "Join requests in PM: <code>",
+			refusalKey: "captcha_join_requests_usage", setOn: "captcha_join_requests_enabled", setOff: "captcha_join_requests_disabled",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "captcha.mode", command: "/captchamode", button: "cm",
+			defaultValue: "math", defaultLabel: "math", statusToken: "Mode: <code>", refusalKey: "captcha_mode_invalid",
+			edges: []settingContractEdge{{"math", "math", "math", true}, {"text", "text", "text", true}, {"image", "image", "image", false}},
+		},
+		{
+			key: "captcha.timeout", command: "/captchatime",
+			defaultValue: 2, defaultLabel: "2", statusToken: "Timeout: <code>", refusalKey: "captcha_timeout_invalid",
+			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
+		},
+		{
+			key: "captcha.action", command: "/captchaaction", button: "ca",
+			defaultValue: "kick", defaultLabel: "kick", statusToken: "Failure Action: <code>", refusalKey: "captcha_action_invalid",
+			edges: []settingContractEdge{{"kick", "kick", "kick", true}, {"ban", "ban", "ban", true}, {"mute", "mute", "mute", true}, {"warn", "warn", "warn", false}},
+		},
+		{
+			key: "captcha.max_attempts", command: "/captchamaxattempts", botAdmin: true,
+			defaultValue: 3, defaultLabel: "3", statusToken: "Max Attempts: <code>", refusalKey: "captcha_max_attempts_invalid",
+			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
+		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
 			t.Run("default without creating a row", func(t *testing.T) {
@@ -336,7 +368,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					assertContractRowCount(t, f, setting, 0)
 				})
 			}
-			if setting.button != "" {
+			if strings.HasPrefix(setting.key, "greetings.") {
 				t.Run("write failure", func(t *testing.T) {
 					f := newSettingContractFixture(t, setting)
 					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
@@ -491,6 +523,7 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAntiRaid(dispatcher)
 	LoadGreetings(dispatcher)
+	LoadCaptcha(dispatcher)
 	LoadConnections(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
@@ -500,7 +533,9 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 func assertContractRead(t *testing.T, f adminChatFixture, setting settingContract, value any, label string, changed bool) {
 	t.Helper()
 	command := "/antiraid"
-	if setting.button != "" {
+	if strings.HasPrefix(setting.key, "captcha.") {
+		command = "/captcha"
+	} else if setting.button != "" {
 		command = setting.command
 	}
 	before := len(f.client.callsFor("sendMessage"))
@@ -517,6 +552,14 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			found = found || text == translated(t, key)
 			continue
 		}
+		if strings.HasPrefix(setting.key, "captcha.") {
+			if enabled, ok := value.(bool); ok {
+				label = "disabled"
+				if enabled {
+					label = "enabled"
+				}
+			}
+		}
 		if strings.Contains(text, setting.statusToken+fmt.Sprint(value)) || strings.Contains(text, setting.statusToken+label) {
 			found = true
 		}
@@ -530,12 +573,22 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleCallbackContext(f.bot, privateChatOf(f.admin), f.admin, data).Update, nil); err != nil {
 		t.Fatal(err)
 	}
-	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, label, changed)
-	if setting.button != "" {
-		next := "on"
-		if value == true {
-			next = "off"
+	summaryLabel := label
+	if enabled, ok := value.(bool); ok {
+		summaryLabel = "off"
+		if enabled {
+			summaryLabel = "on"
 		}
+	}
+	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, summaryLabel, changed)
+	if setting.button != "" {
+		var values []string
+		for _, edge := range setting.edges {
+			if edge.accept {
+				values = append(values, edge.input)
+			}
+		}
+		next := values[(slices.Index(values, summaryLabel)+1)%len(values)]
 		if actual := toggleButtons(t, markupOf(t, lastCall(t, f.client, "editMessageText")))[setting.button]; actual != next {
 			t.Fatalf("button offers %q, want %q", actual, next)
 		}
@@ -603,8 +656,10 @@ func contractChanges(t *testing.T, changes map[string]any) string {
 func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingContract, want int64) {
 	t.Helper()
 	var model any = &models.AntiRaidSettings{}
-	if setting.button != "" {
+	if strings.HasPrefix(setting.key, "greetings.") {
 		model = &models.GreetingSettings{}
+	} else if strings.HasPrefix(setting.key, "captcha.") {
+		model = &models.CaptchaSettings{}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
