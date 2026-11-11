@@ -313,7 +313,8 @@ func commandContractEffects(client *moduleBotClient, offset int, proofID int64) 
 }
 
 // Compare replies and action targets, not permission lookups. Only intrinsically
-// variable text is omitted: latency, random /runs, and /disabled listing its row.
+// variable text is omitted: latency, random /runs, /disabled listing its row, and
+// the /export caption's export time.
 func commandContractSameEffects(name string, before, after []moduleBotCall) bool {
 	signatures := func(calls []moduleBotCall) []string {
 		values := make([]string, 0, len(calls))
@@ -321,6 +322,9 @@ func commandContractSameEffects(name string, before, after []moduleBotCall) bool
 			signature := call.Method
 			for _, key := range []string{"chat_id", "user_id", "message_id", "text", "caption"} {
 				if key == "text" && (name == "ping" || name == "runs" || name == "disabled") {
+					continue
+				}
+				if key == "caption" && name == "export" {
 					continue
 				}
 				if value, ok := call.Params[key]; ok {
