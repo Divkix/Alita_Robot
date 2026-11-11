@@ -162,6 +162,7 @@ var settingsToggles = []settingsToggle{
 	declaredSettingsToggle("qf", "/quietfed", chatsettings.QuietFed),
 	declaredSettingsToggle("ac", "/allowconnect", chatsettings.AllowConnect),
 	declaredSettingsToggle("an", "/anonadmin", chatsettings.AnonAdmin),
+	declaredSettingsToggle("ep", "/ephemeral", chatsettings.EphemeralReplies),
 }
 
 // settingsTogglesByKey and settingsTogglesByCommand index settingsToggles for

@@ -23,6 +23,7 @@ Make it easy to promote and demote users with the admin module!
 × /admincache: Reload the admin list. Requires your current group-admin status, then the bot's admin status; an outdated admin list cannot block newly promoted admins or allow removed admins. Also works from PM for a named or connected group.
 × /clearadmincache: Clear the cached admin list.
 × /timezone `[name]`: Show or set the chat's timezone as an IANA name such as Asia/Kolkata (default UTC).
+× /ephemeral `<on/off>`: on shows what I would otherwise send you to PM for (private rules, private notes, the /help button) only to the member who asked, in the group; off (default) keeps the PM button. I must be an admin.
 
 **Anonymous Admin Support**
 
@@ -62,6 +63,7 @@ This module can be accessed using the following aliases:
 - `setgpic`
 - `setgdesc`
 - `timezone`
+- `ephemeral`
 
 ## Available Commands
 
@@ -72,6 +74,7 @@ This module can be accessed using the following aliases:
 | `/anonadmin` | Toggle anonymous admin trust (on = no verification button) | ❌ |
 | `/clearadmincache` | Clear the cached admin list | ❌ |
 | `/demote` | Demote a user from admin | ❌ |
+| `/ephemeral` | Show answers that would open in PM only to the asker, in the group; off by default, needs the bot to be an admin | ❌ |
 | `/invitelink` | Get group invite link | ❌ |
 | `/promote` | Promote a user to admin, optionally with a custom title | ❌ |
 | `/setgdesc` | Change the group description (no text clears it); aliases `/setgroupdesc`, `/setdescription` | ❌ |

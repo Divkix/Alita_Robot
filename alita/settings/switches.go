@@ -6,7 +6,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/ephemeral"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 )
@@ -106,5 +108,17 @@ var QuietFed = &Declaration{
 	},
 	write: func(input WriteContext, value any) error {
 		return federations.SetQuietFed(input.ChatID, value.(bool))
+	},
+}
+
+// EphemeralReplies is /ephemeral: answers Alita would otherwise redirect to PM
+// (private rules, private notes, the group /help redirect) are shown only to
+// the member who asked, in the group. Ephemeral messages need the bot to be an
+// admin.
+var EphemeralReplies = &Declaration{
+	Key: "ephemeral.enabled", Type: Switch, Default: false, Right: AdminBot,
+	read: storedValue(ephemeral.GetContext, func(row *models.EphemeralSettings) any { return row.Enabled }),
+	write: func(input WriteContext, value any) error {
+		return ephemeral.SetEnabled(input.ChatID, value.(bool))
 	},
 }

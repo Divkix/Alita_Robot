@@ -77,7 +77,7 @@ func TestSettingsGetResponseShape(t *testing.T) {
 		t.Fatalf("read_only = %v/%q, want writable for an admin with a bot admin", body.ReadOnly, body.ReadOnlyReason)
 	}
 
-	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "timezone", "nightmode", "locks", "log_channel"}
+	wantModules := []string{"language", "greetings", "rules", "captcha", "antiflood", "antispam", "antiraid", "warns", "digest", "reports", "timezone", "ephemeral", "nightmode", "locks", "log_channel"}
 	if len(body.Modules) != len(wantModules) {
 		t.Fatalf("modules = %d, want %d", len(body.Modules), len(wantModules))
 	}
@@ -104,6 +104,7 @@ func TestSettingsGetResponseShape(t *testing.T) {
 		"digest":      &models.DigestSettings{},
 		"reports":     &models.ReportChatSettings{},
 		"timezone":    &models.ChatTimezone{},
+		"ephemeral":   &models.EphemeralSettings{},
 		"nightmode":   &models.NightModeSettings{},
 		"warn_users":  &models.Warns{},
 		"warn_entry":  &models.WarnEntry{},
@@ -197,6 +198,7 @@ func TestSettingsPatchValidationWritesNothing(t *testing.T) {
 				"digest":    &models.DigestSettings{},
 				"reports":   &models.ReportChatSettings{},
 				"timezone":  &models.ChatTimezone{},
+				"ephemeral": &models.EphemeralSettings{},
 				"nightmode": &models.NightModeSettings{},
 			} {
 				if count := countChatRows(t, model, chatID); count != 0 {

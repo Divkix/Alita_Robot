@@ -26,6 +26,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/anonadmin` | Toggle anonymous admin mode (anyone can view the current mode) | Owner | ❌ | — |
 | `/clearadmincache` | Clear the admin cache | Admin | ❌ | — |
 | `/demote` | Demote an admin | Admin | ❌ | — |
+| `/ephemeral` | Show answers that would open in PM only to the asker, in the group (off by default) | Admin (bot admin) | ❌ | — |
 | `/invitelink` | Get the chat invite link | Everyone (public groups) / users with invite rights (private groups) | ❌ | — |
 | `/promote` | Promote a user to admin | Admin | ❌ | — |
 | `/setdescription` | Alias of `/setgdesc` | Admin | ❌ | `/setgdesc` |
@@ -487,6 +488,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/donate` | Help | Show donation information | Everyone |
 | `/dwarn` | Warns | Warn a user and delete their message | Admin |
 | `/enable` | Disabling | Re-enable a disabled command | Admin |
+| `/ephemeral` | Admin | Show answers that would open in PM only to the asker | Admin |
 | `/export` | Backup | Export all group settings to a JSON file | Admin |
 | `/extend` | Help | Show every command in one list | Everyone |
 | `/fban` | Federations | Ban a user across the federation | Fed admin |

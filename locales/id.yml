@@ -65,7 +65,9 @@ admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna denga
 
   × /clearadmincache: Hapus daftar admin yang tersimpan di cache.
 
-  × /timezone `[nama]`: Tampilkan atau atur zona waktu chat sebagai nama IANA, misalnya Asia/Kolkata (bawaan UTC)."
+  × /timezone `[nama]`: Tampilkan atau atur zona waktu chat sebagai nama IANA, misalnya Asia/Kolkata (bawaan UTC).
+
+  × /ephemeral `<on/off>`: on menampilkan apa yang biasanya saya kirim ke PM (aturan privat, catatan privat, tombol /help) hanya kepada anggota yang meminta, di grup; off (bawaan) tetap memakai tombol ke PM. Saya harus menjadi admin."
 admin_promote_admin_title_truncated: Judul admin dipotong menjadi 16 karakter dari %d
 admin_promote_is_admin: Orang ini sudah menjadi admin, bagaimana saya bisa mempromosikannya?
 admin_promote_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
@@ -2863,6 +2865,10 @@ admin_setgdesc_failed: "Saya tidak dapat mengubah deskripsi grup."
 timezone_status: "Zona waktu chat ini adalah <b>{timezone}</b> (UTC{offset}); di sana sekarang pukul {time}.\nUbah dengan <code>/timezone &lt;nama&gt;</code>, nama IANA seperti <code>Asia/Jakarta</code>."
 timezone_set: "Zona waktu diatur ke <b>{timezone}</b> (UTC{offset}); di sana sekarang pukul {time}."
 timezone_invalid: "Saya tidak mengenal zona waktu <code>{input}</code>. Gunakan nama IANA seperti <code>Asia/Jakarta</code> atau <code>Asia/Makassar</code> (daftar: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
+ephemeral_status_on: "Jawaban privat <b>aktif</b>: aturan privat, catatan privat, dan pengalihan /help ditampilkan di grup hanya kepada anggota yang meminta."
+ephemeral_status_off: "Jawaban privat <b>nonaktif</b>: aturan privat, catatan privat, dan /help mengirim tombol untuk membukanya di PM. Aktifkan dengan <code>/ephemeral on</code>."
+ephemeral_enabled: "Jawaban privat <b>diaktifkan</b>. Anggota yang meminta aturan privat, catatan privat, atau /help kini melihatnya di sini, hanya untuk mereka."
+ephemeral_disabled: "Jawaban privat <b>dinonaktifkan</b>. Aturan privat, catatan privat, dan /help kembali mengirim tombol ke PM."
 misc_stickerid_need_sticker: "Balas ke stiker untuk mendapatkan ID filenya."
 misc_stickerid_result: "ID file stiker: <code>{id}</code>"
 misc_zombies_scanning: "Memindai akun yang dihapus…"
@@ -2939,6 +2945,7 @@ admin_extend_msg: |
   /setgpic — jadikan foto yang dibalas sebagai foto grup
   /setgdesc — ubah deskripsi grup
   /timezone — lihat atau ubah zona waktu chat
+  /ephemeral — tampilkan jawaban privat hanya kepada yang meminta, di grup
 aispam_extend_msg: |
   /aispam — lihat atau ubah filter spam AI
 antiflood_extend_msg: |

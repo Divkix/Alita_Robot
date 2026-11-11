@@ -287,6 +287,22 @@ Settings does not create a timezone row.
 The **Activity** heatmap uses this timezone. **Top members** and the **weekly
 digest** keep their UTC-based windows; changing the timezone does not shift them.
 
+### Private answers setting
+
+The **Private answers** group in **Settings** is the same switch as
+`/ephemeral`.
+
+| Setting | Default | Accepted values |
+|---------|---------|-----------------|
+| `ephemeral.enabled` | `false` | `true` or `false`. |
+
+When on, answers Alita would otherwise redirect to PM (private rules, private
+notes, the group `/help` redirect) are shown in the group only to the member who
+asked. A command sent as a reply to another message still answers publicly, and
+if Telegram refuses the private answer the usual PM button is sent instead.
+Changing it requires you and the bot to be chat admins. Opening Settings does not
+create a row.
+
 ### Night mode settings
 
 The **Night mode** group in **Settings** applies selected message locks during a
