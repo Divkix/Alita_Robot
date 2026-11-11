@@ -241,7 +241,7 @@ func TestFiltersWatcherNoFormatPathRequiresAdmin(t *testing.T) {
 	if len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want denial plus raw filter reply", len(calls))
 	}
-	assertSavedSend(t, calls[len(calls)-1], chat.Id, 101, true)
+	assertSavedSend(t, calls[len(calls)-1], chat.Id, 0, 101, true, "Raw")
 }
 
 func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {

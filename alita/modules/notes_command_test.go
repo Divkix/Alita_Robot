@@ -574,7 +574,7 @@ func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want note response", len(calls))
 	}
-	assertSavedSend(t, calls[0], chat.Id, 101, false)
+	assertSavedSend(t, calls[0], chat.Id, 0, 101, false, "be kind")
 }
 
 // The notes list is read through the cache, so it can still name a note whose
@@ -647,7 +647,7 @@ func TestNotesWatcherPrivateAdminOnlyAndNoFormatBranches(t *testing.T) {
 	if len(calls) != 3 {
 		t.Fatalf("sendMessage calls = %d, want private redirect, admin denial, raw note", len(calls))
 	}
-	assertSavedSend(t, calls[len(calls)-1], chat.Id, 101, true)
+	assertSavedSend(t, calls[len(calls)-1], chat.Id, 0, 101, true, "admin text")
 }
 
 func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
@@ -891,5 +891,35 @@ func TestGetNoteNoFormatRequiresAdminAndSendsRawNote(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want raw note response", len(calls))
 	}
-	assertSavedSend(t, calls[0], chat.Id, 101, true)
+	assertSavedSend(t, calls[0], chat.Id, 0, 101, true, "raw")
+}
+
+// A note fetched while replying to a message in a forum topic answers that
+// message, in the same topic.
+func TestGetNoteReplyingInATopicAnswersTheRepliedMessage(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := notes.AddNote(f.chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+	const topic = 7
+	forum := f.chat
+	forum.IsForum = true
+	ctx := newModuleMessageContext(f.bot, forum, f.member, "/get rules")
+	ctx.EffectiveMessage.MessageThreadId = topic
+	ctx.EffectiveMessage.IsTopicMessage = true
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 303, MessageThreadId: topic, IsTopicMessage: true, Date: 1, Chat: forum,
+		From: &gotgbot.User{Id: 43, FirstName: "Asker"}, Text: "what are the rules?",
+	}
+
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadNotes(dispatcher)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/get rules) error = %v", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the note", len(calls))
+	}
+	assertSavedSend(t, calls[0], forum.Id, topic, 303, false, "be kind")
 }
