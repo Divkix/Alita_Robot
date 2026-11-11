@@ -112,6 +112,9 @@ func TestSettingsToggleSetsEveryValue(t *testing.T) {
 	withAISpamTestConfig(t, "test-key-123456", true, config.AppConfig.MessageDump)
 
 	for _, toggle := range settingsToggles {
+		if toggle.declaration != nil {
+			continue // Declared values are exercised across all surfaces.
+		}
 		for range toggle.values {
 			value := toggle.next(settingsRowValue(t, f.chat.Id, toggle.command))
 			pressSettingsToggle(t, f, f.admin, toggle.key, value)
@@ -212,16 +215,6 @@ func TestSettingsToggleRefusals(t *testing.T) {
 		// summary is drawn again like after any failed write.
 		atWrite bool
 	}{
-		{
-			name: "member", key: "we", value: "off", command: "/welcome",
-			user:    func(f adminChatFixture) gotgbot.User { return f.member },
-			denyKey: "connections_is_user_connected_user_not_admin",
-		},
-		{
-			name: "admin without change info", key: "cw", value: "on", command: "/cleanwelcome",
-			user:    func(adminChatFixture) gotgbot.User { return limited },
-			denyKey: "chat_status_change_info_button_error",
-		},
 		{
 			name: "admin without restrict", key: "pb", value: "on", command: "/probation",
 			user:    func(adminChatFixture) gotgbot.User { return limited },

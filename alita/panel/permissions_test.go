@@ -16,31 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 )
 
-// A greeting toggle needs the caller's can_change_info, the right /welcome
-// checks; without it the panel must refuse and write nothing.
-func TestSettingsPatchGreetingsNeedChangeInfo(t *testing.T) {
-	fixture, chatID := newSettingsFixture(t)
-	raw := readFixture(t, "initdata_main.txt")
-	delete(fixture.client.rights, settingsFixtureUserID)
-
-	recorder := panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
-		`{"changes":{"greetings.welcome_enabled":false}}`, "application/json")
-	requireAPIError(t, recorder, http.StatusForbidden, "missing_permission")
-	if count := countChatRows(t, &models.GreetingSettings{}, chatID); count != 0 {
-		t.Fatalf("refused greeting write created %d rows", count)
-	}
-
-	fixture.client.rights[settingsFixtureUserID] = panelFakeRights{canChangeInfo: true}
-	recorder = panelRequest(t, fixture.handler, http.MethodPatch, settingsPath(chatID), raw,
-		`{"changes":{"greetings.welcome_enabled":false}}`, "application/json")
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 (body %s)", recorder.Code, recorder.Body.String())
-	}
-	if greetings.GetGreetingSettings(chatID).WelcomeSettings.ShouldWelcome {
-		t.Fatal("greeting write with can_change_info did not apply")
-	}
-}
-
 // /timezone needs the caller's can_change_info; a refusal must leave even
 // admin-only settings in the same batch untouched.
 func TestSettingsPatchTimezoneNeedsChangeInfo(t *testing.T) {

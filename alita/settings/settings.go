@@ -9,6 +9,9 @@
 // or chat_status. Module-owned effects attach here at startup; a missing required
 // attachment must refuse a write before storing anything. Read checks allowed
 // values, not write preconditions, and never repairs or creates a database row.
+// Switch declarations also supply the input-free on/off button cycle. Adapters
+// map neutral rights independently; panel batches require their union, never a
+// strongest-right approximation.
 package settings
 
 import "fmt"
@@ -16,6 +19,7 @@ import "fmt"
 type Type string
 
 const (
+	Switch   Type = "switch"
 	Number   Type = "number"
 	Duration Type = "duration" // integer seconds
 )
@@ -24,8 +28,10 @@ const (
 type Right uint8
 
 const (
-	Admin    Right = iota
-	AdminBot       // caller and bot must both be administrators
+	Admin         Right = iota
+	AdminBot            // caller and bot must both be administrators
+	ChangeInfo          // caller is an admin with can_change_info
+	ChangeInfoBot       // ChangeInfo, with the bot an administrator
 )
 
 type Declaration struct {
@@ -46,6 +52,11 @@ type State struct {
 	Changed bool
 }
 
+var declarations = []*Declaration{
+	RaidTime, RaidActionTime, AutoAntiRaidThreshold,
+	Welcome, Goodbye, CleanWelcome, CleanGoodbye, CleanService, AutoApprove,
+}
+
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.
 func Lookup(key string) (*Declaration, bool) {
 	for _, declaration := range declarations {
@@ -56,8 +67,22 @@ func Lookup(key string) (*Declaration, bool) {
 	return nil, false
 }
 
+// ToggleValues lists the input-free values a /settings button can cycle through.
+func (d *Declaration) ToggleValues() []string {
+	if d.Type == Switch {
+		return switchValues
+	}
+	return nil
+}
+
+var switchValues = []string{"off", "on"}
+
 func (d *Declaration) Validate(value any) error {
 	switch d.Type {
+	case Switch:
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("must be a boolean")
+		}
 	case Number, Duration:
 		if _, ok := value.(int); !ok {
 			return fmt.Errorf("must be an integer")
@@ -65,7 +90,10 @@ func (d *Declaration) Validate(value any) error {
 	default:
 		return fmt.Errorf("unknown setting type %q", d.Type)
 	}
-	return d.allowed(value)
+	if d.allowed != nil {
+		return d.allowed(value)
+	}
+	return nil
 }
 
 func (d *Declaration) Read(chatID int64) State {

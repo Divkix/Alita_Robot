@@ -16,7 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
-	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
@@ -30,13 +29,13 @@ import (
 
 const settingsTogglesPerRow = 2
 
-// settingsToggle is a /settings summary row a button sets to its next value.
-// It checks the rights its command checks and writes through the repository
-// function the command uses, so a tap does what sending the command does.
+// settingsToggle is a /settings row a button sets to its next value. Declared
+// rows derive their values, rights and write from their declaration.
 type settingsToggle struct {
-	key     string   // callback field k, short to fit the 64-byte cap
-	command string   // the summary row it changes
-	values  []string // the values a tap cycles through, as the row shows them
+	key         string // callback field k, short to fit the 64-byte cap
+	command     string // the summary row it changes
+	declaration *settings.Declaration
+	values      []string // the values a tap cycles through, as the row shows them
 	// botAdmin is set when the command needs the bot to be an admin.
 	botAdmin bool
 	// right checks what the command needs beyond admin status and returns the
@@ -72,11 +71,25 @@ func valueToggle(key, command string, values []string, botAdmin bool, set func(c
 		}}
 }
 
-// greetingSettingsToggle is a greetings on/off row, built from its command's
-// config so the bot-admin check and the setter cannot drift from it. Each of
-// these commands also needs the change-info right.
-func greetingSettingsToggle(key, command string, cfg greetingToggleConfig) settingsToggle {
-	return withRight(boolToggle(key, command, cfg.connectBotAdmin, cfg.setPref), canChangeInfoRight)
+func declaredSettingsToggle(key, command string, declaration *settings.Declaration) settingsToggle {
+	toggle := settingsToggle{
+		key: key, command: command, declaration: declaration, values: declaration.ToggleValues(),
+		set: func(_ *gotgbot.Bot, chatID int64, _ string, value string) string {
+			return settingsSaveFailed(command, chatID, declaration.Write(chatID, value == "on"))
+		},
+	}
+	switch declaration.Right {
+	case settings.Admin:
+	case settings.AdminBot:
+		toggle.botAdmin = true
+	case settings.ChangeInfo:
+		toggle.right = canChangeInfoRight
+	case settings.ChangeInfoBot:
+		toggle.botAdmin, toggle.right = true, canChangeInfoRight
+	default:
+		panic("unmapped setting right")
+	}
+	return toggle
 }
 
 func settingsSaveFailed(command string, chatID int64, err error) string {
@@ -95,7 +108,7 @@ func withRight(t settingsToggle, right func(*gotgbot.Bot, *ext.Context, *gotgbot
 // The rights the commands check beyond admin status.
 func canChangeInfoRight(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userID int64) string {
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, userID) {
-		return "chat_status_change_info_button_error"
+		return "chat_status_change_info_cmd_error"
 	}
 	return ""
 }
@@ -123,9 +136,7 @@ func inFedRight(_ *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, _ int64) s
 
 // settingsToggles are the summary rows with a button.
 // Each matches its summary row's Command and cycles exactly the values that row shows.
-// Keep botAdmin, right, repository writes and command side effects in sync with the command;
-// /captcha off also calls DisableCaptchaForChat. Reuse greetingToggleConfig and pinToggleConfig
-// setters where available so the panel and command do not acquire different behavior.
+// Declared rows carry only their callback key, command and declaration.
 var settingsToggles = []settingsToggle{
 	{key: "cp", command: "/captcha", values: settingsOnOff, botAdmin: true, set: setCaptchaToggle},
 	{key: "cj", command: "/captchajoin", values: settingsOnOff,
@@ -148,12 +159,12 @@ var settingsToggles = []settingsToggle{
 	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},
 	withRight(boolToggle("pb", "/probation", true, probation.SetEnabled), restrictRight),
 	withRight(boolToggle("pv", "/probation notice", true, probation.SetNotice), restrictRight),
-	boolToggle("we", "/welcome", false, greetings.SetWelcomeToggle),
-	greetingSettingsToggle("cw", "/cleanwelcome", cleanWelcomeToggleConfig),
-	boolToggle("gb", "/goodbye", false, greetings.SetGoodbyeToggle),
-	greetingSettingsToggle("cg", "/cleangoodbye", cleanGoodbyeToggleConfig),
-	greetingSettingsToggle("cs", "/cleanservice", delJoinedToggleConfig),
-	greetingSettingsToggle("aa", "/autoapprove", autoApproveToggleConfig),
+	declaredSettingsToggle("we", "/welcome", settings.Welcome),
+	declaredSettingsToggle("cw", "/cleanwelcome", settings.CleanWelcome),
+	declaredSettingsToggle("gb", "/goodbye", settings.Goodbye),
+	declaredSettingsToggle("cg", "/cleangoodbye", settings.CleanGoodbye),
+	declaredSettingsToggle("cs", "/cleanservice", settings.CleanService),
+	declaredSettingsToggle("aa", "/autoapprove", settings.AutoApprove),
 	boolToggle("rp", "/reports", true, reports.SetChatReportStatus),
 	boolToggle("pr", "/privaterules", true, rules.SetPrivateRules),
 	boolToggle("pn", "/privnote", false, notes.TooglePrivateNote),

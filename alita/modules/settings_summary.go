@@ -278,23 +278,26 @@ func blacklistSettingsSection(chatID int64) settingsSection {
 	}}
 }
 
-func greetingsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	g, ok := readChatSetting[models.GreetingSettings](ctx, chatID)
-	if !ok || g.WelcomeSettings == nil || g.GoodbyeSettings == nil {
-		g = &models.GreetingSettings{
-			WelcomeSettings: &models.WelcomeSettings{ShouldWelcome: true},
-			GoodbyeSettings: &models.GoodbyeSettings{ShouldGoodbye: true},
-		}
+func declaredBoolRow(command string, declaration *settings.Declaration, chatID int64) settingsRow {
+	state := declaration.Read(chatID)
+	value := "off"
+	if state.Value.(bool) {
+		value = "on"
 	}
+	return settingsRow{Command: command, Value: value, Changed: state.Changed}
+}
+
+func greetingsSettingsSection(_ context.Context, chatID int64) settingsSection {
+	g := settings.ReadGreetings(chatID)
 	return settingsSection{Title: "Greetings", Rows: []settingsRow{
-		boolRow("/welcome", g.WelcomeSettings.ShouldWelcome, true),
+		declaredBoolRow("/welcome", settings.Welcome, chatID),
 		customTextRow("/setwelcome", g.WelcomeSettings.WelcomeText, db.DefaultWelcome),
-		boolRow("/cleanwelcome", g.WelcomeSettings.CleanWelcome, false),
-		boolRow("/goodbye", g.GoodbyeSettings.ShouldGoodbye, true),
+		declaredBoolRow("/cleanwelcome", settings.CleanWelcome, chatID),
+		declaredBoolRow("/goodbye", settings.Goodbye, chatID),
 		customTextRow("/setgoodbye", g.GoodbyeSettings.GoodbyeText, db.DefaultGoodbye),
-		boolRow("/cleangoodbye", g.GoodbyeSettings.CleanGoodbye, false),
-		boolRow("/cleanservice", g.ShouldCleanService, false),
-		boolRow("/autoapprove", g.ShouldAutoApprove, false),
+		declaredBoolRow("/cleangoodbye", settings.CleanGoodbye, chatID),
+		declaredBoolRow("/cleanservice", settings.CleanService, chatID),
+		declaredBoolRow("/autoapprove", settings.AutoApprove, chatID),
 	}}
 }
 

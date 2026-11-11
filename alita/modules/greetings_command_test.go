@@ -27,72 +27,15 @@ func newGreetingMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot
 	return newModuleMessageContext(bot, chat, from, text)
 }
 
-func TestWelcomeAndGoodbyeTogglesPersistForNewChat(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-	welcomeOffCtx := newGreetingMessageContext(bot, chat, admin, "/welcome off")
-	if err := commandResponse(greetingsModule.welcome)(bot, welcomeOffCtx); err != ext.EndGroups {
-		t.Fatalf("welcome off error = %v, want EndGroups", err)
+func TestGoodbyeNoformatShowsUnexpandedText(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := greetings.SetGoodbyeText(f.chat.Id, "Bye raw {first}", "", nil, db.TEXT); err != nil {
+		t.Fatal(err)
 	}
-	if greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
-		t.Fatal("welcome toggle stayed enabled for new chat")
-	}
-
-	goodbyeOnCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye on")
-	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeOnCtx); err != ext.EndGroups {
-		t.Fatalf("goodbye on error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
-		t.Fatal("goodbye toggle did not enable for new chat")
-	}
-}
-
-func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-	welcomeOnCtx := newGreetingMessageContext(bot, chat, admin, "/welcome on")
-	if err := commandResponse(greetingsModule.welcome)(bot, welcomeOnCtx); err != ext.EndGroups {
-		t.Fatalf("welcome on error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
-		t.Fatal("welcome toggle did not enable")
-	}
-
-	welcomeInvalidCtx := newGreetingMessageContext(bot, chat, admin, "/welcome maybe")
-	if err := commandResponse(greetingsModule.welcome)(bot, welcomeInvalidCtx); err != ext.EndGroups {
-		t.Fatalf("welcome invalid error = %v, want EndGroups", err)
-	}
-
-	if err := greetings.SetGoodbyeText(chat.Id, "Bye raw {first}", "", nil, db.TEXT); err != nil {
-		t.Fatalf("SetGoodbyeText setup error = %v", err)
-	}
-	goodbyeNoformatCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye noformat")
-	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeNoformatCtx); err != ext.EndGroups {
+	if err := commandResponse(greetingsModule.goodbye)(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, "/goodbye noformat")); err != ext.EndGroups {
 		t.Fatalf("goodbye noformat error = %v, want EndGroups", err)
 	}
-
-	goodbyeOffCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye off")
-	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeOffCtx); err != ext.EndGroups {
-		t.Fatalf("goodbye off error = %v, want EndGroups", err)
-	}
-	if greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
-		t.Fatal("goodbye toggle stayed enabled")
-	}
-
-	goodbyeInvalidCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye maybe")
-	if err := commandResponse(greetingsModule.goodbye)(bot, goodbyeInvalidCtx); err != ext.EndGroups {
-		t.Fatalf("goodbye invalid error = %v, want EndGroups", err)
-	}
-
-	if calls := client.callsFor("sendMessage"); len(calls) < 6 {
-		t.Fatalf("sendMessage calls = %d, want toggle/display replies", len(calls))
-	}
+	assertParams(t, lastCall(t, f.client, "sendMessage"), map[string]any{"text": "Bye raw {first}"})
 }
 
 func TestGreetingDisplayPropagatesMediaSendErrors(t *testing.T) {
@@ -114,21 +57,6 @@ func TestGreetingDisplayPropagatesMediaSendErrors(t *testing.T) {
 	}
 	if calls := client.callsFor("sendPhoto"); len(calls) != 1 {
 		t.Fatalf("sendPhoto calls = %d, want greeting media send", len(calls))
-	}
-}
-
-func TestGreetingToggleRejectsNonAdminUsers(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-	member := gotgbot.User{Id: 42, FirstName: "Member"}
-
-	ctx := newGreetingMessageContext(bot, chat, member, "/welcome off")
-	if err := commandResponse(greetingsModule.welcome)(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("welcome off by non-admin error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
-		t.Fatal("welcome toggle changed after non-admin command")
 	}
 }
 
@@ -188,132 +116,21 @@ func TestSetGreetingCommandsRejectMissingContent(t *testing.T) {
 	}
 }
 
-func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
-	f := newAdminChatFixture(t)
-	bot, chat, admin := f.bot, f.chat, f.admin
-
-	cleanWelcomeCtx := newGreetingMessageContext(bot, chat, admin, "/cleanwelcome on")
-	if err := greetingsModule.cleanWelcome(bot, cleanWelcomeCtx); err != ext.EndGroups {
-		t.Fatalf("cleanWelcome error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.CleanWelcome {
-		t.Fatal("clean welcome did not enable for new chat")
-	}
-
-	cleanGoodbyeCtx := newGreetingMessageContext(bot, chat, admin, "/cleangoodbye on")
-	if err := greetingsModule.cleanGoodbye(bot, cleanGoodbyeCtx); err != ext.EndGroups {
-		t.Fatalf("cleanGoodbye error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.CleanGoodbye {
-		t.Fatal("clean goodbye did not enable for new chat")
-	}
-
-	cleanServiceCtx := newGreetingMessageContext(bot, chat, admin, "/cleanservice on")
-	if err := greetingsModule.delJoined(bot, cleanServiceCtx); err != ext.EndGroups {
-		t.Fatalf("delJoined error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).ShouldCleanService {
-		t.Fatal("clean service did not enable for new chat")
-	}
-
-	autoApproveCtx := newGreetingMessageContext(bot, chat, admin, "/autoapprove on")
-	if err := greetingsModule.autoApprove(bot, autoApproveCtx); err != ext.EndGroups {
-		t.Fatalf("autoApprove error = %v, want EndGroups", err)
-	}
-	if !greetings.GetGreetingSettings(chat.Id).ShouldAutoApprove {
-		t.Fatal("auto approve did not enable for new chat")
-	}
-}
-
-func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
-	tests := []struct {
-		name    string
-		command string
-		run     func(*gotgbot.Bot, *ext.Context) error
-		verify  func(int64) bool
-	}{
-		{
-			name:    "clean welcome off",
-			command: "/cleanwelcome off",
-			run:     greetingsModule.cleanWelcome,
-			verify: func(chatID int64) bool {
-				return !greetings.GetGreetingSettings(chatID).WelcomeSettings.CleanWelcome
-			},
-		},
-		{
-			name:    "clean goodbye off",
-			command: "/cleangoodbye no",
-			run:     greetingsModule.cleanGoodbye,
-			verify: func(chatID int64) bool {
-				return !greetings.GetGreetingSettings(chatID).GoodbyeSettings.CleanGoodbye
-			},
-		},
-		{
-			name:    "clean service off",
-			command: "/cleanservice off",
-			run:     greetingsModule.delJoined,
-			verify: func(chatID int64) bool {
-				return !greetings.GetGreetingSettings(chatID).ShouldCleanService
-			},
-		},
-		{
-			name:    "auto approve off",
-			command: "/autoapprove no",
-			run:     greetingsModule.autoApprove,
-			verify: func(chatID int64) bool {
-				return !greetings.GetGreetingSettings(chatID).ShouldAutoApprove
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-			ctx := newGreetingMessageContext(bot, chat, admin, tt.command)
-			if err := tt.run(bot, ctx); err != ext.EndGroups {
-				t.Fatalf("%s error = %v, want EndGroups", tt.name, err)
-			}
-			if !tt.verify(chat.Id) {
-				t.Fatalf("%s did not persist expected disabled state", tt.name)
-			}
-			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-				t.Fatalf("sendMessage calls = %d, want command response", len(calls))
+func TestGreetingToggleAliasesMatchOnAndOff(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []string{"/welcome", "/goodbye", "/cleanwelcome", "/cleangoodbye", "/cleanservice", "/autoapprove"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			for _, pair := range [][2]string{{"on", "yes"}, {"off", "no"}} {
+				contractDispatch(t, f, f.admin, command+" "+pair[0])
+				want := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+				contractDispatch(t, f, f.admin, command+" "+pair[1])
+				if got := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); got != want {
+					t.Fatalf("%s %s = %q, want %s reply %q", command, pair[1], got, pair[0], want)
+				}
 			}
 		})
 	}
-
-	t.Run("status and invalid options reply without mutating settings", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-		for _, step := range []struct {
-			command string
-			run     func(*gotgbot.Bot, *ext.Context) error
-		}{
-			{command: "/cleanwelcome", run: greetingsModule.cleanWelcome},
-			{command: "/cleanwelcome maybe", run: greetingsModule.cleanWelcome},
-			{command: "/cleangoodbye", run: greetingsModule.cleanGoodbye},
-			{command: "/cleangoodbye maybe", run: greetingsModule.cleanGoodbye},
-			{command: "/cleanservice", run: greetingsModule.delJoined},
-			{command: "/cleanservice maybe", run: greetingsModule.delJoined},
-			{command: "/autoapprove", run: greetingsModule.autoApprove},
-			{command: "/autoapprove maybe", run: greetingsModule.autoApprove},
-		} {
-			ctx := newGreetingMessageContext(bot, chat, admin, step.command)
-			if err := step.run(bot, ctx); err != ext.EndGroups {
-				t.Fatalf("%s error = %v, want EndGroups", step.command, err)
-			}
-		}
-
-		if calls := client.callsFor("sendMessage"); len(calls) != 8 {
-			t.Fatalf("sendMessage calls = %d, want one reply per status/invalid command", len(calls))
-		}
-	})
 }
 
 // /cleanwelcome and /cleangoodbye with no argument report the stored setting;

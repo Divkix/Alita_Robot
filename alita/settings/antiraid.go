@@ -64,8 +64,6 @@ var AutoAntiRaidThreshold = &Declaration{
 	write: func(chatID int64, value any) error { return antiraid.SetAutoAntiRaidThreshold(chatID, value.(int)) },
 }
 
-var declarations = []*Declaration{RaidTime, RaidActionTime, AutoAntiRaidThreshold}
-
 // ReadAntiRaid returns an effective snapshot for raid status and action paths.
 // Copy the cached row before normalization; reads never modify stored values.
 func ReadAntiRaid(chatID int64) models.AntiRaidSettings {

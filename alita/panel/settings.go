@@ -20,7 +20,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
-	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
@@ -109,6 +108,8 @@ func declaredSettingsField(chatID int64, declaration *settings.Declaration) sett
 	_, key, _ := strings.Cut(declaration.Key, ".")
 	var fieldType string
 	switch declaration.Type {
+	case settings.Switch:
+		fieldType = "bool"
 	case settings.Number, settings.Duration:
 		fieldType = "int"
 	default:
@@ -138,29 +139,6 @@ func readSettingsRow[T any](chatID int64) (*T, bool) {
 	return &row, true
 }
 
-// readGreetingSettings loads the greeting row without creating it. A missing
-// row, or one with nil embedded settings, reads the defaults the repository
-// would use: welcome on, goodbye off.
-func readGreetingSettings(chatID int64) models.GreetingSettings {
-	defaults := models.GreetingSettings{
-		ChatID:          chatID,
-		WelcomeSettings: &models.WelcomeSettings{ShouldWelcome: true},
-		GoodbyeSettings: &models.GoodbyeSettings{},
-	}
-	row, ok := readSettingsRow[models.GreetingSettings](chatID)
-	if !ok {
-		return defaults
-	}
-	out := *row
-	if out.WelcomeSettings == nil {
-		out.WelcomeSettings = defaults.WelcomeSettings
-	}
-	if out.GoodbyeSettings == nil {
-		out.GoodbyeSettings = defaults.GoodbyeSettings
-	}
-	return out
-}
-
 func readRulesSettings(chatID int64) models.RulesSettings {
 	row, ok := readSettingsRow[models.RulesSettings](chatID)
 	if !ok {
@@ -186,7 +164,6 @@ func panelSettings(access chatAccess) settingsResponse {
 		language = "en"
 	}
 
-	greeting := readGreetingSettings(chatID)
 	rulesRow := readRulesSettings(chatID)
 
 	captchaRow := &models.CaptchaSettings{
@@ -249,11 +226,11 @@ func panelSettings(access chatAccess) settingsResponse {
 			settingsString("code", language, "en", true, languageCodes),
 		}},
 		{Key: "greetings", Label: "Greetings", Fields: []settingsField{
-			settingsBool("welcome_enabled", greeting.WelcomeSettings.ShouldWelcome, true, true),
-			settingsBool("clean_welcome", greeting.WelcomeSettings.CleanWelcome, false, true),
-			settingsBool("goodbye_enabled", greeting.GoodbyeSettings.ShouldGoodbye, false, true),
-			settingsBool("clean_goodbye", greeting.GoodbyeSettings.CleanGoodbye, false, true),
-			settingsBool("clean_service", greeting.ShouldCleanService, false, true),
+			declaredSettingsField(chatID, settings.Welcome),
+			declaredSettingsField(chatID, settings.CleanWelcome),
+			declaredSettingsField(chatID, settings.Goodbye),
+			declaredSettingsField(chatID, settings.CleanGoodbye),
+			declaredSettingsField(chatID, settings.CleanService),
 		}},
 		{Key: "rules", Label: "Rules", Fields: []settingsField{
 			// /setrules converts the admin's Markdown to Telegram HTML before
@@ -392,8 +369,8 @@ func (p *Panel) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The equivalent command checks a right per setting; check the batch's
-	// strongest requirement once, before the first write.
+	// Check every declared right before the first write; Telegram rights
+	// such as change-info and restrict-members are independent.
 	if !p.requirePermission(w, r, access, session.User.ID, settingsPermission(updates)) {
 		return
 	}
@@ -912,8 +889,6 @@ func applySettingChange(chatID int64, chatName, key string, value any) error {
 	switch moduleKey {
 	case "language":
 		return lang.ChangeGroupLanguage(chatID, value.(string))
-	case "greetings":
-		return applyGreetingChange(chatID, fieldKey, value)
 	case "rules":
 		return rules.SetPrivateRules(chatID, value.(bool))
 	case "captcha":
@@ -986,22 +961,6 @@ func applyNightModeChanges(chatID int64, updates map[string]any) error {
 		types = strings.Split(names, ",")
 	}
 	return nightmode.Enable(chatID, start, end, types)
-}
-
-func applyGreetingChange(chatID int64, field string, value any) error {
-	switch field {
-	case "welcome_enabled":
-		return greetings.SetWelcomeToggle(chatID, value.(bool))
-	case "clean_welcome":
-		return greetings.SetCleanWelcomeSetting(chatID, value.(bool))
-	case "goodbye_enabled":
-		return greetings.SetGoodbyeToggle(chatID, value.(bool))
-	case "clean_goodbye":
-		return greetings.SetCleanGoodbyeSetting(chatID, value.(bool))
-	case "clean_service":
-		return greetings.SetShouldCleanService(chatID, value.(bool))
-	}
-	return fmt.Errorf("unknown greeting setting %q", field)
 }
 
 func applyCaptchaChange(chatID int64, chatName, field string, value any) error {

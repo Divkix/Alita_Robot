@@ -143,14 +143,8 @@ func TestSettingsGetReportsCurrentValuesAndDefaults(t *testing.T) {
 	if options := findSettingsField(t, body, "language.code").Options; len(options) != 7 {
 		t.Fatalf("language options = %v, want the seven locales", options)
 	}
-	if !fieldBool(t, body, "greetings.welcome_enabled") {
-		t.Fatal("greetings.welcome_enabled = false, want the repository default true")
-	}
-	for _, key := range []string{"greetings.clean_welcome", "greetings.goodbye_enabled", "greetings.clean_goodbye", "greetings.clean_service"} {
-		if fieldBool(t, body, key) {
-			t.Fatalf("%s = true, want the default false", key)
-		}
-	}
+	// Greeting defaults and their changed marks are covered by the
+	// shared dispatcher/panel contract table.
 	if findSettingsField(t, body, "rules.rules_text").Writable {
 		t.Fatal("rules.rules_text must be read-only")
 	}

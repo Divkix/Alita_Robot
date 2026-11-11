@@ -23,9 +23,7 @@ const (
 // Modules not listed are admin-only, which requireWritable already enforces.
 var settingsPermissions = map[string]permission{
 	"language": permNone, // /lang group requires the caller to be an admin
-	// /welcome and friends check the caller's can_change_info.
-	"greetings": permChangeInfo,
-	"rules":     permNone, // /setrules requires an admin and the bot admin
+	"rules":    permNone, // /setrules requires an admin and the bot admin
 	// Captcha mutes new members, and switching it off unmutes the users it
 	// still holds: both writes restrict members, so the caller and the bot
 	// need the same right the captcha watcher uses.
@@ -50,6 +48,8 @@ func settingsFieldPermission(module, field string) permission {
 		case settings.Admin, settings.AdminBot:
 			// The panel's access envelope already requires both admins.
 			return permNone
+		case settings.ChangeInfo, settings.ChangeInfoBot:
+			return permChangeInfo
 		default:
 			panic("unmapped setting right")
 		}
@@ -65,8 +65,7 @@ func settingsFieldPermission(module, field string) permission {
 	return perm
 }
 
-// settingsPermission reports the strongest right a batch of changes needs.
-// The permissions are ordered, so the maximum is the batch's requirement.
+// settingsPermission reports the union of the independent rights a batch needs.
 func settingsPermission(changes map[string]any) permission {
 	required := permNone
 	for key := range changes {
@@ -74,9 +73,7 @@ func settingsPermission(changes map[string]any) permission {
 		if !ok {
 			continue
 		}
-		if perm := settingsFieldPermission(module, field); perm > required {
-			required = perm
-		}
+		required |= settingsFieldPermission(module, field)
 	}
 	return required
 }
@@ -98,17 +95,19 @@ func (p *Panel) requirePermission(w http.ResponseWriter, r *http.Request, access
 		writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return this member: "+err.Error())
 		return false
 	}
-	if !memberCan(caller, perm) {
-		writeJSONError(w, http.StatusForbidden, "missing_permission", "you need the "+permissionRight(perm)+" right in this chat")
-		return false
+	for _, right := range []permission{permChangeInfo, permRestrict} {
+		if perm&right != 0 && !memberCan(caller, right) {
+			writeJSONError(w, http.StatusForbidden, "missing_permission", "you need the "+permissionRight(right)+" right in this chat")
+			return false
+		}
 	}
-	if perm == permRestrict {
+	if perm&permRestrict != 0 {
 		botMember, err := p.bot.GetChatMemberWithContext(r.Context(), access.ChatID, p.bot.Id, nil)
 		if err != nil {
 			writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return the bot's membership: "+err.Error())
 			return false
 		}
-		if !memberCan(botMember, perm) {
+		if !memberCan(botMember, permRestrict) {
 			writeJSONError(w, http.StatusConflict, "bot_missing_permission", "the bot is missing the "+permissionRight(perm)+" right in this chat, so changes are disabled")
 			return false
 		}

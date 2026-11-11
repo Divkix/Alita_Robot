@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
@@ -28,7 +30,7 @@ import (
 )
 
 type settingContractEdge struct {
-	value  int
+	value  any
 	input  string
 	label  string
 	accept bool
@@ -37,12 +39,20 @@ type settingContractEdge struct {
 type settingContract struct {
 	key          string
 	command      string
-	defaultValue int
+	defaultValue any
 	defaultLabel string
 	statusToken  string
 	refusalKey   string
 	seedInvalid  func(int64) error
 	edges        []settingContractEdge
+	button       string
+	noPanel      bool
+	changeInfo   bool
+	botAdmin     bool
+	statusOn     string
+	statusOff    string
+	setOn        string
+	setOff       string
 }
 
 // Expectations come from the command contract, not the declarations. Later
@@ -52,6 +62,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 	for _, setting := range []settingContract{
 		{
 			key: "antiraid.raid_action_time", command: "/raidactiontime",
+			botAdmin:     true,
 			defaultValue: 3600, defaultLabel: "1h", statusToken: "Action: ",
 			seedInvalid: func(chatID int64) error { return antiraid.SetRaidActionTime(chatID, 5) },
 			refusalKey:  "antiraid_invalid_duration",
@@ -64,6 +75,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 		},
 		{
 			key: "antiraid.raid_time", command: "/raidtime",
+			botAdmin:     true,
 			defaultValue: 21600, defaultLabel: "6h", statusToken: "Raid: ",
 			refusalKey: "antiraid_invalid_duration",
 			seedInvalid: func(chatID int64) error {
@@ -81,6 +93,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 		},
 		{
 			key: "antiraid.auto_threshold", command: "/autoantiraid",
+			botAdmin:     true,
 			defaultValue: 0, defaultLabel: "off", statusToken: "Auto: ",
 			refusalKey: "antiraid_invalid_threshold",
 			seedInvalid: func(chatID int64) error {
@@ -94,76 +107,137 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 				{2147483648, "2147483648", "2147483648", false},
 			},
 		},
+		{
+			key: "greetings.goodbye_enabled", command: "/goodbye", button: "gb",
+			defaultValue: true, defaultLabel: "on",
+			statusToken: "I am currently goodbying users: <code>",
+			refusalKey:  "greetings_goodbye_invalid",
+			setOn:       "greetings_goodbye_enable", setOff: "greetings_goodbye_disable",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "greetings.welcome_enabled", command: "/welcome", button: "we",
+			defaultValue: true, defaultLabel: "on",
+			statusToken: "I am currently welcoming users: <code>",
+			refusalKey:  "greetings_welcome_invalid_option",
+			setOn:       "greetings_welcome_enabled", setOff: "greetings_welcome_disabled",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "greetings.clean_welcome", command: "/cleanwelcome", button: "cw", changeInfo: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "greetings_clean_welcome_should", statusOff: "greetings_clean_welcome_not",
+			refusalKey: "greetings_clean_welcome_invalid_option",
+			setOn:      "greetings_clean_welcome_enable", setOff: "greetings_clean_welcome_disable",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "greetings.clean_goodbye", command: "/cleangoodbye", button: "cg", changeInfo: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "greetings_clean_goodbye_should", statusOff: "greetings_clean_goodbye_not",
+			refusalKey: "greetings_clean_goodbye_invalid_option",
+			setOn:      "greetings_clean_goodbye_enable", setOff: "greetings_clean_goodbye_disable",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "greetings.clean_service", command: "/cleanservice", button: "cs", changeInfo: true, botAdmin: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "greetings_clean_service_should", statusOff: "greetings_clean_service_not",
+			refusalKey: "greetings_clean_service_invalid_option",
+			setOn:      "greetings_clean_service_enable", setOff: "greetings_clean_service_disable",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "greetings.auto_approve", command: "/autoapprove", button: "aa", changeInfo: true, botAdmin: true, noPanel: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "greetings_auto_approve_enabled", statusOff: "greetings_auto_approve_disabled",
+			refusalKey: "greetings_auto_approve_invalid_option",
+			setOn:      "greetings_auto_approve_enable", setOff: "greetings_auto_approve_disable",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
 			t.Run("default without creating a row", func(t *testing.T) {
-				f := newSettingContractFixture(t)
+				f := newSettingContractFixture(t, setting)
 				assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
-				var count int64
-				if err := db.DB.Model(&models.AntiRaidSettings{}).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
-					t.Fatal(err)
-				}
-				if count != 0 {
-					t.Fatalf("reading settings created %d rows", count)
-				}
+				assertContractRowCount(t, f, setting, 0)
 			})
 			t.Run("invalid stored value uses default", func(t *testing.T) {
-				f := newSettingContractFixture(t)
+				if setting.seedInvalid == nil {
+					return
+				}
+				f := newSettingContractFixture(t, setting)
 				if err := setting.seedInvalid(f.chat.Id); err != nil {
 					t.Fatal(err)
 				}
 				assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
 			})
-			for _, callerAdmin := range []bool{false, true} {
-				for _, botAdmin := range []bool{false, true} {
-					t.Run(fmt.Sprintf("rights/caller=%t/bot=%t", callerAdmin, botAdmin), func(t *testing.T) {
-						f := newSettingContractFixture(t)
-						actor := f.member
-						if callerAdmin {
-							actor = f.admin
+			for _, rights := range []struct {
+				name        string
+				callerAdmin bool
+				botAdmin    bool
+				changeInfo  bool
+			}{
+				{"member", false, true, false},
+				{"exact right", true, true, setting.changeInfo},
+				{"no change info", true, true, false},
+				{"bot member", true, false, setting.changeInfo},
+			} {
+				t.Run("rights/"+rights.name, func(t *testing.T) {
+					f := newSettingContractFixture(t, setting)
+					contractRights(f, rights.changeInfo, rights.botAdmin, false)
+					actor := f.member
+					if rights.callerAdmin {
+						actor = f.admin
+					}
+					edge := setting.edges[1]
+					accepted := rights.callerAdmin && (!setting.botAdmin || rights.botAdmin) && (!setting.changeInfo || rights.changeInfo)
+					refusal := "connections_is_user_connected_user_not_admin"
+					if setting.botAdmin && !rights.botAdmin {
+						refusal = "connections_is_user_connected_bot_not_admin"
+					} else if rights.callerAdmin && setting.changeInfo && !rights.changeInfo {
+						refusal = "chat_status_change_info_cmd_error"
+					}
+					contractDispatch(t, f, actor, setting.command+" "+edge.input)
+					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+					if !accepted && reply != translated(t, refusal) {
+						t.Fatalf("command refusal = %q, want %s", reply, refusal)
+					}
+					if !accepted {
+						assertContractRowCount(t, f, setting, 0)
+					}
+					if setting.button != "" {
+						contractPress(t, f, actor, setting.button, edge.input)
+						text, alert := lastAnswer(t, f.client)
+						if accepted == alert || (!accepted && text != reply) {
+							t.Fatalf("button answer = %q alert %t, command = %q accepted %t", text, alert, reply, accepted)
 						}
-						if !botAdmin {
-							f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(fmt.Sprintf(`[{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}]`, f.admin.Id))
-							f.client.membersByChat = map[string]json.RawMessage{
-								fmt.Sprintf("%d|999", f.chat.Id): json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
-							}
-						}
-						edge := setting.edges[1]
-						contractDispatch(t, f, actor, setting.command+" "+edge.input)
-						reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
-						response := contractPanelRequest(t, f, actor, http.MethodPatch, fmt.Sprintf(`{"changes":{%q:%d}}`, setting.key, edge.value))
-						if callerAdmin && botAdmin {
+					}
+					if !setting.noPanel {
+						response := contractPanelRequest(t, f, actor, http.MethodPatch, contractChanges(t, map[string]any{setting.key: edge.value}))
+						if accepted && rights.botAdmin {
 							if response.Code != http.StatusOK {
 								t.Fatalf("exact right refused: %d %s", response.Code, response.Body.String())
 							}
-							assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
-						} else {
-							key := "connections_is_user_connected_user_not_admin"
-							if !botAdmin {
-								key = "connections_is_user_connected_bot_not_admin"
-							}
-							if reply != translated(t, key) {
-								t.Fatalf("command refusal = %q, want %s", reply, key)
-							}
-							if response.Code != http.StatusForbidden && response.Code != http.StatusConflict {
-								t.Fatalf("panel accepted missing right: %d %s", response.Code, response.Body.String())
-							}
-							var count int64
-							if err := db.DB.Model(&models.AntiRaidSettings{}).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
-								t.Fatal(err)
-							}
-							if count != 0 {
-								t.Fatalf("missing right stored %d rows", count)
-							}
+						} else if response.Code != http.StatusForbidden && response.Code != http.StatusConflict {
+							t.Fatalf("panel accepted missing right: %d %s", response.Code, response.Body.String())
 						}
-					})
-				}
+					}
+					if !accepted {
+						assertContractRowCount(t, f, setting, 0)
+					} else if rights.botAdmin {
+						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
+					}
+				})
 			}
 			for _, edge := range setting.edges {
 				t.Run(edge.input, func(t *testing.T) {
-					f := newSettingContractFixture(t)
+					if setting.noPanel {
+						return
+					}
+					f := newSettingContractFixture(t, setting)
 					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
-					changes := map[string]int{setting.key: edge.value}
+					changes := map[string]any{setting.key: edge.value}
 					if !edge.accept {
 						sibling := "antiraid.raid_time"
 						if sibling == setting.key {
@@ -186,7 +260,7 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 					}
 					if edge.accept {
 						if response.Code != http.StatusOK {
-							t.Fatalf("panel refused %d: %d %s", edge.value, response.Code, response.Body.String())
+							t.Fatalf("panel refused %v: %d %s", edge.value, response.Code, response.Body.String())
 						}
 						if !slices.Contains(result.Saved, setting.key) || len(result.Failed) != 0 {
 							t.Fatalf("per-field outcomes = %+v", result)
@@ -194,24 +268,26 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
 					} else {
 						if response.Code != http.StatusBadRequest || result.Errors[setting.key] == "" || len(result.Saved) != 0 || len(result.Failed) != 0 {
-							t.Fatalf("panel accepted invalid %d: %d %s", edge.value, response.Code, response.Body.String())
+							t.Fatalf("panel accepted invalid %v: %d %s", edge.value, response.Code, response.Body.String())
 						}
-						var count int64
-						if err := db.DB.Model(&models.AntiRaidSettings{}).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
-							t.Fatal(err)
-						}
-						if count != 0 {
-							t.Fatalf("invalid batch wrote %d rows", count)
-						}
+						assertContractRowCount(t, f, setting, 0)
 					}
 				})
 				t.Run("command/"+edge.input, func(t *testing.T) {
-					f := newSettingContractFixture(t)
+					f := newSettingContractFixture(t, setting)
 					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
 					contractDispatch(t, f, f.admin, setting.command+" "+edge.input)
 					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
 					if edge.accept {
-						if edge.input == "off" {
+						if setting.setOn != "" {
+							key := setting.setOff
+							if edge.value == true {
+								key = setting.setOn
+							}
+							if reply != translated(t, key) {
+								t.Fatalf("command reply = %q, want %s", reply, key)
+							}
+						} else if edge.input == "off" {
 							if reply != translated(t, "antiraid_auto_disabled") {
 								t.Fatalf("off reply = %q", reply)
 							}
@@ -225,6 +301,77 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 						}
 						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
 					}
+				})
+				if setting.button != "" {
+					t.Run("button/"+edge.input, func(t *testing.T) {
+						f := newSettingContractFixture(t, setting)
+						assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+						contractPress(t, f, f.admin, setting.button, edge.input)
+						text, alert := lastAnswer(t, f.client)
+						if edge.accept {
+							if alert {
+								t.Fatalf("button refused %s: %q", edge.input, text)
+							}
+							assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
+						} else {
+							if text != translated(t, "common_callback_invalid_request") {
+								t.Fatalf("button accepted invalid %s: %q", edge.input, text)
+							}
+							assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+							assertContractRowCount(t, f, setting, 0)
+						}
+					})
+				}
+			}
+			if setting.changeInfo && !setting.noPanel {
+				t.Run("rights remain independent in a batch", func(t *testing.T) {
+					f := newSettingContractFixture(t, setting)
+					contractRights(f, false, true, true)
+					response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{
+						setting.key: true, "reports.mute_threshold": 2,
+					}))
+					if response.Code != http.StatusForbidden {
+						t.Fatalf("batch bypassed change-info: %d %s", response.Code, response.Body.String())
+					}
+					assertContractRowCount(t, f, setting, 0)
+				})
+			}
+			if setting.button != "" {
+				t.Run("write failure", func(t *testing.T) {
+					f := newSettingContractFixture(t, setting)
+					assertContractRead(t, f, setting, setting.defaultValue, setting.defaultLabel, false)
+					name := "fail_greeting_write"
+					if err := db.DB.Callback().Create().Before("gorm:create").Register(name, func(tx *gorm.DB) {
+						if tx.Statement.Table == "greetings" {
+							_ = tx.AddError(errors.New("greeting write failed"))
+						}
+					}); err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { _ = db.DB.Callback().Create().Remove(name) })
+					contractDispatch(t, f, f.admin, setting.command+" on")
+					reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"])
+					if reply != translated(t, "common_settings_save_failed") {
+						t.Fatalf("write failure reply = %q", reply)
+					}
+					contractPress(t, f, f.admin, setting.button, "on")
+					if text, alert := lastAnswer(t, f.client); !alert || text != reply {
+						t.Fatalf("button failure = %q alert %t, command = %q", text, alert, reply)
+					}
+					if !setting.noPanel {
+						response := contractPanelRequest(t, f, f.admin, http.MethodPatch, contractChanges(t, map[string]any{setting.key: true}))
+						var result struct {
+							Saved  []string          `json:"saved"`
+							Failed map[string]string `json:"failed"`
+						}
+						if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+							t.Fatal(err)
+						}
+						if response.Code != http.StatusInternalServerError || len(result.Saved) != 0 || result.Failed[setting.key] == "" {
+							t.Fatalf("panel failure = %d %s", response.Code, response.Body.String())
+						}
+					}
+					assertContractRowCount(t, f, setting, 0)
 				})
 			}
 		})
@@ -305,34 +452,77 @@ func TestAntiRaidRepairsStoredTimesThroughDispatcher(t *testing.T) {
 	}
 }
 
-func newSettingContractFixture(t *testing.T) adminChatFixture {
+func newSettingContractFixture(t *testing.T, setting settingContract) adminChatFixture {
 	t.Helper()
 	f := newAdminChatFixture(t)
-	// Raid settings need only caller + bot admin, no change-info or restrict.
-	admin := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"}}`, f.admin.Id)
-	f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` + admin + `]`)
-	f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(admin)
+	contractRights(f, setting.changeInfo, true, false)
 	if err := chats.EnsureChatInDb(f.chat.Id, f.chat.Title); err != nil {
 		t.Fatal(err)
 	}
 	return f
 }
 
+func contractRights(f adminChatFixture, changeInfo, botAdmin, restrict bool) {
+	admin := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"first_name":"Admin"},"can_change_info":%t,"can_restrict_members":%t}`, f.admin.Id, changeInfo, restrict)
+	bot := fmt.Sprintf(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_restrict_members":%t}`, restrict)
+	if !botAdmin {
+		bot = `{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`
+	}
+	f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(admin)
+	f.client.membersByChat = map[string]json.RawMessage{fmt.Sprintf("%d|999", f.chat.Id): json.RawMessage(bot)}
+	f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + admin + "]")
+	if botAdmin {
+		f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + bot + "," + admin + "]")
+	}
+}
+
+func contractPress(t *testing.T, f adminChatFixture, actor gotgbot.User, key, value string) {
+	t.Helper()
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadConnections(dispatcher)
+	data := encodeCallbackData("settings", map[string]string{"a": "t", "c": fmt.Sprint(f.chat.Id), "k": key, "v": value})
+	if err := dispatcher.ProcessUpdate(f.bot, newModuleCallbackContext(f.bot, privateChatOf(actor), actor, data).Update, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text string) {
 	t.Helper()
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAntiRaid(dispatcher)
+	LoadGreetings(dispatcher)
 	LoadConnections(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func assertContractRead(t *testing.T, f adminChatFixture, setting settingContract, value int, label string, changed bool) {
+func assertContractRead(t *testing.T, f adminChatFixture, setting settingContract, value any, label string, changed bool) {
 	t.Helper()
-	contractDispatch(t, f, f.admin, "/antiraid")
-	if reply := fmt.Sprint(lastCall(t, f.client, "sendMessage").Params["text"]); !strings.Contains(reply, setting.statusToken+strconv.Itoa(value)) && !strings.Contains(reply, setting.statusToken+label) {
-		t.Fatalf("status reply = %q, want %s%s", reply, setting.statusToken, label)
+	command := "/antiraid"
+	if setting.button != "" {
+		command = setting.command
+	}
+	before := len(f.client.callsFor("sendMessage"))
+	contractDispatch(t, f, f.admin, command)
+	replies := f.client.callsFor("sendMessage")[before:]
+	found := false
+	for _, reply := range replies {
+		text := fmt.Sprint(reply.Params["text"])
+		if setting.statusOn != "" {
+			key := setting.statusOff
+			if value == true {
+				key = setting.statusOn
+			}
+			found = found || text == translated(t, key)
+			continue
+		}
+		if strings.Contains(text, setting.statusToken+fmt.Sprint(value)) || strings.Contains(text, setting.statusToken+label) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("status replies = %v, want %s%v", replies, setting.statusToken, value)
 	}
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadConnections(dispatcher)
@@ -341,6 +531,18 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 		t.Fatal(err)
 	}
 	assertContractSummary(t, fmt.Sprint(lastCall(t, f.client, "editMessageText").Params["text"]), setting.command, label, changed)
+	if setting.button != "" {
+		next := "on"
+		if value == true {
+			next = "off"
+		}
+		if actual := toggleButtons(t, markupOf(t, lastCall(t, f.client, "editMessageText")))[setting.button]; actual != next {
+			t.Fatalf("button offers %q, want %q", actual, next)
+		}
+	}
+	if setting.noPanel {
+		return
+	}
 	response := contractPanelRequest(t, f, f.admin, http.MethodGet, "")
 	var body struct {
 		Modules []struct {
@@ -361,8 +563,8 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 			if module.Key+"."+field.Key != setting.key {
 				continue
 			}
-			if string(field.Value) != strconv.Itoa(value) || string(field.Default) != strconv.Itoa(setting.defaultValue) || field.Changed != changed {
-				t.Fatalf("panel field = %+v, want value %d default %d changed %t", field, value, setting.defaultValue, changed)
+			if string(field.Value) != contractJSON(t, value) || string(field.Default) != contractJSON(t, setting.defaultValue) || field.Changed != changed {
+				t.Fatalf("panel field = %+v, want value %v default %v changed %t", field, value, setting.defaultValue, changed)
 			}
 			return
 		}
@@ -382,6 +584,35 @@ func assertContractSummary(t *testing.T, text, command, label string, changed bo
 		}
 	}
 	t.Fatalf("summary missing line %q: %s", line, text)
+}
+
+func contractJSON(t *testing.T, value any) string {
+	t.Helper()
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func contractChanges(t *testing.T, changes map[string]any) string {
+	t.Helper()
+	return contractJSON(t, map[string]any{"changes": changes})
+}
+
+func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingContract, want int64) {
+	t.Helper()
+	var model any = &models.AntiRaidSettings{}
+	if setting.button != "" {
+		model = &models.GreetingSettings{}
+	}
+	var count int64
+	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != want {
+		t.Fatalf("settings rows = %d, want %d", count, want)
+	}
 }
 
 func contractPanelRequest(t *testing.T, f adminChatFixture, actor gotgbot.User, method, body string) *httptest.ResponseRecorder {
