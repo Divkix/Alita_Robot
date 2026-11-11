@@ -7,7 +7,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/punishment/window"
 )
 
-func TestTemporaryUntilDate(t *testing.T) {
+func TestUntilDate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -30,7 +30,7 @@ func TestTemporaryUntilDate(t *testing.T) {
 			t.Parallel()
 			got, ok := window.UntilDate(tc.now, tc.duration)
 			if got != tc.want || ok != tc.wantOK {
-				t.Fatalf("TemporaryUntilDate(%d, %d) = (%d, %v), want (%d, %v)", tc.now, tc.duration, got, ok, tc.want, tc.wantOK)
+				t.Fatalf("UntilDate(%d, %d) = (%d, %v), want (%d, %v)", tc.now, tc.duration, got, ok, tc.want, tc.wantOK)
 			}
 		})
 	}

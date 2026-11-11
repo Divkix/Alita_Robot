@@ -39,7 +39,7 @@ func singleBanRecord(t *testing.T, chatID int64) models.BanRecord {
 	return rows[0]
 }
 
-// seedBanRecord stores a ban record as recordBan would.
+// seedBanRecord stores a ban record as punishment.Apply would.
 func seedBanRecord(t *testing.T, r models.BanRecord) {
 	t.Helper()
 	if _, err := bans.Record(r); err != nil {
