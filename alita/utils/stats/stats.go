@@ -61,8 +61,8 @@ var (
 	// key; production never writes it after startup.
 	timeNow = time.Now
 
-	// flushMu serialises flushes so the ticker, shutdown and /digest now
-	// cannot drain and write the same deltas twice.
+	// flushMu serialises flushes so the statsFlush job, shutdown and /digest
+	// now cannot drain and write the same deltas twice.
 	flushMu sync.Mutex
 )
 

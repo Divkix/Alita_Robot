@@ -228,7 +228,7 @@ func LoadDigest(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, digestDesc, digestModule.digest)
 
-	// The windows are weeks long, but a weekly ticker would never fire on a
+	// The windows are weeks long, but a weekly job would never tick on a
 	// bot redeployed more often than weekly, so both sweeps tick daily.
 	registerRetentionSweep("digestStatsRetention", 24*time.Hour, sweepExpiredDailyStats)
 	registerRetentionSweep("activityStatsRetention", 24*time.Hour, sweepExpiredActivityStats)
