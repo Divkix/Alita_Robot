@@ -28,7 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
@@ -130,10 +129,12 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 				return err
 			}
 		} else {
-			greetingText, buttons = formatting.FormattingReplacer(bot, chat, user, greetingText, buttons)
-			keyb := keyboard.BuildKeyboard(buttons)
-			keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-			_, err := media.SendGreeting(bot, msg.Chat.Id, greetingText, fileID, greetingDataType, &keyboard, ctx.EffectiveMessage.MessageThreadId)
+			_, err := media.SendSaved(tracing.UpdateContext(ctx), bot, greetingMessage(greetingText, fileID, greetingDataType, buttons), media.Target{
+				Chat:     chat,
+				ChatID:   msg.Chat.Id,
+				ThreadID: ctx.EffectiveMessage.MessageThreadId,
+				Member:   user,
+			}, media.Rendered)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -419,18 +420,12 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 			IsBot:     false,
 		}
 
-		buttons := greetings.GetWelcomeButtons(chat.Id)
-		res, buttons := formatting.FormattingReplacer(bot, chat, user,
-			greetPrefs.WelcomeSettings.WelcomeText,
-			buttons,
-		)
-		kb := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
-
 		var threadID int64
 		if ctx.EffectiveMessage != nil {
 			threadID = ctx.EffectiveMessage.MessageThreadId
 		}
-		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, kb, threadID)
+		welcome := greetingMessage(greetPrefs.WelcomeSettings.WelcomeText, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, greetings.GetWelcomeButtons(chat.Id))
+		sent, err := media.SendSaved(tracing.UpdateContext(ctx), bot, welcome, media.Target{Chat: chat, ChatID: chat.Id, ThreadID: threadID, Member: user}, media.Rendered)
 		if err != nil {
 			logJoinOperationError("[Greetings][SendWelcomeMessage] Failed to send welcome message", err)
 			return err
@@ -443,6 +438,12 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		}
 	}
 	return nil
+}
+
+// greetingMessage is a stored welcome or goodbye as a saved message.
+// Greetings store no preview, protect or silent flag, so all stay off.
+func greetingMessage(text, fileID string, msgType int, buttons []db.Button) media.SavedMessage {
+	return media.SavedMessage{Kind: media.KindGreeting, Name: "greeting", Text: text, FileID: fileID, MsgType: msgType, Buttons: buttons}
 }
 
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -491,14 +492,12 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if greetPrefs.GoodbyeSettings.ShouldGoodbye {
-		buttons := greetings.GetGoodbyeButtons(chat.Id)
-		res, buttons := formatting.FormattingReplacer(bot, chat, &leftMember, greetPrefs.GoodbyeSettings.GoodbyeText, buttons)
-		kb := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
 		var threadID int64
 		if ctx.EffectiveMessage != nil {
 			threadID = ctx.EffectiveMessage.MessageThreadId
 		}
-		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, kb, threadID)
+		goodbye := greetingMessage(greetPrefs.GoodbyeSettings.GoodbyeText, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, greetings.GetGoodbyeButtons(chat.Id))
+		sent, err := media.SendSaved(tracing.UpdateContext(ctx), bot, goodbye, media.Target{Chat: chat, ChatID: chat.Id, ThreadID: threadID, Member: &leftMember}, media.Rendered)
 		if err != nil {
 			logJoinOperationError("[Greetings][leftMember] Failed to send goodbye message", err)
 			return err
