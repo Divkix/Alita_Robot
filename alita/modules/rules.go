@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -74,14 +75,14 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			if err := rules.SetPrivateRules(chat.Id, true); err != nil {
+			if err := settings.PrivateRules.Write(settings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, true); err != nil {
 				log.Errorf("[Rules] Failed to enable private rules for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				text, _ = tr.GetString("rules_private_pm_usage")
 			}
 		case "off", "no", "false":
-			if err := rules.SetPrivateRules(chat.Id, false); err != nil {
+			if err := settings.PrivateRules.Write(settings.WriteContext{ChatID: chat.Id, Title: chat.Title, Bot: bot}, false); err != nil {
 				log.Errorf("[Rules] Failed to disable private rules for chat %d: %v", chat.Id, err)
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
@@ -91,14 +92,11 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		default:
 			text, _ = tr.GetString("pins_input_not_recognized")
 		}
+	} else if settings.PrivateRules.Read(chat.Id).Value.(bool) {
+		text, _ = tr.GetString("rules_private_current_pm")
 	} else {
-		rulesprefs := rules.GetChatRulesInfo(chat.Id)
-		if rulesprefs.Private {
-			text, _ = tr.GetString("rules_private_current_pm")
-		} else {
-			temp2, _ := tr.GetString("rules_private_current_group")
-			text = fmt.Sprintf(temp2, html.EscapeString(chat.Title))
-		}
+		temp2, _ := tr.GetString("rules_private_current_group")
+		text = fmt.Sprintf(temp2, html.EscapeString(chat.Title))
 	}
 
 	_, err := msg.Reply(bot, text, formatting.Shtml())
@@ -142,7 +140,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		Text, _ = tr.GetString("rules_no_rules_set")
 	}
 
-	if msg.Chat.Type != "private" && rules.Private {
+	if msg.Chat.Type != "private" && settings.PrivateRules.Read(chat.Id).Value.(bool) {
 		Text, _ = tr.GetString("rules_click_for_rules")
 		rulesKb = gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -288,7 +286,7 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(rulesModule.clearRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "privaterules", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(settings.PrivateRules),
 	}, pipelineHandler(rulesModule.privaterules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "rulesbtn", Aliases: []string{"rulesbutton"}, PMGroupArg: helpers.PMGroupArgOwn,

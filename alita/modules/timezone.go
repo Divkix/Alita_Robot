@@ -11,6 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -20,14 +21,9 @@ import (
 // setting like the title, so every form needs the change-info right. From PM
 // it takes the group as its first argument or from the connection.
 var timezoneDesc = helpers.CommandDescriptor{
-	Name:       "timezone",
-	PMGroupArg: helpers.PMGroupArgOwn,
-	RequiredChecks: []helpers.CheckFunc{
-		groupOnlyChatCheck,
-		helpers.RequireGroup(),
-		helpers.RequireUserAdmin(),
-		helpers.CanUserChangeInfo(),
-	},
+	Name:           "timezone",
+	PMGroupArg:     helpers.PMGroupArgOwn,
+	RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup()}, declaredGroupSettingChecks(settings.Timezone)...),
 }
 
 // timezoneNow is the clock the replies show the local time from. Tests pin
@@ -39,7 +35,7 @@ var timezoneNow = time.Now
 func (moduleStruct) timezone(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()[1:]
 	if len(args) == 0 {
-		name, err := chattz.Name(c.Chat.Id)
+		name, err := settings.ReadTimezone(c.Chat.Id)
 		if err != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 				Error("[Timezone] could not read the chat's timezone")
@@ -49,7 +45,7 @@ func (moduleStruct) timezone(c *helpers.CommandContext) error {
 	}
 
 	input := strings.Join(args, " ")
-	stored, err := chattz.Set(c.Chat.Id, input)
+	err := settings.Timezone.Write(settings.WriteContext{ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, input)
 	if errors.Is(err, chattz.ErrUnknownTimezone) {
 		text, _ := c.Tr.GetString("timezone_invalid", i18n.TranslationParams{"input": html.EscapeString(input)})
 		if replyErr := replyCommandHelp(c.Bot, c.Msg, c.Tr, timezoneDesc.Name, text); replyErr != nil {
@@ -63,7 +59,7 @@ func (moduleStruct) timezone(c *helpers.CommandContext) error {
 			Error("[Timezone] could not save the chat's timezone")
 		return timezoneReply(c, "common_settings_save_failed")
 	}
-	return timezoneReply(c, "timezone_set", timezoneParams(stored))
+	return timezoneReply(c, "timezone_set", timezoneParams(settings.Timezone.Read(c.Chat.Id).Value.(string)))
 }
 
 // timezoneParams fills the replies: the name, its UTC offset now and the

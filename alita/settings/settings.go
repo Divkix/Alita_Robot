@@ -24,6 +24,9 @@
 // Operator preconditions return Refusal locale keys for each adapter to render.
 // They participate in ValidateChanges before any batch write. Related independent
 // switches validate their combined state, then enabled switches write first.
+// Reports and private-rule reads do not create rows. Weekly digest writes,
+// including off and destination changes, honor the operator's kill switch.
+// Timezone requires caller change-info, not bot-admin status.
 package settings
 
 import (
@@ -56,6 +59,7 @@ const (
 	Number   Type = "number"
 	Duration Type = "duration" // integer seconds
 	Choice   Type = "choice"
+	Text     Type = "text"
 )
 
 // Right describes policy without coupling it to a surface's reply machinery.
@@ -109,6 +113,8 @@ var declarations = []*Declaration{
 	ProbationEnabled, ProbationTime, ProbationMessages, ProbationMinLength,
 	ProbationBlockLinks, ProbationBlockForwards, ProbationBlockMedia, ProbationNotice,
 	AISpamEnabled, SpamDBEnabled, SpamDBAction, SpamDBCAS, SpamDBLols, SpamDBShared,
+	ReportsEnabled, ReportMuteThreshold, DigestEnabled, DigestDestination,
+	Timezone, Language, PrivateRules,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.
@@ -151,6 +157,10 @@ func (d *Declaration) Validate(value any) error {
 		text, ok := value.(string)
 		if !ok || !slices.Contains(d.Options, text) {
 			return fmt.Errorf("must be one of: %s", strings.Join(d.Options, ", "))
+		}
+	case Text:
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("must be text")
 		}
 	default:
 		return fmt.Errorf("unknown setting type %q", d.Type)

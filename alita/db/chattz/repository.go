@@ -202,8 +202,8 @@ func NameContext(ctx context.Context, chatID int64) (string, error) {
 }
 
 // Location returns the chat's timezone. It never fails: a read error or a
-// stored name the time zone database no longer knows falls back to UTC, with
-// a log line, so a caller acting on local time keeps working.
+// stored name Parse rejects falls back to UTC, with a log line, so a caller
+// acting on local time uses the same valid zones as setting writes.
 func Location(chatID int64) *time.Location {
 	return LocationContext(context.Background(), chatID)
 }
@@ -221,7 +221,10 @@ func LocationContext(ctx context.Context, chatID int64) *time.Location {
 	if _, bad := unloadable.Load(name); bad {
 		return time.UTC
 	}
-	loc, err := load(name)
+	if cached, ok := locations.Load(name); ok {
+		return cached.(*time.Location)
+	}
+	_, loc, err := Parse(name)
 	if err != nil {
 		unloadable.Store(name, struct{}{})
 		log.WithFields(log.Fields{"chat_id": chatID, "timezone": name, "error": err}).

@@ -24,3 +24,15 @@ func declaredSettingChecks(declaration *settings.Declaration) []helpers.CheckFun
 		panic(fmt.Sprintf("unmapped setting right: %d", declaration.Right))
 	}
 }
+
+// declaredGroupSettingChecks keeps group-only commands' permission replies while
+// deriving the same policy as connected commands.
+func declaredGroupSettingChecks(declaration *settings.Declaration) []helpers.CheckFunc {
+	checks := declaredSettingChecks(declaration)
+	admin := []helpers.CheckFunc{helpers.RequireUserAdmin()}
+	switch declaration.Right {
+	case settings.AdminBot, settings.ChangeInfoBot, settings.Restrict:
+		admin = append([]helpers.CheckFunc{helpers.RequireBotAdmin()}, admin...)
+	}
+	return append(admin, checks[1:]...)
+}

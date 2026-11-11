@@ -222,7 +222,6 @@ func TestRulesCRUD(t *testing.T) {
 			t.Fatalf("EnsureChatInDb() error = %v", err)
 		}
 
-		// GetChatRulesInfo is the public wrapper for checkRulesSetting
 		rulesrc := GetChatRulesInfo(chatID)
 		if rulesrc == nil {
 			t.Fatal("expected non-nil RulesSettings from GetChatRulesInfo")

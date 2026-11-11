@@ -39,17 +39,30 @@ func checkChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
 	return reportsrc, nil
 }
 
+// Reading preferences never creates a settings row or its parent chat.
+func readChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
+	row := &models.ReportChatSettings{}
+	err := db.GetRecord(row, models.ReportChatSettings{ChatId: chatID})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, nil
+	}
+	if err != nil {
+		return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, err
+	}
+	return row, nil
+}
+
 func GetChatReportSettings(chatID int64) *models.ReportChatSettings {
 	reportsrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
 		cache.CacheKey("report_settings", chatID),
 		cache.CacheTTLReportSettings,
 		func(context.Context) (*models.ReportChatSettings, error) {
-			return checkChatReportSettings(chatID)
+			return readChatReportSettings(chatID)
 		},
 	)
 	if err != nil || reportsrc == nil {
-		reportsrc, _ = checkChatReportSettings(chatID)
+		reportsrc, _ = readChatReportSettings(chatID)
 	}
 	return reportsrc
 }
@@ -57,6 +70,7 @@ func GetChatReportSettings(chatID int64) *models.ReportChatSettings {
 func SetChatReportStatus(chatID int64, pref bool) error {
 	if _, err := checkChatReportSettings(chatID); err != nil {
 		log.Errorf("[Database] SetChatReportStatus: ensure settings for %d: %v", chatID, err)
+		return err
 	}
 	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatID}, map[string]any{
 		"enabled": pref,
@@ -89,6 +103,7 @@ func UnblockReportUser(chatId, userId int64) error {
 func updateReportBlockList(chatId, userId int64, block bool) error {
 	if _, err := checkChatReportSettings(chatId); err != nil {
 		log.Errorf("[Database] updateReportBlockList: ensure settings for %d: %v", chatId, err)
+		return err
 	}
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {

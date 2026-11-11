@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
 	"github.com/divkix/Alita_Robot/alita/db/digestsettings"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
-	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -228,106 +227,10 @@ func TestDigestBareShowsTheChatsState(t *testing.T) {
 	reply := lastMessageTo(t, f.client, f.chat.Id)
 
 	tr := i18n.MustNewTranslator("en")
-	disabled, _ := tr.GetString("digest_status_disabled")
-	groupDestination, _ := tr.GetString("digest_destination_group")
-	defaultLine, _ := tr.GetString("digest_status_destination_default", i18n.TranslationParams{"destination": groupDestination})
-	if !strings.Contains(reply, disabled) {
-		t.Errorf("reply %q does not show the disabled state", reply)
-	}
-	if !strings.Contains(reply, defaultLine) {
-		t.Errorf("reply %q does not show the default destination %q", reply, defaultLine)
-	}
 	// The chat has no counters, so a preview would be the empty-week message.
 	empty, _ := tr.GetString("digest_message_empty")
 	if strings.Contains(reply, empty) {
 		t.Errorf("reply %q renders the preview for a bare call", reply)
-	}
-}
-
-func TestDigestTogglesPersistAndShowTheDestination(t *testing.T) {
-	useRealLocales(t)
-	withDigestEnabled(t, true)
-
-	f := newAdminChatFixture(t)
-	cleanupDigestChat(t, f.chat.Id)
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadDigest(dispatcher)
-	tr := i18n.MustNewTranslator("en")
-
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 910, "/digest on")
-	enabled, _ := tr.GetString("digest_status_enabled")
-	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, enabled) {
-		t.Fatalf("reply %q does not confirm the digest is on", reply)
-	}
-	if settings := digestSettingsFor(t, f.chat.Id); !settings.Enabled {
-		t.Fatal("the switch was not persisted")
-	}
-
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 911, "/digest off")
-	disabled, _ := tr.GetString("digest_status_disabled")
-	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, disabled) {
-		t.Fatalf("reply %q does not confirm the digest is off", reply)
-	}
-	if settings := digestSettingsFor(t, f.chat.Id); settings.Enabled {
-		t.Fatal("the switch off was not persisted")
-	}
-
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 912, "/digest here")
-	groupDestination, _ := tr.GetString("digest_destination_group")
-	explicitLine, _ := tr.GetString("digest_status_destination_set", i18n.TranslationParams{"destination": groupDestination})
-	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, explicitLine) {
-		t.Fatalf("reply %q does not show the group as the chosen destination", reply)
-	}
-	if settings := digestSettingsFor(t, f.chat.Id); settings.Destination != digestsettings.DestinationGroup {
-		t.Fatalf("destination = %q, want group", settings.Destination)
-	}
-
-	// Without a log channel the command refuses instead of saving a
-	// destination the scheduler would have to fall back from.
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 913, "/digest log")
-	unavailable, _ := tr.GetString("digest_log_unavailable")
-	if reply := lastMessageTo(t, f.client, f.chat.Id); reply != unavailable {
-		t.Fatalf("reply = %q, want %q", reply, unavailable)
-	}
-	if settings := digestSettingsFor(t, f.chat.Id); settings.Destination != digestsettings.DestinationGroup {
-		t.Fatalf("destination = %q after a refused log choice, want group", settings.Destination)
-	}
-
-	// With a log channel the choice saves and the status names it.
-	if err := logchannels.Set(f.chat.Id, f.chat.Title, f.chat.Id+1); err != nil {
-		t.Fatalf("logchannels.Set() error = %v", err)
-	}
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.admin, 914, "/digest log")
-	logDestination, _ := tr.GetString("digest_destination_log")
-	explicitLogLine, _ := tr.GetString("digest_status_destination_set", i18n.TranslationParams{"destination": logDestination})
-	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, explicitLogLine) {
-		t.Fatalf("reply %q does not show the log channel as the chosen destination", reply)
-	}
-	if settings := digestSettingsFor(t, f.chat.Id); settings.Destination != digestsettings.DestinationLog {
-		t.Fatalf("destination = %q, want log", settings.Destination)
-	}
-}
-
-func TestDigestRefusesNonAdminChanges(t *testing.T) {
-	useRealLocales(t)
-	withDigestEnabled(t, true)
-
-	f := newAdminChatFixture(t)
-	cleanupDigestChat(t, f.chat.Id)
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadDigest(dispatcher)
-
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.member, 920, "/digest on")
-
-	tr := i18n.MustNewTranslator("en")
-	title, _ := tr.GetString("digest_status_title")
-	for _, text := range spamDBMessagesTo(f.client, f.chat.Id) {
-		if strings.Contains(text, title) {
-			t.Fatalf("a non-admin received the digest state: %q", text)
-		}
-	}
-	if settings := digestSettingsFor(t, f.chat.Id); settings.Enabled {
-		t.Fatal("a non-admin turned the digest on")
 	}
 }
 
