@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -60,8 +59,6 @@ var (
 	// probationNoticeLifetime is how long the notice to a member stays in the
 	// group. Tests shorten it.
 	probationNoticeLifetime = time.Minute
-
-	probationRetentionOnce sync.Once
 )
 
 // probationBlockNames are the kinds /probation block takes, in the order the
@@ -523,7 +520,7 @@ func LoadProbation(dispatcher *ext.Dispatcher) {
 		probationModule.handlerGroup,
 	)
 
-	startRetentionSweeper(&probationRetentionOnce, "probationRetention", time.Hour, sweepProbationMembers)
+	registerRetentionSweep("probationRetention", time.Hour, sweepProbationMembers)
 }
 
 func init() {

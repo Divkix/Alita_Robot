@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -645,7 +646,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 		Name:           "reports",
 		RequiredChecks: declaredSettingChecks(chatsettings.ReportsEnabled),
 	}, reportsModule.reports)
-	startReportRetentionSweeper()
+	registerRetentionSweep("reportRetention", time.Hour, sweepExpiredReports)
 }
 
 func init() {

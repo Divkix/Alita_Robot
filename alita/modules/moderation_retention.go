@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -15,8 +14,6 @@ import (
 // configured window. After it, only the retention job deletes rows.
 const moderationEventRetention = moderation.EventRetention
 
-var moderationEventRetentionOnce sync.Once
-
 // sweepExpiredModerationEvents deletes the events created more than
 // moderationEventRetention before now. Every replica sweeps; the delete is
 // idempotent.
@@ -29,10 +26,4 @@ func sweepExpiredModerationEvents(now time.Time) {
 	if deleted > 0 {
 		log.Infof("[Moderation] deleted %d events older than %v", deleted, moderationEventRetention)
 	}
-}
-
-// startModerationEventRetentionSweeper sweeps expired moderation events
-// hourly. LoadBans calls it once per process.
-func startModerationEventRetentionSweeper() {
-	startRetentionSweeper(&moderationEventRetentionOnce, "moderationEventRetention", time.Hour, sweepExpiredModerationEvents)
 }

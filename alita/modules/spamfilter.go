@@ -6,7 +6,6 @@ import (
 	"html"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -377,21 +376,17 @@ func (moduleStruct) forgetSpam(c *helpers.CommandContext) error {
 // Retention and loading
 //
 
-var spamSampleRetentionOnce sync.Once
-
-// startSpamSampleRetention deletes samples past their 90 days every hour.
-func startSpamSampleRetention() {
-	startRetentionSweeper(&spamSampleRetentionOnce, "spamSampleRetention", time.Hour, func(now time.Time) {
-		removed, err := spamfilter.DeleteExpiredBefore(now.Add(-spamfilter.Retention))
-		if err != nil {
-			log.WithError(err).Error("[SpamFilter] retention sweep failed")
-			return
-		}
-		if removed > 0 {
-			spamCorpusForgetAll()
-			log.WithField("removed", removed).Debug("[SpamFilter] removed expired spam samples")
-		}
-	})
+// sweepExpiredSpamSamples deletes samples past their 90 days.
+func sweepExpiredSpamSamples(now time.Time) {
+	removed, err := spamfilter.DeleteExpiredBefore(now.Add(-spamfilter.Retention))
+	if err != nil {
+		log.WithError(err).Error("[SpamFilter] retention sweep failed")
+		return
+	}
+	if removed > 0 {
+		spamCorpusForgetAll()
+		log.WithField("removed", removed).Debug("[SpamFilter] removed expired spam samples")
+	}
 }
 
 func LoadSpamFilter(dispatcher *ext.Dispatcher) {
@@ -403,7 +398,7 @@ func LoadSpamFilter(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, forgetSpamDesc, spamFilterModule.forgetSpam)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(spamHamNamespace+"|"), spamFilterModule.spamHamButton))
 
-	startSpamSampleRetention()
+	registerRetentionSweep("spamSampleRetention", time.Hour, sweepExpiredSpamSamples)
 }
 
 func init() {

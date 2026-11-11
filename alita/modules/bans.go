@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -1069,8 +1070,8 @@ func initBanDescs() {
 func LoadBans(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(bansModule.moduleName, true)
 	initBanDescs()
-	startModerationEventRetentionSweeper()
-	startBanRecordRetentionSweeper()
+	registerRetentionSweep("moderationEventRetention", time.Hour, sweepExpiredModerationEvents)
+	registerRetentionSweep("banRecordRetention", time.Hour, sweepExpiredBanRecords)
 
 	helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))
 	helpers.WrapCommand(dispatcher, sbanDesc, pipelineHandler(bansModule.sBan))
