@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -276,6 +277,39 @@ func TestShutdownTimeoutInterruptsBlockedHandler(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("shutdown did not return after timed out exit")
 	}
+}
+
+// A hung handler (the jobs drain waiting on a tick that ignores cancellation)
+// is skipped after its own time limit, and the handlers after it still run.
+func TestShutdownSkipsAHungHandlerAndRunsTheRest(t *testing.T) {
+	oldExit := exitProcess
+	defer func() { exitProcess = oldExit }()
+
+	synctest.Test(t, func(t *testing.T) {
+		hung := make(chan struct{})
+		defer close(hung)
+		var exitCode int
+		exitProcess = func(code int) { exitCode = code }
+
+		var order []string
+		m := NewManager()
+		m.RegisterHandler(func() error { order = append(order, "db close"); return nil })
+		m.RegisterHandler(func() error { order = append(order, "stats flush"); return nil })
+		m.RegisterHandler(func() error { <-hung; return nil })
+
+		start := time.Now()
+		m.shutdown()
+
+		if elapsed := time.Since(start); elapsed != 10*time.Second {
+			t.Fatalf("shutdown took %v, want the 10s handler limit", elapsed)
+		}
+		if len(order) != 2 || order[0] != "stats flush" || order[1] != "db close" {
+			t.Fatalf("order = %v, want [stats flush, db close]", order)
+		}
+		if exitCode != 0 {
+			t.Fatalf("exit code = %d, want 0", exitCode)
+		}
+	})
 }
 
 func TestWaitForShutdownUsesSignalHooks(t *testing.T) {
