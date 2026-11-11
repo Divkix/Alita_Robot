@@ -237,10 +237,10 @@ func panelSettings(access chatAccess) settingsResponse {
 			declaredSettingsField(chatID, settings.CaptchaMaxAttempts),
 		}},
 		{Key: "antiflood", Label: "Antiflood", Fields: []settingsField{
-			settingsInt("limit", flood.Limit, 0, true),
+			declaredSettingsField(chatID, settings.FloodLimit),
 			settingsString("action", flood.Action, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
 			settingsInt("action_time", flood.FloodActionTime, 0, true),
-			settingsBool("delete_messages", flood.DeleteAntifloodMessage, false, true),
+			declaredSettingsField(chatID, settings.FloodDelete),
 		}},
 		{Key: "antispam", Label: "Antispam", Fields: []settingsField{
 			settingsBool("aispam_enabled", aispam.IsAISpamEnabled(chatID), false, true),
@@ -265,10 +265,10 @@ func panelSettings(access chatAccess) settingsResponse {
 			declaredSettingsField(chatID, settings.AutoAntiRaidThreshold),
 		}},
 		{Key: "warns", Label: "Warnings", Fields: []settingsField{
-			settingsInt("limit", warn.WarnLimit, 3, true),
+			declaredSettingsField(chatID, settings.WarnLimit),
 			settingsString("mode", warn.WarnMode, "mute", true, []string{"ban", "kick", "mute", "tban", "tmute"}),
 			settingsInt("action_time", warn.WarnActionTime, 0, true),
-			settingsInt("expiry", warn.WarnExpiry, 0, true),
+			declaredSettingsField(chatID, settings.WarnExpiry),
 		}},
 		{Key: "digest", Label: "Weekly digest", Fields: []settingsField{
 			settingsBool("enabled", digestRow.Enabled, false, true),
@@ -670,11 +670,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 	moduleKey, fieldKey, _ := strings.Cut(key, ".")
 	switch moduleKey {
 	case "antiflood":
-		if fieldKey == "limit" {
-			if n := value.(int); n != 0 && (n < 3 || n > 100) {
-				return "must be 0 (off) or between 3 and 100"
-			}
-		}
 		if fieldKey == "action_time" {
 			if n := value.(int); n != 0 && !models.ValidActionTime(n) {
 				return "must be 0 (unset) or between 60 and 31622400 seconds"
@@ -682,8 +677,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 		}
 	case "antispam":
 		return validateAntispamValue(fieldKey, value)
-	case "warns":
-		return validateWarnValue(fieldKey, value)
 	case "digest":
 		if fieldKey == "enabled" && value.(bool) && (config.AppConfig == nil || !config.AppConfig.EnableDigest) {
 			return settingsRefusal("digest_globally_disabled")
@@ -708,23 +701,6 @@ func validateSettingValue(key string, field settingsField, value any) string {
 	return ""
 }
 
-func validateWarnValue(field string, value any) string {
-	switch field {
-	case "limit":
-		if n := value.(int); n < 1 || n > 100 {
-			return "must be between 1 and 100"
-		}
-	case "action_time":
-		if n := value.(int); n != 0 && !models.ValidActionTime(n) {
-			return "must be between 60 and 31622400 seconds"
-		}
-	case "expiry":
-		if !models.ValidWarnExpiry(value.(int)) {
-			return "must be 0 (never) or between 60 and 31622400 seconds"
-		}
-	}
-	return ""
-}
 
 func validateAntispamValue(field string, value any) string {
 	switch field {
@@ -866,17 +842,8 @@ func applySettingChange(input settings.WriteContext, key string, value any) erro
 		return lang.ChangeGroupLanguage(chatID, value.(string))
 	case "rules":
 		return rules.SetPrivateRules(chatID, value.(bool))
-	case "antiflood":
-		return applyAntifloodChange(chatID, fieldKey, value)
 	case "antispam":
 		return applyAntispamChange(chatID, fieldKey, value)
-	case "warns":
-		switch fieldKey {
-		case "limit":
-			return warns.SetWarnLimit(chatID, value.(int))
-		case "expiry":
-			return warns.SetWarnExpiry(chatID, value.(int))
-		}
 	case "digest":
 		switch fieldKey {
 		case "enabled":
@@ -936,15 +903,6 @@ func applyNightModeChanges(chatID int64, updates map[string]any) error {
 	return nightmode.Enable(chatID, start, end, types)
 }
 
-func applyAntifloodChange(chatID int64, field string, value any) error {
-	switch field {
-	case "limit":
-		return antiflood.SetFlood(chatID, value.(int))
-	case "delete_messages":
-		return antiflood.SetFloodMsgDel(chatID, value.(bool))
-	}
-	return fmt.Errorf("unknown antiflood setting %q", field)
-}
 
 func applyAntispamChange(chatID int64, field string, value any) error {
 	switch field {

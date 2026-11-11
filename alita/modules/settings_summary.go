@@ -14,7 +14,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -53,7 +52,6 @@ type settingsSection struct {
 // a default tag, so goodbye and allow_connect end up true once their row exists.
 const (
 	settingsDefaultFloodAction     = "mute"
-	settingsDefaultWarnLimit       = 3
 	settingsDefaultWarnMode        = "mute"
 	settingsDefaultBlacklistAction = "warn"
 	settingsDefaultLanguage        = "en"
@@ -160,15 +158,17 @@ func declaredStringRow(command string, state settings.State) settingsRow {
 }
 
 func antifloodSettingsSection(chatID int64) settingsSection {
-	f := antiflood.GetFlood(chatID)
-	limit := settingsRow{Command: "/setflood", Value: "off"}
-	if f.Limit > 0 {
-		limit = settingsRow{Command: "/setflood", Value: strconv.Itoa(f.Limit), Changed: true}
-	}
+	f := settings.ReadFlood(chatID)
+	limit := declaredSettingsRow("/setflood", settings.FloodLimit.Read(chatID), func(value int) string {
+		if value == 0 {
+			return "off"
+		}
+		return strconv.Itoa(value)
+	})
 	return settingsSection{Title: "Antiflood", Rows: []settingsRow{
 		limit,
 		stringRow("/setfloodmode", floodModeLabel(f), settingsDefaultFloodAction),
-		boolRow("/delflood", f.DeleteAntifloodMessage, false),
+		declaredBoolRow("/delflood", settings.FloodDelete, chatID),
 	}}
 }
 
@@ -219,24 +219,17 @@ func probationSettingSummary(settings *models.ProbationSettings) string {
 }
 
 func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	limit, mode, expiry := settingsDefaultWarnLimit, settingsDefaultWarnMode, "off"
-	if w, ok := readChatSetting[models.WarnSettings](ctx, chatID); ok {
-		if w.WarnLimit > 0 {
-			limit = w.WarnLimit
-		}
-		// warnUser takes no action at the limit for an empty mode.
-		mode = warnModeLabel(w)
-		if mode == "" {
-			mode = "none"
-		}
-		if w.WarnExpiry > 0 {
-			expiry = formatDuration(w.WarnExpiry)
-		}
-	}
+	w := settings.ReadWarnsContext(ctx, chatID)
+	mode := warnModeLabel(w)
 	return settingsSection{Title: "Warns", Rows: []settingsRow{
-		intRow("/setwarnlimit", limit, settingsDefaultWarnLimit),
+		declaredSettingsRow("/setwarnlimit", settings.WarnLimit.Read(chatID), strconv.Itoa),
 		stringRow("/setwarnmode", mode, settingsDefaultWarnMode),
-		stringRow("/setwarntime", expiry, "off"),
+		declaredSettingsRow("/setwarntime", settings.WarnExpiry.Read(chatID), func(value int) string {
+			if value == 0 {
+				return "off"
+			}
+			return formatDuration(value)
+		}),
 	}}
 }
 

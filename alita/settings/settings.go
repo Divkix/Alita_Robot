@@ -12,6 +12,8 @@
 // Switch declarations also supply the input-free on/off button cycle. Adapters
 // map neutral rights independently; panel batches require their union, never a
 // strongest-right approximation.
+// Flood limits and warning limits/expiry normalize old invalid values for both
+// display and enforcement. Reading warning preferences does not create a row.
 package settings
 
 import (
@@ -73,6 +75,7 @@ var declarations = []*Declaration{
 	RaidTime, RaidActionTime, AutoAntiRaidThreshold,
 	Welcome, Goodbye, CleanWelcome, CleanGoodbye, CleanService, AutoApprove,
 	CaptchaEnabled, CaptchaJoinRequests, CaptchaMode, CaptchaTimeout, CaptchaAction, CaptchaMaxAttempts,
+	FloodLimit, FloodDelete, WarnLimit, WarnExpiry,
 }
 
 // Lookup returns the declaration for a wire key such as antiraid.raid_time.

@@ -24,9 +24,11 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/panel"
 	"github.com/divkix/Alita_Robot/alita/settings"
 )
@@ -193,6 +195,32 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 			seedInvalid: invalidCaptchaStoredValue("max_attempts"),
 			edges:       []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
 		},
+		{
+			key: "antiflood.limit", command: "/setflood", botAdmin: true,
+			defaultValue: 0, defaultLabel: "off", refusalKey: "antiflood_errors_set_in_limit",
+			seedInvalid: func(chatID int64) error { return antiflood.SetFlood(chatID, 2) },
+			edges: []settingContractEdge{{0, "off", "off", true}, {3, "3", "3", true}, {2, "2", "2", false}, {100, "100", "100", true}, {101, "101", "101", false}},
+		},
+		{
+			key: "antiflood.delete_messages", command: "/delflood", button: "fd", botAdmin: true,
+			defaultValue: false, defaultLabel: "off",
+			statusOn: "antiflood_flood_deleter_already_enabled", statusOff: "antiflood_flood_deleter_already_disabled",
+			setOn: "antiflood_flood_deleter_enabled", setOff: "antiflood_flood_deleter_disabled",
+			refusalKey: "antiflood_flood_deleter_invalid_option",
+			edges: []settingContractEdge{{false, "off", "off", true}, {true, "on", "on", true}, {"maybe", "maybe", "maybe", false}},
+		},
+		{
+			key: "warns.limit", command: "/setwarnlimit", botAdmin: true,
+			defaultValue: 3, defaultLabel: "3", refusalKey: "warns_limit_range_error",
+			seedInvalid: func(chatID int64) error { return warns.SetWarnLimit(chatID, 101) },
+			edges: []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {100, "100", "100", true}, {101, "101", "101", false}},
+		},
+		{
+			key: "warns.expiry", command: "/setwarntime", botAdmin: true,
+			defaultValue: 0, defaultLabel: "off", refusalKey: "extraction_time_limit_exceeded",
+			seedInvalid: func(chatID int64) error { return warns.SetWarnExpiry(chatID, 5) },
+			edges: []settingContractEdge{{0, "off", "off", true}, {60, "1m", "1m", true}, {31622400, "366d", "366d", true}, {31622460, "527041m", "527041m", false}},
+		},
 	} {
 		t.Run(setting.key, func(t *testing.T) {
 			t.Run("default without creating a row", func(t *testing.T) {
@@ -325,11 +353,11 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 							if reply != translated(t, key) {
 								t.Fatalf("command reply = %q, want %s", reply, key)
 							}
-						} else if edge.input == "off" {
+						} else if edge.input == "off" && setting.command == "/autoantiraid" {
 							if reply != translated(t, "antiraid_auto_disabled") {
 								t.Fatalf("off reply = %q", reply)
 							}
-						} else if !strings.Contains(reply, edge.label) {
+						} else if edge.input != "off" && !strings.Contains(reply, edge.label) {
 							t.Fatalf("command reply = %q, want accepted %s", reply, edge.label)
 						}
 						assertContractRead(t, f, setting, edge.value, edge.label, edge.value != setting.defaultValue)
@@ -668,6 +696,8 @@ func contractDispatch(t *testing.T, f adminChatFixture, actor gotgbot.User, text
 	LoadAntiRaid(dispatcher)
 	LoadGreetings(dispatcher)
 	LoadCaptcha(dispatcher)
+	LoadAntiflood(dispatcher)
+	LoadWarns(dispatcher)
 	LoadConnections(dispatcher)
 	if err := dispatcher.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, actor, text).Update, nil); err != nil {
 		t.Fatal(err)
@@ -679,6 +709,10 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 	command := "/antiraid"
 	if strings.HasPrefix(setting.key, "captcha.") {
 		command = "/captcha"
+	} else if strings.HasPrefix(setting.key, "warns.") {
+		command = "/warnings"
+	} else if setting.key == "antiflood.limit" {
+		command = "/flood"
 	} else if setting.button != "" {
 		command = setting.command
 	}
@@ -704,7 +738,9 @@ func assertContractRead(t *testing.T, f adminChatFixture, setting settingContrac
 				}
 			}
 		}
-		if strings.Contains(text, setting.statusToken+fmt.Sprint(value)) || strings.Contains(text, setting.statusToken+label) {
+		if strings.HasPrefix(setting.key, "antiflood.") || strings.HasPrefix(setting.key, "warns.") {
+			found = found || strings.Contains(text, label) || (value == 0 && (strings.Contains(text, "not currently enforcing") || strings.Contains(text, "never")))
+		} else if strings.Contains(text, setting.statusToken+fmt.Sprint(value)) || strings.Contains(text, setting.statusToken+label) {
 			found = true
 		}
 	}
@@ -804,6 +840,10 @@ func assertContractRowCount(t *testing.T, f adminChatFixture, setting settingCon
 		model = &models.GreetingSettings{}
 	} else if strings.HasPrefix(setting.key, "captcha.") {
 		model = &models.CaptchaSettings{}
+	} else if strings.HasPrefix(setting.key, "antiflood.") {
+		model = &models.AntifloodSettings{}
+	} else if strings.HasPrefix(setting.key, "warns.") {
+		model = &models.WarnSettings{}
 	}
 	var count int64
 	if err := db.DB.Model(model).Where("chat_id = ?", f.chat.Id).Count(&count).Error; err != nil {

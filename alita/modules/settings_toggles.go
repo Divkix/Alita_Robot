@@ -155,7 +155,7 @@ var settingsToggles = []settingsToggle{
 	valueToggle("fm", "/setfloodmode", []string{"mute", "ban", "kick"}, true, func(chatID int64, mode string) error {
 		return antiflood.SetFloodMode(chatID, mode, 0)
 	}),
-	boolToggle("fd", "/delflood", true, antiflood.SetFloodMsgDel),
+	declaredSettingsToggle("fd", "/delflood", settings.FloodDelete),
 	{key: "ar", command: "/antiraid", values: settingsOnOff, botAdmin: true, set: setAntiRaidToggle},
 	{key: "ai", command: "/aispam", values: settingsOnOff, set: setAISpamToggle},
 	withRight(boolToggle("pb", "/probation", true, probation.SetEnabled), restrictRight),

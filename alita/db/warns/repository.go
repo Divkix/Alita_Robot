@@ -27,24 +27,7 @@ func checkWarnSettingsContext(ctx context.Context, chatID int64) (warnrc *models
 	warnrc = &models.WarnSettings{}
 	err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(warnrc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if !db.ChatExistsContext(ctx, chatID) {
-			log.Debugf("[Database][checkWarnSettings]: Chat %d doesn't exist, returning default settings", chatID)
-			return defaultWarnSettings
-		}
-
-		warnrc = defaultWarnSettings
-		result := db.DB.WithContext(ctx).Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "chat_id"}},
-			DoNothing: true,
-		}).Create(warnrc)
-		if result.Error != nil {
-			log.Errorf("[Database] checkWarnSettings: %v", result.Error)
-		} else if result.RowsAffected == 0 {
-			if err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(warnrc).Error; err != nil {
-				log.Errorf("[Database] checkWarnSettings reload: %v", err)
-				warnrc = defaultWarnSettings
-			}
-		}
+		return defaultWarnSettings
 	} else if err != nil {
 		log.Errorf("[Database][checkWarnSettings]: %d - %v", chatID, err)
 		warnrc = defaultWarnSettings
@@ -260,7 +243,7 @@ func lockChatForReset(tx *gorm.DB, chatId int64) error {
 // expiredWarn reports whether e stopped counting: it is expiry seconds old or
 // older. Expiry 0 is off, and an entry without a time never expires.
 func expiredWarn(e models.WarnEntry, expiry int, now time.Time) bool {
-	return expiry > 0 && e.WarnedAt != nil && !e.WarnedAt.After(now.Add(-time.Duration(expiry)*time.Second))
+	return models.ValidWarnExpiry(expiry) && expiry > 0 && e.WarnedAt != nil && !e.WarnedAt.After(now.Add(-time.Duration(expiry)*time.Second))
 }
 
 // pruneExpiredEntries deletes the user's expired entries and takes them off
