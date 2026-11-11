@@ -80,11 +80,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if attempt, err := dbcaptcha.GetCaptchaAttemptIncludingExpired(targetUserID, chat.Id); err != nil {
 		log.Errorf("[Approvals] Failed to load captcha attempt for approved user %d: %v", targetUserID, err)
 	} else if attempt != nil {
-		released, releaseErr := releaseIncompleteCaptchaAttempt(b, attempt)
-		if released && attempt.MessageID > 0 {
-			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, attempt.MessageID)
-		}
-		if releaseErr != nil {
+		if _, releaseErr := settleCaptchaAttempt(b, attempt, captchaReleased); releaseErr != nil {
 			log.Errorf("[Approvals] Approved user %d but captcha release will retry: %v", targetUserID, releaseErr)
 		}
 	}

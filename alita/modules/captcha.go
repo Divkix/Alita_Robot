@@ -367,7 +367,7 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) error {
 
 	for _, attempt := range attempts {
 		if attempt.MessageID <= 0 {
-			released, err := releaseIncompleteCaptchaAttempt(bot, attempt)
+			released, err := settleCaptchaAttempt(bot, attempt, captchaReleased)
 			if err != nil {
 				log.Warnf("[CaptchaRecovery] Failed to release incomplete attempt %d: %v", attempt.ID, err)
 			}
@@ -392,18 +392,6 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) error {
 
 	log.Infof("[CaptchaRecovery] Completed: %d expired, %d resumed, %d incomplete released", expiredCount, resumedCount, releasedCount)
 	return nil
-}
-
-func releaseIncompleteCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, error) {
-	claimed, deleteErr := captcha.ReleaseCaptchaAttemptAtomic(attempt.ID, attempt.UserID, attempt.ChatID)
-	if deleteErr != nil || !claimed {
-		return false, deleteErr
-	}
-	unmuteErr := unmuteCaptchaUser(bot, attempt.ChatID, attempt.UserID)
-	if unmuteErr == nil || isPermanentUnmuteError(unmuteErr) {
-		return true, errors.Join(unmuteErr, captcha.DeleteMutedUser(attempt.UserID, attempt.ChatID))
-	}
-	return true, unmuteErr
 }
 
 // secureIntn returns a cryptographically secure random integer in [0, max).
@@ -1433,20 +1421,14 @@ func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
 
 func expireCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, error) {
 	if chat_status.IsApproved(bot, attempt.ChatID, attempt.UserID) {
-		if attempt.MessageID > 0 {
-			_ = helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID)
-		}
-		return releaseIncompleteCaptchaAttempt(bot, attempt)
+		return settleCaptchaAttempt(bot, attempt, captchaReleased)
 	}
 	settings, err := chatsettings.ReadCaptcha(attempt.ChatID)
 	if err != nil {
 		return false, fmt.Errorf("load captcha settings for chat %d: %w", attempt.ChatID, err)
 	}
 	if !settings.Enabled {
-		if attempt.MessageID > 0 {
-			_ = helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID)
-		}
-		return releaseIncompleteCaptchaAttempt(bot, attempt)
+		return settleCaptchaAttempt(bot, attempt, captchaReleased)
 	}
 	claimed, _ := handleCaptchaTimeout(
 		bot,
@@ -2217,7 +2199,7 @@ func cleanupExpiredCaptchaAttempts(ctx context.Context, bot *gotgbot.Bot) error 
 		}
 
 		if attempt.MessageID <= 0 {
-			_, err = releaseIncompleteCaptchaAttempt(bot, attempt)
+			_, err = settleCaptchaAttempt(bot, attempt, captchaReleased)
 		} else {
 			_, err = expireCaptchaAttempt(bot, attempt)
 		}
