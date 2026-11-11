@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -15,8 +14,6 @@ import (
 // later report while keeping the table bounded.
 const digestStatsRetentionDays = 400
 
-var digestStatsRetentionOnce sync.Once
-
 // sweepExpiredDailyStats deletes counters older than the retention window.
 func sweepExpiredDailyStats(now time.Time) {
 	cutoff := stats.Day(now.AddDate(0, 0, -digestStatsRetentionDays))
@@ -28,11 +25,4 @@ func sweepExpiredDailyStats(now time.Time) {
 	if deleted > 0 {
 		log.Infof("[Digest] deleted %d daily stats rows older than %d days", deleted, digestStatsRetentionDays)
 	}
-}
-
-// startDigestStatsRetention sweeps expired rows. The window is weeks long, but
-// a 7-day ticker would never fire on a bot redeployed more often than weekly,
-// so it ticks daily; every replica sweeps and the delete is idempotent.
-func startDigestStatsRetention() {
-	startRetentionSweeper(&digestStatsRetentionOnce, "digestStatsRetention", 24*time.Hour, sweepExpiredDailyStats)
 }

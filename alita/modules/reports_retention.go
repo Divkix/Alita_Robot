@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -13,8 +12,6 @@ import (
 // it was made while it stays open. Its card, with the copy of the message,
 // stays in the log channel.
 const reportRetention = 90 * 24 * time.Hour
-
-var reportRetentionOnce sync.Once
 
 // sweepExpiredReports deletes the reports closed, or made and still open,
 // more than reportRetention before now. Every replica sweeps; the delete is
@@ -33,9 +30,4 @@ func sweepExpiredReports(now time.Time) {
 	if _, err := reports.DeleteAutoMutesBefore(now.Add(-reportRetention)); err != nil {
 		log.Errorf("[Reports] auto-mute retention sweep failed: %v", err)
 	}
-}
-
-// startReportRetentionSweeper sweeps expired reports hourly.
-func startReportRetentionSweeper() {
-	startRetentionSweeper(&reportRetentionOnce, "reportRetention", time.Hour, sweepExpiredReports)
 }

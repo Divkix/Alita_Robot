@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -30,7 +29,6 @@ var (
 		// One row per chat and day, like chat_daily_stats, so the same window.
 		{name: "chat_member_counts", retentionDays: digestStatsRetentionDays, deleteBefore: chatstats.DeleteMemberCountsBefore},
 	}
-	activityStatsRetentionOnce sync.Once
 )
 
 // sweepExpiredActivityStats deletes the rows of each table older than its
@@ -47,10 +45,4 @@ func sweepExpiredActivityStats(now time.Time) {
 			log.Infof("[Stats] deleted %d %s rows older than %d days", deleted, table.name, table.retentionDays)
 		}
 	}
-}
-
-// startActivityStatsRetention sweeps expired rows daily; every replica sweeps
-// and the delete is idempotent.
-func startActivityStatsRetention() {
-	startRetentionSweeper(&activityStatsRetentionOnce, "activityStatsRetention", 24*time.Hour, sweepExpiredActivityStats)
 }

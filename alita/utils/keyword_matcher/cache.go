@@ -1,13 +1,14 @@
 package keyword_matcher
 
 import (
+	"context"
 	"slices"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 type Cache struct {
@@ -100,17 +101,10 @@ func GetNamedCache(name string) *Cache {
 		return actual.(*Cache)
 	}
 
-	go func() {
-		defer error_handling.RecoverFromPanic("GetNamedCache.cleanupRoutine["+name+"]", "keyword_matcher")
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			func() {
-				defer error_handling.RecoverFromPanic("GetNamedCache.cleanupTick["+name+"]", "keyword_matcher")
-				c.cleanupExpired()
-			}()
-		}
-	}()
+	jobs.Register("keywordCacheCleanup:"+name, 10*time.Minute, func(context.Context) error {
+		c.cleanupExpired()
+		return nil
+	})
 
 	return c
 }

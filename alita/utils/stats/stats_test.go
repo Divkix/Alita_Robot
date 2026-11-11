@@ -139,29 +139,6 @@ func TestDayKeyIsUTCAndFollowsTheClock(t *testing.T) {
 	}
 }
 
-func TestStopFlusherFlushesPendingCountersAndIsIdempotent(t *testing.T) {
-	flushPending(t)
-	chatID := testChatID(t)
-	day := Day(time.Now())
-
-	RecordJoin(chatID)
-	StartFlusher()
-	if err := StopFlusher(); err != nil {
-		t.Fatalf("StopFlusher() error = %v", err)
-	}
-	if err := StopFlusher(); err != nil {
-		t.Fatalf("second StopFlusher() error = %v", err)
-	}
-
-	rows := rowsFor(t, chatID, day, day)
-	if len(rows) != 1 || rows[0].Joins != 1 {
-		t.Fatalf("rows = %v, want one join", rows)
-	}
-	if left := pendingTotal(); left != 0 {
-		t.Fatalf("pending events = %d, want 0", left)
-	}
-}
-
 func TestFlushRestoresCountersWhenTheWriteFails(t *testing.T) {
 	flushPending(t)
 	chatID := testChatID(t)

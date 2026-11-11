@@ -26,6 +26,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	keyboardutils "github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -104,10 +105,10 @@ var antifloodModule = antifloodStruct{
 
 func init() {
 	RegisterLegacyModule("Antiflood", 150, LoadAntiflood)
-	go func() {
-		defer error_handling.RecoverFromPanic("cleanupLoop", "antiflood")
-		antifloodModule.cleanupLoop(context.Background())
-	}()
+	jobs.Register("antifloodCleanup", 5*time.Minute, func(context.Context) error {
+		antifloodModule.cleanupOnce(time.Now().Unix())
+		return nil
+	})
 }
 
 func (a *antifloodStruct) cleanupOnce(now int64) {
@@ -123,24 +124,6 @@ func (a *antifloodStruct) cleanupOnce(now int64) {
 		a.syncHelperMap.CompareAndDelete(key, value)
 		return true
 	})
-}
-
-func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			func() {
-				defer error_handling.RecoverFromPanic("cleanupOnce", "antiflood")
-				a.cleanupOnce(time.Now().Unix())
-			}()
-		case <-ctx.Done():
-			log.Info("Antiflood cleanup goroutine shutting down gracefully")
-			return
-		}
-	}
 }
 
 func (a *antifloodStruct) userIsFloodExempt(b *gotgbot.Bot, chatId, userId int64) bool {
@@ -209,7 +192,7 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 			old, loaded := a.syncHelperMap.Load(key)
 			if loaded && old != nil {
 				// Keep loaded set for an idle pointer. It stays in the map until the
-				// 10-minute cleaner, so treating it as absent makes LoadOrStore fail
+				// antifloodCleanup job, so treating it as absent makes LoadOrStore fail
 				// and this loop never returns. CompareAndSwap replaces it instead.
 				if prev, ok := old.(*floodControl); ok && prev != nil && currentTime-prev.lastActivity <= 60 {
 					cur = *prev

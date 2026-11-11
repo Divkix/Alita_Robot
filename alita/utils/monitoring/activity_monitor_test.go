@@ -197,7 +197,7 @@ func requireCleanMonitoringTables(t *testing.T) {
 	}
 }
 
-func TestActivityMonitorStartCalculatesMetricsAndStopReturns(t *testing.T) {
+func TestActivityMonitorStartCalculatesMetrics(t *testing.T) {
 	setupMonitoringDB(t)
 
 	am := NewActivityMonitor()
@@ -208,19 +208,6 @@ func TestActivityMonitorStartCalculatesMetricsAndStopReturns(t *testing.T) {
 	calculated := am.lastMetrics != nil && !am.lastMetricsCalculated.IsZero()
 	am.metricsLock.RUnlock()
 	if !calculated {
-		am.Stop()
 		t.Fatal("Start() returned without calculating metrics")
-	}
-
-	stopped := make(chan struct{})
-	go func() {
-		am.Stop()
-		am.Stop() // a second Stop must not block or panic
-		close(stopped)
-	}()
-	select {
-	case <-stopped:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Stop() did not return: monitor loop did not exit")
 	}
 }

@@ -41,7 +41,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   `isCliModeActive` (`--version`, `--health` and test binaries without `ALITA_TEST_DATABASE=true` skip DB init).
 - Once config has loaded, exit through `log.Fatal*` or `log.StandardLogger().Exit`: its exit handler flushes
   telemetry, which `os.Exit` skips.
-- Shutdown runs LIFO within 60 s: register a new drain after DB-close so it runs before it.
+- Shutdown runs LIFO within 60 s: periodic work registers a job (one drain stops all); register any other drain
+  after DB-close so it runs before it.
 
 ## Handlers
 
@@ -134,8 +135,8 @@ CGO_ENABLED=0 go build ./...   # compile check
 
 - A goroutine you start fire-and-forget begins with `defer error_handling.RecoverFromPanic(...)`; async user/chat
   writers join the WaitGroup that `DrainUsersAsyncWrites` drains.
-- Each tick of a background job doing I/O runs through `jobs.Run(ctx, "fixedName", fn)` (own root trace, recovered
-  panics). Log with `log.WithContext(ctx)` where a ctx exists, so lines carry `trace_id`.
+- Periodic work registers a job: `jobs.Register("fixedName", interval, tick)`, never its own ticker; each tick runs
+  through `jobs.Run` (own root trace, recovered panics). Log with `log.WithContext(ctx)` so lines carry `trace_id`.
 - Register every new secret with `logredact.RegisterSecret` (6+ chars), or it is logged verbatim.
 - Bot API, GORM and Redis calls get spans only on the update context: pass `tracing.UpdateContext(ctx)` to the
   `*WithContext` method or `DB.WithContext`. Spans carry no message text, SQL, bound values, Redis arguments or Bot

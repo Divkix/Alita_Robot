@@ -32,6 +32,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -853,24 +854,6 @@ func aispamReply(c *helpers.CommandContext, text string) error {
 // Setup
 //
 
-func aispamCleanupLoop() {
-	defer error_handling.RecoverFromPanic("aispamCleanupLoop", "aispam")
-
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	for now := range ticker.C {
-		func() {
-			defer error_handling.RecoverFromPanic("aispamCleanupTick", "aispam")
-			aispamCleanupOnce(now)
-		}()
-	}
-}
-
-func aispamCleanupOnce(now time.Time) {
-	aispamPruneDescriptions(now)
-}
-
 func LoadAISpam(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(aispamModule.moduleName, true)
 	aispamEnsureWorkers()
@@ -885,5 +868,8 @@ func LoadAISpam(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("AISpam", 12, LoadAISpam)
-	go aispamCleanupLoop()
+	jobs.Register("aispamCleanup", 5*time.Minute, func(context.Context) error {
+		aispamPruneDescriptions(time.Now())
+		return nil
+	})
 }

@@ -106,7 +106,7 @@ var (
 	WebhookQueueFull = WebhookRejected.WithLabelValues("queue_full")
 	WebhookStopped   = WebhookRejected.WithLabelValues("stopped")
 
-	// JobRuns counts background job ticks by job name (a fixed string).
+	// JobRuns counts background job ticks by job name (from a fixed, bounded set).
 	JobRuns = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "alita_job_runs_total",
 		Help: "Background job ticks run, by job.",

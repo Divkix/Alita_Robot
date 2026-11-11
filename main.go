@@ -38,6 +38,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 	"github.com/divkix/Alita_Robot/alita/utils/slogrus"
@@ -138,40 +139,32 @@ func main() {
 
 	dispatcher := newConfiguredDispatcher(config.AppConfig.DispatcherMaxRoutines)
 
-	var statsCollector *monitoring.BackgroundStatsCollector
-	var autoRemediation *monitoring.AutoRemediationManager
-	var activityMonitor *monitoring.ActivityMonitor
-	var dbMonitoringCancel context.CancelFunc
-
 	if config.AppConfig.EnableDBMonitoring {
-		var ctx context.Context
-		ctx, dbMonitoringCancel = context.WithCancel(context.Background())
-		dbmonitoring.StartMonitoring(ctx, time.Minute)
+		dbmonitoring.Register(time.Minute)
 	}
 
+	var statsCollector *monitoring.BackgroundStatsCollector
 	if config.AppConfig.EnableBackgroundStats {
 		statsCollector = monitoring.NewBackgroundStatsCollector()
 		monitoring.SetGlobalCollector(statsCollector)
 		error_handling.SetOnErrorCallback(monitoring.GlobalRecordError)
 		tracing.SetOnProcessUpdateCallback(monitoring.GlobalRecordMessage)
-		statsCollector.Start()
+		statsCollector.Register()
 	}
 
 	if config.AppConfig.EnablePerformanceMonitoring {
-		autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
-		autoRemediation.Start()
+		monitoring.NewAutoRemediationManager(statsCollector).Register()
 	}
 
-	activityMonitor = monitoring.NewActivityMonitor()
-	activityMonitor.Start()
+	monitoring.NewActivityMonitor().Start()
 
 	shutdownManager := shutdown.NewManager()
 
-	stats.StartFlusher()
+	stats.RegisterFlusher()
 
-	digestScheduler := digest.NewScheduler(b)
-	memberSnapshotter := membersnapshot.New(b)
-	recurringScheduler := recurring.NewScheduler(b)
+	digest.Register(b)
+	membersnapshot.Register(b)
+	recurring.Register(b)
 
 	// Registered first so it runs last: every other handler's logs and spans
 	// are exported before the providers close.
@@ -187,54 +180,21 @@ func main() {
 		},
 		func() error {
 			log.Info("[Shutdown] Flushing daily stats counters...")
-			return stats.StopFlusher()
+			return stats.Flush()
 		},
 		func() error {
-			log.Info("[Shutdown] Stopping digest scheduler...")
-			digestScheduler.Stop()
-			return nil
-		},
-		func() error {
-			log.Info("[Shutdown] Stopping member count snapshots...")
-			memberSnapshotter.Stop()
-			return nil
-		},
-		func() error {
-			log.Info("[Shutdown] Stopping recurring messages scheduler...")
-			recurringScheduler.Stop()
+			log.Info("[Shutdown] Stopping periodic jobs...")
+			jobs.Stop()
 			return nil
 		},
 	)
-	digestScheduler.Start()
-	memberSnapshotter.Start()
-	recurringScheduler.Start()
+	jobs.Start()
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Draining users async writes...")
 		modules.DrainUsersAsyncWrites()
 		return nil
 	})
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Stopping monitoring systems...")
-		if activityMonitor != nil {
-			activityMonitor.Stop()
-		}
-		if autoRemediation != nil {
-			autoRemediation.Stop()
-		}
-		if statsCollector != nil {
-			statsCollector.Stop()
-		}
-		return nil
-	})
-
-	if dbMonitoringCancel != nil {
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping database monitoring...")
-			dbMonitoringCancel()
-			return nil
-		})
-	}
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping captcha lifecycle...")

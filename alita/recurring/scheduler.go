@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -14,7 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/recurringmessages"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
@@ -58,11 +56,6 @@ type Scheduler struct {
 	// now is the clock a tick reads. Tests replace it; production never
 	// writes it after construction.
 	now func() time.Time
-
-	startOnce sync.Once
-	stopOnce  sync.Once
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
 }
 
 // NewScheduler returns a scheduler for bot. It does not start ticking.
@@ -70,41 +63,13 @@ func NewScheduler(bot *gotgbot.Bot) *Scheduler {
 	return &Scheduler{bot: bot, interval: TickInterval, limiter: ratelimit.GlobalSendLimiter(), now: time.Now}
 }
 
-// Start begins the ticker. Calling it twice does nothing.
-func (s *Scheduler) Start() {
-	s.startOnce.Do(func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		s.cancel = cancel
-		s.wg.Add(1)
-		go func() {
-			defer s.wg.Done()
-			defer error_handling.RecoverFromPanic("recurringScheduler", "recurring")
-
-			ticker := time.NewTicker(s.interval)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					jobs.Run(ctx, "recurringSchedulerTick", func(ctx context.Context) error {
-						s.runDue(ctx, s.now())
-						return nil
-					})
-				}
-			}
-		}()
-	})
-}
-
-// Stop stops the ticker and waits for a running tick. It is idempotent and
-// safe on a scheduler that was never started.
-func (s *Scheduler) Stop() {
-	s.stopOnce.Do(func() {
-		if s.cancel != nil {
-			s.cancel()
-		}
-		s.wg.Wait()
+// Register registers bot's scheduler as the periodic job
+// recurringSchedulerTick; jobs.Start begins it.
+func Register(bot *gotgbot.Bot) {
+	s := NewScheduler(bot)
+	jobs.Register("recurringSchedulerTick", s.interval, func(ctx context.Context) error {
+		s.runDue(ctx, s.now())
+		return nil
 	})
 }
 
