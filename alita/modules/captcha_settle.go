@@ -64,18 +64,22 @@ func captchaFailed(cause, action string) captchaOutcome {
 	return captchaOutcome{ending: captchaEndFailed, cause: cause, action: action}
 }
 
-// captchaLeft is the member leaving with the challenge pending: there is
-// nobody to unmute and nothing to schedule.
+// captchaLeft is the member leaving: the pending challenge, if any, ends with
+// nobody to unmute, and every scheduled unmute of theirs is cleared, so an old
+// one cannot lift the mute of a challenge they get on joining again.
 var captchaLeft = captchaOutcome{ending: captchaEndLeft}
 
 // settleMemberCaptcha ends the pending challenge of userID in chatID, if any,
-// with outcome; err is a failed lookup or settleCaptchaAttempt's err.
+// with outcome; err is a failed lookup or settleCaptchaAttempt's err. A leave
+// clears the scheduled unmute even with no challenge pending.
 func settleMemberCaptcha(bot *gotgbot.Bot, chatID, userID int64, outcome captchaOutcome) error {
 	attempt, err := captcha.GetCaptchaAttemptIncludingExpired(userID, chatID)
-	if err != nil || attempt == nil {
-		return err
+	if err == nil && attempt != nil {
+		_, err = settleCaptchaAttempt(bot, attempt, outcome)
 	}
-	_, err = settleCaptchaAttempt(bot, attempt, outcome)
+	if outcome.ending == captchaEndLeft {
+		err = errors.Join(err, captcha.DeleteMutedUser(userID, chatID))
+	}
 	return err
 }
 

@@ -777,26 +777,50 @@ func TestLeaveEndsAPendingCaptchaAndRejoinStartsAFreshOne(t *testing.T) {
 	}
 }
 
-// Leaving ends only the pending challenge: an unmute scheduled by an earlier
-// ending, such as a failure's 24-hour mute, still runs, since Telegram keeps
-// the restriction for when the member returns.
-func TestLeaveKeepsAnEarlierScheduledUnmute(t *testing.T) {
+// A member who leaves with an unmute still scheduled, such as a failure's
+// 24-hour mute, and joins again is not unmuted by the unmute worker in the
+// middle of the fresh challenge: the leave cleared the old schedule.
+func TestRejoinAfterLeavingWithAScheduledUnmuteIsNotUnmutedMidChallenge(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	actor := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
 	if err := captcha.CreateMutedUser(42, chat.Id, time.Now().Add(24*time.Hour)); err != nil {
 		t.Fatalf("CreateMutedUser() error = %v", err)
 	}
-	t.Cleanup(func() { _ = captcha.DeleteMutedUser(42, chat.Id) })
+	t.Cleanup(func() {
+		_ = captcha.DeleteCaptchaAttempt(42, chat.Id)
+		_ = captcha.DeleteMutedUser(42, chat.Id)
+	})
 	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadGreetings(d)
-
-	leave := newChatMemberContext(bot, chat, gotgbot.User{Id: 777000, FirstName: "Telegram"}, gotgbot.ChatMemberRestricted{User: member, IsMember: true}, gotgbot.ChatMemberLeft{User: member})
-	if err := d.ProcessUpdate(bot, leave.Update, nil); err != nil {
-		t.Fatalf("ProcessUpdate() error = %v", err)
+	dispatch := func(from, to gotgbot.ChatMember) {
+		t.Helper()
+		if err := d.ProcessUpdate(bot, newChatMemberContext(bot, chat, actor, from, to).Update, nil); err != nil {
+			t.Fatalf("ProcessUpdate() error = %v", err)
+		}
 	}
-	if users, err := captcha.GetMutedUsersForChat(chat.Id); err != nil || len(users) != 1 {
-		t.Fatalf("scheduled unmutes after the leave = (%+v, %v), want the earlier one kept", users, err)
+
+	dispatch(gotgbot.ChatMemberRestricted{User: member, IsMember: true}, gotgbot.ChatMemberLeft{User: member})
+	dispatch(gotgbot.ChatMemberLeft{User: member}, gotgbot.ChatMemberMember{User: member})
+	client.onlyCall(t, "sendPhoto")
+	mutes := len(callsToChat(client, "restrictChatMember", chat.Id))
+
+	// The old schedule would have come due.
+	if err := db.DB.Model(&models.CaptchaMutedUsers{}).Where("chat_id = ?", chat.Id).
+		Update("unmute_at", time.Now().Add(-time.Minute)).Error; err != nil {
+		t.Fatalf("move unmute_at error = %v", err)
+	}
+	unmuteExpiredCaptchaUsers(bot)
+	if calls := callsToChat(client, "restrictChatMember", chat.Id); len(calls) != mutes {
+		t.Fatalf("restrictChatMember calls = %d, want %d: no unmute during the challenge", len(calls), mutes)
+	}
+	if fresh, err := captcha.GetCaptchaAttempt(42, chat.Id); err != nil || fresh == nil {
+		t.Fatalf("attempt after rejoin = (%+v, %v), want the fresh challenge pending", fresh, err)
 	}
 }
