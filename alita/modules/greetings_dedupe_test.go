@@ -10,29 +10,29 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
-func TestRecentJoinProcessingNoCacheFallback(t *testing.T) {
+func TestJoinClaimNoCacheFallback(t *testing.T) {
 	withNilCacheMarshal(t)
 	t.Cleanup(func() {
 		clearRecentJoinProcessing(-100123, 456)
 	})
 
-	if !claimRecentJoinProcessing(-100123, 456) {
-		t.Fatal("first claimRecentJoinProcessing() = false, want true")
+	if got := claimJoin(-100123, 456); got != ClaimShared {
+		t.Fatalf("first claimJoin() = %v, want ClaimShared", got)
 	}
-	if claimRecentJoinProcessing(-100123, 456) {
-		t.Fatal("second claimRecentJoinProcessing() = true, want false duplicate")
+	if got := claimJoin(-100123, 456); got != ClaimLost {
+		t.Fatalf("second claimJoin() = %v, want ClaimLost duplicate", got)
 	}
 
 	clearRecentJoinProcessing(-100123, 456)
-	if !claimRecentJoinProcessing(-100123, 456) {
-		t.Fatal("claim after clear = false, want true")
+	if got := claimJoin(-100123, 456); got != ClaimShared {
+		t.Fatalf("claim after clear = %v, want ClaimShared", got)
 	}
 }
 
-// TestClaimRecentJoinProcessingIsAtomic verifies that exactly one caller wins the
-// join-dedup claim for a given (chat, user) pair — both in the sequential case
-// and when N goroutines race concurrently.
-func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
+// TestJoinClaimIsAtomic verifies that exactly one caller wins the join claim
+// for a given (chat, user) pair — both in the sequential case and when N
+// goroutines race concurrently.
+func TestJoinClaimIsAtomic(t *testing.T) {
 	chatID := -time.Now().UnixNano() / 1e6 // negative to avoid valid Telegram chat IDs
 	userID := time.Now().UnixNano()/1e6 + 1
 
@@ -40,11 +40,11 @@ func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
 		clearRecentJoinProcessing(chatID, userID)
 	})
 
-	if !claimRecentJoinProcessing(chatID, userID) {
-		t.Fatal("first claimRecentJoinProcessing() = false, want true")
+	if got := claimJoin(chatID, userID); got != ClaimShared {
+		t.Fatalf("first claimJoin() = %v, want ClaimShared", got)
 	}
-	if claimRecentJoinProcessing(chatID, userID) {
-		t.Fatal("second claimRecentJoinProcessing() = true, want false (duplicate)")
+	if got := claimJoin(chatID, userID); got != ClaimLost {
+		t.Fatalf("second claimJoin() = %v, want ClaimLost (duplicate)", got)
 	}
 
 	clearRecentJoinProcessing(chatID, userID)
@@ -57,7 +57,7 @@ func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
 	for range N {
 		go func() {
 			defer wg.Done()
-			if claimRecentJoinProcessing(chatID, userID) {
+			if claimJoin(chatID, userID) == ClaimShared {
 				wins.Add(1)
 			}
 		}()
@@ -65,7 +65,7 @@ func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
 	wg.Wait()
 
 	if got := wins.Load(); got != 1 {
-		t.Fatalf("concurrent claimRecentJoinProcessing() winners = %d, want exactly 1", got)
+		t.Fatalf("concurrent claimJoin() winners = %d, want exactly 1", got)
 	}
 }
 

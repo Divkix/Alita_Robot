@@ -379,9 +379,7 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 	}
 
 	clearRecentJoinProcessing(chat.Id, member.Id)
-	if !claimRecentJoinProcessing(chat.Id, member.Id) {
-		t.Fatal("claimRecentJoinProcessing setup returned false")
-	}
+	markJoinHandled(chat.Id, member.Id)
 	if err := processSingleNewMember(bot, ctx, member, false); err != nil {
 		t.Fatalf("processSingleNewMember() error = %v", err)
 	}

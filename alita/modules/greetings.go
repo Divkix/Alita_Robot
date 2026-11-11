@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -15,7 +14,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/chatjoinrequest"
 	"github.com/eko/gocache/lib/v4/store"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -38,19 +36,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
-var recentJoinProcessTTL = 5 * time.Second
-
 // membershipHandlerGroup holds membership intake's join and leave handlers.
 // It runs after the federation watcher (-6) and the users tracker (-1), and
 // its handlers end the update, so later groups never see a join.
 const membershipHandlerGroup = 0
 
-var (
-	greetingsModule      = moduleStruct{moduleName: "Greetings"}
-	recentJoinProcessing sync.Map
-)
-
-type joinClaim struct{ exp time.Time }
+var greetingsModule = moduleStruct{moduleName: "Greetings"}
 
 type greetingType int
 
@@ -84,105 +75,6 @@ var goodbyeConfig = greetingConfig{
 	enabledKey:  "greetings_goodbye_enable",
 	disabledKey: "greetings_goodbye_disable",
 	invalidKey:  "greetings_goodbye_invalid",
-}
-
-func recentJoinProcessingKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:recentJoinProcessing:%d:%d", chatID, userID)
-}
-
-func claimRecentJoinProcessing(chatID, userID int64) bool {
-	claimed, err := tryClaimRecentJoinProcessing(chatID, userID)
-	if err != nil {
-		// Genuine Redis error — fail closed to avoid double welcome/captcha in multi-instance.
-		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, failing closed: %v", recentJoinProcessingKey(chatID, userID), err)
-		return false
-	}
-	return claimed
-}
-
-// claimJoin is membership intake's join claim. A Redis error falls back to a
-// claim local to this replica, which lets the guard stages run but not the
-// challenge or welcome, so an outage neither lets a banned user in nor greets
-// anyone twice.
-func claimJoin(chatID, userID int64) JoinClaim {
-	claimed, err := tryClaimRecentJoinProcessing(chatID, userID)
-	if err != nil {
-		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, using the local claim: %v", recentJoinProcessingKey(chatID, userID), err)
-		if claimRecentJoinLocally(recentJoinProcessingKey(chatID, userID)) {
-			return ClaimLocal
-		}
-		return ClaimLost
-	}
-	if claimed {
-		return ClaimShared
-	}
-	return ClaimLost
-}
-
-// markJoinHandled claims userID's join for a guard that removed them on
-// another update, so a later update of that join does nothing.
-func markJoinHandled(chatID, userID int64) {
-	claimJoin(chatID, userID)
-}
-
-// tryClaimRecentJoinProcessing takes the join claim in Redis, or in this
-// replica without Redis. It returns the Redis error instead of a decision.
-func tryClaimRecentJoinProcessing(chatID, userID int64) (bool, error) {
-	key := recentJoinProcessingKey(chatID, userID)
-
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		_, err := rdb.SetArgs(cache.Context, key, true, redis.SetArgs{
-			Mode: "NX",
-			TTL:  recentJoinProcessTTL,
-		}).Result()
-		if err == nil {
-			return true, nil
-		}
-		if errors.Is(err, redis.Nil) {
-			return false, nil
-		}
-		return false, err
-	}
-	return claimRecentJoinLocally(key), nil
-}
-
-func claimRecentJoinLocally(key string) bool {
-	now := time.Now()
-	for {
-		newClaim := joinClaim{exp: now.Add(recentJoinProcessTTL)}
-		actual, loaded := recentJoinProcessing.LoadOrStore(key, newClaim)
-		if !loaded {
-			expireRecentJoinClaim(key, newClaim)
-			return true
-		}
-		if c, ok := actual.(joinClaim); ok && now.Before(c.exp) {
-			return false
-		}
-		newClaim = joinClaim{exp: time.Now().Add(recentJoinProcessTTL)}
-		if recentJoinProcessing.CompareAndSwap(key, actual, newClaim) {
-			expireRecentJoinClaim(key, newClaim)
-			return true
-		}
-		now = time.Now()
-	}
-}
-
-func expireRecentJoinClaim(key string, claim joinClaim) {
-	time.AfterFunc(recentJoinProcessTTL, func() {
-		recentJoinProcessing.CompareAndDelete(key, claim)
-	})
-}
-
-func clearRecentJoinProcessing(chatID, userID int64) {
-	key := recentJoinProcessingKey(chatID, userID)
-
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		if err := rdb.Del(cache.Context, key).Err(); err != nil {
-			log.Debugf("[Greetings] Failed to clear shared join dedupe key %s: %v", key, err)
-		}
-	}
-
-	recentJoinProcessing.Delete(key)
 }
 
 func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingConfig) error {

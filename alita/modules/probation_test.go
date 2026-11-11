@@ -133,12 +133,10 @@ func TestProbationStartsOnJoinOnlyWhenOnAndForTheClaimWinner(t *testing.T) {
 	clearRecentJoinProcessing(f.chat.Id, bot.Id)
 	joinChat(t, f, bot)
 
-	// Another guard (spamdb, antiraid) took this join first.
+	// A guard already removed this member on another update.
 	taken := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Taken"}
 	clearRecentJoinProcessing(f.chat.Id, taken.Id)
-	if !claimRecentJoinProcessing(f.chat.Id, taken.Id) {
-		t.Fatal("claimRecentJoinProcessing() = false on a fresh join")
-	}
+	markJoinHandled(f.chat.Id, taken.Id)
 	joinChat(t, f, taken)
 
 	for _, user := range []gotgbot.User{approved, bot, taken} {
