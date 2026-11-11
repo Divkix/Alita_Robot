@@ -125,7 +125,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 		if noformat {
 			view = media.Raw
 		}
-		_, err = media.SendSaved(tracing.UpdateContext(ctx), bot, greetingMessage(greetingText, fileID, greetingDataType, buttons), media.Target{
+		_, err = media.SendSaved(tracing.UpdateContext(ctx), bot, media.GreetingMessage(greetingText, fileID, greetingDataType, buttons), media.Target{
 			Chat:     chat,
 			ChatID:   msg.Chat.Id,
 			ThreadID: ctx.EffectiveMessage.MessageThreadId,
@@ -419,7 +419,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		if ctx.EffectiveMessage != nil {
 			threadID = ctx.EffectiveMessage.MessageThreadId
 		}
-		welcome := greetingMessage(greetPrefs.WelcomeSettings.WelcomeText, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, greetings.GetWelcomeButtons(chat.Id))
+		welcome := media.GreetingMessage(greetPrefs.WelcomeSettings.WelcomeText, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, greetings.GetWelcomeButtons(chat.Id))
 		sent, err := media.SendSaved(tracing.UpdateContext(ctx), bot, welcome, media.Target{Chat: chat, ChatID: chat.Id, ThreadID: threadID, Member: user}, media.Rendered)
 		if err != nil {
 			logJoinOperationError("[Greetings][SendWelcomeMessage] Failed to send welcome message", err)
@@ -433,12 +433,6 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		}
 	}
 	return nil
-}
-
-// greetingMessage is a stored welcome or goodbye as a saved message.
-// Greetings store no preview, protect or silent flag, so all stay off.
-func greetingMessage(text, fileID string, msgType int, buttons []db.Button) media.SavedMessage {
-	return media.SavedMessage{Kind: media.KindGreeting, Name: "greeting", Text: text, FileID: fileID, MsgType: msgType, Buttons: buttons}
 }
 
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -491,7 +485,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if ctx.EffectiveMessage != nil {
 			threadID = ctx.EffectiveMessage.MessageThreadId
 		}
-		goodbye := greetingMessage(greetPrefs.GoodbyeSettings.GoodbyeText, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, greetings.GetGoodbyeButtons(chat.Id))
+		goodbye := media.GreetingMessage(greetPrefs.GoodbyeSettings.GoodbyeText, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, greetings.GetGoodbyeButtons(chat.Id))
 		sent, err := media.SendSaved(tracing.UpdateContext(ctx), bot, goodbye, media.Target{Chat: chat, ChatID: chat.Id, ThreadID: threadID, Member: &leftMember}, media.Rendered)
 		if err != nil {
 			logJoinOperationError("[Greetings][leftMember] Failed to send goodbye message", err)

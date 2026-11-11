@@ -332,6 +332,12 @@ func FilterMessage(f *db.ChatFilters) SavedMessage {
 	}
 }
 
+// GreetingMessage is a stored welcome or goodbye as a saved message.
+// Greetings store no preview, protect or silent flag, so all stay off.
+func GreetingMessage(text, fileID string, msgType int, buttons []db.Button) SavedMessage {
+	return SavedMessage{Kind: KindGreeting, Name: "greeting", Text: text, FileID: fileID, MsgType: msgType, Buttons: buttons}
+}
+
 // SendSaved sends msg to target in view and returns the message Telegram
 // accepted.
 //
@@ -373,8 +379,10 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 
 func render(b *gotgbot.Bot, msg SavedMessage, to Target, rules kindRules) (string, sendOptions) {
 	text, buttons := msg.Text, msg.Buttons
-	if parts := strings.Split(text, "%%%"); rules.random && len(parts) > 1 {
-		text = parts[rand.Intn(len(parts))] // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
+	if rules.random {
+		if parts := strings.Split(text, "%%%"); len(parts) > 1 {
+			text = parts[rand.Intn(len(parts))] // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
+		}
 	}
 	if rules.fillings {
 		chat := to.Chat
