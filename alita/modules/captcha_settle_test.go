@@ -3,12 +3,12 @@
 package modules
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -332,16 +332,23 @@ func TestExpiredCaptchaEndsAsReleaseAfterApproveOrCaptchaOff(t *testing.T) {
 				t.Cleanup(func() { _ = approvals.RemoveApprovedUser(chatID, 42) })
 			}
 			attempt := pendingCaptchaAttempt(t, chatID, 123)
-
-			if handled, err := expireCaptchaAttempt(bot, attempt); !handled || err != nil {
-				t.Fatalf("expireCaptchaAttempt() = (%v, %v), want (true, nil)", handled, err)
+			past := time.Now().Add(-time.Minute)
+			if err := db.DB.Model(&db.CaptchaAttempts{}).Where("id = ?", attempt.ID).Updates(map[string]any{"created_at": past.Add(-time.Minute), "expires_at": past}).Error; err != nil {
+				t.Fatalf("expire attempt error = %v", err)
 			}
+
+			if err := startCaptchaAfterRestart(t, bot); err != nil {
+				t.Fatalf("StartCaptchaLifecycle() error = %v", err)
+			}
+			// The restart settles every stored attempt; count this chat's.
 			for _, method := range []string{"banChatMember", "unbanChatMember", "sendMessage"} {
-				if calls := client.callsFor(method); len(calls) != 0 {
+				if calls := callsToChat(client, method, chatID); len(calls) != 0 {
 					t.Fatalf("%s calls = %d, want none for a release", method, len(calls))
 				}
 			}
-			client.onlyCall(t, "restrictChatMember")
+			if calls := callsToChat(client, "restrictChatMember", chatID); len(calls) != 1 {
+				t.Fatalf("restrictChatMember calls = %d, want the unmute", len(calls))
+			}
 			assertDeleted(t, client, chatID, 123)
 			assertCaptchaRows(t, attempt, 0)
 		})
@@ -598,58 +605,92 @@ func TestCaptchaWrongAnswersUpToTheLimitFailTheAttempt(t *testing.T) {
 	assertCaptchaRows(t, attempt, 0)
 }
 
-// After a restart an expired attempt is settled at once and a running one
-// keeps its timeout: it fails when that runs out, not before.
-func TestCaptchaRestartSettlesExpiredAndKeepsRunningTimeouts(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	ctx, cancel := context.WithCancel(context.Background())
+// startCaptchaAfterRestart starts the captcha lifecycle as the bot does when
+// it starts, over the attempts stored now, and stops it when the test ends.
+func startCaptchaAfterRestart(t *testing.T, bot *gotgbot.Bot) error {
+	t.Helper()
 	captchaLifecycleMu.Lock()
 	oldCtx, oldStop, oldDone := captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone
-	captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone = ctx, cancel, false
+	captchaLifecycleOnce, captchaLifecycleErr = sync.Once{}, nil
+	captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone = nil, nil, false
 	captchaLifecycleMu.Unlock()
 	t.Cleanup(func() {
-		cancel()
-		captchaLifecycleWG.Wait()
+		StopCaptchaLifecycle()
 		captchaLifecycleMu.Lock()
+		captchaLifecycleOnce, captchaLifecycleErr = sync.Once{}, nil
 		captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone = oldCtx, oldStop, oldDone
 		captchaLifecycleMu.Unlock()
 	})
+	return StartCaptchaLifecycle(bot)
+}
+
+// After a restart an expired attempt is settled at once, one whose prompt was
+// never sent is released, and a running one keeps its timeout and what the
+// member sent so far: it fails when the timeout runs out, not before. An
+// unmute Telegram refuses does not stop the start; the unmute worker retries.
+func TestCaptchaRestartSettlesStoredAttempts(t *testing.T) {
+	client := newModuleBotClient()
+	client.errorsByUser = map[string]error{"restrictChatMember|43": errors.New("temporary Telegram failure")}
+	bot := newModuleTestBot(client)
 	now := time.Now()
 	stored := map[string]*db.CaptchaAttempts{}
-	for name, expiresAt := range map[string]time.Time{"expired": now.Add(-time.Minute), "running": now.Add(time.Second)} {
-		attempt := &db.CaptchaAttempts{UserID: 42, ChatID: uniqueModuleChatID(), Answer: "7", MessageID: 123, CreatedAt: now.Add(-2 * time.Minute), ExpiresAt: expiresAt}
+	for name, a := range map[string]struct {
+		user, prompt int64
+		expiresAt    time.Time
+	}{
+		"expired":        {42, 123, now.Add(-time.Minute)},
+		"running":        {42, 123, now.Add(time.Second)},
+		"unsent":         {42, 0, now.Add(time.Minute)},
+		"unsent refused": {43, 0, now.Add(time.Minute)},
+	} {
+		attempt := &db.CaptchaAttempts{UserID: a.user, ChatID: uniqueModuleChatID(), Answer: "7", MessageID: a.prompt, CreatedAt: now.Add(-2 * time.Minute), ExpiresAt: a.expiresAt}
 		if err := captcha.SetCaptchaEnabled(attempt.ChatID, "Captcha Chat", true); err != nil {
 			t.Fatalf("SetCaptchaEnabled() error = %v", err)
 		}
 		if err := db.DB.Create(attempt).Error; err != nil {
 			t.Fatalf("create %s attempt error = %v", name, err)
 		}
+		if err := captcha.StoreMessageForCaptcha(a.user, attempt.ChatID, attempt.ID, db.TEXT, "held", "", ""); err != nil {
+			t.Fatalf("StoreMessageForCaptcha() error = %v", err)
+		}
 		t.Cleanup(func() {
-			_ = captcha.DeleteCaptchaAttempt(42, attempt.ChatID)
-			_ = captcha.DeleteMutedUser(42, attempt.ChatID)
+			_ = captcha.DeleteCaptchaAttempt(a.user, attempt.ChatID)
+			_ = captcha.DeleteMutedUser(a.user, attempt.ChatID)
 		})
 		stored[name] = attempt
 	}
-	expired, running := stored["expired"], stored["running"]
+	expired, running, unsent, refused := stored["expired"], stored["running"], stored["unsent"], stored["unsent refused"]
 
-	if err := runOrphanedCaptchaRecovery(bot); err != nil {
-		t.Fatalf("runOrphanedCaptchaRecovery() error = %v", err)
+	if err := startCaptchaAfterRestart(t, bot); err != nil {
+		t.Fatalf("StartCaptchaLifecycle() error = %v", err)
 	}
 	if calls := callsToChat(client, "unbanChatMember", expired.ChatID); len(calls) != 1 {
 		t.Fatalf("expired attempt kicks = %d, want 1 at once", len(calls))
 	}
+	assertDeleted(t, client, expired.ChatID, 123)
 	assertCaptchaRows(t, expired, 0)
+	for _, attempt := range []*db.CaptchaAttempts{unsent, refused} {
+		if calls := callsToChat(client, "restrictChatMember", attempt.ChatID); len(calls) != 1 {
+			t.Fatalf("unsent attempt unmutes = %d, want 1", len(calls))
+		}
+		if calls := callsToChat(client, "deleteMessage", attempt.ChatID); len(calls) != 0 {
+			t.Fatalf("unsent attempt prompt deletes = %d, want none", len(calls))
+		}
+	}
+	assertCaptchaRows(t, unsent, 0)
+	assertCaptchaRows(t, refused, 1)
 	if calls := callsToChat(client, "unbanChatMember", running.ChatID); len(calls) != 0 {
 		t.Fatalf("running attempt kicks = %d, want none before its timeout", len(calls))
 	}
 	if current, err := captcha.GetCaptchaAttemptByID(running.ID); err != nil || current == nil {
 		t.Fatalf("running attempt after restart = (%v, %v), want it kept", current, err)
 	}
+	if n, err := captcha.CountStoredMessagesForAttempt(running.ID); err != nil || n != 1 {
+		t.Fatalf("running attempt's held messages = (%d, %v), want 1", n, err)
+	}
 
 	waitForModuleCondition(t, func() bool { return len(callsToChat(client, "unbanChatMember", running.ChatID)) == 1 })
-	cancel()
-	captchaLifecycleWG.Wait()
+	StopCaptchaLifecycle()
 	if time.Now().Before(running.ExpiresAt) {
 		t.Fatalf("running attempt failed before its timeout %v", running.ExpiresAt)
 	}
