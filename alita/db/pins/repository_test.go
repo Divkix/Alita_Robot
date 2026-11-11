@@ -91,7 +91,7 @@ func TestPinSettingsCRUD(t *testing.T) {
 		}
 	})
 
-	t.Run("idempotent create", func(t *testing.T) {
+	t.Run("reads do not create", func(t *testing.T) {
 		chatID := time.Now().UnixNano()
 
 		t.Cleanup(func() {
@@ -106,9 +106,11 @@ func TestPinSettingsCRUD(t *testing.T) {
 		}
 
 		var count int64
-		db.DB.Model(&models.PinSettings{}).Where("chat_id = ?", chatID).Count(&count)
-		if count != 1 {
-			t.Fatalf("expected exactly 1 pin record, got %d", count)
+		if err := db.DB.Model(&models.PinSettings{}).Where("chat_id = ?", chatID).Count(&count).Error; err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Fatalf("reading created %d pin settings rows", count)
 		}
 	})
 }

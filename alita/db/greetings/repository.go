@@ -30,7 +30,7 @@ func defaultGreetingSettings(chatID int64) *models.GreetingSettings {
 		GoodbyeSettings: &models.GoodbyeSettings{
 			LastMsgId:     0,
 			CleanGoodbye:  false,
-			ShouldGoodbye: false,
+			ShouldGoodbye: true,
 			GoodbyeText:   db.DefaultGoodbye,
 			GoodbyeType:   db.TEXT,
 			Button:        models.ButtonArray{},
@@ -43,22 +43,7 @@ func checkGreetingSettings(chatID int64) (*models.GreetingSettings, error) {
 	err := db.GetRecord(greetingSrc, map[string]any{"chat_id": chatID})
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		var chat models.Chat
-		chatErr := db.GetRecord(&chat, models.Chat{ChatId: chatID})
-		if errors.Is(chatErr, gorm.ErrRecordNotFound) {
-			log.Debugf("[Database][checkGreetingSettings]: Chat %d doesn't exist, returning default settings", chatID)
-			return defaultGreetingSettings(chatID), nil
-		}
-		if chatErr != nil {
-			log.Errorf("[Database][checkGreetingSettings]: chat %d: %v", chatID, chatErr)
-			return defaultGreetingSettings(chatID), chatErr
-		}
-
-		greetingSrc = defaultGreetingSettings(chatID)
-		if err := db.CreateRecord(greetingSrc); err != nil {
-			log.Errorf("[Database][checkGreetingSettings]: %v ", err)
-			return defaultGreetingSettings(chatID), err
-		}
+		return defaultGreetingSettings(chatID), nil
 	} else if err != nil {
 		log.Errorf("[Database][checkGreetingSettings]: %v", err)
 		return defaultGreetingSettings(chatID), err
@@ -79,6 +64,7 @@ func checkGreetingSettings(chatID int64) (*models.GreetingSettings, error) {
 	return greetingSrc, nil
 }
 
+// GetGreetingSettings reads without creating a row; only setters persist defaults.
 func GetGreetingSettings(chatID int64) *models.GreetingSettings {
 	settings, err := cache.GetFromCacheOrLoad(
 		context.Background(),
@@ -121,7 +107,7 @@ func defaultGreetingSettingsAttrs(chatID int64) map[string]any {
 		"welcome_text":           db.DefaultWelcome,
 		"welcome_type":           db.TEXT,
 		"welcome_btns":           models.ButtonArray{},
-		"goodbye_enabled":        false,
+		"goodbye_enabled":        true,
 		"goodbye_text":           db.DefaultGoodbye,
 		"goodbye_type":           db.TEXT,
 		"goodbye_btns":           models.ButtonArray{},

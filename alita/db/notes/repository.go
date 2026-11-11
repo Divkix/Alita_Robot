@@ -25,16 +25,7 @@ func getNotesSettingsContext(ctx context.Context, chatID int64) *models.NotesSet
 		noteSrc := &models.NotesSettings{}
 		err := db.GetRecordContext(ctx, noteSrc, models.NotesSettings{ChatId: chatID})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if !db.ChatExistsContext(ctx, chatID) {
-				log.Debugf("[Database][getNotesSettings]: Chat %d doesn't exist, returning default settings", chatID)
-				return models.NotesSettings{ChatId: chatID, Private: false}, nil
-			}
-
-			noteSrc = &models.NotesSettings{ChatId: chatID, Private: false}
-			err := db.CreateRecordContext(ctx, noteSrc)
-			if err != nil {
-				log.Errorf("[Database][getNotesSettings]: %d - %v", chatID, err)
-			}
+			return models.NotesSettings{ChatId: chatID}, nil
 		} else if err != nil {
 			log.Errorf("[Database] getNotesSettings: %v - %d", err, chatID)
 			return models.NotesSettings{ChatId: chatID, Private: false}, nil

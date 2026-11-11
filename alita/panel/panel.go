@@ -29,6 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
 
 //go:embed web
@@ -56,13 +57,6 @@ type Deps struct {
 	// Now is the clock used for initData validation, memo expiry and rate
 	// limiting. Nil means time.Now.
 	Now func() time.Time
-	// DisableCaptcha runs the cleanup /captcha off runs after the panel turns
-	// captcha off: pending users are unmuted. Production wires
-	// modules.DisableCaptchaForChat; nil skips it.
-	DisableCaptcha func(bot *gotgbot.Bot, chatID int64) error
-	// NightModeLockTypes contains only lock names supported by night mode.
-	// Production wires modules.NightModeLockTypes, excluding join-only locks.
-	NightModeLockTypes []string
 }
 
 // panelRequestTimeout bounds one panel request below the HTTP server's 10 s
@@ -71,13 +65,17 @@ type Deps struct {
 // var so tests can shrink it.
 var panelRequestTimeout = 8 * time.Second
 
-// New builds the panel handler. Mount it at /panel and /panel/.
+// New builds the panel handler. Mount it at /panel and /panel/. Missing required
+// settings attachments are startup programming errors, not optional effects.
 func New(bot *gotgbot.Bot, deps Deps) http.Handler {
 	return newPanel(bot, deps).handler()
 }
 
 // newPanel builds the handler state before the response policy wraps it.
 func newPanel(bot *gotgbot.Bot, deps Deps) *Panel {
+	if err := chatsettings.CheckAttachments(); err != nil {
+		panic("panel: " + err.Error())
+	}
 	if deps.SessionMaxAge <= 0 {
 		deps.SessionMaxAge = DefaultSessionMaxAge
 	}

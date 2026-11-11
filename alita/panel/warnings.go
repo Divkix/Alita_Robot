@@ -10,6 +10,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
 
 const (
@@ -94,7 +95,7 @@ func (p *Panel) handleWarnings(w http.ResponseWriter, r *http.Request) {
 		rows = rows[:limit]
 		next = rows[len(rows)-1].UserID
 	}
-	expiry := warns.GetWarnSettingContext(r.Context(), access.ChatID).WarnExpiry
+	expiry := chatsettings.ReadWarnsContext(r.Context(), access.ChatID).WarnExpiry
 
 	users := make([]warnUserView, 0, len(rows))
 	ids := make([]int64, 0, len(rows))

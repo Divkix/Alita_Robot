@@ -16,10 +16,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -35,36 +35,25 @@ const (
 	maxConcurrentMsgDeletions = 5
 )
 
-// floodTimedActionTime is the fallback for tban/tmute rows without a usable
-// duration, such as backups taken before flood_action_time existed.
-const floodTimedActionTime = 60 * 60
-
-func floodActionTime(settings *models.AntifloodSettings) int {
-	if !models.ValidActionTime(settings.FloodActionTime) {
-		return floodTimedActionTime
-	}
-	return settings.FloodActionTime
-}
-
 // floodModeLabel includes the effective duration for timed actions.
-func floodModeLabel(settings *models.AntifloodSettings) string {
-	if settings.Action == "tban" || settings.Action == "tmute" {
-		return settings.Action + " " + formatDuration(floodActionTime(settings))
+func floodModeLabel(row *models.AntifloodSettings) string {
+	if chatsettings.IsTimedMode(row.Action) {
+		return row.Action + " " + formatDuration(row.FloodActionTime)
 	}
-	return settings.Action
+	return row.Action
 }
 
 // floodActionLabel names the flood action for the flood notice and /flood.
-func floodActionLabel(tr *i18n.Translator, settings *models.AntifloodSettings) string {
+func floodActionLabel(tr *i18n.Translator, preferences *models.AntifloodSettings) string {
 	label := func(key, fallback string, params ...i18n.TranslationParams) string {
 		if text, _ := tr.GetString(key, params...); text != "" {
 			return text
 		}
 		return fallback
 	}
-	duration := formatDuration(floodActionTime(settings))
+	duration := formatDuration(preferences.FloodActionTime)
 	durationParams := i18n.TranslationParams{"duration": duration}
-	switch settings.Action {
+	switch preferences.Action {
 	case "mute":
 		return label("antiflood_action_muted", "muted")
 	case "ban":
@@ -78,7 +67,7 @@ func floodActionLabel(tr *i18n.Translator, settings *models.AntifloodSettings) s
 	case "":
 		return label("antiflood_action_none", "none")
 	default:
-		return settings.Action
+		return preferences.Action
 	}
 }
 
@@ -200,7 +189,7 @@ func (a *antifloodStruct) adminCheckWithTimeout(b *gotgbot.Bot, chatId, userId i
 }
 
 func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
-	floodSettings = antiflood.GetFlood(chatId)
+	floodSettings = chatsettings.ReadFlood(chatId)
 	shouldPunish, floodCrc = a.updateFloodWithSettings(chatId, userId, msgId, floodSettings)
 	return
 }
@@ -293,7 +282,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	chatId := chat.Id
 	// Cheapest discriminator first: an unconfigured chat (Limit == 0) pays only
 	// this one cached read, not the translator/admin/approval lookups below.
-	flood := antiflood.GetFlood(chatId)
+	flood := chatsettings.ReadFloodContext(tracing.UpdateContext(ctx), chatId)
 	if flood.Limit == 0 {
 		return ext.ContinueGroups
 	}
@@ -419,7 +408,7 @@ func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
-		untilDate := time.Now().Unix() + int64(floodActionTime(flood))
+		untilDate := time.Now().Unix() + int64(flood.FloodActionTime)
 		floodTimedUntil = untilDate
 		var err error
 		if flood.Action == "tban" {
@@ -474,7 +463,7 @@ func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_expected_args")
 	} else {
 		if slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
-			if err := antiflood.SetFloodContext(tracing.UpdateContext(ctx), chat.Id, 0); err != nil {
+			if err := chatsettings.FloodLimit.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0); err != nil {
 				log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -486,10 +475,10 @@ func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err != nil {
 				replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_invalid_int")
 			} else {
-				if num < 3 || num > 100 {
+				if chatsettings.FloodLimit.Validate(num) != nil {
 					replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_set_in_limit")
 				} else {
-					if err := antiflood.SetFloodContext(tracing.UpdateContext(ctx), chat.Id, num); err != nil {
+					if err := chatsettings.FloodLimit.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, num); err != nil {
 						log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 						errText, _ := tr.GetString("common_settings_save_failed")
 						_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -519,7 +508,7 @@ func (m moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	flood := antiflood.GetFloodContext(tracing.UpdateContext(ctx), chat.Id)
+	flood := chatsettings.ReadFloodContext(tracing.UpdateContext(ctx), chat.Id)
 	if flood.Limit == 0 {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
@@ -541,17 +530,25 @@ func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
-		if slices.Contains([]string{"ban", "kick", "mute", "tban", "tmute"}, selectedMode) {
+		if chatsettings.FloodMode.Validate(selectedMode) == nil {
 			actionTime := 0
-			timed := selectedMode == "tban" || selectedMode == "tmute"
+			changes := map[string]any{chatsettings.FloodMode.Key: selectedMode}
+			timed := chatsettings.IsTimedMode(selectedMode)
 			if timed {
 				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
 				if seconds == -1 {
 					return ext.EndGroups
 				}
 				actionTime = int(seconds)
+				changes[chatsettings.FloodActionTime.Key] = actionTime
 			}
-			if err := antiflood.SetFloodModeContext(tracing.UpdateContext(ctx), chat.Id, selectedMode, actionTime); err != nil {
+			input := chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
+			if len(chatsettings.ValidateChanges(input, changes)) != 0 {
+				text, _ := tr.GetString("antiflood_setfloodmode_specify_action")
+				_, _ = msg.Reply(b, text, formatting.Shtml())
+				return ext.EndGroups
+			}
+			if err := chatsettings.FloodMode.WriteChanges(input, changes); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -597,7 +594,7 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		switch selectedMode {
 		case "on", "yes":
-			if err := antiflood.SetFloodMsgDelContext(tracing.UpdateContext(ctx), chat.Id, true); err != nil {
+			if err := chatsettings.FloodDelete.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -605,7 +602,7 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
 		case "off", "no":
-			if err := antiflood.SetFloodMsgDelContext(tracing.UpdateContext(ctx), chat.Id, false); err != nil {
+			if err := chatsettings.FloodDelete.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -616,7 +613,7 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_invalid_option")
 		}
 	} else {
-		currSet := antiflood.GetFloodContext(tracing.UpdateContext(ctx), chat.Id).DeleteAntifloodMessage
+		currSet := chatsettings.FloodDelete.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currSet {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_already_enabled")
 		} else {
@@ -636,15 +633,15 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setflood", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.FloodLimit),
 	}, pipelineHandler(antifloodModule.setFlood))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setfloodmode", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.FloodMode),
 	}, pipelineHandler(antifloodModule.setFloodMode))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "delflood", Aliases: []string{"clearflood"}, PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.FloodDelete),
 	}, pipelineHandler(antifloodModule.setFloodDeleter))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "flood", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,

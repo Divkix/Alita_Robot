@@ -10,8 +10,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
-	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -109,9 +107,11 @@ func TestSettingsSummaryOffersEveryToggle(t *testing.T) {
 func TestSettingsToggleSetsEveryValue(t *testing.T) {
 	f := settingsToggleFixture(t)
 	f.makeOwner()
-	withAISpamTestConfig(t, "test-key-123456", true, config.AppConfig.MessageDump)
 
 	for _, toggle := range settingsToggles {
+		if toggle.declaration != nil {
+			continue // Declared values are exercised across all surfaces.
+		}
 		for range toggle.values {
 			value := toggle.next(settingsRowValue(t, f.chat.Id, toggle.command))
 			pressSettingsToggle(t, f, f.admin, toggle.key, value)
@@ -129,24 +129,6 @@ func TestSettingsToggleSetsEveryValue(t *testing.T) {
 				t.Fatalf("%s button after a tap for %q offers %q, want %q", toggle.command, value, got, toggle.next(value))
 			}
 		}
-	}
-}
-
-func TestSettingsFloodToggleClearsTimedDuration(t *testing.T) {
-	f := settingsToggleFixture(t)
-	if err := antiflood.SetFloodMode(f.chat.Id, "tmute", 600); err != nil {
-		t.Fatalf("SetFloodMode() error = %v", err)
-	}
-
-	pressSettingsToggle(t, f, f.admin, "fm", "ban")
-	if text, alert := lastAnswer(t, f.client); alert {
-		t.Fatalf("flood toggle refused: %q", text)
-	}
-	if s := antiflood.GetFlood(f.chat.Id); s.Action != "ban" || s.FloodActionTime != 0 {
-		t.Fatalf("flood settings = %+v, want ban with cleared duration", s)
-	}
-	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != "ban" {
-		t.Fatalf("/setfloodmode after toggle = %q, want ban", got)
 	}
 }
 
@@ -196,101 +178,14 @@ func TestSettingsToggleStaleButtonSetsItsValue(t *testing.T) {
 	}
 }
 
-func TestSettingsToggleRefusals(t *testing.T) {
-	limited := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Limited"}
-	limitedJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Limited"},"can_delete_messages":true}`, limited.Id)
-
-	tests := []struct {
-		name    string
-		user    func(f adminChatFixture) gotgbot.User
-		setup   func(t *testing.T, f adminChatFixture)
-		key     string
-		value   string
-		command string
-		denyKey string
-		// atWrite marks a refusal by the write itself, after which the
-		// summary is drawn again like after any failed write.
-		atWrite bool
-	}{
-		{
-			name: "member", key: "we", value: "off", command: "/welcome",
-			user:    func(f adminChatFixture) gotgbot.User { return f.member },
-			denyKey: "connections_is_user_connected_user_not_admin",
-		},
-		{
-			name: "admin without change info", key: "cw", value: "on", command: "/cleanwelcome",
-			user:    func(adminChatFixture) gotgbot.User { return limited },
-			denyKey: "chat_status_change_info_button_error",
-		},
-		{
-			name: "admin without restrict", key: "pb", value: "on", command: "/probation",
-			user:    func(adminChatFixture) gotgbot.User { return limited },
-			denyKey: "chat_status_restrict_button_error",
-		},
-		{
-			name: "admin who is not the owner", key: "an", value: "on", command: "/anonadmin",
-			user:    func(f adminChatFixture) gotgbot.User { return f.admin },
-			denyKey: "chat_status_owner_button_error",
-		},
-		{
-			name: "bot not admin", key: "dd", value: "on", command: "/disabledel",
-			user: func(f adminChatFixture) gotgbot.User { return f.admin },
-			setup: func(_ *testing.T, f adminChatFixture) {
-				adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, f.admin.Id, fixtureAdminRights)
-				f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = []byte("[" + adminJSON + "]")
-			},
-			denyKey: "connections_is_user_connected_bot_not_admin",
-		},
-		{
-			name: "aispam without a key", key: "ai", value: "on", command: "/aispam",
-			user: func(f adminChatFixture) gotgbot.User { return f.admin },
-			setup: func(t *testing.T, _ adminChatFixture) {
-				withAISpamTestConfig(t, "", true, config.AppConfig.MessageDump)
-			},
-			denyKey: "aispam_no_key",
-			atWrite: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := settingsToggleFixture(t)
-			f.addAdmins(limitedJSON)
-			f.client.membersByUser[fmt.Sprint(limited.Id)] = []byte(limitedJSON)
-			if tt.setup != nil {
-				tt.setup(t, f)
-			}
-			before := settingsRowValue(t, f.chat.Id, tt.command)
-
-			pressSettingsToggle(t, f, tt.user(f), tt.key, tt.value)
-
-			want, _ := i18n.MustNewTranslator("en").GetString(tt.denyKey)
-			if text, alert := lastAnswer(t, f.client); !alert || text != want {
-				t.Fatalf("answer = %q (alert %v), want alert %q", text, alert, want)
-			}
-			if got := settingsRowValue(t, f.chat.Id, tt.command); got != before {
-				t.Fatalf("%s = %q after a refused tap, want %q", tt.command, got, before)
-			}
-			if calls := f.client.callsFor("editMessageText"); !tt.atWrite && len(calls) != 0 {
-				t.Fatalf("a refused tap edited the summary: %v", calls[0].Params)
-			}
-		})
-	}
-}
-
 // A forged button with a value the command does not take changes nothing.
 func TestSettingsToggleRejectsForgedValues(t *testing.T) {
 	f := settingsToggleFixture(t)
 
-	for _, forged := range [][2]string{{"cm", "emoji"}, {"fm", "tban"}, {"we", "maybe"}, {"zz", "on"}} {
+	for _, forged := range [][2]string{{"fm", "tban"}, {"zz", "on"}} {
 		pressSettingsToggle(t, f, f.admin, forged[0], forged[1])
 	}
 
-	if got := settingsRowValue(t, f.chat.Id, "/captchamode"); got != settingsDefaultCaptchaMode {
-		t.Fatalf("/captchamode = %q after a forged tap", got)
-	}
-	if got := settingsRowValue(t, f.chat.Id, "/setfloodmode"); got != settingsDefaultFloodAction {
-		t.Fatalf("/setfloodmode = %q after a forged tap", got)
-	}
 	if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {
 		t.Fatalf("a forged tap edited the summary: %v", calls[0].Params)
 	}

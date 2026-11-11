@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -36,7 +37,7 @@ var spamDBDesc = helpers.CommandDescriptor{
 	Name:           "spamdb",
 	Disableable:    true,
 	PMGroupArg:     helpers.PMGroupArgOwn,
-	RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)},
+	RequiredChecks: declaredSettingChecks(chatsettings.SpamDBEnabled),
 }
 
 // spamDBChecker answers the database lookups. LoadSpamDB builds it from the
@@ -45,8 +46,9 @@ var spamDBChecker *spamdb.Checker
 
 // spamDBEntry ties the name admins type for a database to its source.
 type spamDBEntry struct {
-	name   string
-	source spamdb.Source
+	name    string
+	source  spamdb.Source
+	setting *chatsettings.Declaration
 	// service is where the user IDs go, as /spamdb names it. Shared sends
 	// nothing anywhere, so it has none.
 	service string
@@ -54,18 +56,16 @@ type spamDBEntry struct {
 
 // spamDBDatabases lists the databases in the order /spamdb shows them.
 var spamDBDatabases = []spamDBEntry{
-	{spamdbsettings.DatabaseCAS, spamdb.SourceCAS, "cas.chat"},
-	{spamdbsettings.DatabaseLols, spamdb.SourceLols, "lols.bot"},
-	{spamdbsettings.DatabaseShared, spamdb.SourceShared, ""},
+	{spamdbsettings.DatabaseCAS, spamdb.SourceCAS, chatsettings.SpamDBCAS, "cas.chat"},
+	{spamdbsettings.DatabaseLols, spamdb.SourceLols, chatsettings.SpamDBLols, "lols.bot"},
+	{spamdbsettings.DatabaseShared, spamdb.SourceShared, chatsettings.SpamDBShared, ""},
 }
 
-// spamDBSources lists the databases the chat checks, CAS first, then lols.bot
-// and the shared network. The table never holds a row with all three off, so
-// that reading comes from a cache entry written before chats could choose; it
-// means CAS, not nothing.
+// spamDBSources lists the databases from the declaration's normalized read,
+// CAS first, then lols.bot and the shared network.
 func spamDBSources(settings *models.SpamDBSettings) []spamdb.Source {
 	var sources []spamdb.Source
-	if settings.CheckCAS || (!settings.CheckLols && !settings.CheckShared) {
+	if settings.CheckCAS {
 		sources = append(sources, spamdb.SourceCAS)
 	}
 	if settings.CheckLols {
@@ -92,7 +92,7 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	reqCtx := tracing.UpdateContext(ctx)
-	settings, err := spamdbsettings.GetSpamDBSettingsContext(reqCtx, chat.Id)
+	settings, err := chatsettings.ReadSpamDBContext(reqCtx, chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chat.Id, "error": err}).Warn("[SpamDB] could not read the chat settings")
 		return ext.ContinueGroups
@@ -163,7 +163,7 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	chat := c.Chat
 	args := c.Ctx.Args()[1:]
 
-	settings, err := spamdbsettings.GetSpamDBSettingsContext(tracing.UpdateContext(c.Ctx), chat.Id)
+	settings, err := chatsettings.ReadSpamDBContext(tracing.UpdateContext(c.Ctx), chat.Id)
 	if err != nil {
 		return spamDBSaveFailed(c, err)
 	}
@@ -176,11 +176,11 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	}
 
 	if strings.EqualFold(args[0], "action") {
-		if len(args) < 2 || !spamdbsettings.ValidAction(strings.ToLower(args[1])) {
+		if len(args) < 2 || chatsettings.SpamDBAction.Validate(strings.ToLower(args[1])) != nil {
 			return spamDBReplyKey(c, "spamdb_invalid_action", nil)
 		}
 		action := strings.ToLower(args[1])
-		if err := spamdbsettings.SetSpamDBAction(chat.Id, action); err != nil {
+		if err := chatsettings.SpamDBAction.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, action); err != nil {
 			return spamDBSaveFailed(c, err)
 		}
 		return spamDBReplyKey(c, "spamdb_action_success", i18n.TranslationParams{"action": action})
@@ -190,10 +190,10 @@ func (moduleStruct) spamdb(c *helpers.CommandContext) error {
 	if !ok {
 		return spamDBReplyKey(c, "spamdb_invalid_option", nil)
 	}
-	if want && !config.AppConfig.EnableSpamDB {
-		return spamDBReplyKey(c, "spamdb_globally_disabled", nil)
-	}
-	if err := spamdbsettings.SetSpamDBEnabled(chat.Id, want); err != nil {
+	if err := chatsettings.SpamDBEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, want); err != nil {
+		if key := chatsettings.RefusalKey(err); key != "" {
+			return spamDBReplyKey(c, key, nil)
+		}
 		return spamDBSaveFailed(c, err)
 	}
 	if want {
@@ -219,12 +219,11 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	database := spamDBDatabases[idx]
 	params := i18n.TranslationParams{"database": database.source.Name()}
 
-	if want && database.name == spamdbsettings.DatabaseShared && !spamDBReputationEnabled() {
-		return spamDBReplyKey(c, "spamdb_db_shared_disabled", params)
+	err := database.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, want)
+	if key := chatsettings.RefusalKey(err); key != "" {
+		return spamDBReplyKey(c, key, params)
 	}
-
-	err := spamdbsettings.SetSpamDBDatabase(c.Chat.Id, database.name, want)
-	if errors.Is(err, spamdbsettings.ErrLastDatabase) {
+	if errors.Is(err, chatsettings.ErrLastSpamDatabase) {
 		return spamDBReplyKey(c, "spamdb_db_last", params)
 	}
 	if err != nil {
@@ -254,7 +253,7 @@ func spamDBCheckRuns(c *helpers.CommandContext) bool {
 	if !config.AppConfig.EnableSpamDB {
 		return false
 	}
-	settings, err := spamdbsettings.GetSpamDBSettingsContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
+	settings, err := chatsettings.ReadSpamDBContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Warn("[SpamDB] could not read the chat settings")
 		return false

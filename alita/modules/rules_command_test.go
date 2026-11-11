@@ -120,39 +120,6 @@ func TestRulesButtonAcceptsThirtyUnicodeCharacters(t *testing.T) {
 	}
 }
 
-func TestPrivateRulesTogglesAndReportsCurrentState(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
-	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-	onCtx := newModuleMessageContext(bot, chat, user, "/privaterules on")
-	if err := rulesModule.privaterules(bot, onCtx); err != ext.EndGroups {
-		t.Fatalf("privaterules on error = %v, want EndGroups", err)
-	}
-	if !rules.GetChatRulesInfo(chatID).Private {
-		t.Fatal("private rules were not enabled")
-	}
-
-	currentCtx := newModuleMessageContext(bot, chat, user, "/privaterules")
-	if err := rulesModule.privaterules(bot, currentCtx); err != ext.EndGroups {
-		t.Fatalf("privaterules current error = %v, want EndGroups", err)
-	}
-
-	offCtx := newModuleMessageContext(bot, chat, user, "/privaterules false")
-	if err := rulesModule.privaterules(bot, offCtx); err != ext.EndGroups {
-		t.Fatalf("privaterules off error = %v, want EndGroups", err)
-	}
-	if rules.GetChatRulesInfo(chatID).Private {
-		t.Fatal("private rules stayed enabled after off")
-	}
-
-	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
-		t.Fatalf("sendMessage calls = %d, want 3", len(calls))
-	}
-}
-
 func TestRulesButtonSetViewAndReset(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

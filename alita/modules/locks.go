@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
 
@@ -240,7 +241,7 @@ type chatLocksMemoKey struct{ chatID int64 }
 // map is shared between them and must be treated as read-only.
 func chatLocksForUpdate(ctx *ext.Context, chatID int64) map[string]bool {
 	return updatememo.Get(updatememo.From(ctx), chatLocksMemoKey{chatID}, func() map[string]bool {
-		return withNightLocks(chatID, locks.GetChatLocks(chatID))
+		return withNightLocks(tracing.UpdateContext(ctx), chatID, locks.GetChatLocks(chatID))
 	})
 }
 

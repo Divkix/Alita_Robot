@@ -214,12 +214,6 @@ func TestFedLifecycleCommands(t *testing.T) {
 		t.Fatal("expected join")
 	}
 
-	require.NoError(t, dispatchFederationCommand(t, bot, newModuleMessageContext(bot, group, creator, "/quietfed")))
-	require.NoError(t, dispatchFederationCommand(t, bot, newModuleMessageContext(bot, group, creator, "/quietfed on")))
-	if membership := federations.GetChatFed(group.Id); membership == nil || !membership.Quiet {
-		t.Fatal("quietfed on did not persist")
-	}
-
 	require.NoError(t, dispatchFederationCommand(t, bot, newModuleMessageContext(bot, group, creator, "/chatfed")))
 	require.NoError(t, dispatchFederationCommand(t, bot, newModuleMessageContext(bot, group, creator, "/fedinfo")))
 	require.NoError(t, dispatchFederationCommand(t, bot, newModuleMessageContext(bot, group, creator, "/fedadmins")))

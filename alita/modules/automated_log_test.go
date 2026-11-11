@@ -116,14 +116,14 @@ func TestAntifloodLogsItsActionToTheLogChannel(t *testing.T) {
 			failMethod: tt.failMethod,
 			run: func(t *testing.T, _ *moduleBotClient, bot *gotgbot.Bot, chat gotgbot.Chat) {
 				resetAntifloodState(t)
-				if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+				if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 					t.Fatalf("SetFlood() error = %v", err)
 				}
 				if err := antiflood.SetFloodMode(chat.Id, tt.action, tt.actionTime); err != nil {
 					t.Fatalf("SetFloodMode() error = %v", err)
 				}
 				member := gotgbot.User{Id: 61, FirstName: "Flooder"}
-				_ = antifloodModule.checkFlood(bot, newModuleMessageContext(bot, chat, member, "one"))
+				_ = sendFloodPrelude(bot, newModuleMessageContext(bot, chat, member, "one"))
 				second := newModuleMessageContext(bot, chat, member, "two")
 				second.EffectiveMessage.MessageId = 202
 				_ = antifloodModule.checkFlood(bot, second)

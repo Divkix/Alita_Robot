@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"html"
 	"maps"
@@ -15,37 +17,28 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // nightModeNow is the clock night mode reads. Tests pin it; production never
 // writes it after startup.
 var nightModeNow = time.Now
 
-// nightLockExcluded are lock types night mode cannot apply: "bots" bans added
-// bots on the ChatMember path, not on the delete path night mode runs on.
-var nightLockExcluded = map[string]bool{"bots": true}
-
-// NightModeLockTypes returns the supported night lock types without modifying
-// the locks module's cached list.
-func NightModeLockTypes() []string {
-	all := locksModule.getLockMapAsArray()
-	types := make([]string, 0, len(all))
-	for _, lockType := range all {
-		if !nightLockExcluded[lockType] {
-			types = append(types, lockType)
-		}
-	}
-	return types
+func init() {
+	types := slices.Clone(locksModule.getLockMapAsArray())
+	types = slices.DeleteFunc(types, func(lockType string) bool { return lockType == "bots" })
+	chatsettings.AttachNightModeLockTypes(types)
 }
 
 // withNightLocks returns chatLocks with the chat's night lock types added
 // while its night window is open in the chat's timezone, and chatLocks itself
 // otherwise. It never writes to chatLocks, the cached map: the merge is a
 // copy. A chat without night mode costs one cached read.
-func withNightLocks(chatID int64, chatLocks map[string]bool) map[string]bool {
-	settings, err := nightmode.Get(chatID)
+func withNightLocks(ctx context.Context, chatID int64, chatLocks map[string]bool) map[string]bool {
+	settings, err := chatsettings.ReadNightModeContext(ctx, chatID)
 	if err != nil {
 		log.Errorf("[NightMode] read night mode: %v - %d", err, chatID)
 		return chatLocks
@@ -56,9 +49,7 @@ func withNightLocks(chatID int64, chatLocks map[string]bool) map[string]bool {
 	merged := make(map[string]bool, len(chatLocks)+1)
 	maps.Copy(merged, chatLocks)
 	for lockType := range strings.SplitSeq(settings.LockTypes, ",") {
-		if !nightLockExcluded[lockType] {
-			merged[lockType] = true
-		}
+		merged[lockType] = true
 	}
 	return merged
 }
@@ -69,22 +60,20 @@ func withNightLocks(chatID int64, chatLocks map[string]bool) map[string]bool {
 var nightModeDesc = helpers.CommandDescriptor{
 	Name:       "nightmode",
 	PMGroupArg: helpers.PMGroupArgOwn,
-	RequiredChecks: []helpers.CheckFunc{
+	RequiredChecks: append([]helpers.CheckFunc{
 		groupOnlyChatCheck,
 		helpers.RequireGroup(),
-		helpers.RequireBotAdmin(),
-		helpers.RequireUserAdmin(),
-	},
+	}, declaredGroupSettingChecks(chatsettings.NightModeEnabled)...),
 }
 
 // nightMode handles /nightmode. Without arguments it shows the chat's night
 // mode; "off" turns it off; "<start> <end> <types>" turns it on with those
 // times in the chat's timezone and those lock types (comma- or
 // space-separated, or "all").
-func (m moduleStruct) nightMode(c *helpers.CommandContext) error {
+func (moduleStruct) nightMode(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()[1:]
 	if len(args) == 0 {
-		settings, err := nightmode.Get(c.Chat.Id)
+		settings, err := chatsettings.ReadNightModeContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 		if err != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 				Error("[NightMode] could not read the chat's night mode")
@@ -97,7 +86,7 @@ func (m moduleStruct) nightMode(c *helpers.CommandContext) error {
 	}
 
 	if len(args) == 1 && strings.EqualFold(args[0], "off") {
-		if err := nightmode.Disable(c.Chat.Id); err != nil {
+		if err := chatsettings.NightModeEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, false); err != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 				Error("[NightMode] could not turn night mode off")
 			return nightModeReply(c, trS(c.Tr, "common_settings_save_failed"))
@@ -105,61 +94,47 @@ func (m moduleStruct) nightMode(c *helpers.CommandContext) error {
 		return nightModeReply(c, trS(c.Tr, "nightmode_disabled"))
 	}
 
-	start, end, types, refusal := m.parseNightMode(c.Tr, args)
-	if refusal != "" {
-		if err := replyCommandHelp(c.Bot, c.Msg, c.Tr, nightModeDesc.Name, refusal); err != nil {
-			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
-				Warn("[NightMode] could not send the usage reply")
+	changes := map[string]any{chatsettings.NightModeEnabled.Key: true}
+	for i, field := range []*chatsettings.Declaration{chatsettings.NightModeStart, chatsettings.NightModeEnd} {
+		if i >= len(args) {
+			return nightModeRefused(c, chatsettings.Refusal("nightmode_no_types"))
 		}
-		return ext.EndGroups
+		if err := field.Validate(args[i]); err != nil {
+			return nightModeRefused(c, err)
+		}
+		changes[field.Key] = args[i]
 	}
-	if err := nightmode.Enable(c.Chat.Id, start, end, types); err != nil {
+	changes[chatsettings.NightModeLockTypes.Key] = strings.Join(args[2:], ",")
+	if err := chatsettings.NightModeEnabled.WriteChanges(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, changes); err != nil {
+		if chatsettings.RefusalKey(err) != "" {
+			return nightModeRefused(c, err)
+		}
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[NightMode] could not save night mode")
 		return nightModeReply(c, trS(c.Tr, "common_settings_save_failed"))
 	}
-	// types are sorted and unique, as Enable stores them.
-	return nightModeReply(c, nightModeOnText(c, &models.NightModeSettings{
-		ChatID: c.Chat.Id, Enabled: true, StartMinute: start, EndMinute: end, LockTypes: strings.Join(types, ","),
-	}))
+	settings, err := chatsettings.ReadNightModeContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
+	if err != nil {
+		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
+			Error("[NightMode] could not read the saved night mode")
+		return nightModeReply(c, trS(c.Tr, "error_generic"))
+	}
+	return nightModeReply(c, nightModeOnText(c, settings))
 }
 
-// parseNightMode reads "<start> <end> <types>", returning the types sorted
-// and unique. On a bad call it returns the refusal to show above the
-// command's help.
-func (m moduleStruct) parseNightMode(tr *i18n.Translator, args []string) (start, end int, types []string, refusal string) {
-	var ok bool
-	for i, out := range []*int{&start, &end} {
-		if i >= len(args) {
-			return 0, 0, nil, trS(tr, "nightmode_no_types")
-		}
-		if *out, ok = nightmode.ParseClock(args[i]); !ok {
-			text, _ := tr.GetString("nightmode_invalid_time", i18n.TranslationParams{"input": html.EscapeString(args[i])})
-			return 0, 0, nil, text
-		}
+func nightModeRefused(c *helpers.CommandContext, err error) error {
+	params := i18n.TranslationParams{}
+	var inputError *chatsettings.NightModeInputError
+	if errors.As(err, &inputError) {
+		params["input"] = html.EscapeString(inputError.Input)
+		params["type"] = html.EscapeString(inputError.LockType)
 	}
-	if start == end {
-		return 0, 0, nil, trS(tr, "nightmode_same_times")
+	refusal, _ := c.Tr.GetString(chatsettings.RefusalKey(err), params)
+	if err := replyCommandHelp(c.Bot, c.Msg, c.Tr, nightModeDesc.Name, refusal); err != nil {
+		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
+			Warn("[NightMode] could not send the usage reply")
 	}
-
-	valid := m.getLockMapAsArray()
-	// Args are already split on spaces; a word may still hold commas.
-	for field := range strings.SplitSeq(strings.Join(args[2:], ","), ",") {
-		if field == "" {
-			continue
-		}
-		lockType := strings.ToLower(field)
-		if !slices.Contains(valid, lockType) || nightLockExcluded[lockType] {
-			text, _ := tr.GetString("nightmode_invalid_type", i18n.TranslationParams{"type": html.EscapeString(field)})
-			return 0, 0, nil, text
-		}
-		types = append(types, lockType)
-	}
-	if len(types) == 0 {
-		return 0, 0, nil, trS(tr, "nightmode_no_types")
-	}
-	slices.Sort(types)
-	return start, end, slices.Compact(types), ""
+	return ext.EndGroups
 }
 
 // nightWindowLabel is how replies and the settings summary show a night

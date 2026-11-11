@@ -12,8 +12,8 @@ Protect your group from spam-join attacks with AntiRaid.
 /antiraid on: Enable raid mode for configured time.
 /antiraid <duration>: Enable for custom duration (e.g. 90s, 30m, 3h, 1w). A unit (s, m, h, d or w) is required.
 /antiraid off: Disable raid mode immediately.
-/raidtime <time>: Set raid duration (default: 6h). Supports s, m, h, d, w (e.g. 90s, 30m, 6h, 1d, 1w); a bare number is rejected.
-/raidactiontime <time>: Set temp-ban duration (default: 1h). Supports s, m, h, d, w (e.g. 90s, 30m, 1h, 1d); a bare number is rejected.
+/raidtime <time>: Set raid duration from 1 second to 366 days (default: 6h). Supports s, m, h, d, w (e.g. 90s, 30m, 6h, 1d, 1w); a bare number is rejected.
+/raidactiontime <time>: Set temp-ban duration from 30 seconds to 366 days (default: 1h). Supports s, m, h, d, w (e.g. 90s, 30m, 1h, 1d); a bare number is rejected.
 /autoantiraid <N>: Auto-enable if N+ joins/min.
 /autoantiraid off: Disable auto-trigger.
 
@@ -50,5 +50,5 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module require **admin permissions** in the group.
+Commands in this module require **admin permissions**, with the **bot an admin** in the group. The panel uses the same raid bounds.
 

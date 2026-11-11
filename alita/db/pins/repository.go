@@ -6,6 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -16,11 +17,7 @@ func checkPinData(chatID int64) (*models.PinSettings, error) {
 	pinrc := &models.PinSettings{}
 	err := db.GetRecord(pinrc, models.PinSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		pinrc = &models.PinSettings{ChatId: chatID, MsgId: 0}
-		if err := db.CreateRecord(pinrc); err != nil {
-			log.Errorf("[Database] GetPinData: %v - %d", err, chatID)
-			return pinrc, err
-		}
+		return &models.PinSettings{ChatId: chatID}, nil
 	} else if err != nil {
 		log.Errorf("[Database] GetPinData: %v - %d", err, chatID)
 		return &models.PinSettings{ChatId: chatID, MsgId: 0}, err
@@ -44,25 +41,19 @@ func GetPinData(chatID int64) *models.PinSettings {
 }
 
 func SetCleanLinked(chatID int64, pref bool) error {
-	if _, err := checkPinData(chatID); err != nil {
-		log.Errorf("[Database] SetCleanLinked: ensure settings for %d: %v", chatID, err)
-	}
-	err := db.UpdateRecordWithZeroValues(&models.PinSettings{}, models.PinSettings{ChatId: chatID}, map[string]any{"clean_linked": pref})
-	if err != nil {
-		log.Errorf("[Database] SetCleanLinked: %v", err)
-		return err
-	}
-	cache.DeleteCache(cache.CacheKey("pins", chatID))
-	return nil
+	return setPinSetting(chatID, "clean_linked", pref)
 }
 
 func SetAntiChannelPin(chatID int64, pref bool) error {
-	if _, err := checkPinData(chatID); err != nil {
-		log.Errorf("[Database] SetAntiChannelPin: ensure settings for %d: %v", chatID, err)
-	}
-	err := db.UpdateRecordWithZeroValues(&models.PinSettings{}, models.PinSettings{ChatId: chatID}, map[string]any{"anti_channel_pin": pref})
+	return setPinSetting(chatID, "anti_channel_pin", pref)
+}
+
+func setPinSetting(chatID int64, field string, value bool) error {
+	err := db.DB.Model(&models.PinSettings{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{field}),
+	}).Create(map[string]any{"chat_id": chatID, field: value}).Error
 	if err != nil {
-		log.Errorf("[Database] SetAntiChannelPin: %v", err)
 		return err
 	}
 	cache.DeleteCache(cache.CacheKey("pins", chatID))

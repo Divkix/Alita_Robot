@@ -2,7 +2,6 @@ package modules
 
 import (
 	"context"
-	"errors"
 	"hash/fnv"
 	"slices"
 	"strconv"
@@ -21,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -52,15 +52,9 @@ var (
 		Name: "probation",
 		// Every /probation form is admin-only, so a chat cannot silence it:
 		// /probation off already is the switch.
-		Disableable: false,
-		PMGroupArg:  helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
-			groupOnlyChatCheck,
-			helpers.RequireGroup(),
-			helpers.RequireBotAdmin(),
-			helpers.RequireUserAdmin(),
-			helpers.CanUserRestrict(),
-		},
+		Disableable:    false,
+		PMGroupArg:     helpers.PMGroupArgOwn,
+		RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup()}, declaredSettingChecks(chatsettings.ProbationEnabled)...),
 	}
 
 	// probationNoticeLifetime is how long the notice to a member stays in the
@@ -86,7 +80,7 @@ func startProbation(ctx context.Context, chatID int64, user gotgbot.User) {
 	if user.IsBot {
 		return
 	}
-	settings, err := probation.GetSettings(ctx, chatID)
+	settings, err := chatsettings.ReadProbationContext(ctx, chatID)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chatID, "error": err}).Warn("[Probation] could not read the chat settings")
 		return
@@ -114,7 +108,7 @@ func endProbation(chatID, userID int64) {
 // has probation on and the member is on it. A chat with it off pays only the
 // cached settings read; a row left there runs out or is swept.
 func endProbationOnLeave(ctx context.Context, chatID, userID int64) {
-	settings, err := probation.GetSettings(ctx, chatID)
+	settings, err := chatsettings.ReadProbationContext(ctx, chatID)
 	if err != nil || !settings.Enabled {
 		return
 	}
@@ -196,7 +190,7 @@ func (moduleStruct) checkProbation(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat, msg := ctx.EffectiveChat, ctx.EffectiveMessage
 
 	reqCtx := tracing.UpdateContext(ctx)
-	settings, err := probation.GetSettings(reqCtx, chat.Id)
+	settings, err := chatsettings.ReadProbationContext(reqCtx, chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chat.Id, "error": err}).Warn("[Probation] could not read the chat settings")
 		return ext.ContinueGroups
@@ -329,7 +323,7 @@ func probationBlockedKinds(settings *models.ProbationSettings) []string {
 // probation handles /probation. A bare call shows the chat's settings; on,
 // off, time, messages, minlen, block and notice change them.
 func (moduleStruct) probation(c *helpers.CommandContext) error {
-	settings, err := probation.GetSettings(tracing.UpdateContext(c.Ctx), c.Chat.Id)
+	settings, err := chatsettings.ReadProbationContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		return probationSaveFailed(c, err)
 	}
@@ -342,10 +336,10 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 	case "time":
 		return probationSetTime(c, args[1:])
 	case "messages":
-		return probationSetNumber(c, args[1:], probation.SetMessageCount,
+		return probationSetNumber(c, args[1:], chatsettings.ProbationMessages,
 			"probation_invalid_messages", "probation_messages_success", "messages")
 	case "minlen":
-		return probationSetNumber(c, args[1:], probation.SetMinLength,
+		return probationSetNumber(c, args[1:], chatsettings.ProbationMinLength,
 			"probation_invalid_minlen", "probation_minlen_success", "minlen")
 	case "block":
 		return probationSetBlock(c, args[1:])
@@ -357,7 +351,7 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 		if !ok {
 			return probationUsage(c)
 		}
-		if err := probation.SetNotice(c.Chat.Id, on); err != nil {
+		if err := chatsettings.ProbationNotice.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, on); err != nil {
 			return probationSaveFailed(c, err)
 		}
 		if on {
@@ -369,7 +363,7 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 		if !ok || len(args) != 1 {
 			return probationUsage(c)
 		}
-		if err := probation.SetEnabled(c.Chat.Id, on); err != nil {
+		if err := chatsettings.ProbationEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, on); err != nil {
 			return probationSaveFailed(c, err)
 		}
 		if !on {
@@ -388,30 +382,25 @@ func probationSetTime(c *helpers.CommandContext, args []string) error {
 		return probationReplyKey(c, "probation_invalid_time")
 	}
 	seconds, ok := parseDuration(args[0])
-	if !ok {
+	if !ok || chatsettings.ProbationTime.Validate(seconds) != nil {
 		return probationReplyKey(c, "probation_invalid_time")
 	}
-	if err := probation.SetDuration(c.Chat.Id, time.Duration(seconds)*time.Second); errors.Is(err, probation.ErrOutOfRange) {
-		return probationReplyKey(c, "probation_invalid_time")
-	} else if err != nil {
+	if err := chatsettings.ProbationTime.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, seconds); err != nil {
 		return probationSaveFailed(c, err)
 	}
 	return probationReplyKey(c, "probation_time_success", i18n.TranslationParams{"time": formatDuration(seconds)})
 }
 
-// probationSetNumber sets one numeric setting; set refuses a value out of
-// its range with probation.ErrOutOfRange.
-func probationSetNumber(c *helpers.CommandContext, args []string, set func(int64, int) error, invalidKey, successKey, param string) error {
+// probationSetNumber parses a numeric setting; its declaration owns the range.
+func probationSetNumber(c *helpers.CommandContext, args []string, declaration *chatsettings.Declaration, invalidKey, successKey, param string) error {
 	if len(args) != 1 {
 		return probationReplyKey(c, invalidKey)
 	}
 	n, err := strconv.Atoi(args[0])
-	if err != nil {
+	if err != nil || declaration.Validate(n) != nil {
 		return probationReplyKey(c, invalidKey)
 	}
-	if err := set(c.Chat.Id, n); errors.Is(err, probation.ErrOutOfRange) {
-		return probationReplyKey(c, invalidKey)
-	} else if err != nil {
+	if err := declaration.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, n); err != nil {
 		return probationSaveFailed(c, err)
 	}
 	return probationReplyKey(c, successKey, i18n.TranslationParams{param: n})
@@ -430,11 +419,17 @@ func probationSetBlock(c *helpers.CommandContext, args []string) error {
 		}
 		choice[field] = true
 	}
-	if len(choice) == 0 {
+	changes := map[string]any{
+		chatsettings.ProbationBlockLinks.Key:    choice[probation.BlockLinks],
+		chatsettings.ProbationBlockForwards.Key: choice[probation.BlockForwards],
+		chatsettings.ProbationBlockMedia.Key:    choice[probation.BlockMedia],
+	}
+	input := chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}
+	if len(chatsettings.ValidateChanges(input, changes)) != 0 {
 		return probationReplyKey(c, "probation_invalid_block")
 	}
 	links, forwards, media := choice[probation.BlockLinks], choice[probation.BlockForwards], choice[probation.BlockMedia]
-	if err := probation.SetBlocked(c.Chat.Id, links, forwards, media); err != nil {
+	if err := chatsettings.ProbationBlockLinks.WriteChanges(input, changes); err != nil {
 		return probationSaveFailed(c, err)
 	}
 	blocked := probationBlockedText(c.Tr, &models.ProbationSettings{BlockLinks: links, BlockForwards: forwards, BlockMedia: media})

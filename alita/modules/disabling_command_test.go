@@ -174,43 +174,6 @@ func TestDisabledListsCurrentCommandsOrEmptyState(t *testing.T) {
 	}
 }
 
-func TestDisabledelShowsAndTogglesDeletePreference(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
-	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disable Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-
-	currentCtx := newModuleMessageContext(bot, chat, user, "/disabledel")
-	if err := disablingModule.disabledel(bot, currentCtx); err != ext.EndGroups {
-		t.Fatalf("disabledel current error = %v, want EndGroups", err)
-	}
-
-	onCtx := newModuleMessageContext(bot, chat, user, "/disabledel yes")
-	if err := disablingModule.disabledel(bot, onCtx); err != ext.EndGroups {
-		t.Fatalf("disabledel yes error = %v, want EndGroups", err)
-	}
-	if !disabling.ShouldDel(chatID) {
-		t.Fatal("delete preference was not enabled")
-	}
-
-	invalidCtx := newModuleMessageContext(bot, chat, user, "/disabledel maybe")
-	if err := disablingModule.disabledel(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("disabledel invalid error = %v, want EndGroups", err)
-	}
-	if !disabling.ShouldDel(chatID) {
-		t.Fatal("invalid disabledel option changed delete preference")
-	}
-
-	offCtx := newModuleMessageContext(bot, chat, user, "/disabledel off")
-	if err := disablingModule.disabledel(bot, offCtx); err != ext.EndGroups {
-		t.Fatalf("disabledel off error = %v, want EndGroups", err)
-	}
-	if disabling.ShouldDel(chatID) {
-		t.Fatal("delete preference stayed enabled")
-	}
-}
-
 func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {

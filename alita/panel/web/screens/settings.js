@@ -6,10 +6,8 @@ const readOnlyMessages = {
 	bot_not_admin: "I am not an admin in this chat, so settings are read-only. Promote me to change them.",
 };
 
-// fieldInfo turns "<module>.<field>" keys into the words an admin knows from
-// the commands: a label, an optional hint, a unit and the range the server
-// accepts for numbers. A field the server adds later still renders, labelled
-// from its key.
+// fieldInfo supplies labels, hints and display units, never setting policy.
+// A field the server adds later still renders, labelled from its key.
 const fieldInfo = {
 	"language.code": { label: "Language", hint: "The language of my replies in this chat" },
 	"greetings.welcome_enabled": { label: "Welcome new members" },
@@ -21,12 +19,12 @@ const fieldInfo = {
 	"rules.private_rules": { label: "Send rules in a private chat", hint: "/rules answers with a button that opens them in PM" },
 	"captcha.enabled": { label: "Captcha for new members" },
 	"captcha.mode": { label: "Captcha type" },
-	"captcha.timeout": { label: "Time to answer", unit: "min", hint: "1 to 10 minutes", min: 1, max: 10 },
+	"captcha.timeout": { label: "Time to answer", unit: "min" },
 	"captcha.action": { label: "When the captcha fails" },
-	"captcha.max_attempts": { label: "Attempts allowed", hint: "1 to 10", min: 1, max: 10 },
-	"antiflood.limit": { label: "Flood limit", unit: "msgs", hint: "Messages in a row before acting: 3 to 100, or 0 for off", max: 100 },
+	"captcha.max_attempts": { label: "Attempts allowed" },
+	"antiflood.limit": { label: "Flood limit", unit: "msgs", hint: "Messages in a row before acting" },
 	"antiflood.action": { label: "Flood action" },
-	"antiflood.action_time": { label: "Flood temp-ban/mute length", unit: "s", duration: true, hint: "60 seconds to 366 days; required for tban/tmute, cleared for other actions", max: 31622400 },
+	"antiflood.action_time": { label: "Flood temp-ban/mute length", unit: "s", duration: true },
 	"antiflood.delete_messages": { label: "Delete flood messages" },
 	"antispam.aispam_enabled": { label: "AI spam detection" },
 	"antispam.spamdb_enabled": { label: "Check joins against spam databases" },
@@ -34,10 +32,10 @@ const fieldInfo = {
 	"antispam.spamdb_cas": { label: "Ask CAS (cas.chat)" },
 	"antispam.spamdb_lols": { label: "Ask lols.bot", hint: "Lists more accounts; expect more false positives" },
 	"antispam.spamdb_shared": { label: "Use shared bans", hint: "Users several chats removed recently" },
-	"antispam.probation_enabled": { label: "New-member probation", hint: "Only members who join from now on; needs the restrict right" },
-	"antispam.probation_time": { label: "Probation lasts", unit: "s", duration: true, hint: "1 hour to 30 days", min: 3600, max: 2592000 },
-	"antispam.probation_messages": { label: "Messages that end probation", unit: "msgs", hint: "1 to 100 different messages", min: 1, max: 100 },
-	"antispam.probation_min_length": { label: "Characters a message needs to count", unit: "chars", hint: "1 to 500", min: 1, max: 500 },
+	"antispam.probation_enabled": { label: "New-member probation", hint: "Only members who join from now on" },
+	"antispam.probation_time": { label: "Probation lasts", unit: "s", duration: true },
+	"antispam.probation_messages": { label: "Messages that end probation", unit: "msgs", hint: "Different messages" },
+	"antispam.probation_min_length": { label: "Characters a message needs to count", unit: "chars" },
 	"antispam.probation_block_links": { label: "Probation blocks links" },
 	"antispam.probation_block_forwards": { label: "Probation blocks forwards" },
 	"antispam.probation_block_media": { label: "Probation blocks media" },
@@ -45,19 +43,19 @@ const fieldInfo = {
 	"antiraid.raid_time": { label: "Raid mode lasts", unit: "s", duration: true },
 	"antiraid.raid_action_time": { label: "Raid temp-ban length", unit: "s", duration: true },
 	"antiraid.auto_threshold": { label: "Auto raid mode at", unit: "joins/min", hint: "0 turns the automatic trigger off" },
-	"warns.limit": { label: "Warning limit", hint: "Warnings before acting: 1 to 100", min: 1, max: 100 },
-	"warns.mode": { label: "Warning action", hint: "Temp-ban and temp-mute need an action duration" },
-	"warns.action_time": { label: "Warning action duration", unit: "s", duration: true, hint: "For tban or tmute only: 1 minute to 366 days" },
-	"warns.expiry": { label: "Warnings expire after", unit: "s", duration: true, hint: "0 means never; otherwise 1 minute to 366 days" },
-	"digest.enabled": { label: "Weekly digest", hint: "Requires the operator's ENABLE_DIGEST switch" },
-	"digest.destination": { label: "Digest destination", hint: "Default uses the log channel if connected, otherwise the group" },
+	"warns.limit": { label: "Warning limit", hint: "Warnings before acting" },
+	"warns.mode": { label: "Warning action" },
+	"warns.action_time": { label: "Warning action duration", unit: "s", duration: true },
+	"warns.expiry": { label: "Warnings expire after", unit: "s", duration: true, hint: "0 means never" },
+	"digest.enabled": { label: "Weekly digest" },
+	"digest.destination": { label: "Digest destination" },
 	"reports.enabled": { label: "Member reports" },
-	"reports.mute_threshold": { label: "Auto-mute after reports", unit: "members", hint: "Different reporters: 2 to 20, or 0 for off; needs the restrict right", max: 20 },
+	"reports.mute_threshold": { label: "Auto-mute after reports", unit: "members", hint: "Different reporters" },
 	"timezone.name": { label: "Chat timezone", hint: "IANA name, such as Asia/Kolkata; used by night mode and the activity heatmap" },
-	"nightmode.enabled": { label: "Night mode", hint: "Enable with a window and at least one lock type" },
-	"nightmode.start": { label: "Night mode starts", hint: "24-hour HH:MM in the chat timezone; enable night mode to edit" },
+	"nightmode.enabled": { label: "Night mode" },
+	"nightmode.start": { label: "Night mode starts", hint: "24-hour HH:MM in the chat timezone" },
 	"nightmode.end": { label: "Night mode ends", hint: "24-hour HH:MM; a window can cross midnight" },
-	"nightmode.lock_types": { label: "Night lock types", hint: "Comma-separated /lock names, such as media,url; bots is not supported" },
+	"nightmode.lock_types": { label: "Night lock types", hint: "Comma-separated /lock names, such as media,url" },
 	"locks.active": { label: "Locked", hint: "Change them with /lock and /unlock in the group" },
 	"log_channel.bound": { label: "Log channel connected", hint: "Set one with /setlog" },
 };
@@ -161,7 +159,7 @@ function writeControl(field, control, value) {
 
 // buildControl returns the input for a writable field, or a read-only view
 // of the value for one the panel cannot change.
-function buildControl(moduleKey, field, info, disabled) {
+function buildControl(moduleKey, field, disabled) {
 	if (field.type === "list") {
 		const list = document.createElement("span");
 		list.className = "setting-chips";
@@ -201,10 +199,6 @@ function buildControl(moduleKey, field, info, disabled) {
 		input.type = "number";
 		input.inputMode = "numeric";
 		input.step = "1";
-		input.min = String(info.min ?? 0);
-		if (info.max !== undefined) {
-			input.max = String(info.max);
-		}
 		input.value = String(field.value);
 		input.disabled = disabled;
 		return input;
@@ -294,7 +288,7 @@ function drawSettings(root, chatID, data) {
 				row.classList.add("stacked");
 			}
 
-			const control = buildControl(module.key, field, info, !writable);
+			const control = buildControl(module.key, field, !writable);
 			const isInput = control.tagName === "INPUT" || control.tagName === "SELECT";
 			const label = textElement(isInput ? "label" : "span", info.label, "setting-name");
 			if (isInput) {

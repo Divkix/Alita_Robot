@@ -3,9 +3,7 @@
 package modules
 
 import (
-	"context"
 	"encoding/json"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -20,35 +18,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
-
-func TestNightModeLockTypesExcludesOnlyUnsupportedTypesAndPreservesCache(t *testing.T) {
-	all := slices.Clone(locksModule.getLockMapAsArray())
-	if !slices.Contains(all, "bots") {
-		t.Fatal("the complete lock list is missing bots")
-	}
-	got := NightModeLockTypes()
-	wantLen := 0
-	for _, lockType := range all {
-		want := !nightLockExcluded[lockType]
-		if slices.Contains(got, lockType) != want {
-			t.Errorf("NightModeLockTypes() = %v: %q present, want %v", got, lockType, want)
-		}
-		if want {
-			wantLen++
-		}
-	}
-	if len(got) != wantLen {
-		t.Fatalf("NightModeLockTypes() has %d types, want %d", len(got), wantLen)
-	}
-	if !slices.Equal(locksModule.getLockMapAsArray(), all) {
-		t.Fatal("filtering night lock types changed the cached complete lock list")
-	}
-	got[0] = "changed"
-	if !slices.Equal(locksModule.getLockMapAsArray(), all) {
-		t.Fatal("night lock types share the cached complete lock list's backing array")
-	}
-}
 
 // pinNightModeNow fixes the clock night mode reads at the given UTC time.
 func pinNightModeNow(t *testing.T, hour, minute int) {
@@ -362,30 +333,57 @@ func TestNightModeInPMActsOnTheConnectedGroup(t *testing.T) {
 	}
 }
 
-func TestSettingsSummaryShowsNightMode(t *testing.T) {
-	chatID := newSettingsTestChat(t)
-	cleanupNightMode(t, chatID)
-	row := func() *settingsRow {
-		t.Helper()
-		for _, section := range collectChatSettings(context.Background(), chatID) {
-			for i := range section.Rows {
-				if section.Rows[i].Command == "/nightmode" {
-					return &section.Rows[i]
-				}
-			}
-		}
-		t.Fatal("the summary has no /nightmode row")
-		return nil
+func TestNightModeAllRetainsItsLockMeaning(t *testing.T) {
+	f := nightModeFixture(t)
+	aispamProcessUpdate(t, nightModeDispatcher(), f.bot, f.chat, f.admin, 2041, "/nightmode 23:00 7:00 all,URL ALL")
+	if row := nightModeOf(t, f.chat.Id); !row.Enabled || row.LockTypes != "all,url" {
+		t.Fatalf("night mode = %+v, want literal all,url", row)
 	}
+	if got := sendLockProbes(t, f.client, f.bot, f.chat, nightMember); got != 2 {
+		t.Fatalf("all night locks deleted %d probes, want 2", got)
+	}
+}
 
-	enableNightMode(t, chatID, "23:00", "07:00", "url", "media")
-	if got := row(); got.Value != "23:00-07:00 media, url" || !got.Changed {
-		t.Fatalf("/nightmode row = %+v, want 23:00-07:00 media, url marked changed", got)
-	}
-	if err := nightmode.Disable(chatID); err != nil {
-		t.Fatalf("Disable() error = %v", err)
-	}
-	if got := row(); got.Value != "off" || got.Changed {
-		t.Fatalf("/nightmode row after off = %+v, want off and unchanged", got)
+func TestInvalidStoredNightModeIsOffWithoutRepairingData(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		changes map[string]any
+	}{
+		{"equal window", map[string]any{"end_minute": 1380}},
+		{"no types", map[string]any{"lock_types": ""}},
+		{"unknown type", map[string]any{"lock_types": "media,unknown"}},
+		{"join-only type", map[string]any{"lock_types": "bots"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := nightModeFixture(t)
+			enableNightMode(t, f.chat.Id, "23:00", "07:00", "media", "url")
+			if err := db.DB.Model(&models.NightModeSettings{}).Where("chat_id = ?", f.chat.Id).Updates(tt.changes).Error; err != nil {
+				t.Fatalf("seed invalid configuration: %v", err)
+			}
+			cached := nightModeOf(t, f.chat.Id)
+			before := *cached
+			normalized, err := chatsettings.ReadNightModeContext(t.Context(), f.chat.Id)
+			if err != nil || normalized.Enabled {
+				t.Fatalf("effective night mode = %+v, error = %v, want off", normalized, err)
+			}
+			aispamProcessUpdate(t, nightModeDispatcher(), f.bot, f.chat, f.admin, 2051, "/nightmode")
+			if reply := lastMessageTo(t, f.client, f.chat.Id); reply != translated(t, "nightmode_status_off") {
+				t.Fatalf("status = %q, want off", reply)
+			}
+			if got := sendLockProbes(t, f.client, f.bot, f.chat, nightMember); got != 0 {
+				t.Fatalf("invalid night mode deleted %d probes, want 0", got)
+			}
+			if *cached != before {
+				t.Fatal("normalization changed the cached configuration")
+			}
+			var persisted models.NightModeSettings
+			if err := db.DB.First(&persisted, "chat_id = ?", f.chat.Id).Error; err != nil {
+				t.Fatalf("read persisted night mode: %v", err)
+			}
+			if persisted.Enabled != before.Enabled || persisted.StartMinute != before.StartMinute ||
+				persisted.EndMinute != before.EndMinute || persisted.LockTypes != before.LockTypes {
+				t.Fatalf("normalization repaired persisted data: %+v, want %+v", persisted, before)
+			}
+		})
 	}
 }

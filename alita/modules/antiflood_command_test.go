@@ -35,9 +35,6 @@ func TestAntifloodCommandRightsThroughDispatcher(t *testing.T) {
 		text, replyKey string
 		member         bool
 	}{
-		{"/setflood", "antiflood_errors_expected_args", false},
-		{"/setfloodmode", "antiflood_setfloodmode_specify_action", false},
-		{"/delflood maybe", "antiflood_flood_deleter_invalid_option", false},
 		{"/clearflood maybe", "antiflood_flood_deleter_invalid_option", false},
 		{"/flood", "antiflood_flood_disabled", true},
 	} {
@@ -152,7 +149,7 @@ func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
 		t.Run(tc.mode, func(t *testing.T) {
 			resetAntifloodState(t)
 			f := newAdminChatFixture(t)
-			if err := antiflood.SetFlood(f.chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(f.chat.Id, 3); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
 			command := "/setfloodmode " + tc.mode + " " + tc.duration
@@ -173,7 +170,7 @@ func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
 			}
 
 			before := time.Now().Unix()
-			for i, text := range []string{"one", "two"} {
+			for i, text := range []string{"one", "two", "three", "four"} {
 				ctx := newModuleMessageContext(f.bot, f.chat, f.member, text)
 				ctx.EffectiveMessage.MessageId = int64(500 + i)
 				if err := antifloodModule.checkFlood(f.bot, ctx); err != ext.ContinueGroups {
@@ -200,7 +197,7 @@ func TestSetFloodModeTimedDurationControlsEnforcementAndDisplay(t *testing.T) {
 	}
 }
 
-func TestSetFloodModeRejectsMissingInvalidAndOutOfRangeDurationsWithoutWrites(t *testing.T) {
+func TestSetFloodModeRejectsMissingAndMalformedDurationsWithoutWrites(t *testing.T) {
 	useEnglishLocale(t)
 	for _, existing := range []bool{false, true} {
 		for _, mode := range []string{"tban", "tmute"} {
@@ -211,7 +208,6 @@ func TestSetFloodModeRejectsMissingInvalidAndOutOfRangeDurationsWithoutWrites(t 
 				{"", "extraction_no_time_specified"},
 				{"0h", "extraction_invalid_time_amount"},
 				{"-1m", "extraction_invalid_time_amount"},
-				{"367d", "extraction_time_limit_exceeded"},
 				{"1d extra", "extraction_invalid_time_format"},
 			} {
 				t.Run(fmt.Sprintf("existing=%t/%s/%s", existing, mode, tc.duration), func(t *testing.T) {
@@ -257,12 +253,9 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 		{name: "show disabled flood", text: "/flood", run: antifloodModule.flood},
 		{name: "set missing limit", text: "/setflood", run: antifloodModule.setFlood},
 		{name: "set non integer", text: "/setflood nope", run: antifloodModule.setFlood},
-		{name: "set below range", text: "/setflood 2", run: antifloodModule.setFlood},
 		{name: "disable flood", text: "/setflood off", run: antifloodModule.setFlood},
 		{name: "mode missing", text: "/setfloodmode", run: antifloodModule.setFloodMode},
-		{name: "mode invalid", text: "/setfloodmode warn", run: antifloodModule.setFloodMode},
 		{name: "deleter current disabled", text: "/delflood", run: antifloodModule.setFloodDeleter},
-		{name: "deleter invalid", text: "/delflood maybe", run: antifloodModule.setFloodDeleter},
 		{name: "deleter off", text: "/delflood off", run: antifloodModule.setFloodDeleter},
 	}
 
@@ -274,13 +267,6 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 			}
 		})
 	}
-	settings := antiflood.GetFlood(chat.Id)
-	if settings.Limit != 0 {
-		t.Fatalf("flood limit = %d, want disabled", settings.Limit)
-	}
-	if settings.DeleteAntifloodMessage {
-		t.Fatal("DeleteAntifloodMessage = true, want false after /delflood off")
-	}
 	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
 		t.Fatalf("sendMessage calls = %d, want one reply per validation branch", len(calls))
 	}
@@ -289,7 +275,7 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 func TestAntifloodUpdateFloodTracksLimitAndResetsAfterPunishment(t *testing.T) {
 	resetAntifloodState(t)
 	chatID := uniqueModuleChatID()
-	if err := antiflood.SetFlood(chatID, 2); err != nil {
+	if err := antiflood.SetFlood(chatID, 3); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 
@@ -300,8 +286,8 @@ func TestAntifloodUpdateFloodTracksLimitAndResetsAfterPunishment(t *testing.T) {
 	if state.messageCount != 1 || len(state.messageIDs) != 1 {
 		t.Fatalf("first state = %#v, want one tracked message", state)
 	}
-	if settings.Limit != 2 {
-		t.Fatalf("settings limit = %d, want 2", settings.Limit)
+	if settings.Limit != 3 {
+		t.Fatalf("settings limit = %d, want 3", settings.Limit)
 	}
 
 	flooded, state, _ = antifloodModule.updateFlood(chatID, 42, 101)
@@ -313,8 +299,12 @@ func TestAntifloodUpdateFloodTracksLimitAndResetsAfterPunishment(t *testing.T) {
 	}
 
 	flooded, _, _ = antifloodModule.updateFlood(chatID, 42, 102)
+	if flooded {
+		t.Fatal("third message flooded = true, want false at limit")
+	}
+	flooded, _, _ = antifloodModule.updateFlood(chatID, 42, 103)
 	if !flooded {
-		t.Fatal("third message flooded = false, want true over limit")
+		t.Fatal("fourth message flooded = false, want true over limit")
 	}
 	stored, ok := antifloodModule.syncHelperMap.Load(floodKey{chatId: chatID, userId: 42})
 	if !ok {
@@ -335,7 +325,7 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 	if err := antiflood.SetFloodMode(chat.Id, "mute", 0); err != nil {
@@ -343,7 +333,7 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	}
 
 	firstCtx := newModuleMessageContext(bot, chat, member, "one")
-	if err := antifloodModule.checkFlood(bot, firstCtx); err != ext.ContinueGroups {
+	if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
 	}
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
@@ -373,7 +363,7 @@ func TestAntifloodWatcherIgnoresLinkedChannelPosts(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
-			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
 			if err := antiflood.SetFloodMode(chat.Id, action, 0); err != nil {
@@ -381,7 +371,7 @@ func TestAntifloodWatcherIgnoresLinkedChannelPosts(t *testing.T) {
 			}
 
 			channel := gotgbot.Chat{Id: -1003267074951, Type: "channel", Title: "Linked Channel"}
-			for i := range 3 {
+			for i := range 4 {
 				msg := &gotgbot.Message{
 					MessageId:          int64(700 + i),
 					Date:               1,
@@ -422,7 +412,7 @@ func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 			member := gotgbot.User{Id: tt.userID, FirstName: "Flooder"}
-			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
 			if err := antiflood.SetFloodMode(chat.Id, tt.action, 0); err != nil {
@@ -430,7 +420,7 @@ func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
 			}
 
 			firstCtx := newModuleMessageContext(bot, chat, member, "one")
-			if err := antifloodModule.checkFlood(bot, firstCtx); err != ext.ContinueGroups {
+			if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
 				t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
 			}
 			secondCtx := newModuleMessageContext(bot, chat, member, tt.message)
@@ -487,7 +477,7 @@ func TestAntifloodWatcherFailsOpenWhenAdminSemaphoreFull(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 46, FirstName: "Flooder"}
-	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 
@@ -500,8 +490,8 @@ func TestAntifloodWatcherFailsOpenWhenAdminSemaphoreFull(t *testing.T) {
 		}
 	})
 
-	// Two messages cross the limit of one, so the admin check runs.
-	for i := 0; i < 2; i++ {
+	// Four messages cross the minimum limit of three, so the admin check runs.
+	for i := 0; i < 4; i++ {
 		ctx := newModuleMessageContext(bot, chat, member, "flood")
 		ctx.EffectiveMessage.MessageId = int64(300 + i)
 		if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
@@ -551,7 +541,7 @@ func TestAntifloodWatcherTrustsCachedNonAdminWithoutSemaphore(t *testing.T) {
 		User:               gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
 		CanRestrictMembers: true,
 	})
-	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 	if err := antiflood.SetFloodMode(chat.Id, "ban", 0); err != nil {
@@ -568,7 +558,7 @@ func TestAntifloodWatcherTrustsCachedNonAdminWithoutSemaphore(t *testing.T) {
 	})
 
 	firstCtx := newModuleMessageContext(bot, chat, member, "one")
-	if err := antifloodModule.checkFlood(bot, firstCtx); err != ext.ContinueGroups {
+	if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
 	}
 	secondCtx := newModuleMessageContext(bot, chat, member, "two")
@@ -634,7 +624,7 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 			member := gotgbot.User{Id: tt.userID, FirstName: "Flooder"}
-			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
 			if err := antiflood.SetFloodMode(chat.Id, "mute", 0); err != nil {
@@ -642,7 +632,7 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 			}
 			tt.setup(t, chat.Id, client)
 
-			for i := 0; i < 2; i++ {
+			for i := 0; i < 4; i++ {
 				ctx := newModuleMessageContext(bot, chat, member, "flood")
 				ctx.EffectiveMessage.MessageId = int64(500 + i)
 				if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
@@ -690,7 +680,7 @@ func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 49, FirstName: "Flooder"}
-	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 	if err := antiflood.SetFloodMode(chat.Id, "ban", 0); err != nil {
@@ -701,7 +691,7 @@ func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	}
 
 	firstCtx := newModuleMessageContext(bot, chat, member, "one")
-	if err := antifloodModule.checkFlood(bot, firstCtx); err != ext.ContinueGroups {
+	if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
 	}
 	secondCtx := newModuleMessageContext(bot, chat, member, "two")
@@ -790,7 +780,7 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 			member := gotgbot.User{Id: 45, FirstName: "Flooder"}
-			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
 			if err := antiflood.SetFloodMode(chat.Id, tt.action, tt.actionTime); err != nil {
@@ -798,7 +788,7 @@ func TestAntifloodWatcherAppliesTimedActionsForAnHour(t *testing.T) {
 			}
 
 			firstCtx := newModuleMessageContext(bot, chat, member, "one")
-			if err := antifloodModule.checkFlood(bot, firstCtx); err != ext.ContinueGroups {
+			if err := sendFloodPrelude(bot, firstCtx); err != ext.ContinueGroups {
 				t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
 			}
 			secondCtx := newModuleMessageContext(bot, chat, member, "two")
@@ -838,14 +828,14 @@ func TestAntifloodWatcherDoesNotPunishChannelForTimedAction(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			resetAntifloodState(t)
 			f := newAdminChatFixture(t)
-			if err := antiflood.SetFlood(f.chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(f.chat.Id, 3); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
 			if err := antiflood.SetFloodMode(f.chat.Id, mode, 600); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 			channel := gotgbot.Chat{Id: -1001234567892, Type: "channel", Title: "Flood Channel"}
-			for i := range 2 {
+			for i := range 4 {
 				ctx := newModuleMessageContext(f.bot, f.chat, f.member, "channel flood")
 				ctx.EffectiveMessage.MessageId = int64(600 + i)
 				ctx.EffectiveMessage.From = nil
@@ -855,7 +845,7 @@ func TestAntifloodWatcherDoesNotPunishChannelForTimedAction(t *testing.T) {
 					t.Fatalf("checkFlood() error = %v, want ContinueGroups", err)
 				}
 			}
-			assertDeleted(t, f.client, f.chat.Id, 601)
+			assertDeleted(t, f.client, f.chat.Id, 603)
 			for _, method := range []string{"banChatSenderChat", "banChatMember", "restrictChatMember", "sendMessage"} {
 				if calls := f.client.callsFor(method); len(calls) != 0 {
 					t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
@@ -865,30 +855,29 @@ func TestAntifloodWatcherDoesNotPunishChannelForTimedAction(t *testing.T) {
 	}
 }
 
-// warn passes the action CHECK but has no antiflood handler: the bot must not
-// announce a punishment it did not apply.
-func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
+// Invalid stored modes use the declared default in status and enforcement.
+func TestAntifloodWatcherUsesDefaultForInvalidStoredAction(t *testing.T) {
 	resetAntifloodState(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 46, FirstName: "Flooder"}
-	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 3); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 	if err := antiflood.SetFloodMode(chat.Id, "warn", 0); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 
-	for i, text := range []string{"one", "two"} {
+	for i, text := range []string{"one", "two", "three", "four"} {
 		ctx := newModuleMessageContext(bot, chat, member, text)
 		ctx.EffectiveMessage.MessageId = int64(400 + i)
 		if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
 			t.Fatalf("checkFlood(%s) error = %v, want ContinueGroups", text, err)
 		}
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-		t.Fatalf("sendMessage calls = %#v, want no punishment notice", calls)
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
+		t.Fatalf("restrictChatMember calls = %#v, want the default mute", calls)
 	}
 
 	showCtx := newModuleMessageContext(bot, chat, member, "/flood")
@@ -896,8 +885,8 @@ func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
 		t.Fatalf("flood() error = %v, want EndGroups", err)
 	}
 	replies := client.callsFor("sendMessage")
-	if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), "warn") {
-		t.Fatalf("/flood replies = %#v, want the stored action named", replies)
+	if len(replies) != 2 || !strings.Contains(fmt.Sprint(replies[1].Params["text"]), "muted") {
+		t.Fatalf("/flood replies = %#v, want the effective default named", replies)
 	}
 }
 
@@ -910,7 +899,7 @@ func TestFloodActionLabelFollowsTheChatLanguage(t *testing.T) {
 	for _, langCode := range []string{"es", "fr", "hi", "id", "pt", "ru"} {
 		tr := i18n.MustNewTranslator(langCode)
 		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute", ""} {
-			settings := &models.AntifloodSettings{Action: action}
+			settings := &models.AntifloodSettings{Action: action, FloodActionTime: 3600}
 			got := floodActionLabel(tr, settings)
 			if got == "" {
 				t.Fatalf("floodActionLabel(%s, %q) is empty", langCode, action)
@@ -923,4 +912,15 @@ func TestFloodActionLabelFollowsTheChatLanguage(t *testing.T) {
 			}
 		}
 	}
+}
+
+func sendFloodPrelude(bot *gotgbot.Bot, ctx *ext.Context) error {
+	firstID := ctx.EffectiveMessage.MessageId
+	for i := range 3 {
+		ctx.EffectiveMessage.MessageId = firstID + int64(i)
+		if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
+			return err
+		}
+	}
+	return ext.ContinueGroups
 }

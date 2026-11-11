@@ -256,10 +256,8 @@ func main() {
 
 	if config.AppConfig.PanelEnabled {
 		httpServer.RegisterPanel(panel.New(b, panel.Deps{
-			SessionMaxAge:      config.AppConfig.PanelSessionMaxAge,
-			LookupChats:        chats.ListChatsWithUser,
-			DisableCaptcha:     modules.DisableCaptchaForChat,
-			NightModeLockTypes: modules.NightModeLockTypes(),
+			SessionMaxAge: config.AppConfig.PanelSessionMaxAge,
+			LookupChats:   chats.ListChatsWithUser,
 		}))
 		log.Infof("[Main] Admin panel enabled at %s", config.AppConfig.PanelPublicURL)
 	}

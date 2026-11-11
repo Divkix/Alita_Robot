@@ -36,17 +36,30 @@ func checkRulesSetting(chatID int64) (*models.RulesSettings, error) {
 	return rulesrc, nil
 }
 
+// Reading rules keeps an unset chat unset; only setters create rows.
+func readRulesSetting(chatID int64) (*models.RulesSettings, error) {
+	row := &models.RulesSettings{}
+	err := db.GetRecord(row, models.RulesSettings{ChatId: chatID})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &models.RulesSettings{ChatId: chatID}, nil
+	}
+	if err != nil {
+		return &models.RulesSettings{ChatId: chatID}, err
+	}
+	return row, nil
+}
+
 func GetChatRulesInfo(chatId int64) *models.RulesSettings {
 	rulesrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
 		cache.CacheKey("rules", chatId),
 		cache.CacheTTLRules,
 		func(context.Context) (*models.RulesSettings, error) {
-			return checkRulesSetting(chatId)
+			return readRulesSetting(chatId)
 		},
 	)
 	if err != nil || rulesrc == nil {
-		rulesrc, _ = checkRulesSetting(chatId)
+		rulesrc, _ = readRulesSetting(chatId)
 	}
 	return rulesrc
 }

@@ -14,9 +14,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/digest"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/panel"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var digestModule = moduleStruct{
@@ -27,12 +29,8 @@ var digestDesc = helpers.CommandDescriptor{
 	Name: "digest",
 	// Every /digest form is admin-only, so a chat cannot silence it: /digest
 	// off already is the switch. A stored disable row must not block that.
-	Disableable: false,
-	RequiredChecks: []helpers.CheckFunc{
-		helpers.RequireGroup(),
-		helpers.RequireBotAdmin(),
-		helpers.RequireUserAdmin(),
-	},
+	Disableable:    false,
+	RequiredChecks: append([]helpers.CheckFunc{helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.DigestEnabled)...),
 }
 
 // digestNow is the clock the command reads. Tests replace it to pin the day
@@ -43,11 +41,11 @@ var digestNow = time.Now
 // here and log change it; now renders the current partial week with the same
 // builder the weekly scheduler uses. Counting and sending are UTC-only.
 func (moduleStruct) digest(c *helpers.CommandContext) error {
-	if !config.AppConfig.EnableDigest {
-		return digestReplyKey(c, "digest_globally_disabled", nil)
+	if err := chatsettings.DigestEnabled.ValidateWrite(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, false); err != nil {
+		return digestReplyKey(c, chatsettings.RefusalKey(err), nil)
 	}
 
-	settings, err := digestsettings.Get(c.Chat.Id)
+	preferences, err := chatsettings.ReadDigestContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[Digest] could not read the chat's digest settings")
@@ -56,7 +54,7 @@ func (moduleStruct) digest(c *helpers.CommandContext) error {
 
 	args := c.Ctx.Args()[1:]
 	if len(args) == 0 {
-		return digestReplyStatus(c, settings)
+		return digestReplyStatus(c, preferences)
 	}
 	if len(args) > 1 {
 		return digestReplyUsage(c)
@@ -72,9 +70,6 @@ func (moduleStruct) digest(c *helpers.CommandContext) error {
 	case "here":
 		return digestSetDestination(c, digestsettings.DestinationGroup)
 	case "log":
-		if digestLogChannelID(c.Chat.Id) == 0 {
-			return digestReplyKey(c, "digest_log_unavailable", nil)
-		}
 		return digestSetDestination(c, digestsettings.DestinationLog)
 	default:
 		return digestReplyUsage(c)
@@ -116,7 +111,10 @@ func digestPreview(c *helpers.CommandContext) error {
 
 // digestSetEnabled stores the switch and answers with the new state.
 func digestSetEnabled(c *helpers.CommandContext, enabled bool) error {
-	if err := digestsettings.SetEnabled(c.Chat.Id, enabled); err != nil {
+	if err := chatsettings.DigestEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, enabled); err != nil {
+		if key := chatsettings.RefusalKey(err); key != "" {
+			return digestReplyKey(c, key, nil)
+		}
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[Digest] could not save the digest switch")
 		return digestReplyKey(c, "error_generic", nil)
@@ -127,7 +125,10 @@ func digestSetEnabled(c *helpers.CommandContext, enabled bool) error {
 // digestSetDestination stores the admin's choice and answers with the new
 // state, including whether the destination is still the default.
 func digestSetDestination(c *helpers.CommandContext, destination string) error {
-	if err := digestsettings.SetDestination(c.Chat.Id, destination); err != nil {
+	if err := chatsettings.DigestDestination.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, destination); err != nil {
+		if key := chatsettings.RefusalKey(err); key != "" {
+			return digestReplyKey(c, key, nil)
+		}
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[Digest] could not save the digest destination")
 		return digestReplyKey(c, "error_generic", nil)
@@ -138,13 +139,13 @@ func digestSetDestination(c *helpers.CommandContext, destination string) error {
 // digestReplyFreshStatus re-reads the settings after a write (the setter
 // invalidated the cache) and replies with them.
 func digestReplyFreshStatus(c *helpers.CommandContext) error {
-	settings, err := digestsettings.Get(c.Chat.Id)
+	preferences, err := chatsettings.ReadDigestContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Error("[Digest] could not read the saved digest settings")
 		return digestReplyKey(c, "error_generic", nil)
 	}
-	return digestReplyStatus(c, settings)
+	return digestReplyStatus(c, preferences)
 }
 
 func digestReplyStatus(c *helpers.CommandContext, settings *models.DigestSettings) error {

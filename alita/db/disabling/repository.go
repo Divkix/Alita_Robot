@@ -2,10 +2,12 @@ package disabling
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -124,14 +126,21 @@ func ToggleDel(chatId int64, pref bool) error {
 	return nil
 }
 
-func ShouldDel(chatId int64) bool {
+// GetChatSettings reads preferences without creating a row or supplying defaults.
+func GetChatSettings(chatId int64) *models.DisableChatSettings {
 	var settings models.DisableChatSettings
-	err := db.GetRecord(&settings, models.DisableChatSettings{ChatId: chatId})
-	if err != nil {
-		log.Errorf("[Database] ShouldDel: %v", err)
-		return false
+	if err := db.GetRecord(&settings, models.DisableChatSettings{ChatId: chatId}); err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Errorf("[Database] GetChatSettings: %v", err)
+		}
+		return nil
 	}
-	return settings.DeleteCommands
+	return &settings
+}
+
+func ShouldDel(chatId int64) bool {
+	settings := GetChatSettings(chatId)
+	return settings != nil && settings.DeleteCommands
 }
 
 func LoadDisableStats() (disabledCmds, disableEnabledChats int64) {

@@ -3,14 +3,12 @@
 package modules
 
 import (
-	"context"
 	"html"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -53,20 +51,6 @@ func timezoneFixture(t *testing.T) adminChatFixture {
 	f := newAdminChatFixture(t)
 	cleanupChatTimezone(t, f.chat.Id)
 	return f
-}
-
-func TestTimezoneBareShowsUTCForAChatThatNeverSetOne(t *testing.T) {
-	f := timezoneFixture(t)
-
-	aispamProcessUpdate(t, adminPMDispatcher(), f.bot, f.chat, f.admin, 1001, "/timezone")
-
-	want := translatedWith(t, "timezone_status", i18n.TranslationParams{"timezone": "UTC", "offset": "+00:00", "time": "12:00"})
-	if reply := lastMessageTo(t, f.client, f.chat.Id); reply != want {
-		t.Fatalf("reply = %q, want %q", reply, want)
-	}
-	if n := db.CountRows(&models.ChatTimezone{}, "chat_id = ?", f.chat.Id); n != 0 {
-		t.Fatalf("showing the timezone wrote %d rows, want 0", n)
-	}
 }
 
 func TestTimezoneSetStoresTheCanonicalNameAndShowsTheLocalTime(t *testing.T) {
@@ -125,43 +109,6 @@ func TestTimezoneRefusesAnUnknownNameWithItsHelp(t *testing.T) {
 	}
 }
 
-func TestTimezoneRefusesMembers(t *testing.T) {
-	f := timezoneFixture(t)
-	dispatcher := adminPMDispatcher()
-
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.member, 1031, "/timezone Asia/Kolkata")
-	aispamProcessUpdate(t, dispatcher, f.bot, f.chat, f.member, 1032, "/timezone")
-
-	if got := timezoneOf(t, f.chat.Id); got != chattz.DefaultName {
-		t.Fatalf("a member set the timezone to %q", got)
-	}
-	status := translatedWith(t, "timezone_status", i18n.TranslationParams{"timezone": "UTC", "offset": "+00:00", "time": "12:00"})
-	for _, text := range spamDBMessagesTo(f.client, f.chat.Id) {
-		if text == status {
-			t.Fatal("a member was shown the timezone setting")
-		}
-	}
-}
-
-// In the group, an admin without the change-info right gets the refusal the
-// other chat-info commands give, and the timezone stays.
-func TestTimezoneRefusesAdminWithoutChangeInfo(t *testing.T) {
-	f := timezoneFixture(t)
-	admin := adminMember(f.admin.Id, false)
-	admin.CanChangeInfo = false
-	seedAdminCache(t, f.chat.Id, adminMember(999, true), admin)
-
-	aispamProcessUpdate(t, adminPMDispatcher(), f.bot, f.chat, f.admin, 1041, "/timezone Asia/Kolkata")
-
-	if got := timezoneOf(t, f.chat.Id); got != chattz.DefaultName {
-		t.Fatalf("an admin without change-info set the timezone to %q", got)
-	}
-	refusal := translated(t, "chat_status_change_info_cmd_error")
-	if reply := lastMessageTo(t, f.client, f.chat.Id); !strings.Contains(reply, refusal) {
-		t.Fatalf("reply = %q, want the change-info refusal %q", reply, refusal)
-	}
-}
-
 // From PM while connected, a bare /timezone and a set act on the connected
 // group and answer in PM, naming the group.
 func TestTimezoneInPMActsOnTheConnectedGroup(t *testing.T) {
@@ -183,31 +130,5 @@ func TestTimezoneInPMActsOnTheConnectedGroup(t *testing.T) {
 	}
 	if !repliedIn(f, f.admin.Id, f.chat.Title) {
 		t.Fatalf("the PM reply does not name the group; sent:\n%s", sentText(f.client))
-	}
-}
-
-func TestSettingsSummaryShowsAChangedTimezone(t *testing.T) {
-	chatID := newSettingsTestChat(t)
-	cleanupChatTimezone(t, chatID)
-
-	if _, err := chattz.Set(chatID, "Europe/Berlin"); err != nil {
-		t.Fatalf("chattz.Set() error = %v", err)
-	}
-	cache.ResetLocalForTest()
-
-	var row *settingsRow
-	sections := collectChatSettings(context.Background(), chatID)
-	for _, section := range sections {
-		for i := range section.Rows {
-			if section.Rows[i].Command == "/timezone" {
-				row = &section.Rows[i]
-			}
-		}
-	}
-	if row == nil || row.Value != "Europe/Berlin" || !row.Changed {
-		t.Fatalf("/timezone row = %+v, want Europe/Berlin marked changed", row)
-	}
-	if got := changedSettingsCommands(sections); strings.Join(got, ",") != "/timezone" {
-		t.Fatalf("changed rows = %v, want only /timezone", got)
 	}
 }

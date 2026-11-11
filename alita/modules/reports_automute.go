@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -142,7 +144,7 @@ func settleReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64
 	if muted == nil {
 		return
 	}
-	if threshold := reports.GetChatReportSettings(chatID).MuteThreshold; threshold > 0 {
+	if threshold := chatsettings.ReadReports(chatID).MuteThreshold; threshold > 0 {
 		count, err := reports.CountOpenReporters(chatID, userID)
 		if err != nil {
 			log.Errorf("[Reports] failed to count reporters of %d in %d: %v", userID, chatID, err)
@@ -189,13 +191,13 @@ func liftReportAutoMute(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64, 
 }
 
 // reportsMuteSetting serves /reports mute [N|off] in a group.
-func reportsMuteSetting(tr *i18n.Translator, chatID int64, args []string) string {
+func reportsMuteSetting(ctx context.Context, tr *i18n.Translator, chatID int64, args []string) string {
 	usage, _ := tr.GetString("reports_automute_usage", i18n.TranslationParams{
 		"min": models.ReportMuteThresholdMin,
 		"max": models.ReportMuteThresholdMax,
 	})
 	if len(args) == 0 {
-		return reportsMuteStatus(tr, reports.GetChatReportSettings(chatID).MuteThreshold) + "\n\n" + usage
+		return reportsMuteStatus(tr, chatsettings.ReadReports(chatID).MuteThreshold) + "\n\n" + usage
 	}
 	if len(args) > 1 {
 		return usage
@@ -203,12 +205,12 @@ func reportsMuteSetting(tr *i18n.Translator, chatID int64, args []string) string
 	var threshold int
 	if on, ok := parseToggleArg(args[0]); !ok || on {
 		n, err := strconv.Atoi(args[0])
-		if err != nil || n < models.ReportMuteThresholdMin || n > models.ReportMuteThresholdMax {
+		if err != nil || chatsettings.ReportMuteThreshold.Validate(n) != nil {
 			return usage
 		}
 		threshold = n
 	}
-	if err := reports.SetChatReportMuteThreshold(chatID, threshold); err != nil {
+	if err := chatsettings.ReportMuteThreshold.Write(chatsettings.WriteContext{Context: ctx, ChatID: chatID}, threshold); err != nil {
 		log.Errorf("[Reports] %v", err)
 		text, _ := tr.GetString("common_settings_save_failed")
 		return text

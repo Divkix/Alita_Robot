@@ -20,9 +20,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var reportsModule = moduleStruct{
@@ -80,7 +82,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := sender.User
 	msg := ctx.EffectiveMessage
 
-	reportprefs := reports.GetChatReportSettings(chat.Id)
+	reportprefs := chatsettings.ReadReports(chat.Id)
 	if !reportprefs.Status {
 		return ext.EndGroups
 	}
@@ -321,12 +323,10 @@ func (moduleStruct) reports(c *helpers.CommandContext) error {
 		}
 		switch action {
 		case "mute":
-			// Changing it lets the bot mute members: the admin and the
-			// bot need the right to restrict, as for a mute.
-			if len(args) > 1 && !helpers.RunChecks(c, []helpers.CheckFunc{helpers.CanUserRestrict(), helpers.CanBotRestrict()}) {
+			if len(args) > 1 && !helpers.RunChecks(c, declaredSettingChecks(chatsettings.ReportMuteThreshold)) {
 				return ext.EndGroups
 			}
-			replyText = reportsMuteSetting(tr, c.Chat.Id, args[1:])
+			replyText = reportsMuteSetting(tracing.UpdateContext(c.Ctx), tr, c.Chat.Id, args[1:])
 		case "showblocklist":
 			replyText = reportsBlocklistText(c, tr)
 		default:
@@ -354,7 +354,7 @@ func reportsStatusText(c *helpers.CommandContext, tr *i18n.Translator, inPM bool
 			text = trS(tr, "reports_preference_disabled_private")
 		}
 	} else {
-		settings := reports.GetChatReportSettings(c.Chat.Id)
+		settings := chatsettings.ReadReports(c.Chat.Id)
 		if settings.Status {
 			text = trS(tr, "reports_status_enabled_group")
 		} else {
@@ -374,7 +374,7 @@ func reportsToggleText(c *helpers.CommandContext, tr *i18n.Translator, inPM, on 
 		err = reports.SetUserReportSettings(c.User.Id, on)
 		onKey, offKey = "reports_turned_on_personal", "reports_turned_off_personal"
 	} else {
-		err = reports.SetChatReportStatus(c.Chat.Id, on)
+		err = chatsettings.ReportsEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, on)
 	}
 	switch {
 	case err != nil:
@@ -412,7 +412,7 @@ func reportsBlockText(c *helpers.CommandContext, tr *i18n.Translator, block bool
 
 // reportsBlocklistText lists the members blocked from reporting in the group.
 func reportsBlocklistText(c *helpers.CommandContext, tr *i18n.Translator) string {
-	blockedUsers := reports.GetChatReportSettings(c.Chat.Id).BlockedList
+	blockedUsers := chatsettings.ReadReports(c.Chat.Id).BlockedList
 	if len(blockedUsers) == 0 {
 		return trS(tr, "reports_no_blocked_users")
 	}
@@ -633,7 +633,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, reportDesc, pipelineHandler(reportsModule.report))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "reports",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()},
+		RequiredChecks: declaredSettingChecks(chatsettings.ReportsEnabled),
 	}, reportsModule.reports)
 	startReportRetentionSweeper()
 }

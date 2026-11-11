@@ -65,9 +65,6 @@ func TestWarnSettingsRightsThroughDispatcher(t *testing.T) {
 		text, replyKey string
 		ownerOnly      bool
 	}{
-		{"/setwarnlimit", "warns_limit_set_help", false},
-		{"/setwarnmode", "warns_specify_action", false},
-		{"/setwarntime", "warns_expiry_current_off", false},
 		{"/resetallwarns", "warns_no_users_warned", true},
 	} {
 		for _, role := range []string{"member", "admin", "owner"} {
@@ -126,14 +123,6 @@ func TestWarnSettingsCommandsUpdateAndDisplay(t *testing.T) {
 		t.Fatalf("warn limit = %d, want 5", got)
 	}
 
-	invalidCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit 0")
-	if err := warnsModule.setWarnLimit(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("setWarnLimit invalid error = %v, want EndGroups", err)
-	}
-	if got := warns.GetWarnSetting(chat.Id).WarnLimit; got != 5 {
-		t.Fatalf("invalid warn limit changed setting to %d", got)
-	}
-
 	modeCtx := newModuleMessageContext(bot, chat, admin, "/setwarnmode ban")
 	if err := warnsModule.setWarnMode(bot, modeCtx); err != ext.EndGroups {
 		t.Fatalf("setWarnMode() error = %v, want EndGroups", err)
@@ -159,10 +148,6 @@ func TestWarnSettingsCommandsUpdateAndDisplay(t *testing.T) {
 	badLimitCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit nope")
 	if err := warnsModule.setWarnLimit(bot, badLimitCtx); err != ext.EndGroups {
 		t.Fatalf("setWarnLimit bad number error = %v, want EndGroups", err)
-	}
-	bigLimitCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit 101")
-	if err := warnsModule.setWarnLimit(bot, bigLimitCtx); err != ext.EndGroups {
-		t.Fatalf("setWarnLimit range error = %v, want EndGroups", err)
 	}
 
 	missingModeCtx := newModuleMessageContext(bot, chat, admin, "/setwarnmode")

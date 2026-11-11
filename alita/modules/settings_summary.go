@@ -13,25 +13,18 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/aispam"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
-	"github.com/divkix/Alita_Robot/alita/db/chats"
-	"github.com/divkix/Alita_Robot/alita/db/chattz"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/nightmode"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
-	"github.com/divkix/Alita_Robot/alita/db/probation"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -49,21 +42,9 @@ type settingsSection struct {
 	Rows  []settingsRow
 }
 
-// Effective defaults of a group that never touched a setting. They follow what
-// the bot actually does, not the Go fallbacks: GORM drops zero values that have
-// a default tag, so goodbye and allow_connect end up true once their row exists.
+// Blacklist actions are command-only; shared settings get defaults from declarations.
 const (
-	settingsDefaultCaptchaMode     = "math"
-	settingsDefaultCaptchaTimeout  = 2
-	settingsDefaultCaptchaAction   = "kick"
-	settingsDefaultCaptchaAttempts = 3
-	settingsDefaultFloodAction     = "mute"
-	settingsDefaultRaidTime        = 21600
-	settingsDefaultRaidActionTime  = 3600
-	settingsDefaultWarnLimit       = 3
-	settingsDefaultWarnMode        = "mute"
 	settingsDefaultBlacklistAction = "warn"
-	settingsDefaultLanguage        = "en"
 	settingsMaxListedItems         = 15
 )
 
@@ -73,10 +54,6 @@ func boolRow(command string, value, def bool) settingsRow {
 		text = "on"
 	}
 	return settingsRow{Command: command, Value: text, Changed: value != def}
-}
-
-func intRow(command string, value, def int) settingsRow {
-	return settingsRow{Command: command, Value: strconv.Itoa(value), Changed: value != def}
 }
 
 func stringRow(command, value, def string) settingsRow {
@@ -108,9 +85,8 @@ func customTextRow(command, text, def string) settingsRow {
 	return settingsRow{Command: command, Value: "custom", Changed: true}
 }
 
-// readChatSetting loads a per-chat settings row without creating it. Several
-// repository getters insert a row on a miss, and greetings would insert one
-// with goodbye enabled, so the summary must not call them.
+// readChatSetting loads raw per-chat preferences for read-only summary values
+// without creating a row.
 func readChatSetting[T any](ctx context.Context, chatID int64) (*T, bool) {
 	var setting T
 	err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).Take(&setting).Error
@@ -127,9 +103,9 @@ func readChatSetting[T any](ctx context.Context, chatID int64) (*T, bool) {
 func collectChatSettings(ctx context.Context, chatID int64) []settingsSection {
 	sections := []settingsSection{
 		captchaSettingsSection(ctx, chatID),
-		antifloodSettingsSection(chatID),
-		antiraidSettingsSection(chatID),
-		{Title: "AI Spam", Rows: []settingsRow{boolRow("/aispam", aispam.IsAISpamEnabled(chatID), false)}},
+		antifloodSettingsSection(ctx, chatID),
+		antiraidSettingsSection(ctx, chatID),
+		{Title: "AI Spam", Rows: []settingsRow{declaredBoolRow(ctx, "/aispam", chatsettings.AISpamEnabled, chatID)}},
 		probationSettingsSection(ctx, chatID),
 		warnsSettingsSection(ctx, chatID),
 		locksSettingsSection(ctx, chatID),
@@ -145,71 +121,74 @@ func collectChatSettings(ctx context.Context, chatID int64) []settingsSection {
 			countRow("/reactions", len(reactions.GetReactions(chatID))),
 		}},
 		logChannelSettingsSection(chatID),
-		federationSettingsSection(chatID),
+		federationSettingsSection(ctx, chatID),
 		chatSettingsSection(ctx, chatID),
 	}
 	return sections
 }
 
 func captchaSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	s, err := captcha.GetCaptchaSettingsContext(ctx, chatID)
-	if err != nil || s == nil {
-		s = &models.CaptchaSettings{CaptchaMode: settingsDefaultCaptchaMode, Timeout: settingsDefaultCaptchaTimeout,
-			FailureAction: settingsDefaultCaptchaAction, MaxAttempts: settingsDefaultCaptchaAttempts}
-	}
 	return settingsSection{Title: "Captcha", Rows: []settingsRow{
-		boolRow("/captcha", s.Enabled, false),
-		boolRow("/captchajoin", s.JoinRequests, false),
-		stringRow("/captchamode", s.CaptchaMode, settingsDefaultCaptchaMode),
-		intRow("/captchatime", s.Timeout, settingsDefaultCaptchaTimeout),
-		stringRow("/captchaaction", s.FailureAction, settingsDefaultCaptchaAction),
-		intRow("/captchamaxattempts", s.MaxAttempts, settingsDefaultCaptchaAttempts),
+		declaredBoolRow(ctx, "/captcha", chatsettings.CaptchaEnabled, chatID),
+		declaredBoolRow(ctx, "/captchajoin", chatsettings.CaptchaJoinRequests, chatID),
+		declaredStringRow("/captchamode", chatsettings.CaptchaMode.ReadContext(ctx, chatID)),
+		declaredSettingsRow("/captchatime", chatsettings.CaptchaTimeout.ReadContext(ctx, chatID), strconv.Itoa),
+		declaredStringRow("/captchaaction", chatsettings.CaptchaAction.ReadContext(ctx, chatID)),
+		declaredSettingsRow("/captchamaxattempts", chatsettings.CaptchaMaxAttempts.ReadContext(ctx, chatID), strconv.Itoa),
 	}}
 }
 
-func antifloodSettingsSection(chatID int64) settingsSection {
-	f := antiflood.GetFlood(chatID)
-	limit := settingsRow{Command: "/setflood", Value: "off"}
-	if f.Limit > 0 {
-		limit = settingsRow{Command: "/setflood", Value: strconv.Itoa(f.Limit), Changed: true}
-	}
+func declaredStringRow(command string, state chatsettings.State) settingsRow {
+	return settingsRow{Command: command, Value: state.Value.(string), Changed: state.Changed}
+}
+
+func antifloodSettingsSection(ctx context.Context, chatID int64) settingsSection {
+	f := chatsettings.ReadFloodContext(ctx, chatID)
+	limit := declaredSettingsRow("/setflood", chatsettings.FloodLimit.ReadContext(ctx, chatID), func(value int) string {
+		if value == 0 {
+			return "off"
+		}
+		return strconv.Itoa(value)
+	})
 	return settingsSection{Title: "Antiflood", Rows: []settingsRow{
 		limit,
-		stringRow("/setfloodmode", floodModeLabel(f), settingsDefaultFloodAction),
-		boolRow("/delflood", f.DeleteAntifloodMessage, false),
+		{Command: "/setfloodmode", Value: floodModeLabel(f), Changed: chatsettings.FloodMode.ReadContext(ctx, chatID).Changed},
+		declaredBoolRow(ctx, "/delflood", chatsettings.FloodDelete, chatID),
 	}}
 }
 
-func antiraidSettingsSection(chatID int64) settingsSection {
-	s := antiraid.GetAntiRaidSettings(chatID)
+func antiraidSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	st := getRaidState(chatID)
 	active := st.Active && time.Now().Unix() <= st.ExpiresAt
-	auto := settingsRow{Command: "/autoantiraid", Value: "off"}
-	if s.AutoAntiRaidThreshold > 0 {
-		auto = settingsRow{Command: "/autoantiraid", Value: strconv.Itoa(s.AutoAntiRaidThreshold), Changed: true}
-	}
 	return settingsSection{Title: "AntiRaid", Rows: []settingsRow{
 		boolRow("/antiraid", active, false),
-		{Command: "/raidtime", Value: formatDuration(s.RaidTime), Changed: s.RaidTime != settingsDefaultRaidTime},
-		{Command: "/raidactiontime", Value: formatDuration(s.RaidActionTime), Changed: s.RaidActionTime != settingsDefaultRaidActionTime},
-		auto,
+		declaredSettingsRow("/raidtime", chatsettings.RaidTime.ReadContext(ctx, chatID), formatDuration),
+		declaredSettingsRow("/raidactiontime", chatsettings.RaidActionTime.ReadContext(ctx, chatID), formatDuration),
+		declaredSettingsRow("/autoantiraid", chatsettings.AutoAntiRaidThreshold.ReadContext(ctx, chatID), func(value int) string {
+			if value == 0 {
+				return "off"
+			}
+			return strconv.Itoa(value)
+		}),
 	}}
+}
+
+func declaredSettingsRow(command string, state chatsettings.State, format func(int) string) settingsRow {
+	return settingsRow{Command: command, Value: format(state.Value.(int)), Changed: state.Changed}
 }
 
 func probationSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	s, err := probation.GetSettings(ctx, chatID)
-	if err != nil {
-		log.Warnf("[Settings] read probation settings for chat %d: %v", chatID, err)
-		s = models.DefaultProbationSettings(chatID)
-	}
-	def := models.DefaultProbationSettings(chatID)
+	links := chatsettings.ProbationBlockLinks.ReadContext(ctx, chatID)
+	forwards := chatsettings.ProbationBlockForwards.ReadContext(ctx, chatID)
+	media := chatsettings.ProbationBlockMedia.ReadContext(ctx, chatID)
+	blocked := &models.ProbationSettings{BlockLinks: links.Value.(bool), BlockForwards: forwards.Value.(bool), BlockMedia: media.Value.(bool)}
 	return settingsSection{Title: "Probation", Rows: []settingsRow{
-		boolRow("/probation", s.Enabled, false),
-		{Command: "/probation time", Value: formatDuration(s.DurationSeconds), Changed: s.DurationSeconds != def.DurationSeconds},
-		intRow("/probation messages", s.MessageCount, def.MessageCount),
-		intRow("/probation minlen", s.MinLength, def.MinLength),
-		stringRow("/probation block", probationSettingSummary(s), probationSettingSummary(def)),
-		boolRow("/probation notice", s.Notice, false),
+		declaredBoolRow(ctx, "/probation", chatsettings.ProbationEnabled, chatID),
+		declaredSettingsRow("/probation time", chatsettings.ProbationTime.ReadContext(ctx, chatID), formatDuration),
+		declaredSettingsRow("/probation messages", chatsettings.ProbationMessages.ReadContext(ctx, chatID), strconv.Itoa),
+		declaredSettingsRow("/probation minlen", chatsettings.ProbationMinLength.ReadContext(ctx, chatID), strconv.Itoa),
+		{Command: "/probation block", Value: probationSettingSummary(blocked), Changed: links.Changed || forwards.Changed || media.Changed},
+		declaredBoolRow(ctx, "/probation notice", chatsettings.ProbationNotice, chatID),
 	}}
 }
 
@@ -223,24 +202,17 @@ func probationSettingSummary(settings *models.ProbationSettings) string {
 }
 
 func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	limit, mode, expiry := settingsDefaultWarnLimit, settingsDefaultWarnMode, "off"
-	if w, ok := readChatSetting[models.WarnSettings](ctx, chatID); ok {
-		if w.WarnLimit > 0 {
-			limit = w.WarnLimit
-		}
-		// warnUser takes no action at the limit for an empty mode.
-		mode = warnModeLabel(w)
-		if mode == "" {
-			mode = "none"
-		}
-		if w.WarnExpiry > 0 {
-			expiry = formatDuration(w.WarnExpiry)
-		}
-	}
+	w := chatsettings.ReadWarnsContext(ctx, chatID)
+	mode := warnModeLabel(w)
 	return settingsSection{Title: "Warns", Rows: []settingsRow{
-		intRow("/setwarnlimit", limit, settingsDefaultWarnLimit),
-		stringRow("/setwarnmode", mode, settingsDefaultWarnMode),
-		stringRow("/setwarntime", expiry, "off"),
+		declaredSettingsRow("/setwarnlimit", chatsettings.WarnLimit.ReadContext(ctx, chatID), strconv.Itoa),
+		{Command: "/setwarnmode", Value: mode, Changed: chatsettings.WarnMode.ReadContext(ctx, chatID).Changed},
+		declaredSettingsRow("/setwarntime", chatsettings.WarnExpiry.ReadContext(ctx, chatID), func(value int) string {
+			if value == 0 {
+				return "off"
+			}
+			return formatDuration(value)
+		}),
 	}}
 }
 
@@ -252,7 +224,7 @@ func locksSettingsSection(ctx context.Context, chatID int64) settingsSection {
 		}
 	}
 	night := "off"
-	if n, err := nightmode.GetContext(ctx, chatID); err != nil {
+	if n, err := chatsettings.ReadNightModeContext(ctx, chatID); err != nil {
 		log.Warnf("[Settings] read night mode for chat %d: %v", chatID, err)
 	} else if n.Enabled {
 		start, end, types := nightWindowLabel(n)
@@ -260,7 +232,7 @@ func locksSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	}
 	return settingsSection{Title: "Locks", Rows: []settingsRow{
 		listRow("/locks", locked),
-		stringRow("/nightmode", night, "off"),
+		{Command: "/nightmode", Value: night, Changed: chatsettings.NightModeEnabled.ReadContext(ctx, chatID).Changed},
 	}}
 }
 
@@ -276,38 +248,40 @@ func blacklistSettingsSection(chatID int64) settingsSection {
 	}}
 }
 
-func greetingsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	g, ok := readChatSetting[models.GreetingSettings](ctx, chatID)
-	if !ok || g.WelcomeSettings == nil || g.GoodbyeSettings == nil {
-		g = &models.GreetingSettings{
-			WelcomeSettings: &models.WelcomeSettings{ShouldWelcome: true},
-			GoodbyeSettings: &models.GoodbyeSettings{ShouldGoodbye: true},
-		}
+func declaredBoolRow(ctx context.Context, command string, declaration *chatsettings.Declaration, chatID int64) settingsRow {
+	state := declaration.ReadContext(ctx, chatID)
+	value := "off"
+	if state.Value.(bool) {
+		value = "on"
 	}
+	return settingsRow{Command: command, Value: value, Changed: state.Changed}
+}
+
+func greetingsSettingsSection(ctx context.Context, chatID int64) settingsSection {
+	g := chatsettings.ReadGreetings(chatID)
 	return settingsSection{Title: "Greetings", Rows: []settingsRow{
-		boolRow("/welcome", g.WelcomeSettings.ShouldWelcome, true),
+		declaredBoolRow(ctx, "/welcome", chatsettings.Welcome, chatID),
 		customTextRow("/setwelcome", g.WelcomeSettings.WelcomeText, db.DefaultWelcome),
-		boolRow("/cleanwelcome", g.WelcomeSettings.CleanWelcome, false),
-		boolRow("/goodbye", g.GoodbyeSettings.ShouldGoodbye, true),
+		declaredBoolRow(ctx, "/cleanwelcome", chatsettings.CleanWelcome, chatID),
+		declaredBoolRow(ctx, "/goodbye", chatsettings.Goodbye, chatID),
 		customTextRow("/setgoodbye", g.GoodbyeSettings.GoodbyeText, db.DefaultGoodbye),
-		boolRow("/cleangoodbye", g.GoodbyeSettings.CleanGoodbye, false),
-		boolRow("/cleanservice", g.ShouldCleanService, false),
-		boolRow("/autoapprove", g.ShouldAutoApprove, false),
+		declaredBoolRow(ctx, "/cleangoodbye", chatsettings.CleanGoodbye, chatID),
+		declaredBoolRow(ctx, "/cleanservice", chatsettings.CleanService, chatID),
+		declaredBoolRow(ctx, "/autoapprove", chatsettings.AutoApprove, chatID),
 	}}
 }
 
 func reportsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	status, blocked, muteThreshold := true, 0, 0
-	if r, ok := readChatSetting[models.ReportChatSettings](ctx, chatID); ok {
-		status, blocked, muteThreshold = r.Status, len(r.BlockedList), r.MuteThreshold
-	}
-	mute := settingsRow{Command: "/reports mute", Value: "off"}
-	if muteThreshold > 0 {
-		mute = settingsRow{Command: "/reports mute", Value: strconv.Itoa(muteThreshold), Changed: true}
-	}
+	row := chatsettings.ReadReports(chatID)
+	mute := declaredSettingsRow("/reports mute", chatsettings.ReportMuteThreshold.ReadContext(ctx, chatID), func(value int) string {
+		if value == 0 {
+			return "off"
+		}
+		return strconv.Itoa(value)
+	})
 	return settingsSection{Title: "Reports", Rows: []settingsRow{
-		boolRow("/reports", status, true),
-		countRow("/reports showblocklist", blocked),
+		declaredBoolRow(ctx, "/reports", chatsettings.ReportsEnabled, chatID),
+		countRow("/reports showblocklist", len(row.BlockedList)),
 		mute,
 	}}
 }
@@ -320,41 +294,29 @@ func rulesSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	return settingsSection{Title: "Rules", Rows: []settingsRow{
 		customTextRow("/setrules", r.Rules, ""),
 		customTextRow("/rulesbutton", r.RulesBtn, ""),
-		boolRow("/privaterules", r.Private, false),
+		declaredBoolRow(ctx, "/privaterules", chatsettings.PrivateRules, chatID),
 	}}
 }
 
 func notesSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	private := false
-	if n, ok := readChatSetting[models.NotesSettings](ctx, chatID); ok {
-		private = n.Private
-	}
 	return settingsSection{Title: "Notes & Filters", Rows: []settingsRow{
 		countRow("/notes", len(notes.GetNotesList(chatID, true))),
-		boolRow("/privnote", private, false),
+		declaredBoolRow(ctx, "/privnote", chatsettings.PrivateNotes, chatID),
 		countRow("/filters", int(filters.CountFilters(chatID))),
 	}}
 }
 
 func pinsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	p, ok := readChatSetting[models.PinSettings](ctx, chatID)
-	if !ok {
-		p = &models.PinSettings{}
-	}
 	return settingsSection{Title: "Pins", Rows: []settingsRow{
-		boolRow("/antichannelpin", p.AntiChannelPin, false),
-		boolRow("/cleanlinked", p.CleanLinked, false),
+		declaredBoolRow(ctx, "/antichannelpin", chatsettings.AntiChannelPin, chatID),
+		declaredBoolRow(ctx, "/cleanlinked", chatsettings.CleanLinked, chatID),
 	}}
 }
 
 func disablingSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	del := false
-	if d, ok := readChatSetting[models.DisableChatSettings](ctx, chatID); ok {
-		del = d.DeleteCommands
-	}
 	return settingsSection{Title: "Disabling", Rows: []settingsRow{
 		listRow("/disabled", slices.Clone(disabling.GetChatDisabledCMDsCached(chatID))),
-		boolRow("/disabledel", del, false),
+		declaredBoolRow(ctx, "/disabledel", chatsettings.DeleteDisabledCommands, chatID),
 	}}
 }
 
@@ -392,39 +354,23 @@ func logChannelSettingsSection(chatID int64) settingsSection {
 	}}
 }
 
-func federationSettingsSection(chatID int64) settingsSection {
+func federationSettingsSection(ctx context.Context, chatID int64) settingsSection {
 	fc := federations.GetChatFed(chatID)
 	if fc == nil {
 		return settingsSection{Title: "Federation", Rows: []settingsRow{{Command: "/chatfed", Value: "—"}}}
 	}
 	return settingsSection{Title: "Federation", Rows: []settingsRow{
 		{Command: "/chatfed", Value: fc.FedID, Changed: true},
-		boolRow("/quietfed", fc.Quiet, false),
+		declaredBoolRow(ctx, "/quietfed", chatsettings.QuietFed, chatID),
 	}}
 }
 
 func chatSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	language := settingsDefaultLanguage
-	if chat, err := chats.GetChatBasicInfoCachedContext(ctx, chatID); err == nil && chat != nil && chat.Language != "" {
-		language = chat.Language
-	}
-	allowConnect := true
-	if c, ok := readChatSetting[models.ConnectionChatSettings](ctx, chatID); ok {
-		allowConnect = c.AllowConnect
-	}
-	anonAdmin := false
-	if a, ok := readChatSetting[models.AdminSettings](ctx, chatID); ok {
-		anonAdmin = a.AnonAdmin
-	}
-	timezone, err := chattz.NameContext(ctx, chatID)
-	if err != nil {
-		timezone = chattz.DefaultName
-	}
 	return settingsSection{Title: "Chat", Rows: []settingsRow{
-		stringRow("/lang group", language, settingsDefaultLanguage),
-		stringRow("/timezone", timezone, chattz.DefaultName),
-		boolRow("/allowconnect", allowConnect, true),
-		boolRow("/anonadmin", anonAdmin, false),
+		declaredStringRow("/lang group", chatsettings.Language.ReadContext(ctx, chatID)),
+		declaredStringRow("/timezone", chatsettings.Timezone.ReadContext(ctx, chatID)),
+		declaredBoolRow(ctx, "/allowconnect", chatsettings.AllowConnect, chatID),
+		declaredBoolRow(ctx, "/anonadmin", chatsettings.AnonAdmin, chatID),
 	}}
 }
 

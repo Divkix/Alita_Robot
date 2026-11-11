@@ -5,58 +5,45 @@ import (
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 )
 
 // permission is the Telegram right the equivalent bot command checks before a
 // write.
 type permission int
 
+const permNone permission = 0 // admin only, as requireWritable already checks
+
 const (
-	permNone       permission = iota // admin only, as requireWritable already checks
-	permChangeInfo                   // caller can_change_info (creator always has it)
-	permRestrict                     // caller AND bot can_restrict_members
+	permChangeInfo  permission = 1 << iota // caller can_change_info (creator always has it)
+	permRestrict                           // caller can_restrict_members
+	permBotRestrict                        // bot can_restrict_members
 )
 
-// settingsPermissions maps a settings module to the right its command checks.
-// Modules not listed are admin-only, which requireWritable already enforces.
-var settingsPermissions = map[string]permission{
-	"language": permNone, // /lang group requires the caller to be an admin
-	// /welcome and friends check the caller's can_change_info.
-	"greetings": permChangeInfo,
-	"rules":     permNone, // /setrules requires an admin and the bot admin
-	// Captcha mutes new members, and switching it off unmutes the users it
-	// still holds: both writes restrict members, so the caller and the bot
-	// need the same right the captcha watcher uses.
-	"captcha":     permRestrict,
-	"antiflood":   permNone,       // /setflood requires an admin and the bot admin
-	"antispam":    permNone,       // /aispam and /spamdb only require an admin; /probation: settingsFieldPermission
-	"antiraid":    permNone,       // /antiraid and the raid timers only require an admin
-	"warns":       permNone,       // /setwarnlimit, /setwarnmode and /setwarntime
-	"digest":      permNone,       // /digest requires an admin and the bot admin
-	"reports":     permNone,       // /reports; auto-mute: settingsFieldPermission
-	"timezone":    permChangeInfo, // /timezone checks can_change_info
-	"nightmode":   permNone,       // /nightmode checks an admin and the bot admin
-	"locks":       permNone,       // read-only summary
-	"log_channel": permNone,       // read-only summary
-}
-
-// settingsFieldPermission is the right one "<module>.<field>" change needs:
-// its module's, raised for a field whose command checks more than the rest
-// of the module.
+// settingsFieldPermission maps a declaration's neutral policy to Telegram rights.
 func settingsFieldPermission(module, field string) permission {
-	perm := settingsPermissions[module]
-	// /probation checks can_restrict_members, unlike /aispam and /spamdb.
-	if module == "antispam" && strings.HasPrefix(field, "probation_") {
-		perm = max(perm, permRestrict)
+	if declaration, ok := chatsettings.Lookup(module + "." + field); ok {
+		switch declaration.Right {
+		case chatsettings.Admin, chatsettings.AdminBot:
+			// The panel's access envelope already requires both admins.
+			return permNone
+		case chatsettings.ChangeInfo, chatsettings.ChangeInfoBot:
+			return permChangeInfo
+		case chatsettings.Restrict:
+			return permRestrict | permBotRestrict
+		case chatsettings.RestrictUser:
+			return permRestrict
+		case chatsettings.OwnerBot, chatsettings.FederationAdmin:
+			panic("owner/federation settings have no panel editor")
+		default:
+			panic("unmapped setting right")
+		}
 	}
-	if module == "reports" && field == "mute_threshold" {
-		perm = max(perm, permRestrict)
-	}
-	return perm
+	return permNone
 }
 
-// settingsPermission reports the strongest right a batch of changes needs.
-// The permissions are ordered, so the maximum is the batch's requirement.
+// settingsPermission reports the union of the independent rights a batch needs.
 func settingsPermission(changes map[string]any) permission {
 	required := permNone
 	for key := range changes {
@@ -64,15 +51,13 @@ func settingsPermission(changes map[string]any) permission {
 		if !ok {
 			continue
 		}
-		if perm := settingsFieldPermission(module, field); perm > required {
-			required = perm
-		}
+		required |= settingsFieldPermission(module, field)
 	}
 	return required
 }
 
 // requirePermission runs requireWritable, then checks perm with fresh
-// getChatMember calls for the caller (and the bot for permRestrict). On refusal
+// getChatMember calls for the caller (and the bot for permBotRestrict). On refusal
 // it writes 403 {"code":"missing_permission"} for the caller or
 // 409 {"code":"bot_missing_permission"} for the bot and returns false.
 func (p *Panel) requirePermission(w http.ResponseWriter, r *http.Request, access chatAccess, userID int64, perm permission) bool {
@@ -88,31 +73,36 @@ func (p *Panel) requirePermission(w http.ResponseWriter, r *http.Request, access
 		writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return this member: "+err.Error())
 		return false
 	}
-	if !memberCan(caller, perm) {
-		writeJSONError(w, http.StatusForbidden, "missing_permission", "you need the "+permissionRight(perm)+" right in this chat")
-		return false
+	for _, right := range []permission{permChangeInfo, permRestrict} {
+		if perm&right != 0 && !memberCan(caller, right) {
+			writeJSONError(w, http.StatusForbidden, "missing_permission", "you need the "+permissionRight(right)+" right in this chat")
+			return false
+		}
 	}
-	if perm == permRestrict {
+	if perm&permBotRestrict != 0 {
 		botMember, err := p.bot.GetChatMemberWithContext(r.Context(), access.ChatID, p.bot.Id, nil)
 		if err != nil {
 			writeJSONError(w, http.StatusBadGateway, "telegram_error", "Telegram could not return the bot's membership: "+err.Error())
 			return false
 		}
-		if !memberCan(botMember, perm) {
-			writeJSONError(w, http.StatusConflict, "bot_missing_permission", "the bot is missing the "+permissionRight(perm)+" right in this chat, so changes are disabled")
+		if !memberCan(botMember, permRestrict) {
+			writeJSONError(w, http.StatusConflict, "bot_missing_permission", "the bot is missing the "+permissionRight(permRestrict)+" right in this chat, so changes are disabled")
 			return false
 		}
 	}
 	return true
 }
 
-// permissionRight names the Telegram right a permission stands for in a
-// refusal message.
+// permissionRight names one Telegram right in a refusal message, not a union.
 func permissionRight(perm permission) string {
-	if perm == permChangeInfo {
+	switch perm {
+	case permChangeInfo:
 		return "can_change_info"
+	case permRestrict:
+		return "can_restrict_members"
+	default:
+		panic("permission text requires one right")
 	}
-	return "can_restrict_members"
 }
 
 // memberCan reports whether a member holds perm. A creator holds every right.

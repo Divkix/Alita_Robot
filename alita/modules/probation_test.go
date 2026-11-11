@@ -313,45 +313,6 @@ func probationCommand(t *testing.T, f adminChatFixture, user gotgbot.User, id in
 	return replies[len(replies)-1]
 }
 
-func TestProbationCommandChangesSettings(t *testing.T) {
-	useRealLocales(t)
-	f := newAdminChatFixture(t)
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", f.chat.Id).Delete(&models.ProbationSettings{}).Error
-	})
-	settings := func() *models.ProbationSettings {
-		s, err := probation.GetSettings(context.Background(), f.chat.Id)
-		if err != nil {
-			t.Fatalf("GetSettings() error = %v", err)
-		}
-		return s
-	}
-
-	probationCommand(t, f, f.admin, 1, "/probation on")
-	probationCommand(t, f, f.admin, 2, "/probation time 2h")
-	probationCommand(t, f, f.admin, 3, "/probation messages 3")
-	probationCommand(t, f, f.admin, 4, "/probation minlen 10")
-	probationCommand(t, f, f.admin, 5, "/probation block media, links")
-	probationCommand(t, f, f.admin, 6, "/probation notice on")
-	got := settings()
-	if !got.Enabled || got.Duration() != 2*time.Hour || got.MessageCount != 3 || got.MinLength != 10 ||
-		!got.BlockLinks || got.BlockForwards || !got.BlockMedia || !got.Notice {
-		t.Fatalf("settings = %+v", got)
-	}
-
-	probationCommand(t, f, f.admin, 7, "/probation")
-	if after := settings(); after.Enabled != got.Enabled || after.DurationSeconds != got.DurationSeconds ||
-		after.MessageCount != got.MessageCount || after.MinLength != got.MinLength || after.BlockLinks != got.BlockLinks ||
-		after.BlockForwards != got.BlockForwards || after.BlockMedia != got.BlockMedia || after.Notice != got.Notice {
-		t.Fatalf("a bare /probation changed the settings: %+v", after)
-	}
-
-	probationCommand(t, f, f.admin, 8, "/probation off")
-	if settings().Enabled {
-		t.Fatal("/probation off left probation on")
-	}
-}
-
 func TestProbationCommandRejectsBadInput(t *testing.T) {
 	useRealLocales(t)
 	f := newAdminChatFixture(t)
@@ -360,13 +321,6 @@ func TestProbationCommandRejectsBadInput(t *testing.T) {
 	})
 	tr := i18n.MustNewTranslator("en")
 	for i, tc := range []struct{ text, key string }{
-		{"/probation time 30m", "probation_invalid_time"},
-		{"/probation time 31d", "probation_invalid_time"},
-		{"/probation messages 0", "probation_invalid_messages"},
-		{"/probation minlen 501", "probation_invalid_minlen"},
-		{"/probation block stickers", "probation_invalid_block"},
-		{"/probation block", "probation_invalid_block"},
-		{"/probation maybe", "probation_usage"},
 		{"/probation notice", "probation_usage"},
 	} {
 		reply := probationCommand(t, f, f.admin, int64(i+1), tc.text)
@@ -379,11 +333,6 @@ func TestProbationCommandRejectsBadInput(t *testing.T) {
 		t.Fatalf("rejected input wrote %d settings rows", n)
 	}
 
-	// A member without admin rights is refused by the pipeline.
-	probationCommand(t, f, f.member, 20, "/probation on")
-	if s, err := probation.GetSettings(context.Background(), f.chat.Id); err != nil || s.Enabled {
-		t.Fatalf("a member turned probation on: %+v, %v", s, err)
-	}
 }
 
 func countRows(t *testing.T, model any, chatID int64) int64 {

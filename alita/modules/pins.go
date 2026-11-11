@@ -15,15 +15,16 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var pinsModule = moduleStruct{
@@ -348,27 +349,21 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 
 // pinToggleConfig is one on/off pin setting and the replies of its command.
 type pinToggleConfig struct {
-	setterName                            string
-	set                                   func(chatID int64, on bool) error
-	get                                   func(*models.PinSettings) bool
+	setting                               *chatsettings.Declaration
 	enabledKey, disabledKey               string
 	currentEnabledKey, currentDisabledKey string
 }
 
 var (
 	antiChannelPinToggle = pinToggleConfig{
-		setterName:         "SetAntiChannelPin",
-		set:                pins.SetAntiChannelPin,
-		get:                func(p *models.PinSettings) bool { return p.AntiChannelPin },
+		setting:            chatsettings.AntiChannelPin,
 		enabledKey:         "pins_antichannelpin_enabled",
 		disabledKey:        "pins_antichannelpin_disabled",
 		currentEnabledKey:  "pins_antichannelpin_current_enabled",
 		currentDisabledKey: "pins_antichannelpin_current_disabled",
 	}
 	cleanLinkedToggle = pinToggleConfig{
-		setterName:         "SetCleanLinked",
-		set:                pins.SetCleanLinked,
-		get:                func(p *models.PinSettings) bool { return p.CleanLinked },
+		setting:            chatsettings.CleanLinked,
 		enabledKey:         "pins_cleanlinked_enabled",
 		disabledKey:        "pins_cleanlinked_disabled",
 		currentEnabledKey:  "pins_cleanlinked_current_enabled",
@@ -402,8 +397,8 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 			text, _ = tr.GetString("pins_input_not_recognized")
 			return replyPinToggle(b, msg, text)
 		}
-		if err := cfg.set(chat.Id, on); err != nil {
-			log.Errorf("[Pins] %s failed for chat %d: %v", cfg.setterName, chat.Id, err)
+		if err := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
+			log.Errorf("[Pins] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
 			return ext.EndGroups
@@ -415,7 +410,7 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 		}
 	} else {
 		key := cfg.currentDisabledKey
-		if cfg.get(pins.GetPinData(chat.Id)) {
+		if cfg.setting.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 			key = cfg.currentEnabledKey
 		}
 		temp, _ := tr.GetString(key)
@@ -625,11 +620,11 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antichannelpin", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.AntiChannelPin),
 	}, pipelineHandler(pinsModule.antichannelpin))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "cleanlinked", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: declaredSettingChecks(chatsettings.CleanLinked),
 	}, pipelineHandler(pinsModule.cleanlinked))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unpinallbtn"), pinsModule.unpinallCallback))
