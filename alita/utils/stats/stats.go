@@ -27,7 +27,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/chatstats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
@@ -65,10 +64,6 @@ var (
 	// flushMu serialises flushes so the ticker, shutdown and /digest now
 	// cannot drain and write the same deltas twice.
 	flushMu sync.Mutex
-
-	flusherMu     sync.Mutex
-	flusherCancel context.CancelFunc
-	flusherWG     sync.WaitGroup
 )
 
 // Day formats t as the UTC day key stored in chat_daily_stats.
@@ -225,48 +220,11 @@ func pruneBefore(today string, hour int16) {
 	})
 }
 
-// StartFlusher starts the 60-second flush loop. Call it once; a second call
-// does nothing.
-func StartFlusher() {
-	flusherMu.Lock()
-	defer flusherMu.Unlock()
-	if flusherCancel != nil {
-		return
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	flusherCancel = cancel
-	flusherWG.Add(1)
-	go func() {
-		defer flusherWG.Done()
-		defer error_handling.RecoverFromPanic("statsFlusher", "stats")
-
-		ticker := time.NewTicker(flushInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				jobs.Run(ctx, "statsFlush", func(context.Context) error {
-					return Flush()
-				})
-			}
-		}
-	}()
-}
-
-// StopFlusher stops the flush loop and flushes the counters it still holds.
-// It is idempotent: a second call only flushes whatever is pending.
-func StopFlusher() error {
-	flusherMu.Lock()
-	cancel := flusherCancel
-	flusherCancel = nil
-	flusherMu.Unlock()
-
-	if cancel != nil {
-		cancel()
-		flusherWG.Wait()
-	}
-	return Flush()
+// RegisterFlusher registers the 60-second flush as the periodic job
+// statsFlush; jobs.Start begins it. Shutdown calls Flush once more after the
+// jobs stop, before the database closes.
+func RegisterFlusher() {
+	jobs.Register("statsFlush", flushInterval, func(context.Context) error {
+		return Flush()
+	})
 }

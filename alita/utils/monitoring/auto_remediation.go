@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 func logResourceUsage(level log.Level, msg string) {
@@ -29,11 +29,6 @@ type remediationAction struct {
 }
 
 type AutoRemediationManager struct {
-	ctx             context.Context
-	cancel          context.CancelFunc
-	wg              sync.WaitGroup
-	stopOnce        sync.Once
-	startOnce       sync.Once
 	actions         []remediationAction
 	enabled         bool
 	lastActionTime  map[string]time.Time
@@ -44,11 +39,7 @@ type AutoRemediationManager struct {
 }
 
 func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemediationManager {
-	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
-
 	manager := &AutoRemediationManager{
-		ctx:             ctx,
-		cancel:          cancel,
 		enabled:         config.AppConfig.EnablePerformanceMonitoring,
 		lastActionTime:  make(map[string]time.Time),
 		actionCooldown:  5 * time.Minute,
@@ -114,36 +105,21 @@ func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemedia
 
 	return manager
 }
+
+// Start registers the remediation check as the periodic job autoRemediation;
+// jobs.Start begins it. It registers nothing while performance monitoring is
+// off.
 func (m *AutoRemediationManager) Start() {
 	if !m.enabled {
 		log.Info("[AutoRemediation] Auto-remediation is disabled")
 		return
 	}
 
-	m.startOnce.Do(func() {
-		log.Info("[AutoRemediation] Starting auto-remediation monitoring")
-		m.wg.Add(1)
-		go m.monitorAndRemediate()
+	log.Info("[AutoRemediation] Starting auto-remediation monitoring")
+	jobs.Register("autoRemediation", m.monitorInterval, func(context.Context) error {
+		m.checkAndRemediate()
+		return nil
 	})
-}
-
-func (m *AutoRemediationManager) monitorAndRemediate() {
-	defer m.wg.Done()
-
-	ticker := time.NewTicker(m.monitorInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			func() {
-				defer error_handling.RecoverFromPanic("checkAndRemediate", "AutoRemediation")
-				m.checkAndRemediate()
-			}()
-		case <-m.ctx.Done():
-			return
-		}
-	}
 }
 
 func (m *AutoRemediationManager) checkAndRemediate() {
@@ -194,13 +170,4 @@ func (m *AutoRemediationManager) markActionExecuted(name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.lastActionTime[name] = time.Now()
-}
-
-func (m *AutoRemediationManager) Stop() {
-	m.stopOnce.Do(func() {
-		log.Info("[AutoRemediation] Stopping auto-remediation monitoring")
-		m.cancel()
-		m.wg.Wait()
-		log.Info("[AutoRemediation] Auto-remediation monitoring stopped")
-	})
 }

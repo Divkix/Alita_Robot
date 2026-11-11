@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 // ErrDatabaseNotInitialized is returned when database operations are attempted
@@ -26,7 +26,10 @@ type DatabaseMetrics struct {
 	MaxLifetimeClosed int64         `json:"max_lifetime_closed"`
 }
 
-func StartMonitoring(ctx context.Context, interval time.Duration) {
+// Register registers the database-pool log as the periodic job dbMonitoring,
+// ticking every interval; jobs.Start begins it. It registers nothing while the
+// database is not open.
+func Register(interval time.Duration) {
 	if db.DB == nil {
 		log.Warn("[DBMonitoring] Database not initialized, skipping monitoring")
 		return
@@ -38,27 +41,10 @@ func StartMonitoring(ctx context.Context, interval time.Duration) {
 		return
 	}
 
-	ticker := time.NewTicker(interval)
-	go func() {
-		defer ticker.Stop()
-		defer error_handling.RecoverFromPanic("DBMonitoring", "metrics")
-
-		for {
-			select {
-			case <-ctx.Done():
-				log.Info("[DBMonitoring] Stopping database monitoring")
-				return
-			case <-ticker.C:
-				func() {
-					defer error_handling.RecoverFromPanic("DBMonitoringTick", "metrics")
-					metrics := collectMetrics(sqlDB)
-					logMetrics(metrics)
-				}()
-			}
-		}
-	}()
-
-	log.Info("[DBMonitoring] Started database performance monitoring")
+	jobs.Register("dbMonitoring", interval, func(context.Context) error {
+		logMetrics(collectMetrics(sqlDB))
+		return nil
+	})
 }
 
 func newDatabaseMetrics(stats sql.DBStats) DatabaseMetrics {

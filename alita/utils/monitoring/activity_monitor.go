@@ -14,11 +14,6 @@ import (
 )
 
 type ActivityMonitor struct {
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	wg                    sync.WaitGroup
-	stopOnce              sync.Once
-	startOnce             sync.Once
 	checkInterval         time.Duration
 	inactivityThreshold   time.Duration
 	enableAutoCleanup     bool
@@ -41,8 +36,6 @@ type ActivityMetrics struct {
 }
 
 func NewActivityMonitor() *ActivityMonitor {
-	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
-
 	checkInterval := 1 * time.Hour
 	inactivityThreshold := 30 * 24 * time.Hour
 
@@ -55,51 +48,25 @@ func NewActivityMonitor() *ActivityMonitor {
 	enableAutoCleanup := config.AppConfig.EnableAutoCleanup
 
 	return &ActivityMonitor{
-		ctx:                 ctx,
-		cancel:              cancel,
 		checkInterval:       checkInterval,
 		inactivityThreshold: inactivityThreshold,
 		enableAutoCleanup:   enableAutoCleanup,
 	}
 }
+
+// Start computes the activity metrics once and registers the activity check
+// as the periodic job activityCheck; jobs.Start begins it. Call it once.
 func (am *ActivityMonitor) Start() {
-	am.startOnce.Do(func() {
-		log.Info("[ActivityMonitor] Starting activity monitoring service")
-		log.Infof("[ActivityMonitor] Check interval: %v, Inactivity threshold: %v, Auto-cleanup: %v",
-			am.checkInterval, am.inactivityThreshold, am.enableAutoCleanup)
+	log.Info("[ActivityMonitor] Starting activity monitoring service")
+	log.Infof("[ActivityMonitor] Check interval: %v, Inactivity threshold: %v, Auto-cleanup: %v",
+		am.checkInterval, am.inactivityThreshold, am.enableAutoCleanup)
 
-		am.wg.Add(1)
-		go am.monitorLoop()
-
-		am.calculateMetrics()
+	jobs.Register("activityCheck", am.checkInterval, func(context.Context) error {
+		am.performActivityCheck()
+		return nil
 	})
-}
 
-func (am *ActivityMonitor) Stop() {
-	am.stopOnce.Do(func() {
-		log.Info("[ActivityMonitor] Stopping activity monitoring service")
-		am.cancel()
-		am.wg.Wait()
-	})
-}
-
-func (am *ActivityMonitor) monitorLoop() {
-	defer am.wg.Done()
-
-	ticker := time.NewTicker(am.checkInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			jobs.Run(am.ctx, "activityCheck", func(context.Context) error {
-				am.performActivityCheck()
-				return nil
-			})
-		case <-am.ctx.Done():
-			return
-		}
-	}
+	am.calculateMetrics()
 }
 
 func (am *ActivityMonitor) performActivityCheck() {

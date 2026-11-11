@@ -139,17 +139,11 @@ func main() {
 
 	dispatcher := newConfiguredDispatcher(config.AppConfig.DispatcherMaxRoutines)
 
-	var statsCollector *monitoring.BackgroundStatsCollector
-	var autoRemediation *monitoring.AutoRemediationManager
-	var activityMonitor *monitoring.ActivityMonitor
-	var dbMonitoringCancel context.CancelFunc
-
 	if config.AppConfig.EnableDBMonitoring {
-		var ctx context.Context
-		ctx, dbMonitoringCancel = context.WithCancel(context.Background())
-		dbmonitoring.StartMonitoring(ctx, time.Minute)
+		dbmonitoring.Register(time.Minute)
 	}
 
+	var statsCollector *monitoring.BackgroundStatsCollector
 	if config.AppConfig.EnableBackgroundStats {
 		statsCollector = monitoring.NewBackgroundStatsCollector()
 		monitoring.SetGlobalCollector(statsCollector)
@@ -159,16 +153,14 @@ func main() {
 	}
 
 	if config.AppConfig.EnablePerformanceMonitoring {
-		autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
-		autoRemediation.Start()
+		monitoring.NewAutoRemediationManager(statsCollector).Start()
 	}
 
-	activityMonitor = monitoring.NewActivityMonitor()
-	activityMonitor.Start()
+	monitoring.NewActivityMonitor().Start()
 
 	shutdownManager := shutdown.NewManager()
 
-	stats.StartFlusher()
+	stats.RegisterFlusher()
 
 	digest.Register(b)
 	membersnapshot.Register(b)
@@ -188,7 +180,7 @@ func main() {
 		},
 		func() error {
 			log.Info("[Shutdown] Flushing daily stats counters...")
-			return stats.StopFlusher()
+			return stats.Flush()
 		},
 		func() error {
 			log.Info("[Shutdown] Stopping periodic jobs...")
@@ -203,27 +195,6 @@ func main() {
 		modules.DrainUsersAsyncWrites()
 		return nil
 	})
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Stopping monitoring systems...")
-		if activityMonitor != nil {
-			activityMonitor.Stop()
-		}
-		if autoRemediation != nil {
-			autoRemediation.Stop()
-		}
-		if statsCollector != nil {
-			statsCollector.Stop()
-		}
-		return nil
-	})
-
-	if dbMonitoringCancel != nil {
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping database monitoring...")
-			dbMonitoringCancel()
-			return nil
-		})
-	}
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping captcha lifecycle...")

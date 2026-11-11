@@ -4,7 +4,6 @@ import (
 	"io"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -122,33 +121,6 @@ func TestActionThresholds(t *testing.T) {
 	})
 }
 
-func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state.
-
-	origEnabled := config.AppConfig.EnablePerformanceMonitoring
-	config.AppConfig.EnablePerformanceMonitoring = false
-	defer func() {
-		config.AppConfig.EnablePerformanceMonitoring = origEnabled
-	}()
-
-	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
-
-	var executed int32
-	manager.actions = []remediationAction{
-		{name: "always", severity: 1, canExecute: func(SystemMetrics) bool { return true }, execute: func() { atomic.AddInt32(&executed, 1) }},
-	}
-	manager.actionCooldown = 0
-	manager.monitorInterval = time.Millisecond
-
-	manager.Start()
-	time.Sleep(20 * time.Millisecond) // ~20 ticks if a loop had started
-	manager.Stop()
-
-	if got := atomic.LoadInt32(&executed); got != 0 {
-		t.Fatalf("disabled manager executed %d remediation actions, want 0", got)
-	}
-}
-
 func TestAutoRemediationManager_Cooldown(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
 
@@ -230,47 +202,5 @@ func TestCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
 	}
 	if manager.shouldExecuteAction("low") {
 		t.Fatal("executed action was not put on cooldown")
-	}
-}
-
-func TestAutoRemediationManagerStartRunsMonitorLoop(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state.
-
-	origEnabled := config.AppConfig.EnablePerformanceMonitoring
-	config.AppConfig.EnablePerformanceMonitoring = true
-	defer func() {
-		config.AppConfig.EnablePerformanceMonitoring = origEnabled
-	}()
-
-	collector := NewBackgroundStatsCollector()
-	collector.updateSystemMetrics(SystemMetrics{
-		GoroutineCount: 200,
-		MemoryAllocMB:  600,
-		GCPauseMs:      75,
-	})
-
-	manager := NewAutoRemediationManager(collector)
-
-	var executed int32
-	manager.actions = []remediationAction{
-		{name: "fast-loop", severity: 1, canExecute: func(SystemMetrics) bool { return true }, execute: func() { atomic.AddInt32(&executed, 1) }},
-	}
-	manager.actionCooldown = 0
-	manager.monitorInterval = time.Millisecond
-
-	manager.Start()
-	t.Cleanup(manager.Stop)
-
-	deadline := time.After(5 * time.Second)
-	for {
-		if atomic.LoadInt32(&executed) > 0 {
-			return
-		}
-		select {
-		case <-deadline:
-			t.Fatal("expected Start monitor loop to execute applicable action")
-		default:
-			time.Sleep(time.Millisecond)
-		}
 	}
 }

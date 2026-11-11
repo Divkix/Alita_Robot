@@ -11,7 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/jobs"
 )
 
 var globalCollector atomic.Value
@@ -38,11 +38,6 @@ type SystemMetrics struct {
 }
 
 type BackgroundStatsCollector struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	wg          sync.WaitGroup
-	stopOnce    sync.Once
-	started     atomic.Bool
 	metrics     SystemMetrics
 	metricsLock sync.RWMutex
 
@@ -64,11 +59,7 @@ type DatabaseStats struct {
 }
 
 func NewBackgroundStatsCollector() *BackgroundStatsCollector {
-	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
-
 	return &BackgroundStatsCollector{
-		ctx:                   ctx,
-		cancel:                cancel,
 		systemStatsInterval:   30 * time.Second,
 		databaseStatsInterval: 1 * time.Minute,
 		reportingInterval:     5 * time.Minute,
@@ -76,59 +67,22 @@ func NewBackgroundStatsCollector() *BackgroundStatsCollector {
 	}
 }
 
+// Start registers the three collectors as the periodic jobs systemStats,
+// databaseStats and statsReport; jobs.Start begins them.
 func (collector *BackgroundStatsCollector) Start() {
-	if !collector.started.CompareAndSwap(false, true) {
-		log.Warn("BackgroundStatsCollector already started, ignoring duplicate Start")
-		return
-	}
 	log.Info("Starting background statistics collection")
-
-	collector.wg.Add(1)
-	go collector.systemStatsCollector()
-
-	collector.wg.Add(1)
-	go collector.databaseStatsCollector()
-
-	collector.wg.Add(1)
-	go collector.reportingWorker()
-}
-
-func (collector *BackgroundStatsCollector) systemStatsCollector() {
-	defer collector.wg.Done()
-
-	ticker := time.NewTicker(collector.systemStatsInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			func() {
-				defer error_handling.RecoverFromPanic("collectSystemStats", "BackgroundStats")
-				collector.collectSystemStats()
-			}()
-		case <-collector.ctx.Done():
-			return
-		}
-	}
-}
-
-func (collector *BackgroundStatsCollector) databaseStatsCollector() {
-	defer collector.wg.Done()
-
-	ticker := time.NewTicker(collector.databaseStatsInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			func() {
-				defer error_handling.RecoverFromPanic("collectDatabaseStats", "BackgroundStats")
-				collector.collectDatabaseStats()
-			}()
-		case <-collector.ctx.Done():
-			return
-		}
-	}
+	jobs.Register("systemStats", collector.systemStatsInterval, func(context.Context) error {
+		collector.collectSystemStats()
+		return nil
+	})
+	jobs.Register("databaseStats", collector.databaseStatsInterval, func(context.Context) error {
+		collector.collectDatabaseStats()
+		return nil
+	})
+	jobs.Register("statsReport", collector.reportingInterval, func(context.Context) error {
+		collector.reportStats()
+		return nil
+	})
 }
 
 func (collector *BackgroundStatsCollector) collectSystemStats() {
@@ -197,25 +151,6 @@ func (collector *BackgroundStatsCollector) updateDatabaseMetrics(dbStats Databas
 	collector.metrics.DatabaseConnections = dbStats.ActiveConnections
 }
 
-func (collector *BackgroundStatsCollector) reportingWorker() {
-	defer collector.wg.Done()
-
-	ticker := time.NewTicker(collector.reportingInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			func() {
-				defer error_handling.RecoverFromPanic("reportStats", "BackgroundStats")
-				collector.reportStats()
-			}()
-		case <-collector.ctx.Done():
-			return
-		}
-	}
-}
-
 func (collector *BackgroundStatsCollector) reportStats() {
 	collector.metricsLock.RLock()
 	metrics := collector.metrics
@@ -249,20 +184,6 @@ func (collector *BackgroundStatsCollector) GetCurrentMetrics() SystemMetrics {
 	defer collector.metricsLock.RUnlock()
 
 	return collector.metrics
-}
-
-func (collector *BackgroundStatsCollector) Stop() {
-	collector.stopOnce.Do(func() {
-		log.Info("Stopping background statistics collection")
-
-		collector.cancel()
-
-		collector.wg.Wait()
-
-		collector.reportStats()
-
-		log.Info("Background statistics collection stopped")
-	})
 }
 
 func SetGlobalCollector(collector *BackgroundStatsCollector) {

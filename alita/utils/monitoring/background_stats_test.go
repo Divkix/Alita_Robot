@@ -17,41 +17,11 @@ func published(c *BackgroundStatsCollector) SystemMetrics {
 	return c.GetCurrentMetrics()
 }
 
-func TestBackgroundStatsCollectorStartPublishesUntilStop(t *testing.T) {
-	setupMonitoringDB(t)
+func TestCollectSystemStatsPublishesATimestampedSnapshot(t *testing.T) {
+	t.Parallel()
 
-	c := NewBackgroundStatsCollector()
-	c.systemStatsInterval = time.Millisecond
-	c.databaseStatsInterval = time.Millisecond
-	c.reportingInterval = time.Millisecond
-
-	c.Start()
-
-	deadline := time.Now().Add(5 * time.Second)
-	for c.GetCurrentMetrics().Timestamp.IsZero() {
-		if time.Now().After(deadline) {
-			c.Stop()
-			t.Fatal("collector published no system metrics within 5s of Start")
-		}
-		time.Sleep(time.Millisecond)
-	}
-
-	stopped := make(chan struct{})
-	go func() {
-		c.Stop()
-		c.Stop() // a second Stop must not block or panic
-		close(stopped)
-	}()
-	select {
-	case <-stopped:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Stop() did not return: collector workers did not exit")
-	}
-
-	last := c.GetCurrentMetrics().Timestamp
-	time.Sleep(5 * time.Millisecond)
-	if got := c.GetCurrentMetrics().Timestamp; !got.Equal(last) {
-		t.Fatalf("metrics still updating after Stop(): timestamp moved from %v to %v", last, got)
+	if published(NewBackgroundStatsCollector()).Timestamp.IsZero() {
+		t.Fatal("a system-stats tick published no metrics")
 	}
 }
 
