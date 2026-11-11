@@ -64,6 +64,7 @@ type sendOptions struct {
 	WebPreview        bool
 	IsProtected       bool
 	AllowWithoutReply bool
+	Ephemeral         *gotgbot.EphemeralMessageParameters
 }
 
 // deliver sends content with opts, skipping a chat known to be restricted.
@@ -137,98 +138,106 @@ func sendText(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode stri
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 			IsDisabled: !opts.WebPreview,
 		},
-		ReplyMarkup:         opts.Keyboard,
-		ReplyParameters:     replyParams,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyMarkup:                opts.Keyboard,
+		ReplyParameters:            replyParams,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "text")
 }
 
 func sendSticker(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendSticker(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
-		ReplyParameters:     replyParams,
-		ReplyMarkup:         opts.Keyboard,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ReplyMarkup:                opts.Keyboard,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "sticker")
 }
 
 func sendDocument(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendDocument(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendDocumentOpts{
-		ReplyParameters:     replyParams,
-		ParseMode:           parseMode,
-		ReplyMarkup:         opts.Keyboard,
-		Caption:             content.Text,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ParseMode:                  parseMode,
+		ReplyMarkup:                opts.Keyboard,
+		Caption:                    content.Text,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "document")
 }
 
 func sendPhoto(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendPhoto(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendPhotoOpts{
-		ReplyParameters:     replyParams,
-		ParseMode:           parseMode,
-		ReplyMarkup:         opts.Keyboard,
-		Caption:             content.Text,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ParseMode:                  parseMode,
+		ReplyMarkup:                opts.Keyboard,
+		Caption:                    content.Text,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "photo")
 }
 
 func sendAudio(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendAudio(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendAudioOpts{
-		ReplyParameters:     replyParams,
-		ParseMode:           parseMode,
-		ReplyMarkup:         opts.Keyboard,
-		Caption:             content.Text,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ParseMode:                  parseMode,
+		ReplyMarkup:                opts.Keyboard,
+		Caption:                    content.Text,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "audio")
 }
 
 func sendVoice(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendVoice(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVoiceOpts{
-		ReplyParameters:     replyParams,
-		ParseMode:           parseMode,
-		ReplyMarkup:         opts.Keyboard,
-		Caption:             content.Text,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ParseMode:                  parseMode,
+		ReplyMarkup:                opts.Keyboard,
+		Caption:                    content.Text,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "voice")
 }
 
 func sendVideo(b *gotgbot.Bot, content outgoing, opts sendOptions, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendVideo(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoOpts{
-		ReplyParameters:     replyParams,
-		ParseMode:           parseMode,
-		ReplyMarkup:         opts.Keyboard,
-		Caption:             content.Text,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ParseMode:                  parseMode,
+		ReplyMarkup:                opts.Keyboard,
+		Caption:                    content.Text,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "video")
 }
 
 func sendVideoNote(b *gotgbot.Bot, content outgoing, opts sendOptions, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendVideoNote(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
-		ReplyParameters:     replyParams,
-		ReplyMarkup:         opts.Keyboard,
-		ProtectContent:      opts.IsProtected,
-		DisableNotification: opts.NoNotif,
-		MessageThreadId:     opts.ThreadID,
+		ReplyParameters:            replyParams,
+		ReplyMarkup:                opts.Keyboard,
+		ProtectContent:             opts.IsProtected,
+		DisableNotification:        opts.NoNotif,
+		MessageThreadId:            opts.ThreadID,
+		EphemeralMessageParameters: opts.Ephemeral,
 	})
 	return resolveSendResult(msg, err, opts.ChatID, "video note")
 }
@@ -313,6 +322,10 @@ type Target struct {
 	// Limiter paces a scheduled kind; nil means ratelimit.GlobalSendLimiter.
 	// Kinds that answer an update never wait for it.
 	Limiter *ratelimit.SendLimiter
+	// EphemeralTo, when set, shows the message in ChatID only to that user
+	// (a Bot API ephemeral message), without a reply. Telegram refuses it
+	// unless the bot is an admin, and for web_app or login_url buttons.
+	EphemeralTo int64
 }
 
 // NoteMessage is the saved message of a stored note.
@@ -359,6 +372,10 @@ func SendSaved(ctx context.Context, b *gotgbot.Bot, msg SavedMessage, to Target,
 		text, opts = render(b, msg, to, rules)
 	}
 	opts.ChatID, opts.ThreadID, opts.ReplyMsgID, opts.AllowWithoutReply = to.ChatID, to.ThreadID, to.ReplyMsgID, true
+	if to.EphemeralTo != 0 {
+		opts.ReplyMsgID = 0
+		opts.Ephemeral = &gotgbot.EphemeralMessageParameters{ReceiverUserId: to.EphemeralTo}
+	}
 	payload := outgoing{Text: text, FileID: msg.FileID, MsgType: msg.MsgType, Name: msg.Name}
 
 	if !rules.scheduled {

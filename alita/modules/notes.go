@@ -355,6 +355,10 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	privNote := notes.GetNotes(chat.Id).PrivateNotesEnabled()
 	if privNote {
+		// With /ephemeral on, the asker sees the PM list in the group.
+		if sendEphemeral(b, ctx, notesLinkList(b, tr, chat.Id, noteKeys), *formatting.Shtml()) {
+			return ext.EndGroups
+		}
 		checkBtnText, _ := tr.GetString("notes_check_button")
 		_, err := msg.Reply(b, checkBtnText,
 			&gotgbot.SendMessageOpts{
@@ -682,7 +686,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		if privateNoteOnly {
 			if ctx.Message.Chat.Type == "private" {
 				err = sendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId, media.Rendered)
-			} else {
+			} else if !sendNoteEphemeral(b, ctx, chat, noteData) {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				clickForPrivateText, _ := tr.GetString("notes_click_for_private")
 				_, err = msg.Reply(b,
@@ -807,6 +811,9 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
 	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
 	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+		if sendNoteEphemeral(b, ctx, chat, noteData) {
+			return nil
+		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		clickForPrivateText, _ := tr.GetString("notes_click_for_private")
 		_, err := msg.Reply(b,
@@ -850,6 +857,35 @@ func sendNote(b *gotgbot.Bot, ctx *ext.Context, group *gotgbot.Chat, note *db.No
 		Member:     ctx.EffectiveUser,
 	}, view)
 	return err
+}
+
+// sendNoteEphemeral shows a note that would open in PM only to its asker, in
+// the group, when ephemeralReceiver allows it. On false the caller sends its
+// PM button as before: not eligible, or Telegram refused the send (the bot is
+// not an admin, or the note has a web_app or login_url button).
+func sendNoteEphemeral(b *gotgbot.Bot, ctx *ext.Context, group *gotgbot.Chat, note *db.Notes) bool {
+	receiver, ok := ephemeralReceiver(ctx)
+	if !ok {
+		return false
+	}
+	msg := ctx.EffectiveMessage
+	var threadID int64
+	if msg.IsTopicMessage {
+		threadID = msg.MessageThreadId
+	}
+	_, err := media.SendSaved(tracing.UpdateContext(ctx), b, media.NoteMessage(note), media.Target{
+		Chat:        group,
+		ChatID:      msg.Chat.Id,
+		ThreadID:    threadID,
+		Member:      ctx.EffectiveUser,
+		EphemeralTo: receiver,
+	}, media.Rendered)
+	if err != nil {
+		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{"chat_id": msg.Chat.Id, "error": err}).
+			Debug("[Ephemeral] could not show the note only to its asker; answering publicly")
+		return false
+	}
+	return true
 }
 
 func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64, noteData *db.Notes) error {
@@ -977,12 +1013,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	info, _ := tr.GetString("notes_none_in_chat")
 	if len(noteKeys) > 0 {
-		info, _ = tr.GetString("helpers_notes_current_header")
-		var sb strings.Builder
-		for _, note := range noteKeys {
-			fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=%s'>%s</a>\n", b.Username, noteStartParam(chatinfo.Id, note), html.EscapeString(note))
-		}
-		info += sb.String()
+		info = notesLinkList(b, tr, chatinfo.Id, noteKeys)
 	}
 
 	_, err = msg.Reply(b, info, formatting.Shtml())
@@ -991,6 +1022,17 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 		return err
 	}
 	return ext.EndGroups
+}
+
+// notesLinkList is the private-notes list: each note links to the /start
+// parameter that opens it in PM.
+func notesLinkList(b *gotgbot.Bot, tr *i18n.Translator, chatID int64, noteKeys []string) string {
+	info, _ := tr.GetString("helpers_notes_current_header")
+	var sb strings.Builder
+	for _, note := range noteKeys {
+		fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=%s'>%s</a>\n", b.Username, noteStartParam(chatID, note), html.EscapeString(note))
+	}
+	return info + sb.String()
 }
 
 func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
