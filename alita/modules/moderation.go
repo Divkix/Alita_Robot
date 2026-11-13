@@ -28,9 +28,13 @@ import (
 // moderationCtx holds the decomposed context for a moderation command.
 // It provides a minimal surface that every moderation handler needs.
 type moderationCtx struct {
-	Bot    *gotgbot.Bot
-	Chat   *gotgbot.Chat
-	Msg    *gotgbot.Message
+	Bot  *gotgbot.Bot
+	Chat *gotgbot.Chat
+	Msg  *gotgbot.Message
+	// Reply is the message the command answers (extraction.UserReply of
+	// Msg), nil without one: in a forum topic the implicit reply to the
+	// topic's root is not one. Read it here, never from Msg.
+	Reply  *gotgbot.Message
 	User   *gotgbot.User
 	Ctx    *ext.Context
 	Tr     *i18n.Translator
@@ -103,7 +107,7 @@ func replyAnonymousTarget(c *moderationCtx) error {
 
 // extractFromReply resolves the target from the message the issuer replied to.
 func extractFromReply(c *moderationCtx) (target, error) {
-	reply := extraction.UserReply(c.Msg)
+	reply := c.Reply
 	if reply == nil {
 		text, _ := c.Tr.GetString("bans_dkick_no_reply")
 		if err := c.replyCommandHelp(text); err != nil {
@@ -190,6 +194,7 @@ func buildModerationCtx(m *moduleStruct, b *gotgbot.Bot, ctx *ext.Context) (*mod
 		Bot:    b,
 		Chat:   ctx.EffectiveChat,
 		Msg:    ctx.EffectiveMessage,
+		Reply:  extraction.UserReply(ctx.EffectiveMessage),
 		User:   user,
 		Ctx:    ctx,
 		Tr:     i18n.MustNewTranslator(lang.GetLanguage(ctx)),
