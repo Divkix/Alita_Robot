@@ -411,6 +411,14 @@ func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Lift
 // bans_kick_target_banned.
 var errKickTargetBanned = errors.New(punishment.RefusalBanned)
 
+// answerKickTargetBanned answers a Kick button whose target is banned by now
+// (errKickTargetBanned) with bans_kick_target_banned as an alert.
+func answerKickTargetBanned(b *gotgbot.Bot, query *gotgbot.CallbackQuery, tr *i18n.Translator) error {
+	text, _ := tr.GetString("bans_kick_target_banned")
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
+	return ext.EndGroups
+}
+
 func refusalError(result punishment.Result, err error) error {
 	if err == nil && !result.Applied {
 		if result.Refusal == punishment.RefusalBanned {
