@@ -131,7 +131,7 @@ func ExtractEntityText(source string, offset, length int64) string {
 func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
-	prevMessage := msg.ReplyToMessage
+	prevMessage := UserReply(msg)
 
 	splitText := strings.SplitN(msg.Text, " ", 2)
 
@@ -282,7 +282,7 @@ func UserReply(m *gotgbot.Message) *gotgbot.Message {
 }
 
 func IdFromReply(m *gotgbot.Message) (int64, string) {
-	prevMessage := m.ReplyToMessage
+	prevMessage := UserReply(m)
 
 	var userId int64
 

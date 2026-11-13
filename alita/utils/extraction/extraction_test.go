@@ -707,6 +707,43 @@ func TestExtractUserAndTextFromGotgbotMessageShapes(t *testing.T) {
 	})
 }
 
+// In a forum topic every message replies to the topic's creation message;
+// that reply names nobody, while a reply to an ordinary topic message does.
+func TestExtractUserAndTextInForumTopic(t *testing.T) {
+	bot := newExtractionBot(&extractionBotClient{})
+	topicRoot := &gotgbot.Message{
+		MessageId:         7,
+		From:              &gotgbot.User{Id: 4242, FirstName: "Topic Creator"},
+		ForumTopicCreated: &gotgbot.ForumTopicCreated{Name: "Topic"},
+	}
+	ordinary := &gotgbot.Message{
+		MessageId: 50, MessageThreadId: 7, IsTopicMessage: true,
+		From: &gotgbot.User{Id: 5151, FirstName: "Member"},
+	}
+	for _, tc := range []struct {
+		name, text string
+		reply      *gotgbot.Message
+		wantID     int64
+		wantText   string
+	}{
+		{"topic root, no arguments", "/ban", topicRoot, 0, ""},
+		{"topic root, reason only", "/ban spamming links", topicRoot, 0, ""},
+		{"ordinary topic reply, no arguments", "/ban", ordinary, 5151, ""},
+		{"ordinary topic reply, reason only", "/ban spamming links", ordinary, 5151, "spamming links"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := newExtractionContext(bot, tc.text)
+			ctx.EffectiveMessage.IsTopicMessage, ctx.EffectiveMessage.MessageThreadId = true, 7
+			ctx.EffectiveMessage.ReplyToMessage = tc.reply
+
+			gotID, gotText := ExtractUserAndText(bot, ctx)
+			if gotID != tc.wantID || gotText != tc.wantText {
+				t.Fatalf("ExtractUserAndText(%q) = (%d, %q), want (%d, %q)", tc.text, gotID, gotText, tc.wantID, tc.wantText)
+			}
+		})
+	}
+}
+
 func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {
 	if err := db.DB.Create(&db.User{UserId: 888123, UserName: "infouser", Name: "Info User"}).Error; err != nil {
 		t.Fatalf("Create info user failed: %v", err)

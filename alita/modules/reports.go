@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
@@ -90,38 +91,32 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if msg.ReplyToMessage == nil {
+	reported := extraction.UserReply(msg)
+	if reported == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_reply_to_report")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
-	if msg.ReplyToMessage.From == nil {
+	if reported.From == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_cannot_report_channel")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
-	var (
-		replyMsgId int64
-		adminArray []int64
-		err        error
-	)
-
-	if msg.ReplyToMessage.From.Id == user.Id {
+	if reported.From.Id == user.Id {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_cannot_report_self")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
-	if replyMsg := msg.ReplyToMessage; replyMsg != nil {
-		replyMsgId = replyMsg.MessageId
-	} else {
-		replyMsgId = msg.MessageId
-	}
+	var (
+		adminArray []int64
+		err        error
+	)
 
 	if slices.Contains(reportprefs.BlockedList, user.Id) {
 		if chat_status.CanBotDelete(b, ctx, nil) {
@@ -140,7 +135,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
-	if chat_status.IsSystemUser(msg.ReplyToMessage.From.Id) {
+	if chat_status.IsSystemUser(reported.From.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_special_account")
 		_, _ = msg.Reply(b, text, nil)
@@ -164,8 +159,8 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	reportedUser := msg.ReplyToMessage.From
-	reportedMsgId := msg.ReplyToMessage.MessageId
+	reportedUser := reported.From
+	reportedMsgId := reported.MessageId
 
 	if reportedUser.Id == b.Id {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -195,7 +190,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		ReportedMessageId: reportedMsgId,
 		ReporterId:        user.Id,
 		Reason:            reason,
-		Snippet:           reportSnippet(msg.ReplyToMessage),
+		Snippet:           reportSnippet(reported),
 	})
 	if storeErr != nil {
 		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, storeErr)
@@ -210,7 +205,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	reportTemplate, _ := tr.GetString("reports_message_template")
-	reported := fmt.Sprintf(
+	reportText := fmt.Sprintf(
 		reportTemplate,
 		formatting.MentionHtml(user.Id, user.FirstName),
 		formatting.MentionHtml(reportedUser.Id, reportedUser.FirstName),
@@ -223,7 +218,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		sb.WriteString(formatting.MentionHtml(adminUserId, "\u2063"))
 	}
-	reported += sb.String()
+	reportText += sb.String()
 
 	actionButton := func(labelKey, action string) gotgbot.InlineKeyboardButton {
 		return gotgbot.InlineKeyboardButton{
@@ -237,11 +232,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	_, err = msg.Reply(b,
-		reported,
+		reportText,
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                replyMsgId,
+				MessageId:                reportedMsgId,
 				AllowSendingWithoutReply: true,
 			},
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -269,9 +264,9 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	// or not the card is posted; the card goes second so that a slow log
 	// channel does not hold up the group reply, and still goes when that
 	// reply failed.
-	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
+	deliverReport(b, tr, chat, user, reported, reason, storeErr == nil, created)
 	if storeErr == nil && created {
-		autoMuteReported(b, ctx, tr, chat, msg.ReplyToMessage, reportprefs.MuteThreshold)
+		autoMuteReported(b, ctx, tr, chat, reported, reportprefs.MuteThreshold)
 	}
 	if err != nil {
 		return err

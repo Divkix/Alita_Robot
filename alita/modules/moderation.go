@@ -101,9 +101,10 @@ func replyAnonymousTarget(c *moderationCtx) error {
 	return fmt.Errorf("anonymous user")
 }
 
-// extractFromReply resolves the target from the replied-to message.
+// extractFromReply resolves the target from the message the issuer replied to.
 func extractFromReply(c *moderationCtx) (target, error) {
-	if c.Msg.ReplyToMessage == nil {
+	reply := extraction.UserReply(c.Msg)
+	if reply == nil {
 		text, _ := c.Tr.GetString("bans_dkick_no_reply")
 		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
@@ -111,7 +112,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		}
 		return target{}, fmt.Errorf("no reply")
 	}
-	if c.Msg.ReplyToMessage.From == nil {
+	if reply.From == nil {
 		text, _ := c.Tr.GetString("bans_cannot_identify_user")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
@@ -120,7 +121,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		}
 		return target{}, fmt.Errorf("nil from")
 	}
-	uid := c.Msg.ReplyToMessage.From.Id
+	uid := reply.From.Id
 	if chat_status.IsChannelId(uid) {
 		return target{}, replyAnonymousTarget(c)
 	}

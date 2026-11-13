@@ -75,7 +75,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 		extract:  extractFromReply,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			_, err := extraction.UserReply(c.Msg).Delete(c.Bot, nil)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -181,7 +181,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		},
 		validate: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				if c.Msg.ReplyToMessage == nil {
+				if extraction.UserReply(c.Msg) == nil {
 					text, _ := c.Tr.GetString("bans_anonymous_ban_reply_only")
 					if err := replyValidationError(c, text); err != nil {
 						return err
@@ -194,7 +194,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				t.userID = extraction.UserReply(c.Msg).GetSender().Id()
 			}
 			return c.punish(t, punishment.Ban, 0)
 		},
@@ -204,7 +204,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 
 			if t.isChannel {
 				temp, _ := c.Tr.GetString("bans_anonymous_ban_user")
-				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, extraction.UserReply(c.Msg).GetSender().Name()))
 				sendMsgOptns = formatting.Shtml()
 			} else {
 				return banReplyWithButton(c, t)
@@ -301,7 +301,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 		module:  m,
 		extract: extractFromArgs,
 		validate: func(c *moderationCtx, t *target) error {
-			if c.Msg.ReplyToMessage == nil {
+			if extraction.UserReply(c.Msg) == nil {
 				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_dban_no_reply")
 				if text == "" {
 					text, _ = c.Tr.GetString("common_no_reply_to_message")
@@ -315,7 +315,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 			return banTargetValidation(c, t)
 		},
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			_, err := extraction.UserReply(c.Msg).Delete(c.Bot, nil)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -360,7 +360,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 				}
 				return errTargetIsBot
 			}
-			if t.isChannel && c.Msg.ReplyToMessage == nil {
+			if t.isChannel && extraction.UserReply(c.Msg) == nil {
 				text, _ := c.Tr.GetString("bans_anonymous_unban_reply_only")
 				if err := replyValidationError(c, text); err != nil {
 					return err
@@ -371,7 +371,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				t.userID = extraction.UserReply(c.Msg).GetSender().Id()
 			}
 			return c.lift(t, punishment.Ban)
 		},
@@ -383,7 +383,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 			var text string
 			if t.isChannel {
 				temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
-				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, extraction.UserReply(c.Msg).GetSender().Name()))
 			} else {
 				banUser, err := c.Bot.GetChat(t.userID, nil)
 				if err != nil {
