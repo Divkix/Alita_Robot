@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -425,5 +426,17 @@ func raw(msg SavedMessage, rules kindRules) (string, sendOptions) {
 	if rules.directives == directivesFromText {
 		_, _, _, _, opts.IsProtected, opts.NoNotif, _ = content.NotesParser(msg.Text)
 	}
-	return formatting.ReverseHTML2MD(msg.Text) + content.RevertButtons(msg.Buttons), opts
+	return typedSource(msg.Text) + content.RevertButtons(msg.Buttons), opts
+}
+
+// typedSource turns stored HTML back into the MarkdownV2 an admin types, with
+// the converter /save uses, so the raw view can be sent back unchanged. A
+// stored text the converter rejects is shown as stored.
+func typedSource(stored string) string {
+	source, err := tgmd2html.ReverseV2(stored, nil)
+	if err != nil {
+		log.WithError(err).Debug("[Media] Could not reverse a stored message for the raw view")
+		return stored
+	}
+	return source
 }
