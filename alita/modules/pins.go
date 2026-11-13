@@ -20,6 +20,7 @@ import (
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
@@ -66,18 +67,9 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
 
-	var (
-		replyText  string
-		replyMsgId int64
-	)
-
-	if replyMsg := msg.ReplyToMessage; replyMsg != nil {
-		replyMsgId = replyMsg.MessageId
-	} else {
-		replyMsgId = msg.MessageId
-	}
-
-	if rMsg := msg.ReplyToMessage; rMsg != nil {
+	var replyText string
+	replyMsgId := msg.MessageId
+	if rMsg := extraction.UserReply(msg); rMsg != nil {
 		_, err := c.Bot.UnpinChatMessage(chat.Id, &gotgbot.UnpinChatMessageOpts{MessageId: &rMsg.MessageId})
 		if err != nil {
 			log.Error(err)
@@ -293,7 +285,8 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 	isSilent := true
 	args := c.Ctx.Args()
 
-	if msg.ReplyToMessage == nil {
+	prevMessage := extraction.UserReply(msg)
+	if prevMessage == nil {
 		text, _ := c.Tr.GetString("pins_reply_to_pin")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
@@ -303,7 +296,6 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	prevMessage := msg.ReplyToMessage
 	pinMsg, _ := c.Tr.GetString("pins_pinned_message")
 
 	if len(args) > 1 {

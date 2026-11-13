@@ -131,7 +131,7 @@ func ExtractEntityText(source string, offset, length int64) string {
 func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
-	prevMessage := msg.ReplyToMessage
+	prevMessage := UserReply(msg)
 
 	splitText := strings.SplitN(msg.Text, " ", 2)
 
@@ -267,8 +267,22 @@ func GetUserInfo(userId int64) (username, name string, found bool) {
 	return "", "", false
 }
 
+// UserReply returns the message m's sender chose to reply to, or nil. In a
+// forum topic Telegram marks every message as a reply to the topic's creation
+// service message; that implicit reply is no choice, and a deliberate reply to
+// it cannot be told apart, so both count as no reply. Read the reply through
+// this when it is the subject of a command (its target, what to delete, pin
+// or report); code that only answers into the same topic keeps the raw
+// ReplyToMessage.
+func UserReply(m *gotgbot.Message) *gotgbot.Message {
+	if m == nil || m.ReplyToMessage == nil || m.ReplyToMessage.ForumTopicCreated != nil {
+		return nil
+	}
+	return m.ReplyToMessage
+}
+
 func IdFromReply(m *gotgbot.Message) (int64, string) {
-	prevMessage := m.ReplyToMessage
+	prevMessage := UserReply(m)
 
 	var userId int64
 

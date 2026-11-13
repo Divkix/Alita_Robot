@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -140,8 +141,8 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
-	if msg.ReplyToMessage != nil {
-		msgId := msg.ReplyToMessage.MessageId
+	if reply := extraction.UserReply(msg); reply != nil {
+		msgId := reply.MessageId
 		deleteTo := msg.MessageId - 1
 		totalMsgs := deleteTo - msgId + 1
 
@@ -179,7 +180,8 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
-	if msg.ReplyToMessage == nil {
+	reply := extraction.UserReply(msg)
+	if reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_reply_to_delete")
 		_, err := msg.Reply(bot, text, nil)
@@ -189,7 +191,7 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 	} else {
-		msgId := msg.ReplyToMessage.MessageId
+		msgId := reply.MessageId
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msgId)
 		_, _ = msg.Delete(bot, nil)
 	}
@@ -207,8 +209,8 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
-	if msg.ReplyToMessage != nil {
-		TodelId := msg.ReplyToMessage.MessageId
+	if reply := extraction.UserReply(msg); reply != nil {
+		TodelId := reply.MessageId
 		if existing, ok := delMsgs.Load(chat.Id); ok {
 			if entry, ok := existing.(delMsgEntry); ok && entry.msgID == TodelId {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -275,7 +277,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
-	if msg.ReplyToMessage != nil {
+	if reply := extraction.UserReply(msg); reply != nil {
 		msgIdInterface, ok := delMsgs.Load(chat.Id)
 		msgId := int64(0)
 		if ok {
@@ -295,7 +297,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			return ext.EndGroups
 		}
-		deleteTo := msg.ReplyToMessage.MessageId
+		deleteTo := reply.MessageId
 		if msgId == deleteTo {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_use_del_single")

@@ -305,8 +305,8 @@ func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chat
 func deleteWarnTrigger(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat, warnType string) {
 	switch warnType {
 	case "dwarn":
-		if msg.ReplyToMessage != nil {
-			if _, deleteErr := msg.ReplyToMessage.Delete(b, nil); deleteErr != nil {
+		if reply := extraction.UserReply(msg); reply != nil {
+			if _, deleteErr := reply.Delete(b, nil); deleteErr != nil {
 				log.Errorf("[Warns] Failed to delete message: %v", deleteErr)
 			}
 		}
