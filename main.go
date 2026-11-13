@@ -254,9 +254,7 @@ func main() {
 		// WorkingMode already set by postInit before Start serves traffic; writing it
 		// here would race concurrent webhook-handler/tracing readers.
 
-		go shutdownManager.WaitForShutdown()
-
-		select {}
+		shutdownManager.WaitForShutdown()
 	} else {
 
 		shutdownManager.RegisterHandler(func() error {
@@ -284,7 +282,9 @@ func main() {
 }
 
 // runPolling registers the updater stop as the first shutdown step, starts
-// long polling and waits for shutdown.
+// long polling and blocks on the shutdown manager, whose exit after the last
+// drain is the only way out. It never waits on the updater's Idle: the updater
+// stop releases that wait, so the process would leave before the later drains.
 func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.Manager) {
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Polling] Stopping updater...")
@@ -310,9 +310,7 @@ func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.
 	}
 	log.Info("[Polling] Started Polling...!")
 
-	go shutdownManager.WaitForShutdown()
-
-	updater.Idle()
+	shutdownManager.WaitForShutdown()
 }
 
 func healthCheckPort() int {
