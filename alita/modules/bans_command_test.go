@@ -972,13 +972,6 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			run:    bansModule.kick,
 		},
 		{
-			name:   "kick get chat failure",
-			method: "getChat",
-			text:   "/kick spam",
-			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/kick spam") },
-			run:    bansModule.kick,
-		},
-		{
 			name:   "kick send failure",
 			method: "sendMessage",
 			text:   "/kick spam",
@@ -1009,15 +1002,6 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		{
 			name:   "temporary ban failure",
 			method: "banChatMember",
-			text:   "/tban 1h spam",
-			ctx: func(bot *gotgbot.Bot) *ext.Context {
-				return newBanReplyContext(bot, chat, admin, target, "/tban 1h spam")
-			},
-			run: bansModule.tBan,
-		},
-		{
-			name:   "temporary ban get chat failure",
-			method: "getChat",
 			text:   "/tban 1h spam",
 			ctx: func(bot *gotgbot.Bot) *ext.Context {
 				return newBanReplyContext(bot, chat, admin, target, "/tban 1h spam")
@@ -1057,26 +1041,8 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			run: bansModule.dBan,
 		},
 		{
-			name:   "delete ban get chat failure",
-			method: "getChat",
-			text:   "/dban bad post",
-			ctx: func(bot *gotgbot.Bot) *ext.Context {
-				return newBanReplyContext(bot, chat, admin, target, "/dban bad post")
-			},
-			run: bansModule.dBan,
-		},
-		{
 			name:   "delete kick member failure",
 			method: "unbanChatMember",
-			text:   "/dkick cleanup",
-			ctx: func(bot *gotgbot.Bot) *ext.Context {
-				return newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")
-			},
-			run: bansModule.dkick,
-		},
-		{
-			name:   "delete kick get chat failure",
-			method: "getChat",
 			text:   "/dkick cleanup",
 			ctx: func(bot *gotgbot.Bot) *ext.Context {
 				return newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")

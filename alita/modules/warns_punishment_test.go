@@ -101,8 +101,8 @@ func TestWarnLimitExemptsAdmins(t *testing.T) {
 			called = true
 			return punishment.Result{}, nil
 		})
-	if err != nil || called {
-		t.Fatalf("warn of an admin: err = %v, punished = %v", err, called)
+	if err != ext.EndGroups || called {
+		t.Fatalf("warn of an admin: err = %v, punished = %v, want EndGroups and no punishment", err, called)
 	}
 }
 

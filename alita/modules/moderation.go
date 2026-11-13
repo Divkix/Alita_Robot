@@ -239,11 +239,12 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// Build and send the success reply.
+	// Build and send the success reply. The action stands either way, so
+	// the log entry is sent even when the reply could not be.
+	var replyErr error
 	if cmd.reply != nil {
-		if err := cmd.reply(mc, &tgt); err != nil {
-			log.Error(err)
-			return err
+		if replyErr = cmd.reply(mc, &tgt); replyErr != nil {
+			log.Error(replyErr)
 		}
 	}
 
@@ -253,6 +254,9 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			actionlog.AdminWithMarkup(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason, tgt.punished.LogMarkup)
 		}
+	}
+	if replyErr != nil {
+		return replyErr
 	}
 	return ext.EndGroups
 }
