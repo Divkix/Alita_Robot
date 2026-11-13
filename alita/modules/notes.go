@@ -786,7 +786,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 // already where a private note opens, so it sends the note.
 func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
 	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
-	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && msg.Chat.Type != gotgbot.ChatTypePrivate {
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && !inPM(msg) {
 		if sendNoteEphemeral(b, ctx, chat, noteData) {
 			return nil
 		}
