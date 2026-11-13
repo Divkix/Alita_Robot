@@ -756,8 +756,8 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	emptyCtx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
-	if err := warnsModule.resetAllWarns(bot, emptyCtx); err != nil {
-		t.Fatalf("resetAllWarns empty error = %v, want nil", err)
+	if err := warnsModule.resetAllWarns(bot, emptyCtx); err != ext.EndGroups {
+		t.Fatalf("resetAllWarns empty error = %v, want EndGroups", err)
 	}
 
 	_, _, _ = warns.WarnUser(42, chat.Id, models.WarnEntry{Reason: "first"})

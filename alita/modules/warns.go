@@ -355,8 +355,10 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 
 	if chat_status.IsUserAdmin(b, chat.Id, userId) {
 		text, _ := tr.GetString("warns_admin_warning_error")
-		_, err = msg.Reply(b, text, nil)
-		return err
+		if _, err = msg.Reply(b, text, nil); err != nil {
+			return err
+		}
+		return ext.EndGroups
 	}
 
 	if !chat_status.IsValidUserId(userId) || chat_status.IsSystemUser(userId) {
@@ -803,8 +805,11 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	warnrc := warns.GetAllChatWarns(chat.Id)
 	if warnrc == 0 {
 		text, _ := tr.GetString("warns_no_users_warned")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		return err
+		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
 	}
 
 	text, _ := tr.GetString("warns_reset_all_confirm")
