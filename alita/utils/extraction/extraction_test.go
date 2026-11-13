@@ -744,6 +744,59 @@ func TestExtractUserAndTextInForumTopic(t *testing.T) {
 	}
 }
 
+// A user the arguments name is the target even when the command is also a
+// reply; the reply's author is the target only when the arguments name nobody.
+func TestExtractUserAndTextNamedUserBeatsReply(t *testing.T) {
+	if err := db.DB.Create(&db.User{UserId: 777555, UserName: "namedtarget", Name: "Alice"}).Error; err != nil {
+		t.Fatalf("Create named user failed: %v", err)
+	}
+	mention := []gotgbot.MessageEntity{{
+		Type: "text_mention", Offset: 5, Length: 5,
+		User: &gotgbot.User{Id: 888777, FirstName: "Alice"},
+	}}
+	for _, tc := range []struct {
+		name, text string
+		entities   []gotgbot.MessageEntity
+		wantID     int64
+		wantText   string
+	}{
+		{"numeric id", "/ban 555123 spam", nil, 555123, "spam"},
+		{"known username", "/ban @namedtarget spam", nil, 777555, "spam"},
+		{"text mention", "/ban Alice spam", mention, 888777, " spam"},
+		{"reason only", "/ban spam", nil, 1234, "spam"},
+		{"unknown username", "/ban @nobodyhere spam", nil, -1, ""},
+	} {
+		for _, withReply := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s, reply=%v", tc.name, withReply), func(t *testing.T) {
+				client := &extractionBotClient{errors: map[string]error{"getChat": errors.New("chat not found")}}
+				bot := newExtractionBot(client)
+				ctx := newExtractionContext(bot, tc.text)
+				ctx.EffectiveMessage.Entities = tc.entities
+				wantID, wantText := tc.wantID, tc.wantText
+				if withReply {
+					ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+						MessageId: 5, From: &gotgbot.User{Id: 1234, FirstName: "Bob"},
+					}
+				} else if wantID == 1234 {
+					wantID, wantText = 0, ""
+				}
+
+				gotID, gotText := ExtractUserAndText(bot, ctx)
+				if gotID != wantID || gotText != wantText {
+					t.Fatalf("ExtractUserAndText(%q) = (%d, %q), want (%d, %q)", tc.text, gotID, gotText, wantID, wantText)
+				}
+				wantReplies := 0
+				if wantID == -1 {
+					wantReplies = 1
+				}
+				if calls := client.callsFor("sendMessage"); len(calls) != wantReplies {
+					t.Fatalf("sendMessage calls = %d, want %d (user-not-found answer only on refusal)", len(calls), wantReplies)
+				}
+			})
+		}
+	}
+}
+
 func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {
 	if err := db.DB.Create(&db.User{UserId: 888123, UserName: "infouser", Name: "Info User"}).Error; err != nil {
 		t.Fatalf("Create info user failed: %v", err)

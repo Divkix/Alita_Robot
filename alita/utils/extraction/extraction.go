@@ -155,7 +155,9 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	entities := msg.ParseEntityTypes(accepted)
 
 	var ent *gotgbot.ParsedMessageEntity
-	isId := false
+	// named: the arguments name the target (mention, username or ID), which
+	// then wins over a reply; the reply is the target only when they do not.
+	named := false
 	if len(entities) > 0 {
 		ent = &entities[0]
 	} else {
@@ -165,6 +167,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	if entities != nil && ent != nil && int(ent.Offset) == (len(msg.Text)-len(textToParse)) {
 		ent = &entities[0]
 		userId = ent.User.Id
+		named = true
 		// ParseEntityTypes normalises entity offsets to UTF-8 bytes, so the
 		// suffix is a byte slice, not a UTF-16 range.
 		text = msg.Text[ent.Offset+ent.Length:]
@@ -184,18 +187,19 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		if len(res) >= 3 {
 			text = res[2]
 		}
+		named = true
 	} else if hasArgs {
-		isId = true
+		named = true
 		if chatId, err := strconv.ParseInt(args[1], 10, 64); err != nil || !chat_status.IsChannelId(chatId) {
 			for _, arg := range args[1] {
 				if unicode.IsDigit(arg) {
 					continue
 				}
-				isId = false
+				named = false
 				break
 			}
 		}
-		if isId {
+		if named {
 			userId, _ = strconv.ParseInt(args[1], 10, 64)
 			res := strings.SplitN(msg.Text, " ", 3)
 			if len(res) >= 3 {
@@ -203,13 +207,13 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 			}
 		}
 	}
-	if !isId && prevMessage != nil && hasArgs {
+	if !named && prevMessage != nil && hasArgs {
 		_, parseErr := uuid.Parse(args[1])
 		userId, text = IdFromReply(msg)
 		if parseErr == nil {
 			return userId, trimTextNewline(text)
 		}
-	} else if !isId && hasArgs {
+	} else if !named && hasArgs {
 		_, parseErr := uuid.Parse(args[1])
 		if parseErr == nil {
 			return userId, trimTextNewline(text)

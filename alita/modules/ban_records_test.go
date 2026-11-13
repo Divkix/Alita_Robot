@@ -153,6 +153,26 @@ func TestBanCommandsRecordTheBan(t *testing.T) {
 	}
 }
 
+// "/ban @alice spam" sent as a reply to Bob's message bans Alice for "spam":
+// the user the command names wins over the reply.
+func TestBanNamedUserWinsOverReply(t *testing.T) {
+	f := newAdminChatFixture(t)
+	alice := models.User{UserId: 4_100_241, UserName: "alicenamed1241", Name: "Alice"}
+	if err := db.DB.Create(&alice).Error; err != nil {
+		t.Fatalf("create Alice: %v", err)
+	}
+	ctx := newMuteReplyContext(f.bot, f.chat, f.admin, f.member, "/ban @alicenamed1241 spam")
+	if err := bansModule.ban(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("ban() error = %v, want EndGroups", err)
+	}
+	if !targetedIn(f, "banChatMember", f.chat.Id, alice.UserId) || targetedIn(f, "banChatMember", f.chat.Id, f.member.Id) {
+		t.Fatalf("banChatMember calls = %+v, want Alice (%d) only", f.client.callsFor("banChatMember"), alice.UserId)
+	}
+	if got := singleBanRecord(t, f.chat.Id); got.UserId != alice.UserId || got.Reason != "spam" {
+		t.Fatalf("record = %+v, want Alice banned for %q", got, "spam")
+	}
+}
+
 func TestBanMeRecordsTheBanAsTheUsersOwn(t *testing.T) {
 	f := newAdminChatFixture(t)
 	if err := bansModule.banme(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/banme")); err != ext.EndGroups {
