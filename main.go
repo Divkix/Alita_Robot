@@ -281,6 +281,12 @@ func main() {
 	}
 }
 
+// pollingTimeout is how long Telegram holds an idle getUpdates open. It stays
+// at least 2s below the Bot API transport's response-header timeout, so an
+// idle poll ends as an empty answer, not a transport timeout. The updater stop
+// cancels a held poll, so shutdown never waits it out.
+const pollingTimeout = 8 * time.Second
+
 // runPolling registers the updater stop as the first shutdown step, starts
 // long polling and blocks on the shutdown manager, whose exit after the last
 // drain is the only way out. It never waits on the updater's Idle: the updater
@@ -301,6 +307,7 @@ func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.
 		&ext.PollingOpts{
 			DropPendingUpdates: config.AppConfig.DropPendingUpdates,
 			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
+				Timeout:        int64(pollingTimeout / time.Second),
 				AllowedUpdates: config.AppConfig.AllowedUpdates,
 			},
 		},
