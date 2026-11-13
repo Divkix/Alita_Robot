@@ -272,17 +272,6 @@ func main() {
 
 		updater := ext.NewUpdater(dispatcher, nil)
 
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Polling] Stopping updater...")
-			err := updater.Stop()
-			if err != nil {
-				log.Errorf("[Polling] Error stopping updater: %v", err)
-				return err
-			}
-			log.Info("[Polling] Updater stopped successfully")
-			return nil
-		})
-
 		if _, err = b.DeleteWebhook(nil); err != nil {
 			log.Fatalf("[Polling] Failed to remove webhook: %v", err)
 		}
@@ -290,23 +279,40 @@ func main() {
 
 		postInit(b, dispatcher, botUsername, "polling")
 
-		err = updater.StartPolling(b,
-			&ext.PollingOpts{
-				DropPendingUpdates: config.AppConfig.DropPendingUpdates,
-				GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
-					AllowedUpdates: config.AppConfig.AllowedUpdates,
-				},
-			},
-		)
-		if err != nil {
-			log.Fatalf("[Polling] Failed to start polling: %v", err)
-		}
-		log.Info("[Polling] Started Polling...!")
-
-		go shutdownManager.WaitForShutdown()
-
-		updater.Idle()
+		runPolling(b, updater, shutdownManager)
 	}
+}
+
+// runPolling registers the updater stop as the first shutdown step, starts
+// long polling and waits for shutdown.
+func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.Manager) {
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Polling] Stopping updater...")
+		err := updater.Stop()
+		if err != nil {
+			log.Errorf("[Polling] Error stopping updater: %v", err)
+			return err
+		}
+		log.Info("[Polling] Updater stopped successfully")
+		return nil
+	})
+
+	err := updater.StartPolling(b,
+		&ext.PollingOpts{
+			DropPendingUpdates: config.AppConfig.DropPendingUpdates,
+			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
+				AllowedUpdates: config.AppConfig.AllowedUpdates,
+			},
+		},
+	)
+	if err != nil {
+		log.Fatalf("[Polling] Failed to start polling: %v", err)
+	}
+	log.Info("[Polling] Started Polling...!")
+
+	go shutdownManager.WaitForShutdown()
+
+	updater.Idle()
 }
 
 func healthCheckPort() int {
