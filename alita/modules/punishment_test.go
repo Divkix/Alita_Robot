@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -132,6 +133,25 @@ func TestPunishmentMatrix(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// Telegram's unban call kicks a member but lifts a ban, so a kick of a banned
+// user, or one whose status cannot be read, sends none.
+func TestKickNeverLiftsABan(t *testing.T) {
+	f := newAdminChatFixture(t)
+	kick := punishment.Request{ChatID: f.chat.Id, Target: punishment.Target{ID: f.member.Id}, Mode: punishment.Kick}
+	f.client.membersByUser["42"] = json.RawMessage(`{"status":"kicked","user":{"id":42,"is_bot":false,"first_name":"Member"}}`)
+	result, err := punishment.Apply(t.Context(), f.bot, kick)
+	if err != nil || result.Applied || result.Refusal == "" || len(f.client.callsFor("unbanChatMember")) != 0 {
+		t.Fatalf("kick of a banned user = %+v, %v; calls = %+v", result, err, f.client.calls)
+	}
+
+	lookupErr := errors.New("member lookup failed")
+	f.client.errors["getChatMember"] = lookupErr
+	result, err = punishment.Apply(t.Context(), f.bot, kick)
+	if !errors.Is(err, lookupErr) || result.Applied || len(f.client.callsFor("unbanChatMember")) != 0 {
+		t.Fatalf("kick after a failed lookup = %+v, %v; calls = %+v", result, err, f.client.calls)
 	}
 }
 
