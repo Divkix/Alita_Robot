@@ -393,8 +393,8 @@ func (c *moderationCtx) lift(t *target, mode punishment.Mode) error {
 type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
 
 // applyPunishment is punishment.Apply for an action that never asks for one
-// the module refuses: a refusal is an error too, errKickTargetBanned for a
-// kick of a banned user, which only a stale button can ask for.
+// the module refuses: a refusal is an error too, punishment.ErrKickTargetBanned
+// for a kick of a banned user, which only a stale button can ask for.
 func applyPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
 	result, err := punishment.Apply(ctx, b, request)
 	return result, refusalError(result, err)
@@ -407,12 +407,8 @@ func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Lift
 	return refusalError(result, err)
 }
 
-// errKickTargetBanned is punishment.RefusalBanned; a button shows the presser
-// bans_kick_target_banned.
-var errKickTargetBanned = errors.New(punishment.RefusalBanned)
-
 // answerKickTargetBanned answers a Kick button whose target is banned by now
-// (errKickTargetBanned) with bans_kick_target_banned as an alert.
+// (punishment.ErrKickTargetBanned) with bans_kick_target_banned as an alert.
 func answerKickTargetBanned(b *gotgbot.Bot, query *gotgbot.CallbackQuery, tr *i18n.Translator) error {
 	text, _ := tr.GetString("bans_kick_target_banned")
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
@@ -422,7 +418,7 @@ func answerKickTargetBanned(b *gotgbot.Bot, query *gotgbot.CallbackQuery, tr *i1
 func refusalError(result punishment.Result, err error) error {
 	if err == nil && !result.Applied {
 		if result.Refusal == punishment.RefusalBanned {
-			return errKickTargetBanned
+			return punishment.ErrKickTargetBanned
 		}
 		return errors.New(result.Refusal)
 	}

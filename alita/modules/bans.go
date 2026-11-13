@@ -580,7 +580,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	if _, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: userId}, Mode: mode,
 		Source: models.BanSourceManual, ActorID: user.Id,
-	}); errors.Is(err, errKickTargetBanned) {
+	}); errors.Is(err, punishment.ErrKickTargetBanned) {
 		return answerKickTargetBanned(b, query, tr)
 	} else if err != nil {
 		log.Error(err)

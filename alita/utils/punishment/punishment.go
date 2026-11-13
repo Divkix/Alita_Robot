@@ -5,6 +5,7 @@ package punishment
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -59,6 +60,10 @@ type Result struct {
 // RefusalBanned refuses a kick of a user Telegram reports as banned: its
 // unban call, which kicks a member, would lift their ban.
 const RefusalBanned = "kick target is banned"
+
+// ErrKickTargetBanned is RefusalBanned as an error, for callers that turn a
+// refusal into one and answer a banned kick target specially.
+var ErrKickTargetBanned = errors.New(RefusalBanned)
 
 // Apply returns a Result with Refusal set when it does not punish, or the
 // Telegram error. Most refusals are decided before any API call; a kick reads
