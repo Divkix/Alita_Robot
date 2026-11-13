@@ -72,7 +72,8 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if msg.ReplyToMessage != nil && len(args) <= 1 {
+	reply := extraction.UserReply(msg)
+	if reply != nil && len(args) <= 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -81,7 +82,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		return ext.EndGroups
-	} else if len(args) <= 2 && msg.ReplyToMessage == nil {
+	} else if len(args) <= 2 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())

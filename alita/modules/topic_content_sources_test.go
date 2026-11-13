@@ -9,6 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	db_filters "github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 )
 
@@ -61,5 +62,37 @@ func TestSaveNoteFromOrdinaryReplyInTopic(t *testing.T) {
 	}
 	if note := notes.GetNote(f.chat.Id, "rules"); note == nil || !strings.Contains(note.NoteContent, "No spam please") {
 		t.Fatalf("note = %+v, want the replied message's text", note)
+	}
+}
+
+func TestAddFilterInTopicTakesTypedText(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	f.chat.IsForum = true
+
+	ctx := sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, "/filter hello Hi there"), nil)
+	if err := filtersModule.addFilter(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("addFilter() error = %v, want EndGroups", err)
+	}
+	stored, err := db_filters.GetChatFiltersCached(f.chat.Id)
+	if err != nil || len(stored) != 1 || stored[0].KeyWord != "hello" || stored[0].FilterReply != "Hi there" {
+		t.Fatalf("filters = %+v (err %v), want hello with the typed text", stored, err)
+	}
+}
+
+func TestAddFilterInTopicWithoutContentAsksForIt(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	f.chat.IsForum = true
+
+	ctx := sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, "/filter hello"), nil)
+	if err := filtersModule.addFilter(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("addFilter() error = %v, want EndGroups", err)
+	}
+	if db_filters.DoesFilterExists(f.chat.Id, "hello") {
+		t.Fatal("filter stored without content")
+	}
+	if got, want := lastMessageTo(t, f.client, f.chat.Id), translated(t, "filters_invalid"); got != want {
+		t.Fatalf("reply = %q, want %q", got, want)
 	}
 }
