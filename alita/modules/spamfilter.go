@@ -74,7 +74,7 @@ func moderationSpam(m *moduleStruct) *moderationCommand {
 		command: "spam",
 		module:  m,
 		extract: func(c *moderationCtx) (target, error) {
-			if c.Msg.ReplyToMessage == nil {
+			if c.Reply == nil {
 				text, _ := c.Tr.GetString("spamfilter_spam_no_reply")
 				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
@@ -88,7 +88,7 @@ func moderationSpam(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			// A message another admin or a filter removed first is gone
 			// already: the ban and the sample still stand.
-			if err := helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Msg.ReplyToMessage.MessageId); err != nil {
+			if err := helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Reply.MessageId); err != nil {
 				return err
 			}
 			return c.punish(t, punishment.Ban, 0)
@@ -120,7 +120,7 @@ func storeSpamSample(c *moderationCtx, senderID int64) (*models.SpamSample, erro
 	sample, err := spamfilter.Add(spamfilter.NewSample{
 		ChatID:   c.Chat.Id,
 		Label:    models.SpamLabelSpam,
-		Text:     aispamMessageText(c.Msg.ReplyToMessage),
+		Text:     aispamMessageText(c.Reply),
 		SenderID: senderID,
 		AddedBy:  c.User.Id,
 		OwnerID:  ownerID,
@@ -156,8 +156,8 @@ func spamFilterChatAdmins(b *gotgbot.Bot, chatID int64) (int64, []int64) {
 
 func spamReply(c *moderationCtx, t *target, stored *models.SpamSample, tooShort bool) error {
 	name := ""
-	if from := c.Msg.ReplyToMessage.From; from != nil {
-		name = from.FirstName
+	if reply := c.Reply; reply != nil && reply.From != nil {
+		name = reply.From.FirstName
 	}
 	text, _ := c.Tr.GetString("spamfilter_spam_banned", i18n.TranslationParams{
 		"user": formatting.MentionHtml(t.userID, name),

@@ -123,6 +123,42 @@ func TestNotesPipelineKeepsRefusalOrder(t *testing.T) {
 	}
 }
 
+// Every way of naming a note to /clear reaches it, and every form that can
+// delete is refused to an admin without the change-info right.
+func TestClearNoteNormalisesTheNameAndChecksTheRightInEveryForm(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []string{"/clear  rules", `/clear "rules"`, "/clear #rules", "/clear RULES", "/clear rules please", "/clear\nrules"} {
+		for _, limited := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%q/limited=%t", command, limited), func(t *testing.T) {
+				f := newAdminChatFixture(t)
+				addTestNote(t, f.chat.Id, "rules")
+				if limited {
+					key := fmt.Sprint(f.admin.Id)
+					full := string(f.client.membersByUser[key])
+					restricted := strings.ReplaceAll(full, `"can_change_info":true`, `"can_change_info":false`)
+					f.client.membersByUser[key] = json.RawMessage(restricted)
+					f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage(strings.ReplaceAll(string(f.client.adminsByChat[fmt.Sprint(f.chat.Id)]), full, restricted))
+				}
+				if err := notesDispatcher().ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, command).Update, nil); err != nil {
+					t.Fatal(err)
+				}
+				// onlyCall: exactly one reply was sent, the refusal or the confirmation.
+				text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+				gone := notes.GetNote(f.chat.Id, "rules") == nil
+				if limited {
+					if gone {
+						t.Fatalf("limited admin: note removed after %q; reply %q, want the note kept", command, text)
+					}
+					return
+				}
+				if !gone {
+					t.Fatalf("note still stored after %q; reply %q", command, text)
+				}
+			})
+		}
+	}
+}
+
 func TestNotesPipelineKeepsVisibilityAndRawAccess(t *testing.T) {
 	useRealLocales(t)
 	for _, command := range []string{"/get public", "/get public noformat", "/get secret", "/get secret noformat", "/get absent noformat", "/get private", "/notes", "/saved"} {

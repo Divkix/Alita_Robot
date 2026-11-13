@@ -72,7 +72,8 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if msg.ReplyToMessage != nil && len(args) <= 1 {
+	reply := extraction.UserReply(msg)
+	if reply != nil && len(args) <= 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -81,7 +82,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		return ext.EndGroups
-	} else if len(args) <= 2 && msg.ReplyToMessage == nil {
+	} else if len(args) <= 2 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -388,13 +389,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 	user := query.From
-	chat := ctx.EffectiveChat
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+	if ctx.EffectiveChat == nil {
 		return ext.EndGroups
 	}
 
@@ -404,37 +399,34 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		log.Error("[Filters] Invalid callback data format")
 		return ext.EndGroups
 	}
+	chatID, ok := overwriteGroup(b, ctx, filterOverwriteCacheKey(token), user.Id)
+	if !ok {
+		return ext.EndGroups
+	}
 	if action != "yes" && action != "cancel" {
 		log.WithField("action", action).Warn("[Filters] Invalid overwrite action")
 		return answerInvalidCallback(b, ctx, query)
 	}
 	var helpText string
+	// edit replaces the question with text, naming the group when pressed in PM.
+	edit := func(text string) error {
+		return editOverwriteAnswer(b, ctx, tr, query.Message, chatID, text)
+	}
 
 	if action == "cancel" {
 		if token != "" {
-			if data, err := consumeFilterOverwriteCache(token); err == nil {
-				if data.UserID != 0 && data.UserID != user.Id {
-					helpText, _ = tr.GetString("filters_overwrite_expired")
-					if query.Message != nil {
-						_, _, _ = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
-					}
-					_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-					return ext.EndGroups
+			if data, err := consumeFilterOverwriteCache(token); err == nil && data.UserID != 0 && data.UserID != user.Id {
+				helpText, _ = tr.GetString("filters_overwrite_expired")
+				if query.Message != nil {
+					_ = edit(helpText)
 				}
-				if data.ChatID != 0 && data.ChatID != chat.Id {
-					helpText, _ = tr.GetString("filters_overwrite_expired")
-					if query.Message != nil {
-						_, _, _ = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
-					}
-					_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-					return ext.EndGroups
-				}
+				_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+				return ext.EndGroups
 			}
 		}
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
 		if query.Message != nil {
-			_, _, editErr := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
-			if editErr != nil {
+			if editErr := edit(helpText); editErr != nil {
 				log.Error(editErr)
 			}
 		}
@@ -450,8 +442,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
 		helpText, _ = tr.GetString("filters_overwrite_expired")
 		if query.Message != nil {
-			_, _, editErr := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
-			if editErr != nil {
+			if editErr := edit(helpText); editErr != nil {
 				log.Error(editErr)
 			}
 		}
@@ -461,18 +452,17 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		}
 		return ext.EndGroups
 	}
-	if (filterData.UserID != 0 && filterData.UserID != user.Id) ||
-		(filterData.ChatID != 0 && filterData.ChatID != chat.Id) {
+	if filterData.UserID != 0 && filterData.UserID != user.Id {
 		helpText, _ = tr.GetString("filters_overwrite_expired")
 		if query.Message != nil {
-			_, _, _ = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
+			_ = edit(helpText)
 		}
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		return ext.EndGroups
 	}
 
 	updated, updateErr := db_filters.UpdateFilter(
-		chat.Id,
+		filterData.ChatID,
 		filterData.ItemName,
 		filterData.Text,
 		filterData.FileID,
@@ -480,7 +470,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		filterData.DataType,
 	)
 	if updateErr != nil {
-		log.Errorf("[Filters] UpdateFilter failed for chat %d: %v", chat.Id, updateErr)
+		log.Errorf("[Filters] UpdateFilter failed for chat %d: %v", filterData.ChatID, updateErr)
 		helpText, _ = tr.GetString("common_settings_save_failed")
 	} else if updated {
 		helpText, _ = tr.GetString("filters_overwrite_success")
@@ -492,7 +482,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		_, err = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		return err
 	}
-	_, _, err = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
+	err = edit(helpText)
 	if err != nil {
 		log.Error(err)
 		return err

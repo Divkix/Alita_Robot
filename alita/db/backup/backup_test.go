@@ -34,6 +34,14 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
+// requireCleanImport imports bkp and fails on an error or any notice.
+func requireCleanImport(t *testing.T, chatID int64, bkp *BackupFormat, modules []string) {
+	t.Helper()
+	notices, err := ImportChatData(chatID, bkp, modules)
+	require.NoError(t, err)
+	require.Empty(t, notices)
+}
+
 func TestBackupTypes(t *testing.T) {
 	t.Run("NewBackupFormat creates valid backup", func(t *testing.T) {
 		backup := NewBackupFormat(12345, "Test Chat", 67890, []string{"notes", "filters"})
@@ -203,7 +211,7 @@ func TestExportModuleData(t *testing.T) {
 	})
 
 	t.Run("ImportModuleData with invalid module", func(t *testing.T) {
-		err := ImportModuleData(12345, "invalid_module", map[string]interface{}{})
+		_, err := ImportModuleData(12345, "invalid_module", map[string]interface{}{})
 		assert.Error(t, err)
 	})
 
@@ -216,7 +224,7 @@ func TestExportModuleData(t *testing.T) {
 func TestImportModuleDataRejectsMalformedPayloadForEveryModule(t *testing.T) {
 	for _, module := range AllExportableModules() {
 		t.Run(module, func(t *testing.T) {
-			err := ImportModuleData(12345, module, "not a backup object")
+			_, err := ImportModuleData(12345, module, "not a backup object")
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid")
@@ -373,7 +381,7 @@ func TestImportAdminData_InvalidFormat(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_admin_invalid"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	err := ImportModuleData(chatID, BackupModuleAdmin, "not a map")
+	_, err := ImportModuleData(chatID, BackupModuleAdmin, "not a map")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid admin data format")
 }
@@ -385,7 +393,7 @@ func TestImportFiltersData_InvalidFormat(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_filters_invalid"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	err := ImportModuleData(chatID, BackupModuleFilters, "not a map")
+	_, err := ImportModuleData(chatID, BackupModuleFilters, "not a map")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid filters data format")
 }
@@ -405,7 +413,7 @@ func TestImportChatData_Validation(t *testing.T) {
 		Data:    map[string]interface{}{},
 	}
 
-	err := ImportChatData(chatID, invalidBackup, []string{"notes"})
+	_, err := ImportChatData(chatID, invalidBackup, []string{"notes"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid backup")
 }
@@ -426,7 +434,7 @@ func TestImportChatData_SingleModule(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+	requireCleanImport(t, chatID, backup, []string{BackupModuleWarns})
 
 	settings := warns.GetWarnSetting(chatID)
 	require.NotNil(t, settings)
@@ -448,7 +456,7 @@ func TestImportWarnsWithoutModeUsesDefault(t *testing.T) {
 		"warn_settings": map[string]interface{}{"warn_limit": float64(5)},
 	}
 
-	require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+	requireCleanImport(t, chatID, backup, []string{BackupModuleWarns})
 
 	settings := warns.GetWarnSetting(chatID)
 	assert.Equal(t, 5, settings.WarnLimit)
@@ -486,7 +494,7 @@ func TestImportWarnsDropsUnusableWarnExpiry(t *testing.T) {
 			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleWarns})
 			backup.Data[BackupModuleWarns] = map[string]interface{}{"warn_settings": settings}
 
-			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+			requireCleanImport(t, chatID, backup, []string{BackupModuleWarns})
 			assert.Equal(t, tc.want, warns.GetWarnSetting(chatID).WarnExpiry)
 		})
 	}
@@ -521,7 +529,7 @@ func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
 				},
 			}
 
-			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+			requireCleanImport(t, chatID, backup, []string{BackupModuleWarns})
 			assert.Equal(t, tc.want, warns.GetWarnSetting(chatID).WarnActionTime)
 		})
 	}
@@ -559,7 +567,7 @@ func TestImportWarnsReplacesUnusableWarnMode(t *testing.T) {
 			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleWarns})
 			backup.Data[BackupModuleWarns] = map[string]interface{}{"warn_settings": settings}
 
-			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+			requireCleanImport(t, chatID, backup, []string{BackupModuleWarns})
 			assert.Equal(t, tc.want, warns.GetWarnSetting(chatID).WarnMode)
 		})
 	}
@@ -600,7 +608,7 @@ func TestImportBlacklistsReplacesUnusableAction(t *testing.T) {
 			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleBlacklists})
 			backup.Data[BackupModuleBlacklists] = payload
 
-			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleBlacklists}))
+			requireCleanImport(t, chatID, backup, []string{BackupModuleBlacklists})
 			word := blacklists.GetBlacklistSettings(chatID).Find("spam")
 			require.NotNil(t, word)
 			assert.Equal(t, tc.want, word.Action)
@@ -626,7 +634,7 @@ func TestImportDisablingSkipsBackupCommands(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleDisabling}))
+	requireCleanImport(t, chatID, backup, []string{BackupModuleDisabling})
 	assert.Equal(t, []string{"rules"}, disabling.GetChatDisabledCMDs(chatID))
 }
 
@@ -653,7 +661,7 @@ func TestImportAdminIgnoresUnusableBlacklistMode(t *testing.T) {
 			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleAdmin})
 			backup.Data[BackupModuleAdmin] = map[string]interface{}{"blacklist_mode": tc.mode}
 
-			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleAdmin}))
+			requireCleanImport(t, chatID, backup, []string{BackupModuleAdmin})
 			word := blacklists.GetBlacklistSettings(chatID).Find("spam")
 			require.NotNil(t, word)
 			assert.Equal(t, tc.want, word.Action)
@@ -912,7 +920,7 @@ func TestImportChatData_RejectsMissingLegacyModuleData(t *testing.T) {
 		},
 	}
 
-	err := ImportChatData(chatID, backup, nil)
+	_, err := ImportChatData(chatID, backup, nil)
 	require.ErrorContains(t, err, "missing data for module: notes")
 	assert.Empty(t, filters.GetFiltersList(chatID))
 }

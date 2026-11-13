@@ -235,10 +235,16 @@ func probationSubject(ctx *ext.Context) *gotgbot.User {
 	if chat == nil || msg == nil || sender == nil || (chat.Type != "group" && chat.Type != "supergroup") {
 		return nil
 	}
-	if !sender.IsUser() || sender.User.IsBot || msg.NewChatMembers != nil || msg.LeftChatMember != nil {
+	if !sender.IsUser() || sender.User.IsBot || isJoinOrLeaveNotice(msg) {
 		return nil
 	}
 	return sender.User
+}
+
+// isJoinOrLeaveNotice reports whether msg is a join or leave service message,
+// which Telegram posts for the member rather than the member sending it.
+func isJoinOrLeaveNotice(msg *gotgbot.Message) bool {
+	return msg.NewChatMembers != nil || msg.LeftChatMember != nil
 }
 
 // deleteProbationMessage removes a blocked message, when the bot may, and

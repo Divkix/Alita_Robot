@@ -2567,6 +2567,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ La solicitud de importación ha expirado. Por favor comienza de nuevo con <code>/import</code>."
 backup_import_cancelled: "❌ Importación cancelada."
 backup_import_failed: "❌ Error al importar: %s"
+backup_import_federation_skipped: "⚠️ La federación <code>{fed_id}</code> de la copia no existe en este bot, así que este chat quedó fuera de cualquier federación."
 
 backup_reset_success: |
   <b>✅ Restablecimiento Exitoso!</b>
@@ -2863,6 +2864,7 @@ bans_log_unban_button: "🔓 Desbanear"
 bans_log_unban_done: "Desbaneado."
 bans_log_unban_already: "Este baneo ya no está vigente: ya se desbaneó o terminó."
 bans_log_unban_failed: "No pude desbanear a este usuario. Comprueba que todavía puedo banear miembros en el grupo."
+bans_kick_target_banned: "Este usuario está baneado aquí. Expulsarlo levantaría el baneo, así que lo dejé como está."
 admin_setgtitle_need_title: "Dame un nuevo título para el grupo."
 admin_setgtitle_ok: "Título del grupo actualizado."
 admin_setgtitle_failed: "No pude cambiar el título del grupo. Asegúrate de que puedo cambiar la información del grupo."

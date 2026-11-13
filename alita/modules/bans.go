@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"strconv"
@@ -39,15 +40,21 @@ func kickTargetValidation(c *moderationCtx, t *target) error {
 	return validateTarget(c, t.userID, true, prefix+"_kick_user_not_in_chat", prefix+"_kick_cannot_kick_admin", prefix+"_kick_is_bot_itself")
 }
 
-func kickReply(c *moderationCtx, t *target) error {
-	kickuser, err := c.Bot.GetChat(t.userID, nil)
+// targetMention mentions userID by name, or by ID when the name lookup fails,
+// as it does for a user the bot has never met (a ban by ID). The action has
+// already happened, so its reply must not depend on the lookup.
+func targetMention(c *moderationCtx, userID int64) string {
+	user, err := c.Bot.GetChat(userID, nil)
 	if err != nil {
-		log.Error(err)
-		return err
+		log.Debugf("[Bans] name lookup of %d failed, mentioning by ID: %v", userID, err)
+		return formatting.MentionHtml(userID, strconv.FormatInt(userID, 10))
 	}
+	return formatting.MentionHtml(user.Id, user.FirstName)
+}
 
+func kickReply(c *moderationCtx, t *target) error {
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_user")
-	text := fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName))
+	text := fmt.Sprintf(baseStr, targetMention(c, t.userID))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_reason")
 		if temp != "" {
@@ -55,7 +62,7 @@ func kickReply(c *moderationCtx, t *target) error {
 		}
 	}
 
-	_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
+	_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -75,7 +82,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 		extract:  extractFromReply,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			_, err := c.Reply.Delete(c.Bot, nil)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -102,14 +109,8 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 			return c.punish(t, punishment.Ban, d)
 		},
 		reply: func(c *moderationCtx, t *target) error {
-			banUser, err := c.Bot.GetChat(t.userID, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-
 			temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_tban")
-			baseStr := fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName), t.timeVal)
+			baseStr := fmt.Sprintf(temp, targetMention(c, t.userID), t.timeVal)
 			if t.reason != "" {
 				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
 				if temp != "" {
@@ -117,7 +118,7 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 				}
 			}
 
-			_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
+			_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -130,20 +131,14 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 }
 
 func banReplyWithButton(c *moderationCtx, t *target) error {
-	banUser, err := c.Bot.GetChat(t.userID, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_normal_ban")
-	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
+	text := fmt.Sprintf(baseStr, targetMention(c, t.userID))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
 		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
 
-	_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text),
+	_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -181,7 +176,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		},
 		validate: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				if c.Msg.ReplyToMessage == nil {
+				if c.Reply == nil {
 					text, _ := c.Tr.GetString("bans_anonymous_ban_reply_only")
 					if err := replyValidationError(c, text); err != nil {
 						return err
@@ -194,7 +189,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				t.userID = c.Reply.GetSender().Id()
 			}
 			return c.punish(t, punishment.Ban, 0)
 		},
@@ -204,7 +199,7 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 
 			if t.isChannel {
 				temp, _ := c.Tr.GetString("bans_anonymous_ban_user")
-				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Reply.GetSender().Name()))
 				sendMsgOptns = formatting.Shtml()
 			} else {
 				return banReplyWithButton(c, t)
@@ -301,7 +296,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 		module:  m,
 		extract: extractFromArgs,
 		validate: func(c *moderationCtx, t *target) error {
-			if c.Msg.ReplyToMessage == nil {
+			if c.Reply == nil {
 				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_dban_no_reply")
 				if text == "" {
 					text, _ = c.Tr.GetString("common_no_reply_to_message")
@@ -315,7 +310,7 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 			return banTargetValidation(c, t)
 		},
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			_, err := c.Reply.Delete(c.Bot, nil)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -360,7 +355,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 				}
 				return errTargetIsBot
 			}
-			if t.isChannel && c.Msg.ReplyToMessage == nil {
+			if t.isChannel && c.Reply == nil {
 				text, _ := c.Tr.GetString("bans_anonymous_unban_reply_only")
 				if err := replyValidationError(c, text); err != nil {
 					return err
@@ -371,7 +366,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 		},
 		execute: func(c *moderationCtx, t *target) error {
 			if t.isChannel {
-				t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+				t.userID = c.Reply.GetSender().Id()
 			}
 			return c.lift(t, punishment.Ban)
 		},
@@ -383,7 +378,7 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 			var text string
 			if t.isChannel {
 				temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
-				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
+				text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Reply.GetSender().Name()))
 			} else {
 				banUser, err := c.Bot.GetChat(t.userID, nil)
 				if err != nil {
@@ -585,7 +580,9 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	if _, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: userId}, Mode: mode,
 		Source: models.BanSourceManual, ActorID: user.Id,
-	}); err != nil {
+	}); errors.Is(err, punishment.ErrKickTargetBanned) {
+		return answerKickTargetBanned(b, query, tr)
+	} else if err != nil {
 		log.Error(err)
 		return err
 	}
@@ -613,17 +610,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		)
 	}
 
-	// Sent in PM, the menu named the group, and the text that replaces it
-	// names it too; the button carries only the group's ID. The line is only
-	// text, so a failed lookup leaves it out.
-	if inPM(ctx.EffectiveMessage) {
-		if full, err := b.GetChat(chat.Id, nil); err != nil {
-			log.Error(err)
-		} else {
-			group := full.ToChat()
-			helpText = withGroupLine(tr, ctx.EffectiveMessage, &group, helpText)
-		}
-	}
+	helpText = withButtonGroupLine(b, ctx, tr, chat.Id, helpText)
 
 	_, _, err = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
@@ -1007,6 +994,23 @@ func dropPMReply(c *helpers.CommandContext) {
 // command sent in reply to msg (pmGroupLine).
 func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, text string) string {
 	return text + pmGroupLine(tr, msg, chat, true)
+}
+
+// withButtonGroupLine is withGroupLine for the HTML text answering a button
+// pressed in PM, which carries only the group's ID: the menu named the group,
+// and the text that replaces it names it too. The line is only text, so a
+// failed lookup leaves it out.
+func withButtonGroupLine(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chatID int64, text string) string {
+	if !inPM(ctx.EffectiveMessage) {
+		return text
+	}
+	full, err := b.GetChat(chatID, nil)
+	if err != nil {
+		log.Error(err)
+		return text
+	}
+	group := full.ToChat()
+	return withGroupLine(tr, ctx.EffectiveMessage, &group, text)
 }
 
 // pmButtonChatID is the group a button a moderation command sends in reply to

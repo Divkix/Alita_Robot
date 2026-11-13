@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -875,5 +876,153 @@ func TestRejoinAfterLeavingWithAScheduledUnmuteIsNotUnmutedMidChallenge(t *testi
 	}
 	if fresh, err := captcha.GetCaptchaAttempt(42, chat.Id); err != nil || fresh == nil {
 		t.Fatalf("attempt after rejoin = (%+v, %v), want the fresh challenge pending", fresh, err)
+	}
+}
+
+// runCaptchaTimers lets captcha timers run, with no sweep, until the test
+// ends. awaitCaptchaTimers blocks until every armed timer has fired and
+// returned, so the deadline, not a sleep, decides what a test sees.
+func runCaptchaTimers(t *testing.T) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	captchaLifecycleMu.Lock()
+	oldCtx, oldStop, oldDone := captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone
+	captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone = ctx, cancel, false
+	captchaLifecycleMu.Unlock()
+	t.Cleanup(func() {
+		cancel()
+		captchaLifecycleWG.Wait()
+		captchaLifecycleMu.Lock()
+		captchaLifecycleCtx, captchaLifecycleStop, captchaLifecycleDone = oldCtx, oldStop, oldDone
+		captchaLifecycleMu.Unlock()
+	})
+}
+
+func awaitCaptchaTimers() { captchaLifecycleWG.Wait() }
+
+// armedCaptchaAttempt stores a pending attempt with prompt 123 in a chat
+// whose failure action is ban, due shortly, and arms its timer.
+func armedCaptchaAttempt(t *testing.T, bot *gotgbot.Bot) *db.CaptchaAttempts {
+	t.Helper()
+	runCaptchaTimers(t)
+	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+	if err := captcha.SetCaptchaEnabled(attempt.ChatID, "Captcha Chat", true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+	if err := captcha.SetCaptchaFailureAction(attempt.ChatID, "Captcha Chat", "ban"); err != nil {
+		t.Fatalf("SetCaptchaFailureAction() error = %v", err)
+	}
+	if err := db.DB.Model(&db.CaptchaAttempts{}).Where("id = ?", attempt.ID).
+		Update("expires_at", time.Now().Add(500*time.Millisecond)).Error; err != nil {
+		t.Fatalf("move expires_at error = %v", err)
+	}
+	armed, err := captcha.GetCaptchaAttemptByID(attempt.ID)
+	if err != nil || armed == nil {
+		t.Fatalf("GetCaptchaAttemptByID() = (%+v, %v)", armed, err)
+	}
+	scheduleCaptchaTimeout(bot, armed)
+	return armed
+}
+
+// refreshCaptcha taps Refresh on attempt's prompt as member 42 and returns
+// the attempt as stored after it.
+func refreshCaptcha(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) *db.CaptchaAttempts {
+	t.Helper()
+	chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
+	data := encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"})
+	if err := captchaModule.captchaRefreshCallback(bot, newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)); err != nil {
+		t.Fatalf("captchaRefreshCallback() error = %v", err)
+	}
+	refreshed, err := captcha.GetCaptchaAttemptByID(attempt.ID)
+	if err != nil || refreshed == nil || refreshed.RefreshCount != 1 || !refreshed.ExpiresAt.Equal(attempt.ExpiresAt) {
+		t.Fatalf("attempt after refresh = (%+v, %v), want refreshed once with the same deadline", refreshed, err)
+	}
+	return refreshed
+}
+
+// deletedInChat lists the message ids deleted in chatID, in order.
+func deletedInChat(client *moduleBotClient, chatID int64) []string {
+	var ids []string
+	for _, call := range callsToChat(client, "deleteMessage", chatID) {
+		ids = append(ids, fmt.Sprint(call.Params["message_id"]))
+	}
+	return ids
+}
+
+// A refresh keeps the deadline, and the attempt's timer still fails it then:
+// the chat's action is applied once, without a sweep, and the prompt removed
+// is the refreshed one.
+func TestCaptchaDeadlineHoldsAfterARefresh(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	armed := armedCaptchaAttempt(t, bot)
+	refreshed := refreshCaptcha(t, bot, armed)
+
+	awaitCaptchaTimers()
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(armed.ChatID, 42))
+	if got, want := deletedInChat(client, armed.ChatID), []string{"123", fmt.Sprint(refreshed.MessageID)}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("deleted prompts = %v, want the old one at the refresh and the refreshed one at the deadline %v", got, want)
+	}
+	assertCaptchaRows(t, armed, 0)
+}
+
+// An attempt solved with the refreshed challenge is released, and its timer
+// then does nothing.
+func TestCaptchaSolvedAfterARefreshIsNotFailedAtTheDeadline(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	armed := armedCaptchaAttempt(t, bot)
+	refreshed := refreshCaptcha(t, bot, armed)
+	chat := gotgbot.Chat{Id: armed.ChatID, Type: "supergroup", Title: "Captcha Chat"}
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(armed.ID), "r": "1", "u": "42", "s": refreshed.Answer})
+	if err := captchaModule.captchaVerifyCallback(bot, newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)); err != nil {
+		t.Fatalf("captchaVerifyCallback() error = %v", err)
+	}
+	assertParams(t, client.onlyCall(t, "restrictChatMember"), targetParams(armed.ChatID, 42))
+	deleted := deletedInChat(client, armed.ChatID)
+
+	awaitCaptchaTimers()
+	for _, method := range []string{"banChatMember", "unbanChatMember"} {
+		if calls := client.callsFor(method); len(calls) != 0 {
+			t.Fatalf("%s calls = %v, want none after the pass", method, calls)
+		}
+	}
+	if got := deletedInChat(client, armed.ChatID); !reflect.DeepEqual(got, deleted) {
+		t.Fatalf("deleted at the deadline = %v, want nothing beyond %v", got, deleted)
+	}
+	assertCaptchaRows(t, armed, 0)
+}
+
+// A timer whose attempt is gone, or whose deadline changed, does nothing.
+func TestStaleCaptchaTimerDoesNothing(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		stale func(t *testing.T, attempt *db.CaptchaAttempts)
+	}{
+		{name: "attempt gone", stale: func(t *testing.T, attempt *db.CaptchaAttempts) {
+			if err := captcha.DeleteCaptchaAttempt(42, attempt.ChatID); err != nil {
+				t.Fatalf("DeleteCaptchaAttempt() error = %v", err)
+			}
+		}},
+		{name: "deadline changed", stale: func(t *testing.T, attempt *db.CaptchaAttempts) {
+			if err := db.DB.Model(&db.CaptchaAttempts{}).Where("id = ?", attempt.ID).
+				Update("expires_at", attempt.ExpiresAt.Add(time.Hour)).Error; err != nil {
+				t.Fatalf("move expires_at error = %v", err)
+			}
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			armed := armedCaptchaAttempt(t, bot)
+			tt.stale(t, armed)
+
+			awaitCaptchaTimers()
+			for _, method := range []string{"banChatMember", "unbanChatMember", "restrictChatMember", "deleteMessage"} {
+				if calls := client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %v, want none from a stale timer", method, calls)
+				}
+			}
+		})
 	}
 }

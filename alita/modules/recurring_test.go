@@ -280,3 +280,36 @@ func TestRecurringRemoveDeletesOnlyThisChatsMessage(t *testing.T) {
 		t.Fatalf("rows = %+v after removal, want none", rows)
 	}
 }
+
+// recurringInTopic sends text in forum topic forumTopicID with only the
+// topic's implicit reply.
+func recurringInTopic(t *testing.T, f adminChatFixture, dispatcher *ext.Dispatcher, id int64, text string) {
+	t.Helper()
+	f.chat.IsForum = true
+	update := aispamMessageUpdate(f.chat, f.admin, id, text)
+	ctx := sentInTopic(&ext.Context{EffectiveMessage: update.Message}, nil)
+	update.Message = ctx.EffectiveMessage
+	aispamProcessRawUpdate(t, dispatcher, f.bot, update)
+}
+
+func TestRecurringAddInTopicTakesTypedText(t *testing.T) {
+	f, dispatcher := recurringFixture(t)
+	recurringInTopic(t, f, dispatcher, 1101, "/recurring add 6h Topic reminder")
+
+	rows := recurringRowsFor(t, f.chat.Id)
+	if len(rows) != 1 || rows[0].Text != "Topic reminder" {
+		t.Fatalf("rows = %+v, want one row with the typed text", rows)
+	}
+}
+
+func TestRecurringAddInTopicWithoutContentAsksForIt(t *testing.T) {
+	f, dispatcher := recurringFixture(t)
+	recurringInTopic(t, f, dispatcher, 1102, "/recurring add 6h")
+
+	if rows := recurringRowsFor(t, f.chat.Id); len(rows) != 0 {
+		t.Fatalf("stored %+v, want nothing", rows)
+	}
+	if got, want := lastMessageTo(t, f.client, f.chat.Id), translated(t, "recurring_need_content"); got != want {
+		t.Fatalf("reply = %q, want %q", got, want)
+	}
+}

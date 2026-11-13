@@ -2558,6 +2558,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ Permintaan impor telah kedaluwarsa. Silakan mulai lagi dengan <code>/import</code>."
 backup_import_cancelled: "❌ Impor dibatalkan."
 backup_import_failed: "❌ Impor gagal: %s"
+backup_import_federation_skipped: "⚠️ Federasi <code>{fed_id}</code> dari cadangan tidak ada di bot ini, jadi obrolan ini tidak dimasukkan ke federasi mana pun."
 
 backup_reset_success: |
   <b>✅ Atur Ulang Berhasil!</b>
@@ -2854,6 +2855,7 @@ bans_log_unban_button: "🔓 Cabut ban"
 bans_log_unban_done: "Ban dicabut."
 bans_log_unban_already: "Ban ini sudah tidak berlaku: sudah dicabut, atau sudah berakhir."
 bans_log_unban_failed: "Saya tidak bisa mencabut ban pengguna ini. Pastikan saya masih bisa mem-ban anggota di grup."
+bans_kick_target_banned: "Pengguna ini di-ban di sini. Menendangnya akan mencabut ban, jadi saya membiarkan ban tetap berlaku."
 admin_setgtitle_need_title: "Berikan saya judul grup yang baru."
 admin_setgtitle_ok: "Judul grup diperbarui."
 admin_setgtitle_failed: "Saya tidak dapat mengubah judul grup. Pastikan saya bisa mengubah info grup."

@@ -2339,6 +2339,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ Запрос на импорт истёк. Пожалуйста, начните снова с помощью <code>/import</code>."
 backup_import_cancelled: "❌ Импорт отменён."
 backup_import_failed: "❌ Импорт не удался: %s"
+backup_import_federation_skipped: "⚠️ Федерации <code>{fed_id}</code> из резервной копии нет в этом боте, поэтому чат не добавлен ни в одну федерацию."
 
 backup_reset_success: |
   <b>✅ Сброс успешен!</b>
@@ -2635,6 +2636,7 @@ bans_log_unban_button: "🔓 Разбанить"
 bans_log_unban_done: "Разбанен."
 bans_log_unban_already: "Этот бан больше не действует: уже снят или закончился."
 bans_log_unban_failed: "Не удалось разбанить пользователя. Проверьте, что я всё ещё могу банить участников в группе."
+bans_kick_target_banned: "Этот пользователь здесь забанен. Кик снял бы бан, поэтому я оставил его в силе."
 admin_setgtitle_need_title: "Дайте мне новое название группы."
 admin_setgtitle_ok: "Название группы обновлено."
 admin_setgtitle_failed: "Я не смог изменить название группы. Убедитесь, что я могу изменять информацию о группе."

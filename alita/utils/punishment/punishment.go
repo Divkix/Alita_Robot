@@ -5,6 +5,7 @@ package punishment
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -56,8 +57,19 @@ type Result struct {
 	Refusal   string
 }
 
-// Apply reports a refusal without making an API call, or returns the Telegram
-// error. A successful ban remains applied even when its record cannot be saved.
+// RefusalBanned refuses a kick of a user Telegram reports as banned: its
+// unban call, which kicks a member, would lift their ban.
+const RefusalBanned = "kick target is banned"
+
+// ErrKickTargetBanned is RefusalBanned as an error, for callers that turn a
+// refusal into one and answer a banned kick target specially.
+var ErrKickTargetBanned = errors.New(RefusalBanned)
+
+// Apply returns a Result with Refusal set when it does not punish, or the
+// Telegram error. Most refusals are decided before any API call; a kick reads
+// the target's status first, fails when it cannot, and is refused
+// (RefusalBanned) when the target is banned. A successful ban remains applied
+// even when its record cannot be saved.
 func Apply(ctx context.Context, bot *gotgbot.Bot, request Request) (Result, error) {
 	if request.Target.SenderChat && (request.Mode != Ban || request.Duration != 0) {
 		return Result{Refusal: "sender chats only support permanent bans"}, nil
@@ -85,7 +97,13 @@ func Apply(ctx context.Context, bot *gotgbot.Bot, request Request) (Result, erro
 			_, err = bot.BanChatMemberWithContext(ctx, request.ChatID, request.Target.ID, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
 		}
 	case Kick:
-		_, err = bot.UnbanChatMemberWithContext(ctx, request.ChatID, request.Target.ID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+		var member gotgbot.ChatMember
+		if member, err = bot.GetChatMemberWithContext(ctx, request.ChatID, request.Target.ID, nil); err == nil {
+			if member.GetStatus() == "kicked" {
+				return Result{Refusal: RefusalBanned}, nil
+			}
+			_, err = bot.UnbanChatMemberWithContext(ctx, request.ChatID, request.Target.ID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+		}
 	case Mute:
 		_, err = bot.RestrictChatMemberWithContext(ctx, request.ChatID, request.Target.ID, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
 	default:

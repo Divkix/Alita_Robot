@@ -10,6 +10,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 )
 
 func TestBuildModerationCtxRequiresEffectiveUser(t *testing.T) {
@@ -84,11 +85,8 @@ func TestExtractFromReplyUsesReplySender(t *testing.T) {
 	t.Parallel()
 
 	replyUser := &gotgbot.User{Id: 555, FirstName: "Target"}
-	got, err := extractFromReply(&moderationCtx{
-		Msg: &gotgbot.Message{
-			ReplyToMessage: &gotgbot.Message{From: replyUser},
-		},
-	})
+	msg := &gotgbot.Message{ReplyToMessage: &gotgbot.Message{From: replyUser}}
+	got, err := extractFromReply(&moderationCtx{Msg: msg, Reply: extraction.UserReply(msg)})
 	if err != nil {
 		t.Fatalf("extractFromReply() unexpected error: %v", err)
 	}
@@ -198,6 +196,7 @@ func newModerationCtxForTest(bot *gotgbot.Bot, ctx *ext.Context, module *moduleS
 		Bot:    bot,
 		Chat:   ctx.EffectiveChat,
 		Msg:    ctx.EffectiveMessage,
+		Reply:  extraction.UserReply(ctx.EffectiveMessage),
 		User:   ctx.EffectiveUser,
 		Ctx:    ctx,
 		Tr:     i18n.MustNewTranslator(lang.GetLanguage(ctx)),

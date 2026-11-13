@@ -2474,6 +2474,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ La demande d'import a expiré. Veuillez recommencer avec <code>/import</code>."
 backup_import_cancelled: "❌ Import annulé."
 backup_import_failed: "❌ Échec de l'import : %s"
+backup_import_federation_skipped: "⚠️ La fédération <code>{fed_id}</code> de la sauvegarde n'existe pas sur ce bot, ce chat n'a donc rejoint aucune fédération."
 
 backup_reset_success: |
   <b>✅ Réinitialisation Réussie !</b>
@@ -2770,6 +2771,7 @@ bans_log_unban_button: "🔓 Débannir"
 bans_log_unban_done: "Débanni."
 bans_log_unban_already: "Ce bannissement n'est plus en vigueur : déjà levé, ou terminé."
 bans_log_unban_failed: "Je n'ai pas pu débannir cet utilisateur. Vérifiez que je peux toujours bannir des membres dans le groupe."
+bans_kick_target_banned: "Cet utilisateur est banni ici. L'expulser lèverait le bannissement, je l'ai donc laissé en place."
 admin_setgtitle_need_title: "Donnez-moi un nouveau titre pour le groupe."
 admin_setgtitle_ok: "Titre du groupe mis à jour."
 admin_setgtitle_failed: "Je n'ai pas pu changer le titre du groupe. Vérifiez que je peux modifier les infos du groupe."

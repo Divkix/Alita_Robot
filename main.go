@@ -254,9 +254,7 @@ func main() {
 		// WorkingMode already set by postInit before Start serves traffic; writing it
 		// here would race concurrent webhook-handler/tracing readers.
 
-		go shutdownManager.WaitForShutdown()
-
-		select {}
+		shutdownManager.WaitForShutdown()
 	} else {
 
 		shutdownManager.RegisterHandler(func() error {
@@ -272,17 +270,6 @@ func main() {
 
 		updater := ext.NewUpdater(dispatcher, nil)
 
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Polling] Stopping updater...")
-			err := updater.Stop()
-			if err != nil {
-				log.Errorf("[Polling] Error stopping updater: %v", err)
-				return err
-			}
-			log.Info("[Polling] Updater stopped successfully")
-			return nil
-		})
-
 		if _, err = b.DeleteWebhook(nil); err != nil {
 			log.Fatalf("[Polling] Failed to remove webhook: %v", err)
 		}
@@ -290,23 +277,48 @@ func main() {
 
 		postInit(b, dispatcher, botUsername, "polling")
 
-		err = updater.StartPolling(b,
-			&ext.PollingOpts{
-				DropPendingUpdates: config.AppConfig.DropPendingUpdates,
-				GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
-					AllowedUpdates: config.AppConfig.AllowedUpdates,
-				},
-			},
-		)
-		if err != nil {
-			log.Fatalf("[Polling] Failed to start polling: %v", err)
-		}
-		log.Info("[Polling] Started Polling...!")
-
-		go shutdownManager.WaitForShutdown()
-
-		updater.Idle()
+		runPolling(b, updater, shutdownManager)
 	}
+}
+
+// pollingTimeout is how long Telegram holds an idle getUpdates open. It stays
+// at least 2s below the Bot API transport's response-header timeout, so an
+// idle poll ends as an empty answer, not a transport timeout, and 2s below the
+// shutdown manager's per-handler limit. The updater stop cancels a held poll,
+// so shutdown never waits it out.
+const pollingTimeout = 8 * time.Second
+
+// runPolling registers the updater stop as the first shutdown step, starts
+// long polling and blocks on the shutdown manager, whose exit after the last
+// drain is the only way out. It never waits on the updater's Idle: the updater
+// stop releases that wait, so the process would leave before the later drains.
+func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.Manager) {
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Polling] Stopping updater...")
+		err := updater.Stop()
+		if err != nil {
+			log.Errorf("[Polling] Error stopping updater: %v", err)
+			return err
+		}
+		log.Info("[Polling] Updater stopped successfully")
+		return nil
+	})
+
+	err := updater.StartPolling(b,
+		&ext.PollingOpts{
+			DropPendingUpdates: config.AppConfig.DropPendingUpdates,
+			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
+				Timeout:        int64(pollingTimeout / time.Second),
+				AllowedUpdates: config.AppConfig.AllowedUpdates,
+			},
+		},
+	)
+	if err != nil {
+		log.Fatalf("[Polling] Failed to start polling: %v", err)
+	}
+	log.Info("[Polling] Started Polling...!")
+
+	shutdownManager.WaitForShutdown()
 }
 
 func healthCheckPort() int {

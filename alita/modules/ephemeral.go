@@ -9,6 +9,7 @@ import (
 
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -75,7 +76,7 @@ func ephemeralReceiver(ctx *ext.Context) (int64, bool) {
 	if msg == nil || chat == nil || msg.Chat.Type == "private" || msg.Chat.IsDirectMessages || msg.Chat.Id != chat.Id {
 		return 0, false
 	}
-	if reply := msg.ReplyToMessage; reply != nil && reply.ForumTopicCreated == nil {
+	if extraction.UserReply(msg) != nil {
 		return 0, false
 	}
 	from := msg.From

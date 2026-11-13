@@ -28,9 +28,13 @@ import (
 // moderationCtx holds the decomposed context for a moderation command.
 // It provides a minimal surface that every moderation handler needs.
 type moderationCtx struct {
-	Bot    *gotgbot.Bot
-	Chat   *gotgbot.Chat
-	Msg    *gotgbot.Message
+	Bot  *gotgbot.Bot
+	Chat *gotgbot.Chat
+	Msg  *gotgbot.Message
+	// Reply is the message the command answers (extraction.UserReply of
+	// Msg), nil without one: in a forum topic the implicit reply to the
+	// topic's root is not one. Read it here, never from Msg.
+	Reply  *gotgbot.Message
 	User   *gotgbot.User
 	Ctx    *ext.Context
 	Tr     *i18n.Translator
@@ -101,9 +105,10 @@ func replyAnonymousTarget(c *moderationCtx) error {
 	return fmt.Errorf("anonymous user")
 }
 
-// extractFromReply resolves the target from the replied-to message.
+// extractFromReply resolves the target from the message the issuer replied to.
 func extractFromReply(c *moderationCtx) (target, error) {
-	if c.Msg.ReplyToMessage == nil {
+	reply := c.Reply
+	if reply == nil {
 		text, _ := c.Tr.GetString("bans_dkick_no_reply")
 		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
@@ -111,7 +116,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		}
 		return target{}, fmt.Errorf("no reply")
 	}
-	if c.Msg.ReplyToMessage.From == nil {
+	if reply.From == nil {
 		text, _ := c.Tr.GetString("bans_cannot_identify_user")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
@@ -120,7 +125,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		}
 		return target{}, fmt.Errorf("nil from")
 	}
-	uid := c.Msg.ReplyToMessage.From.Id
+	uid := reply.From.Id
 	if chat_status.IsChannelId(uid) {
 		return target{}, replyAnonymousTarget(c)
 	}
@@ -189,6 +194,7 @@ func buildModerationCtx(m *moduleStruct, b *gotgbot.Bot, ctx *ext.Context) (*mod
 		Bot:    b,
 		Chat:   ctx.EffectiveChat,
 		Msg:    ctx.EffectiveMessage,
+		Reply:  extraction.UserReply(ctx.EffectiveMessage),
 		User:   user,
 		Ctx:    ctx,
 		Tr:     i18n.MustNewTranslator(lang.GetLanguage(ctx)),
@@ -239,11 +245,12 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// Build and send the success reply.
+	// Build and send the success reply. The action stands either way, so
+	// the log entry is sent even when the reply could not be.
+	var replyErr error
 	if cmd.reply != nil {
-		if err := cmd.reply(mc, &tgt); err != nil {
-			log.Error(err)
-			return err
+		if replyErr = cmd.reply(mc, &tgt); replyErr != nil {
+			log.Error(replyErr)
 		}
 	}
 
@@ -253,6 +260,9 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			actionlog.AdminWithMarkup(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason, tgt.punished.LogMarkup)
 		}
+	}
+	if replyErr != nil {
+		return replyErr
 	}
 	return ext.EndGroups
 }
@@ -383,7 +393,8 @@ func (c *moderationCtx) lift(t *target, mode punishment.Mode) error {
 type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
 
 // applyPunishment is punishment.Apply for an action that never asks for one
-// the module refuses: a refusal is an error too.
+// the module refuses: a refusal is an error too, punishment.ErrKickTargetBanned
+// for a kick of a banned user, which only a stale button can ask for.
 func applyPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
 	result, err := punishment.Apply(ctx, b, request)
 	return result, refusalError(result, err)
@@ -396,8 +407,19 @@ func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Lift
 	return refusalError(result, err)
 }
 
+// answerKickTargetBanned answers a Kick button whose target is banned by now
+// (punishment.ErrKickTargetBanned) with bans_kick_target_banned as an alert.
+func answerKickTargetBanned(b *gotgbot.Bot, query *gotgbot.CallbackQuery, tr *i18n.Translator) error {
+	text, _ := tr.GetString("bans_kick_target_banned")
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
+	return ext.EndGroups
+}
+
 func refusalError(result punishment.Result, err error) error {
 	if err == nil && !result.Applied {
+		if result.Refusal == punishment.RefusalBanned {
+			return punishment.ErrKickTargetBanned
+		}
 		return errors.New(result.Refusal)
 	}
 	return err

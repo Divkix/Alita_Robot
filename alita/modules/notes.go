@@ -83,7 +83,8 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	noteString, _ := tr.GetString("notes_save_success")
 
-	if msg.ReplyToMessage != nil && len(args) <= 1 {
+	reply := extraction.UserReply(msg)
+	if reply != nil && len(args) <= 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -92,7 +93,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		return ext.EndGroups
-	} else if len(args) <= 2 && msg.ReplyToMessage == nil {
+	} else if len(args) <= 2 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -229,13 +230,10 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	parts := strings.SplitN(msg.Text, " ", 2)
-	if len(parts) < 2 {
-		return ext.EndGroups
-	}
-	noteWord := strings.TrimLeft(parts[1], "#")
+	// A note name is one word: /clear takes the first argument and ignores the rest.
+	noteWord := strings.ToLower(strings.TrimLeft(strings.Trim(args[1], `"`), "#"))
 
-	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteWord)) {
+	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), noteWord) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_not_exists")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -245,9 +243,8 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	}
-	noteWord, _ = extraction.ExtractQuotes(noteWord, false, true)
 
-	if err := notes.RemoveNote(chat.Id, strings.ToLower(noteWord)); err != nil {
+	if err := notes.RemoveNote(chat.Id, noteWord); err != nil {
 		log.Errorf("[Notes] Failed to remove note %s in chat %d: %v", noteWord, chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errorText, _ := tr.GetString("error_generic")
@@ -442,15 +439,14 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 	user := query.From
 
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-
 	var helpText string
 	action, token, ok := parseOverwriteCallbackData(query.Data, "notes.overwrite")
 	if !ok {
 		log.WithField("data", query.Data).Warn("Invalid note overwrite callback data format")
+		return ext.EndGroups
+	}
+	chatID, ok := overwriteGroup(b, ctx, noteOverwriteCacheKey(token), user.Id)
+	if !ok {
 		return ext.EndGroups
 	}
 
@@ -467,8 +463,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		}
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	case "yes":
-		var chatId int64
-
 		if token == "" {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
@@ -478,28 +472,9 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		chatId = noteData.ChatID
-		if chatId == 0 {
-			if query.Message != nil {
-				chatId = query.Message.GetChat().Id
-			} else if ctx.EffectiveChat != nil {
-				chatId = ctx.EffectiveChat.Id
-			}
-		}
-
-		callbackChatID := int64(0)
-		if query.Message != nil {
-			callbackChatID = query.Message.GetChat().Id
-		} else if ctx.EffectiveChat != nil {
-			callbackChatID = ctx.EffectiveChat.Id
-		}
-		if noteData.ChatID != 0 && callbackChatID != 0 && noteData.ChatID != callbackChatID {
-			helpText, _ = tr.GetString("notes_overwrite_cancelled")
-			break
-		}
 
 		updated, err := notes.UpdateNote(
-			chatId,
+			noteData.ChatID,
 			noteData.ItemName,
 			noteData.Text,
 			noteData.FileID,
@@ -533,7 +508,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
+	err := editOverwriteAnswer(b, ctx, tr, query.Message, chatID, helpText)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -807,10 +782,11 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 }
 
 // sendGetNote answers /get with the note itself, or with a button to read it
-// in PM when the note or the chat keeps notes private.
+// in PM when the note or the chat keeps notes private. Sent in PM, it is
+// already where a private note opens, so it sends the note.
 func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
 	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
-	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && !inPM(msg) {
 		if sendNoteEphemeral(b, ctx, chat, noteData) {
 			return nil
 		}
@@ -945,8 +921,8 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
 			func(c *helpers.CommandContext) bool {
-				// Missing keywords and non-text commands return before this right.
-				return len(c.Ctx.Args()) == 1 || !strings.Contains(c.Msg.Text, " ") || helpers.CanUserChangeInfo()(c)
+				// A missing keyword returns before this right.
+				return len(c.Ctx.Args()) == 1 || helpers.CanUserChangeInfo()(c)
 			},
 		},
 	}, pipelineHandler(notesModule.rmNote))

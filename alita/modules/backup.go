@@ -504,7 +504,8 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		return ext.EndGroups
 	}
 
-	if err := backup.ImportChatData(chat.Id, bkp, modules); err != nil {
+	notices, err := backup.ImportChatData(chat.Id, bkp, modules)
+	if err != nil {
 		log.Errorf("[Backup] Import failed for chat %d: %v", chat.Id, err)
 		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{
 			"error": html.EscapeString(err.Error()),
@@ -514,8 +515,12 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	}
 
 	text, _ := tr.GetString("backup_import_success", backupResultParams(modules))
-	_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
-	if err != nil {
+	// Every notice is a skipped federation (backup.ImportNotice).
+	for _, notice := range notices {
+		line, _ := tr.GetString("backup_import_federation_skipped", i18n.TranslationParams{"fed_id": html.EscapeString(notice.ID)})
+		text += "\n" + line
+	}
+	if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
 		log.Errorf("[Backup] Failed to send success message: %v", err)
 	}
 

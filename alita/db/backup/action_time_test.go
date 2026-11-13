@@ -65,7 +65,7 @@ func TestImportFloodAndBlacklistActionTime(t *testing.T) {
 					}
 					backup := NewBackupFormat(chatID, "Test", 1, []string{module})
 					backup.Data[module] = payload
-					require.NoError(t, ImportChatData(chatID, backup, nil))
+					requireCleanImport(t, chatID, backup, nil)
 					if module == BackupModuleBlacklists {
 						word := blacklists.GetBlacklistSettings(chatID).Find("spam")
 						require.NotNil(t, word)
@@ -104,7 +104,7 @@ func TestLegacyTimedActionImportsClearDuration(t *testing.T) {
 				chatID, module, module, payloads[module])
 			legacy, err := BackupFormatFromJSON([]byte(raw))
 			require.NoError(t, err)
-			require.NoError(t, ImportChatData(chatID, legacy, nil))
+			requireCleanImport(t, chatID, legacy, nil)
 			if module != BackupModuleBlacklists {
 				flood := antiflood.GetFlood(chatID)
 				assert.Equal(t, "tban", flood.Action)
@@ -152,7 +152,7 @@ func TestImportAdminPreservesMatchingBlacklistDuration(t *testing.T) {
 				require.NoError(t, blacklists.SetBlacklistAction(chatID, "tmute", 7200))
 			}
 			_ = blacklists.GetBlacklistSettings(chatID)
-			require.NoError(t, ImportChatData(chatID, decoded, nil))
+			requireCleanImport(t, chatID, decoded, nil)
 
 			entries := blacklists.GetBlacklistSettings(chatID)
 			require.Len(t, entries, 2)

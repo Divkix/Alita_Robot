@@ -29,6 +29,9 @@ var (
 	shutdownTimeout = 60 * time.Second
 )
 
+// handlerTimeout is how long shutdown waits for one handler before moving on.
+const handlerTimeout = 10 * time.Second
+
 func NewManager() *Manager {
 	return &Manager{
 		handlers: make([]func() error, 0),
@@ -82,7 +85,7 @@ func (m *Manager) shutdown() {
 		m.mu.Unlock()
 
 		for i := len(handlers) - 1; i >= 0; i-- {
-			hCtx, hCancel := context.WithTimeout(ctx, 10*time.Second)
+			hCtx, hCancel := context.WithTimeout(ctx, handlerTimeout)
 			done := make(chan error, 1)
 			go func(h func() error, idx int) {
 				done <- m.executeHandler(h, idx)

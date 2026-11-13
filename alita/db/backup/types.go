@@ -26,6 +26,14 @@ type BackupFormat struct {
 	Data       map[string]interface{} `json:"data"`
 }
 
+// ImportNotice reports a federation membership an import skipped without
+// failing: ID is the backup's federation ID, which the bot does not have. It
+// is the only part an import skips; a second kind needs a field the renderer
+// switches on.
+type ImportNotice struct {
+	ID string
+}
+
 func NewBackupFormat(chatID int64, chatName string, exportedBy int64, modules []string) *BackupFormat {
 	return &BackupFormat{
 		Version:    BackupFormatVersion,

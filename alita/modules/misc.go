@@ -111,7 +111,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	builder.Grow(512)
 
 	if userId != 0 {
-		if msg.ReplyToMessage != nil {
+		if reply := extraction.UserReply(msg); reply != nil {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			temp, _ := tr.GetString("misc_chat_id")
 			text := fmt.Sprintf(temp, msg.Chat.Id)
@@ -123,8 +123,8 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 				builder.WriteString(text)
 				builder.WriteString("\n")
 			}
-			if msg.ReplyToMessage.From != nil {
-				originalId := msg.ReplyToMessage.From.Id
+			if reply.From != nil {
+				originalId := reply.From.Id
 				_, user1Name, _ := extraction.GetUserInfo(originalId)
 				temp3, _ := tr.GetString("misc_user_id")
 				text = fmt.Sprintf(temp3, html.EscapeString(user1Name), originalId)
@@ -132,7 +132,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 				builder.WriteString("\n")
 			}
 
-			if rpm := msg.ReplyToMessage; rpm != nil {
+			if rpm := reply; rpm != nil {
 				if frpm := rpm.ForwardOrigin; frpm != nil {
 					if frpm.GetDate() != 0 {
 						fwdd := frpm.MergeMessageOrigin()
@@ -155,15 +155,15 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 					}
 				}
 			}
-			if msg.ReplyToMessage.Animation != nil {
+			if reply.Animation != nil {
 				temp6, _ := tr.GetString("misc_gif_id")
-				text = fmt.Sprintf(temp6, msg.ReplyToMessage.Animation.FileId)
+				text = fmt.Sprintf(temp6, reply.Animation.FileId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
 			}
-			if msg.ReplyToMessage.Sticker != nil {
+			if reply.Sticker != nil {
 				temp7, _ := tr.GetString("misc_sticker_id")
-				text = fmt.Sprintf(temp7, msg.ReplyToMessage.Sticker.FileId)
+				text = fmt.Sprintf(temp7, reply.Sticker.FileId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
 			}
@@ -332,7 +332,8 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		toLang   string
 	)
 
-	if len(args) == 0 && msg.ReplyToMessage == nil {
+	reply := extraction.UserReply(msg)
+	if len(args) == 0 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("misc_need_text_and_lang")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -343,7 +344,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if reply := msg.ReplyToMessage; reply != nil {
+	if reply != nil {
 		if reply.Text != "" {
 			origText = reply.Text
 		} else if reply.Caption != "" {

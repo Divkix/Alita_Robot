@@ -20,6 +20,7 @@ import (
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
@@ -66,18 +67,9 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
 
-	var (
-		replyText  string
-		replyMsgId int64
-	)
-
-	if replyMsg := msg.ReplyToMessage; replyMsg != nil {
-		replyMsgId = replyMsg.MessageId
-	} else {
-		replyMsgId = msg.MessageId
-	}
-
-	if rMsg := msg.ReplyToMessage; rMsg != nil {
+	var replyText string
+	replyMsgId := msg.MessageId
+	if rMsg := extraction.UserReply(msg); rMsg != nil {
 		_, err := c.Bot.UnpinChatMessage(chat.Id, &gotgbot.UnpinChatMessageOpts{MessageId: &rMsg.MessageId})
 		if err != nil {
 			log.Error(err)
@@ -220,7 +212,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	msg := c.Msg
 	args := c.Ctx.Args()
 
-	if len(args) == 1 && msg.ReplyToMessage == nil {
+	if len(args) == 1 && extraction.UserReply(msg) == nil {
 		text, _ := c.Tr.GetString("pins_permapin_reply_or_text")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
@@ -293,7 +285,8 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 	isSilent := true
 	args := c.Ctx.Args()
 
-	if msg.ReplyToMessage == nil {
+	prevMessage := extraction.UserReply(msg)
+	if prevMessage == nil {
 		text, _ := c.Tr.GetString("pins_reply_to_pin")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
@@ -303,7 +296,6 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	prevMessage := msg.ReplyToMessage
 	pinMsg, _ := c.Tr.GetString("pins_pinned_message")
 
 	if len(args) > 1 {
@@ -489,7 +481,8 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 		args    = strings.Split(msg.Text, " ")[1:]
 	)
 
-	if reply := msg.ReplyToMessage; reply != nil {
+	reply := extraction.UserReply(msg)
+	if reply != nil {
 		if reply.Text == "" {
 			rawText = reply.OriginalCaptionMDV2()
 		} else {
@@ -509,34 +502,34 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 
 	text, buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
 
-	if len(args) >= 1 && msg.ReplyToMessage == nil {
+	if len(args) >= 1 && reply == nil {
 		dataType = db.TEXT
-	} else if msg.ReplyToMessage != nil && len(args) >= 0 {
-		if len(args) >= 0 && msg.ReplyToMessage.Text != "" {
+	} else if reply != nil {
+		if reply.Text != "" {
 			dataType = db.TEXT
-		} else if msg.ReplyToMessage.Sticker != nil {
-			fileid = msg.ReplyToMessage.Sticker.FileId
+		} else if reply.Sticker != nil {
+			fileid = reply.Sticker.FileId
 			dataType = db.STICKER
-		} else if msg.ReplyToMessage.Document != nil {
-			fileid = msg.ReplyToMessage.Document.FileId
+		} else if reply.Document != nil {
+			fileid = reply.Document.FileId
 			dataType = db.DOCUMENT
-		} else if msg.ReplyToMessage.Animation != nil {
-			fileid = msg.ReplyToMessage.Animation.FileId
+		} else if reply.Animation != nil {
+			fileid = reply.Animation.FileId
 			dataType = db.DOCUMENT
-		} else if len(msg.ReplyToMessage.Photo) > 0 {
-			fileid = msg.ReplyToMessage.Photo[len(msg.ReplyToMessage.Photo)-1].FileId
+		} else if len(reply.Photo) > 0 {
+			fileid = reply.Photo[len(reply.Photo)-1].FileId
 			dataType = db.PHOTO
-		} else if msg.ReplyToMessage.Audio != nil {
-			fileid = msg.ReplyToMessage.Audio.FileId
+		} else if reply.Audio != nil {
+			fileid = reply.Audio.FileId
 			dataType = db.AUDIO
-		} else if msg.ReplyToMessage.Voice != nil {
-			fileid = msg.ReplyToMessage.Voice.FileId
+		} else if reply.Voice != nil {
+			fileid = reply.Voice.FileId
 			dataType = db.VOICE
-		} else if msg.ReplyToMessage.Video != nil {
-			fileid = msg.ReplyToMessage.Video.FileId
+		} else if reply.Video != nil {
+			fileid = reply.Video.FileId
 			dataType = db.VIDEO
-		} else if msg.ReplyToMessage.VideoNote != nil {
-			fileid = msg.ReplyToMessage.VideoNote.FileId
+		} else if reply.VideoNote != nil {
+			fileid = reply.VideoNote.FileId
 			dataType = db.VIDEO_NOTE
 		}
 	}
