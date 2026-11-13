@@ -12,6 +12,7 @@ import (
 	db_filters "github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // Commands that save content take it from the typed text or the replied-to
@@ -146,5 +147,42 @@ func TestSetGreetingInTopic(t *testing.T) {
 				t.Fatalf("reply = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func permaPinInTopic(t *testing.T, f adminChatFixture, text string) {
+	t.Helper()
+	f.chat.IsForum = true
+	cmdCtx, err := helpers.BuildCommandContext(f.bot, sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, text), nil))
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := pinsModule.permaPin(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("permaPin() error = %v, want EndGroups", err)
+	}
+}
+
+func TestPermaPinInTopicPinsTypedText(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	permaPinInTopic(t, f, "/permapin keep pinned")
+
+	sent := f.client.callsFor("sendMessage")
+	if len(sent) == 0 || sent[0].Params["text"] != "keep pinned" {
+		t.Fatalf("sendMessage calls = %+v, want the typed text sent first", sent)
+	}
+	assertParams(t, f.client.onlyCall(t, "pinChatMessage"), map[string]any{"chat_id": f.chat.Id, "message_id": 9001})
+}
+
+func TestPermaPinInTopicWithoutContentAsksForIt(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	permaPinInTopic(t, f, "/permapin")
+
+	if calls := f.client.callsFor("pinChatMessage"); len(calls) != 0 {
+		t.Fatalf("pinChatMessage calls = %d, want none", len(calls))
+	}
+	if got, want := lastMessageTo(t, f.client, f.chat.Id), translated(t, "pins_permapin_reply_or_text"); got != want {
+		t.Fatalf("reply = %q, want %q", got, want)
 	}
 }
