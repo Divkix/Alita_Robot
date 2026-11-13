@@ -2277,6 +2277,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ इम्पोर्ट अनुरोध समाप्त हो गया है। कृपया <code>/import</code> के साथ फिर से शुरू करें।"
 backup_import_cancelled: "❌ इम्पोर्ट रद्द कर दिया गया।"
 backup_import_failed: "❌ इम्पोर्ट विफल: %s"
+backup_import_federation_skipped: "⚠️ बैकअप का फ़ेडरेशन <code>{fed_id}</code> इस बॉट पर मौजूद नहीं है, इसलिए यह चैट किसी फ़ेडरेशन में नहीं जोड़ी गई।"
 
 backup_reset_success: |
   <b>✅ रीसेट सफल!</b>

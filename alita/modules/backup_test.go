@@ -956,6 +956,36 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
 
+func TestBackupCallbackHandlerImportReplyNamesSkippedFederation(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot := f.client, f.bot
+	chat, owner := f.chat, f.admin
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+
+	const missingFedID = "11111111-2222-3333-4444-555555555555"
+	bkp := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules", "federations"})
+	bkp.Data["rules"] = map[string]interface{}{"settings": map[string]interface{}{"rules": "imported rules"}}
+	bkp.Data["federations"] = map[string]interface{}{"membership": map[string]interface{}{"fed_id": missingFedID}}
+	token, err := storePendingImport(chat.Id, bkp, bkp.Modules)
+	require.NoError(t, err)
+	t.Cleanup(func() { dropPendingImport(chat.Id) })
+
+	callback := encodeCallbackData(
+		"backup",
+		map[string]string{"a": backupActionConfirmImport, "c": strconv.FormatInt(chat.Id, 10), "t": token},
+	)
+	ctx := newModuleCallbackContext(bot, chat, owner, callback)
+	assert.Equal(t, ext.EndGroups, backupModule.backupCallbackHandler(bot, ctx))
+	assert.Equal(t, "imported rules", rules.GetChatRulesInfo(chat.Id).Rules)
+	sent := client.callsFor("sendMessage")
+	require.Len(t, sent, 1)
+	text := fmt.Sprint(sent[0].Params["text"])
+	assert.Contains(t, text, translatedWith(t, "backup_import_federation_skipped", i18n.TranslationParams{"fed_id": missingFedID}))
+	assert.Contains(t, text, missingFedID)
+}
+
 func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	f := newAdminChatFixture(t)
 	f.makeOwner()
