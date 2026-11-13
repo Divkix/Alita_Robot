@@ -85,6 +85,8 @@ func TestTopicRootReplyIsNoReply(t *testing.T) {
 		{text: "/report", byMember: true, run: reportsModule.report},
 		{text: "/pin", run: commandResponse(pinsModule.pin)},
 		{text: "/unpin", run: commandResponse(pinsModule.unpin)},
+		{text: "/id", run: miscModule.getId},
+		{text: "/id 42", run: miscModule.getId},
 	} {
 		t.Run(tt.text, func(t *testing.T) {
 			f := newAdminChatFixture(t)
