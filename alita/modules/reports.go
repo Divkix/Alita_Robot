@@ -391,7 +391,7 @@ func reportsBlockText(c *helpers.CommandContext, tr *i18n.Translator, block bool
 	if block {
 		usageKey, doneKey, apply = "reports_reply_to_block", "reports_user_blocked", reports.BlockReportUser
 	}
-	reply := c.Msg.ReplyToMessage
+	reply := extraction.UserReply(c.Msg)
 	if reply == nil {
 		return trS(tr, usageKey)
 	}

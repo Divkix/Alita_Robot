@@ -11,6 +11,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db/reports"
 )
 
 // forumTopicID is the forum topic the tests' commands are sent in; its
@@ -87,6 +89,8 @@ func TestTopicRootReplyIsNoReply(t *testing.T) {
 		{text: "/unpin", run: commandResponse(pinsModule.unpin)},
 		{text: "/id", run: miscModule.getId},
 		{text: "/id 42", run: miscModule.getId},
+		{text: "/reports block", run: commandResponse(reportsModule.reports)},
+		{text: "/reports unblock", run: commandResponse(reportsModule.reports)},
 	} {
 		t.Run(tt.text, func(t *testing.T) {
 			f := newAdminChatFixture(t)
@@ -137,4 +141,21 @@ func TestTopicReplyToOrdinaryMessageTargetsItsAuthor(t *testing.T) {
 		t.Fatalf("pin() error = %v, want EndGroups", err)
 	}
 	assertParams(t, f.client.onlyCall(t, "pinChatMessage"), map[string]any{"chat_id": f.chat.Id, "message_id": 50})
+}
+
+// /reports block in a topic with only the implicit reply to the topic's
+// creation message blocks nobody, the topic's creator included.
+func TestReportsBlockInTopicWithoutReplyBlocksNobody(t *testing.T) {
+	f := newAdminChatFixture(t)
+	f.chat.IsForum = true
+	ctx := sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, "/reports block"), nil)
+	if err := commandResponse(reportsModule.reports)(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("reports block error = %v, want EndGroups", err)
+	}
+	if got := reports.GetChatReportSettings(f.chat.Id).BlockedList; len(got) != 0 {
+		t.Fatalf("blocked list = %v, want nobody blocked", got)
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the usage reply", len(calls))
+	}
 }
