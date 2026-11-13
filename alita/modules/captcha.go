@@ -1354,13 +1354,18 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	return nil
 }
 
+// scheduleCaptchaTimeout fails attempt at its deadline. A refresh keeps the
+// deadline and arms no new timer, so this one stays in charge: it is stale
+// only when the attempt is gone or its deadline changed, and it settles the
+// attempt as stored when it fires, whose prompt is the current one. The sweep
+// covers timers lost to a restart.
 func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
 	delay := time.Until(attempt.ExpiresAt)
 	if delay < 0 {
 		delay = 0
 	}
-	capturedRefreshCount := attempt.RefreshCount
-	capturedExpiresAt := attempt.ExpiresAt
+	// Compared at microseconds, the precision Postgres stores.
+	capturedExpiresAt := attempt.ExpiresAt.Round(time.Microsecond)
 	capturedID := attempt.ID
 	startCaptchaLifecycleTask(func(ctx context.Context) {
 		timer := time.NewTimer(delay)
@@ -1368,14 +1373,17 @@ func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
 		select {
 		case <-timer.C:
 			defer error_handling.RecoverFromPanic("captchaTimeout", "captcha")
-			if fresh, err := captcha.GetCaptchaAttemptByID(capturedID); err == nil && fresh != nil {
-				if fresh.RefreshCount != capturedRefreshCount || !fresh.ExpiresAt.Equal(capturedExpiresAt) {
-					log.Debugf("[Captcha] Stale timer for attempt %d ignored (refreshCount %d->%d, expires %v->%v)", capturedID, capturedRefreshCount, fresh.RefreshCount, capturedExpiresAt, fresh.ExpiresAt)
-					return
-				}
+			fresh, err := captcha.GetCaptchaAttemptByID(capturedID)
+			if err != nil {
+				log.Errorf("[Captcha] Failed to read attempt %d at its deadline; the sweep retries: %v", capturedID, err)
+				return
 			}
-			if _, err := expireCaptchaAttempt(bot, attempt); err != nil {
-				log.Errorf("[Captcha] Failed to expire attempt %d: %v", attempt.ID, err)
+			if fresh == nil || !fresh.ExpiresAt.Round(time.Microsecond).Equal(capturedExpiresAt) {
+				log.Debugf("[Captcha] Stale timer for attempt %d ignored", capturedID)
+				return
+			}
+			if _, err := expireCaptchaAttempt(bot, fresh); err != nil {
+				log.Errorf("[Captcha] Failed to expire attempt %d: %v", capturedID, err)
 			}
 		case <-ctx.Done():
 		}

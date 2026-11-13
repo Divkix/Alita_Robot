@@ -565,7 +565,12 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		kickedText, _ := tr.GetString("reports_user_kicked")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
-		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Kick, user.Id, ""); err != nil {
+		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Kick, user.Id, ""); errors.Is(err, errKickTargetBanned) {
+			reopen()
+			text, _ := tr.GetString("bans_kick_target_banned")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
+			return ext.EndGroups
+		} else if err != nil {
 			reopen()
 			log.Error(err)
 			return err

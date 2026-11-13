@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"strconv"
@@ -585,7 +586,11 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	if _, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
 		ChatID: chat.Id, Target: punishment.Target{ID: userId}, Mode: mode,
 		Source: models.BanSourceManual, ActorID: user.Id,
-	}); err != nil {
+	}); errors.Is(err, errKickTargetBanned) {
+		text, _ := tr.GetString("bans_kick_target_banned")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
+		return ext.EndGroups
+	} else if err != nil {
 		log.Error(err)
 		return err
 	}

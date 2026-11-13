@@ -383,7 +383,8 @@ func (c *moderationCtx) lift(t *target, mode punishment.Mode) error {
 type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
 
 // applyPunishment is punishment.Apply for an action that never asks for one
-// the module refuses: a refusal is an error too.
+// the module refuses: a refusal is an error too, errKickTargetBanned for a
+// kick of a banned user, which only a stale button can ask for.
 func applyPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
 	result, err := punishment.Apply(ctx, b, request)
 	return result, refusalError(result, err)
@@ -396,8 +397,15 @@ func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Lift
 	return refusalError(result, err)
 }
 
+// errKickTargetBanned is punishment.RefusalBanned; a button shows the presser
+// bans_kick_target_banned.
+var errKickTargetBanned = errors.New(punishment.RefusalBanned)
+
 func refusalError(result punishment.Result, err error) error {
 	if err == nil && !result.Applied {
+		if result.Refusal == punishment.RefusalBanned {
+			return errKickTargetBanned
+		}
 		return errors.New(result.Refusal)
 	}
 	return err

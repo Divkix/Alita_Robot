@@ -24,7 +24,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
-	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
@@ -229,13 +228,10 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	parts := strings.SplitN(msg.Text, " ", 2)
-	if len(parts) < 2 {
-		return ext.EndGroups
-	}
-	noteWord := strings.TrimLeft(parts[1], "#")
+	// A note name is one word: /clear takes the first argument and ignores the rest.
+	noteWord := strings.ToLower(strings.TrimLeft(strings.Trim(args[1], `"`), "#"))
 
-	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteWord)) {
+	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), noteWord) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_not_exists")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -245,9 +241,8 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	}
-	noteWord, _ = extraction.ExtractQuotes(noteWord, false, true)
 
-	if err := notes.RemoveNote(chat.Id, strings.ToLower(noteWord)); err != nil {
+	if err := notes.RemoveNote(chat.Id, noteWord); err != nil {
 		log.Errorf("[Notes] Failed to remove note %s in chat %d: %v", noteWord, chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errorText, _ := tr.GetString("error_generic")
@@ -807,10 +802,11 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 }
 
 // sendGetNote answers /get with the note itself, or with a button to read it
-// in PM when the note or the chat keeps notes private.
+// in PM when the note or the chat keeps notes private. Sent in PM, it is
+// already where a private note opens, so it sends the note.
 func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
 	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
-	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && msg.Chat.Type != gotgbot.ChatTypePrivate {
 		if sendNoteEphemeral(b, ctx, chat, noteData) {
 			return nil
 		}
@@ -945,8 +941,8 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
 			func(c *helpers.CommandContext) bool {
-				// Missing keywords and non-text commands return before this right.
-				return len(c.Ctx.Args()) == 1 || !strings.Contains(c.Msg.Text, " ") || helpers.CanUserChangeInfo()(c)
+				// A missing keyword returns before this right.
+				return len(c.Ctx.Args()) == 1 || helpers.CanUserChangeInfo()(c)
 			},
 		},
 	}, pipelineHandler(notesModule.rmNote))
