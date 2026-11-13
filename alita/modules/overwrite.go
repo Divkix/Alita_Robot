@@ -5,11 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/eko/gocache/lib/v4/store"
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
 const overwriteCacheTTL = 5 * time.Minute
@@ -95,4 +98,22 @@ func deleteOverwriteCache(key string) {
 	if m := cache.GetMarshal(); m != nil {
 		_ = m.Delete(cache.Context, key)
 	}
+}
+
+// overwriteGroup returns the group the overwrite stored under key acts on: the
+// one /save or /filter ran in, never the callback data or the chat the button
+// is pressed in, which is the PM when the command came from there. It reads
+// the overwrite without consuming it, so a refused press leaves it to its
+// admin, and returns 0 when nothing is stored. ok is false, with the query
+// answered, when the presser is no admin of that group.
+func overwriteGroup(b *gotgbot.Bot, ctx *ext.Context, key string, userID int64) (chatID int64, ok bool) {
+	data, err := getOverwriteCache[overwriteBase](key)
+	if err != nil {
+		return 0, true
+	}
+	if !chat_status.RequireUserAdmin(b, ctx, &gotgbot.Chat{Id: data.ChatID}, userID) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		return 0, false
+	}
+	return data.ChatID, true
 }
