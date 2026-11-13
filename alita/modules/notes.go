@@ -802,10 +802,11 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 }
 
 // sendGetNote answers /get with the note itself, or with a button to read it
-// in PM when the note or the chat keeps notes private.
+// in PM when the note or the chat keeps notes private. Sent in PM, it is
+// already where a private note opens, so it sends the note.
 func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
 	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
-	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && msg.Chat.Type != gotgbot.ChatTypePrivate {
 		if sendNoteEphemeral(b, ctx, chat, noteData) {
 			return nil
 		}
