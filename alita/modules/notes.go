@@ -508,11 +508,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	editText := helpText
-	if chatID != 0 {
-		editText = withButtonGroupLine(b, ctx, tr, chatID, helpText)
-	}
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: editText, ParseMode: formatting.HTML})
+	err := editOverwriteAnswer(b, ctx, tr, query.Message, chatID, helpText)
 	if err != nil {
 		log.Error(err)
 		return err

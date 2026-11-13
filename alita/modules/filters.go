@@ -410,11 +410,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	var helpText string
 	// edit replaces the question with text, naming the group when pressed in PM.
 	edit := func(text string) error {
-		if chatID != 0 {
-			text = withButtonGroupLine(b, ctx, tr, chatID, text)
-		}
-		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML})
-		return err
+		return editOverwriteAnswer(b, ctx, tr, query.Message, chatID, text)
 	}
 
 	if action == "cancel" {

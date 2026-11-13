@@ -196,6 +196,11 @@ func TestOverwriteButtonsInGroupCarryNoGroupLine(t *testing.T) {
 			if got, want := lastEditText(t, f), translated(t, tc.success); got != want {
 				t.Fatalf("group answer = %q, want %q", got, want)
 			}
+			// Group use is unchanged: the answer is sent as plain text.
+			edits := f.client.callsFor("editMessageText")
+			if mode, ok := edits[len(edits)-1].Params["parse_mode"]; ok && mode != "" {
+				t.Fatalf("group answer parse_mode = %v, want plain text", mode)
+			}
 		})
 	}
 }
