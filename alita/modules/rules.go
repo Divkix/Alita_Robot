@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -182,9 +183,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text, rulesText string
-	// A reply to the topic-creation service message is Telegram's implicit
-	// reply in forum topics, not a user's choice of rules source.
-	if reply := msg.ReplyToMessage; reply != nil && reply.ForumTopicCreated == nil {
+	if reply := extraction.UserReply(msg); reply != nil {
 		rulesText = reply.OriginalTextMDV2() // text, or caption for media
 	}
 	if strings.TrimSpace(rulesText) == "" {
