@@ -437,15 +437,14 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 	user := query.From
 
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-
 	var helpText string
 	action, token, ok := parseOverwriteCallbackData(query.Data, "notes.overwrite")
 	if !ok {
 		log.WithField("data", query.Data).Warn("Invalid note overwrite callback data format")
+		return ext.EndGroups
+	}
+	chatID, ok := overwriteGroup(b, ctx, noteOverwriteCacheKey(token), user.Id)
+	if !ok {
 		return ext.EndGroups
 	}
 
@@ -462,8 +461,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		}
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	case "yes":
-		var chatId int64
-
 		if token == "" {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
@@ -473,28 +470,9 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		chatId = noteData.ChatID
-		if chatId == 0 {
-			if query.Message != nil {
-				chatId = query.Message.GetChat().Id
-			} else if ctx.EffectiveChat != nil {
-				chatId = ctx.EffectiveChat.Id
-			}
-		}
-
-		callbackChatID := int64(0)
-		if query.Message != nil {
-			callbackChatID = query.Message.GetChat().Id
-		} else if ctx.EffectiveChat != nil {
-			callbackChatID = ctx.EffectiveChat.Id
-		}
-		if noteData.ChatID != 0 && callbackChatID != 0 && noteData.ChatID != callbackChatID {
-			helpText, _ = tr.GetString("notes_overwrite_cancelled")
-			break
-		}
 
 		updated, err := notes.UpdateNote(
-			chatId,
+			noteData.ChatID,
 			noteData.ItemName,
 			noteData.Text,
 			noteData.FileID,
@@ -528,7 +506,11 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
+	editText := helpText
+	if chatID != 0 {
+		editText = withButtonGroupLine(b, ctx, tr, chatID, helpText)
+	}
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: editText, ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err

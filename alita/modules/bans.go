@@ -618,17 +618,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		)
 	}
 
-	// Sent in PM, the menu named the group, and the text that replaces it
-	// names it too; the button carries only the group's ID. The line is only
-	// text, so a failed lookup leaves it out.
-	if inPM(ctx.EffectiveMessage) {
-		if full, err := b.GetChat(chat.Id, nil); err != nil {
-			log.Error(err)
-		} else {
-			group := full.ToChat()
-			helpText = withGroupLine(tr, ctx.EffectiveMessage, &group, helpText)
-		}
-	}
+	helpText = withButtonGroupLine(b, ctx, tr, chat.Id, helpText)
 
 	_, _, err = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
@@ -1012,6 +1002,23 @@ func dropPMReply(c *helpers.CommandContext) {
 // command sent in reply to msg (pmGroupLine).
 func withGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, text string) string {
 	return text + pmGroupLine(tr, msg, chat, true)
+}
+
+// withButtonGroupLine is withGroupLine for the HTML text answering a button
+// pressed in PM, which carries only the group's ID: the menu named the group,
+// and the text that replaces it names it too. The line is only text, so a
+// failed lookup leaves it out.
+func withButtonGroupLine(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chatID int64, text string) string {
+	if !inPM(ctx.EffectiveMessage) {
+		return text
+	}
+	full, err := b.GetChat(chatID, nil)
+	if err != nil {
+		log.Error(err)
+		return text
+	}
+	group := full.ToChat()
+	return withGroupLine(tr, ctx.EffectiveMessage, &group, text)
 }
 
 // pmButtonChatID is the group a button a moderation command sends in reply to
