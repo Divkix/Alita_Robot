@@ -332,7 +332,8 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		toLang   string
 	)
 
-	if len(args) == 0 && msg.ReplyToMessage == nil {
+	reply := extraction.UserReply(msg)
+	if len(args) == 0 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("misc_need_text_and_lang")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -343,7 +344,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if reply := msg.ReplyToMessage; reply != nil {
+	if reply != nil {
 		if reply.Text != "" {
 			origText = reply.Text
 		} else if reply.Caption != "" {

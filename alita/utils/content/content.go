@@ -13,6 +13,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 )
 
 // quotedFilterKeywordRegex splits `"several words" rest` into the quoted
@@ -82,7 +83,7 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 		args    = commandArgs(msg.Text)
 	)
 	_buttons := make([]tgmd2html.ButtonV2, 0)
-	replyMsg := msg.ReplyToMessage
+	replyMsg := extraction.UserReply(msg)
 
 	setRawText(msg, args, &rawText)
 
@@ -233,15 +234,15 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 		args    = commandArgs(msg.Text)
 	)
 	_buttons := make([]tgmd2html.ButtonV2, 0)
-	replyMsg := msg.ReplyToMessage
+	replyMsg := extraction.UserReply(msg)
 
 	setRawText(msg, args, &rawText)
 
-	if len(args) >= 1 && msg.ReplyToMessage == nil {
+	if len(args) >= 1 && replyMsg == nil {
 		result.FileID = ""
 		result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
 		result.DataType = db.TEXT
-	} else if msg.ReplyToMessage != nil {
+	} else if replyMsg != nil {
 		if replyMsg.ReplyMarkup == nil {
 			result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
 		} else {
@@ -319,7 +320,7 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 }
 
 func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
-	replyMsg := msg.ReplyToMessage
+	replyMsg := extraction.UserReply(msg)
 	if replyMsg == nil {
 		if msg.Text == "" && msg.Caption != "" {
 			*rawText = dropFirstToken(msg.OriginalCaptionMDV2())

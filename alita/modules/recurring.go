@@ -149,7 +149,7 @@ func recurringAdd(c *helpers.CommandContext) error {
 	}
 	stripped = stripPMGroupToken(stripped, pmGroupToken{start: words[0].end, end: words[1].end})
 
-	if msg.ReplyToMessage == nil && next >= len(words) {
+	if extraction.UserReply(msg) == nil && next >= len(words) {
 		return recurringReply(c, "recurring_need_content", nil)
 	}
 	language := lang.GetLanguage(c.Ctx)
