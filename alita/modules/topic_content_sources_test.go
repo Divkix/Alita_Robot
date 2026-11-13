@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	db_filters "github.com/divkix/Alita_Robot/alita/db/filters"
+	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 )
 
@@ -94,5 +95,56 @@ func TestAddFilterInTopicWithoutContentAsksForIt(t *testing.T) {
 	}
 	if got, want := lastMessageTo(t, f.client, f.chat.Id), translated(t, "filters_invalid"); got != want {
 		t.Fatalf("reply = %q, want %q", got, want)
+	}
+}
+
+func TestSetGreetingInTopic(t *testing.T) {
+	for _, tt := range []struct {
+		command  string
+		run      func(*gotgbot.Bot, *ext.Context) error
+		stored   func(chatID int64) string
+		needText string
+	}{
+		{
+			command:  "/setwelcome",
+			run:      greetingsModule.setWelcome,
+			stored:   func(id int64) string { return greetings.GetGreetingSettings(id).WelcomeSettings.WelcomeText },
+			needText: "content_need_welcome_content",
+		},
+		{
+			command:  "/setgoodbye",
+			run:      greetingsModule.setGoodbye,
+			stored:   func(id int64) string { return greetings.GetGreetingSettings(id).GoodbyeSettings.GoodbyeText },
+			needText: "content_need_goodbye_content",
+		},
+	} {
+		t.Run(tt.command+" takes typed text", func(t *testing.T) {
+			useRealLocales(t)
+			f := newAdminChatFixture(t)
+			f.chat.IsForum = true
+			ctx := sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, tt.command+" Hello {first}"), nil)
+			if err := tt.run(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tt.command, err)
+			}
+			if got := tt.stored(f.chat.Id); got != "Hello {first}" {
+				t.Fatalf("stored text = %q, want the typed text", got)
+			}
+		})
+		t.Run(tt.command+" without content asks for it", func(t *testing.T) {
+			useRealLocales(t)
+			f := newAdminChatFixture(t)
+			f.chat.IsForum = true
+			before := tt.stored(f.chat.Id)
+			ctx := sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, tt.command), nil)
+			if err := tt.run(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tt.command, err)
+			}
+			if got := tt.stored(f.chat.Id); got != before {
+				t.Fatalf("stored text = %q, want it unchanged (%q)", got, before)
+			}
+			if got, want := lastMessageTo(t, f.client, f.chat.Id), translated(t, tt.needText); got != want {
+				t.Fatalf("reply = %q, want %q", got, want)
+			}
+		})
 	}
 }

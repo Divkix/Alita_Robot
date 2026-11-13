@@ -234,15 +234,15 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 		args    = commandArgs(msg.Text)
 	)
 	_buttons := make([]tgmd2html.ButtonV2, 0)
-	replyMsg := msg.ReplyToMessage
+	replyMsg := extraction.UserReply(msg)
 
 	setRawText(msg, args, &rawText)
 
-	if len(args) >= 1 && msg.ReplyToMessage == nil {
+	if len(args) >= 1 && replyMsg == nil {
 		result.FileID = ""
 		result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
 		result.DataType = db.TEXT
-	} else if msg.ReplyToMessage != nil {
+	} else if replyMsg != nil {
 		if replyMsg.ReplyMarkup == nil {
 			result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
 		} else {
