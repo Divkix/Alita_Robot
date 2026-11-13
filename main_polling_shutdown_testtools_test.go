@@ -55,6 +55,14 @@ func TestPollingTimeoutStaysBelowResponseHeaderTimeout(t *testing.T) {
 	}
 }
 
+// The updater stop is a shutdown step: a poll held for pollingTimeout must
+// end at least 2s before the manager gives up on that step.
+func TestPollingTimeoutStaysBelowShutdownHandlerLimit(t *testing.T) {
+	if limit := shutdown.HandlerTimeoutForTest(); limit-pollingTimeout < 2*time.Second {
+		t.Errorf("polling timeout %v is not at least 2s below the shutdown per-handler limit %v", pollingTimeout, limit)
+	}
+}
+
 // A stop signal in polling mode runs every shutdown step, updater first and
 // tracer last, and the polling function keeps the process alive until the
 // manager's exit: returning from it is returning from main. The getUpdates
