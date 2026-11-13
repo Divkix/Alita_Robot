@@ -1274,7 +1274,7 @@ func importFederations(tx *gorm.DB, chatID int64, payload interface{}, notices *
 			return nil, fmt.Errorf("check federation: %w", found.Error)
 		}
 		if found.RowsAffected == 0 {
-			*notices = append(*notices, ImportNotice{Module: BackupModuleFederations, ID: data.Membership.FedID})
+			*notices = append(*notices, ImportNotice{ID: data.Membership.FedID})
 			return []string{cacheKey("fed_chat", chatID)}, nil
 		}
 		row := models.FederationChat{

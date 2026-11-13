@@ -409,7 +409,7 @@ func TestImportChatDataSkipsMissingFederation(t *testing.T) {
 
 	notices, err := ImportChatData(chatID, bkp, nil)
 	require.NoError(t, err)
-	assert.Equal(t, []ImportNotice{{Module: BackupModuleFederations, ID: missingFedID}}, notices)
+	assert.Equal(t, []ImportNotice{{ID: missingFedID}}, notices)
 
 	settings, err := findChatSetting[models.RulesSettings](chatID)
 	require.NoError(t, err)
