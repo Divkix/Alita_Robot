@@ -253,7 +253,8 @@ func lookupUrbanDictionary(query string) (string, error) {
 	def := strings.ReplaceAll(entry.Definition, "[", "")
 	def = strings.ReplaceAll(def, "]", "")
 	if len(def) > 700 {
-		def = def[:700] + "…"
+		// The byte cut can split the last character; drop its partial bytes.
+		def = strings.ToValidUTF8(def[:700], "") + "…"
 	}
 	return fmt.Sprintf(
 		"<b>%s</b>\n%s",
