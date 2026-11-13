@@ -25,22 +25,7 @@ const (
 )
 
 var (
-	linkRegex        = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
-	rulesBtnRegex    = regexp.MustCompile(`(?s){rules(:(same|up))?}`)
-	htmlToMdReplacer = strings.NewReplacer(
-		"<b>", "*",
-		"</b>", "*",
-		"<i>", "_",
-		"</i>", "_",
-		"<u>", "__",
-		"</u>", "__",
-		"<s>", "~",
-		"</s>", "~",
-		"<code>", "`",
-		"</code>", "`",
-		"<pre>", "```",
-		"</pre>", "```",
-	)
+	rulesBtnRegex           = regexp.MustCompile(`(?s){rules(:(same|up))?}`)
 	formatPlaceholderTokens = [...]string{
 		"{first}", "{last}", "{fullname}", "{username}", "{mention}", "{count}", "{chatname}", "{id}",
 	}
@@ -194,21 +179,6 @@ func MentionUrl(url, name string) string {
 
 func HtmlEscape(s string) string {
 	return html.EscapeString(s)
-}
-
-func ReverseHTML2MD(text string) string {
-	if linkRegex.MatchString(text) {
-		matches := linkRegex.FindAllStringSubmatch(text, -1)
-		for _, match := range matches {
-			if len(match) >= 3 {
-				oldLink := match[0]
-				newLink := fmt.Sprintf("[%s](%s)", match[2], match[1])
-				text = strings.Replace(text, oldLink, newLink, 1)
-			}
-		}
-	}
-
-	return htmlToMdReplacer.Replace(text)
 }
 
 // replaceFormatPlaceholders substitutes formatPlaceholderTokens with values in a
