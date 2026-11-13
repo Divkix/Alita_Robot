@@ -1908,11 +1908,13 @@ func captchaAttemptForUpdate(ctx *ext.Context, userID, chatID int64) (*models.Ca
 
 // handlePendingCaptchaMessage runs in dispatcher group -10, stores pending users' message
 // types, text, file IDs and captions, and deletes the originals rather than replaying them.
+// Join and leave notices are not the member's messages: they go on to the
+// later groups (users tracker, membership intake, clean-service) untouched.
 func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if user == nil || isJoinOrLeaveNotice(msg) {
 		return ext.ContinueGroups
 	}
 
