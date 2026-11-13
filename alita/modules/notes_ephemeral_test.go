@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 )
 
@@ -150,5 +151,40 @@ func TestNoteFromPMWithEphemeralOnStaysInPM(t *testing.T) {
 	}
 	if !calledFor(f, "sendMessage", f.admin.Id) || calledFor(f, "sendMessage", f.chat.Id) {
 		t.Fatalf("/get from PM did not answer in PM only; sent:\n%s", sentText(f.client))
+	}
+}
+
+// A connected member who sends /get in PM is already where a private note
+// opens: the note arrives there, with no button pointing back at the PM.
+func TestGetPrivateNoteInPMSendsTheNote(t *testing.T) {
+	for _, byChat := range []bool{true, false} {
+		t.Run(fmt.Sprintf("privateByChat=%t", byChat), func(t *testing.T) {
+			useRealLocales(t)
+			f := newAdminChatFixture(t)
+			if err := notes.AddNote(f.chat.Id, "rules", "be kind", "", nil, db.TEXT, !byChat, false, false, false, false, false); err != nil {
+				t.Fatalf("AddNote() error = %v", err)
+			}
+			if err := notes.TooglePrivateNote(f.chat.Id, byChat); err != nil {
+				t.Fatalf("TooglePrivateNote() error = %v", err)
+			}
+			if err := connections.ToggleAllowConnect(f.chat.Id, true); err != nil {
+				t.Fatal(err)
+			}
+			if err := connections.ConnectId(f.member.Id, f.chat.Id); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = connections.DisconnectId(f.member.Id) })
+
+			processPM(t, notesDispatcher(), f, f.member.Id, "/get rules")
+
+			call := f.client.onlyCall(t, "sendMessage")
+			assertParams(t, call, map[string]any{"chat_id": f.member.Id})
+			if text := fmt.Sprint(call.Params["text"]); !strings.Contains(text, "be kind") {
+				t.Fatalf("PM text = %q, want the note", text)
+			}
+			if kb, _ := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup); len(kb.InlineKeyboard) != 0 {
+				t.Fatalf("reply_markup = %+v, want no deep-link button", kb)
+			}
+		})
 	}
 }

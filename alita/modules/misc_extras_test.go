@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -104,6 +105,23 @@ func TestGitHubWikiUDRequireQueryAndAcceptMocks(t *testing.T) {
 	if err := miscModule.urbanDict(bot, newModuleMessageContext(bot, chat, user, "/ud bot")); err != ext.EndGroups {
 		t.Fatalf("ud: %v", err)
 	}
+}
+
+// A long definition is cut on a character boundary, so Telegram accepts it.
+func TestUDCutsLongDefinitionOnACharacterBoundary(t *testing.T) {
+	def := strings.Repeat("a", 699) + strings.Repeat("é", 10)
+	withMiscHTTPClient(t, &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader(`{"list":[{"word":"bot","definition":"` + def + `"}]}`)),
+			Header:     make(http.Header),
+		}, nil
+	})})
+
+	text, err := lookupUrbanDictionary("bot")
+	require.NoError(t, err)
+	require.True(t, utf8.ValidString(text), "definition is not valid UTF-8: %q", text[len(text)-8:])
+	require.True(t, strings.HasSuffix(text, "…"), "definition does not end with the ellipsis")
 }
 
 func TestZombiesGroupAdminPath(t *testing.T) {
