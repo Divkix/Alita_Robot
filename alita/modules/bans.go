@@ -39,15 +39,21 @@ func kickTargetValidation(c *moderationCtx, t *target) error {
 	return validateTarget(c, t.userID, true, prefix+"_kick_user_not_in_chat", prefix+"_kick_cannot_kick_admin", prefix+"_kick_is_bot_itself")
 }
 
-func kickReply(c *moderationCtx, t *target) error {
-	kickuser, err := c.Bot.GetChat(t.userID, nil)
+// targetMention mentions userID by name, or by ID when the name lookup fails,
+// as it does for a user the bot has never met (a ban by ID). The action has
+// already happened, so its reply must not depend on the lookup.
+func targetMention(c *moderationCtx, userID int64) string {
+	user, err := c.Bot.GetChat(userID, nil)
 	if err != nil {
-		log.Error(err)
-		return err
+		log.Debugf("[Bans] name lookup of %d failed, mentioning by ID: %v", userID, err)
+		return formatting.MentionHtml(userID, strconv.FormatInt(userID, 10))
 	}
+	return formatting.MentionHtml(user.Id, user.FirstName)
+}
 
+func kickReply(c *moderationCtx, t *target) error {
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_user")
-	text := fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName))
+	text := fmt.Sprintf(baseStr, targetMention(c, t.userID))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_reason")
 		if temp != "" {
@@ -55,7 +61,7 @@ func kickReply(c *moderationCtx, t *target) error {
 		}
 	}
 
-	_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
+	_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -102,14 +108,8 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 			return c.punish(t, punishment.Ban, d)
 		},
 		reply: func(c *moderationCtx, t *target) error {
-			banUser, err := c.Bot.GetChat(t.userID, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-
 			temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_tban")
-			baseStr := fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName), t.timeVal)
+			baseStr := fmt.Sprintf(temp, targetMention(c, t.userID), t.timeVal)
 			if t.reason != "" {
 				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
 				if temp != "" {
@@ -117,7 +117,7 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 				}
 			}
 
-			_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
+			_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -130,20 +130,14 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 }
 
 func banReplyWithButton(c *moderationCtx, t *target) error {
-	banUser, err := c.Bot.GetChat(t.userID, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
 	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_normal_ban")
-	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
+	text := fmt.Sprintf(baseStr, targetMention(c, t.userID))
 	if t.reason != "" {
 		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
 		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
 
-	_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text),
+	_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
