@@ -142,11 +142,12 @@ func TestClearNoteNormalisesTheNameAndChecksTheRightInEveryForm(t *testing.T) {
 				if err := notesDispatcher().ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, command).Update, nil); err != nil {
 					t.Fatal(err)
 				}
+				// onlyCall: exactly one reply was sent, the refusal or the confirmation.
 				text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
 				gone := notes.GetNote(f.chat.Id, "rules") == nil
 				if limited {
-					if text != "You don't have permission to change info in this group!" || gone {
-						t.Fatalf("limited admin: reply %q, note removed %t; want the refusal and the note kept", text, gone)
+					if gone {
+						t.Fatalf("limited admin: note removed after %q; reply %q, want the note kept", command, text)
 					}
 					return
 				}

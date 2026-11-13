@@ -391,7 +391,7 @@ func reportsBlockText(c *helpers.CommandContext, tr *i18n.Translator, block bool
 	if block {
 		usageKey, doneKey, apply = "reports_reply_to_block", "reports_user_blocked", reports.BlockReportUser
 	}
-	reply := c.Msg.ReplyToMessage
+	reply := extraction.UserReply(c.Msg)
 	if reply == nil {
 		return trS(tr, usageKey)
 	}
@@ -560,11 +560,9 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		kickedText, _ := tr.GetString("reports_user_kicked")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
-		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Kick, user.Id, ""); errors.Is(err, errKickTargetBanned) {
+		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Kick, user.Id, ""); errors.Is(err, punishment.ErrKickTargetBanned) {
 			reopen()
-			text, _ := tr.GetString("bans_kick_target_banned")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
-			return ext.EndGroups
+			return answerKickTargetBanned(b, query, tr)
 		} else if err != nil {
 			reopen()
 			log.Error(err)

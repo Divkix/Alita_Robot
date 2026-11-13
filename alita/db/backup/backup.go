@@ -513,6 +513,11 @@ func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}
 	if err := ensureBackupChat(tx, chatID); err != nil {
 		return nil, err
 	}
+	return importModule(tx, chatID, module, data, preserveLegacyOmissions, notices)
+}
+
+// importModule dispatches module's data to its importer.
+func importModule(tx *gorm.DB, chatID int64, module string, data interface{}, preserveLegacyOmissions bool, notices *[]ImportNotice) ([]string, error) {
 	switch module {
 	case BackupModuleAdmin:
 		return importAdmin(tx, chatID, data)
@@ -1274,7 +1279,7 @@ func importFederations(tx *gorm.DB, chatID int64, payload interface{}, notices *
 			return nil, fmt.Errorf("check federation: %w", found.Error)
 		}
 		if found.RowsAffected == 0 {
-			*notices = append(*notices, ImportNotice{Module: BackupModuleFederations, ID: data.Membership.FedID})
+			*notices = append(*notices, ImportNotice{ID: data.Membership.FedID})
 			return []string{cacheKey("fed_chat", chatID)}, nil
 		}
 		row := models.FederationChat{

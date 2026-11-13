@@ -11,8 +11,10 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 const overwriteCacheTTL = 5 * time.Minute
@@ -116,4 +118,16 @@ func overwriteGroup(b *gotgbot.Bot, ctx *ext.Context, key string, userID int64) 
 		return 0, false
 	}
 	return data.ChatID, true
+}
+
+// editOverwriteAnswer replaces the overwrite question in message with text.
+// Pressed in PM, the text names group chatID (withButtonGroupLine) and is
+// sent as HTML; in the group it stays plain text, as it always was.
+func editOverwriteAnswer(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, message gotgbot.MaybeInaccessibleMessage, chatID int64, text string) error {
+	opts := &gotgbot.EditMessageTextOpts{Text: text}
+	if chatID != 0 && inPM(ctx.EffectiveMessage) {
+		opts.Text, opts.ParseMode = withButtonGroupLine(b, ctx, tr, chatID, text), formatting.HTML
+	}
+	_, _, err := message.EditText(b, opts)
+	return err
 }

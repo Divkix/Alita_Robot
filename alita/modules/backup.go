@@ -515,7 +515,7 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	}
 
 	text, _ := tr.GetString("backup_import_success", backupResultParams(modules))
-	// Only the federations module skips a part today.
+	// Every notice is a skipped federation (backup.ImportNotice).
 	for _, notice := range notices {
 		line, _ := tr.GetString("backup_import_federation_skipped", i18n.TranslationParams{"fed_id": html.EscapeString(notice.ID)})
 		text += "\n" + line

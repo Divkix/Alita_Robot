@@ -508,11 +508,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	editText := helpText
-	if chatID != 0 {
-		editText = withButtonGroupLine(b, ctx, tr, chatID, helpText)
-	}
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: editText, ParseMode: formatting.HTML})
+	err := editOverwriteAnswer(b, ctx, tr, query.Message, chatID, helpText)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -790,7 +786,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 // already where a private note opens, so it sends the note.
 func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, noteData *db.Notes) error {
 	b, ctx, msg, chat := c.Bot, c.Ctx, c.Msg, c.Chat
-	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && msg.Chat.Type != gotgbot.ChatTypePrivate {
+	if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly && !inPM(msg) {
 		if sendNoteEphemeral(b, ctx, chat, noteData) {
 			return nil
 		}

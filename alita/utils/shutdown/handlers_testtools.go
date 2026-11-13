@@ -5,7 +5,14 @@ package shutdown
 import (
 	"os"
 	"syscall"
+	"time"
 )
+
+// HandlerTimeoutForTest returns how long shutdown waits for one handler, so a
+// test outside this package can keep a step such as the polling stop below it.
+func HandlerTimeoutForTest() time.Duration {
+	return handlerTimeout
+}
 
 // ExecuteHandlersForTest runs the registered handlers in the same LIFO order
 // and with the same panic recovery as shutdown, without exiting the process.
