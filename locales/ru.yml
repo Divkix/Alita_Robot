@@ -2339,6 +2339,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ Запрос на импорт истёк. Пожалуйста, начните снова с помощью <code>/import</code>."
 backup_import_cancelled: "❌ Импорт отменён."
 backup_import_failed: "❌ Импорт не удался: %s"
+backup_import_federation_skipped: "⚠️ Федерации <code>{fed_id}</code> из резервной копии нет в этом боте, поэтому чат не добавлен ни в одну федерацию."
 
 backup_reset_success: |
   <b>✅ Сброс успешен!</b>

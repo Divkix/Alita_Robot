@@ -2558,6 +2558,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ Permintaan impor telah kedaluwarsa. Silakan mulai lagi dengan <code>/import</code>."
 backup_import_cancelled: "❌ Impor dibatalkan."
 backup_import_failed: "❌ Impor gagal: %s"
+backup_import_federation_skipped: "⚠️ Federasi <code>{fed_id}</code> dari cadangan tidak ada di bot ini, jadi obrolan ini tidak dimasukkan ke federasi mana pun."
 
 backup_reset_success: |
   <b>✅ Atur Ulang Berhasil!</b>

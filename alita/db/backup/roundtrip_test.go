@@ -156,7 +156,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	require.NoError(t, err)
 	decoded, err := BackupFormatFromJSON(raw)
 	require.NoError(t, err)
-	require.NoError(t, ImportChatData(dstChat, decoded, nil))
+	requireCleanImport(t, dstChat, decoded, nil)
 
 	adminData, err := exportAdminData(dstChat)
 	require.NoError(t, err)
@@ -355,7 +355,8 @@ func TestImportChatDataRollsBackEarlierModules(t *testing.T) {
 		},
 	}
 
-	require.Error(t, ImportChatData(chatID, backup, nil))
+	_, err := ImportChatData(chatID, backup, nil)
+	require.Error(t, err)
 	settings, err := findChatSetting[models.RulesSettings](chatID)
 	require.NoError(t, err)
 	require.NotNil(t, settings)
@@ -379,11 +380,45 @@ func TestImportWarnsCreatesMissingParents(t *testing.T) {
 			map[string]interface{}{"user_id": userID, "num_warns": 1, "warns": []interface{}{"reason"}},
 		},
 	}
-	require.NoError(t, ImportChatData(chatID, bkp, nil))
+	requireCleanImport(t, chatID, bkp, nil)
 
 	require.NoError(t, db.DB.Where("chat_id = ?", chatID).Take(&models.Chat{}).Error)
 	require.NoError(t, db.DB.Where("user_id = ?", userID).Take(&models.User{}).Error)
 	require.NoError(t, db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Take(&models.Warns{}).Error)
+}
+
+func TestImportChatDataSkipsMissingFederation(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	require.NoError(t, chats.EnsureChatInDb(chatID, "backup_missing_fed"))
+	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+	current, err := federations.CreateFederation(chatID, "Current Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(current.FedID) })
+	require.NoError(t, federations.JoinFed(chatID, "backup_missing_fed", current.FedID))
+
+	const missingFedID = "00000000-0000-0000-0000-000000000000"
+	bkp := NewBackupFormat(chatID, "chat", 1, []string{BackupModuleRules, BackupModuleFederations})
+	bkp.Data[BackupModuleRules] = map[string]interface{}{
+		"settings": map[string]interface{}{"rules": "restored"},
+	}
+	bkp.Data[BackupModuleFederations] = map[string]interface{}{
+		"membership": map[string]interface{}{"fed_id": missingFedID, "quiet": true},
+	}
+
+	notices, err := ImportChatData(chatID, bkp, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []ImportNotice{{Module: BackupModuleFederations, ID: missingFedID}}, notices)
+
+	settings, err := findChatSetting[models.RulesSettings](chatID)
+	require.NoError(t, err)
+	require.NotNil(t, settings)
+	assert.Equal(t, "restored", settings.Rules)
+	var memberships int64
+	require.NoError(t, db.DB.Model(&models.FederationChat{}).Where("chat_id = ?", chatID).Count(&memberships).Error)
+	assert.Zero(t, memberships)
+	assert.Nil(t, federations.GetChatFed(chatID))
 }
 
 func TestLegacyBackupPreservesFieldsThatVersionDidNotExport(t *testing.T) {
@@ -420,7 +455,7 @@ func TestLegacyBackupPreservesFieldsThatVersionDidNotExport(t *testing.T) {
 	}`, chatID)
 	legacy, err := BackupFormatFromJSON([]byte(raw))
 	require.NoError(t, err)
-	require.NoError(t, ImportChatData(chatID, legacy, nil))
+	requireCleanImport(t, chatID, legacy, nil)
 
 	noteSettings, err := findChatSetting[models.NotesSettings](chatID)
 	require.NoError(t, err)

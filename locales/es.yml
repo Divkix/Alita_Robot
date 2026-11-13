@@ -2567,6 +2567,7 @@ backup_import_confirm: |
 backup_import_expired: "❌ La solicitud de importación ha expirado. Por favor comienza de nuevo con <code>/import</code>."
 backup_import_cancelled: "❌ Importación cancelada."
 backup_import_failed: "❌ Error al importar: %s"
+backup_import_federation_skipped: "⚠️ La federación <code>{fed_id}</code> de la copia no existe en este bot, así que este chat quedó fuera de cualquier federación."
 
 backup_reset_success: |
   <b>✅ Restablecimiento Exitoso!</b>

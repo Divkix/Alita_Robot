@@ -80,10 +80,14 @@ func withBackupTx(fn func(tx *gorm.DB) ([]string, error)) error {
 	return nil
 }
 
-func ImportModuleData(chatID int64, module string, data interface{}) error {
-	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
-		return importModuleData(tx, chatID, module, data, false)
-	})
+func ImportModuleData(chatID int64, module string, data interface{}) ([]ImportNotice, error) {
+	var notices []ImportNotice
+	if err := withBackupTx(func(tx *gorm.DB) ([]string, error) {
+		return importModuleData(tx, chatID, module, data, false, &notices)
+	}); err != nil {
+		return nil, err
+	}
+	return notices, nil
 }
 
 func ClearModuleData(chatID int64, module string) error {
@@ -110,40 +114,47 @@ func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []s
 	return backup, nil
 }
 
-func ImportChatData(chatID int64, backup *BackupFormat, modules []string) error {
+// ImportChatData imports the given modules, or every module in the backup, in
+// one transaction. The notices list the parts it skipped without failing; they
+// are nil when it returns an error.
+func ImportChatData(chatID int64, backup *BackupFormat, modules []string) ([]ImportNotice, error) {
 	if backup == nil {
-		return fmt.Errorf("invalid backup: backup cannot be nil")
+		return nil, fmt.Errorf("invalid backup: backup cannot be nil")
 	}
 	if err := backup.Validate(); err != nil {
-		return fmt.Errorf("invalid backup: %w", err)
+		return nil, fmt.Errorf("invalid backup: %w", err)
 	}
 	if !backup.IsCompatibleVersion() {
-		return fmt.Errorf("unsupported backup version %q", backup.Version)
+		return nil, fmt.Errorf("unsupported backup version %q", backup.Version)
 	}
 	if len(modules) == 0 {
 		modules = backup.Modules
 	}
 	for _, module := range modules {
 		if !IsValidModule(module) {
-			return fmt.Errorf("unknown module: %s", module)
+			return nil, fmt.Errorf("unknown module: %s", module)
 		}
 		if _, ok := backup.Data[module]; !ok {
-			return fmt.Errorf("missing data for module: %s", module)
+			return nil, fmt.Errorf("missing data for module: %s", module)
 		}
 	}
 
-	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
+	var notices []ImportNotice
+	if err := withBackupTx(func(tx *gorm.DB) ([]string, error) {
 		var keys []string
 		for _, module := range modules {
 			data := backup.Data[module]
-			moduleKeys, err := importModuleData(tx, chatID, module, data, backup.Version == legacyFormatVersion)
+			moduleKeys, err := importModuleData(tx, chatID, module, data, backup.Version == legacyFormatVersion, &notices)
 			if err != nil {
 				return nil, fmt.Errorf("failed to import module %s: %w", module, err)
 			}
 			keys = append(keys, moduleKeys...)
 		}
 		return keys, nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return notices, nil
 }
 
 func ClearChatData(chatID int64, modules []string) error {
@@ -496,7 +507,9 @@ func exportLogChannelsData(chatID int64) (*LogChannelsBackup, error) {
 	return &LogChannelsBackup{Settings: settings}, nil
 }
 
-func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}, preserveLegacyOmissions bool) ([]string, error) {
+// importModuleData imports one module in tx, appending to notices any part it
+// skipped without failing.
+func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}, preserveLegacyOmissions bool, notices *[]ImportNotice) ([]string, error) {
 	if err := ensureBackupChat(tx, chatID); err != nil {
 		return nil, err
 	}
@@ -536,7 +549,7 @@ func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}
 	case BackupModuleWarns:
 		return importWarns(tx, chatID, data, preserveLegacyOmissions)
 	case BackupModuleFederations:
-		return importFederations(tx, chatID, data)
+		return importFederations(tx, chatID, data, notices)
 	case BackupModuleLogChannels:
 		return importLogChannels(tx, chatID, data)
 	default:
@@ -1237,7 +1250,13 @@ func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
 	return keys, nil
 }
 
-func importFederations(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+// importFederations replaces the chat's membership. A backup naming a
+// federation this bot has no row for (deleted since the export, or from
+// another deployment) leaves the chat in no federation and adds a notice
+// rather than failing the import on the foreign key. The check holds a key
+// share lock, as the foreign key would, so the federation cannot be deleted
+// before the insert.
+func importFederations(tx *gorm.DB, chatID int64, payload interface{}, notices *[]ImportNotice) ([]string, error) {
 	var data FederationsBackup
 	if err := decodeModuleData(payload, BackupModuleFederations, &data); err != nil {
 		return nil, err
@@ -1246,6 +1265,18 @@ func importFederations(tx *gorm.DB, chatID int64, payload interface{}) ([]string
 		return nil, err
 	}
 	if data.Membership != nil && data.Membership.FedID != "" {
+		found := tx.Clauses(clause.Locking{Strength: "KEY SHARE"}).
+			Select("id").
+			Where("fed_id = ?", data.Membership.FedID).
+			Limit(1).
+			Find(&models.Federation{})
+		if found.Error != nil {
+			return nil, fmt.Errorf("check federation: %w", found.Error)
+		}
+		if found.RowsAffected == 0 {
+			*notices = append(*notices, ImportNotice{Module: BackupModuleFederations, ID: data.Membership.FedID})
+			return []string{cacheKey("fed_chat", chatID)}, nil
+		}
 		row := models.FederationChat{
 			FedID:  data.Membership.FedID,
 			ChatID: chatID,

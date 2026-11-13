@@ -26,6 +26,14 @@ type BackupFormat struct {
 	Data       map[string]interface{} `json:"data"`
 }
 
+// ImportNotice reports a part of a backup that an import skipped without
+// failing. Module is the backup module it belongs to; ID names the record the
+// skipped part refers to and the bot does not have, e.g. a federation ID.
+type ImportNotice struct {
+	Module string
+	ID     string
+}
+
 func NewBackupFormat(chatID int64, chatName string, exportedBy int64, modules []string) *BackupFormat {
 	return &BackupFormat{
 		Version:    BackupFormatVersion,

@@ -50,7 +50,9 @@ func importWarnsBackup(t *testing.T, chatID int64, warns, entries []interface{})
 		data["entries"] = entries
 	}
 	bkp.Data[BackupModuleWarns] = data
-	return ImportChatData(chatID, bkp, nil)
+	notices, err := ImportChatData(chatID, bkp, nil)
+	require.Empty(t, notices)
+	return err
 }
 
 func cleanupWarnEntriesChat(t *testing.T, chatID int64, userIDs ...int64) {
@@ -106,7 +108,7 @@ func TestWarnEntriesRoundTripThroughBackup(t *testing.T) {
 	require.NoError(t, err)
 	decoded, err := BackupFormatFromJSON(raw)
 	require.NoError(t, err)
-	require.NoError(t, ImportChatData(dstChat, decoded, nil))
+	requireCleanImport(t, dstChat, decoded, nil)
 
 	got := storedWarnEntries(t, dstChat, userID)
 	require.Len(t, got, 1)
@@ -184,7 +186,7 @@ func TestExportMarksBotWarnsAutomatic(t *testing.T) {
 	assert.NotContains(t, string(raw), "5550001", "another bot account must not read this bot's id as an admin")
 	decoded, err := BackupFormatFromJSON(raw)
 	require.NoError(t, err)
-	require.NoError(t, ImportChatData(dstChat, decoded, nil))
+	requireCleanImport(t, dstChat, decoded, nil)
 
 	got := storedWarnEntries(t, dstChat, userID)
 	require.Len(t, got, 2)
@@ -215,7 +217,7 @@ func TestOwnBackupImportsWithOrphanedEntries(t *testing.T) {
 	require.NoError(t, err)
 	decoded, err := BackupFormatFromJSON(raw)
 	require.NoError(t, err)
-	require.NoError(t, ImportChatData(dstChat, decoded, nil))
+	requireCleanImport(t, dstChat, decoded, nil)
 
 	got := storedWarnEntries(t, dstChat, kept)
 	require.Len(t, got, 1)
