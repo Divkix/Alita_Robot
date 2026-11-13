@@ -299,16 +299,6 @@ func TestHTMLHelpersEscapeUntrustedText(t *testing.T) {
 	}
 }
 
-func TestReverseHTML2MD(t *testing.T) {
-	t.Parallel()
-
-	input := `<b>bold</b> <i>italic</i> <u>under</u> <s>strike</s> <code>code</code> <a href="https://example.com">link</a>`
-	want := `*bold* _italic_ __under__ ~strike~ ` + "`code`" + ` [link](https://example.com)`
-	if got := ReverseHTML2MD(input); got != want {
-		t.Fatalf("ReverseHTML2MD = %q, want %q", got, want)
-	}
-}
-
 func TestGetFullName(t *testing.T) {
 	t.Parallel()
 

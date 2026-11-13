@@ -3,6 +3,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -892,6 +893,40 @@ func TestGetNoteNoFormatRequiresAdminAndSendsRawNote(t *testing.T) {
 		t.Fatalf("sendMessage calls = %d, want raw note response", len(calls))
 	}
 	assertSavedSend(t, calls[0], chat.Id, 0, 101, true, "raw")
+}
+
+// The raw view shows a note in the syntax it was typed in, so an admin can
+// copy it back into /save and get the same note.
+func TestGetNoteNoFormatShowsTypedSyntaxThatSavesTheSameNote(t *testing.T) {
+	f := newAdminChatFixture(t)
+	const typed = `It's "x" & <y> [site](https://example.com) ||secret|| *bold* {first}` +
+		"\n[Btn](buttonurl://https://example.com/b)"
+	save := func(name, body string) *db.Notes {
+		t.Helper()
+		if err := notesModule.addNote(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/save "+name+" "+body)); err != ext.EndGroups {
+			t.Fatalf("addNote(%s) error = %v, want EndGroups", name, err)
+		}
+		note := notes.GetNote(f.chat.Id, name)
+		if note == nil {
+			t.Fatalf("note %s was not stored", name)
+		}
+		return note
+	}
+	stored := save("card", typed)
+	resetCalls(f.client)
+
+	if err := commandResponse(notesModule.getNotes)(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/get card noformat")); err != ext.EndGroups {
+		t.Fatalf("getNotes(noformat) error = %v, want EndGroups", err)
+	}
+	shown := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+	if shown != typed {
+		t.Fatalf("raw view = %q, want the typed text %q", shown, typed)
+	}
+
+	again := save("card2", shown)
+	if again.NoteContent != stored.NoteContent || !reflect.DeepEqual(again.Buttons, stored.Buttons) {
+		t.Fatalf("re-saved note = %q %+v, want %q %+v", again.NoteContent, again.Buttons, stored.NoteContent, stored.Buttons)
+	}
 }
 
 // A note fetched while replying to a message in a forum topic answers that

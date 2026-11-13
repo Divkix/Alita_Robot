@@ -614,6 +614,32 @@ func TestSendSavedRawViewIsOneRecipeForEveryKind(t *testing.T) {
 	}
 }
 
+// The raw view shows plain characters and typing syntax, never HTML entities
+// or tags, and a stored text the converter rejects is shown as stored.
+func TestSendSavedRawViewShowsTypingSyntax(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ name, stored, want string }{
+		{
+			name:   "entities, link, spoiler and button",
+			stored: `It&#39;s &#34;x&#34; &amp; &lt;y&gt; <a href="https://example.com">site</a> <span class="tg-spoiler">secret</span> {first}`,
+			want:   `It's "x" & <y> [site](https://example.com) ||secret|| {first}` + "\n[A](buttonurl://https://example.com/a)\n[B](buttonurl://https://example.com/b:same)",
+		},
+		{
+			name:   "rejected by the converter",
+			stored: `<b>unclosed {first}`,
+			want:   `<b>unclosed {first}` + "\n[A](buttonurl://https://example.com/a)\n[B](buttonurl://https://example.com/b:same)",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			msg := SavedMessage{Kind: KindNote, Text: tc.stored, MsgType: db.TEXT, Buttons: testButtons}
+			client := sendSaved(t, msg, groupTarget(), Raw)
+			assertTextSendParams(t, client, textSendWant{text: tc.want, threadID: 7, replyID: 9})
+		})
+	}
+}
+
 func TestSendSavedLimiterChoice(t *testing.T) {
 	t.Parallel()
 
