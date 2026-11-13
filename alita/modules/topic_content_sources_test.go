@@ -186,3 +186,25 @@ func TestPermaPinInTopicWithoutContentAsksForIt(t *testing.T) {
 		t.Fatalf("reply = %q, want %q", got, want)
 	}
 }
+
+// /tr in a topic without a deliberate reply reads its own arguments; these
+// cases stop before any network request.
+func TestTranslateInTopicIgnoresTheImplicitReply(t *testing.T) {
+	for _, tt := range []struct{ text, wantKey string }{
+		{"/tr", "misc_need_text_and_lang"},
+		{"/tr es", "misc_provide_text_translate"},
+	} {
+		t.Run(tt.text, func(t *testing.T) {
+			useRealLocales(t)
+			f := newAdminChatFixture(t)
+			f.chat.IsForum = true
+			ctx := sentInTopic(newModuleMessageContext(f.bot, f.chat, f.admin, tt.text), nil)
+			if err := miscModule.translate(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("translate() error = %v, want EndGroups", err)
+			}
+			if got, want := lastMessageTo(t, f.client, f.chat.Id), translated(t, tt.wantKey); got != want {
+				t.Fatalf("reply = %q, want %q", got, want)
+			}
+		})
+	}
+}
