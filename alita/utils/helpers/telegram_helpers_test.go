@@ -154,6 +154,7 @@ func TestIsExpectedTelegramErrorClassifiesNilExpectedAndUnexpected(t *testing.T)
 		"context deadline exceeded",
 		"not enough rights to restrict/unrestrict chat member",
 		"message to delete not found",
+		"message is not modified",
 		"TOPIC_CLOSED",
 	} {
 		if !helpers.IsExpectedTelegramError(fmt.Errorf("%s", errText)) {

@@ -138,6 +138,7 @@ func IsExpectedTelegramError(err error) bool {
 
 		"message can't be deleted",
 		"message to delete not found",
+		"message is not modified",
 
 		"TOPIC_CLOSED",
 	}
