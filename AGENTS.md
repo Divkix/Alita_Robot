@@ -22,6 +22,8 @@ longer exists, or when the file outgrows its budget.
 
 ## Commands
 
+Run scripts/verify.sh before opening a PR.
+
 ```bash
 make test                 # the only valid full run: tags, race, coverage, skip gate
 make lint                 # golangci-lint v2 over the whole tree (.golangci.yml); CI also gates new code on dupl/gocyclo
