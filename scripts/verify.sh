@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # Local equivalent of ci.yml, in job declaration order (excluding deployment).
+# VERIFY_USE_LOCAL_SERVICES=1 permits local services: alita_test must be a fresh,
+# empty, throwaway database; it will be migrated and written to.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+# GitHub Actions sets CI for every step and does not set GOFLAGS.
+export CI=true
+unset GOFLAGS
+
+shard_dir=''
 results=()
 containers=()
 cleanup() {
@@ -10,6 +17,9 @@ cleanup() {
     trap - EXIT
     if ((${#containers[@]})); then
         docker rm -f "${containers[@]}" >/dev/null 2>&1 || true
+    fi
+    if [[ -n $shard_dir ]]; then
+        rm -rf "$shard_dir"
     fi
     printf '\nVerification summary:\n'
     if ((${#results[@]})); then
@@ -64,35 +74,39 @@ else
     skip lint-tidy 'Go on PATH'
 fi
 lint_available=false
-if has golangci-lint; then
-    lint_version=$(golangci-lint version)
-    if [[ ! $lint_version =~ version[[:space:]]v?2\.15\.0([[:space:]]|$) ]]; then
-        printf 'ERROR: needs golangci-lint v2.15.0; found: %s\n' "$lint_version" >&2
-        exit 1
+if has golangci-lint && lint_version=$(golangci-lint version); then
+    if [[ $lint_version =~ version[[:space:]]v?2\.15\.0([[:space:]]|$) ]]; then
+        lint_available=true
     fi
-    lint_available=true
 fi
-if has go && "$lint_available"; then
+if ! "$lint_available"; then
+    skip lint 'golangci-lint v2.15.0'
+elif has go; then
     run lint golangci-lint run --timeout 10m
 else
-    skip lint 'Go and golangci-lint v2.15.0 on PATH'
+    skip lint 'Go on PATH'
 fi
 if has go && has make; then
     run lint-nilaway make nilaway
 else
     skip lint-nilaway 'Go and make'
 fi
+echo 'n/a: Technical Debt Tracking (GitHub step-summary report only)'
 base=''
 if has git; then
     base=$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main 2>/dev/null || true)
 fi
-if [[ -z $base ]]; then
+if ! "$lint_available"; then
+    skip lint-new-issues 'golangci-lint v2.15.0'
+elif [[ -z $base ]]; then
     skip lint-new-issues 'a local merge base with origin/main or main'
 elif has go && "$lint_available"; then
     run lint-new-issues golangci-lint run --enable-only dupl,gocyclo --timeout 10m --new-from-rev "$base"
 else
-    skip lint-new-issues 'Go and golangci-lint v2.15.0 on PATH'
+    skip lint-new-issues 'Go on PATH'
 fi
+
+echo 'n/a: Cyclomatic Complexity Analysis (GitHub step-summary report only)'
 
 build() {
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/alita_robot .
@@ -125,21 +139,21 @@ redis_ready() {
         [[ $reply == $'+PONG\r' ]]) 2>/dev/null
 }
 services=false
-if postgres_ready && redis_ready; then
-    services=true
-elif docker_ready; then
-    if ! postgres_ready; then
-        pg_name="alita-verify-postgres-$$"
-        containers+=("$pg_name")
-        docker run -d --name "$pg_name" -p 5432:5432 \
-            -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_DB=alita_test postgres:18
+if docker_ready; then
+    pg_name="alita-verify-postgres-$$"
+    if ! docker run -d --name "$pg_name" -p 5432:5432 \
+        -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=alita_test postgres:18; then
+        echo 'ERROR: could not start fresh PostgreSQL container; localhost:5432 must be free' >&2
+        exit 1
     fi
-    if ! redis_ready; then
-        redis_name="alita-verify-redis-$$"
-        containers+=("$redis_name")
-        docker run -d --name "$redis_name" -p 6379:6379 redis:8
+    containers+=("$pg_name")
+    redis_name="alita-verify-redis-$$"
+    if ! docker run -d --name "$redis_name" -p 6379:6379 redis:8; then
+        echo 'ERROR: could not start fresh Redis container; localhost:6379 must be free' >&2
+        exit 1
     fi
+    containers+=("$redis_name")
     for _ in {1..30}; do
         if postgres_ready && redis_ready; then
             services=true
@@ -151,8 +165,15 @@ elif docker_ready; then
         echo 'ERROR: PostgreSQL/Redis did not become ready in time' >&2
         exit 1
     fi
+elif [[ ${VERIFY_USE_LOCAL_SERVICES:-} == 1 ]]; then
+    if postgres_ready && redis_ready; then
+        services=true
+    else
+        echo 'ERROR: opted-in local PostgreSQL/Redis services are not ready at CI addresses' >&2
+        exit 1
+    fi
 fi
-service_need='PostgreSQL 18 on localhost:5432 and Redis on localhost:6379 (or Docker)'
+service_need='Docker, or VERIFY_USE_LOCAL_SERVICES=1 with a throwaway PostgreSQL 18 (alita_test) and Redis on localhost'
 # Apply job env in a subshell so it cannot leak into later jobs. Clear inherited
 # test selectors: CI enables each only in its corresponding step.
 ci_test() (
@@ -175,16 +196,37 @@ else
     run postgres-integrity ci_test env ALITA_TEST_DATABASE=true make test-postgres-integrity
 fi
 
-# test-shards: same suite once, unsharded. Keep ALITA_TEST_DATABASE unset as in CI.
+# test-shards: keep ALITA_TEST_DATABASE unset as in CI.
 tests_ran=false
 if ! "$services"; then
     skip test-shards "$service_need"
 elif has go && has make && has gcc; then
-    run test-shards ci_test make test
+    shard_dir=$(mktemp -d)
+    for i in {0..3}; do
+        run "test-shard-$i" ci_test scripts/test_shard.sh "$i" 4
+        mkdir "$shard_dir/coverage-shard-$i"
+        mv coverage.out test-results.json "$shard_dir/coverage-shard-$i/"
+    done
     tests_ran=true
 else
     skip test-shards 'Go, make and a C compiler (CGO_ENABLED=1)'
 fi
+merge_coverage() {
+    local profiles=("$shard_dir"/coverage-shard-*/coverage.out)
+    local profile mode
+    test "${#profiles[@]}" -eq 4
+    for profile in "${profiles[@]}"; do
+        test -s "$profile"
+        IFS= read -r mode < "$profile"
+        test "$mode" = "mode: atomic"
+    done
+    {
+        echo "mode: atomic"
+        for profile in "${profiles[@]}"; do
+            tail -n +2 "$profile"
+        done
+    } > coverage.out
+}
 coverage() {
     if [[ ! -f coverage.out ]]; then
         echo 'ERROR: coverage.out not found'
@@ -202,6 +244,7 @@ coverage() {
     echo "PASS: Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
 }
 if "$tests_ran"; then
+    run test-coverage-merge merge_coverage
     run test-coverage coverage
 else
     skip test-coverage 'coverage output from this run of test-shards'
