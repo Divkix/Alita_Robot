@@ -781,6 +781,36 @@ func TestPendingJoinRequestAndCallbacks(t *testing.T) {
 	}
 }
 
+func TestJoinRequestAcceptWhenApplicantChatNotFound(t *testing.T) {
+	useEnglishLocale(t)
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	seedCallbackAdmins(t, chat.Id,
+		gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: bot.Id, IsBot: true}, CanInviteUsers: true},
+		gotgbot.MergedChatMember{Status: "administrator", User: admin, CanInviteUsers: true},
+	)
+	client.errors["getChat"] = errors.New("Bad Request: chat not found")
+
+	data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"})
+	ctx := newModuleCallbackContext(bot, chat, admin, data)
+	if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("joinRequestHandler accept error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("approveChatJoinRequest")
+	if len(calls) != 1 {
+		t.Fatalf("approveChatJoinRequest calls = %d, want 1", len(calls))
+	}
+	if fmt.Sprint(calls[0].Params["user_id"]) != "5151" || fmt.Sprint(calls[0].Params["chat_id"]) != fmt.Sprint(chat.Id) {
+		t.Fatalf("approveChatJoinRequest params = %v, want applicant 5151 in chat %d", calls[0].Params, chat.Id)
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 1 || !strings.Contains(fmt.Sprint(calls[0].Params["text"]), "tg://user?id=5151") {
+		t.Fatalf("editMessageText calls = %v, want applicant mention", calls)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 || !strings.Contains(fmt.Sprint(calls[0].Params["text"]), "5151") {
+		t.Fatalf("answerCallbackQuery calls = %v, want applicant ID fallback", calls)
+	}
+}
+
 func TestJoinRequestDeclineClearsPendingSuppression(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin

@@ -732,10 +732,16 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		}
 	}
 
+	joinUserName := strconv.FormatInt(joinUserId, 10)
 	joinUser, err := b.GetChat(joinUserId, nil)
 	if err != nil {
-		log.Error(err)
-		return err
+		if !helpers.IsExpectedTelegramError(err) {
+			log.Error(err)
+			return err
+		}
+		log.Debugf("[Greetings] Unable to look up join applicant %d: %v", joinUserId, err)
+	} else {
+		joinUserName = joinUser.FirstName
 	}
 	var helpText string
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -745,11 +751,11 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	switch response {
 	case "accept":
 		helpText, _ = tr.GetString("greetings_join_request_accepted")
-		if _, err = b.ApproveChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+		if _, err = b.ApproveChatJoinRequest(chat.Id, joinUserId, nil); err != nil {
 			if isJoinRequestGone(err) {
 				helpText, _ = tr.GetString("greetings_join_request_already_handled")
 			} else if helpers.IsExpectedTelegramError(err) {
-				log.Debugf("[Greetings] Expected error approving join for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+				log.Debugf("[Greetings] Expected error approving join for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
 				log.Error(err)
 				return err
@@ -757,11 +763,11 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		}
 	case "decline":
 		helpText, _ = tr.GetString("greetings_join_request_declined")
-		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUserId, nil); err != nil {
 			if isJoinRequestGone(err) {
 				helpText, _ = tr.GetString("greetings_join_request_already_handled")
 			} else if helpers.IsExpectedTelegramError(err) {
-				log.Debugf("[Greetings] Expected error declining join for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+				log.Debugf("[Greetings] Expected error declining join for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
 				log.Error(err)
 				return err
@@ -769,22 +775,22 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		}
 	case "ban":
 		if _, banErr := punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
-			ChatID: chat.Id, Target: punishment.Target{ID: joinUser.Id}, Mode: punishment.Ban,
+			ChatID: chat.Id, Target: punishment.Target{ID: joinUserId}, Mode: punishment.Ban,
 			Source: models.BanSourceJoinRequest, ActorID: user.Id,
 		}); banErr != nil {
 			if helpers.IsExpectedTelegramError(banErr) {
-				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUser.Id, chat.Id, banErr)
+				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUserId, chat.Id, banErr)
 			} else {
 				log.Error(banErr)
 				return banErr
 			}
 		} else {
-			recordModerationEvent(chat.Id, user.Id, joinUser.Id, models.ModerationActionBan, "")
+			recordModerationEvent(chat.Id, user.Id, joinUserId, models.ModerationActionBan, "")
 		}
 		// The ban stands even when the request itself is already gone.
-		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil && !isJoinRequestGone(err) {
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUserId, nil); err != nil && !isJoinRequestGone(err) {
 			if helpers.IsExpectedTelegramError(err) {
-				log.Debugf("[Greetings] Expected error declining join after ban for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+				log.Debugf("[Greetings] Expected error declining join after ban for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
 				log.Error(err)
 				return err
@@ -792,9 +798,9 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		}
 		helpText, _ = tr.GetString("greetings_join_request_banned")
 	}
-	m.clearPendingJoins(chat.Id, joinUser.Id)
+	m.clearPendingJoins(chat.Id, joinUserId)
 
-	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: fmt.Sprintf(helpText, formatting.MentionHtml(joinUser.Id, joinUser.FirstName)), ParseMode: formatting.HTML})
+	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: fmt.Sprintf(helpText, formatting.MentionHtml(joinUserId, joinUserName)), ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -802,7 +808,7 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	_, err = query.Answer(b,
 		&gotgbot.AnswerCallbackQueryOpts{
-			Text: fmt.Sprintf(helpText, joinUser.FirstName),
+			Text: fmt.Sprintf(helpText, joinUserName),
 		},
 	)
 	if err != nil {
