@@ -198,7 +198,6 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 		formatting.Shtml(),
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -316,7 +315,6 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -338,7 +336,6 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("misc_need_text_and_lang")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -423,7 +420,6 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

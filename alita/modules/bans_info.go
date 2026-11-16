@@ -133,7 +133,6 @@ func (moduleStruct) banInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
 		if err := replyCommandHelp(b, msg, tr, "baninfo", text); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -151,7 +150,6 @@ func (moduleStruct) banInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		text = banRecordText(tr, record, time.Now())
 	}
 	if _, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml()); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

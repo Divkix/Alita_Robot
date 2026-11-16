@@ -58,7 +58,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			text, _ := tr.GetString(cfg.emptyArgsMsgKey)
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -96,7 +95,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
 			_, err := msg.Reply(b, text, formatting.Smarkdown())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
@@ -106,7 +104,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			text := fmt.Sprintf(temp, cmd)
 			_, err := msg.Reply(b, text, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
@@ -136,7 +133,6 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, text, formatting.Smarkdown())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -169,7 +165,6 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	} else {
@@ -183,7 +178,6 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 		text += sb.String()
 		_, err := msg.Reply(b, text, formatting.Smarkdown())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -230,7 +224,6 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, text, formatting.Smarkdown())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

@@ -26,7 +26,6 @@ func muteTargetValidation(c *moderationCtx, t *target) error {
 func muteReplyWithButton(c *moderationCtx, t *target) error {
 	muteUser, err := c.Bot.GetChat(t.userID, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -49,7 +48,6 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return nil
@@ -96,7 +94,6 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 		reply: func(c *moderationCtx, t *target) error {
 			muteUser, err := c.Bot.GetChat(t.userID, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 
@@ -109,7 +106,6 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 
 			_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil
@@ -177,7 +173,6 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Reply.Delete(c.Bot, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return c.punish(t, punishment.Mute, 0)
@@ -223,7 +218,6 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 		reply: func(c *moderationCtx, t *target) error {
 			muteUser, err := c.Bot.GetChat(t.userID, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 
@@ -233,7 +227,6 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 				formatting.Shtml(),
 			)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil

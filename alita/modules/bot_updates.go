@@ -52,14 +52,12 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 				formatting.Shtml(),
 			)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
 
 		_, err := b.LeaveChat(chat.Id, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -89,7 +87,6 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 		opts,
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -169,7 +166,6 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -182,7 +178,6 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		expiredText, _ := tr.GetString("bot_updates_button_expired")
 		_, _, err := qmsg.EditText(b, &gotgbot.EditMessageTextOpts{Text: expiredText})
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -198,7 +193,6 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err = qmsg.Delete(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	// Stop the button's loading spinner; a failed answer must not cancel the confirmed command.

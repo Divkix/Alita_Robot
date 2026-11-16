@@ -133,13 +133,11 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		},
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -158,7 +156,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reactions_add_usage")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -172,7 +169,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reactions_invalid_emoji")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -191,7 +187,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -210,7 +205,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reactions_remove_usage")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -240,7 +234,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -271,7 +264,6 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -295,7 +287,6 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("reactions_reset_success")
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

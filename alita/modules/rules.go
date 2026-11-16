@@ -60,7 +60,6 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -103,7 +102,6 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -171,7 +169,6 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -200,7 +197,6 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -244,7 +240,6 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err = msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -266,7 +261,6 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -332,7 +326,6 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 		text, _ := tr.GetString("rules_not_set")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -345,7 +338,6 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 	})
 	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

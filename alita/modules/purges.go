@@ -168,7 +168,6 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("purges_reply_to_purge")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -186,7 +185,6 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("purges_reply_to_delete")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -239,7 +237,6 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		delMsgs.Store(chat.Id, delMsgEntry{userID: user.Id, msgID: TodelId})
@@ -265,7 +262,6 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("purges_reply_to_purgefrom")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -292,7 +288,6 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ := tr.GetString("purges_need_purgefrom")
 			_, err := msg.Reply(bot, text, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -303,7 +298,6 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ := tr.GetString("purges_use_del_single")
 			_, err := msg.Reply(bot, text, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -339,7 +333,6 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("purges_reply_to_purgeto")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}

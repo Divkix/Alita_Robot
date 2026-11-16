@@ -225,7 +225,6 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Execute the moderation action.
 	if err := cmd.execute(mc, &tgt); err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -240,7 +239,6 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	// command message's delete fails.
 	if cmd.cleanup != nil {
 		if err := cmd.cleanup(mc, &tgt); err != nil {
-			log.Error(err)
 			return err
 		}
 	}

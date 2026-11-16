@@ -149,7 +149,6 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	header, _ := tr.GetString("locks_locktypes_header")
 	_, err := msg.Reply(b, header+strings.Join(_locktypes, "\n - "), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -162,7 +161,6 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, m.buildLockTypesMessage(ctx, chat.Id), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -199,7 +197,6 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	reply := func(text string) error {
 		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups

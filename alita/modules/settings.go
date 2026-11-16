@@ -73,14 +73,12 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat.Type == "private" {
 		if notice, wait := settingsPickerWait(tr, user.Id); wait {
 			if _, err := msg.Reply(b, notice, formatting.Shtml()); err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
 		}
 		text, kb := m.settingsPicker(b, ctx, tr, user.Id)
 		if _, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -101,7 +99,6 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	kb := gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows}
 	if _, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -460,7 +457,6 @@ func settingsDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Use
 	}
 	text, kb := settingsSummaryView(ctx, tr, chat)
 	if _, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

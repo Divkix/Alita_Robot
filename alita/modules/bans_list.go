@@ -183,7 +183,6 @@ func (moduleStruct) banList(b *gotgbot.Bot, ctx *ext.Context) error {
 	opts := formatting.Shtml()
 	opts.ReplyMarkup = kb
 	if _, err := msg.Reply(b, text, opts); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

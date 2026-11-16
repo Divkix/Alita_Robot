@@ -153,7 +153,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reports_admin_report")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -167,7 +166,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reports_why_report_myself")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -177,7 +175,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reports_why_report_admin")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -335,7 +332,6 @@ func (moduleStruct) reports(c *helpers.CommandContext) error {
 	}
 
 	if _, err := c.Msg.Reply(c.Bot, replyText, formatting.Shtml()); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -565,7 +561,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 			return answerKickTargetBanned(b, query, tr)
 		} else if err != nil {
 			reopen()
-			log.Error(err)
 			return err
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionKick, "")
@@ -576,7 +571,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyText = fmt.Sprintf("%s\n%s", bannedText, actionBy)
 		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Ban, user.Id, ""); err != nil {
 			reopen()
-			log.Error(err)
 			return err
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
@@ -588,7 +582,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyText = fmt.Sprintf("%s\n%s", deletedText, actionBy)
 		if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId); err != nil {
 			reopen()
-			log.Error(err)
 			return err
 		}
 	case "resolved":
@@ -608,7 +601,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		ParseMode: formatting.HTML,
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -618,7 +610,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
