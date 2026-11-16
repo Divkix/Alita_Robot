@@ -84,7 +84,6 @@ func (moduleStruct) commandsMenu(c *helpers.CommandContext) error {
 		}}}},
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -113,7 +112,6 @@ func sendCommandsMenu(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, use
 		ReplyMarkup:        kb,
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

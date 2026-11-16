@@ -49,7 +49,6 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -59,7 +58,6 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -93,7 +91,6 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	_, err := msg.Reply(b, baseStr, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -112,7 +109,6 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -122,7 +118,6 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -140,7 +135,6 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 	), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -159,7 +153,6 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -180,7 +173,6 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 			html.EscapeString(extractDisplayName(targetUserID)),
 		), formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -212,7 +204,6 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	)
 	_, err := msg.Reply(b, baseStr, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -228,7 +219,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_none_approved")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -253,7 +243,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		}
 		_, err := msg.Reply(b, sb.String(), formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -314,7 +303,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		},
 	)
 	if err != nil {
-		log.Errorf("[Approvals] Failed to send document: %v", err)
 		return err
 	}
 
@@ -336,7 +324,6 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -405,13 +392,11 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

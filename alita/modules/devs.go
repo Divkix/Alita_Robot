@@ -50,7 +50,6 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -69,7 +68,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		nil,
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -117,7 +115,6 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ := tr.GetString("devs_specify_chat")
 		_, err := msg.Reply(b, replyText, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -127,7 +124,6 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := b.LeaveChat(chatId, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -135,7 +131,6 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("devs_left_chat")
 	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -160,7 +155,6 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 		return ext.ContinueGroups
 	} else if userId == 0 {
 		if _, err := msg.Reply(b, trS(ctxTr(ctx), "common_no_user_specified"), nil); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -170,7 +164,6 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 
 	reqUser, err := b.GetChat(userId, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	memStatus := devs.GetTeamMemInfo(userId)
@@ -196,7 +189,6 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -305,7 +297,6 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -324,14 +315,12 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	stats := devs.LoadAllStats()
 	_, _, err = edits.EditText(b, &gotgbot.EditMessageTextOpts{Text: stats, ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

@@ -71,7 +71,6 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 	}
 	_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -176,7 +175,6 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_demote")
 		_, err = c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -190,7 +188,6 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 		formatting.Shtml(),
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -319,7 +316,6 @@ func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId i
 		formatting.Shtml(),
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -492,7 +488,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(c.Bot, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -500,7 +495,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -510,7 +504,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_owner")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -519,7 +512,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_admin")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -529,7 +521,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_bot_itself")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -541,7 +532,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_title_empty")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -584,7 +574,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		formatting.Shtml(),
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -646,7 +635,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 
 	_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -692,7 +680,6 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	k, _ := c.Tr.GetString("commonstrings_admin_cache_cache_reloaded")
 	_, err := msg.Reply(b, k, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -841,7 +828,6 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	}
 	err := cache.ClearAdminCache(chat.Id)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	log.Infof("[Admin] Cleared admin cache for %d (%s)", chat.Id, chat.Title)
@@ -849,7 +835,6 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	text, _ := c.Tr.GetString("admin_cache_cleared")
 	_, err = msg.Reply(c.Bot, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

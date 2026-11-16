@@ -355,7 +355,6 @@ func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, a
 	}
 	result, err := apply(tracing.UpdateContext(ctx), b, request)
 	if err != nil {
-		log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 		return err
 	}
 	if !result.Applied {
@@ -382,7 +381,6 @@ func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, a
 			MessageThreadId: msg.MessageThreadId,
 		},
 	); err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -431,7 +429,6 @@ func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

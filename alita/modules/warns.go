@@ -99,7 +99,6 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -156,7 +155,6 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -468,7 +466,6 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 			opts.ReplyMarkup = &keyboard
 		}
 		if _, err = b.SendMessage(msg.Chat.Id, part, opts); err != nil {
-			log.Errorf("[warn] sendMessage (%d) - %s", userId, err)
 			return err
 		}
 	}
@@ -494,7 +491,6 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -507,7 +503,6 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 			_, err = msg.Reply(b, text, formatting.Shtml())
 		}
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -552,7 +547,6 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc), warnExpiryLabel(tr, warnrc))
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -571,7 +565,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -585,7 +578,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = msg.Reply(b, text, formatting.Shtml())
 		}
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -605,7 +597,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			for _, msgText := range msgs {
 				_, err := msg.Reply(b, msgText, nil)
 				if err != nil {
-					log.Error(err)
 					return err
 				}
 			}
@@ -613,7 +604,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			temp, _ := tr.GetString("warns_user_warnings_no_reasons")
 			_, err := msg.Reply(b, confirmText(ctx, tr, fmt.Sprintf(temp, numWarns, warnrc.WarnLimit), chat), nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
@@ -621,7 +611,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("warns_user_no_warnings")
 		_, err := msg.Reply(b, confirmText(ctx, tr, text, chat), nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -689,13 +678,11 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -735,7 +722,6 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -758,7 +744,6 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -772,7 +757,6 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = msg.Reply(b, text, formatting.Shtml())
 		}
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -790,7 +774,6 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -806,7 +789,6 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if warnrc == 0 {
 		text, _ := tr.GetString("warns_no_users_warned")
 		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -820,7 +802,6 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -873,7 +854,6 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -883,7 +863,6 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -906,7 +885,6 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -920,7 +898,6 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err = msg.Reply(b, text, formatting.Shtml())
 		}
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -940,7 +917,6 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, replyText), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

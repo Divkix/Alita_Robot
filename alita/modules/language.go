@@ -74,7 +74,6 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -163,7 +162,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if query.Message == nil {
 		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: replyString})
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -179,7 +177,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			IsDisabled: true,
 		}})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

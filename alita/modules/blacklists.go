@@ -69,7 +69,6 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_give_bl_word")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -142,7 +141,6 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -162,7 +160,6 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unblacklist_give_bl_word")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -186,14 +183,12 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unblacklist_no_removed_bl")
 			_, err := msg.Reply(b, text, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unblacklist_removed_bl")
 			_, err := msg.Reply(b, fmt.Sprintf(temp, strings.Join(removedBlacklists, ", ")), nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
@@ -244,7 +239,6 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -300,7 +294,6 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 	_, err := msg.Reply(b, rMsg, formatting.Smarkdown())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -319,7 +312,6 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -371,7 +363,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -381,7 +372,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -498,7 +488,6 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 	}
 	result, err := apply(tracing.UpdateContext(ctx), b, request)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	if !result.Applied {
@@ -514,7 +503,6 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 	args := append([]any{formatting.MentionHtml(user.Id(), user.Name())}, durationArgs...)
 	args = append(args, fmt.Sprintf(reason, html.EscapeString(i)))
 	if _, err := b.SendMessage(chat.Id, fmt.Sprintf(temp, args...), formatting.Shtml()); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.ContinueGroups

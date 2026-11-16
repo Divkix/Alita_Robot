@@ -89,7 +89,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("notes_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -98,7 +97,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("notes_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -109,7 +107,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if dataType == -1 && errorMsg != "" {
 		_, err := msg.Reply(b, errorMsg, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -186,7 +183,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		)
 		if err != nil {
 			deleteNoteOverwriteCache(token)
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -198,7 +194,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		errorText, _ := tr.GetString("notes_save_failed")
 		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -207,7 +202,6 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	esc := html.EscapeString(noteWord)
 	_, err := msg.Reply(b, fmt.Sprintf(noteString, esc, esc, esc), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -224,7 +218,6 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("notes_remove_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -238,7 +231,6 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("notes_not_exists")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -250,7 +242,6 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		errorText, _ := tr.GetString("error_generic")
 		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -260,7 +251,6 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("notes_removed_success")
 	_, err := msg.Reply(b, fmt.Sprintf(text, html.EscapeString(noteWord)), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -304,7 +294,6 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	_, err := msg.Reply(b, txt, formatting.Smarkdown())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -325,7 +314,6 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(noteKeys) == 0 {
 		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -344,7 +332,6 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info += sb.String()
 		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -372,7 +359,6 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	} else {
@@ -387,7 +373,6 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info += instructionText
 		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -410,7 +395,6 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("notes_none_in_chat")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -425,7 +409,6 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -502,7 +485,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 
 	if query.Message == nil {
 		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText}); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -510,7 +492,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 
 	err := editOverwriteAnswer(b, ctx, tr, query.Message, chatID, helpText)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -520,7 +501,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -562,7 +542,6 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if query.Message == nil {
 		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText}); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -570,7 +549,6 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -580,7 +558,6 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -623,7 +600,6 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("notes_parsing_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -635,7 +611,6 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ := tr.GetString("notes_admin_only")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -691,7 +666,6 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -708,7 +682,6 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 		text, _ := tr.GetString("notes_get_insufficient_args")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -735,7 +708,6 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 		text, _ := tr.GetString("notes_does_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -746,7 +718,6 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 		text, _ := tr.GetString("notes_parsing_error_support")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -758,7 +729,6 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 			text, _ := tr.GetString("notes_admin_only_access")
 			_, err = msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -870,7 +840,6 @@ func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64
 	}
 
 	if err := sendNote(c.Bot, c.Ctx, c.Chat, noteData, replyMsgId, c.Ctx.Message.MessageThreadId, media.Raw); err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -994,7 +963,6 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 
 	_, err = msg.Reply(b, info, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -1051,7 +1019,6 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 		text, _ := tr.GetString("helpers_note_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -1061,7 +1028,6 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 			text, _ := tr.GetString("helpers_note_admin_only")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -1069,7 +1035,6 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	}
 	err = sendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId, media.Rendered)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

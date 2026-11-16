@@ -48,7 +48,6 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	} else {
@@ -74,7 +73,6 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -172,13 +170,11 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	opts.Text = m.getMarkdownHelp(tr, module)
 	_, _, err := msg.EditText(b, opts)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

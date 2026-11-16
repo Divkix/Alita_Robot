@@ -38,7 +38,6 @@ func (m moduleStruct) connection(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -80,7 +79,6 @@ func (m moduleStruct) allowConnect(c *helpers.CommandContext) error {
 
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -96,7 +94,6 @@ func (m moduleStruct) connect(c *helpers.CommandContext) error {
 		if len(ctx.Args()) < 2 {
 			text, _ = tr.GetString("extraction_need_chat_id")
 			if err := replyPMGroupHelp(b, ctx, tr, "connect", formatting.HtmlEscape(text)); err != nil {
-				log.Error(err)
 				return err
 			}
 			return ext.EndGroups
@@ -141,7 +138,6 @@ func (m moduleStruct) connect(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -189,7 +185,6 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId == 0 {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
 		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text}); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -216,13 +211,11 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		ParseMode: formatting.HTML,
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -245,7 +238,6 @@ func (m moduleStruct) disconnect(c *helpers.CommandContext) error {
 
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -288,7 +280,6 @@ func (m moduleStruct) reconnect(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -439,7 +430,6 @@ func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups

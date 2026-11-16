@@ -1318,3 +1318,34 @@ func TestGreetingStatusShowsSettingsAsWords(t *testing.T) {
 		})
 	}
 }
+
+func TestSetWelcomeExpectedTelegramErrorNotLoggedAtErrorLevel(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	f.client.errors["sendMessage"] = errors.New("Bad Request: not enough rights to send text messages to the chat")
+	ctx := newGreetingMessageContext(f.bot, f.chat, f.admin, "/setwelcome Hello {first}")
+	previousHooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previousHooks) })
+	hook := logrustest.NewGlobal()
+	err := greetingsModule.setWelcome(f.bot, ctx)
+	if err == nil || errors.Is(err, ext.EndGroups) {
+		t.Fatalf("setWelcome error = %v, want Telegram send error", err)
+	}
+	helpers.LogHandlerError(ctx, err)
+	entries := hook.AllEntries()
+	if len(entries) != 1 {
+		t.Errorf("log entries = %d, want one dispatcher warning", len(entries))
+	}
+	warnings := 0
+	for _, entry := range entries {
+		if entry.Level <= log.ErrorLevel {
+			t.Errorf("unexpected error-level log: %s", entry.Message)
+		}
+		if entry.Level == log.WarnLevel && strings.HasPrefix(entry.Message, "Expected Telegram API error:") {
+			warnings++
+		}
+	}
+	if warnings != 1 {
+		t.Errorf("expected Telegram warnings = %d, want 1", warnings)
+	}
+}

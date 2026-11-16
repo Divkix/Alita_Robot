@@ -45,7 +45,6 @@ func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if pinprefs.CleanLinked {
 		if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId); err != nil {
-			log.Error(err)
 			return err
 		}
 	} else if pinprefs.AntiChannelPin {
@@ -55,7 +54,6 @@ func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -72,7 +70,6 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 	if rMsg := extraction.UserReply(msg); rMsg != nil {
 		_, err := c.Bot.UnpinChatMessage(chat.Id, &gotgbot.UnpinChatMessageOpts{MessageId: &rMsg.MessageId})
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		replyText, _ = c.Tr.GetString("pins_unpinned_message")
@@ -81,7 +78,6 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 		replyText, _ = c.Tr.GetString("pins_unpinned_last")
 		_, err := c.Bot.UnpinChatMessage(chat.Id, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -95,7 +91,6 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -147,7 +142,6 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		status, err := b.UnpinAllChatMessages(chat.Id, nil)
 		if !status {
 			if err != nil {
-				log.Errorf("[Pin] UnpinAllChatMessages for chat %d: %v", chat.Id, err)
 				return err
 			}
 			log.Errorf("[Pin] UnpinAllChatMessages returned false for chat %d", chat.Id)
@@ -161,7 +155,6 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		_, _, erredit := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if erredit != nil {
-			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, erredit)
 			return erredit
 		}
 		_, _ = query.Answer(b, nil)
@@ -174,7 +167,6 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if err != nil {
-			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, err)
 			return err
 		}
 		_, _ = query.Answer(b, nil)
@@ -201,7 +193,6 @@ func (moduleStruct) unpinAll(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -216,7 +207,6 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 		text, _ := c.Tr.GetString("pins_permapin_reply_or_text")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -232,7 +222,6 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 		text, _ := c.Tr.GetString("pins_permapin_unsupported")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -243,14 +232,12 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 		Buttons: content.ConvertButtonV2ToDbButton(buttons),
 	}, media.Target{ChatID: c.Chat.Id, ThreadID: c.Msg.MessageThreadId}, media.Rendered)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	msgToPin := ppmsg.MessageId
 	pin, err := c.Bot.PinChatMessage(chat.Id, msgToPin, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -271,7 +258,6 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -290,7 +276,6 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 		text, _ := c.Tr.GetString("pins_reply_to_pin")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -312,7 +297,6 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -321,7 +305,6 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 		text := fmt.Sprintf(pinMsg, pinLink)
 		_, err = prevMessage.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -403,7 +386,6 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 
 func replyPinToggle(b *gotgbot.Bot, msg *gotgbot.Message, text string) error {
 	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -426,7 +408,6 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 
 	chatInfo, err := c.Bot.GetChat(chat.Id, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -436,7 +417,6 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 		text, _ := c.Tr.GetString("pins_no_pinned_message")
 		_, err = msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -467,7 +447,6 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

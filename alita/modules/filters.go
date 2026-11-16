@@ -65,7 +65,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("filters_limit_exceeded")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -78,7 +77,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("filters_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -87,7 +85,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("filters_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -98,7 +95,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	if dataType == -1 {
 		_, err := msg.Reply(b, errorMsg, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -111,7 +107,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("filters_keyword_too_long")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -178,7 +173,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		)
 		if err != nil {
 			deleteFilterOverwriteCache(token)
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -196,7 +190,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	successText, _ := tr.GetString("filters_added_success")
 	_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -213,7 +206,6 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("filters_remove_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	} else {
@@ -225,7 +217,6 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ := tr.GetString("filters_not_exists")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		} else {
@@ -238,7 +229,6 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			successText, _ := tr.GetString("filters_removed_success")
 			_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
@@ -283,7 +273,6 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -301,7 +290,6 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("filters_none_in_chat")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -316,7 +304,6 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -366,7 +353,6 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -376,7 +362,6 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -484,7 +469,6 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 	err = edit(helpText)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -494,7 +478,6 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -573,7 +556,6 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		Member:     ctx.EffectiveUser,
 	}, view)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

@@ -244,13 +244,11 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			ParseMode: formatting.HTML,
 		})
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
 		_, err = query.Answer(b, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	} else {
@@ -298,7 +296,6 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -355,13 +352,11 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -455,7 +450,6 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("help_config_private_only")
 		_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		_, _ = query.Answer(b, nil)
@@ -534,13 +528,11 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -571,7 +563,6 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		} else {
@@ -587,7 +578,6 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 		}
@@ -642,7 +632,6 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}

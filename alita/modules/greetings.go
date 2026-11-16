@@ -115,7 +115,6 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			strconv.FormatBool(cleanGreet),
 			strconv.FormatBool(greetPrefs.ShouldCleanService)), formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -132,7 +131,6 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			Member:   user,
 		}, view)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 
@@ -179,7 +177,6 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if dataType == -1 {
 		_, err := msg.Reply(bot, errorMsg, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -195,7 +192,6 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	successText, _ := tr.GetString("greetings_welcome_set_success")
 	_, err := msg.Reply(bot, successText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -230,7 +226,6 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	successText, _ := tr.GetString(translationKey)
 	_, err := msg.Reply(bot, successText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -256,7 +251,6 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if dataType == -1 {
 		_, err := msg.Reply(bot, errorMsg, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -272,7 +266,6 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	successText, _ := tr.GetString("greetings_goodbye_set_success")
 	_, err := msg.Reply(bot, successText, formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -353,7 +346,6 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 			_, err = msg.Reply(bot, text, formatting.Shtml())
 		}
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -384,7 +376,6 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 	}
 
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -588,7 +579,6 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if greetPrefs.ShouldCleanService {
 		_, err := msg.Delete(bot, nil)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
@@ -736,7 +726,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	joinUser, err := b.GetChat(joinUserId, nil)
 	if err != nil {
 		if !helpers.IsExpectedTelegramError(err) {
-			log.Error(err)
 			return err
 		}
 		log.Debugf("[Greetings] Unable to look up join applicant %d: %v", joinUserId, err)
@@ -757,7 +746,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			} else if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error approving join for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
-				log.Error(err)
 				return err
 			}
 		}
@@ -769,7 +757,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			} else if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error declining join for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
-				log.Error(err)
 				return err
 			}
 		}
@@ -781,7 +768,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			if helpers.IsExpectedTelegramError(banErr) {
 				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUserId, chat.Id, banErr)
 			} else {
-				log.Error(banErr)
 				return banErr
 			}
 		} else {
@@ -792,7 +778,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error declining join after ban for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
-				log.Error(err)
 				return err
 			}
 		}
@@ -802,7 +787,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: fmt.Sprintf(helpText, formatting.MentionHtml(joinUserId, joinUserName)), ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -812,7 +796,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

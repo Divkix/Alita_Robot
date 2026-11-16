@@ -64,7 +64,6 @@ func kickReply(c *moderationCtx, t *target) error {
 
 	_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return nil
@@ -84,7 +83,6 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Reply.Delete(c.Bot, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return c.punish(t, punishment.Kick, 0)
@@ -120,7 +118,6 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 
 			_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil
@@ -149,7 +146,6 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return nil
@@ -206,7 +202,6 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 			}
 			_, err := c.Msg.Reply(c.Bot, text, sendMsgOptns)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil
@@ -253,7 +248,6 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 			text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kickme_ok_out")
 			_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil
@@ -312,7 +306,6 @@ func moderationDban(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Reply.Delete(c.Bot, nil)
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return c.punish(t, punishment.Ban, 0)
@@ -382,7 +375,6 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 			} else {
 				banUser, err := c.Bot.GetChat(t.userID, nil)
 				if err != nil {
-					log.Error(err)
 					return err
 				}
 				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_unban_unbanned_user")
@@ -390,7 +382,6 @@ func moderationUnban(m *moduleStruct) *moderationCommand {
 			}
 			_, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil
@@ -442,7 +433,6 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
 		if err := replyCommandHelp(b, msg, tr, "restrict", text); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -452,7 +442,6 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -462,7 +451,6 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("bans_restrict_admin_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -472,7 +460,6 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("bans_restrict_self_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -503,7 +490,6 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -572,7 +558,6 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	actionUser, err := b.GetChat(userId, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -583,7 +568,6 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	}); errors.Is(err, punishment.ErrKickTargetBanned) {
 		return answerKickTargetBanned(b, query, tr)
 	} else if err != nil {
-		log.Error(err)
 		return err
 	}
 	switch action {
@@ -614,12 +598,10 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	_, _, err = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	_, err = query.Answer(b, nil)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -639,7 +621,6 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
 		if err := replyCommandHelp(b, msg, tr, "unrestrict", text); err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -649,7 +630,6 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("bans_unrestrict_admin_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -659,7 +639,6 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("bans_unrestrict_self_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		return ext.EndGroups
@@ -680,7 +659,6 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -791,7 +769,6 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	}
 
 	if _, err = query.Answer(b, nil); err != nil {
-		log.Error(err)
 		return err
 	}
 	if editErr != nil {
@@ -854,7 +831,6 @@ func moderationBanme(m *moduleStruct) *moderationCommand {
 			text, _ := c.Tr.GetString("bans_banme_ok")
 			_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 			if err != nil {
-				log.Error(err)
 				return err
 			}
 			return nil
@@ -880,7 +856,6 @@ func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		ReplyMarkup: confirmKeyboard(tr, "unbanall", ctx.EffectiveChat),
 	})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
@@ -939,13 +914,11 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	if query.Message != nil {
 		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	}
 	_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	return ext.EndGroups
