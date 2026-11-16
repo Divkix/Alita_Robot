@@ -25,6 +25,7 @@ import (
 type longPollClient struct {
 	*mainBotClient
 	polled      chan struct{}
+	held        chan struct{}
 	once        sync.Once
 	cancelled   func()
 	pollTimeout any
@@ -41,6 +42,7 @@ func (c *longPollClient) RequestWithContext(ctx context.Context, _ string, metho
 		close(c.polled)
 		return json.RawMessage(`[]`), nil
 	}
+	close(c.held)
 	<-ctx.Done()
 	c.cancelled()
 	return nil, ctx.Err()
@@ -120,6 +122,7 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 		client := &longPollClient{
 			mainBotClient: &mainBotClient{},
 			polled:        make(chan struct{}),
+			held:          make(chan struct{}),
 			cancelled:     func() { record("updater stop") },
 		}
 		bot := &gotgbot.Bot{Token: "999:test", BotClient: client}
@@ -135,6 +138,8 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 		if pollTimeout <= 0 {
 			t.Errorf("getUpdates timeout = %v, want a long poll above 0s", client.pollTimeout)
 		}
+		// Ensure shutdown cancels a held poll instead of stopping between polls.
+		<-client.held
 		shutdownStarted := time.Now()
 		startShutdown()
 
