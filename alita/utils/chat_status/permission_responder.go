@@ -7,6 +7,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
 type respondCfg struct {
@@ -103,12 +104,16 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 					},
 				})
 				if fallbackErr != nil {
+					level := log.ErrorLevel
+					if errors.IsExpectedTelegramError(fallbackErr) {
+						level = log.WarnLevel
+					}
 					log.WithFields(log.Fields{
 						"chatId":        chat.Id,
 						"cmdKey":        cmdKey,
 						"replyError":    err,
 						"fallbackError": fallbackErr,
-					}).Errorf("sendMessage fallback also failed: %v", fallbackErr)
+					}).Logf(level, "sendMessage fallback also failed: %v", fallbackErr)
 				}
 			}
 		}
@@ -122,10 +127,14 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 		},
 	})
 	if err != nil {
+		level := log.ErrorLevel
+		if errors.IsExpectedTelegramError(err) {
+			level = log.WarnLevel
+		}
 		log.WithFields(log.Fields{
 			"chatId": chat.Id,
 			"cmdKey": cmdKey,
-		}).Errorf("sendMessage failed: %v", err)
+		}).Logf(level, "sendMessage failed: %v", err)
 	}
 	return false
 }
