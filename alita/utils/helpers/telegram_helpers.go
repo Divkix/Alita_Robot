@@ -3,6 +3,7 @@ package helpers
 import (
 	stderrors "errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -111,8 +112,8 @@ func IsExpectedTelegramError(err error) bool {
 }
 
 // LogHandlerError records an error a handler returned on the update's span and
-// metrics, and logs it: Warn for an expected Telegram API error, Error
-// otherwise, with the update id, chat id, the error type and, for a
+// metrics, and logs it at Warn for expected Telegram API errors and Telegram
+// 429s, and at Error otherwise. It includes the update id, chat id, error type and, for a
 // WrappedError, where it was wrapped. The dispatcher's error handler and
 // WrapCommand (after a chat swap, when it ends groups instead) both log
 // through it, so the two paths produce the same entry.
@@ -143,5 +144,10 @@ func LogHandlerError(ctx *ext.Context, err error) {
 		entry.Warnf("Expected Telegram API error: %v", err)
 		return
 	}
-	entry.Errorf("Handler error occurred: %v", err)
+	level := log.ErrorLevel
+	var telegramErr *gotgbot.TelegramError
+	if stderrors.As(err, &telegramErr) && telegramErr.Code == http.StatusTooManyRequests {
+		level = log.WarnLevel
+	}
+	entry.Logf(level, "Handler error occurred: %v", err)
 }
