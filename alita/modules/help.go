@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -22,6 +23,37 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
+
+const groupStartReplyWindow = 30 * time.Second
+
+var (
+	groupStartNow     = time.Now
+	groupStartReplies = struct {
+		sync.Mutex
+		expires   map[int64]time.Time
+		nextPrune time.Time
+	}{expires: make(map[int64]time.Time)}
+)
+
+func claimGroupStartReply(chatID int64) bool {
+	groupStartReplies.Lock()
+	defer groupStartReplies.Unlock()
+
+	now := groupStartNow()
+	if !now.Before(groupStartReplies.nextPrune) {
+		for chatID, expiry := range groupStartReplies.expires {
+			if !now.Before(expiry) {
+				delete(groupStartReplies.expires, chatID)
+			}
+		}
+		groupStartReplies.nextPrune = now.Add(groupStartReplyWindow)
+	}
+	if now.Before(groupStartReplies.expires[chatID]) {
+		return false
+	}
+	groupStartReplies.expires[chatID] = now.Add(groupStartReplyWindow)
+	return true
+}
 
 var (
 	cachedBotUsername   string
@@ -398,6 +430,9 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.WithField("args", args).Debug("Unexpected number of args in /start deep link")
 		}
 	} else {
+		if !claimGroupStartReply(msg.Chat.Id) {
+			return ext.EndGroups
+		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("help_pm_questions")
 		_, err := msg.Reply(b, text, formatting.Shtml())

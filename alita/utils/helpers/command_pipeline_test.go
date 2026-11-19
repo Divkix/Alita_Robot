@@ -641,6 +641,35 @@ func TestWrapCommandLogsErrorAfterChatSwapLikeDispatcher(t *testing.T) {
 	}
 }
 
+func TestLogHandlerErrorRateLimitLevel(t *testing.T) {
+	previous := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previous) })
+	hook := logrustest.NewGlobal()
+
+	rateLimit := &gotgbot.TelegramError{Method: "sendMessage", Code: 429, Description: "Too Many Requests: retry after 5"}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want log.Level
+	}{
+		{name: "Telegram 429", err: rateLimit, want: log.WarnLevel},
+		{name: "wrapped Telegram 429", err: fmt.Errorf("reply failed: %w", rateLimit), want: log.WarnLevel},
+		{name: "unexpected Telegram error", err: &gotgbot.TelegramError{Method: "sendMessage", Code: 500, Description: "Internal Server Error"}, want: log.ErrorLevel},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hook.Reset()
+			LogHandlerError(nil, tc.err)
+			entries := hook.AllEntries()
+			if len(entries) != 1 {
+				t.Fatalf("log entries = %d, want 1", len(entries))
+			}
+			if got := entries[0].Level; got != tc.want {
+				t.Errorf("log level = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
 // A command that points ctx.EffectiveChat at another chat (a PM command acting
 // on the connected group) must end handler-group iteration whatever it
 // returns: gotgbot hands the same ctx to every later group, whose watchers

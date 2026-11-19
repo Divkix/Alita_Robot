@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -39,6 +40,45 @@ func TestStartCommandRepliesInPrivateAndGroup(t *testing.T) {
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want 2", len(calls))
+	}
+}
+
+func TestStartCommandThrottlesGroupRepliesPerChat(t *testing.T) {
+	now := time.Now()
+	previousClock := groupStartNow
+	groupStartNow = func() time.Time { return now }
+	t.Cleanup(func() { groupStartNow = previousClock })
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4301, FirstName: "Helper"}
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup"}
+	otherGroup := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup"}
+	start := DefaultHelpRegistry().start
+
+	attempts := []struct {
+		name    string
+		chat    gotgbot.Chat
+		advance time.Duration
+		want    int
+	}{
+		{name: "first reply", chat: group, want: 1},
+		{name: "same chat within window", chat: group, advance: 29 * time.Second, want: 0},
+		{name: "different chat within window", chat: otherGroup, want: 1},
+		{name: "original chat at window boundary", chat: group, advance: time.Second, want: 1},
+	}
+	for _, attempt := range attempts {
+		t.Run(attempt.name, func(t *testing.T) {
+			now = now.Add(attempt.advance)
+			before := len(client.callsFor("sendMessage"))
+			ctx := newModuleMessageContext(bot, attempt.chat, user, "/start")
+			if err := start(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("start error = %v, want EndGroups", err)
+			}
+			if got := len(client.callsFor("sendMessage")) - before; got != attempt.want {
+				t.Errorf("sendMessage calls = %d, want %d", got, attempt.want)
+			}
+		})
 	}
 }
 
