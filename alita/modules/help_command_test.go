@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -79,6 +80,37 @@ func TestStartCommandThrottlesGroupRepliesPerChat(t *testing.T) {
 				t.Errorf("sendMessage calls = %d, want %d", got, attempt.want)
 			}
 		})
+	}
+}
+
+func TestStartCommandSendsOneGroupReplyUnderConcurrentCommands(t *testing.T) {
+	now := time.Now()
+	previousClock := groupStartNow
+	groupStartNow = func() time.Time { return now }
+	t.Cleanup(func() { groupStartNow = previousClock })
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4301, FirstName: "Helper"}
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup"}
+	start := DefaultHelpRegistry().start
+
+	ready := make(chan struct{})
+	var workers sync.WaitGroup
+	for range 20 {
+		ctx := newModuleMessageContext(bot, group, user, "/start")
+		workers.Go(func() {
+			<-ready
+			if err := start(bot, ctx); err != ext.EndGroups {
+				t.Errorf("start error = %v, want EndGroups", err)
+			}
+		})
+	}
+	close(ready)
+	workers.Wait()
+
+	if got := len(client.callsFor("sendMessage")); got != 1 {
+		t.Errorf("sendMessage calls = %d, want 1", got)
 	}
 }
 
