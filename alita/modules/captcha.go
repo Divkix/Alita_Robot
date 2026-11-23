@@ -19,7 +19,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
-	"github.com/eko/gocache/lib/v4/store"
 	"github.com/mojocn/base64Captcha"
 	log "github.com/sirupsen/logrus"
 
@@ -39,6 +38,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
@@ -146,12 +146,8 @@ var (
 // notice that captcha needs the bot's "Ban users" right.
 const captchaRightsNoticeCooldown = 6 * time.Hour
 
-// captchaRightsNoticeLocal holds the notice cooldown expiry per chat when
-// Redis is not configured.
-var captchaRightsNoticeLocal sync.Map
-
 func captchaRightsNoticeKey(chatID int64) string {
-	return fmt.Sprintf("alita:captcha:rightsNotice:%d", chatID)
+	return opstate.Key("captcha:rightsNotice", chatID)
 }
 
 // claimCaptchaRightsNotice reports whether this call may send the missing-right
@@ -159,27 +155,9 @@ func captchaRightsNoticeKey(chatID int64) string {
 // replicas. A Redis error sends nothing: a missed notice comes back on a later
 // join, a repeated one is noise.
 func claimCaptchaRightsNotice(chatID int64) bool {
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		claimed, err := rdb.SetNX(cache.Context, captchaRightsNoticeKey(chatID), 1, captchaRightsNoticeCooldown).Result()
-		if err != nil {
-			log.Debugf("[Captcha] Failed to claim the rights notice for chat %d: %v", chatID, err)
-			return false
-		}
-		return claimed
-	}
-	for {
-		now := time.Now()
-		prev, loaded := captchaRightsNoticeLocal.LoadOrStore(chatID, now.Add(captchaRightsNoticeCooldown))
-		if !loaded {
-			return true
-		}
-		if expiry, ok := prev.(time.Time); ok && now.Before(expiry) {
-			return false
-		}
-		if captchaRightsNoticeLocal.CompareAndSwap(chatID, prev, now.Add(captchaRightsNoticeCooldown)) {
-			return true
-		}
-	}
+	// ClaimShared covers the Redis win and the Redis-absent local claim;
+	// ClaimLocal means Redis errored, which this notice treats as lost.
+	return opstate.Claim(captchaRightsNoticeKey(chatID), captchaRightsNoticeCooldown) == opstate.ClaimShared
 }
 
 // captchaBotCanRestrict reports whether the bot holds the right to mute
@@ -1747,14 +1725,14 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 		return err
 	}
 
-	cooldownKey := fmt.Sprintf("alita:captcha:refresh:cooldown:%d:%d", chat.Id, targetUserID)
-	if m := cache.GetMarshal(); m != nil {
-		if exists, _ := m.Get(cache.Context, cooldownKey, new(bool)); exists != nil {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text := tr.String("captcha_wait_refresh")
-			_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return err
-		}
+	// One atomic claim per refresh window: the old check-then-set let two
+	// concurrent refreshes both pass the cooldown check.
+	cooldownKey := opstate.Key("captcha:refresh:cooldown", chat.Id, targetUserID)
+	if opstate.Claim(cooldownKey, time.Duration(captchaRefreshCooldownS)*time.Second) == opstate.ClaimLost {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text := tr.String("captcha_wait_refresh")
+		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return err
 	}
 
 	attempt, err := captcha.GetCaptchaAttempt(targetUserID, chat.Id)
@@ -1873,12 +1851,6 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	if oldMessageID > 0 {
 		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, oldMessageID); err != nil {
 			log.Warnf("[CaptchaRefresh] Failed to delete old message %d in chat %d: %v", oldMessageID, chat.Id, err)
-		}
-	}
-
-	if m := cache.GetMarshal(); m != nil {
-		if err := m.Set(cache.Context, cooldownKey, true, store.WithExpiration(time.Duration(captchaRefreshCooldownS)*time.Second)); err != nil {
-			log.Errorf("[CaptchaRefresh] Failed to set refresh cooldown for chat %d user %d: %v", chat.Id, targetUserID, err)
 		}
 	}
 

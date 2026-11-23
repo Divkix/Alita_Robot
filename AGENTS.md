@@ -41,8 +41,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   `isCliModeActive` (`--version`, `--health` and test binaries without `ALITA_TEST_DATABASE=true` skip DB init).
 - Once config has loaded, exit through `log.Fatal*` or `log.StandardLogger().Exit`: its exit handler flushes
   telemetry, which `os.Exit` skips.
-- Shutdown runs LIFO within 60 s: periodic work registers a job (one drain stops all); register any other drain
-  after DB-close so it runs before it.
+- Shutdown runs in declared phases (`shutdown.Phase`; `Phases()` lists the order), LIFO within a phase in 60 s:
+  periodic work registers a job (one drain stops all), and nothing after `PhaseDatabase` writes to the database.
 
 ## Handlers
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -23,11 +22,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -35,46 +34,23 @@ import (
 
 const joinRequestCaptchaPassTTL = 5 * time.Minute
 
-// The local fallback is swept with the persisted attempts when Redis is absent.
-var joinRequestCaptchaPasses sync.Map
-
 func joinRequestCaptchaPassKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:joinCaptcha:passed:%d:%d", chatID, userID)
+	return opstate.Key("joinCaptcha:passed", chatID, userID)
 }
 
+// markJoinRequestCaptchaPassed claims the pass marker for ttl. Re-marking an
+// already-held key keeps the first claim's expiry, matching the old SetNX
+// shape closely enough: a second approval inside the window is a no-op.
 func markJoinRequestCaptchaPassed(chatID, userID int64) {
-	key := joinRequestCaptchaPassKey(chatID, userID)
-	joinRequestCaptchaPasses.Store(key, time.Now().Add(joinRequestCaptchaPassTTL))
-	if redis := cache.GetRedisClient(); redis != nil {
-		if err := redis.Set(cache.Context, key, 1, joinRequestCaptchaPassTTL).Err(); err != nil {
-			log.Warnf("[JoinCaptcha] Could not persist pass marker: %v", err)
-		}
-	}
+	opstate.Claim(joinRequestCaptchaPassKey(chatID, userID), joinRequestCaptchaPassTTL)
 }
 
 func clearJoinRequestCaptchaPassed(chatID, userID int64) {
-	key := joinRequestCaptchaPassKey(chatID, userID)
-	joinRequestCaptchaPasses.Delete(key)
-	if redis := cache.GetRedisClient(); redis != nil {
-		if err := redis.Del(cache.Context, key).Err(); err != nil {
-			log.Warnf("[JoinCaptcha] Could not clear pass marker: %v", err)
-		}
-	}
+	opstate.Release(joinRequestCaptchaPassKey(chatID, userID))
 }
 
 func joinRequestCaptchaPassed(chatID, userID int64) bool {
-	key := joinRequestCaptchaPassKey(chatID, userID)
-	if expiry, ok := joinRequestCaptchaPasses.Load(key); ok {
-		if time.Now().Before(expiry.(time.Time)) {
-			return true
-		}
-		joinRequestCaptchaPasses.Delete(key)
-	}
-	if redis := cache.GetRedisClient(); redis != nil {
-		exists, err := redis.Exists(cache.Context, key).Result()
-		return err == nil && exists > 0
-	}
-	return false
+	return opstate.Held(joinRequestCaptchaPassKey(chatID, userID))
 }
 
 func joinCaptchaTranslator(chatID int64) *i18n.Translator {
@@ -478,12 +454,6 @@ func recoverJoinRequestCaptchas(bot *gotgbot.Bot) error {
 }
 
 func cleanupExpiredJoinRequestCaptchas(ctx context.Context, bot *gotgbot.Bot) error {
-	joinRequestCaptchaPasses.Range(func(key, value any) bool {
-		if time.Now().After(value.(time.Time)) {
-			joinRequestCaptchaPasses.Delete(key)
-		}
-		return true
-	})
 	attempts, err := joinrequestcaptchas.GetExpiredJoinRequestCaptchas()
 	if err != nil {
 		return err

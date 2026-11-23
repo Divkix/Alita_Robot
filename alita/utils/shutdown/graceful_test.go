@@ -22,22 +22,22 @@ func TestNewManager(t *testing.T) {
 	}
 }
 
-func TestRegisterHandler(t *testing.T) {
+func TestRegister(t *testing.T) {
 	m := NewManager()
 
 	var callOrder []int
 	var mu sync.Mutex
 
-	m.RegisterHandler(func() error { mu.Lock(); callOrder = append(callOrder, 1); mu.Unlock(); return nil })
-	m.RegisterHandler(func() error { mu.Lock(); callOrder = append(callOrder, 2); mu.Unlock(); return nil })
-	m.RegisterHandler(func() error { mu.Lock(); callOrder = append(callOrder, 3); mu.Unlock(); return nil })
+	m.Register("first", PhaseModuleDrains, func() error { mu.Lock(); callOrder = append(callOrder, 1); mu.Unlock(); return nil })
+	m.Register("second", PhaseModuleDrains, func() error { mu.Lock(); callOrder = append(callOrder, 2); mu.Unlock(); return nil })
+	m.Register("third", PhaseModuleDrains, func() error { mu.Lock(); callOrder = append(callOrder, 3); mu.Unlock(); return nil })
 
 	if len(m.handlers) != 3 {
 		t.Fatalf("expected 3 handlers, got %d", len(m.handlers))
 	}
 
-	for i, h := range m.handlers {
-		if err := h(); err != nil {
+	for i, entry := range m.handlers {
+		if err := entry.handle(); err != nil {
 			t.Fatalf("handler %d returned error: %v", i, err)
 		}
 	}
@@ -47,9 +47,11 @@ func TestRegisterHandler(t *testing.T) {
 	if len(callOrder) != 3 {
 		t.Fatalf("expected 3 calls, got %d", len(callOrder))
 	}
+	// handlers is stored in execution order: within one phase the drain
+	// registered last runs first.
 	for i, v := range callOrder {
-		if v != i+1 {
-			t.Errorf("expected callOrder[%d]=%d, got %d", i, i+1, v)
+		if v != 3-i {
+			t.Errorf("expected callOrder[%d]=%d (LIFO), got %d", i, 3-i, v)
 		}
 	}
 }
@@ -93,7 +95,8 @@ func TestExecuteHandler(t *testing.T) {
 				executed = true
 				return tc.handler()
 			}
-			err := m.executeHandler(wrapped, tc.delay)
+			entry := handlerEntry{name: "test", phase: PhaseModuleDrains, handle: wrapped}
+			err := m.executeHandler(entry)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -117,10 +120,11 @@ func TestExecuteHandlerPanicRecovery(t *testing.T) {
 	m := NewManager()
 
 	executed := false
-	err := m.executeHandler(func() error {
+	entry := handlerEntry{name: "panicking", phase: PhaseModuleDrains, handle: func() error {
 		executed = true
 		panic("intentional panic")
-	}, 0)
+	}}
+	err := m.executeHandler(entry)
 
 	if err != nil {
 		t.Errorf("expected nil error after panic recovery, got %v", err)
@@ -130,23 +134,24 @@ func TestExecuteHandlerPanicRecovery(t *testing.T) {
 	}
 }
 
-func TestHandlersExecuteInLIFOOrder(t *testing.T) {
+// Within one phase drains run LIFO: the drain registered last runs first.
+func TestHandlersInOnePhaseExecuteInLIFOOrder(t *testing.T) {
 	m := NewManager()
 
 	orderCh := make(chan int, 3)
 
-	m.RegisterHandler(func() error { orderCh <- 1; return nil })
-	m.RegisterHandler(func() error { orderCh <- 2; return nil })
-	m.RegisterHandler(func() error { orderCh <- 3; return nil })
+	m.Register("first", PhaseModuleDrains, func() error { orderCh <- 1; return nil })
+	m.Register("second", PhaseModuleDrains, func() error { orderCh <- 2; return nil })
+	m.Register("third", PhaseModuleDrains, func() error { orderCh <- 3; return nil })
 
 	m.mu.RLock()
-	handlers := make([]func() error, len(m.handlers))
+	handlers := make([]handlerEntry, len(m.handlers))
 	copy(handlers, m.handlers)
 	m.mu.RUnlock()
 
-	for i := len(handlers) - 1; i >= 0; i-- {
-		if err := m.executeHandler(handlers[i], i); err != nil {
-			t.Fatalf("handler %d returned error: %v", i, err)
+	for _, entry := range handlers {
+		if err := m.executeHandler(entry); err != nil {
+			t.Fatalf("handler %q returned error: %v", entry.name, err)
 		}
 	}
 
@@ -169,16 +174,82 @@ func TestHandlersExecuteInLIFOOrder(t *testing.T) {
 	}
 }
 
-func TestRegisterHandlerConcurrency(t *testing.T) {
+// Registration order does not decide execution order: a drain registered
+// first still runs in its phase, and a later phase never runs before an
+// earlier one.
+func TestPhasesDecideExecutionOrderNotRegistrationOrder(t *testing.T) {
+	m := NewManager()
+
+	var order []string
+	var mu sync.Mutex
+	record := func(name string) func() error {
+		return func() error {
+			mu.Lock()
+			defer mu.Unlock()
+			order = append(order, name)
+			return nil
+		}
+	}
+
+	// Register in reverse phase order on purpose.
+	m.Register("tracer", PhaseTelemetry, record("tracer"))
+	m.Register("db close", PhaseDatabase, record("db close"))
+	m.Register("stats flush", PhaseFlush, record("stats flush"))
+	m.Register("jobs stop", PhaseJobs, record("jobs stop"))
+	m.Register("users drain", PhaseModuleDrains, record("users drain"))
+	m.Register("http stop", PhaseHTTPServer, record("http stop"))
+	m.Register("updater stop", PhaseUpdateSource, record("updater stop"))
+
+	m.mu.RLock()
+	handlers := make([]handlerEntry, len(m.handlers))
+	copy(handlers, m.handlers)
+	m.mu.RUnlock()
+	for _, entry := range handlers {
+		if err := m.executeHandler(entry); err != nil {
+			t.Fatalf("handler %q returned error: %v", entry.name, err)
+		}
+	}
+
+	want := []string{
+		"updater stop", "http stop", "users drain", "jobs stop",
+		"stats flush", "db close", "tracer",
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(order) != len(want) {
+		t.Fatalf("executed %v, want %v", order, want)
+	}
+	for i, w := range want {
+		if order[i] != w {
+			t.Fatalf("executed %v, want %v", order, want)
+		}
+	}
+}
+
+// Phases is the total ordered list of phases; a phase registered outside it
+// would sort unpredictably, so every phase must be one of them.
+func TestPhasesListIsTotalAndContiguous(t *testing.T) {
+	phases := Phases()
+	if len(phases) != int(PhaseTelemetry)+1 {
+		t.Fatalf("Phases() = %v, want %d contiguous phases ending at PhaseTelemetry", phases, int(PhaseTelemetry)+1)
+	}
+	for i, phase := range phases {
+		if int(phase) != i {
+			t.Fatalf("Phases()[%d] = %v, want phase %d", i, phase, i)
+		}
+	}
+}
+
+func TestRegisterConcurrency(t *testing.T) {
 	m := NewManager()
 	var wg sync.WaitGroup
 	numHandlers := 100
 
-	for i := 0; i < numHandlers; i++ {
+	for range numHandlers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			m.RegisterHandler(func() error { return nil })
+			m.Register("handler", PhaseModuleDrains, func() error { return nil })
 		}()
 	}
 
@@ -205,23 +276,30 @@ func TestShutdownExecutesHandlersInLIFOOrderAndExitsOnce(t *testing.T) {
 
 	m := NewManager()
 	var order []int
-	m.RegisterHandler(func() error {
-		order = append(order, 1)
-		return nil
-	})
-	m.RegisterHandler(func() error {
+	var mu sync.Mutex
+	record := func(v int) func() error {
+		return func() error {
+			mu.Lock()
+			defer mu.Unlock()
+			order = append(order, v)
+			return nil
+		}
+	}
+	m.Register("first", PhaseModuleDrains, record(1))
+	m.Register("second", PhaseModuleDrains, func() error {
+		mu.Lock()
+		defer mu.Unlock()
 		order = append(order, 2)
 		return errors.New("second handler failed")
 	})
-	m.RegisterHandler(func() error {
-		order = append(order, 3)
-		return nil
-	})
+	m.Register("third", PhaseModuleDrains, record(3))
 
 	m.shutdown()
 	m.shutdown()
 
 	expectedOrder := []int{3, 2, 1}
+	mu.Lock()
+	defer mu.Unlock()
 	if len(order) != len(expectedOrder) {
 		t.Fatalf("expected order %v, got %v", expectedOrder, order)
 	}
@@ -252,7 +330,7 @@ func TestShutdownTimeoutInterruptsBlockedHandler(t *testing.T) {
 	shutdownTimeout = 10 * time.Millisecond
 
 	m := NewManager()
-	m.RegisterHandler(func() error {
+	m.Register("blocked", PhaseModuleDrains, func() error {
 		<-block
 		return nil
 	})
@@ -292,10 +370,19 @@ func TestShutdownSkipsAHungHandlerAndRunsTheRest(t *testing.T) {
 		exitProcess = func(code int) { exitCode = code }
 
 		var order []string
+		var mu sync.Mutex
+		record := func(step string) func() error {
+			return func() error {
+				mu.Lock()
+				defer mu.Unlock()
+				order = append(order, step)
+				return nil
+			}
+		}
 		m := NewManager()
-		m.RegisterHandler(func() error { order = append(order, "db close"); return nil })
-		m.RegisterHandler(func() error { order = append(order, "stats flush"); return nil })
-		m.RegisterHandler(func() error { <-hung; return nil })
+		m.Register("db close", PhaseDatabase, record("db close"))
+		m.Register("stats flush", PhaseFlush, record("stats flush"))
+		m.Register("hung drain", PhaseModuleDrains, func() error { <-hung; return nil })
 
 		start := time.Now()
 		m.shutdown()
@@ -303,6 +390,8 @@ func TestShutdownSkipsAHungHandlerAndRunsTheRest(t *testing.T) {
 		if elapsed := time.Since(start); elapsed != 10*time.Second {
 			t.Fatalf("shutdown took %v, want the 10s handler limit", elapsed)
 		}
+		mu.Lock()
+		defer mu.Unlock()
 		if len(order) != 2 || order[0] != "stats flush" || order[1] != "db close" {
 			t.Fatalf("order = %v, want [stats flush, db close]", order)
 		}
@@ -340,8 +429,8 @@ func TestWaitForShutdownUsesSignalHooks(t *testing.T) {
 	shutdownTimeout = time.Second
 
 	m := NewManager()
-	var handlerCalled bool
-	m.RegisterHandler(func() error {
+	handlerCalled := false
+	m.Register("handler", PhaseModuleDrains, func() error {
 		handlerCalled = true
 		return nil
 	})
