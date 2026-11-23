@@ -41,7 +41,7 @@ func GetUserBasicInfoCached(userID int64) (*models.User, error) {
 }
 
 func GetUserBasicInfoCachedContext(ctx context.Context, userID int64) (*models.User, error) {
-	cacheKey := cache.CacheKey("user", userID)
+	cacheKey := UserProjection.Key(userID)
 
 	cached, err := cache.GetFromCacheOrLoad(ctx, cacheKey, 1*time.Hour, func(ctx context.Context) (*models.User, error) {
 		user, err := GetUserBasicInfoContext(ctx, userID)

@@ -30,19 +30,12 @@ func GetCaptchaSettings(chatID int64) (*models.CaptchaSettings, error) {
 }
 
 func GetCaptchaSettingsContext(ctx context.Context, chatID int64) (*models.CaptchaSettings, error) {
-	return cache.GetFromCacheOrLoad(ctx, cache.CacheKey("captcha_settings", chatID), cache.CacheTTLCaptchaSettings, func(ctx context.Context) (*models.CaptchaSettings, error) {
+	return cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLCaptchaSettings, func(ctx context.Context) (*models.CaptchaSettings, error) {
 		settings := &models.CaptchaSettings{}
 		err := db.GetRecordContext(ctx, settings, map[string]any{"chat_id": chatID})
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &models.CaptchaSettings{
-				ChatID:        chatID,
-				Enabled:       false,
-				CaptchaMode:   "math",
-				Timeout:       2,
-				FailureAction: "kick",
-				MaxAttempts:   3,
-			}, nil
+			return models.DefaultCaptchaSettings(chatID), nil
 		}
 
 		if err != nil {
@@ -74,7 +67,7 @@ func SetCaptchaEnabled(chatID int64, chatName string, enabled bool) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 
 	return nil
 }
@@ -84,7 +77,7 @@ func SetCaptchaJoinRequests(chatID int64, chatName string, enabled bool) error {
 	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
 	}
-	defer cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	defer cache.DeleteCache(SettingsProjection.Key(chatID))
 	if err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoNothing: true,
@@ -117,7 +110,7 @@ func SetCaptchaMode(chatID int64, chatName, mode string) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 
 	return nil
 }
@@ -141,7 +134,7 @@ func SetCaptchaTimeout(chatID int64, chatName string, timeout int) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 
 	return nil
 }
@@ -163,7 +156,7 @@ func SetCaptchaMaxAttempts(chatID int64, chatName string, maxAttempts int) error
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
 
@@ -186,7 +179,7 @@ func SetCaptchaFailureAction(chatID int64, chatName, action string) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("captcha_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 
 	return nil
 }
@@ -270,7 +263,7 @@ func createCaptchaAttemptPreMessage(userID, chatID int64, answer string, timeout
 const captchaPendingCacheTTL = 2 * time.Minute
 
 func captchaPendingCacheKey(chatID int64) string {
-	return cache.CacheKey("captcha_pending", chatID)
+	return PendingProjection.Key(chatID)
 }
 
 // HasPendingCaptchaAttemptsContext reports whether the chat has any unexpired

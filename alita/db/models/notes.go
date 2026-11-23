@@ -18,6 +18,12 @@ func (NotesSettings) TableName() string {
 	return "notes_settings"
 }
 
+// DefaultNotesSettings is the row a chat without one reads as: private notes
+// off. Repository loaders and settings declarations consume it.
+func DefaultNotesSettings(chatID int64) NotesSettings {
+	return NotesSettings{ChatId: chatID}
+}
+
 type Notes struct {
 	ID          uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId      int64       `gorm:"column:chat_id;not null;uniqueIndex:uk_notes_chat_name" json:"chat_id,omitempty"`

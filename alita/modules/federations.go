@@ -1187,6 +1187,9 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	if ban == nil {
 		return StageNotApplicable
 	}
+	// Federation bans exempt admins only: an approved user is still banned —
+	// the federation's judgment is not the chat's. Deliberate divergence from
+	// IsProtectedForUpdate.
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 		return StageNotApplicable
 	}

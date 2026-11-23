@@ -208,7 +208,7 @@ func (moduleStruct) checkProbation(b *gotgbot.Bot, ctx *ext.Context) error {
 		endProbation(chat.Id, user.Id)
 		return ext.ContinueGroups
 	}
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, user.Id) || chat_status.IsApprovedForUpdate(b, ctx, chat.Id, user.Id) {
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
 

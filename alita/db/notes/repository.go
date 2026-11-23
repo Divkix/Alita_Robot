@@ -21,20 +21,21 @@ func getNotesSettings(chatID int64) *models.NotesSettings {
 }
 
 func getNotesSettingsContext(ctx context.Context, chatID int64) *models.NotesSettings {
-	settingsVal, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey("notes_settings", chatID), cache.CacheTTLNotesSettings, func(ctx context.Context) (models.NotesSettings, error) {
+	settingsVal, err := cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLNotesSettings, func(ctx context.Context) (models.NotesSettings, error) {
 		noteSrc := &models.NotesSettings{}
-		err := db.GetRecordContext(ctx, noteSrc, models.NotesSettings{ChatId: chatID})
+		err := db.GetRecordContext(ctx, noteSrc, models.DefaultNotesSettings(chatID))
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.NotesSettings{ChatId: chatID}, nil
+			return models.DefaultNotesSettings(chatID), nil
 		} else if err != nil {
 			log.Errorf("[Database] getNotesSettings: %v - %d", err, chatID)
-			return models.NotesSettings{ChatId: chatID, Private: false}, nil
+			return models.DefaultNotesSettings(chatID), nil
 		}
 		return *noteSrc, nil
 	})
 	if err != nil {
 		log.Errorf("[Database][getNotesSettings]: cache load error %d - %v", chatID, err)
-		return &models.NotesSettings{ChatId: chatID, Private: false}
+		fallback := models.DefaultNotesSettings(chatID)
+		return &fallback
 	}
 	return &settingsVal
 }
@@ -61,20 +62,12 @@ type cachedNoteInfo struct {
 	AdminOnly bool
 }
 
-func notesListCacheKey(chatID int64) string {
-	return cache.CacheKey("notes_list", chatID)
-}
-
-func invalidateNotesCache(chatID int64) {
-	cache.DeleteCache(notesListCacheKey(chatID))
-}
-
 func GetNotesList(chatID int64, admin bool) []string {
 	return GetNotesListContext(context.Background(), chatID, admin)
 }
 
 func GetNotesListContext(ctx context.Context, chatID int64, admin bool) []string {
-	cacheKey := notesListCacheKey(chatID)
+	cacheKey := ListProjection.Key(chatID)
 	entries, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLNotesList, func(ctx context.Context) ([]cachedNoteInfo, error) {
 		var notes []*models.Notes
 		if err := db.GetRecordsContext(ctx, &notes, models.Notes{ChatId: chatID}); err != nil {
@@ -224,7 +217,7 @@ func RemoveAllNotes(chatID int64) error {
 
 func ensureNotesSettingsRecord(chatID int64) error {
 	noteSrc := &models.NotesSettings{}
-	err := db.GetRecord(noteSrc, models.NotesSettings{ChatId: chatID})
+	err := db.GetRecord(noteSrc, models.DefaultNotesSettings(chatID))
 	if err == nil {
 		return nil
 	}
@@ -234,7 +227,8 @@ func ensureNotesSettingsRecord(chatID int64) error {
 	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 		return err
 	}
-	return db.CreateRecord(&models.NotesSettings{ChatId: chatID, Private: false})
+	settings := models.DefaultNotesSettings(chatID)
+	return db.CreateRecord(&settings)
 }
 
 func TooglePrivateNote(chatID int64, pref bool) error {
@@ -244,7 +238,7 @@ func TooglePrivateNote(chatID int64, pref bool) error {
 	}
 	err := db.UpdateRecordWithZeroValues(
 		&models.NotesSettings{},
-		models.NotesSettings{ChatId: chatID},
+		models.DefaultNotesSettings(chatID),
 		map[string]any{"private": pref},
 	)
 	if err != nil {
@@ -252,7 +246,7 @@ func TooglePrivateNote(chatID int64, pref bool) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("notes_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
 
