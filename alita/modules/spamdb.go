@@ -12,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -116,10 +117,17 @@ func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot
 
 	answer, outcome := StageNotApplicable, settings.Action
 	var logMarkup *gotgbot.InlineKeyboardMarkup
+	request := punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: member.Id},
+		Source: models.BanSourceSpamDB, Detail: source.Name(),
+	}
 	if mode, punishes := spamDBPunishments[settings.Action]; punishes {
-		result, err := punishment.Apply(reqCtx, b, punishment.Request{
-			ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: mode,
-			Source: models.BanSourceSpamDB, Detail: source.Name(),
+		request.Mode = mode
+		result, err := enforce.Automated(b, ctx, enforce.Spec{
+			Request: request,
+			// The protected-user check ran above on the joining member; the
+			// default predicate must not exempt them a second time.
+			Exempt: enforce.NeverExempt,
 		})
 		switch {
 		case err != nil || !result.Applied:
@@ -131,10 +139,20 @@ func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot
 			answer, logMarkup = StageRemoved, result.LogMarkup
 		}
 	}
-	actionlog.AutomatedWithMarkup(b, chat, logMarkup, "SPAMDB", member.Id, member.FirstName,
-		actionlog.Field{Name: "Listed in", Value: source.Name()},
-		actionlog.Field{Name: "Action", Value: outcome},
-	)
+	_, _ = enforce.Automated(b, ctx, enforce.Spec{
+		Request: request,
+		Exempt:  enforce.NeverExempt,
+		LogOnly: true,
+		Log: &enforce.LogSpec{
+			Tag:    "SPAMDB",
+			Name:   member.FirstName,
+			Markup: logMarkup,
+			Fields: []actionlog.Field{
+				{Name: "Listed in", Value: source.Name()},
+				{Name: "Action", Value: outcome},
+			},
+		},
+	})
 	return answer
 }
 
