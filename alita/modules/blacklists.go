@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -335,11 +336,6 @@ var blacklistNoticeKeys = map[string]string{
 }
 
 func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
-	return m.blacklistWatcherWithPunisher(b, ctx, punishment.Apply)
-}
-
-//nolint:gocyclo // The ordered exemptions, match and action form one watcher pass.
-func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Context, apply punisher) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	if user == nil {
@@ -374,16 +370,6 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		return ext.ContinueGroups
 	}
 
-	// Only a user-shaped sender can be admin- or approval-exempt:
-	// anonymous-channel senders stay punishable through SenderChat.
-	if user.IsUser() && chat_status.IsProtectedForUpdate(b, ctx, chat.Id, user.Id()) {
-		return ext.ContinueGroups
-	}
-
-	if !chat_status.IsBotAdminForUpdate(b, ctx, chat) {
-		return ext.ContinueGroups
-	}
-
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	reason := matched.Reason
 	if reason == "" || reason == models.DefaultBlacklistReason {
@@ -393,13 +379,18 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		}
 	}
 
-	// banReason is the reason a ban's record keeps: plain text, unlike the
-	// notice's.
-	banReason := fmt.Sprintf(reason, i)
-
-	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-
 	if matched.Action == "warn" {
+		// The warn delegate is not a punishment spec: it keeps this watcher's
+		// own exemption and bot-admin guards (declared divergence — an
+		// approved or exempt sender must not be warned either), deletes the
+		// trigger, then hands off to warns' own chain.
+		if user.IsUser() && chat_status.IsProtectedForUpdate(b, ctx, chat.Id, user.Id()) {
+			return ext.ContinueGroups
+		}
+		if !chat_status.IsBotAdminForUpdate(b, ctx, chat) {
+			return ext.ContinueGroups
+		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
@@ -412,10 +403,12 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		}
 		return ext.ContinueGroups
 	}
+
 	key, ok := blacklistNoticeKeys[matched.Action]
-	if !ok {
-		return ext.ContinueGroups
-	}
+
+	// banReason is the reason a ban's record keeps: plain text, unlike the
+	// notice's.
+	banReason := fmt.Sprintf(reason, i)
 
 	// A channel is banned for good or left alone: the module refuses it any
 	// other mode, and banChatSenderChat takes no until_date.
@@ -425,30 +418,40 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		Mode: mode, Source: models.BanSourceBlacklist, Reason: banReason,
 	}
 	action := matched.Action
-	var durationArgs []any
+	params := i18n.TranslationParams{"0": formatting.MentionHtml(user.Id(), user.Name())}
 	if timed {
 		actionTime := blacklistActionTime(matched)
 		request.Duration = time.Duration(actionTime) * time.Second
 		action += " " + formatDuration(actionTime)
-		durationArgs = []any{formatDuration(actionTime)}
+		params["1"] = formatDuration(actionTime)
+		params["2"] = fmt.Sprintf(reason, html.EscapeString(i))
+	} else {
+		params["1"] = fmt.Sprintf(reason, html.EscapeString(i))
 	}
-	result, err := apply(tracing.UpdateContext(ctx), b, request)
-	if err != nil {
-		return err
+
+	spec := enforce.Spec{
+		Request:         request,
+		PermissionCheck: chat_status.IsBotAdminForUpdate,
+		BeforeApply: func() {
+			_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+		},
 	}
-	if !result.Applied {
-		return ext.ContinueGroups
+	if ok {
+		spec.Log = &enforce.LogSpec{
+			Tag: "BLACKLIST",
+			// The matched trigger is a log field of its own.
+			Fields: []actionlog.Field{
+				{Name: "Action", Value: action},
+				{Name: "Trigger", Value: i},
+			},
+		}
+		spec.Notice = &enforce.NoticeSpec{
+			Key:    strings.ToLower(m.moduleName) + key,
+			Params: params,
+			Raw:    true,
+		}
 	}
-	// The matched trigger is a log field of its own.
-	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "BLACKLIST", user.Id(), user.Name(),
-		actionlog.Field{Name: "Action", Value: action},
-		actionlog.Field{Name: "Trigger", Value: i},
-	)
-	// The notice shows the trigger HTML-escaped, unlike the record's reason.
-	temp := tr.String(strings.ToLower(m.moduleName) + key)
-	args := append([]any{formatting.MentionHtml(user.Id(), user.Name())}, durationArgs...)
-	args = append(args, fmt.Sprintf(reason, html.EscapeString(i)))
-	if _, err := b.SendMessage(chat.Id, fmt.Sprintf(temp, args...), formatting.Shtml()); err != nil {
+	if _, err := enforce.Automated(b, ctx, spec); err != nil {
 		return err
 	}
 	return ext.ContinueGroups

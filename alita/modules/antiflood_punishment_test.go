@@ -3,7 +3,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,25 +16,39 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
+
+// punishmentCalls returns the Bot API calls that apply or lift a punishment,
+// grouped by method: banChatMember, banChatSenderChat, unbanChatMember,
+// unbanChatSenderChat and restrictChatMember. Lookups such as getChatMember
+// are not punishments.
+func punishmentCalls(client *moduleBotClient) []moduleBotCall {
+	var out []moduleBotCall
+	for _, method := range []string{
+		"banChatMember", "banChatSenderChat", "unbanChatMember", "unbanChatSenderChat", "restrictChatMember",
+	} {
+		out = append(out, client.callsFor(method)...)
+	}
+	return out
+}
 
 func TestAntifloodDispatcherDecidesPunishment(t *testing.T) {
 	useRealLocales(t)
 	for _, tc := range []struct {
 		action   string
 		stored   int
-		mode     punishment.Mode
+		method   string
 		duration time.Duration
+		timed    bool
 	}{
-		{"ban", 0, punishment.Ban, 0},
-		{"kick", 0, punishment.Kick, 0},
-		{"mute", 0, punishment.Mute, 0},
-		{"tban", 600, punishment.Ban, 10 * time.Minute},
-		{"tmute", 86400, punishment.Mute, 24 * time.Hour},
-		{"tban", 0, punishment.Ban, time.Hour},
-		{"tmute", 30, punishment.Mute, time.Hour},
-		{"tmute", 367 * 86400, punishment.Mute, time.Hour},
+		{"ban", 0, "banChatMember", 0, false},
+		{"kick", 0, "unbanChatMember", 0, false},
+		{"mute", 0, "restrictChatMember", 0, false},
+		{"tban", 600, "banChatMember", 10 * time.Minute, true},
+		{"tmute", 86400, "restrictChatMember", 24 * time.Hour, true},
+		{"tban", 0, "banChatMember", time.Hour, true},
+		{"tmute", 30, "restrictChatMember", time.Hour, true},
+		{"tmute", 367 * 86400, "restrictChatMember", time.Hour, true},
 	} {
 		for _, actor := range []string{"member", "channel", "approved", "admin", "linked channel"} {
 			t.Run(fmt.Sprintf("%s/%d/%s", tc.action, tc.stored, actor), func(t *testing.T) {
@@ -52,15 +65,10 @@ func TestAntifloodDispatcherDecidesPunishment(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				var requests []punishment.Request
 				d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-				d.AddHandlerToGroup(handlers.NewMessage(message.All, func(bot *gotgbot.Bot, ctx *ext.Context) error {
-					return antifloodModule.checkFloodWithPunisher(bot, ctx, func(ctx context.Context, bot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
-						requests = append(requests, request)
-						return punishment.Apply(ctx, bot, request)
-					})
-				}), antifloodModule.handlerGroup)
+				d.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 				channel := gotgbot.Chat{Id: -1001234567892, Type: "channel", Title: "Flood channel"}
+				before := time.Now().Unix()
 				for i := range 4 {
 					user := f.member
 					if actor == "admin" {
@@ -77,22 +85,43 @@ func TestAntifloodDispatcherDecidesPunishment(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
+				after := time.Now().Unix()
+
+				calls := punishmentCalls(f.client)
 				if actor != "member" && actor != "channel" {
-					if len(requests) != 0 {
-						t.Fatalf("exempt sender punished: %+v", requests)
+					if len(calls) != 0 {
+						t.Fatalf("exempt sender punished: %+v", calls)
 					}
 					return
 				}
-				if len(requests) != 1 {
-					t.Fatalf("requests = %+v, want one after limit", requests)
-				}
-				request := requests[0]
-				id := f.member.Id
 				if actor == "channel" {
-					id = channel.Id
+					// A sender chat takes only a permanent ban; every other
+					// mode is refused inside punishment.Apply before any call.
+					if tc.action != "ban" {
+						if len(calls) != 0 {
+							t.Fatalf("sender chat punished with %s: %+v", tc.action, calls)
+						}
+						return
+					}
+					if len(calls) != 1 || calls[0].Method != "banChatSenderChat" {
+						t.Fatalf("sender chat punishment calls = %+v, want one banChatSenderChat", calls)
+					}
+					assertParams(t, calls[0], map[string]any{"chat_id": f.chat.Id, "sender_chat_id": channel.Id})
+					return
 				}
-				if request.ChatID != f.chat.Id || request.Target.ID != id || request.Target.SenderChat != (actor == "channel") || request.Mode != tc.mode || request.Duration != tc.duration || request.Source != models.BanSourceAntiflood || request.ActorID != 0 || request.Reason != "" || request.Detail != "" {
-					t.Fatalf("punishment decision = %+v", request)
+				if len(calls) != 1 || calls[0].Method != tc.method {
+					t.Fatalf("punishment calls = %+v, want one %s", calls, tc.method)
+				}
+				assertParams(t, calls[0], targetParams(f.chat.Id, f.member.Id))
+				if !tc.timed {
+					if calls[0].Params["until_date"] != nil {
+						t.Fatalf("%s params = %#v, want no until_date", calls[0].Method, calls[0].Params)
+					}
+					return
+				}
+				secs := int64(tc.duration / time.Second)
+				if until := untilDateParam(t, calls[0]); until < before+secs || until > after+secs {
+					t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, secs, before+secs, after+secs)
 				}
 			})
 		}

@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"html"
 	"slices"
@@ -21,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -269,10 +269,14 @@ var warnLimitReplyKeys = map[string]string{
 // A ban is recorded as issued by bannedBy (0 for the bot) for reason, the
 // reason of the warn that reached the limit; logMarkup is its log entry's
 // Unban button (nil when the mode bans nobody or the record write failed).
-func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chatID int64, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, logMarkup *gotgbot.InlineKeyboardMarkup, err error) {
+// Warns carry no exemption of their own: warnThisUser already refused admin,
+// invalid and non-member targets and requires a live member, so an approved
+// user can still be punished at the limit (declared divergence from the
+// other watchers).
+func punishAtWarnLimit(ctx *ext.Context, b *gotgbot.Bot, chatID int64, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int, bannedBy int64, reason string) (reply string, punished bool, logMarkup *gotgbot.InlineKeyboardMarkup, err error) {
 	key, ok := warnLimitReplyKeys[warnrc.WarnMode]
 	if !ok {
-		log.WithContext(ctx).Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+		log.WithContext(tracing.UpdateContext(ctx)).Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
 		return "", false, nil, nil
 	}
 	mode, timed := chatsettings.PunishmentMode(warnrc.WarnMode)
@@ -285,13 +289,16 @@ func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chat
 		request.Duration = time.Duration(warnrc.WarnActionTime) * time.Second
 		args = append(args, formatDuration(warnrc.WarnActionTime))
 	}
-	result, err := apply(ctx, b, request)
+	result, err := enforce.Automated(b, ctx, enforce.Spec{
+		Request: request,
+		Exempt:  enforce.NeverExempt,
+	})
 	if err != nil {
-		log.WithContext(ctx).Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, u.Id, err)
+		log.WithContext(tracing.UpdateContext(ctx)).Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, u.Id, err)
 		return "", false, nil, err
 	}
 	if !result.Applied {
-		log.WithContext(ctx).Warnf("[Warns] Warn mode %s not applied: %s", warnrc.WarnMode, result.Refusal)
+		log.WithContext(tracing.UpdateContext(ctx)).Warnf("[Warns] Warn mode %s not applied: %s", warnrc.WarnMode, result.Refusal)
 		return "", false, nil, nil
 	}
 	temp := tr.String(key)
@@ -334,11 +341,7 @@ func warnKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat, user
 
 // warnThisUser warns userId; issuer carries who issues the warn (warnIssuer
 // for admin commands, the bot itself for automatic warns).
-func (m moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry) error {
-	return m.warnThisUserWithPunisher(b, ctx, userId, reason, warnType, issuer, punishment.Apply)
-}
-
-func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry, apply punisher) (err error) {
+func (m moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry) (err error) {
 	var (
 		reply    string
 		keyboard gotgbot.InlineKeyboardMarkup
@@ -414,7 +417,7 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 		if bannedBy == b.Id {
 			bannedBy = 0
 		}
-		reply, punished, logMarkup, err = punishAtWarnLimit(tracing.UpdateContext(ctx), b, apply, chat.Id, tr, warnrc, u, numWarns, bannedBy, reason)
+		reply, punished, logMarkup, err = punishAtWarnLimit(ctx, b, chat.Id, tr, warnrc, u, numWarns, bannedBy, reason)
 		if err != nil {
 			// The warn stays written though the limit's action failed.
 			logWarn("WARN")
