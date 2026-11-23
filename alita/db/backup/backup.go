@@ -1186,7 +1186,8 @@ func clearLocks(tx *gorm.DB, chatID int64) ([]string, error) {
 }
 
 func clearNotes(tx *gorm.DB, chatID int64) ([]string, error) {
-	if err := replaceChatSetting(tx, chatID, &models.NotesSettings{ChatId: chatID}); err != nil {
+	settings := models.DefaultNotesSettings(chatID)
+	if err := replaceChatSetting(tx, chatID, &settings); err != nil {
 		return nil, err
 	}
 	return []string{cacheKey("notes_settings", chatID), cacheKey("notes_list", chatID)}, replaceChatRows[models.Notes](tx, chatID, nil)
@@ -1238,8 +1239,7 @@ func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &userIDs).Error; err != nil {
 		return nil, err
 	}
-	// "mute" is the mode a chat without settings gets; Postgres rejects ''.
-	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}); err != nil {
+	if err := replaceChatSetting(tx, chatID, models.DefaultWarnSettings(chatID)); err != nil {
 		return nil, err
 	}
 	if err := replaceChatRows[models.Warns](tx, chatID, nil); err != nil {

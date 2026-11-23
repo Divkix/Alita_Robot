@@ -40,7 +40,7 @@ func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 }
 
 func GetChatBasicInfoCachedContext(ctx context.Context, chatID int64) (*models.Chat, error) {
-	return loadChatCache(ctx, cache.CacheKey("chat", chatID), chatID, GetChatBasicInfoContext)
+	return loadChatCache(ctx, ChatProjection.Key(chatID), chatID, GetChatBasicInfoContext)
 }
 
 func loadChatCache[T any](ctx context.Context, key string, chatID int64, loader func(context.Context, int64) (T, error)) (T, error) {
@@ -90,7 +90,7 @@ func GetChatUsersCached(chatID int64) (models.Int64Array, error) {
 }
 
 func GetChatUsersCachedContext(ctx context.Context, chatID int64) (models.Int64Array, error) {
-	return loadChatCache(ctx, cache.CacheKey("chat_users", chatID), chatID, GetChatUsersContext)
+	return loadChatCache(ctx, ChatUsersProjection.Key(chatID), chatID, GetChatUsersContext)
 }
 
 // ListChatsWithUser returns active chats whose tracked users include userID,

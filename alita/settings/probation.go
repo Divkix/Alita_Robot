@@ -9,11 +9,14 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/probation"
 )
 
-var ProbationEnabled = probationDeclaration("antispam.probation_enabled", Switch, false,
+// probationDefaults is the fresh-chat row every probation declaration defaults to.
+var probationDefaults = models.DefaultProbationSettings(0)
+
+var ProbationEnabled = probationDeclaration("antispam.probation_enabled", Switch, probationDefaults.Enabled,
 	func(row *models.ProbationSettings) any { return row.Enabled },
 	func(input WriteContext, value any) error { return probation.SetEnabled(input.ChatID, value.(bool)) })
 
-var ProbationTime = probationNumber("antispam.probation_time", Duration, int(models.ProbationDefaultDuration/time.Second),
+var ProbationTime = probationNumber("antispam.probation_time", Duration, probationDefaults.DurationSeconds,
 	int(models.ProbationDurationMin/time.Second), int(models.ProbationDurationMax/time.Second),
 	"must be between 3600 and 2592000 seconds (1 hour to 30 days)",
 	func(row *models.ProbationSettings) any { return row.DurationSeconds },
@@ -21,17 +24,17 @@ var ProbationTime = probationNumber("antispam.probation_time", Duration, int(mod
 		return probation.SetDuration(input.ChatID, time.Duration(value.(int))*time.Second)
 	})
 
-var ProbationMessages = probationNumber("antispam.probation_messages", Number, models.ProbationDefaultMessages,
+var ProbationMessages = probationNumber("antispam.probation_messages", Number, probationDefaults.MessageCount,
 	models.ProbationMessagesMin, models.ProbationMessagesMax, "must be between 1 and 100",
 	func(row *models.ProbationSettings) any { return row.MessageCount },
 	func(input WriteContext, value any) error { return probation.SetMessageCount(input.ChatID, value.(int)) })
 
-var ProbationMinLength = probationNumber("antispam.probation_min_length", Number, models.ProbationDefaultMinLen,
+var ProbationMinLength = probationNumber("antispam.probation_min_length", Number, probationDefaults.MinLength,
 	models.ProbationMinLengthMin, models.ProbationMinLengthMax, "must be between 1 and 500",
 	func(row *models.ProbationSettings) any { return row.MinLength },
 	func(input WriteContext, value any) error { return probation.SetMinLength(input.ChatID, value.(int)) })
 
-var ProbationNotice = probationDeclaration("antispam.probation_notice", Switch, false,
+var ProbationNotice = probationDeclaration("antispam.probation_notice", Switch, probationDefaults.Notice,
 	func(row *models.ProbationSettings) any { return row.Notice },
 	func(input WriteContext, value any) error { return probation.SetNotice(input.ChatID, value.(bool)) })
 
@@ -57,9 +60,9 @@ func probationDeclaration(key string, kind Type, def any, read func(*models.Prob
 }
 
 func probationBlocks() (*Declaration, *Declaration, *Declaration) {
-	links := probationDeclaration("antispam.probation_block_links", Switch, true, func(row *models.ProbationSettings) any { return row.BlockLinks }, nil)
-	forwards := probationDeclaration("antispam.probation_block_forwards", Switch, true, func(row *models.ProbationSettings) any { return row.BlockForwards }, nil)
-	media := probationDeclaration("antispam.probation_block_media", Switch, false, func(row *models.ProbationSettings) any { return row.BlockMedia }, nil)
+	links := probationDeclaration("antispam.probation_block_links", Switch, probationDefaults.BlockLinks, func(row *models.ProbationSettings) any { return row.BlockLinks }, nil)
+	forwards := probationDeclaration("antispam.probation_block_forwards", Switch, probationDefaults.BlockForwards, func(row *models.ProbationSettings) any { return row.BlockForwards }, nil)
+	media := probationDeclaration("antispam.probation_block_media", Switch, probationDefaults.BlockMedia, func(row *models.ProbationSettings) any { return row.BlockMedia }, nil)
 	values := func(input WriteContext, changes map[string]any) (bool, bool, bool, error) {
 		row, err := ReadProbationContext(input.Context, input.ChatID)
 		if err != nil {

@@ -23,7 +23,7 @@ import (
 var timeNow = time.Now
 
 func checkWarnSettingsContext(ctx context.Context, chatID int64) (warnrc *models.WarnSettings) {
-	defaultWarnSettings := &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
+	defaultWarnSettings := models.DefaultWarnSettings(chatID)
 	warnrc = &models.WarnSettings{}
 	err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(warnrc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -90,7 +90,7 @@ func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnE
 			Where("chat_id = ?", chatId).
 			First(warnSettings).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				warnSettings = &models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute"}
+				warnSettings = models.DefaultWarnSettings(chatId)
 				if err := tx.Create(warnSettings).Error; err != nil {
 					return err
 				}
@@ -165,8 +165,7 @@ func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnE
 		return 0, nil, err
 	}
 
-	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
-	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	InvalidateWarnCaches(userId, chatId)
 
 	return numWarns, entries, nil
 }
@@ -372,8 +371,7 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 	}
 
 	if removed || pruned {
-		cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
-		cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+		InvalidateWarnCaches(userId, chatId)
 	}
 
 	return removed, nil
@@ -403,8 +401,7 @@ func ResetUserWarns(userId, chatId int64) (bool, error) {
 	if !reset {
 		return false, nil
 	}
-	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
-	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	InvalidateWarnCaches(userId, chatId)
 	return true, nil
 }
 
@@ -423,7 +420,7 @@ func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []models.W
 		Reasons  []models.WarnEntry
 	}
 	cached, err := cache.GetFromCacheOrLoad(ctx,
-		cache.CacheKey("warns", userId, chatId),
+		WarnsProjection.Key(userId, chatId),
 		cache.CacheTTLWarnSettings,
 		func(ctx context.Context) (warnCache, error) {
 			w := checkWarnsContext(ctx, userId, chatId)
@@ -464,15 +461,17 @@ func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []models.W
 
 func SetWarnLimit(chatId int64, warnLimit int) error {
 	// Single-statement upsert: no read-modify-write, concurrent limit/mode sets can't clobber.
+	settings := models.DefaultWarnSettings(chatId)
+	settings.WarnLimit = warnLimit
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"warn_limit"}),
-	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: warnLimit, WarnMode: "mute"}).Error
+	}).Create(settings).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnLimit: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	InvalidateWarnSettingsCache(chatId)
 	return nil
 }
 
@@ -480,30 +479,35 @@ func SetWarnLimit(chatId int64, warnLimit int) error {
 // for modes without one so a previous duration does not linger.
 func SetWarnMode(chatId int64, warnMode string, actionTime int) error {
 	// Single-statement upsert: see SetWarnLimit.
+	settings := models.DefaultWarnSettings(chatId)
+	settings.WarnMode = warnMode
+	settings.WarnActionTime = actionTime
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"warn_mode", "warn_action_time"}),
-	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: warnMode, WarnActionTime: actionTime}).Error
+	}).Create(settings).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	InvalidateWarnSettingsCache(chatId)
 	return nil
 }
 
 // SetWarnExpiry stores how long a warn counts, in seconds; 0 turns expiry off.
 func SetWarnExpiry(chatId int64, seconds int) error {
 	// Single-statement upsert: see SetWarnLimit.
+	settings := models.DefaultWarnSettings(chatId)
+	settings.WarnExpiry = seconds
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"warn_expiry"}),
-	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute", WarnExpiry: seconds}).Error
+	}).Create(settings).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnExpiry: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	InvalidateWarnSettingsCache(chatId)
 	return nil
 }
 
@@ -513,7 +517,7 @@ func GetWarnSetting(chatId int64) *models.WarnSettings {
 
 func GetWarnSettingContext(ctx context.Context, chatId int64) *models.WarnSettings {
 	cached, err := cache.GetFromCacheOrLoad(ctx,
-		cache.CacheKey("warn_settings", chatId),
+		WarnSettingsProjection.Key(chatId),
 		cache.CacheTTLWarnSettings,
 		func(ctx context.Context) (models.WarnSettings, error) {
 			w := checkWarnSettingsContext(ctx, chatId)
@@ -521,7 +525,7 @@ func GetWarnSettingContext(ctx context.Context, chatId int64) *models.WarnSettin
 		},
 	)
 	if err != nil {
-		return &models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute"}
+		return models.DefaultWarnSettings(chatId)
 	}
 	return &cached
 }
@@ -551,9 +555,9 @@ func ResetAllChatWarns(chatId int64) error {
 		return err
 	}
 	for _, userId := range userIds {
-		cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
+		cache.DeleteCache(WarnsProjection.Key(userId, chatId))
 	}
-	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	cache.DeleteCache(WarnSettingsProjection.Key(chatId))
 	return nil
 }
 

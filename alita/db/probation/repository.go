@@ -19,29 +19,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-const (
-	settingsKeyPrefix = "probation_settings"
-	// MemberKeyPrefix is the cache prefix of a member's row. alita/db/cache
-	// keeps it out of the in-process layer: a member's first message often
-	// follows the join within a second, on any replica.
-	MemberKeyPrefix = "probation_member"
-)
-
 // ErrOutOfRange is returned for a setting outside its limits in models.
 var ErrOutOfRange = errors.New("probation: value out of range")
-
-func settingsKey(chatID int64) string {
-	return cache.CacheKey(settingsKeyPrefix, chatID)
-}
-
-func memberKey(chatID, userID int64) string {
-	return cache.CacheKey(MemberKeyPrefix, chatID, userID)
-}
 
 // GetSettings returns the chat's settings; a missing row reads as
 // models.DefaultProbationSettings (probation off).
 func GetSettings(ctx context.Context, chatID int64) (*models.ProbationSettings, error) {
-	return cache.GetFromCacheOrLoad(ctx, settingsKey(chatID), cache.CacheTTLProbation,
+	return cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLProbation,
 		func(ctx context.Context) (*models.ProbationSettings, error) {
 			settings := &models.ProbationSettings{}
 			err := db.GetRecordContext(ctx, settings, models.ProbationSettings{ChatID: chatID})
@@ -137,7 +121,7 @@ func upsert(chatID int64, row map[string]any) error {
 		log.Errorf("[Database] probation settings %v: %v - %d", columns, err, chatID)
 		return err
 	}
-	cache.DeleteCache(settingsKey(chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
 
@@ -152,7 +136,7 @@ type Member struct {
 
 // GetMember returns userID's probation in chatID.
 func GetMember(ctx context.Context, chatID, userID int64) (Member, error) {
-	return cache.GetFromCacheOrLoad(ctx, memberKey(chatID, userID), cache.CacheTTLProbationMember,
+	return cache.GetFromCacheOrLoad(ctx, MemberProjection.Key(chatID, userID), cache.CacheTTLProbationMember,
 		func(ctx context.Context) (Member, error) {
 			var row models.ProbationMember
 			err := db.DB.WithContext(ctx).Where("chat_id = ? AND user_id = ?", chatID, userID).Take(&row).Error
@@ -178,7 +162,7 @@ func Start(chatID, userID int64, joinedAt time.Time) error {
 	if err != nil {
 		return fmt.Errorf("start probation: %w", err)
 	}
-	cache.DeleteCache(memberKey(chatID, userID))
+	cache.DeleteCache(MemberProjection.Key(chatID, userID))
 	return nil
 }
 
@@ -187,7 +171,7 @@ func End(chatID, userID int64) error {
 	if err := db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Delete(&models.ProbationMember{}).Error; err != nil {
 		return fmt.Errorf("end probation: %w", err)
 	}
-	cache.DeleteCache(memberKey(chatID, userID))
+	cache.DeleteCache(MemberProjection.Key(chatID, userID))
 	return nil
 }
 
@@ -204,7 +188,7 @@ func ClaimNotice(chatID, userID int64) (bool, error) {
 	if res.RowsAffected != 1 {
 		return false, nil
 	}
-	cache.DeleteCache(memberKey(chatID, userID))
+	cache.DeleteCache(MemberProjection.Key(chatID, userID))
 	return true, nil
 }
 
