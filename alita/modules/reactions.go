@@ -106,9 +106,9 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	var helpText string
 	switch action {
 	case "add":
-		helpText, _ = tr.GetString("reactions_add_usage")
+		helpText = tr.String("reactions_add_usage")
 	case "remove":
-		helpText, _ = tr.GetString("reactions_remove_usage")
+		helpText = tr.String("reactions_remove_usage")
 	default:
 		return answerInvalidCallback(b, ctx, query)
 	}
@@ -118,7 +118,7 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	backText, _ := tr.GetString("common_back")
+	backText := tr.String("common_back")
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{
 		Text: helpText, ParseMode: formatting.HTML,
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -153,7 +153,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	args := ctx.Args()
 	if len(args) < 3 {
-		text, _ := tr.GetString("reactions_add_usage")
+		text := tr.String("reactions_add_usage")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -166,7 +166,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// ReactionTypeEmoji accepts only Telegram's documented reaction set.
 	if !slices.Contains(supportedReactionEmoji, emoji) {
-		text, _ := tr.GetString("reactions_invalid_emoji")
+		text := tr.String("reactions_invalid_emoji")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -176,12 +176,12 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := reactions.AddReaction(chat.Id, keyword, emoji); err != nil {
 		log.Errorf("[Reactions] Failed to save reaction: %v", err)
-		text, _ := tr.GetString("reactions_add_error")
+		text := tr.String("reactions_add_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("reactions_add_success", i18n.TranslationParams{
+	text := tr.String("reactions_add_success", i18n.TranslationParams{
 		"keyword": html.EscapeString(keyword),
 		"emoji":   html.EscapeString(emoji),
 	})
@@ -202,7 +202,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	args := ctx.Args()
 	if len(args) < 2 {
-		text, _ := tr.GetString("reactions_remove_usage")
+		text := tr.String("reactions_remove_usage")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -215,7 +215,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 
 	if _, exists := reactionsMap[keyword]; !exists {
-		text, _ := tr.GetString("reactions_keyword_not_found", i18n.TranslationParams{
+		text := tr.String("reactions_keyword_not_found", i18n.TranslationParams{
 			"keyword": html.EscapeString(keyword),
 		})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -224,12 +224,12 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := reactions.RemoveReaction(chat.Id, keyword); err != nil {
 		log.Errorf("[Reactions] Failed to update reactions: %v", err)
-		text, _ := tr.GetString("reactions_remove_error")
+		text := tr.String("reactions_remove_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("reactions_remove_success", i18n.TranslationParams{
+	text := tr.String("reactions_remove_success", i18n.TranslationParams{
 		"keyword": html.EscapeString(keyword),
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
@@ -249,7 +249,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {
-		text, _ := tr.GetString("reactions_none")
+		text := tr.String("reactions_none")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -259,7 +259,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		fmt.Fprintf(&sb, "• %s → %s\n", html.EscapeString(keyword), html.EscapeString(emoji))
 	}
 
-	text, _ := tr.GetString("reactions_list_header", i18n.TranslationParams{
+	text := tr.String("reactions_list_header", i18n.TranslationParams{
 		"list": sb.String(),
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
@@ -279,12 +279,12 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := reactions.ResetReactions(chat.Id); err != nil {
 		log.Errorf("[Reactions] Failed to reset reactions: %v", err)
-		text, _ := tr.GetString("reactions_remove_error")
+		text := tr.String("reactions_remove_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("reactions_reset_success")
+	text := tr.String("reactions_reset_success")
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		return err

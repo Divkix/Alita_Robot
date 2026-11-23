@@ -69,7 +69,7 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	replyMsg := msg.ReplyToMessage
 	if replyMsg == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("misc_reply_to_someone")
+		text := tr.String("misc_reply_to_someone")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -94,7 +94,7 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("misc_provide_content")
+		text := tr.String("misc_provide_content")
 		_, _ = msg.Reply(b, text, nil)
 	}
 
@@ -113,12 +113,12 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId != 0 {
 		if reply := extraction.UserReply(msg); reply != nil {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("misc_chat_id")
+			temp := tr.String("misc_chat_id")
 			text := fmt.Sprintf(temp, msg.Chat.Id)
 			builder.WriteString(text)
 			builder.WriteString("\n")
 			if msg.IsTopicMessage {
-				temp2, _ := tr.GetString("misc_thread_id")
+				temp2 := tr.String("misc_thread_id")
 				text = fmt.Sprintf(temp2, msg.MessageThreadId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
@@ -126,7 +126,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 			if reply.From != nil {
 				originalId := reply.From.Id
 				_, user1Name, _ := extraction.GetUserInfo(originalId)
-				temp3, _ := tr.GetString("misc_user_id")
+				temp3 := tr.String("misc_user_id")
 				text = fmt.Sprintf(temp3, html.EscapeString(user1Name), originalId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
@@ -140,14 +140,14 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 						if fwdc := fwdd.SenderUser; fwdc != nil {
 							user1Id := fwdc.Id
 							_, user1Name, _ := extraction.GetUserInfo(user1Id)
-							temp4, _ := tr.GetString("misc_forwarded_from_user")
+							temp4 := tr.String("misc_forwarded_from_user")
 							text = fmt.Sprintf(temp4, html.EscapeString(user1Name), user1Id)
 							builder.WriteString(text)
 							builder.WriteString("\n")
 						}
 
 						if fwdc := fwdd.Chat; fwdc != nil {
-							temp5, _ := tr.GetString("misc_forwarded_from_chat")
+							temp5 := tr.String("misc_forwarded_from_chat")
 							text = fmt.Sprintf(temp5, html.EscapeString(fwdc.Title), fwdc.Id)
 							builder.WriteString(text)
 							builder.WriteString("\n")
@@ -156,13 +156,13 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 				}
 			}
 			if reply.Animation != nil {
-				temp6, _ := tr.GetString("misc_gif_id")
+				temp6 := tr.String("misc_gif_id")
 				text = fmt.Sprintf(temp6, reply.Animation.FileId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
 			}
 			if reply.Sticker != nil {
-				temp7, _ := tr.GetString("misc_sticker_id")
+				temp7 := tr.String("misc_sticker_id")
 				text = fmt.Sprintf(temp7, reply.Sticker.FileId)
 				builder.WriteString(text)
 				builder.WriteString("\n")
@@ -170,7 +170,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			_, name, _ := extraction.GetUserInfo(userId)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			temp, _ := tr.GetString("misc_user_id_is")
+			temp := tr.String("misc_user_id_is")
 			text := fmt.Sprintf(temp, html.EscapeString(name), userId)
 			builder.WriteString(text)
 		}
@@ -178,15 +178,15 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 		chat := ctx.EffectiveChat
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if ctx.Message.Chat.Type == "private" {
-			temp, _ := tr.GetString("misc_your_id_private")
+			temp := tr.String("misc_your_id_private")
 			text := fmt.Sprintf(temp, chat.Id)
 			builder.WriteString(text)
 		} else {
 			if msg.From == nil {
-				temp, _ := tr.GetString("common_anonymous_user_error")
+				temp := tr.String("common_anonymous_user_error")
 				builder.WriteString(temp)
 			} else {
-				temp, _ := tr.GetString("misc_your_id_group")
+				temp := tr.String("misc_your_id_group")
 				text := fmt.Sprintf(temp, msg.From.Id, chat.Id)
 				builder.WriteString(text)
 			}
@@ -209,7 +209,7 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	pingingText, _ := tr.GetString("misc_pinging")
+	pingingText := tr.String("misc_pinging")
 	sendStart := time.Now()
 	sentMsg, err := msg.Reply(b, pingingText, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
@@ -227,7 +227,7 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.WithError(getMeErr).Error("[Ping] Failed to call getMe")
 	}
 
-	resultTemplate, _ := tr.GetString("misc_ping_result")
+	resultTemplate := tr.String("misc_ping_result")
 	text := fmt.Sprintf(
 		resultTemplate,
 		getMeLatency.Milliseconds(),
@@ -272,7 +272,7 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !found {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ = tr.GetString("misc_user_not_found")
+		text = tr.String("misc_user_not_found")
 	} else {
 
 		user := &gotgbot.User{
@@ -283,31 +283,31 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if chat_status.IsChannelId(userId) {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			textTemplate, _ := tr.GetString("misc_channel_info_header")
+			textTemplate := tr.String("misc_channel_info_header")
 			text = fmt.Sprintf(textTemplate, userId, html.EscapeString(user.FirstName))
 
 			if user.Username != "" {
-				usernameTemplate, _ := tr.GetString("misc_username")
+				usernameTemplate := tr.String("misc_username")
 				text += fmt.Sprintf("\n"+usernameTemplate, user.Username)
-				linkTemplate, _ := tr.GetString("misc_channel_link")
+				linkTemplate := tr.String("misc_channel_link")
 				text += fmt.Sprintf("\n"+linkTemplate, user.Username)
 			}
 		} else {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			textTemplate, _ := tr.GetString("misc_user_info_header")
+			textTemplate := tr.String("misc_user_info_header")
 			text = fmt.Sprintf(textTemplate, userId, html.EscapeString(user.FirstName))
 			if user.Username != "" {
-				usernameTemplate, _ := tr.GetString("misc_username")
+				usernameTemplate := tr.String("misc_username")
 				text += fmt.Sprintf("\n"+usernameTemplate, user.Username)
 			}
-			linkTemplate, _ := tr.GetString("misc_user_link")
+			linkTemplate := tr.String("misc_user_link")
 			text += fmt.Sprintf("\n"+linkTemplate, formatting.MentionHtml(user.Id, "link"))
 			if user.Id == config.AppConfig.OwnerId {
-				ownerText, _ := tr.GetString("misc_owner_info")
+				ownerText := tr.String("misc_owner_info")
 				text += "\n" + ownerText
 			}
 			if devs.GetTeamMemInfo(user.Id).IsDev {
-				devText, _ := tr.GetString("misc_dev_info")
+				devText := tr.String("misc_dev_info")
 				text += "\n" + devText
 			}
 		}
@@ -333,7 +333,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	reply := extraction.UserReply(msg)
 	if len(args) == 0 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("misc_need_text_and_lang")
+		text := tr.String("misc_need_text_and_lang")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -348,7 +348,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			origText = reply.Caption
 		} else {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("misc_no_text_to_translate")
+			text := tr.String("misc_no_text_to_translate")
 			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
@@ -360,7 +360,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		if len(args[1:]) < 1 {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("misc_provide_text_translate")
+			text := tr.String("misc_provide_text_translate")
 			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
@@ -370,7 +370,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	req, err := httpClient.Get(fmt.Sprintf("https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=%s&q=%s", toLang, url.QueryEscape(strings.TrimSpace(origText))))
 	if err != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("misc_translation_error")
+		text := tr.String("misc_translation_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -383,7 +383,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	all, err := io.ReadAll(io.LimitReader(req.Body, 1*1024*1024))
 	if err != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("misc_translate_read_error")
+		text := tr.String("misc_translate_read_error")
 		_, _ = msg.Reply(b, text+": "+err.Error(), nil)
 		return ext.EndGroups
 	}
@@ -395,11 +395,11 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			"target_lang": toLang,
 			"response":    string(all),
 		}).Warn("[Misc] Failed to parse translation response")
-		text, _ := tr.GetString("misc_translate_parse_error")
+		text := tr.String("misc_translate_parse_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	textTemplate, _ := tr.GetString("misc_translate_result")
+	textTemplate := tr.String("misc_translate_result")
 	text := fmt.Sprintf(textTemplate, html.EscapeString(detectedLang), html.EscapeString(translatedText))
 	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
 		log.WithError(err).Warn("[Misc] failed to send translation")
@@ -410,7 +410,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("misc_removing_keyboard")
+	text := tr.String("misc_removing_keyboard")
 	rMsg, err := msg.Reply(b,
 		text,
 		&gotgbot.SendMessageOpts{
@@ -434,7 +434,7 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	textTemplate, _ := tr.GetString("misc_total_messages")
+	textTemplate := tr.String("misc_total_messages")
 	text := fmt.Sprintf(textTemplate, msg.Chat.Title, msg.MessageId+1)
 	_, err := msg.Reply(b, text, nil)
 	if err != nil {

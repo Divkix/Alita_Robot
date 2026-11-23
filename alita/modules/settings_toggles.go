@@ -235,7 +235,7 @@ func settingsTogglePress(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, 
 	}
 	if toggle.right != nil {
 		if deny := toggle.right(b, ctx, chat, query.From.Id); deny != "" {
-			text, _ := tr.GetString(deny)
+			text := tr.String(deny)
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
 			return ext.EndGroups
 		}
@@ -247,10 +247,10 @@ func settingsTogglePress(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, 
 	editSettingsMessage(b, query.Message, text, kb)
 	answer := &gotgbot.AnswerCallbackQueryOpts{}
 	if failKey != "" {
-		answer.Text, _ = tr.GetString(failKey)
+		answer.Text = tr.String(failKey)
 		answer.ShowAlert = true
 	} else {
-		answer.Text, _ = tr.GetString("settings_toggle_saved", i18n.TranslationParams{"command": toggle.command, "value": value})
+		answer.Text = tr.String("settings_toggle_saved", i18n.TranslationParams{"command": toggle.command, "value": value})
 	}
 	_, _ = query.Answer(b, answer)
 	return ext.EndGroups

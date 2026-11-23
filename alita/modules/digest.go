@@ -185,7 +185,7 @@ func digestStatusText(tr *i18n.Translator, settings *models.DigestSettings, hasL
 }
 
 func digestReplyUsage(c *helpers.CommandContext) error {
-	usage, _ := c.Tr.GetString("digest_usage")
+	usage := c.Tr.String("digest_usage")
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, "digest", usage)
 }
 
@@ -208,16 +208,16 @@ func digestDashboardURL(botUsername string, chatID int64) string {
 }
 
 func digestString(tr *i18n.Translator, key string, params ...i18n.TranslationParams) string {
-	text, _ := tr.GetString(key, params...)
+	text := tr.String(key, params...)
 	return text
 }
 
 func digestReplyKey(c *helpers.CommandContext, key string, params i18n.TranslationParams) error {
 	var text string
 	if params == nil {
-		text, _ = c.Tr.GetString(key)
+		text = c.Tr.String(key)
 	} else {
-		text, _ = c.Tr.GetString(key, params)
+		text = c.Tr.String(key, params)
 	}
 	_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	return err

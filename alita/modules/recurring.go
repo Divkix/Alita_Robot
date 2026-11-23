@@ -339,12 +339,12 @@ func recurringRemove(c *helpers.CommandContext, arg string) error {
 }
 
 func recurringUsage(c *helpers.CommandContext) error {
-	usage, _ := c.Tr.GetString("recurring_usage")
+	usage := c.Tr.String("recurring_usage")
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, "recurring", usage)
 }
 
 func recurringString(tr *i18n.Translator, key string, params i18n.TranslationParams) string {
-	text, _ := tr.GetString(key, params)
+	text := tr.String(key, params)
 	return text
 }
 

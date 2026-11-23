@@ -188,10 +188,10 @@ func pmGroupHelpText(tr *i18n.Translator, cmd, errText string, entries []setting
 	case wait != "":
 		return text + "\n\n" + wait
 	case len(entries) == 0:
-		empty, _ := tr.GetString("settings_picker_empty")
+		empty := tr.String("settings_picker_empty")
 		return text + "\n\n" + empty
 	default:
-		header, _ := tr.GetString("connections_pm_group_your_groups")
+		header := tr.String("connections_pm_group_your_groups")
 		return text + "\n\n" + header + "\n" + pmGroupList(entries)
 	}
 }
@@ -227,7 +227,7 @@ func resolvePMGroupArg(b *gotgbot.Bot, ctx *ext.Context, cmd string, arg helpers
 	// cut out; ask for a plain message rather than ignore the group.
 	if msg.RichMessage != nil {
 		if len(strings.Fields(msg.RichMessage.PlainText())) > 1 {
-			text, _ := c.tr.GetString("connections_pm_group_plain_text")
+			text := c.tr.String("connections_pm_group_plain_text")
 			_ = c.reply(fmt.Sprintf(text, cmd))
 			return false
 		}
@@ -280,7 +280,7 @@ func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmG
 		if connected {
 			return nil, tok, true
 		}
-		text, _ := c.tr.GetString("connections_pm_group_pick")
+		text := c.tr.String("connections_pm_group_pick")
 		c.replyHelp(text)
 		return nil, tok, false
 	}
@@ -296,7 +296,7 @@ func (c pmGroupCall) group(arg helpers.PMGroupArg) (group *gotgbot.Chat, tok pmG
 		// @username or ID picks another group.
 		return nil, tok, true
 	}
-	notFoundText, _ := c.tr.GetString("connections_pm_group_not_found")
+	notFoundText := c.tr.String("connections_pm_group_not_found")
 	notFound := fmt.Sprintf(notFoundText, html.EscapeString(tok.Raw))
 	if isPMGroupRef(tok) {
 		c.replyHelp(notFound)
@@ -336,7 +336,7 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 
 	matches, tooMany := c.adminGroupsTitled(entries, tok.Raw)
 	if tooMany {
-		text, _ := c.tr.GetString("connections_pm_group_too_many")
+		text := c.tr.String("connections_pm_group_too_many")
 		_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)))
 		return nil
 	}
@@ -347,7 +347,7 @@ func (c pmGroupCall) groupByTitle(tok pmGroupToken, notFound string) *gotgbot.Ch
 			return group
 		}
 	default:
-		text, _ := c.tr.GetString("connections_pm_group_duplicate")
+		text := c.tr.String("connections_pm_group_duplicate")
 		_ = c.reply(fmt.Sprintf(text, html.EscapeString(tok.Raw)) + "\n" + pmGroupList(matches))
 		return nil
 	}
@@ -430,7 +430,7 @@ func (c pmGroupCall) useGroup(group *gotgbot.Chat, tok pmGroupToken) bool {
 		}
 	}
 	if !allowed {
-		text, _ := c.tr.GetString(key)
+		text := c.tr.String(key)
 		_ = c.reply(text)
 		return false
 	}

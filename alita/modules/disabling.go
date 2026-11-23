@@ -55,7 +55,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		}
 
 		if len(args) == 0 {
-			text, _ := tr.GetString(cfg.emptyArgsMsgKey)
+			text := tr.String(cfg.emptyArgsMsgKey)
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				return err
@@ -91,7 +91,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		}
 
 		if len(successCmds) > 0 {
-			temp, _ := tr.GetString(cfg.successMsgKey)
+			temp := tr.String(cfg.successMsgKey)
 			text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
 			_, err := msg.Reply(b, text, formatting.Smarkdown())
 			if err != nil {
@@ -100,7 +100,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		}
 
 		for _, cmd := range unknownCmds {
-			temp, _ := tr.GetString(cfg.unknownCmdMsgKey)
+			temp := tr.String(cfg.unknownCmdMsgKey)
 			text := fmt.Sprintf(temp, cmd)
 			_, err := msg.Reply(b, text, nil)
 			if err != nil {
@@ -124,7 +124,7 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("disabling_disableable_commands")
+	text := tr.String("disabling_disableable_commands")
 	var sb strings.Builder
 	for _, cmds := range helpers.DisableableCommands() {
 		fmt.Fprintf(&sb, "\n - `%s`", cmds)
@@ -155,7 +155,7 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(disabled) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("disabling_no_disabled_commands")
+		text := tr.String("disabling_no_disabled_commands")
 		_, err := msg.Reply(b, text,
 			&gotgbot.SendMessageOpts{
 				ReplyParameters: &gotgbot.ReplyParameters{
@@ -169,7 +169,7 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("disabling_disabled_commands")
+		text := tr.String("disabling_disabled_commands")
 		slices.Sort(disabled)
 		var sb strings.Builder
 		for _, cmds := range disabled {
@@ -199,26 +199,26 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "true", "yes":
 			if err := chatsettings.DeleteDisabledCommands.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
-				text, _ = tr.GetString("error_generic")
+				text = tr.String("error_generic")
 			} else {
-				text, _ = tr.GetString("disabling_delete_enabled")
+				text = tr.String("disabling_delete_enabled")
 			}
 		case "off", "false", "no":
 			if err := chatsettings.DeleteDisabledCommands.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
-				text, _ = tr.GetString("error_generic")
+				text = tr.String("error_generic")
 			} else {
-				text, _ = tr.GetString("disabling_delete_disabled")
+				text = tr.String("disabling_delete_disabled")
 			}
 		default:
-			text, _ = tr.GetString("disabling_invalid_option")
+			text = tr.String("disabling_invalid_option")
 		}
 	} else {
 		currStatus := chatsettings.DeleteDisabledCommands.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		if currStatus {
-			text, _ = tr.GetString("disabling_delete_current_enabled")
+			text = tr.String("disabling_delete_current_enabled")
 		} else {
-			text, _ = tr.GetString("disabling_delete_current_disabled")
+			text = tr.String("disabling_delete_current_disabled")
 		}
 	}
 

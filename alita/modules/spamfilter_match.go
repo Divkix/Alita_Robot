@@ -268,7 +268,7 @@ func spamFilterLogMatch(b *gotgbot.Bot, ctx *ext.Context, text string, match spa
 	})
 	if data != "" {
 		tr := i18n.MustNewTranslator(lang.GetGroupLanguage(tracing.UpdateContext(ctx), chat.Id))
-		label, _ := tr.GetString("spamfilter_not_spam_button")
+		label := tr.String("spamfilter_not_spam_button")
 		markup = &gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
 			{Text: label, CallbackData: data},
 		}}}
@@ -310,7 +310,7 @@ func (moduleStruct) spamHamButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		tr = i18n.MustNewTranslator(lang.GetGroupLanguage(tracing.UpdateContext(ctx), chatID))
 	}
 	answer := func(key string) error {
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}

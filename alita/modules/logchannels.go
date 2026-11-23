@@ -48,11 +48,11 @@ func (moduleStruct) setLogChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	if err := opstate.Stash(setlogPendingKey(msg.Chat.Id, msg.MessageId), []byte("1"), time.Hour); err != nil {
 		log.Errorf("[LogChannels] failed to store pending setlog: %v", err)
-		text, _ := tr.GetString("common_settings_save_failed")
+		text := tr.String("common_settings_save_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("logs_forward_to_group")
+	text := tr.String("logs_forward_to_group")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -66,7 +66,7 @@ func (moduleStruct) setLog(c *helpers.CommandContext) error {
 	if msg.ForwardOrigin != nil {
 		return ext.ContinueGroups
 	}
-	text, _ := tr.GetString("logs_need_channel")
+	text := tr.String("logs_need_channel")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -81,13 +81,13 @@ func setLogFromPM(c *helpers.CommandContext) error {
 	args := ctx.Args()[1:]
 	switch {
 	case len(args) == 0:
-		text, _ := tr.GetString("logs_pm_need_channel")
+		text := tr.String("logs_pm_need_channel")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	case len(args) > 1:
 		// On a connection a title is the command's own argument, so
 		// /setlog "My Group" @chan gets here with the channel named.
-		text, _ := tr.GetString("logs_pm_setlog_usage")
+		text := tr.String("logs_pm_setlog_usage")
 		if err := replyCommandHelp(b, msg, tr, "setlog", text); err != nil {
 			log.Error(err)
 		}
@@ -98,7 +98,7 @@ func setLogFromPM(c *helpers.CommandContext) error {
 		log.WithFields(log.Fields{"channel": args[0], "error": err}).Debug("[LogChannels] channel lookup failed")
 	}
 	if err != nil || channel.Type != "channel" {
-		text, _ := tr.GetString("logs_pm_not_channel", i18n.TranslationParams{"channel": html.EscapeString(args[0])})
+		text := tr.String("logs_pm_not_channel", i18n.TranslationParams{"channel": html.EscapeString(args[0])})
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -107,7 +107,7 @@ func setLogFromPM(c *helpers.CommandContext) error {
 	}
 	if err := logchannels.Set(group.Id, group.Title, channel.Id); err != nil {
 		log.Errorf("[LogChannels] Set: %v", err)
-		text, _ := tr.GetString("common_settings_save_failed")
+		text := tr.String("common_settings_save_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -116,7 +116,7 @@ func setLogFromPM(c *helpers.CommandContext) error {
 	if strings.TrimSpace(name) == "" {
 		name = strconv.FormatInt(group.Id, 10)
 	}
-	text, _ := tr.GetString("logs_pm_set_ok", i18n.TranslationParams{"group": html.EscapeString(name)})
+	text := tr.String("logs_pm_set_ok", i18n.TranslationParams{"group": html.EscapeString(name)})
 	replyHTML(b, msg, text)
 	actionlog.Settings(b, group, from, "set log channel")
 	return ext.EndGroups
@@ -175,11 +175,11 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	// to the channel that was just unset.
 	prev := logchannels.Get(chat.Id)
 	if err := logchannels.Unset(chat.Id); err != nil {
-		text, _ := tr.GetString("logs_not_set")
+		text := tr.String("logs_not_set")
 		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("logs_unset_ok")
+	text := tr.String("logs_unset_ok")
 	replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 	actionlog.SettingsTo(b, chat, prev, from, "unset log channel")
 	return ext.EndGroups
@@ -191,11 +191,11 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	settings := logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id)
 	if settings == nil {
-		text, _ := tr.GetString("logs_not_set")
+		text := tr.String("logs_not_set")
 		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("logs_current", i18n.TranslationParams{
+	text := tr.String("logs_current", i18n.TranslationParams{
 		"id": strconv.FormatInt(settings.LogChannelID, 10),
 	})
 	replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
@@ -205,7 +205,7 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) logCategories(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := ctxTr(ctx)
-	text, _ := tr.GetString("logs_categories")
+	text := tr.String("logs_categories")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -224,13 +224,13 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	tr := ctxTr(ctx)
 	chat := ctx.EffectiveChat
 	if logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id) == nil {
-		text, _ := tr.GetString("logs_not_set")
+		text := tr.String("logs_not_set")
 		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		text, _ := tr.GetString("logs_usage")
+		text := tr.String("logs_usage")
 		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
@@ -244,7 +244,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		}
 		if err := logchannels.SetCategory(chat.Id, name, enable); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				text, _ := tr.GetString("logs_not_set")
+				text := tr.String("logs_not_set")
 				replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 				return ext.EndGroups
 			}
@@ -254,7 +254,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		changed = append(changed, name)
 	}
 	if len(unknown) > 0 && len(changed) == 0 {
-		text, _ := tr.GetString("logs_unknown_category")
+		text := tr.String("logs_unknown_category")
 		replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
 		return ext.EndGroups
 	}
@@ -262,7 +262,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	if enable {
 		key = "logs_enabled"
 	}
-	text, _ := tr.GetString(key, i18n.TranslationParams{
+	text := tr.String(key, i18n.TranslationParams{
 		"cats": strings.Join(changed, ", "),
 	})
 	replyHTML(b, msg, withGroupLine(tr, msg, chat, text))
@@ -314,7 +314,7 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.ContinueGroups
 	}
 	tr := ctxTr(ctx)
-	text, _ := tr.GetString("logs_set_ok")
+	text := tr.String("logs_set_ok")
 	replyHTML(b, msg, text)
 	actionlog.Settings(b, chat, from, "set log channel")
 	return ext.ContinueGroups
