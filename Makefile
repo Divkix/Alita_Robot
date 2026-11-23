@@ -45,6 +45,7 @@ nilaway:
 test: SHELL := /bin/bash
 test: .SHELLFLAGS := -o pipefail -c
 test:
+	$(GO_CMD) run ./scripts/check_cache_projections
 	$(GO_CMD) test -tags testtools -json -race -coverprofile=coverage.out -coverpkg=$$(go list ./alita/... | paste -sd, -) -count=1 -timeout 10m $(TEST_ARGS) ./... | tee "$(TEST_OUTPUT)" | $(GO_CMD) run ./scripts/check_test_results
 
 # Postgres-only integrity tests, one alternation. go test passes when -run matches nothing, so a
