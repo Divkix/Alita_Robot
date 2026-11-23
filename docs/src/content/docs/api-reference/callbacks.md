@@ -39,20 +39,20 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Backup | `backup` | backupCallbackHandler |
 | Bans | `restrict` | restrictButtonHandler |
 | Bans | `unrestrict` | unrestrictButtonHandler |
-| Bans | `unbanall` | unbanAllCallback |
+| Bans | `unbanall` | bansClearAllCallback |
 | Bans | `banlist` | banListCallback |
 | Bans | `banlogunban` | banLogUnbanCallback |
-| Blacklists | `rmAllBlacklist` | buttonHandler |
+| Blacklists | `rmAllBlacklist` | blacklistsClearAllCallback |
 | Bot Updates | `anon_admin` | verifyAnonymousAdmin |
 | AntiRaid | `antiraid` | callbackHandler |
-| Approvals | `rmAllApprovals` | unapproveAllCallback |
+| Approvals | `rmAllApprovals` | approvalsClearAllCallback |
 | Captcha | `captcha_refresh` | captchaRefreshCallback |
 | Captcha | `captcha_verify` | captchaVerifyCallback |
 | Connections | `connbtns` | connectionButtons |
 | Connections | `settings` | settingsCallback |
 | Federations | `fed` | fedCallback |
 | Filters | `filters_overwrite` | filterOverWriteHandler |
-| Filters | `rmAllFilters` | filtersButtonHandler |
+| Filters | `rmAllFilters` | filtersClearAllCallback |
 | Formatting | `formatting` | formattingHandler |
 | Greetings | `join_request` | joinRequestHandler |
 | Help | `about` | about |
@@ -60,12 +60,12 @@ versions, and legacy unversioned dot-notation payloads are rejected.
 | Help | `helpq` | helpButtonHandler |
 | Languages | `change_language` | langBtnHandler |
 | Notes | `notes.overwrite` | noteOverWriteHandler |
-| Notes | `rmAllNotes` | notesButtonHandler |
+| Notes | `rmAllNotes` | notesClearAllCallback |
 | Pins | `unpinallbtn` | unpinallCallback |
 | Reactions | `reactions_help` | reactionsHelpHandler |
 | Reports | `report` | markResolvedButtonHandler |
 | Reports | `rpt` | reportCardHandler |
-| Warns | `rmAllChatWarns` | warnsButtonHandler |
+| Warns | `rmAllChatWarns` | warnsClearAllCallback |
 | Warns | `rmWarn` | rmWarnButton |
 
 ## Callbacks by Module
@@ -93,10 +93,10 @@ Confirms or cancels a pending /import or /reset via inline buttons (actions ci/x
 
 #### `unbanall`
 
-- **Handler**: `unbanAllCallback`
-- **Source**: `bans.go`
+- **Handler**: `bansClearAllCallback`
+- **Source**: `pm_group_reset.go` (registered in `bans.go`)
 
-Confirms or cancels `/unbanall`. Only the chat owner may press it.
+Confirms or cancels `/unbanall`. Only the chat owner may press it. Uses the shared `registerOwnerConfirm` skeleton.
 
 #### `banlist`
 
@@ -118,8 +118,10 @@ The Unban button under a ban's log channel entry (admin #ban, #sban, #tban and #
 
 #### `rmAllBlacklist`
 
-- **Handler**: `buttonHandler`
-- **Source**: `blacklists.go`
+- **Handler**: `blacklistsClearAllCallback`
+- **Source**: `pm_group_reset.go` (registered in `blacklists.go`)
+
+Confirms or cancels `/remallbl`. Only the chat owner may press it. Uses the shared `registerOwnerConfirm` skeleton.
 
 ### Bot Updates
 
@@ -143,10 +145,10 @@ Handles anti-raid mode toggle callbacks (enable/disable raid protection).
 
 #### `rmAllApprovals`
 
-- **Handler**: `unapproveAllCallback`
-- **Source**: `approvals.go`
+- **Handler**: `approvalsClearAllCallback`
+- **Source**: `pm_group_reset.go` (registered in `approvals.go`)
 
-Handles confirmation callback for removing all approved users.
+Handles confirmation callback for removing all approved users. Uses the shared `registerOwnerConfirm` skeleton.
 
 ### Captcha
 
@@ -198,8 +200,10 @@ Handles the `/delfed` confirmation buttons. `a=del` deletes the federation owned
 
 #### `rmAllFilters`
 
-- **Handler**: `filtersButtonHandler`
-- **Source**: `filters.go`
+- **Handler**: `filtersClearAllCallback`
+- **Source**: `pm_group_reset.go` (registered in `filters.go`)
+
+Confirms or cancels `/stopall`. Only the chat owner may press it. Uses the shared `registerOwnerConfirm` skeleton.
 
 ### Formatting
 
@@ -248,8 +252,10 @@ Handles the `/delfed` confirmation buttons. `a=del` deletes the federation owned
 
 #### `rmAllNotes`
 
-- **Handler**: `notesButtonHandler`
-- **Source**: `notes.go`
+- **Handler**: `notesClearAllCallback`
+- **Source**: `pm_group_reset.go` (registered in `notes.go`)
+
+Confirms or cancels `/clearall`. Only the chat owner may press it. Uses the shared `registerOwnerConfirm` skeleton.
 
 ### Pins
 
@@ -286,8 +292,10 @@ Acts on a report card in the log channel. The presser must be an admin of the gr
 
 #### `rmAllChatWarns`
 
-- **Handler**: `warnsButtonHandler`
-- **Source**: `warns.go`
+- **Handler**: `warnsClearAllCallback`
+- **Source**: `pm_group_reset.go` (registered in `warns.go`)
+
+Confirms or cancels `/resetallwarns`. Only the chat owner may press it. Uses the shared `registerOwnerConfirm` skeleton.
 
 #### `rmWarn`
 
