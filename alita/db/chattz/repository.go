@@ -29,8 +29,6 @@ const DefaultName = "UTC"
 // 32 bytes.
 const maxNameLen = 64
 
-const cacheKeyPrefix = "chat_timezone"
-
 // ErrUnknownTimezone is returned for a name the time zone database does not
 // know, and for names that are not IANA zones (empty, "Local").
 var ErrUnknownTimezone = errors.New("chattz: unknown timezone")
@@ -45,7 +43,7 @@ var locations sync.Map // name -> *time.Location
 var unloadable sync.Map // name -> struct{}
 
 func cacheKey(chatID int64) string {
-	return cache.CacheKey(cacheKeyPrefix, chatID)
+	return SettingsProjection.Key(chatID)
 }
 
 // Parse validates an IANA timezone name and returns its canonical spelling

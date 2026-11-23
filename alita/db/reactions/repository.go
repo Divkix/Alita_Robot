@@ -12,7 +12,7 @@ import (
 )
 
 func reactionsCacheKey(chatID int64) string {
-	return cache.CacheKey("reactions", chatID)
+	return ReactionsProjection.Key(chatID)
 }
 
 func GetReactions(chatID int64) map[string]string {

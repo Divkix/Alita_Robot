@@ -15,8 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-const cachePrefix = "log_channel"
-
 // Categories are the Rose-compatible log channel category names.
 const (
 	CategorySettings  = "settings"
@@ -49,7 +47,7 @@ var OptInCategories = []string{
 }
 
 func invalidate(chatID int64) {
-	cache.DeleteCache(cache.CacheKey(cachePrefix, chatID))
+	cache.DeleteCache(LogChannelProjection.Key(chatID))
 }
 
 func Get(chatID int64) *models.LogChannel {
@@ -57,7 +55,7 @@ func Get(chatID int64) *models.LogChannel {
 }
 
 func GetContext(ctx context.Context, chatID int64) *models.LogChannel {
-	result, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cachePrefix, chatID), cache.CacheTTLLogChannel, func(ctx context.Context) (models.LogChannel, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, LogChannelProjection.Key(chatID), cache.CacheTTLLogChannel, func(ctx context.Context) (models.LogChannel, error) {
 		var row models.LogChannel
 		err := db.GetRecordContext(ctx, &row, models.LogChannel{ChatID: chatID})
 		if err != nil {

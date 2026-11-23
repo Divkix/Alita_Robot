@@ -26,8 +26,6 @@ const (
 	// cacheTTL is how long a verdict may be served. The retention sweep only
 	// deletes old events, so it invalidates nothing: the key expires here.
 	cacheTTL = 10 * time.Minute
-	// cacheModule is the CacheKey module name of a user's verdict.
-	cacheModule = "reputation"
 )
 
 // now is the clock the window is measured from; tests replace it.
@@ -66,7 +64,7 @@ func Lookup(ctx context.Context, userID int64) (listed bool, chats int, err erro
 	}
 	since := now().UTC().Add(-time.Duration(windowDays) * 24 * time.Hour)
 
-	verdict, err := dbcache.GetFromCacheOrLoad(ctx, dbcache.CacheKey(cacheModule, userID), cacheTTL,
+	verdict, err := dbcache.GetFromCacheOrLoad(ctx, ReputationProjection.Key(userID), cacheTTL,
 		func(context.Context) (signal, error) {
 			count, unbanned, loadErr := moderation.ReputationSignal(userID, since)
 			return signal{Chats: count, Unbanned: unbanned}, loadErr

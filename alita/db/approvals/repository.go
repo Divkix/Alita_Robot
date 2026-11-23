@@ -24,7 +24,7 @@ func AddApprovedUser(chatID, userID, approvedBy int64, reason string) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("approvals", chatID))
+	cache.DeleteCache(ApprovalsProjection.Key(chatID))
 	return nil
 }
 
@@ -42,7 +42,7 @@ func GetApprovedUsers(chatID int64) []*models.ApprovedUsers {
 }
 
 func GetApprovedUsersContext(ctx context.Context, chatID int64) []*models.ApprovedUsers {
-	cacheKey := cache.CacheKey("approvals", chatID)
+	cacheKey := ApprovalsProjection.Key(chatID)
 	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLApprovals, func(ctx context.Context) ([]*models.ApprovedUsers, error) {
 		var users []*models.ApprovedUsers
 		err := db.GetRecordsContext(ctx, &users, models.ApprovedUsers{ChatID: chatID})
@@ -65,7 +65,7 @@ func RemoveApprovedUser(chatID, userID int64) error {
 		return result.Error
 	}
 
-	cache.DeleteCache(cache.CacheKey("approvals", chatID))
+	cache.DeleteCache(ApprovalsProjection.Key(chatID))
 	return nil
 }
 
@@ -76,7 +76,7 @@ func RemoveAllApprovedUsers(chatID int64) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("approvals", chatID))
+	cache.DeleteCache(ApprovalsProjection.Key(chatID))
 	return nil
 }
 

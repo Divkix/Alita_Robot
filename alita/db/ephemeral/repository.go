@@ -18,16 +18,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-const cacheKeyPrefix = "ephemeral_settings"
-
-func cacheKey(chatID int64) string {
-	return cache.CacheKey(cacheKeyPrefix, chatID)
-}
-
 // GetContext returns the chat's row; a chat without one reads as off and
 // nothing is inserted.
 func GetContext(ctx context.Context, chatID int64) (*models.EphemeralSettings, error) {
-	return cache.GetFromCacheOrLoad(ctx, cacheKey(chatID), cache.CacheTTLEphemeral,
+	return cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLEphemeral,
 		func(ctx context.Context) (*models.EphemeralSettings, error) {
 			row := &models.EphemeralSettings{}
 			err := db.GetRecordContext(ctx, row, models.EphemeralSettings{ChatID: chatID})
@@ -55,6 +49,6 @@ func SetEnabled(chatID int64, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	cache.DeleteCache(cacheKey(chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
