@@ -112,6 +112,9 @@ func TestWarnsInPMWithGroupNamesGroupWithoutWarnsOrReasons(t *testing.T) {
 // without one, with its help showing a call with a group. In the group it
 // answers as before, with the no-user error alone.
 func TestWarnsInPMWithGroupWithoutUserRepliesHelp(t *testing.T) {
+	// The help body is derived from the command manifest, which only a
+	// full LoadAllModules pass fills with module names.
+	withCommandManifest(t)
 	f, _ := pmWarnsStatusFixture(t)
 	useRealLocales(t)
 
