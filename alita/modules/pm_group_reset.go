@@ -52,7 +52,7 @@ func pmGroupLine(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, 
 	if escape {
 		title = html.EscapeString(title)
 	}
-	line, _ := tr.GetString("connections_pm_group_confirm_target", i18n.TranslationParams{"title": title, "id": chat.Id})
+	line := tr.String("connections_pm_group_confirm_target", i18n.TranslationParams{"title": title, "id": chat.Id})
 	return "\n\n" + line
 }
 
@@ -73,8 +73,8 @@ func confirmData(namespace, action string, chat *gotgbot.Chat) string {
 
 // confirmKeyboard is the yes/no keyboard of a reset confirmation for chat.
 func confirmKeyboard(tr *i18n.Translator, namespace string, chat *gotgbot.Chat) gotgbot.InlineKeyboardMarkup {
-	yesText, _ := tr.GetString("button_yes")
-	noText, _ := tr.GetString("button_no")
+	yesText := tr.String("button_yes")
+	noText := tr.String("button_no")
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
 			{Text: yesText, CallbackData: confirmData(namespace, "yes", chat)},
@@ -153,11 +153,7 @@ func ownerConfirmKey(tr *i18n.Translator, key string, params i18n.TranslationPar
 	if key == "" {
 		key = "error_generic"
 	}
-	text, _ := tr.GetString(key, params)
-	if text == "" {
-		text, _ = tr.GetString("error_generic")
-	}
-	return text
+	return tr.String(key, params)
 }
 
 // registerOwnerConfirm owns the reset-everything lifecycle: the command asks
@@ -179,7 +175,7 @@ func registerOwnerConfirm(spec ownerConfirmSpec) (message, callback handlers.Res
 		if !send {
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString(spec.AskKey)
+		text := tr.String(spec.AskKey)
 		_, err = ctx.EffectiveMessage.Reply(b, confirmText(ctx, tr, text, ctx.EffectiveChat),
 			&gotgbot.SendMessageOpts{ReplyMarkup: confirmKeyboard(tr, spec.Namespace, ctx.EffectiveChat)})
 		if err != nil {
@@ -201,7 +197,7 @@ func registerOwnerConfirm(spec ownerConfirmSpec) (message, callback handlers.Res
 		}
 		if query.Message == nil {
 			// The confirmation is gone (deleted or inline): answer, never commit.
-			text, _ := tr.GetString("common_callback_message_unavailable")
+			text := tr.String("common_callback_message_unavailable")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
