@@ -149,11 +149,16 @@ func SetCommandModule(name string) { currentCommandModule = name }
 func CurrentCommandModule() string { return currentCommandModule }
 
 // RecordCommand stores name's manifest entry. WrapCommand calls it for the
-// command name and every alias.
+// command name and every alias. A registration outside a module loader
+// (Module "") never erases a module an earlier loader recorded.
 func RecordCommand(name string, entry CommandEntry) {
 	commandManifestMu.Lock()
 	defer commandManifestMu.Unlock()
-	commandManifest[strings.ToLower(name)] = entry
+	key := strings.ToLower(name)
+	if old, ok := commandManifest[key]; ok && old.Module != "" && entry.Module == "" {
+		entry.Module = old.Module
+	}
+	commandManifest[key] = entry
 }
 
 // CommandManifest returns a copy of the recorded command→module manifest.
