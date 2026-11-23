@@ -75,26 +75,26 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			input := chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}
 			if len(chatsettings.ValidateChanges(input, changes)) != 0 {
-				replyText, _ = tr.GetString("warns_specify_action")
+				replyText = tr.String("warns_specify_action")
 				_, _ = msg.Reply(b, replyText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			if err := chatsettings.WarnMode.WriteChanges(input, changes); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
+				errText := tr.String("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
-			replyText, _ = tr.GetString("warns_mode_updated_" + mode)
+			replyText = tr.String("warns_mode_updated_" + mode)
 			if chatsettings.IsTimedMode(mode) {
 				replyText = fmt.Sprintf(replyText, formatDuration(actionTime))
 			}
 		} else {
-			temp, _ := tr.GetString("warns_mode_unknown")
+			temp := tr.String("warns_mode_unknown")
 			replyText = fmt.Sprintf(temp, html.EscapeString(args[0]))
 		}
 	} else {
-		replyText, _ = tr.GetString("warns_specify_action")
+		replyText = tr.String("warns_specify_action")
 	}
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
@@ -109,7 +109,7 @@ func warnExpiryLabel(tr *i18n.Translator, preferences *models.WarnSettings) stri
 	if preferences.WarnExpiry > 0 {
 		return formatDuration(preferences.WarnExpiry)
 	}
-	label, _ := tr.GetString("warns_expiry_never")
+	label := tr.String("warns_expiry_never")
 	return label
 }
 
@@ -125,19 +125,19 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 	case len(args) == 0:
 		preferences := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
 		if preferences.WarnExpiry > 0 {
-			temp, _ := tr.GetString("warns_expiry_current")
+			temp := tr.String("warns_expiry_current")
 			replyText = fmt.Sprintf(temp, formatDuration(preferences.WarnExpiry))
 		} else {
-			replyText, _ = tr.GetString("warns_expiry_current_off")
+			replyText = tr.String("warns_expiry_current_off")
 		}
 	case slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) && len(args) == 1:
 		if err := chatsettings.WarnExpiry.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0); err != nil {
 			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		replyText, _ = tr.GetString("warns_expiry_off")
+		replyText = tr.String("warns_expiry_off")
 	default:
 		seconds := extraction.ExtractDuration(b, ctx, strings.Join(args, " "))
 		if seconds == -1 {
@@ -145,11 +145,11 @@ func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		if err := chatsettings.WarnExpiry.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, int(seconds)); err != nil {
 			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		temp, _ := tr.GetString("warns_expiry_set")
+		temp := tr.String("warns_expiry_set")
 		replyText = fmt.Sprintf(temp, formatDuration(int(seconds)))
 	}
 
@@ -208,7 +208,7 @@ func shownReason(reason string, escape func(string) string) string {
 // entry without a time predates entries and shows its reason only. escape is
 // applied to the reason and the issuer name.
 func warnEntryLines(b *gotgbot.Bot, tr *i18n.Translator, entries []models.WarnEntry, escape func(string) string) string {
-	metaFormat, _ := tr.GetString("warns_entry_meta")
+	metaFormat := tr.String("warns_entry_meta")
 	var sb strings.Builder
 	for _, e := range entries {
 		line := shownReason(e.Reason, escape)
@@ -231,7 +231,7 @@ func warnIssuerLabel(b *gotgbot.Bot, tr *i18n.Translator, e models.WarnEntry) st
 		key = "warns_issuer_unknown"
 	}
 	if key != "" {
-		label, _ := tr.GetString(key)
+		label := tr.String(key)
 		return label
 	}
 	if u, err := user.GetUserBasicInfoCached(e.WarnedBy); err == nil && u != nil {
@@ -294,7 +294,7 @@ func punishAtWarnLimit(ctx context.Context, b *gotgbot.Bot, apply punisher, chat
 		log.WithContext(ctx).Warnf("[Warns] Warn mode %s not applied: %s", warnrc.WarnMode, result.Refusal)
 		return "", false, nil, nil
 	}
-	temp, _ := tr.GetString(key)
+	temp := tr.String(key)
 	return fmt.Sprintf(temp, args...), true, result.LogMarkup, nil
 }
 
@@ -348,11 +348,11 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	removeWarnText, _ := tr.GetString("warns_remove_button")
-	rulesButtonText, _ := tr.GetString("common_rules_button_emoji")
+	removeWarnText := tr.String("warns_remove_button")
+	rulesButtonText := tr.String("common_rules_button_emoji")
 
 	if chat_status.IsUserAdmin(b, chat.Id, userId) {
-		text, _ := tr.GetString("warns_admin_warning_error")
+		text := tr.String("warns_admin_warning_error")
 		if _, err = msg.Reply(b, text, nil); err != nil {
 			return err
 		}
@@ -379,7 +379,7 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 	issuer.Reason = reason
 	numWarns, entries, err := warns.WarnUser(userId, chat.Id, issuer)
 	if err != nil {
-		text, _ := tr.GetString("common_settings_save_failed")
+		text := tr.String("common_settings_save_failed")
 		_, sendErr := msg.Reply(b, text, formatting.Shtml())
 		if sendErr != nil {
 			return sendErr
@@ -440,11 +440,11 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 		logWarn("WARN")
 		keyboard = warnKeyboard(b, msg, chat, u.Id, removeWarnText, rulesButtonText)
 
-		temp, _ := tr.GetString("warns_user_warning")
+		temp := tr.String("warns_user_warning")
 		reply = fmt.Sprintf(temp, formatting.MentionHtml(u.Id, u.FirstName), numWarns, warnrc.WarnLimit)
 
 		if reason != "" {
-			temp, _ := tr.GetString("warns_warning_reason")
+			temp := tr.String("warns_warning_reason")
 			reply += fmt.Sprintf(temp, shownReason(reason, html.EscapeString))
 		}
 	}
@@ -488,14 +488,14 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 	if userId == -1 {
 		return ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			return err
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		if mc.sentInPM() {
 			// From PM, show how to name the group and the user.
 			err = mc.replyCommandHelp(text)
@@ -543,7 +543,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	warnrc := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
-	temp, _ := tr.GetString("warns_settings_display")
+	temp := tr.String("warns_settings_display")
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc), warnExpiryLabel(tr, warnrc))
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
 	if err != nil {
@@ -562,14 +562,14 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		// The name was not found and extraction has already said so.
 		return ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			return err
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		var err error
 		if inPM(msg) {
 			// From PM, show how to name the group and the user.
@@ -589,7 +589,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if numWarns != 0 {
 		warnrc := chatsettings.ReadWarnsContext(tracing.UpdateContext(ctx), chat.Id)
 		if len(entries) > 0 {
-			temp, _ := tr.GetString("warns_user_warnings_list")
+			temp := tr.String("warns_user_warnings_list")
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
 			// Plain-text reply: reasons and names are sent as they are.
 			text += warnEntryLines(b, tr, entries, func(s string) string { return s })
@@ -601,14 +601,14 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 				}
 			}
 		} else {
-			temp, _ := tr.GetString("warns_user_warnings_no_reasons")
+			temp := tr.String("warns_user_warnings_no_reasons")
 			_, err := msg.Reply(b, confirmText(ctx, tr, fmt.Sprintf(temp, numWarns, warnrc.WarnLimit), chat), nil)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		text, _ := tr.GetString("warns_user_no_warnings")
+		text := tr.String("warns_user_no_warnings")
 		_, err := msg.Reply(b, confirmText(ctx, tr, text, chat), nil)
 		if err != nil {
 			return err
@@ -662,13 +662,13 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	removed, removeErr := warns.RemoveWarn(userId, chat.Id)
 	if removeErr != nil {
-		replyText, _ = tr.GetString("error_generic")
+		replyText = tr.String("error_generic")
 	} else if removed {
-		temp, _ := tr.GetString("warns_removed_by")
+		temp := tr.String("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 		logWarnRemoval(b, chat, user, "RMWARN", userId)
 	} else {
-		replyText, _ = tr.GetString("warns_no_warns_to_remove")
+		replyText = tr.String("warns_no_warns_to_remove")
 	}
 
 	if query.Message == nil {
@@ -698,23 +698,23 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyText string
 
 	if len(args) == 0 {
-		replyText, _ = tr.GetString("warns_limit_set_help")
+		replyText = tr.String("warns_limit_set_help")
 	} else {
 		num, err := strconv.Atoi(args[0])
 		if err != nil {
-			temp, _ := tr.GetString("warns_invalid_number")
+			temp := tr.String("warns_invalid_number")
 			replyText = fmt.Sprintf(temp, html.EscapeString(args[0]))
 		} else {
 			if chatsettings.WarnLimit.Validate(num) != nil {
-				replyText, _ = tr.GetString("warns_limit_range_error")
+				replyText = tr.String("warns_limit_range_error")
 			} else {
 				if err := chatsettings.WarnLimit.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, num); err != nil {
 					log.Errorf("[Warns] SetWarnLimit failed for chat %d: %v", chat.Id, err)
-					errText, _ := tr.GetString("common_settings_save_failed")
+					errText := tr.String("common_settings_save_failed")
 					_, _ = msg.Reply(b, errText, formatting.Shtml())
 					return ext.EndGroups
 				}
-				temp, _ := tr.GetString("warns_limit_updated")
+				temp := tr.String("warns_limit_updated")
 				replyText = fmt.Sprintf(temp, num)
 			}
 		}
@@ -741,14 +741,14 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			return err
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		var err error
 		if inPM(msg) {
 			// From PM, show how to name the group and the user.
@@ -765,12 +765,12 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	removed, resetErr := warns.ResetUserWarns(userId, chat.Id)
 	var text string
 	if resetErr != nil {
-		text, _ = tr.GetString("error_generic")
+		text = tr.String("error_generic")
 	} else if removed {
-		text, _ = tr.GetString("warns_reset_success")
+		text = tr.String("warns_reset_success")
 		logWarnRemoval(b, chat, user, "RESETWARNS", userId)
 	} else {
-		text, _ = tr.GetString("warns_no_warns_to_remove")
+		text = tr.String("warns_no_warns_to_remove")
 	}
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, text), formatting.Shtml())
 	if err != nil {
@@ -787,14 +787,14 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	warnrc := warns.GetAllChatWarns(chat.Id)
 	if warnrc == 0 {
-		text, _ := tr.GetString("warns_no_users_warned")
+		text := tr.String("warns_no_users_warned")
 		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
 			return err
 		}
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("warns_reset_all_confirm")
+	text := tr.String("warns_reset_all_confirm")
 	text = confirmText(ctx, tr, text, chat)
 	_, err := msg.Reply(b, text,
 		&gotgbot.SendMessageOpts{
@@ -833,15 +833,15 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	switch response {
 	case "yes":
 		if err := warns.ResetAllChatWarns(chat.Id); err == nil {
-			helpText, _ = tr.GetString("warns_reset_all_success")
-			replyText, _ = tr.GetString("warns_reset_all_final")
+			helpText = tr.String("warns_reset_all_success")
+			replyText = tr.String("warns_reset_all_final")
 			actionlog.Warn(b, chat, &query.From, "RESETALLWARNS", 0, "")
 		} else {
-			helpText, _ = tr.GetString("error_generic")
+			helpText = tr.String("error_generic")
 			replyText = helpText
 		}
 	case "no":
-		helpText, _ = tr.GetString("warns_reset_all_cancelled")
+		helpText = tr.String("warns_reset_all_cancelled")
 		replyText = helpText
 	default:
 		return answerInvalidCallback(b, ctx, query)
@@ -882,14 +882,14 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			return err
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		var err error
 		if inPM(msg) {
 			// From PM, show how to name the group and the user.
@@ -906,13 +906,13 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyText string
 	removed, removeErr := warns.RemoveWarn(userId, chat.Id)
 	if removeErr != nil {
-		replyText, _ = tr.GetString("error_generic")
+		replyText = tr.String("error_generic")
 	} else if removed {
-		temp, _ := tr.GetString("warns_removed_by")
+		temp := tr.String("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 		logWarnRemoval(b, chat, user, "RMWARN", userId)
 	} else {
-		replyText, _ = tr.GetString("warns_no_warns_to_remove")
+		replyText = tr.String("warns_no_warns_to_remove")
 	}
 
 	_, err := msg.Reply(b, withGroupLine(tr, msg, chat, replyText), formatting.Shtml())

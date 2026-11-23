@@ -45,7 +45,7 @@ func GetChatLocksCached(chatID int64) (map[string]bool, error) {
 }
 
 func GetChatLocksCachedContext(ctx context.Context, chatID int64) (map[string]bool, error) {
-	cacheKey := cache.CacheKey("locks_map", chatID)
+	cacheKey := LocksProjection.Key(chatID)
 
 	cached, err := cache.GetFromCacheOrLoad(ctx, cacheKey, 1*time.Hour, func(ctx context.Context) (map[string]bool, error) {
 		return GetChatLocksOptimizedContext(ctx, chatID)

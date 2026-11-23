@@ -34,7 +34,7 @@ var FloodDelete = &Declaration{
 }
 
 var WarnLimit = &Declaration{
-	Key: "warns.limit", Type: Number, Default: 3, Right: AdminBot,
+	Key: "warns.limit", Type: Number, Default: models.DefaultWarnSettings(0).WarnLimit, Right: AdminBot,
 	read: func(ctx context.Context, chatID int64) any { return warns.GetWarnSettingContext(ctx, chatID).WarnLimit },
 	allowed: func(value any) error {
 		if n := value.(int); n < 1 || n > 100 {
@@ -46,7 +46,7 @@ var WarnLimit = &Declaration{
 }
 
 var WarnExpiry = &Declaration{
-	Key: "warns.expiry", Type: Duration, Default: 0, Right: AdminBot,
+	Key: "warns.expiry", Type: Duration, Default: models.DefaultWarnSettings(0).WarnExpiry, Right: AdminBot,
 	read: func(ctx context.Context, chatID int64) any {
 		return warns.GetWarnSettingContext(ctx, chatID).WarnExpiry
 	},
