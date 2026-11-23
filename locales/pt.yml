@@ -241,6 +241,10 @@ blacklists_ls_bl_no_blacklisted: Não há palavras na lista negra neste chat.
 blacklists_rm_all_bl_ask:
   Tem certeza que deseja remover todas as palavras da lista negra deste
   chat?
+blacklists_rm_all_bl_cancel:
+  Cancelada a remoção de todas as Listas Negras deste Chat
+  ❌
+blacklists_rm_all_bl_done: Removidas todas as Listas Negras deste Chat ✅
 blacklists_set_bl_action_changed_mode: "Modo de lista negra alterado com sucesso para: *%s*"
 blist_action_tban: "Modo de lista negra alterado para tban por %s."
 blist_action_tmute: "Modo de lista negra alterado para tmute por %s."

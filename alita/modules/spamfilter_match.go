@@ -15,11 +15,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamfilter"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/spamtext"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -273,14 +275,23 @@ func spamFilterLogMatch(b *gotgbot.Bot, ctx *ext.Context, text string, match spa
 			{Text: label, CallbackData: data},
 		}}}
 	}
-	actionlog.AutomatedWithMarkup(b, chat, markup, spamFilterTag, user.Id,
-		formatting.GetFullName(user.FirstName, user.LastName),
-		actionlog.Field{Name: "Similarity", Value: strconv.FormatFloat(match.similarity, 'f', 2, 64)},
-		actionlog.Field{Name: "Sample", Value: fmt.Sprintf("#%d (%s)", match.sampleID, source)},
-		actionlog.Field{Name: "Action", Value: action},
-		// The message goes last: the button reads it back from the entry.
-		actionlog.Field{Name: "Message", Value: aispamTruncate(text, spamtext.MaxRunes)},
-	)
+	_, _ = enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{ChatID: chat.Id, Target: punishment.Target{ID: user.Id}},
+		Exempt:  enforce.NeverExempt,
+		LogOnly: true,
+		Log: &enforce.LogSpec{
+			Tag:    spamFilterTag,
+			Name:   formatting.GetFullName(user.FirstName, user.LastName),
+			Markup: markup,
+			Fields: []actionlog.Field{
+				{Name: "Similarity", Value: strconv.FormatFloat(match.similarity, 'f', 2, 64)},
+				{Name: "Sample", Value: fmt.Sprintf("#%d (%s)", match.sampleID, source)},
+				{Name: "Action", Value: action},
+				// The message goes last: the button reads it back from the entry.
+				{Name: "Message", Value: aispamTruncate(text, spamtext.MaxRunes)},
+			},
+		},
+	})
 }
 
 // spamLogMessageMarker opens the message in a match's log entry as Telegram

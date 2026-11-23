@@ -45,7 +45,6 @@ Disposable snapshots use `alita:cache:`. Operational state uses its existing `al
 
 | Key Pattern | Description |
 |-------------|-------------|
-| `alita:cache:chat_settings:{chatId}` | Legacy invalidation target only — settings are read via `alita:cache:chat:{chatId}` |
 | `alita:cache:user_lang:{userId}` | User language preference |
 | `alita:cache:chat_lang:{chatId}` | Chat language preference |
 | `alita:cache:filter_list:{chatId}` | List of filters for chat |

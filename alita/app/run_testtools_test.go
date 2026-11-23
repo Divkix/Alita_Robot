@@ -9,11 +9,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 )
 
@@ -22,30 +24,17 @@ import (
 // a phase — or in a phase outside the declared order — fails here instead of
 // silently landing in the wrong position.
 func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
-	// ShutdownDrainSpecs declares the shared tail: database close, stats
-	// flush, jobs stop and the module drains.
-	specs := ShutdownDrainSpecs(
+	// RunDrainSpecs declares every drain Run registers except the polling
+	// updater stop; updaterStopSpec declares that one. A new drain added to
+	// either list is covered here automatically.
+	specs := append(RunDrainSpecs(
 		func() error { return nil },
 		func() error { return nil },
 		func() error { return nil },
-		[]DrainSpec{
-			{Name: "users drain", Handler: func() error { return nil }},
-			{Name: "captcha stop", Handler: func() error { return nil }},
-			{Name: "aispam drain", Handler: func() error { return nil }},
-		},
-	)
-
-	// The remaining drains are registered directly: "updater stop" in
-	// runPolling (polling mode only), "http stop" and "tracer" in Run. Their
-	// phases are asserted here so the whole set stays enumerable.
-	direct := []struct {
-		name  string
-		phase shutdown.Phase
-	}{
-		{"updater stop", shutdown.PhaseUpdateSource},
-		{"http stop", shutdown.PhaseHTTPServer},
-		{"tracer", shutdown.PhaseTelemetry},
-	}
+		[]DrainSpec{{Name: "users drain", Handler: func() error { return nil }}},
+		nil,
+		nil,
+	), updaterStopSpec(nil))
 
 	phases := shutdown.Phases()
 	seen := make(map[shutdown.Phase]bool)
@@ -55,12 +44,6 @@ func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
 		}
 		seen[spec.Phase] = true
 	}
-	for _, d := range direct {
-		if !slices.Contains(phases, d.phase) {
-			t.Fatalf("drain %q declares phase %v, which Phases() does not list", d.name, d.phase)
-		}
-		seen[d.phase] = true
-	}
 	for _, phase := range phases {
 		if !seen[phase] {
 			t.Fatalf("no drain declares phase %v", phase)
@@ -69,11 +52,12 @@ func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
 }
 
 // No drain registered after the database phase may write to the database: the
-// database is already closed when they run. This registers the same nine
-// drains Run registers — same names, same phases — against a real SQLite
-// database. A write probe runs in front of every drain: each probe before the
-// close must land, each probe after it must fail, and a drain that writes
-// after the close makes its probe report an error.
+// database is already closed when they run. This registers the same drains
+// Run registers — enumerated from RunDrainSpecs and updaterStopSpec, so a new
+// drain is covered automatically — against a real SQLite database. A write
+// probe runs in front of and behind every drain: each probe before the close
+// must land, each probe after it must fail, and a drain that writes after the
+// close makes its trailing probe report an error.
 func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 	database, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "shutdown.db")), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -98,26 +82,35 @@ func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		switch {
-		case err == nil && !closed:
-			writesBeforeClose++
-		case err != nil && !closed:
-			probeErrors = append(probeErrors, err) // write failed while the DB should be open
-		case err == nil && closed:
+		case !closed:
+			if err != nil {
+				probeErrors = append(probeErrors, err) // write failed while the DB should be open
+			} else {
+				writesBeforeClose++
+			}
+		case err == nil:
 			probeErrors = append(probeErrors, errors.New("database write landed after the database phase"))
 		}
 	}
 
 	// wrap puts the probe in front of a drain, so the probe observes the
-	// database state the drain itself would see.
-	wrap := func(name string, phase shutdown.Phase) DrainSpec {
-		return DrainSpec{Name: name, Phase: phase, Handler: func() error {
+	// database state the drain itself would see; a drain that writes after
+	// the close is caught by the next drain's probe.
+	wrap := func(spec DrainSpec) DrainSpec {
+		handler := spec.Handler
+		spec.Handler = func() error {
 			probe()
-			return nil
-		}}
+			return handler()
+		}
+		return spec
 	}
 
-	manager := shutdown.NewManager()
-	RegisterShutdownSteps(manager, append(ShutdownDrainSpecs(
+	moduleDrains := []DrainSpec{
+		{Name: "users drain", Handler: func() error { return nil }},
+		{Name: "captcha stop", Handler: func() error { return nil }},
+		{Name: "aispam drain", Handler: func() error { return nil }},
+	}
+	specs := RunDrainSpecs(
 		func() error {
 			err := closeDBConnections()
 			mu.Lock()
@@ -125,28 +118,35 @@ func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 			mu.Unlock()
 			return err
 		},
-		func() error { probe(); return nil }, // stats flush
-		func() error { probe(); return nil }, // jobs stop
-		[]DrainSpec{
-			wrap("users drain", 0), // module drains get their phase from the specs helper
-			wrap("captcha stop", 0),
-			wrap("aispam drain", 0),
-		},
-	),
-		wrap("updater stop", shutdown.PhaseUpdateSource),
-		wrap("http stop", shutdown.PhaseHTTPServer),
-		wrap("tracer", shutdown.PhaseTelemetry),
-	)...)
+		func() error { return nil }, // stats flush
+		func() error { return nil }, // jobs stop
+		moduleDrains,
+		nil,
+		func(*httpserver.Server) error { return nil },
+	)
+	// Polling mode adds the updater stop in the update-source phase; including
+	// it keeps the full drain set under the probes. The tracer drain is
+	// replaced by a no-op: tracing.Shutdown is not what this test measures.
+	updater := ext.NewUpdater(ext.NewDispatcher(nil), nil)
+	specs = append(specs[:len(specs)-1], updaterStopSpec(updater), DrainSpec{
+		Name: "tracer", Phase: shutdown.PhaseTelemetry, Handler: func() error { return nil },
+	})
+	for i := range specs {
+		specs[i] = wrap(specs[i])
+	}
+
+	manager := shutdown.NewManager()
+	RegisterShutdownSteps(manager, specs...)
 
 	manager.ExecuteHandlersForTest()
 
 	mu.Lock()
 	defer mu.Unlock()
-	// Seven drains run before the database phase — updater, http, the three
-	// module drains, jobs and the stats flush — and each probe must have
-	// landed while the database was open.
-	if writesBeforeClose != 7 {
-		t.Fatalf("writes before the database phase = %d, want 7", writesBeforeClose)
+	// Every drain but the telemetry-phase tracer runs while the database is
+	// open — module drains included — so each of their leading probes must
+	// have landed. The count derives from the spec list, not a literal.
+	if writesBeforeClose != len(specs)-1 {
+		t.Fatalf("writes before the database phase = %d, want %d", writesBeforeClose, len(specs)-1)
 	}
 	for _, err := range probeErrors {
 		t.Errorf("probe: %v", err)

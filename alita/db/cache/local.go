@@ -35,7 +35,7 @@ type localLayer struct {
 }
 
 var (
-	localMu    sync.Mutex
+	localMu    sync.RWMutex
 	localState atomic.Pointer[localLayer]
 
 	// beforeLocalSetHook runs at the start of localSet, i.e. after the Redis
@@ -55,8 +55,8 @@ var (
 // a value written on another replica (or outside DeleteCache) would otherwise
 // be served stale for up to CACHE_LOCAL_TTL seconds.
 func skipLocal(key string) bool {
-	localMu.Lock()
-	defer localMu.Unlock()
+	localMu.RLock()
+	defer localMu.RUnlock()
 	for _, prefix := range skipLocalPrefixes {
 		if strings.HasPrefix(key, prefix) {
 			return true
