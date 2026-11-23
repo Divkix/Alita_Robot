@@ -86,14 +86,20 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 				return nil
 			}
 		}
-		manager.RegisterHandler(drain("tracer"))
-		registerShutdownDrains(manager, drain("db close"), drain("stats flush"), drain("jobs stop"))
-		manager.RegisterHandler(drain("users drain"))
-		manager.RegisterHandler(drain("captcha stop"))
-		manager.RegisterHandler(drain("aispam drain"))
+		manager.Register("tracer", shutdown.PhaseTelemetry, drain("tracer"))
+		registerShutdownSteps(manager, shutdownDrainSpecs(
+			drain("db close"),
+			drain("stats flush"),
+			drain("jobs stop"),
+			[]drainSpec{
+				{name: "users drain", handler: drain("users drain")},
+				{name: "captcha stop", handler: drain("captcha stop")},
+				{name: "aispam drain", handler: drain("aispam drain")},
+			},
+		)...)
 		httpStopStarted := make(chan struct{})
 		releaseHTTPStop := make(chan struct{})
-		manager.RegisterHandler(func() error {
+		manager.Register("http stop", shutdown.PhaseHTTPServer, func() error {
 			close(httpStopStarted)
 			<-releaseHTTPStop
 			record("http stop")
