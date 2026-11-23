@@ -43,9 +43,12 @@ var NeverExempt ExemptFunc = func(*gotgbot.Bot, *ext.Context, int64, int64) bool
 
 // LogSpec is the automated action-log entry written after a punishment is
 // applied: the tag and its fields. The logged user is always the request's
-// target and the entry's Unban button the punishment Result's LogMarkup.
+// target; Name overrides its display name (empty uses the sender's) and
+// Markup its inline keyboard (nil uses the punishment Result's LogMarkup).
 type LogSpec struct {
 	Tag    string
+	Name   string
+	Markup *gotgbot.InlineKeyboardMarkup
 	Fields []actionlog.Field
 }
 
@@ -95,6 +98,10 @@ type Spec struct {
 	Log *LogSpec
 	// Notice is the localized group notice; nil sends nothing.
 	Notice *NoticeSpec
+	// LogOnly runs the exemption check and the log (and notice) without a
+	// punishment: the spec of an enforcement that reports but never punishes.
+	// PermissionCheck and Apply are skipped and the Result stays zero.
+	LogOnly bool
 }
 
 // Automated runs spec's sequence: exemption check → bot-permission precheck →
@@ -122,32 +129,42 @@ func Automated(b *gotgbot.Bot, ctx *ext.Context, spec Spec) (punishment.Result, 
 		return punishment.Result{}, nil
 	}
 
-	if spec.PermissionCheck != nil && !spec.PermissionCheck(b, ctx, chat) {
-		return punishment.Result{}, nil
-	}
+	var result punishment.Result
+	if !spec.LogOnly {
+		if spec.PermissionCheck != nil && !spec.PermissionCheck(b, ctx, chat) {
+			return result, nil
+		}
 
-	if spec.BeforeApply != nil {
+		if spec.BeforeApply != nil {
+			spec.BeforeApply()
+		}
+
+		apply := spec.Apply
+		if apply == nil {
+			apply = punishment.Apply
+		}
+		var err error
+		result, err = apply(tracing.UpdateContext(ctx), b, spec.Request)
+		if err != nil {
+			return result, err
+		}
+		if !result.Applied {
+			return result, nil
+		}
+	} else if spec.BeforeApply != nil {
 		spec.BeforeApply()
 	}
 
-	apply := spec.Apply
-	if apply == nil {
-		apply = punishment.Apply
-	}
-	result, err := apply(tracing.UpdateContext(ctx), b, spec.Request)
-	if err != nil {
-		return result, err
-	}
-	if !result.Applied {
-		return result, nil
-	}
-
 	if spec.Log != nil {
-		var userName string
-		if sender != nil {
+		userName := spec.Log.Name
+		if userName == "" && sender != nil {
 			userName = sender.Name()
 		}
-		actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, spec.Log.Tag,
+		markup := spec.Log.Markup
+		if markup == nil {
+			markup = result.LogMarkup
+		}
+		actionlog.AutomatedWithMarkup(b, chat, markup, spec.Log.Tag,
 			spec.Request.Target.ID, userName, spec.Log.Fields...)
 	}
 

@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -1188,15 +1189,28 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 		return StageNotApplicable
 	}
-	var result punishment.Result
-	if err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
-		var err error
-		result, err = punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+	result, err := enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{
 			ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
 			Source: models.BanSourceFed, Detail: sourceFed, ActorID: ban.BannedBy,
-		})
-		return err
-	}); err != nil || !result.Applied {
+		},
+		// The admin-only exemption ran above; the default predicate would
+		// also exempt approved users, which federation bans deliberately do
+		// not.
+		Exempt: enforce.NeverExempt,
+		// A flood wait short enough to end inside the join claim is waited
+		// out; a longer one fails the ban.
+		Apply: func(applyCtx context.Context, applyBot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
+			var applied punishment.Result
+			err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
+				var applyErr error
+				applied, applyErr = punishment.Apply(applyCtx, applyBot, request)
+				return applyErr
+			})
+			return applied, err
+		},
+	})
+	if err != nil || !result.Applied {
 		log.WithContext(tracing.UpdateContext(ctx)).Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
 		return StageFailed
 	}

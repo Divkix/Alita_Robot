@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -393,25 +394,39 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 	}
 
 	// A permanent ban, not a kick: the removed bot cannot simply be added again.
-	reqCtx := tracing.UpdateContext(ctx)
-	result, err := punishment.Apply(reqCtx, b, punishment.Request{
-		ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
-		Source: models.BanSourceLock, Detail: "bots",
-	})
-	if err != nil {
-		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
-		return StageFailed
-	}
-	if !result.Applied {
-		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %s", mem.Id, chat.Id, result.Refusal)
-		return StageFailed
-	}
 	var addedBy string
 	if sender != nil {
 		addedBy = fmt.Sprintf("%s (%d)", sender.Name(), senderID)
 	}
-	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
-	notice("locks_bot_only_admins")
+	result, err := enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
+			Source: models.BanSourceLock, Detail: "bots",
+		},
+		// The adder's protected-user check ran above on the sender, not the
+		// joined bot; the default predicate must not exempt the bot a second
+		// time.
+		Exempt: enforce.NeverExempt,
+		Log: &enforce.LogSpec{
+			Tag:    "LOCK_BOTS",
+			Name:   mem.FirstName,
+			Fields: []actionlog.Field{{Name: "Added by", Value: addedBy}},
+		},
+		Notice: &enforce.NoticeSpec{Key: "locks_bot_only_admins", Raw: true},
+	})
+	// A notice failure does not undo an applied ban; only the ban's own
+	// error or refusal fails the stage.
+	if !result.Applied {
+		if err != nil {
+			log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
+		} else {
+			log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %s", mem.Id, chat.Id, result.Refusal)
+		}
+		return StageFailed
+	}
+	if err != nil {
+		log.WithContext(tracing.UpdateContext(ctx)).Error(err)
+	}
 	return StageRemoved
 }
 
