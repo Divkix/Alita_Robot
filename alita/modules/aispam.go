@@ -799,17 +799,17 @@ func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 
 	want, ok := parseToggleArg(args[0])
 	if !ok {
-		text, _ := c.Tr.GetString("aispam_invalid_option")
+		text := c.Tr.String("aispam_invalid_option")
 		return aispamReply(c, text)
 	}
 
 	if err := chatsettings.AISpamEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, want); err != nil {
 		if key := chatsettings.RefusalKey(err); key != "" {
-			text, _ := c.Tr.GetString(key)
+			text := c.Tr.String(key)
 			return aispamReply(c, text)
 		}
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Error("[AISpam] failed to save the setting")
-		text, _ := c.Tr.GetString("common_settings_save_failed")
+		text := c.Tr.String("common_settings_save_failed")
 		if replyErr := aispamReply(c, text); replyErr != nil {
 			return replyErr
 		}
@@ -820,7 +820,7 @@ func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 	if want {
 		key = "aispam_enabled_success"
 	}
-	text, _ := c.Tr.GetString(key)
+	text := c.Tr.String(key)
 	return aispamReply(c, text)
 }
 
@@ -829,17 +829,17 @@ func aispamStatusText(tr *i18n.Translator, enabled bool) string {
 	if enabled {
 		lineKey = "aispam_status_enabled"
 	}
-	line, _ := tr.GetString(lineKey)
+	line := tr.String(lineKey)
 
 	parts := []string{line}
 	if config.AppConfig.TypeSafeAPIKey == "" {
-		warning, _ := tr.GetString("aispam_status_key_missing")
+		warning := tr.String("aispam_status_key_missing")
 		parts = append(parts, warning)
 	} else if !config.AppConfig.EnableAISpam {
-		warning, _ := tr.GetString("aispam_status_globally_disabled")
+		warning := tr.String("aispam_status_globally_disabled")
 		parts = append(parts, warning)
 	}
-	notice, _ := tr.GetString("aispam_data_notice")
+	notice := tr.String("aispam_data_notice")
 	parts = append(parts, notice)
 
 	return strings.Join(parts, "\n\n")

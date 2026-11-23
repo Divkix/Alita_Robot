@@ -191,7 +191,7 @@ func reportCaptchaPass(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 			kinds = append(kinds, kind)
 		}
 	}
-	text, _ := tr.GetString("captcha_stored_messages_summary",
+	text := tr.String("captcha_stored_messages_summary",
 		captchaStoredSummaryParams(formatting.MentionHtml(attempt.UserID, outcome.name), len(stored), strings.Join(kinds, ", ")))
 	var sent *gotgbot.Message
 	_ = ratelimit.GlobalSendLimiter().Do(context.Background(), func() error {

@@ -183,7 +183,7 @@ func generateJoinRequestCaptcha(mode string) (string, []byte, []string, error) {
 // The shared keyboard supplies layout, options and refresh availability; only
 // its callback payload changes because this challenge lives in a private chat.
 func buildJoinRequestCaptchaKeyboard(attempt *models.JoinRequestCaptcha, options []string, tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
-	refreshText, _ := tr.GetString("captcha_refresh_button")
+	refreshText := tr.String("captcha_refresh_button")
 	keyboard := buildCaptchaKeyboard(attempt.ID, attempt.UserID, attempt.RefreshCount, options, attempt.RefreshCount < models.CaptchaMaxRefreshes, refreshText)
 	for row := range keyboard.InlineKeyboard {
 		for column := range keyboard.InlineKeyboard[row] {
@@ -199,10 +199,9 @@ func buildJoinRequestCaptchaKeyboard(attempt *models.JoinRequestCaptcha, options
 }
 
 func joinRequestCaptchaPrompt(tr *i18n.Translator, chatTitle string, settings *db.CaptchaSettings, timeout int) string {
-	text, _ := tr.GetString("captcha_join_request_prompt", i18n.TranslationParams{
+	return tr.String("captcha_join_request_prompt", i18n.TranslationParams{
 		"group": html.EscapeString(chatTitle), "timeout": timeout, "attempts": settings.MaxAttempts,
 	})
-	return text
 }
 
 func sendJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, settings *db.CaptchaSettings) (bool, error) {
@@ -248,8 +247,7 @@ func sendJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, settings *db.Cap
 }
 
 func answerJoinCaptcha(bot *gotgbot.Bot, ctx *ext.Context, chatID int64, key string, params i18n.TranslationParams) error {
-	text, _ := joinCaptchaTranslator(chatID).GetString(key, params)
-	_, err := ctx.CallbackQuery.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
+	_, err := ctx.CallbackQuery.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: joinCaptchaTranslator(chatID).String(key, params), ShowAlert: true})
 	return err
 }
 
@@ -354,7 +352,7 @@ func approveJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *mode
 
 func refreshJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *models.JoinRequestCaptcha, tr *i18n.Translator) error {
 	if attempt.RefreshCount >= models.CaptchaMaxRefreshes || time.Since(attempt.UpdatedAt) < time.Duration(captchaRefreshCooldownS)*time.Second {
-		text, _ := tr.GetString("captcha_wait_refresh")
+		text := tr.String("captcha_wait_refresh")
 		_, err := ctx.CallbackQuery.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return err
 	}
@@ -408,7 +406,7 @@ func refreshJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *mode
 }
 
 func editJoinRequestCaptcha(ctx context.Context, bot *gotgbot.Bot, attempt *models.JoinRequestCaptcha, key string) error {
-	text, _ := joinCaptchaTranslator(attempt.ChatID).GetString(key, i18n.TranslationParams{"group": html.EscapeString(captchaLogChat(attempt.ChatID).Title)})
+	text := joinCaptchaTranslator(attempt.ChatID).String(key, i18n.TranslationParams{"group": html.EscapeString(captchaLogChat(attempt.ChatID).Title)})
 	_, _, err := bot.EditMessageCaptionWithContext(ctx, &gotgbot.EditMessageCaptionOpts{
 		ChatId: attempt.UserChatID, MessageId: attempt.MessageID,
 		Caption: text, ParseMode: formatting.HTML, ReplyMarkup: gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{}},
