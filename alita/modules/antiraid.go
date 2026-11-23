@@ -17,6 +17,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -258,9 +259,14 @@ func banRaidMember(bot *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 		log.WithContext(reqCtx).Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
 		return false
 	}
-	result, err := punishment.Apply(reqCtx, bot, punishment.Request{
-		ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
-		Duration: time.Duration(actionTime) * time.Second, Source: models.BanSourceAntiraid,
+	result, err := enforce.Automated(bot, ctx, enforce.Spec{
+		Request: punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
+			Duration: time.Duration(actionTime) * time.Second, Source: models.BanSourceAntiraid,
+		},
+		// raidApplies already ran the protected-user predicate; raiders
+		// banned during a raid get no log or notice of their own.
+		Exempt: enforce.NeverExempt,
 	})
 	if err != nil {
 		log.WithContext(reqCtx).WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
@@ -734,8 +740,6 @@ func formatDuration(seconds int) string {
 }
 
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(antiRaidModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antiraid", PMGroupArg: helpers.PMGroupArgOwn, Disableable: true,
 		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},

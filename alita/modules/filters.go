@@ -509,8 +509,6 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadFilters(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(filtersModule.moduleName, true)
-
 	SetModuleHelpBuilder(filtersModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
 		return [][]gotgbot.InlineKeyboardButton{{{
 			Text:         trS(i18n.MustNewTranslator(l), "common_formatting_button"),

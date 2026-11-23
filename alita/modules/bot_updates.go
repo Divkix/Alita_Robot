@@ -268,5 +268,5 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
-	RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates)
+	RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates, RegisterLegacyModuleOptions{NoHelp: true})
 }

@@ -63,9 +63,6 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
 
-	SetModuleEnabled(reactionsModule.moduleName, true)
-
-	DefaultHelpRegistry().AltHelpOptions["Reactions"] = []string{"reaction"}
 	SetModuleHelpBuilder(reactionsModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
 		tr := i18n.MustNewTranslator(l)
 		return [][]gotgbot.InlineKeyboardButton{

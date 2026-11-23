@@ -184,7 +184,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadLanguage(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(languagesModule.moduleName, true)
 	SetModuleHelpBuilder(languagesModule.moduleName, languagesModule.genFullLanguageKb)
 	connectedChecks := declaredSettingChecks(chatsettings.Language)
 	groupChecks := languageGroupSettingChecks

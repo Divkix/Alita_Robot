@@ -231,8 +231,6 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadDisabling(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(disablingModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disable",
 		PMGroupArg:     helpers.PMGroupArgOwn,

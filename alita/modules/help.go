@@ -223,7 +223,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	}
 }
 
-func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -335,7 +335,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups
@@ -395,7 +395,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
@@ -443,7 +443,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
@@ -467,7 +467,7 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups
@@ -574,7 +574,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) help(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
@@ -675,11 +675,6 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func LoadHelp(dispatcher *ext.Dispatcher) {
 	helpModule := DefaultHelpRegistry()
-	// LoadHelp runs outside LoadAllModules; point the command manifest at the
-	// help module so /commands, /start and friends record "Help" as theirs.
-	previous := helpers.CurrentCommandModule()
-	helpers.SetCommandModule(helpModule.moduleName)
-	defer helpers.SetCommandModule(previous)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "start"}, pipelineHandler(helpModule.start))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "help"}, pipelineHandler(helpModule.help))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "extend"}, pipelineHandler(helpModule.extend))
@@ -692,6 +687,10 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
+	// Help loads last: it answers /start, /help, /extend and /commands for
+	// every other module, so it registers at PriorityFinal and stays out of
+	// its own menu with NoHelp.
+	RegisterLegacyModule("Help", PriorityFinal, LoadHelp, RegisterLegacyModuleOptions{NoHelp: true})
 	RegisterDeepLinkHandler("help_", helpDeepLinkHandler)
 	RegisterExactDeepLinkHandler("about", aboutDeepLinkHandler)
 	RegisterExactDeepLinkHandler("extend", extendDeepLinkHandler)

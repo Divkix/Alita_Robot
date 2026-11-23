@@ -393,7 +393,6 @@ func initPurgeDescs() {
 }
 
 func LoadPurges(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(purgesModule.moduleName, true)
 	initPurgeDescs()
 
 	helpers.WrapCommand(dispatcher, delDesc, pipelineHandler(purgesModule.delCmd))

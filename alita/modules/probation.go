@@ -500,8 +500,6 @@ func sweepProbationMembers(now time.Time) {
 }
 
 func LoadProbation(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(probationModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, probationDesc, probationModule.probation)
 
 	dispatcher.AddHandlerToGroup(

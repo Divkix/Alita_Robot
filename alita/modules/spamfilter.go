@@ -390,8 +390,6 @@ func sweepExpiredSpamSamples(now time.Time) {
 }
 
 func LoadSpamFilter(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(spamFilterModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, spamDesc, pipelineHandler(spamFilterModule.spamCommand))
 	helpers.WrapCommand(dispatcher, spamFilterDesc, spamFilterModule.spamFilter)
 	helpers.WrapCommand(dispatcher, spamSamplesDesc, spamFilterModule.spamSamples)

@@ -572,8 +572,6 @@ var (
 )
 
 func LoadPin(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(pinsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, unpinDesc, pinsModule.unpin)
 	helpers.WrapCommand(dispatcher, unpinAllDesc, pinsModule.unpinAll)
 	helpers.WrapCommand(dispatcher, pinDesc, pinsModule.pin)

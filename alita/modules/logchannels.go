@@ -321,8 +321,6 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 }
 
 func LoadLogChannels(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(logChannelsModule.moduleName, true)
-
 	// Only this senderless channel-post step stays outside the pipeline.
 	dispatcher.AddHandler(setLogChannelCommand{handlers.NewCommand("setlog", logChannelsModule.setLogChannel).SetAllowChannel(true)})
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{

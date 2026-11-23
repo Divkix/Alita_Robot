@@ -444,8 +444,6 @@ func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadMisc(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(miscModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "stat", Disableable: true,
 		RequiredChecks: []helpers.Check{helpers.RequireGroup()},

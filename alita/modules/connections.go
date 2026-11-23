@@ -359,8 +359,6 @@ func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.Check {
 }
 
 func LoadConnections(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(ConnectionsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "connect", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, ConnectionsModule.connect)

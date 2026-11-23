@@ -268,8 +268,6 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadRules(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(rulesModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "rules", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
 		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},

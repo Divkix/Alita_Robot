@@ -670,16 +670,12 @@ func TestAISpamBreakerResumesAfterCooldown(t *testing.T) {
 // must resolve to the module's own page rather than the main help.
 func TestAISpamIsReachableFromHelp(t *testing.T) {
 	registry := DefaultHelpRegistry()
-	previousEnabled, hadEnabled := registry.AbleMap[aispamModule.moduleName]
+	previousEnabled := registry.isEnabled(aispamModule.moduleName)
 	t.Cleanup(func() {
-		if hadEnabled {
-			registry.AbleMap[aispamModule.moduleName] = previousEnabled
-			return
-		}
-		delete(registry.AbleMap, aispamModule.moduleName)
+		registry.setEnabled(aispamModule.moduleName, previousEnabled)
 	})
 
-	LoadAISpam(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+	loadModuleByName(t, "AISpam", ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
 
 	var button bool
 	for _, row := range initHelpButtonsFrom(registry, "en").InlineKeyboard {
