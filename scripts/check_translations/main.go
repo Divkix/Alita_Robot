@@ -394,6 +394,8 @@ func isTranslatorName(name string) bool {
 // isTranslatorReceiver reports whether expr is a receiver that plausibly holds
 // an *i18n.Translator. Without type info this is a name heuristic; GetString
 // and GetStringSlice stay unrestricted because no other type defines them.
+// Convention: translator receivers must be named tr, *Tr or *translator for
+// key extraction — tr2.String and the like are not detected.
 func isTranslatorReceiver(expr ast.Expr) bool {
 	switch x := expr.(type) {
 	case *ast.Ident:
