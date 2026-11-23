@@ -34,9 +34,10 @@ func InitialChecks(b *gotgbot.Bot) error {
 
 func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.ResetHelpRegistry()
-	metrics.SetCommandModules(modules.CommandModules())
 
 	defer modules.LoadHelp(dispatcher)
 
 	modules.LoadAllModules(dispatcher)
+	// CommandModules derives from the manifest LoadAllModules just filled.
+	metrics.SetCommandModules(modules.CommandModules())
 }

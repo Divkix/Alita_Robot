@@ -23,8 +23,6 @@ import (
 // MinutesPerDay bounds StartMinute and EndMinute: both lie in [0, MinutesPerDay).
 const MinutesPerDay = 24 * 60
 
-const cacheKeyPrefix = "night_mode"
-
 var (
 	// ErrInvalidWindow is returned for a time outside the day, or a start
 	// equal to the end (an empty or all-day window).
@@ -43,7 +41,7 @@ func ParseClock(s string) (int, bool) {
 }
 
 func cacheKey(chatID int64) string {
-	return cache.CacheKey(cacheKeyPrefix, chatID)
+	return SettingsProjection.Key(chatID)
 }
 
 // Get returns the chat's night mode. A missing row reads as disabled.

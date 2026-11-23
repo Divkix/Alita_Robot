@@ -24,7 +24,7 @@ import (
 var timezoneDesc = helpers.CommandDescriptor{
 	Name:           "timezone",
 	PMGroupArg:     helpers.PMGroupArgOwn,
-	RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.Timezone)...),
+	RequiredChecks: append([]helpers.Check{groupOnlyChatCheck, helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.Timezone)...),
 }
 
 // timezoneNow is the clock the replies show the local time from. Tests pin

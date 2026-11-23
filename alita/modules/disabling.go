@@ -236,14 +236,14 @@ func LoadDisabling(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disable",
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(disablingModule.disable))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "disableable"}, pipelineHandler(disablingModule.disableable))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disabled",
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(disablingModule.disabled))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disabledel",
@@ -253,7 +253,7 @@ func LoadDisabling(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "enable",
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(disablingModule.enable))
 }
 

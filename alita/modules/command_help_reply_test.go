@@ -44,7 +44,7 @@ func onlyReply(t *testing.T, client *moduleBotClient, chatID int64) string {
 // cmd's own help line and, for commands that take a target, its example.
 func assertCommandHelpReply(t *testing.T, text, cmd, errText string) {
 	t.Helper()
-	module := commandHelpModules[cmd]
+	module := commandHelpModules()[cmd]
 	entry := enHelpEntry(t, module, cmd)
 	if !strings.HasPrefix(text, errText+"\n\n") {
 		t.Errorf("/%s reply = %q, want it to start with the error %q", cmd, text, errText)
@@ -65,6 +65,7 @@ func assertCommandHelpReply(t *testing.T, text, cmd, errText string) {
 
 func TestModerationCommandsCalledWithoutTargetReplyWithTheirHelp(t *testing.T) {
 	useRealLocales(t)
+	withCommandManifest(t)
 	tests := []struct {
 		cmd    string
 		text   string
@@ -93,7 +94,7 @@ func TestModerationCommandsCalledWithoutTargetReplyWithTheirHelp(t *testing.T) {
 		t.Run(tt.text, func(t *testing.T) {
 			f := newAdminChatFixture(t)
 			module := bansModule
-			if commandHelpModules[tt.cmd] == "mutes" {
+			if commandHelpModules()[tt.cmd] == "mutes" {
 				module = mutesModule
 			}
 			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tt.text)
@@ -107,6 +108,7 @@ func TestModerationCommandsCalledWithoutTargetReplyWithTheirHelp(t *testing.T) {
 
 func TestBanHelpDoesNotIncludeBanme(t *testing.T) {
 	useRealLocales(t)
+	withCommandManifest(t)
 	f := newAdminChatFixture(t)
 	if err := bansModule.ban(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/ban")); err != ext.EndGroups {
 		t.Fatalf("ban error = %v, want EndGroups", err)
@@ -118,6 +120,7 @@ func TestBanHelpDoesNotIncludeBanme(t *testing.T) {
 
 func TestTimedCommandsWithoutTimeReplyWithTheirHelp(t *testing.T) {
 	useRealLocales(t)
+	withCommandManifest(t)
 	for _, tt := range []struct {
 		cmd string
 		run func(*gotgbot.Bot, *ext.Context) error
@@ -147,6 +150,7 @@ func TestTimedCommandsWithoutTimeReplyWithTheirHelp(t *testing.T) {
 // accepted units.
 func TestTimedCommandWithBadTimeKeepsTheTimeError(t *testing.T) {
 	useRealLocales(t)
+	withCommandManifest(t)
 	f := newAdminChatFixture(t)
 	ctx := newBanReplyContext(f.bot, f.chat, f.admin, f.member, "/tban 5x")
 	if err := bansModule.tBan(f.bot, ctx); err != ext.EndGroups {
@@ -182,6 +186,7 @@ func TestCommandHelpFallsBackToModuleHelp(t *testing.T) {
 		t.Fatalf("OverrideLocalesForTest: %v", err)
 	}
 	t.Cleanup(restore)
+	withCommandManifest(t)
 
 	f := newAdminChatFixture(t)
 	if err := bansModule.ban(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/ban")); err != ext.EndGroups {
@@ -197,6 +202,7 @@ func TestCommandHelpFallsBackToModuleHelp(t *testing.T) {
 
 func TestAnonymousAdminBanWithoutTargetGetsHelp(t *testing.T) {
 	useRealLocales(t)
+	withCommandManifest(t)
 	f := newAdminChatFixture(t)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadBans(dispatcher)

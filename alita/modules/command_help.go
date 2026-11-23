@@ -9,138 +9,8 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
-
-// commandHelpModules maps each command that answers a wrong call with its own
-// help to the module whose <module>_help_msg documents it. The warn commands
-// (/warn, /swarn, /rmwarn, /resetwarns, /warns) do so only from PM: in a group
-// they answer a call without a user with common_no_user_specified alone, as
-// before PM support.
-// Keep one × /cmd entry per command in all seven locales, with continuation lines
-// ending at a blank line or the next entry, no double quotes or unknown HTML tags,
-// and /cmd in en.yml's <module>_extend_msg.
-// TestEveryHelpCommandHasItsLineInEveryLocale enforces the locale contract.
-var commandHelpModules = map[string]string{
-	"ban":        "bans",
-	"sban":       "bans",
-	"tban":       "bans",
-	"dban":       "bans",
-	"unban":      "bans",
-	"kick":       "bans",
-	"dkick":      "bans",
-	"skick":      "bans",
-	"restrict":   "bans",
-	"unrestrict": "bans",
-	"mute":       "mutes",
-	"smute":      "mutes",
-	"tmute":      "mutes",
-	"dmute":      "mutes",
-	"unmute":     "mutes",
-	"digest":     "digest",
-	"recurring":  "recurring",
-	"warn":       "warns",
-	"swarn":      "warns",
-	"rmwarn":     "warns",
-	"resetwarns": "warns",
-	"warns":      "warns",
-	"warnings":   "warns",
-	"rules":      "rules",
-	"notes":      "notes",
-	"saved":      "notes",
-	"filters":    "filters",
-	"connect":    "connections",
-	"setlog":     "logchannels",
-	"unsetlog":   "logchannels",
-	"logchannel": "logchannels",
-	"log":        "logchannels",
-	"nolog":      "logchannels",
-
-	"locks":            "locks",
-	"locktypes":        "locks",
-	"lock":             "locks",
-	"unlock":           "locks",
-	"nightmode":        "locks",
-	"flood":            "antiflood",
-	"setflood":         "antiflood",
-	"setfloodmode":     "antiflood",
-	"delflood":         "antiflood",
-	"disabled":         "disabling",
-	"disable":          "disabling",
-	"enable":           "disabling",
-	"disabledel":       "disabling",
-	"reactions":        "reactions",
-	"addreaction":      "reactions",
-	"removereaction":   "reactions",
-	"resetreactions":   "reactions",
-	"antiraid":         "antiraid",
-	"raidtime":         "antiraid",
-	"raidactiontime":   "antiraid",
-	"autoantiraid":     "antiraid",
-	"antichannelpin":   "pins",
-	"cleanlinked":      "pins",
-	"allowconnect":     "connections",
-	"setrules":         "rules",
-	"resetrules":       "rules",
-	"privaterules":     "rules",
-	"rulesbtn":         "rules",
-	"resetrulesbutton": "rules",
-	"blacklists":       "blacklists",
-	"addblacklist":     "blacklists",
-	"rmblacklist":      "blacklists",
-	"blaction":         "blacklists",
-	"approved":         "approvals",
-	"approve":          "approvals",
-	"unapprove":        "approvals",
-	"approval":         "approvals",
-	// WrapCommand settings commands, with the group from PM.
-	"welcome":            "greetings",
-	"setwelcome":         "greetings",
-	"resetwelcome":       "greetings",
-	"goodbye":            "greetings",
-	"setgoodbye":         "greetings",
-	"resetgoodbye":       "greetings",
-	"cleanwelcome":       "greetings",
-	"cleangoodbye":       "greetings",
-	"cleanservice":       "greetings",
-	"autoapprove":        "greetings",
-	"captcha":            "captcha",
-	"captchamode":        "captcha",
-	"captchajoin":        "captcha",
-	"captchatime":        "captcha",
-	"captchaaction":      "captcha",
-	"captchamaxattempts": "captcha",
-	"captchapending":     "captcha",
-	"captchaclear":       "captcha",
-	"setwarnlimit":       "warns",
-	"setwarnmode":        "warns",
-	"setwarntime":        "warns",
-	"aispam":             "aispam",
-	"spamdb":             "spamdb",
-	"probation":          "probation",
-	"spam":               "spamfilter",
-	"spamfilter":         "spamfilter",
-	"forgetspam":         "spamfilter",
-	"anonadmin":          "admin",
-	// Group resets, with the group from PM.
-	"privnote":      "notes",
-	"clearall":      "notes",
-	"stopall":       "filters",
-	"remallbl":      "blacklists",
-	"unapproveall":  "approvals",
-	"resetallwarns": "warns",
-	"unbanall":      "bans",
-	"baninfo":       "bans",
-	"banlist":       "bans",
-	// Group-only admin commands, with the group from PM.
-	"adminlist":       "admin",
-	"invitelink":      "admin",
-	"setgtitle":       "admin",
-	"setgdesc":        "admin",
-	"admincache":      "admin",
-	"clearadmincache": "admin",
-	"timezone":        "admin",
-	"ephemeral":       "admin",
-}
 
 // menuCommand is one command of the help menu: the module whose
 // <module>_help_msg documents it, and whether only admins can use it.
@@ -149,242 +19,64 @@ type menuCommand struct {
 	AdminOnly bool
 }
 
+// replyOnlyCommands act on the replied message, so an example without the
+// reply would mislead; they are the only help commands without one.
+var replyOnlyCommands = map[string]bool{"dban": true, "dkick": true, "dmute": true, "spam": true}
+
+// commandHelpModules maps each command that answers a wrong call with its own
+// help to the lowercase module that registered it. It is derived from the
+// command manifest WrapCommand fills at registration: a command belongs when
+// locales/config.yml gives it a <cmd>_example — the sample call that makes
+// the help actionable — or it is a replyOnlyCommands entry. Every such
+// command needs a × /cmd line in all seven locales' <module>_help_msg, with
+// continuation lines ending at a blank line or the next entry, no double
+// quotes or unknown HTML tags, and /cmd in en.yml's <module>_extend_msg.
+// TestEveryHelpCommandHasItsLineInEveryLocale enforces the locale contract.
+// The warn commands (/warn, /swarn, /rmwarn, /resetwarns, /warns) answer
+// with their help only from PM: in a group they answer a call without a
+// user with common_no_user_specified alone, as before PM support.
+func commandHelpModules() map[string]string {
+	out := make(map[string]string)
+	for cmd, entry := range helpers.CommandManifest() {
+		if commandExample(cmd) == "" && !replyOnlyCommands[cmd] {
+			continue
+		}
+		out[cmd] = strings.ToLower(entry.Module)
+	}
+	return out
+}
+
 // menuCommands lists every command of every en.yml <module>_extend_msg, and
-// nothing else. A command is AdminOnly only when no form of it works for a
-// member: /warns without a user shows your own warns, /lang in PM sets your
-// own language, /invitelink answers a member in a public group, and the
-// federation commands are gated by federation roles, not group admin rights.
-// Dev commands have no help module, so they are not listed.
-// Change this map in the same commit as an extend-list addition or removal;
-// TestMenuCommandsMatchExtendLists enforces parity. Every listed module needs a
-// one-line <module>_section_desc in all seven locales.
-var menuCommands = map[string]menuCommand{
-	"adminlist":       {Module: "admin"},
-	"promote":         {Module: "admin", AdminOnly: true},
-	"demote":          {Module: "admin", AdminOnly: true},
-	"title":           {Module: "admin", AdminOnly: true},
-	"invitelink":      {Module: "admin"},
-	"anonadmin":       {Module: "admin"},
-	"admincache":      {Module: "admin", AdminOnly: true},
-	"clearadmincache": {Module: "admin", AdminOnly: true},
-	"setgtitle":       {Module: "admin", AdminOnly: true},
-	"setgpic":         {Module: "admin", AdminOnly: true},
-	"setgdesc":        {Module: "admin", AdminOnly: true},
-	"timezone":        {Module: "admin", AdminOnly: true},
-	"ephemeral":       {Module: "admin", AdminOnly: true},
-
-	"aispam": {Module: "aispam", AdminOnly: true},
-
-	"flood":        {Module: "antiflood"},
-	"setflood":     {Module: "antiflood", AdminOnly: true},
-	"setfloodmode": {Module: "antiflood", AdminOnly: true},
-	"delflood":     {Module: "antiflood", AdminOnly: true},
-
-	"antiraid":       {Module: "antiraid", AdminOnly: true},
-	"raidtime":       {Module: "antiraid", AdminOnly: true},
-	"raidactiontime": {Module: "antiraid", AdminOnly: true},
-	"autoantiraid":   {Module: "antiraid", AdminOnly: true},
-
-	"approve":      {Module: "approvals", AdminOnly: true},
-	"unapprove":    {Module: "approvals", AdminOnly: true},
-	"approval":     {Module: "approvals", AdminOnly: true},
-	"approved":     {Module: "approvals", AdminOnly: true},
-	"unapproveall": {Module: "approvals", AdminOnly: true},
-
-	"export": {Module: "backup", AdminOnly: true},
-	"import": {Module: "backup", AdminOnly: true},
-	"reset":  {Module: "backup", AdminOnly: true},
-
-	"ban":        {Module: "bans", AdminOnly: true},
-	"sban":       {Module: "bans", AdminOnly: true},
-	"dban":       {Module: "bans", AdminOnly: true},
-	"tban":       {Module: "bans", AdminOnly: true},
-	"unban":      {Module: "bans", AdminOnly: true},
-	"kick":       {Module: "bans", AdminOnly: true},
-	"skick":      {Module: "bans", AdminOnly: true},
-	"dkick":      {Module: "bans", AdminOnly: true},
-	"kickme":     {Module: "bans"},
-	"banme":      {Module: "bans"},
-	"restrict":   {Module: "bans", AdminOnly: true},
-	"unrestrict": {Module: "bans", AdminOnly: true},
-	"unbanall":   {Module: "bans", AdminOnly: true},
-	"baninfo":    {Module: "bans", AdminOnly: true},
-	"banlist":    {Module: "bans", AdminOnly: true},
-
-	"blacklists":      {Module: "blacklists"},
-	"addblacklist":    {Module: "blacklists", AdminOnly: true},
-	"rmblacklist":     {Module: "blacklists", AdminOnly: true},
-	"blaction":        {Module: "blacklists", AdminOnly: true},
-	"blacklistaction": {Module: "blacklists", AdminOnly: true},
-	"remallbl":        {Module: "blacklists", AdminOnly: true},
-
-	"captcha":            {Module: "captcha", AdminOnly: true},
-	"captchamode":        {Module: "captcha", AdminOnly: true},
-	"captchajoin":        {Module: "captcha", AdminOnly: true},
-	"captchatime":        {Module: "captcha", AdminOnly: true},
-	"captchaaction":      {Module: "captcha", AdminOnly: true},
-	"captchamaxattempts": {Module: "captcha", AdminOnly: true},
-	"captchapending":     {Module: "captcha", AdminOnly: true},
-	"captchaclear":       {Module: "captcha", AdminOnly: true},
-
-	"connect":      {Module: "connections"},
-	"disconnect":   {Module: "connections"},
-	"reconnect":    {Module: "connections"},
-	"connection":   {Module: "connections"},
-	"settings":     {Module: "connections", AdminOnly: true},
-	"allowconnect": {Module: "connections", AdminOnly: true},
-
-	"digest": {Module: "digest", AdminOnly: true},
-
-	"recurring": {Module: "recurring", AdminOnly: true},
-
-	"disable":     {Module: "disabling", AdminOnly: true},
-	"enable":      {Module: "disabling", AdminOnly: true},
-	"disableable": {Module: "disabling"},
-	"disabled":    {Module: "disabling"},
-	"disabledel":  {Module: "disabling", AdminOnly: true},
-
-	"newfed":      {Module: "federations"},
-	"renamefed":   {Module: "federations"},
-	"delfed":      {Module: "federations"},
-	"fedinfo":     {Module: "federations"},
-	"fedadmins":   {Module: "federations"},
-	"fedpromote":  {Module: "federations"},
-	"feddemote":   {Module: "federations"},
-	"feddemoteme": {Module: "federations"},
-	"joinfed":     {Module: "federations", AdminOnly: true},
-	"leavefed":    {Module: "federations", AdminOnly: true},
-	"chatfed":     {Module: "federations"},
-	"myfeds":      {Module: "federations"},
-	"fban":        {Module: "federations"},
-	"unfban":      {Module: "federations"},
-	"funban":      {Module: "federations"},
-	"fedstat":     {Module: "federations"},
-	"fbanstat":    {Module: "federations"},
-	"fedreason":   {Module: "federations"},
-	"fednotif":    {Module: "federations"},
-	"quietfed":    {Module: "federations", AdminOnly: true},
-	"subfed":      {Module: "federations"},
-	"unsubfed":    {Module: "federations"},
-	"fedsubs":     {Module: "federations"},
-	"fbanlist":    {Module: "federations"},
-	"importfbans": {Module: "federations"},
-	"setfedlog":   {Module: "federations"},
-	"unsetfedlog": {Module: "federations"},
-
-	"filter":  {Module: "filters", AdminOnly: true},
-	"filters": {Module: "filters"},
-	"stop":    {Module: "filters", AdminOnly: true},
-	"stopall": {Module: "filters", AdminOnly: true},
-
-	"markdownhelp": {Module: "formatting"},
-	"formatting":   {Module: "formatting"},
-
-	"welcome":      {Module: "greetings", AdminOnly: true},
-	"setwelcome":   {Module: "greetings", AdminOnly: true},
-	"resetwelcome": {Module: "greetings", AdminOnly: true},
-	"goodbye":      {Module: "greetings", AdminOnly: true},
-	"setgoodbye":   {Module: "greetings", AdminOnly: true},
-	"resetgoodbye": {Module: "greetings", AdminOnly: true},
-	"cleanwelcome": {Module: "greetings", AdminOnly: true},
-	"cleangoodbye": {Module: "greetings", AdminOnly: true},
-	"cleanservice": {Module: "greetings", AdminOnly: true},
-	"autoapprove":  {Module: "greetings", AdminOnly: true},
-
-	"lang": {Module: "languages"},
-
-	"lock":      {Module: "locks", AdminOnly: true},
-	"unlock":    {Module: "locks", AdminOnly: true},
-	"locks":     {Module: "locks", AdminOnly: true},
-	"locktypes": {Module: "locks"},
-	"nightmode": {Module: "locks", AdminOnly: true},
-
-	"setlog":        {Module: "logchannels", AdminOnly: true},
-	"unsetlog":      {Module: "logchannels", AdminOnly: true},
-	"logchannel":    {Module: "logchannels"},
-	"logcategories": {Module: "logchannels"},
-	"log":           {Module: "logchannels", AdminOnly: true},
-	"nolog":         {Module: "logchannels", AdminOnly: true},
-
-	"info":              {Module: "misc"},
-	"id":                {Module: "misc"},
-	"ping":              {Module: "misc"},
-	"stat":              {Module: "misc"},
-	"tell":              {Module: "misc", AdminOnly: true},
-	"tr":                {Module: "misc"},
-	"removebotkeyboard": {Module: "misc"},
-	"stickerid":         {Module: "misc"},
-	"zombies":           {Module: "misc", AdminOnly: true},
-	"github":            {Module: "misc"},
-	"wiki":              {Module: "misc"},
-	"ud":                {Module: "misc"},
-	"runs":              {Module: "misc"},
-
-	"mute":   {Module: "mutes", AdminOnly: true},
-	"smute":  {Module: "mutes", AdminOnly: true},
-	"dmute":  {Module: "mutes", AdminOnly: true},
-	"tmute":  {Module: "mutes", AdminOnly: true},
-	"unmute": {Module: "mutes", AdminOnly: true},
-
-	"save":         {Module: "notes", AdminOnly: true},
-	"addnote":      {Module: "notes", AdminOnly: true},
-	"get":          {Module: "notes"},
-	"notes":        {Module: "notes"},
-	"saved":        {Module: "notes"},
-	"clear":        {Module: "notes", AdminOnly: true},
-	"rmnote":       {Module: "notes", AdminOnly: true},
-	"clearall":     {Module: "notes", AdminOnly: true},
-	"privatenotes": {Module: "notes", AdminOnly: true},
-	"privnote":     {Module: "notes", AdminOnly: true},
-
-	"pin":            {Module: "pins", AdminOnly: true},
-	"unpin":          {Module: "pins", AdminOnly: true},
-	"unpinall":       {Module: "pins", AdminOnly: true},
-	"pinned":         {Module: "pins"},
-	"permapin":       {Module: "pins", AdminOnly: true},
-	"antichannelpin": {Module: "pins", AdminOnly: true},
-	"cleanlinked":    {Module: "pins", AdminOnly: true},
-
-	"del":       {Module: "purges", AdminOnly: true},
-	"purge":     {Module: "purges", AdminOnly: true},
-	"purgefrom": {Module: "purges", AdminOnly: true},
-	"purgeto":   {Module: "purges", AdminOnly: true},
-
-	"addreaction":    {Module: "reactions", AdminOnly: true},
-	"removereaction": {Module: "reactions", AdminOnly: true},
-	"reactions":      {Module: "reactions"},
-	"resetreactions": {Module: "reactions", AdminOnly: true},
-
-	"report":  {Module: "reports"},
-	"reports": {Module: "reports", AdminOnly: true},
-
-	"rules":            {Module: "rules"},
-	"setrules":         {Module: "rules", AdminOnly: true},
-	"resetrules":       {Module: "rules", AdminOnly: true},
-	"privaterules":     {Module: "rules", AdminOnly: true},
-	"rulesbtn":         {Module: "rules", AdminOnly: true},
-	"resetrulesbutton": {Module: "rules", AdminOnly: true},
-	"resetrulesbtn":    {Module: "rules", AdminOnly: true},
-
-	"spamdb": {Module: "spamdb", AdminOnly: true},
-
-	"probation":   {Module: "probation", AdminOnly: true},
-	"spam":        {Module: "spamfilter", AdminOnly: true},
-	"spamfilter":  {Module: "spamfilter", AdminOnly: true},
-	"spamsamples": {Module: "spamfilter", AdminOnly: true},
-	"forgetspam":  {Module: "spamfilter", AdminOnly: true},
-
-	"warn":          {Module: "warns", AdminOnly: true},
-	"swarn":         {Module: "warns", AdminOnly: true},
-	"dwarn":         {Module: "warns", AdminOnly: true},
-	"warns":         {Module: "warns"},
-	"rmwarn":        {Module: "warns", AdminOnly: true},
-	"resetwarns":    {Module: "warns", AdminOnly: true},
-	"resetallwarns": {Module: "warns", AdminOnly: true},
-	"warnings":      {Module: "warns", AdminOnly: true},
-	"setwarnlimit":  {Module: "warns", AdminOnly: true},
-	"setwarntime":   {Module: "warns", AdminOnly: true},
-	"setwarnmode":   {Module: "warns", AdminOnly: true},
+// nothing else. The module is the one the manifest says registered the
+// command; AdminOnly comes from the descriptor's declared checks, so a
+// command is member-visible only when some form of it works for a member:
+// /warns without a user shows your own warns, /lang in PM sets your own
+// language, /invitelink answers a member in a public group, and the
+// federation commands are gated by federation roles, not group admin
+// rights. Dev commands have no extend list, so they are not listed.
+// Every listed module needs a one-line <module>_section_desc in all seven
+// locales.
+func menuCommands() map[string]menuCommand {
+	manifest := helpers.CommandManifest()
+	en := i18n.MustNewTranslator("en")
+	out := map[string]menuCommand{}
+	seen := map[string]bool{}
+	for _, entry := range manifest {
+		module := strings.ToLower(entry.Module)
+		if seen[module] {
+			continue
+		}
+		seen[module] = true
+		order, _ := extendLines(en, module)
+		for _, cmd := range order {
+			owner, ok := manifest[cmd]
+			if !ok || strings.ToLower(owner.Module) != module {
+				continue
+			}
+			out[cmd] = menuCommand{Module: module, AdminOnly: owner.AdminOnly}
+		}
+	}
+	return out
 }
 
 // helpCommandLine matches a help line that defines commands: an optional
@@ -459,7 +151,7 @@ func commandPMExample(cmd string) string {
 // entry and example, the sample call, when the chat's language documents it,
 // else the whole module help.
 func commandHelpTextWith(tr *i18n.Translator, cmd, errText, example string) string {
-	module, ok := commandHelpModules[cmd]
+	module, ok := commandHelpModules()[cmd]
 	if !ok {
 		return errText
 	}
@@ -510,8 +202,9 @@ func replyCommandHelp(b *gotgbot.Bot, msg *gotgbot.Message, tr *i18n.Translator,
 // CommandModules maps each help-menu command to its module, the bounded
 // command set metrics label updates with.
 func CommandModules() map[string]string {
-	out := make(map[string]string, len(menuCommands))
-	for cmd, entry := range menuCommands {
+	menu := menuCommands()
+	out := make(map[string]string, len(menu))
+	for cmd, entry := range menu {
 		out[cmd] = entry.Module
 	}
 	return out

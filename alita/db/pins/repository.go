@@ -28,7 +28,7 @@ func checkPinData(chatID int64) (*models.PinSettings, error) {
 func GetPinData(chatID int64) *models.PinSettings {
 	pinrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("pins", chatID),
+		PinSettingsProjection.Key(chatID),
 		cache.CacheTTLPins,
 		func(context.Context) (*models.PinSettings, error) {
 			return checkPinData(chatID)
@@ -56,7 +56,7 @@ func setPinSetting(chatID int64, field string, value bool) error {
 	if err != nil {
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("pins", chatID))
+	cache.DeleteCache(PinSettingsProjection.Key(chatID))
 	return nil
 }
 

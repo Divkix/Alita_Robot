@@ -642,7 +642,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 }
 
 // adminCacheActorCheck must bypass the cache this command is about to reload.
-func adminCacheActorCheck(c *helpers.CommandContext) bool {
+var adminCacheActorCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 	b, msg, user, chat := c.Bot, c.Msg, c.User, c.Chat
 
 	// Preserve the two existing trusted synthetic admins without querying
@@ -670,7 +670,7 @@ func adminCacheActorCheck(c *helpers.CommandContext) bool {
 		return false
 	}
 	return true
-}
+})
 
 func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	b, msg, chat := c.Bot, c.Msg, c.Chat
@@ -693,13 +693,13 @@ var (
 		Name:        "adminlist",
 		Disableable: true,
 		PMGroupArg:  helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck,
+		RequiredChecks: []helpers.Check{groupOnlyChatCheck,
 			helpers.RequireBotAdmin(),
 			helpers.RequireGroup()},
 	}
 	promoteDesc = helpers.CommandDescriptor{
 		Name: "promote",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserAdmin(),
@@ -709,7 +709,7 @@ var (
 	}
 	demoteDesc = helpers.CommandDescriptor{
 		Name: "demote",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserAdmin(),
@@ -719,7 +719,7 @@ var (
 	}
 	setTitleDesc = helpers.CommandDescriptor{
 		Name: "title",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
@@ -730,7 +730,7 @@ var (
 	getinvitelinkDesc = helpers.CommandDescriptor{
 		Name:       "invitelink",
 		PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
@@ -740,7 +740,7 @@ var (
 	clearAdminCacheDesc = helpers.CommandDescriptor{
 		Name:       "clearadmincache",
 		PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
@@ -756,7 +756,7 @@ var (
 		Name:       "setgtitle",
 		Aliases:    []string{"setgrouptitle"},
 		PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
@@ -768,7 +768,7 @@ var (
 	setGPicDesc = helpers.CommandDescriptor{
 		Name:    "setgpic",
 		Aliases: []string{"setgrouppic"},
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserAdmin(),
@@ -780,7 +780,7 @@ var (
 		Name:       "setgdesc",
 		Aliases:    []string{"setgroupdesc", "setdescription"},
 		PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			groupOnlyChatCheck,
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
@@ -809,7 +809,7 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "admincache", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireConnectedMember(helpers.BotAdminNotRequired),
 			helpers.RequireGroup(),
 			adminCacheActorCheck,

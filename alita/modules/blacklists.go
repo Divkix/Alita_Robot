@@ -66,7 +66,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 
 	if len(args) == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_give_bl_word")
+		text := tr.String(strings.ToLower(m.moduleName) + "_blacklist_give_bl_word")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -95,7 +95,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 		if len(tooLong) > 0 {
-			text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_word_too_long")
+			text := tr.String(strings.ToLower(m.moduleName) + "_blacklist_word_too_long")
 			_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(tooLong, ", ")), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -127,15 +127,15 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		if len(alreadyBlacklisted) >= 1 {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_already_blacklisted")
+			temp := tr.String(strings.ToLower(m.moduleName) + "_blacklist_already_blacklisted")
 			text += temp + fmt.Sprintf("\n - %s\n\n", strings.Join(alreadyBlacklisted, "\n - "))
 		}
 		if len(newBlacklist) >= 1 {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_added_bl")
+			temp := tr.String(strings.ToLower(m.moduleName) + "_blacklist_added_bl")
 			text += temp + fmt.Sprintf("\n - %s\n\n", strings.Join(newBlacklist, "\n - "))
 		}
 		if saveFailed {
-			temp, _ := tr.GetString("common_settings_save_failed")
+			temp := tr.String("common_settings_save_failed")
 			text += temp
 		}
 
@@ -157,7 +157,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	var removedBlacklists []string
 
 	if len(args) == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unblacklist_give_bl_word")
+		text := tr.String(strings.ToLower(m.moduleName) + "_unblacklist_give_bl_word")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -180,13 +180,13 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 		if len(removedBlacklists) <= 0 {
-			text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unblacklist_no_removed_bl")
+			text := tr.String(strings.ToLower(m.moduleName) + "_unblacklist_no_removed_bl")
 			_, err := msg.Reply(b, text, nil)
 			if err != nil {
 				return err
 			}
 		} else {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unblacklist_removed_bl")
+			temp := tr.String(strings.ToLower(m.moduleName) + "_unblacklist_removed_bl")
 			_, err := msg.Reply(b, fmt.Sprintf(temp, strings.Join(removedBlacklists, ", ")), nil)
 			if err != nil {
 				return err
@@ -222,10 +222,10 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	blacklistsText += sb.String()
 
 	if blacklistsText != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ls_bl_list_bl")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_ls_bl_list_bl")
 		blacklistsText = temp + blacklistsText
 	} else {
-		blacklistsText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_ls_bl_no_blacklisted")
+		blacklistsText = tr.String(strings.ToLower(m.moduleName) + "_ls_bl_no_blacklisted")
 	}
 
 	_, err := msg.Reply(b,
@@ -255,7 +255,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 
 	if len(args) == 0 {
 		currAction := blacklistModeLabel(blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id))
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_current_mode")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_set_bl_action_current_mode")
 		rMsg = fmt.Sprintf(temp, currAction)
 	} else {
 		action := strings.ToLower(args[0])
@@ -270,14 +270,14 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 				actionTime = int(seconds)
 			}
 			if err := blacklists.SetBlacklistAction(chat.Id, action, actionTime); errors.Is(err, blacklists.ErrNoBlacklistWords) {
-				rMsg, _ = tr.GetString("blacklists_set_bl_action_no_words")
+				rMsg = tr.String("blacklists_set_bl_action_no_words")
 			} else if err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chat.Id,
 					"action": action,
 					"error":  err,
 				}).Error("[Blacklists] Failed to persist blacklist action")
-				rMsg, _ = tr.GetString("blacklists_set_bl_action_update_failed")
+				rMsg = tr.String("blacklists_set_bl_action_update_failed")
 			} else {
 				key := strings.ToLower(m.moduleName) + "_set_bl_action_changed_mode"
 				value := action
@@ -285,11 +285,11 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 					key = "blist_action_" + action
 					value = formatDuration(actionTime)
 				}
-				temp, _ := tr.GetString(key)
+				temp := tr.String(key)
 				rMsg = fmt.Sprintf(temp, value)
 			}
 		} else {
-			rMsg, _ = tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_choose_correct_option")
+			rMsg = tr.String(strings.ToLower(m.moduleName) + "_set_bl_action_choose_correct_option")
 		}
 	}
 	_, err := msg.Reply(b, rMsg, formatting.Smarkdown())
@@ -445,7 +445,7 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		actionlog.Field{Name: "Trigger", Value: i},
 	)
 	// The notice shows the trigger HTML-escaped, unlike the record's reason.
-	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
+	temp := tr.String(strings.ToLower(m.moduleName) + key)
 	args := append([]any{formatting.MentionHtml(user.Id(), user.Name())}, durationArgs...)
 	args = append(args, fmt.Sprintf(reason, html.EscapeString(i)))
 	if _, err := b.SendMessage(chat.Id, fmt.Sprintf(temp, args...), formatting.Shtml()); err != nil {
@@ -462,9 +462,9 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 		Aliases:        []string{"blocklists"},
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(blacklistsModule.listBlacklists))
-	restrictChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	restrictChecks := []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "addblacklist",
 		Aliases:        []string{"blacklist", "addblocklist", "blocklist"},
@@ -487,7 +487,7 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 		Name:           "remallbl",
 		Aliases:        []string{"rmallbl", "rmblocklistall", "rmallblocklist"},
 		PMGroupArg:     helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
+		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
 	}, pipelineHandler(blacklistsModule.rmAllBlacklists))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist|"), blacklistsClearAllCallback))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {

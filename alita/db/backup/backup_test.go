@@ -772,7 +772,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	require.NoError(t, ClearModuleData(chatID, BackupModuleGreetings))
 	settings := greetings.GetGreetingSettings(chatID)
 	if settings != nil && settings.WelcomeSettings != nil {
-		assert.False(t, settings.WelcomeSettings.ShouldWelcome)
+		assert.True(t, settings.WelcomeSettings.ShouldWelcome, "a cleared chat reads the declared greeting default")
 	}
 
 	_ = pins.GetPinData(chatID)

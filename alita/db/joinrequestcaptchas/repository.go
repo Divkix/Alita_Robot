@@ -20,11 +20,11 @@ import (
 var ErrNoActiveCaptcha = errors.New("NO_ACTIVE_JOIN_REQUEST_CAPTCHA")
 
 func attemptCacheKey(chatID, userID int64) string {
-	return cache.CacheKey("join_request_captcha", chatID, userID)
+	return AttemptProjection.Key(chatID, userID)
 }
 
 func attemptIDCacheKey(id uint) string {
-	return cache.CacheKey("join_request_captcha_id", id)
+	return AttemptIDProjection.Key(id)
 }
 
 func invalidateAttempt(attempt *models.JoinRequestCaptcha) {

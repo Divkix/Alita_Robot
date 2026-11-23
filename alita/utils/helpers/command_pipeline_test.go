@@ -85,7 +85,7 @@ func TestBuildCommandContextSuccess(t *testing.T) {
 func TestCheckFuncNilGuards(t *testing.T) {
 	tests := []struct {
 		name  string
-		check CheckFunc
+		check Check
 		c     *CommandContext
 	}{
 		{
@@ -126,7 +126,7 @@ func TestCheckFuncNilGuards(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := tc.check(tc.c); got != false {
+			if got := tc.check.Run(tc.c); got != false {
 				t.Fatalf("%s returned %v, want false", tc.name, got)
 			}
 		})
@@ -197,7 +197,7 @@ func makeCpContextWithUser(chatType string, userId int64) *ext.Context {
 func TestCheckFuncTrueBranches(t *testing.T) {
 	tests := []struct {
 		name  string
-		check CheckFunc
+		check Check
 		c     *CommandContext
 		want  bool
 	}{
@@ -262,7 +262,7 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := tc.check(tc.c); got != tc.want {
+			if got := tc.check.Run(tc.c); got != tc.want {
 				t.Fatalf("%s returned %v, want %v", tc.name, got, tc.want)
 			}
 		})
@@ -272,7 +272,7 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 func TestCheckFuncFalseBranches(t *testing.T) {
 	tests := []struct {
 		name  string
-		check CheckFunc
+		check Check
 		c     *CommandContext
 	}{
 		{
@@ -322,7 +322,7 @@ func TestCheckFuncFalseBranches(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.check(tc.c); got != false {
+			if got := tc.check.Run(tc.c); got != false {
 				t.Fatalf("%s returned %v, want false", tc.name, got)
 			}
 		})
@@ -379,7 +379,7 @@ func TestCanInviteBlamesWhoeverLacksTheRight(t *testing.T) {
 			}
 			ctx := ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
 
-			if CanInvite()(&CommandContext{Bot: bot, Ctx: ctx, Msg: msg}) {
+			if CanInvite().Run(&CommandContext{Bot: bot, Ctx: ctx, Msg: msg}) {
 				t.Fatal("CanInvite() = true, want false")
 			}
 			want, _ := tr.GetString(tt.wantKey)
@@ -406,7 +406,7 @@ func TestWrapCommandSuccess(t *testing.T) {
 
 	WrapCommand(d, CommandDescriptor{
 		Name:           "testwrap",
-		RequiredChecks: []CheckFunc{RequireGroup()},
+		RequiredChecks: []Check{RequireGroup()},
 	}, handler)
 
 	bot := newCpBot(999)
@@ -452,7 +452,7 @@ func TestWrapCommandWithDisableable(t *testing.T) {
 	WrapCommand(d, CommandDescriptor{
 		Name:           "testdisableable",
 		Disableable:    true,
-		RequiredChecks: []CheckFunc{},
+		RequiredChecks: []Check{},
 	}, handler)
 
 	found := false
@@ -508,7 +508,7 @@ func TestRegisterWithGroup(t *testing.T) {
 func TestNewChecksTrueBranches(t *testing.T) {
 	cases := []struct {
 		name  string
-		check CheckFunc
+		check Check
 		c     *CommandContext
 	}{
 		{"CanUserRestrict admin", CanUserRestrict(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}}},
@@ -521,7 +521,7 @@ func TestNewChecksTrueBranches(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := tc.check(tc.c); !got {
+			if got := tc.check.Run(tc.c); !got {
 				t.Fatalf("%s returned false, want true", tc.name)
 			}
 		})
@@ -531,7 +531,7 @@ func TestNewChecksTrueBranches(t *testing.T) {
 func TestNewChecksFalseBranches(t *testing.T) {
 	cases := []struct {
 		name  string
-		check CheckFunc
+		check Check
 		c     *CommandContext
 	}{
 		{"CanUserRestrict member", CanUserRestrict(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}}},
@@ -547,7 +547,7 @@ func TestNewChecksFalseBranches(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := tc.check(tc.c); got {
+			if got := tc.check.Run(tc.c); got {
 				t.Fatalf("%s returned true, want false", tc.name)
 			}
 		})
@@ -556,18 +556,18 @@ func TestNewChecksFalseBranches(t *testing.T) {
 
 func TestRunChecksOrder(t *testing.T) {
 	calls := []string{}
-	mk := func(name string, ret bool) CheckFunc {
-		return func(_ *CommandContext) bool {
+	mk := func(name string, ret bool) Check {
+		return NewCheck(CheckKindAny, func(_ *CommandContext) bool {
 			calls = append(calls, name)
 			return ret
-		}
+		})
 	}
 	c := &CommandContext{}
-	if !RunChecks(c, []CheckFunc{mk("a", true), mk("b", true)}) {
+	if !RunChecks(c, []Check{mk("a", true), mk("b", true)}) {
 		t.Fatal("RunChecks all-true = false, want true")
 	}
 	calls = nil
-	if RunChecks(c, []CheckFunc{mk("a", true), mk("b", false), mk("c", true)}) {
+	if RunChecks(c, []Check{mk("a", true), mk("b", false), mk("c", true)}) {
 		t.Fatal("RunChecks with false = true, want false")
 	}
 	if len(calls) != 2 || calls[0] != "a" || calls[1] != "b" {

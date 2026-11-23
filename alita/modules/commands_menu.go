@@ -161,11 +161,11 @@ func commandsSections() (modules []string, names map[string]string) {
 
 // sectionCommands lists module's commands the view shows, in the order of the
 // English <module>_extend_msg.
-func sectionCommands(module string, view commandsView) []string {
+func sectionCommands(module string, view commandsView, menu map[string]menuCommand) []string {
 	order, _ := extendLines(i18n.MustNewTranslator("en"), module)
 	var out []string
 	for _, cmd := range order {
-		entry, ok := menuCommands[cmd]
+		entry, ok := menu[cmd]
 		if ok && entry.Module == module && (view.admin || !entry.AdminOnly) {
 			out = append(out, cmd)
 		}
@@ -214,9 +214,10 @@ func commandsHomeScreen(tr *i18n.Translator, view commandsView) (string, gotgbot
 	header, _ := tr.GetString(headerKey)
 	lines := []string{header, ""}
 	var buttons []gotgbot.InlineKeyboardButton
+	menu := menuCommands()
 	modules, names := commandsSections()
 	for _, module := range modules {
-		if len(sectionCommands(module, view)) == 0 {
+		if len(sectionCommands(module, view, menu)) == 0 {
 			continue
 		}
 		lines = append(lines, sectionHeading(tr, module, names[module]))
@@ -234,7 +235,7 @@ func commandsHomeScreen(tr *i18n.Translator, view commandsView) (string, gotgbot
 func commandsSectionScreen(tr *i18n.Translator, view commandsView, module string) (string, gotgbot.InlineKeyboardMarkup, bool) {
 	_, names := commandsSections()
 	name, listed := names[module]
-	commands := sectionCommands(module, view)
+	commands := sectionCommands(module, view, menuCommands())
 	if !listed || len(commands) == 0 {
 		return "", gotgbot.InlineKeyboardMarkup{}, false
 	}
@@ -268,7 +269,7 @@ func commandsSectionScreen(tr *i18n.Translator, view commandsView, module string
 // language has no entry for it), its PM example naming the view's group, a
 // button that copies the example, and Back to its section.
 func commandsCommandScreen(tr *i18n.Translator, view commandsView, cmd string) (string, gotgbot.InlineKeyboardMarkup, bool) {
-	entry, ok := menuCommands[cmd]
+	entry, ok := menuCommands()[cmd]
 	if !ok {
 		return "", gotgbot.InlineKeyboardMarkup{}, false
 	}
@@ -370,7 +371,7 @@ func (moduleStruct) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error
 
 func loadCommandsMenu(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "commands", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "commands", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, DefaultHelpRegistry().commandsMenu)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(commandsMenuNamespace+"|"), DefaultHelpRegistry().commandsMenuCallback))
 }

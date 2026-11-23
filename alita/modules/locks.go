@@ -125,7 +125,7 @@ func (moduleStruct) buildLockTypesMessage(ctx *ext.Context, chatID int64) (res s
 
 	newMapLocks := chatLocks
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	res, _ = tr.GetString("locks_current_locks_header")
+	res = tr.String("locks_current_locks_header")
 
 	keys := make([]string, 0, len(newMapLocks))
 	for k := range newMapLocks {
@@ -146,7 +146,7 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	_locktypes := m.getLockMapAsArray()
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	header, _ := tr.GetString("locks_locktypes_header")
+	header := tr.String("locks_locktypes_header")
 	_, err := msg.Reply(b, header+strings.Join(_locktypes, "\n - "), formatting.Shtml())
 	if err != nil {
 		return err
@@ -203,14 +203,14 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	}
 
 	if len(args) == 0 {
-		text, _ := tr.GetString(keys.whatKey)
+		text := tr.String(keys.whatKey)
 		return reply(text)
 	}
 
 	lockTypes := m.getLockMapAsArray()
 	for _, perm := range args {
 		if !slices.Contains(lockTypes, perm) {
-			temp, _ := tr.GetString("locks_invalid_lock_type")
+			temp := tr.String("locks_invalid_lock_type")
 			return reply(fmt.Sprintf(temp, html.EscapeString(perm)))
 		}
 	}
@@ -224,10 +224,10 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	}
 
 	if len(failedLocks) > 0 {
-		text, _ := tr.GetString(keys.failedKey)
+		text := tr.String(keys.failedKey)
 		return reply(fmt.Sprintf(text, strings.Join(failedLocks, ", ")))
 	}
-	temp, _ := tr.GetString(keys.doneKey)
+	temp := tr.String(keys.doneKey)
 	return reply(fmt.Sprintf(temp, strings.Join(args, "\n - ")))
 }
 
@@ -378,7 +378,7 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 	notice := func(key string) {
 		// A ChatMember update has no message to reply to, so send to the chat.
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
 			log.WithContext(tracing.UpdateContext(ctx)).Error(err)
 		}
@@ -420,23 +420,23 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "lock", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
 		},
 	}, pipelineHandler(locksModule.lockPerm))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unlock", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
 		},
 	}, pipelineHandler(locksModule.unlockPerm))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "locktypes", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locktypes))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "locks", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locks))
 	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)

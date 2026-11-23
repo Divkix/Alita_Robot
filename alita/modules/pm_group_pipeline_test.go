@@ -29,12 +29,12 @@ func TestWrapCommandResolvesPMGroupBeforeChecks(t *testing.T) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:       "setwarnlimit",
 		PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{func(c *helpers.CommandContext) bool {
+		RequiredChecks: []helpers.Check{helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 			if group := chat_status.OneOffGroup(c.Ctx); group != nil {
 				checked = group.Id
 			}
 			return checked == f.chat.Id
-		}, helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		}), helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(warnsModule.setWarnLimit))
 	before := warnLimit(connected)
 

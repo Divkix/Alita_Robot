@@ -65,7 +65,7 @@ func TestPipelineRoleDisableReplayMatrix(t *testing.T) {
 									t.Fatal(err)
 								}
 								d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-								WrapCommand(d, CommandDescriptor{Name: "canonical", Aliases: []string{"alternate"}, Disableable: disableable, RequiredChecks: []CheckFunc{RequireGroup()}}, func(c *CommandContext) error {
+								WrapCommand(d, CommandDescriptor{Name: "canonical", Aliases: []string{"alternate"}, Disableable: disableable, RequiredChecks: []Check{RequireGroup()}}, func(c *CommandContext) error {
 									_, err := c.Bot.SendMessage(c.Chat.Id, fmt.Sprintf("%s|%d|%d", c.Msg.Text, c.User.Id, c.Msg.ReplyToMessage.MessageId), nil)
 									return err
 								})
@@ -112,7 +112,7 @@ func TestPipelineDisablePrecedesRights(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	WrapCommand(d, CommandDescriptor{Name: "gated", Disableable: true, RequiredChecks: []CheckFunc{RequireUserAdmin()}}, func(c *CommandContext) error {
+	WrapCommand(d, CommandDescriptor{Name: "gated", Disableable: true, RequiredChecks: []Check{RequireUserAdmin()}}, func(c *CommandContext) error {
 		_, err := c.Bot.SendMessage(c.Chat.Id, "accepted", nil)
 		return err
 	})
@@ -161,7 +161,7 @@ func TestPipelineSenderlessPublicAndCheckedCommands(t *testing.T) {
 			}
 			desc := CommandDescriptor{Name: "senderless", Disableable: tc.disableable}
 			if tc.checked {
-				desc.RequiredChecks = []CheckFunc{RequireUserAdmin()}
+				desc.RequiredChecks = []Check{RequireUserAdmin()}
 			}
 			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 			WrapCommand(d, desc, func(c *CommandContext) error {

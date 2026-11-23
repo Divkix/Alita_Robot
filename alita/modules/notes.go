@@ -782,7 +782,7 @@ func sendNoteEphemeral(b *gotgbot.Bot, ctx *ext.Context, group *gotgbot.Chat, no
 }
 
 func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64, noteData *db.Notes) error {
-	if !helpers.RunChecks(c, []helpers.CheckFunc{helpers.RequireUserAdmin()}) {
+	if !helpers.RunChecks(c, []helpers.Check{helpers.RequireUserAdmin()}) {
 		return ext.EndGroups
 	}
 
@@ -795,7 +795,7 @@ func (moduleStruct) sendNoFormatNote(c *helpers.CommandContext, replyMsgId int64
 
 // notesClearAllOwnerCheck preserves the empty-list response, live creator
 // lookup, custom refusal and silent rejection of system accounts.
-func notesClearAllOwnerCheck(c *helpers.CommandContext) bool {
+var notesClearAllOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 	if len(notes.GetNotesListContext(tracing.UpdateContext(c.Ctx), c.Chat.Id, true)) == 0 {
 		return true
 	}
@@ -815,7 +815,7 @@ func notesClearAllOwnerCheck(c *helpers.CommandContext) bool {
 		_ = helpers.EndGroupsLogging(c.Ctx, err)
 	}
 	return false
-}
+})
 
 func LoadNotes(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(notesModule.moduleName, true)
@@ -829,17 +829,17 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "save",
 		Aliases:        []string{"addnote"},
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserChangeInfo()},
 	}, pipelineHandler(notesModule.addNote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:    "clear",
 		Aliases: []string{"rmnote"},
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired),
-			func(c *helpers.CommandContext) bool {
+			helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 				// A missing keyword returns before this right.
-				return len(c.Ctx.Args()) == 1 || helpers.CanUserChangeInfo()(c)
-			},
+				return len(c.Ctx.Args()) == 1 || helpers.CanUserChangeInfo().Run(c)
+			}),
 		},
 	}, pipelineHandler(notesModule.rmNote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
@@ -847,12 +847,12 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		Aliases:        []string{"saved"},
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(notesModule.notesList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "clearall",
 		PMGroupArg:     helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), notesClearAllOwnerCheck},
+		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), notesClearAllOwnerCheck},
 	}, pipelineHandler(notesModule.rmAllNotes))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes|"), notesClearAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite"), notesModule.noteOverWriteHandler))
@@ -868,12 +868,12 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		Name:           "privnote",
 		Aliases:        []string{"privatenotes"},
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck}, declaredGroupSettingChecks(chatsettings.PrivateNotes)...),
+		RequiredChecks: append([]helpers.Check{groupOnlyChatCheck}, declaredGroupSettingChecks(chatsettings.PrivateNotes)...),
 	}, pipelineHandler(notesModule.privNote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "get",
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
 	}, notesModule.getNotes)
 }
 
