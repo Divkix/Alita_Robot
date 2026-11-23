@@ -423,7 +423,7 @@ func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID in
 		actionlog.Field{Name: "Joiners banned for", Value: formatDuration(settings.RaidActionTime)},
 	)
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
+	text := tr.String("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
 	_, _ = chat.SendMessage(bot, text, formatting.Shtml())
 }
 
@@ -455,14 +455,14 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		st := getRaidState(chat.Id)
 		var text string
 		if isActive {
-			text, _ = tr.GetString("antiraid_active_status", i18n.TranslationParams{
+			text = tr.String("antiraid_active_status", i18n.TranslationParams{
 				"raid_time":      formatDuration(settings.RaidTime),
 				"action_time":    formatDuration(settings.RaidActionTime),
 				"auto_threshold": strconv.Itoa(settings.AutoAntiRaidThreshold),
 				"expires_in":     formatDuration(int(int64(st.ExpiresAt) - time.Now().Unix())),
 			})
 		} else {
-			text, _ = tr.GetString("antiraid_inactive_status", i18n.TranslationParams{
+			text = tr.String("antiraid_inactive_status", i18n.TranslationParams{
 				"raid_time":      formatDuration(settings.RaidTime),
 				"action_time":    formatDuration(settings.RaidActionTime),
 				"auto_threshold": strconv.Itoa(settings.AutoAntiRaidThreshold),
@@ -471,13 +471,13 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		var kb [][]gotgbot.InlineKeyboardButton
 		if isActive {
-			disableText, _ := tr.GetString("antiraid_btn_disable")
+			disableText := tr.String("antiraid_btn_disable")
 			kb = append(kb, []gotgbot.InlineKeyboardButton{{
 				Text:         disableText,
 				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "off", "c": strconv.FormatInt(chat.Id, 10)}),
 			}})
 		} else {
-			enableText, _ := tr.GetString("antiraid_btn_enable")
+			enableText := tr.String("antiraid_btn_enable")
 			kb = append(kb, []gotgbot.InlineKeyboardButton{{
 				Text:         enableText,
 				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "on", "c": strconv.FormatInt(chat.Id, 10)}),
@@ -501,49 +501,49 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] Failed to enable raid in chat %d", chat.Id)
-			text, _ := tr.GetString("error_generic")
+			text := tr.String("error_generic")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		if !enabled {
-			text, _ := tr.GetString("antiraid_already_active")
+			text := tr.String("antiraid_already_active")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
+		text := tr.String("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		logRaidMode(bot, chat, ctx.EffectiveUser, true, settings.RaidTime)
 
 	case "off":
 		disabled, err := a.disableRaid(chat.Id)
 		if err != nil {
-			text, _ := tr.GetString("error_generic")
+			text := tr.String("error_generic")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		if !disabled {
-			text, _ := tr.GetString("antiraid_not_active")
+			text := tr.String("antiraid_not_active")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("antiraid_disabled")
+		text := tr.String("antiraid_disabled")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		logRaidMode(bot, chat, ctx.EffectiveUser, false, 0)
 
 	default:
 		dur, ok := parseDuration(arg)
 		if !ok {
-			text, _ := tr.GetString("antiraid_invalid_duration")
+			text := tr.String("antiraid_invalid_duration")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		if err := a.setRaidDuration(chat.Id, dur); err != nil {
 			log.WithError(err).Errorf("[AntiRaid] Failed to set raid duration in chat %d", chat.Id)
-			text, _ := tr.GetString("error_generic")
+			text := tr.String("error_generic")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(dur)})
+		text := tr.String("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(dur)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		logRaidMode(bot, chat, ctx.EffectiveUser, true, dur)
 	}
@@ -582,9 +582,9 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 	if len(args) == 0 {
 		text := ""
 		if isRaidTime {
-			text, _ = tr.GetString("antiraid_raidtime_usage")
+			text = tr.String("antiraid_raidtime_usage")
 		} else {
-			text, _ = tr.GetString("antiraid_raidactiontime_usage")
+			text = tr.String("antiraid_raidactiontime_usage")
 		}
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
@@ -595,7 +595,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		ok = chatsettings.RaidActionTime.Validate(dur) == nil
 	}
 	if !ok {
-		text, _ := tr.GetString("antiraid_invalid_duration")
+		text := tr.String("antiraid_invalid_duration")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -604,33 +604,33 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 	if isRaidTime {
 		settings := chatsettings.ReadAntiRaid(chat.Id)
 		if settings.RaidTime == dur {
-			text, _ = tr.GetString("antiraid_raidtime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
+			text = tr.String("antiraid_raidtime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		err := chatsettings.RaidTime.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidTime failed for chat %d", chat.Id)
-			text, _ = tr.GetString("common_settings_save_failed")
+			text = tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ = tr.GetString("antiraid_raidtime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
+		text = tr.String("antiraid_raidtime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
 	} else {
 		settings := chatsettings.ReadAntiRaid(chat.Id)
 		if settings.RaidActionTime == dur {
-			text, _ = tr.GetString("antiraid_raidactiontime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
+			text = tr.String("antiraid_raidactiontime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		err := chatsettings.RaidActionTime.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidActionTime failed for chat %d", chat.Id)
-			text, _ = tr.GetString("common_settings_save_failed")
+			text = tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ = tr.GetString("antiraid_raidactiontime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
+		text = tr.String("antiraid_raidactiontime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
 	}
 	_, _ = msg.Reply(bot, text, formatting.Shtml())
 	return ext.EndGroups
@@ -646,9 +646,9 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		settings := chatsettings.ReadAntiRaid(chat.Id)
 		var text string
 		if settings.AutoAntiRaidThreshold > 0 {
-			text, _ = tr.GetString("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(settings.AutoAntiRaidThreshold)})
+			text = tr.String("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(settings.AutoAntiRaidThreshold)})
 		} else {
-			text, _ = tr.GetString("antiraid_auto_disabled")
+			text = tr.String("antiraid_auto_disabled")
 		}
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
@@ -659,29 +659,29 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		err := chatsettings.AutoAntiRaidThreshold.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, 0)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(0) failed for chat %d", chat.Id)
-			text, _ := tr.GetString("common_settings_save_failed")
+			text := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("antiraid_auto_disabled")
+		text := tr.String("antiraid_auto_disabled")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	threshold, err := strconv.Atoi(arg)
 	if err != nil || threshold == 0 || chatsettings.AutoAntiRaidThreshold.Validate(threshold) != nil {
-		text, _ := tr.GetString("antiraid_invalid_threshold")
+		text := tr.String("antiraid_invalid_threshold")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	if err := chatsettings.AutoAntiRaidThreshold.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, threshold); err != nil {
 		log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(%d) failed for chat %d", threshold, chat.Id)
-		text, _ := tr.GetString("common_settings_save_failed")
+		text := tr.String("common_settings_save_failed")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(threshold)})
+	text := tr.String("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(threshold)})
 	_, _ = msg.Reply(bot, text, formatting.Shtml())
 	return ext.EndGroups
 }
@@ -720,7 +720,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		}
 		chatID = chat.Id
 	} else if !chat_status.IsUserAdmin(bot, chatID, query.From.Id) {
-		text, _ := tr.GetString("connections_is_user_connected_user_not_admin")
+		text := tr.String("connections_is_user_connected_user_not_admin")
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{
 			Text: text,
 		})
@@ -733,32 +733,32 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		enabled, err := a.enableRaid(chatID, settings.RaidTime)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] Failed to enable raid in chat %d", chatID)
-			text, _ := tr.GetString("error_generic")
+			text := tr.String("error_generic")
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
 		if !enabled {
-			text, _ := tr.GetString("antiraid_already_active")
+			text := tr.String("antiraid_already_active")
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
+		text := tr.String("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: formatting.ToTelegramHTML(text), ParseMode: formatting.HTML})
 		logRaidMode(bot, chat, &query.From, true, settings.RaidTime)
 	case "off":
 		disabled, err := a.disableRaid(chatID)
 		if err != nil {
-			text, _ := tr.GetString("error_generic")
+			text := tr.String("error_generic")
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
 		if !disabled {
-			text, _ := tr.GetString("antiraid_not_active")
+			text := tr.String("antiraid_not_active")
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("antiraid_disabled")
+		text := tr.String("antiraid_disabled")
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: formatting.ToTelegramHTML(text), ParseMode: formatting.HTML})
 		logRaidMode(bot, chat, &query.From, false, 0)
