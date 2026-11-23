@@ -132,11 +132,7 @@ func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnE
 			}
 		} else {
 			tr := i18n.MustNewTranslator("en")
-			noReason, _ := tr.GetString("db_warn_no_reason")
-			if noReason == "" {
-				noReason = "No Reason"
-			}
-			reason = noReason
+			reason = tr.String("db_warn_no_reason")
 		}
 		// The reasons column is still written so an older release reads it.
 		warnrc.Reasons = append(warnrc.Reasons, reason)
