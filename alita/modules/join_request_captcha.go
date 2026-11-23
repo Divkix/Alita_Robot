@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -118,12 +119,19 @@ func checkJoinRequestSpamDB(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 	}
 	var logMarkup *gotgbot.InlineKeyboardMarkup
 	outcome := settings.Action
+	punish := punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: applicant.Id},
+		Source: models.BanSourceSpamDB, Detail: source.Name(),
+	}
 	// A listed applicant is only banned here; mute and ban both decline the
 	// request below, and an applicant who never joined has nothing to mute.
 	if settings.Action == spamdbsettings.ActionBan {
-		result, err := punishment.Apply(reqCtx, bot, punishment.Request{
-			ChatID: chat.Id, Target: punishment.Target{ID: applicant.Id}, Mode: punishment.Ban,
-			Source: models.BanSourceSpamDB, Detail: source.Name(),
+		punish.Mode = punishment.Ban
+		result, err := enforce.Automated(bot, ctx, enforce.Spec{
+			Request: punish,
+			// The join-request captcha exempts nobody at this point; the
+			// protected-user answer was already given above.
+			Exempt: enforce.NeverExempt,
 		})
 		if err != nil {
 			if isJoinRequestGone(err) {
@@ -142,10 +150,21 @@ func checkJoinRequestSpamDB(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) {
 			return true, err
 		}
 	}
-	actionlog.AutomatedWithMarkup(bot, &chat, logMarkup, "SPAMDB", applicant.Id, applicant.FirstName,
-		actionlog.Field{Name: "Listed in", Value: source.Name()},
-		actionlog.Field{Name: "Action", Value: outcome},
-		actionlog.Field{Name: "Stage", Value: "join request"})
+	_, _ = enforce.Automated(bot, ctx, enforce.Spec{
+		Request: punish,
+		Exempt:  enforce.NeverExempt,
+		LogOnly: true,
+		Log: &enforce.LogSpec{
+			Tag:    "SPAMDB",
+			Name:   applicant.FirstName,
+			Markup: logMarkup,
+			Fields: []actionlog.Field{
+				{Name: "Listed in", Value: source.Name()},
+				{Name: "Action", Value: outcome},
+				{Name: "Stage", Value: "join request"},
+			},
+		},
+	})
 	return handled, nil
 }
 
