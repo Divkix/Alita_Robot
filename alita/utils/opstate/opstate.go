@@ -253,9 +253,9 @@ func Stash[T any](key string, v T, ttl time.Duration) error {
 	return nil
 }
 
-// Delete drops whatever operational state sits at key on both stores,
-// best-effort: Redis errors are ignored. For cleanup paths, not for consume
-// semantics.
+// Delete drops the state at key on Redis and this replica's local payload
+// store, best-effort: Redis errors are ignored. Claims are untouched —
+// Release owns those. For cleanup paths, not for consume semantics.
 func Delete(key string) {
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		_ = rdb.Del(cache.Context, key).Err()
