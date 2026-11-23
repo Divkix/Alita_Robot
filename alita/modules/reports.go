@@ -263,7 +263,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	// reply failed.
 	deliverReport(b, tr, chat, user, reported, reason, storeErr == nil, created)
 	if storeErr == nil && created {
-		autoMuteReported(b, ctx, tr, chat, reported, reportprefs.MuteThreshold)
+		autoMuteReported(b, ctx, chat, reported, reportprefs.MuteThreshold)
 	}
 	if err != nil {
 		return err

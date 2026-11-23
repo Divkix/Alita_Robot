@@ -11,13 +11,13 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -33,7 +33,7 @@ const reportAutoMuteDuration = 24 * time.Hour
 // channel sender, or a member another restriction already applies to, and
 // mutes a user once until an admin decides. Telegram's until_date ends the
 // mute after reportAutoMuteDuration. Failures are logged.
-func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat, reported *gotgbot.Message, threshold int) {
+func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, reported *gotgbot.Message, threshold int) {
 	if threshold <= 0 {
 		return
 	}
@@ -75,8 +75,17 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 		release()
 		return
 	}
-	result, err := applyPunishment(tracing.UpdateContext(ctx), b, punishment.Request{
-		ChatID: chat.Id, Target: punishment.Target{ID: target.Id}, Mode: punishment.Mute, Duration: reportAutoMuteDuration,
+	result, err := enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: target.Id}, Mode: punishment.Mute, Duration: reportAutoMuteDuration,
+		},
+		// autoMuteTarget already ran the protected-user predicate on the
+		// reported author; the update's sender is the reporter.
+		Exempt: enforce.NeverExempt,
+		// A refusal is a failure here too: the claim is released below.
+		Apply: func(applyCtx context.Context, applyBot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
+			return applyPunishment(applyCtx, applyBot, request)
+		},
 	})
 	if err != nil {
 		log.Debugf("[Reports] auto-mute of %d in %d failed: %v", target.Id, chat.Id, err)
@@ -98,17 +107,24 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 		liftReportAutoMute(b, ctx, chat.Id, target.Id, until)
 		return
 	}
-
-	actionlog.Automated(b, chat, "REPORT_MUTE", target.Id, target.FirstName,
-		actionlog.Field{Name: "Reports", Value: strconv.Itoa(count)})
-	text, _ := tr.GetString("reports_automute_applied", i18n.TranslationParams{
-		"user": formatting.MentionHtml(target.Id, target.FirstName),
+	// The log and the notice follow the stored end: a mute whose end could
+	// not be recorded is lifted above and reports nothing.
+	_, noticeErr := enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{ChatID: chat.Id, Target: punishment.Target{ID: target.Id}},
+		Exempt:  enforce.NeverExempt,
+		LogOnly: true,
+		Log: &enforce.LogSpec{
+			Tag:    "REPORT_MUTE",
+			Name:   target.FirstName,
+			Fields: []actionlog.Field{{Name: "Reports", Value: strconv.Itoa(count)}},
+		},
+		Notice: &enforce.NoticeSpec{
+			Key:    "reports_automute_applied",
+			Params: i18n.TranslationParams{"user": formatting.MentionHtml(target.Id, target.FirstName)},
+		},
 	})
-	if text == "" {
-		return
-	}
-	if _, err := helpers.SendMessageWithErrorHandling(b, chat.Id, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML}); err != nil {
-		log.Debugf("[Reports] failed to announce auto-mute of %d in %d: %v", target.Id, chat.Id, err)
+	if noticeErr != nil {
+		log.Debugf("[Reports] failed to announce auto-mute of %d in %d: %v", target.Id, chat.Id, noticeErr)
 	}
 }
 
