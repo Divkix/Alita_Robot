@@ -1,16 +1,11 @@
 package modules
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 func newOverwriteToken() (string, error) {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf), nil
+	return opstate.NewToken()
 }
 
 func parseOverwriteCallbackData(data, namespace string) (action, token string, ok bool) {

@@ -1,25 +1,22 @@
 package modules
 
 import (
-	"fmt"
-	"sync"
+	"errors"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/eko/gocache/lib/v4/store"
-	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 const overwriteCacheTTL = 5 * time.Minute
 
-var overwriteConsumeMu sync.Mutex
+var errOverwriteCacheMiss = errors.New("overwrite cache miss")
 
 // overwriteBase holds common fields for temporary state storage during command flows.
 type overwriteBase struct {
@@ -49,57 +46,37 @@ type overwriteNote struct {
 }
 
 func overwriteCacheKey(kind, token string) string {
-	return fmt.Sprintf("alita:%s_overwrite:%s", kind, token)
+	return opstate.Key(kind + "_overwrite", token)
 }
 
 func setOverwriteCache(key string, data any) error {
-	m := cache.GetMarshal()
-	if m == nil {
-		return fmt.Errorf("cache not initialized")
-	}
-	return m.Set(cache.Context, key, data, store.WithExpiration(overwriteCacheTTL))
+	return opstate.Stash(key, data, overwriteCacheTTL)
 }
 
 func getOverwriteCache[T any](key string) (*T, error) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return nil, fmt.Errorf("cache not initialized")
-	}
-	var data T
-	if _, err := m.Get(cache.Context, key, &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-func consumeOverwriteCache[T any](key string) (*T, error) {
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		raw, err := rdb.GetDel(cache.Context, key).Bytes()
-		if err != nil {
-			return nil, err
-		}
-		var data T
-		if err := msgpack.Unmarshal(raw, &data); err != nil {
-			return nil, err
-		}
-		return &data, nil
-	}
-
-	// Test/fallback stores lack GETDEL; serialize the read and delete locally.
-	overwriteConsumeMu.Lock()
-	defer overwriteConsumeMu.Unlock()
-	data, err := getOverwriteCache[T](key)
+	data, err := opstate.Peek[T](key)
 	if err != nil {
 		return nil, err
 	}
-	deleteOverwriteCache(key)
+	if data == nil {
+		return nil, errOverwriteCacheMiss
+	}
+	return data, nil
+}
+
+func consumeOverwriteCache[T any](key string) (*T, error) {
+	data, err := opstate.Consume[T](key)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, errOverwriteCacheMiss
+	}
 	return data, nil
 }
 
 func deleteOverwriteCache(key string) {
-	if m := cache.GetMarshal(); m != nil {
-		_ = m.Delete(cache.Context, key)
-	}
+	opstate.Delete(key)
 }
 
 // overwriteGroup returns the group the overwrite stored under key acts on: the
