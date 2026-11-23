@@ -54,3 +54,14 @@ func Keys(projections ...Projection) func(ids ...any) []string {
 		return keys
 	}
 }
+
+// RegisterLocalSkipPrefix marks every key under prefix as too freshness-
+// critical for the in-process layer: a value written on another replica (or
+// outside DeleteCache) would otherwise be served stale for up to
+// CACHE_LOCAL_TTL seconds. Domains call it from init in their projections.go;
+// prefix is CacheKey(module)+":" so it matches the module's keys only.
+func RegisterLocalSkipPrefix(prefix string) {
+	localMu.Lock()
+	skipLocalPrefixes = append(skipLocalPrefixes, prefix)
+	localMu.Unlock()
+}
