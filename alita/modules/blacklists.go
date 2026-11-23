@@ -462,9 +462,9 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 		Aliases:        []string{"blocklists"},
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(blacklistsModule.listBlacklists))
-	restrictChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	restrictChecks := []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "addblacklist",
 		Aliases:        []string{"blacklist", "addblocklist", "blocklist"},
@@ -487,7 +487,7 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 		Name:           "remallbl",
 		Aliases:        []string{"rmallbl", "rmblocklistall", "rmallblocklist"},
 		PMGroupArg:     helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
+		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
 	}, pipelineHandler(blacklistsModule.rmAllBlacklists))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist|"), blacklistsClearAllCallback))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {

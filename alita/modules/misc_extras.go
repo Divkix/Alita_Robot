@@ -282,7 +282,7 @@ func registerMiscExtras(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "stickerid", Disableable: true}, pipelineHandler(miscModule.stickerID))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "zombies",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.CanBotRestrict(),

@@ -90,7 +90,7 @@ func TestFormatDuration(t *testing.T) {
 	}
 }
 
-func TestAntiRaidKeysAndNoCacheFallbacks(t *testing.T) {
+func TestAntiRaidKeysAndLocalFallbacks(t *testing.T) {
 	withNilCacheMarshal(t)
 
 	chatID := int64(-1001234567890)
@@ -101,9 +101,11 @@ func TestAntiRaidKeysAndNoCacheFallbacks(t *testing.T) {
 		t.Fatalf("joinsKey() = %q", got)
 	}
 
+	// Join tracking has no in-process fallback: without Redis it cannot
+	// count, and the caller fails open.
 	count, err := trackJoin(chatID, 42)
 	if err == nil {
-		t.Fatal("trackJoin() error = nil, want cache not initialized")
+		t.Fatal("trackJoin() error = nil, want an error without Redis")
 	}
 	if count != 0 {
 		t.Fatalf("trackJoin() count = %d, want 0", count)
@@ -119,8 +121,12 @@ func TestAntiRaidKeysAndNoCacheFallbacks(t *testing.T) {
 		t.Fatalf("getRaidState() Active = true, want false")
 	}
 
-	if err := setRaidState(chatID, &raidState{Active: true}); err == nil {
-		t.Fatal("setRaidState() error = nil, want cache not initialized")
+	// Raid state itself degrades to this replica's local store.
+	if err := setRaidState(chatID, &raidState{Active: true}); err != nil {
+		t.Fatalf("setRaidState() error = %v", err)
+	}
+	if got := getRaidState(chatID); !got.Active {
+		t.Fatalf("getRaidState() Active = false after setRaidState, want true")
 	}
 }
 
@@ -762,7 +768,7 @@ func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("join tracking TTL error = %v", err)
 	}
-	if ttl <= 0 || ttl > time.Duration(antiraidJoinWindowSeconds)*time.Second {
+	if ttl <= 0 || ttl > antiraidJoinWindow {
 		t.Fatalf("join tracking TTL = %v, want within the join window", ttl)
 	}
 

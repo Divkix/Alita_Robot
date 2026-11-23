@@ -32,14 +32,14 @@ func groupOnlyChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 // groupOnlyChatCheck runs groupOnlyChat first among a WrapCommand command's
 // RequiredChecks, so the checks after it (RequireGroup, RequireUserOwner, ...)
 // see the group named or connected in PM.
-func groupOnlyChatCheck(c *helpers.CommandContext) bool {
+var groupOnlyChatCheck = helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 	chat := groupOnlyChat(c.Bot, c.Ctx)
 	if chat == nil {
 		return false
 	}
 	c.Chat = chat
 	return true
-}
+})
 
 // pmGroupLine is what a reply to msg adds to name chat, the group it acts on,
 // when msg came from PM, where the reply names no group: a line after a blank

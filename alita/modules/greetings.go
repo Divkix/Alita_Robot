@@ -900,12 +900,12 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "goodbye", PMGroupArg: helpers.PMGroupArgOwn, RequiredChecks: declaredSettingChecks(chatsettings.Goodbye),
 	}, greetingsModule.goodbye)
-	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
+	changeInfoChecks := []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	for _, cfg := range []struct {
 		name    string
 		arg     helpers.PMGroupArg
 		handler func(*gotgbot.Bot, *ext.Context) error
-		checks  []helpers.CheckFunc
+		checks  []helpers.Check
 	}{
 		{"setwelcome", helpers.PMGroupArgOwn, greetingsModule.setWelcome, changeInfoChecks},
 		{"resetwelcome", helpers.PMGroupArgNone, greetingsModule.resetWelcome, changeInfoChecks},

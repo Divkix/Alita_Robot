@@ -7,9 +7,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
+
+// withCommandManifest loads every module so the derived command maps see the
+// real registration manifest.
+func withCommandManifest(t *testing.T) {
+	t.Helper()
+	all := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAllModules(all)
+}
 
 // useRealLocales serves every file in locales/, config.yml included, for the
 // rest of the test.
@@ -66,10 +76,12 @@ func TestCommandHelpBlockCutsOnlyThatCommand(t *testing.T) {
 // in the module help of every locale, or users of that locale get the whole
 // module help instead.
 func TestEveryHelpCommandHasItsLineInEveryLocale(t *testing.T) {
+	useRealLocales(t)
+	withCommandManifest(t)
 	en := readLocaleFile(t, "en")
 	for _, code := range localeCodes {
 		locale := readLocaleFile(t, code)
-		for cmd, module := range commandHelpModules {
+		for cmd, module := range commandHelpModules() {
 			if code == "en" && !extendListsCommand(en[module+"_extend_msg"], cmd) {
 				t.Errorf("en.yml: %s_extend_msg does not list /%s", module, cmd)
 			}
@@ -88,13 +100,10 @@ func TestEveryHelpCommandHasItsLineInEveryLocale(t *testing.T) {
 	}
 }
 
-// replyOnlyCommands act on the replied message, so an example without the
-// reply would mislead.
-var replyOnlyCommands = map[string]bool{"dkick": true, "dban": true, "dmute": true, "spam": true}
-
 func TestEveryHelpCommandHasAnExample(t *testing.T) {
 	useRealLocales(t)
-	for cmd := range commandHelpModules {
+	withCommandManifest(t)
+	for cmd := range commandHelpModules() {
 		example := commandExample(cmd)
 		if replyOnlyCommands[cmd] {
 			if example != "" {
@@ -137,44 +146,15 @@ func extendCommands(t *testing.T) map[string][]string {
 	return out
 }
 
-// The menu map and the extend lists name the same commands under the same
-// modules, so a command added to one is added to the other.
-func TestMenuCommandsMatchExtendLists(t *testing.T) {
-	listed := map[string]bool{}
-	for module, commands := range extendCommands(t) {
-		for _, cmd := range commands {
-			listed[cmd] = true
-			entry, ok := menuCommands[cmd]
-			if !ok {
-				t.Errorf("/%s is in en.yml %s_extend_msg but not in menuCommands", cmd, module)
-				continue
-			}
-			if entry.Module != module {
-				t.Errorf("menuCommands puts /%s in %q; en.yml lists it in %s_extend_msg", cmd, entry.Module, module)
-			}
-		}
-	}
-	for cmd, entry := range menuCommands {
-		if !listed[cmd] {
-			t.Errorf("menuCommands has /%s, but en.yml %s_extend_msg does not list it", cmd, entry.Module)
-		}
-	}
-}
-
-func TestMenuCommandsAgreeWithCommandHelpModules(t *testing.T) {
-	for cmd, module := range commandHelpModules {
-		if entry := menuCommands[cmd]; entry.Module != module {
-			t.Errorf("commandHelpModules puts /%s in %q, menuCommands in %q", cmd, module, entry.Module)
-		}
-	}
-}
-
 // Every section of the menu has a one-line description in every locale.
 func TestEveryMenuSectionHasADescriptionInEveryLocale(t *testing.T) {
+	useRealLocales(t)
+	withCommandManifest(t)
 	modules := map[string]bool{}
-	for _, entry := range menuCommands {
+	for _, entry := range menuCommands() {
 		modules[entry.Module] = true
 	}
+
 	for _, code := range localeCodes {
 		locale := readLocaleFile(t, code)
 		for module := range modules {

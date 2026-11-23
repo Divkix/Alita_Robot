@@ -33,7 +33,7 @@ var recurringModule = moduleStruct{
 var recurringDesc = helpers.CommandDescriptor{
 	Name:        "recurring",
 	Disableable: false,
-	RequiredChecks: []helpers.CheckFunc{
+	RequiredChecks: []helpers.Check{
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
 		helpers.CanUserChangeInfo(),

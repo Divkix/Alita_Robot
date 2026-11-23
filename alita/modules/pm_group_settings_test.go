@@ -228,7 +228,7 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 		}
 		asked = append(asked, cmd.Command)
 		text := fmt.Sprint(replies[0].Params["text"])
-		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules)), func(help string) bool {
+		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules())), func(help string) bool {
 			example := commandPMExample(help)
 			return example != "" && strings.Contains(text, html.EscapeString(example))
 		}) {

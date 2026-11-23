@@ -29,8 +29,8 @@ var banInfoDesc = helpers.CommandDescriptor{Name: "baninfo", PMGroupArg: helpers
 // banRecordChecks are the checks of a command that reads the ban records: an
 // admin who can restrict members, as for /ban. The bot needs no right of its
 // own, since it only reads its records.
-func banRecordChecks() []helpers.CheckFunc {
-	return []helpers.CheckFunc{pmTargetChatCheck,
+func banRecordChecks() []helpers.Check {
+	return []helpers.Check{pmTargetChatCheck,
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
 		helpers.CanUserRestrict()}

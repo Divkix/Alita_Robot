@@ -156,6 +156,7 @@ func TestSetLogInPMWithoutChannelAsksForIt(t *testing.T) {
 func TestSetLogInPMOnConnectionWithTitleRepliesUsage(t *testing.T) {
 	f := newLogChannelPMFixture(t)
 	useRealLocales(t)
+	withCommandManifest(t)
 	f.connectAdmin(t)
 
 	f.sendPM(t, f.admin, `/setlog "Fixture Group" @logchan`)

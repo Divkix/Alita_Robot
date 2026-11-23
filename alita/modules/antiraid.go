@@ -12,8 +12,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
-	"github.com/eko/gocache/lib/v4/store"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -26,51 +24,34 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 const (
-	antiraidJoinWindowSeconds = 60
+	antiraidJoinWindow = 60 * time.Second
 	// antiraidStateGrace keeps an active raid's state this long past its
 	// expiry; readers treat it as inactive (and delete it) from ExpiresAt on.
 	antiraidStateGrace = 30 * time.Second
-	antiraidStateKey   = "alita:antiraid:state" // format: state:chat_id
-	antiraidJoinsKey   = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
 )
 
-var (
-	antiRaidModule = antiRaidStruct{
-		moduleStruct: moduleStruct{moduleName: "AntiRaid"},
-	}
-	antiRaidStateMu sync.Mutex
+var antiRaidModule = antiRaidStruct{
+	moduleStruct: moduleStruct{moduleName: "AntiRaid"},
+}
 
-	deleteRaidStateScript = redis.NewScript(`
-		if redis.call("GET", KEYS[1]) == ARGV[1] then
-			redis.call("DEL", KEYS[1], KEYS[2])
-			return 1
-		end
-		return 0
-	`)
-	replaceRaidStateScript = redis.NewScript(`
-		if redis.call("GET", KEYS[1]) == ARGV[1] then
-			redis.call("SET", KEYS[1], ARGV[2], "PX", ARGV[3])
-			return 1
-		end
-		return 0
-	`)
-	disableRaidScript = redis.NewScript(`
-		local existed = redis.call("DEL", KEYS[1])
-		redis.call("DEL", KEYS[2])
-		return existed
-	`)
-	trackJoinScript = redis.NewScript(`
-		redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
-		redis.call('EXPIRE', KEYS[1], ARGV[3])
-		redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[4])
-		return redis.call('ZCARD', KEYS[1])
-	`)
-)
+// antiRaidStateMu serializes the local compare-and-set raidState makes
+// through opstate.Swap when Redis is absent; the Redis path is atomic in
+// the script itself.
+var antiRaidStateMu sync.Mutex
+
+func stateKey(chatID int64) string {
+	return opstate.Key("antiraid:state", chatID)
+}
+
+func joinsKey(chatID int64) string {
+	return opstate.Key("antiraid:joins", chatID)
+}
 
 type antiRaidStruct struct {
 	moduleStruct
@@ -82,60 +63,32 @@ type raidState struct {
 	ExpiresAt int64 `json:"expires_at"`
 }
 
-func stateKey(chatID int64) string {
-	return fmt.Sprintf("%s:%d", antiraidStateKey, chatID)
-}
-
-func joinsKey(chatID int64) string {
-	return fmt.Sprintf("%s:%d", antiraidJoinsKey, chatID)
-}
-
-func trackJoin(chatID, userID int64) (count int, err error) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
-		return 0, fmt.Errorf("cache not initialized")
-	}
-	now := time.Now().Unix()
-	ctx := cache.Context
-	member := fmt.Sprintf("%d:%d:%d", userID, now, time.Now().UnixNano())
-	window := antiraidJoinWindowSeconds
-	cutoff := now - int64(antiraidJoinWindowSeconds)
-	res, err := trackJoinScript.Run(ctx, rdb, []string{joinsKey(chatID)}, now, member, window, cutoff).Int()
+func trackJoin(chatID, userID int64) (int, error) {
+	now := time.Now()
+	member := fmt.Sprintf("%d:%d:%d", userID, now.Unix(), now.UnixNano())
+	prior, _, err := opstate.WindowAdd(joinsKey(chatID), now, antiraidJoinWindow, member, "", 0, 0)
 	if err != nil {
 		return 0, err
 	}
-	return res, nil
+	return int(prior) + 1, nil
 }
 
 func clearJoinTracking(chatID int64) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
-		return
-	}
-	_ = rdb.Del(cache.Context, joinsKey(chatID)).Err()
+	opstate.Delete(joinsKey(chatID))
 }
 
-// getRaidState reads Redis-only raid state. Without Redis, raids remain inactive and join
-// tracking cannot run; there is no in-process fallback.
-// The alita:antiraid: keys are outside alita:cache: and survive CLEAR_CACHE_ON_STARTUP.
+// getRaidState reads raid state through opstate. The alita:antiraid: keys
+// are outside alita:cache: and survive CLEAR_CACHE_ON_STARTUP.
 func getRaidState(chatID int64) *raidState {
-	m := cache.GetMarshal()
-	if m == nil {
+	st, err := opstate.Peek[raidState](stateKey(chatID))
+	if err != nil || st == nil {
 		return &raidState{Active: false}
 	}
-	var st raidState
-	if _, err := m.Get(cache.Context, stateKey(chatID), &st); err != nil {
-		return &raidState{Active: false}
-	}
-	return &st
+	return st
 }
 
 func setRaidState(chatID int64, st *raidState) error {
-	m := cache.GetMarshal()
-	if m == nil {
-		return fmt.Errorf("cache not initialized")
-	}
-	return m.Set(cache.Context, stateKey(chatID), st, store.WithExpiration(raidStateExpiration(st)))
+	return opstate.Stash(stateKey(chatID), *st, raidStateExpiration(st))
 }
 
 func raidStateExpiration(st *raidState) time.Duration {
@@ -149,6 +102,8 @@ func raidStateExpiration(st *raidState) time.Duration {
 	return expiration
 }
 
+// marshalRaidState encodes the state for the Redis SetNX write in
+// enableRaid; opstate owns the encoding everywhere else.
 func marshalRaidState(st *raidState) ([]byte, error) {
 	data, err := msgpack.Marshal(st)
 	if err != nil {
@@ -157,65 +112,26 @@ func marshalRaidState(st *raidState) ([]byte, error) {
 	return data, nil
 }
 
+// deleteRaidStateIfUnchanged drops the raid state and its join window when
+// the stored state still equals expected — the CAS the expiry and disable
+// paths rely on to not delete a raid another replica just refreshed.
 func deleteRaidStateIfUnchanged(chatID int64, expected *raidState) (bool, error) {
-	expectedJSON, err := marshalRaidState(expected)
-	if err != nil {
-		return false, err
-	}
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		deleted, err := deleteRaidStateScript.Run(
-			cache.Context,
-			rdb,
-			[]string{stateKey(chatID), joinsKey(chatID)},
-			expectedJSON,
-		).Int()
-		return deleted == 1, err
-	}
-
 	antiRaidStateMu.Lock()
 	defer antiRaidStateMu.Unlock()
-	current := getRaidState(chatID)
-	if *current != *expected {
-		return false, nil
+
+	ok, err := opstate.Swap(stateKey(chatID), nil, *expected, 0)
+	if err != nil || !ok {
+		return ok, err
 	}
-	m := cache.GetMarshal()
-	if m == nil {
-		return false, fmt.Errorf("cache not initialized")
-	}
-	if err := m.Delete(cache.Context, stateKey(chatID)); err != nil {
-		return false, err
-	}
+	opstate.Delete(joinsKey(chatID))
 	return true, nil
 }
 
 func replaceRaidStateIfUnchanged(chatID int64, expected, replacement *raidState) (bool, error) {
-	expectedJSON, err := marshalRaidState(expected)
-	if err != nil {
-		return false, err
-	}
-	replacementJSON, err := marshalRaidState(replacement)
-	if err != nil {
-		return false, err
-	}
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		replaced, err := replaceRaidStateScript.Run(
-			cache.Context,
-			rdb,
-			[]string{stateKey(chatID)},
-			expectedJSON,
-			replacementJSON,
-			raidStateExpiration(replacement).Milliseconds(),
-		).Int()
-		return replaced == 1, err
-	}
-
 	antiRaidStateMu.Lock()
 	defer antiRaidStateMu.Unlock()
-	current := getRaidState(chatID)
-	if *current != *expected {
-		return false, nil
-	}
-	return true, setRaidState(chatID, replacement)
+
+	return opstate.Swap(stateKey(chatID), *replacement, *expected, raidStateExpiration(replacement))
 }
 
 func (a *antiRaidStruct) isRaidActive(chatID int64) bool {
@@ -282,34 +198,25 @@ func (a *antiRaidStruct) enableRaid(chatID int64, durationSeconds int) (bool, er
 }
 
 func (a *antiRaidStruct) disableRaid(chatID int64) (bool, error) {
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		deleted, err := disableRaidScript.Run(
-			cache.Context,
-			rdb,
-			[]string{stateKey(chatID), joinsKey(chatID)},
-		).Int()
-		if err != nil {
-			log.WithError(err).Warnf("[AntiRaid] Failed to disable raid for chat %d", chatID)
-			return false, err
-		}
-		return deleted == 1, nil
-	}
-
-	antiRaidStateMu.Lock()
-	defer antiRaidStateMu.Unlock()
 	st := getRaidState(chatID)
 	if !st.Active || time.Now().Unix() > st.ExpiresAt {
 		return false, nil
 	}
-	m := cache.GetMarshal()
-	if m == nil {
-		return false, fmt.Errorf("cache not initialized")
-	}
-	if err := m.Delete(cache.Context, stateKey(chatID)); err != nil {
+
+	antiRaidStateMu.Lock()
+	defer antiRaidStateMu.Unlock()
+
+	// The compare-and-set keeps a raid another replica refreshed between
+	// the read and the delete.
+	deleted, err := opstate.Swap(stateKey(chatID), nil, *st, 0)
+	if err != nil {
 		log.WithError(err).Warnf("[AntiRaid] Failed to disable raid for chat %d", chatID)
 		return false, err
 	}
-	clearJoinTracking(chatID)
+	if !deleted {
+		return false, nil
+	}
+	opstate.Delete(joinsKey(chatID))
 	return true, nil
 }
 
@@ -831,7 +738,7 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antiraid", PMGroupArg: helpers.PMGroupArgOwn, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antiRaidModule.antiraid))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "raidtime", PMGroupArg: helpers.PMGroupArgOwn,

@@ -329,39 +329,39 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadDev(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "stats",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.getStats))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "addsudo",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.addSudo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "adddev",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.addDev))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "remsudo",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.remSudo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "remdev",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.remDev))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "teamusers",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotTeamMember()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotTeamMember()},
 	}, pipelineHandler(devsModule.listTeam))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "chatinfo",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.chatInfo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "chatlist",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.chatList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "leavechat",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.leaveChat))
 }
 

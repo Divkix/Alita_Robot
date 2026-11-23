@@ -102,7 +102,7 @@ func setLogFromPM(c *helpers.CommandContext) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	if !helpers.RunChecks(c, []helpers.CheckFunc{requireLogChannelPosting(channel.Id)}) {
+	if !helpers.RunChecks(c, []helpers.Check{requireLogChannelPosting(channel.Id)}) {
 		return ext.EndGroups
 	}
 	if err := logchannels.Set(group.Id, group.Title, channel.Id); err != nil {
@@ -124,8 +124,8 @@ func setLogFromPM(c *helpers.CommandContext) error {
 
 // requireLogChannelPosting runs after the channel argument is resolved. Telegram
 // requires bot posting rights before it can reliably answer the actor lookup.
-func requireLogChannelPosting(channelID int64) helpers.CheckFunc {
-	return func(c *helpers.CommandContext) bool {
+func requireLogChannelPosting(channelID int64) helpers.Check {
+	return helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 		key := ""
 		if !canPostInChannel(c.Bot, c.Ctx, channelID, c.Bot.Id) {
 			key = "logs_pm_bot_cannot_post"
@@ -137,7 +137,7 @@ func requireLogChannelPosting(channelID int64) helpers.CheckFunc {
 			return false
 		}
 		return true
-	}
+	})
 }
 
 // canPostInChannel reports whether userID owns the channel or is an admin of
@@ -327,26 +327,29 @@ func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(setLogChannelCommand{handlers.NewCommand("setlog", logChannelsModule.setLogChannel).SetAllowChannel(true)})
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setlog", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), nil)},
+		// The group form only asks for a forwarded channel post; the watcher
+		// that binds it requires group admin, so the menu keeps it admin-only.
+		AdminOnlySet: true, AdminOnly: true,
+		RequiredChecks: []helpers.Check{checkInPMOrGroup(helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.Check{})},
 	}, logChannelsModule.setLog)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unsetlog", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},
+		RequiredChecks: []helpers.Check{logAdminChatCheck},
 	}, pipelineHandler(logChannelsModule.unsetLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "logchannel", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminNotRequired)},
 	}, pipelineHandler(logChannelsModule.logChannel))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "logcategories",
 	}, pipelineHandler(logChannelsModule.logCategories))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "log", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},
+		RequiredChecks: []helpers.Check{logAdminChatCheck},
 	}, pipelineHandler(logChannelsModule.enableLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "nolog", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{logAdminChatCheck},
+		RequiredChecks: []helpers.Check{logAdminChatCheck},
 	}, pipelineHandler(logChannelsModule.disableLog))
 
 	dispatcher.AddHandlerToGroup(

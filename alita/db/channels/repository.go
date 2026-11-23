@@ -69,9 +69,9 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("channel", channelId))
+	cache.DeleteCache(ChannelProjection.Key(channelId))
 	for _, reassignedChatID := range reassignedChatIDs {
-		cache.DeleteCache(cache.CacheKey("channel", reassignedChatID))
+		cache.DeleteCache(ChannelProjection.Key(reassignedChatID))
 	}
 	log.Debugf("[Database] UpdateChannel: stored channel %d", channelId)
 	return nil

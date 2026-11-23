@@ -17,3 +17,10 @@ type AntifloodSettings struct {
 func (AntifloodSettings) TableName() string {
 	return "antiflood_settings"
 }
+
+// DefaultAntifloodSettings is the row a chat without one reads as: flood off
+// (limit 0, not the column default 5), mute action. Repository loaders and
+// the backup importer consume it.
+func DefaultAntifloodSettings(chatID int64) *AntifloodSettings {
+	return &AntifloodSettings{ChatId: chatID, Limit: 0, Action: "mute"}
+}

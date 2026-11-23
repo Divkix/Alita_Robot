@@ -483,6 +483,7 @@ func TestPMModerationHelpShowsPMExample(t *testing.T) {
 		t.Run(tc.cmd, func(t *testing.T) {
 			f, _ := tc.fixture(t)
 			useRealLocales(t)
+			withCommandManifest(t)
 			dispatcher := tc.dispatcher()
 			pmExample, _ := i18n.MustNewTranslator("config").GetString(tc.cmd + "_pm_example")
 			groupExample := commandExample(tc.cmd)
