@@ -374,10 +374,9 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		return ext.ContinueGroups
 	}
 
-	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, user.Id()) {
-		return ext.ContinueGroups
-	}
-	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, user.Id()) {
+	// Only a user-shaped sender can be admin- or approval-exempt:
+	// anonymous-channel senders stay punishable through SenderChat.
+	if user.IsUser() && chat_status.IsProtectedForUpdate(b, ctx, chat.Id, user.Id()) {
 		return ext.ContinueGroups
 	}
 
