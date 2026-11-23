@@ -9,9 +9,10 @@ import (
 )
 
 type (
-	adminMemoKey    struct{ chatID, userID int64 }
-	approvedMemoKey struct{ chatID, userID int64 }
-	memberMemoKey   struct{ chatID, userID int64 }
+	adminMemoKey     struct{ chatID, userID int64 }
+	approvedMemoKey  struct{ chatID, userID int64 }
+	memberMemoKey    struct{ chatID, userID int64 }
+	protectedMemoKey struct{ chatID, userID, senderID int64 }
 )
 
 type memberLookup struct {
@@ -124,5 +125,34 @@ func IsUserAdminForUpdate(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64
 func IsApprovedForUpdate(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
 	return updatememo.Get(updatememo.From(ctx), approvedMemoKey{chatID, userID}, func() bool {
 		return IsApproved(b, chatID, userID)
+	})
+}
+
+// IsProtectedForUpdate reports whether userID is exempt from the automatic
+// checks a group runs on messages and joins, memoised for the current update.
+// It owns the canonical exemption order: system accounts and non-positive
+// IDs, then the update's own anonymous or channel sender, then admins, then
+// approved users. The sender steps apply only when userID is the update's
+// sender; checks on another user (a join member, a reported author) skip
+// them. Like the other *ForUpdate predicates it sends nothing: call it in
+// watchers and pipeline checks, before any state change in the same update.
+func IsProtectedForUpdate(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
+	var sender *gotgbot.Sender
+	if ctx != nil {
+		sender = ctx.EffectiveSender
+	}
+	var senderID int64
+	if sender != nil {
+		senderID = sender.Id()
+	}
+	return updatememo.Get(updatememo.From(ctx), protectedMemoKey{chatID, userID, senderID}, func() bool {
+		if userID <= 0 || IsSystemUser(userID) {
+			return true
+		}
+		if sender != nil && senderID == userID &&
+			(sender.IsBot() || sender.IsAnonymousAdmin() || sender.IsAnonymousChannel() || sender.IsLinkedChannel()) {
+			return true
+		}
+		return IsUserAdminForUpdate(b, ctx, chatID, userID) || IsApprovedForUpdate(b, ctx, chatID, userID)
 	})
 }

@@ -26,12 +26,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -39,7 +39,6 @@ import (
 const (
 	fedHandlerGroup      = -6
 	fedExportCooldown    = 30 * time.Minute
-	fedExportKeyPrefix   = "alita:fed_export:"
 	fedCallbackNamespace = "fed"
 )
 
@@ -954,26 +953,22 @@ func (moduleStruct) unsetFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+func fedExportKey(fedID string) string {
+	return opstate.Key("fed_export", fedID)
+}
+
+// allowFedExport claims the export cooldown. Declared policy: without Redis
+// the claim falls back to this replica, so the cooldown still applies rather
+// than silently disabling; a Redis error stays fail-open like the old
+// SetNX path (an export is never blocked by a broken cache).
 func allowFedExport(fedID string) bool {
-	client := cache.GetRedisClient()
-	if client == nil {
-		return true
-	}
-	ok, err := client.SetNX(cache.Context, fedExportKeyPrefix+fedID, "1", fedExportCooldown).Result()
-	if err != nil {
-		return true
-	}
-	return ok
+	return opstate.Claim(fedExportKey(fedID), fedExportCooldown) != opstate.ClaimLost
 }
 
 // releaseFedExport frees the export cooldown claimed by allowFedExport, for an
 // export that delivered no file.
 func releaseFedExport(fedID string) {
-	if client := cache.GetRedisClient(); client != nil {
-		if err := client.Del(cache.Context, fedExportKeyPrefix+fedID).Err(); err != nil {
-			log.Debugf("[Federations] release export cooldown: %v", err)
-		}
-	}
+	opstate.Release(fedExportKey(fedID))
 }
 
 func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -1187,6 +1182,9 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	if ban == nil {
 		return StageNotApplicable
 	}
+	// Federation bans exempt admins only: an approved user is still banned —
+	// the federation's judgment is not the chat's. Deliberate divergence from
+	// IsProtectedForUpdate.
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 		return StageNotApplicable
 	}

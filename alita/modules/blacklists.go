@@ -299,83 +299,30 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	return ext.EndGroups
 }
 
-func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	chat := ctx.EffectiveChat
-
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_ask")
-	text = confirmText(ctx, tr, text, chat)
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllBlacklist", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+// blacklistsClearAll is the /remallbl owner confirmation: the shared
+// skeleton asks, authorizes and answers; these closures hold only the
+// blacklists work.
+var blacklistsClearAll = ownerConfirmSpec{
+	Namespace: "rmAllBlacklist",
+	AskKey:    strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_ask",
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := blacklists.RemoveAllBlacklist(chat.Id); err != nil {
+			log.WithFields(log.Fields{"chatId": chat.Id, "error": err}).Error("Failed to remove all blacklists")
+			return "error_generic", nil, nil
+		}
+		return "", nil, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_button_handler_yes",
+		Cancelled: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_button_handler_no",
+		Failed:    "error_generic",
+	},
 }
 
-func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if query.Message == nil {
-		text, _ := tr.GetString("common_callback_message_unavailable")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
-	}
+var blacklistsClearAllMessage, blacklistsClearAllCallback = registerOwnerConfirm(blacklistsClearAll)
 
-	decoded, _ := decodeCallbackData(query.Data, "rmAllBlacklist")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	creatorAction, _ := decoded.Field("a")
-	if creatorAction == "" {
-		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-	var helpText string
-
-	switch creatorAction {
-	case "yes":
-		chatID := chat.Id
-		if err := blacklists.RemoveAllBlacklist(chatID); err != nil {
-			log.WithFields(log.Fields{
-				"chatId": chatID,
-				"error":  err,
-			}).Error("Failed to remove all blacklists")
-			helpText, _ = tr.GetString("common_settings_save_failed")
-			break
-		}
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_yes")
-	case "no":
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_no")
-	default:
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b,
-		&gotgbot.AnswerCallbackQueryOpts{
-			Text: helpText,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
+	return blacklistsClearAllMessage(b, ctx)
 }
 
 // blacklistNoticeKeys names each punishing action's notice.
@@ -427,10 +374,9 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 		return ext.ContinueGroups
 	}
 
-	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, user.Id()) {
-		return ext.ContinueGroups
-	}
-	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, user.Id()) {
+	// Only a user-shaped sender can be admin- or approval-exempt:
+	// anonymous-channel senders stay punishable through SenderChat.
+	if user.IsUser() && chat_status.IsProtectedForUpdate(b, ctx, chat.Id, user.Id()) {
 		return ext.ContinueGroups
 	}
 
@@ -543,7 +489,7 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 		PMGroupArg:     helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
 	}, pipelineHandler(blacklistsModule.rmAllBlacklists))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist"), blacklistsModule.buttonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist|"), blacklistsClearAllCallback))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""
 	}, blacklistsModule.blacklistWatcher), blacklistsModule.handlerGroup)

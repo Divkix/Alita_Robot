@@ -13,9 +13,9 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 func TestPipelineProofKeepsActorAliasReplyAndTapRules(t *testing.T) {
@@ -63,7 +63,7 @@ func TestPipelineProofKeepsActorAliasReplyAndTapRules(t *testing.T) {
 				t.Fatal(err)
 			}
 			key := chat_status.AnonAdminCacheKey(f.chat.Id, msg.MessageId)
-			t.Cleanup(func() { _ = cache.GetMarshal().Delete(cache.Context, key) })
+			t.Cleanup(func() { opstate.Delete(key) })
 			sends := f.client.callsFor("sendMessage")[before:]
 			if len(sends) != 1 {
 				t.Fatalf("anonymous sends = %v, want only the proof (or trusted execution)", sends)
@@ -86,9 +86,7 @@ func TestPipelineProofKeepsActorAliasReplyAndTapRules(t *testing.T) {
 				chat.Id = uniqueModuleChatID()
 			}
 			if mode == "expired" {
-				if err := cache.GetMarshal().Delete(cache.Context, key); err != nil {
-					t.Fatal(err)
-				}
+				opstate.Delete(key)
 			}
 			callback := newModuleCallbackContext(f.bot, chat, actor, markup.InlineKeyboard[0][0].CallbackData).Update
 			if err := d.ProcessUpdate(f.bot, callback, nil); err != nil {

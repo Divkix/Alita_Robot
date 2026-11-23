@@ -24,9 +24,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 // warnsListText runs /warns for userID and returns the bot's last reply.
@@ -171,10 +171,6 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 	})
 
 	t.Run("confirmed through the button", func(t *testing.T) {
-		m := cache.GetMarshal()
-		if m == nil {
-			t.Fatal("cache marshaler is not initialised; TestMain must set it")
-		}
 		f := newAdminChatFixture(t)
 		client, bot, chat, clicker := f.client, f.bot, f.chat, f.admin
 		setUserName(t, clicker.Id, "Hidden Mod")
@@ -191,10 +187,10 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 			},
 		}
 		key := chat_status.AnonAdminCacheKey(chat.Id, command.MessageId)
-		if err := m.Set(cache.Context, key, command); err != nil {
-			t.Fatalf("cache set: %v", err)
+		if err := opstate.Stash(key, command, time.Minute); err != nil {
+			t.Fatalf("opstate stash: %v", err)
 		}
-		t.Cleanup(func() { _ = m.Delete(cache.Context, key) })
+		t.Cleanup(func() { opstate.Delete(key) })
 
 		// The real button path: verifyAnonymousAdmin replays the cached command
 		// through the anonymous-admin handler LoadWarns registers.

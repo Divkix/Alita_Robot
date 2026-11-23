@@ -281,8 +281,12 @@ func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, a
 	// Counting is in-memory while the exemption checks read the cache or call
 	// Telegram, so they run only once the user crosses the limit.
 	flooded, floodCrc := antifloodModule.updateFloodWithSettings(chatId, userId, msg.MessageId, flood)
+	// Anonymous-channel senders stay punishable through SenderChat, so the
+	// protected-user predicate runs only for user-shaped senders. The
+	// flood-exempt admin check above is a declared specialization: its
+	// semaphore and fail-exempt timeout guard slow admin lookups.
 	if !flooded || antifloodModule.userIsFloodExempt(b, chatId, userId) ||
-		chat_status.IsApprovedForUpdate(b, ctx, chatId, userId) {
+		(user.IsUser() && chat_status.IsProtectedForUpdate(b, ctx, chatId, userId)) {
 		return ext.ContinueGroups
 	}
 
