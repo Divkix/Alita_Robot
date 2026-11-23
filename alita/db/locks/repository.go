@@ -40,7 +40,7 @@ func UpdateLock(chatID int64, perm string, val bool) error {
 }
 
 func InvalidateLockCache(chatID int64) {
-	cache.DeleteCache(cache.CacheKey("locks_map", chatID))
+	cache.DeleteCache(LocksProjection.Key(chatID))
 }
 
 func IsPermLocked(chatID int64, perm string) bool {
