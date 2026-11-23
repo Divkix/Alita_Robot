@@ -1026,6 +1026,8 @@ blacklists_blacklist_word_too_long: "ये शब्द बहुत लंब�
 blacklists_ls_bl_list_bl: "इस चैट में ये शब्द ब्लैकलिस्ट किए गए हैं:"
 blacklists_ls_bl_no_blacklisted: इस चैट में कोई ब्लैकलिस्ट किए गए शब्द नहीं हैं।
 blacklists_rm_all_bl_ask: "क्या आप वाकई इस चैट से सभी ब्लैकलिस्ट किए गए शब्दों को हटाना चाहते हैं?"
+blacklists_rm_all_bl_cancel: "इस चैट की सभी ब्लैकलिस्ट को हटाना रद्द किया गया ❌"
+blacklists_rm_all_bl_done: "इस चैट से सभी ब्लैकलिस्ट हटा दी गईं ✅"
 blacklists_set_bl_action_changed_mode: "ब्लैकलिस्ट मोड सफलतापूर्वक बदल दिया गया: *%s*"
 blist_action_tban: "ब्लैकलिस्ट मोड %s के लिए tban पर सेट किया गया है।"
 blist_action_tmute: "ब्लैकलिस्ट मोड %s के लिए tmute पर सेट किया गया है।"

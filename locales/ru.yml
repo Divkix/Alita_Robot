@@ -163,6 +163,9 @@ blacklists_ls_bl_list_bl: "Эти слова в чёрном списке в э�
 blacklists_ls_bl_no_blacklisted: В этом чате нет слов в чёрном списке.
 blacklists_rm_all_bl_ask: |
   Вы уверены, что хотите удалить все слова из чёрного списка этого чата?
+blacklists_rm_all_bl_cancel: |
+  Отменено удаление всех чёрных списков этого чата ❌
+blacklists_rm_all_bl_done: Удалены все чёрные списки из этого чата ✅
 blacklists_set_bl_action_changed_mode: "Успешно изменён режим чёрного списка на: *%s*"
 blist_action_tban: "Режим чёрного списка изменён на tban сроком на %s."
 blist_action_tmute: "Режим чёрного списка изменён на tmute сроком на %s."

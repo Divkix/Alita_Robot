@@ -440,6 +440,10 @@ blacklists_ls_bl_no_blacklisted: Il n'y a pas de mots sur la liste noire dans ce
 blacklists_rm_all_bl_ask:
   "Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
   ce chat ?"
+blacklists_rm_all_bl_cancel:
+  "Suppression de toutes les listes noires de ce chat annulée
+  ❌"
+blacklists_rm_all_bl_done: Tous les mots de la liste noire ont été supprimés de ce chat ✅
 blacklists_set_bl_action_changed_mode: "Mode de liste noire changé avec succès : *%s*"
 blist_action_tban: "Mode de liste noire changé : tban pendant %s"
 blist_action_tmute: "Mode de liste noire changé : tmute pendant %s"

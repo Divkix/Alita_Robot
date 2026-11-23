@@ -314,8 +314,8 @@ var blacklistsClearAll = ownerConfirmSpec{
 		return "", nil, nil
 	},
 	Keys: ownerConfirmKeys{
-		Confirmed: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_button_handler_yes",
-		Cancelled: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_button_handler_no",
+		Confirmed: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_done",
+		Cancelled: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_cancel",
 		Failed:    "error_generic",
 	},
 }
