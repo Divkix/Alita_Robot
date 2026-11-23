@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 // function used to get status of bot when it joined a group and send a message to the group
@@ -229,15 +230,14 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 // getAnonAdminCache retrieves cached message data for anonymous admin verification.
 // Returns the original message context stored during anonymous admin command execution.
 func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return nil, fmt.Errorf("cache not initialized")
-	}
-	result, err := m.Get(cache.Context, chat_status.AnonAdminCacheKey(chatId, msgId), new(gotgbot.Message))
+	msg, err := opstate.Peek[gotgbot.Message](chat_status.AnonAdminCacheKey(chatId, msgId))
 	if err != nil {
 		return nil, err
 	}
-	return result.(*gotgbot.Message), nil
+	if msg == nil {
+		return nil, fmt.Errorf("anonymous admin cache miss")
+	}
+	return msg, nil
 }
 
 // LoadBotUpdates registers bot event handlers for group management.

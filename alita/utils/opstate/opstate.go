@@ -220,6 +220,17 @@ func Stash[T any](key string, v T, ttl time.Duration) error {
 	return nil
 }
 
+// Delete drops a stashed payload on both stores, best-effort: Redis errors
+// are ignored. For cleanup paths, not for consume semantics.
+func Delete(key string) {
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		_ = rdb.Del(cache.Context, key).Err()
+	}
+	local.mu.Lock()
+	delete(local.payloads, key)
+	local.mu.Unlock()
+}
+
 // Consume reads and deletes the payload at key in one step: GETDEL against
 // Redis, a mutex-serialized local take without it. A missing or expired key
 // returns (nil, nil); a decode failure returns the error.
