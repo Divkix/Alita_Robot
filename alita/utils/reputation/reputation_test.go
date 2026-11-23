@@ -344,7 +344,7 @@ func TestLookupCachesAVerdictForTenMinutes(t *testing.T) {
 	if listed || chats != 2 {
 		t.Fatalf("Lookup() = %v, %d; want not listed with 2 chats", listed, chats)
 	}
-	key := dbcache.CacheKey(cacheModule, userID)
+	key := ReputationProjection.Key(userID)
 	if ttl := server.TTL(key); ttl <= 9*time.Minute || ttl > 10*time.Minute {
 		t.Fatalf("cache TTL = %v, want 10 minutes", ttl)
 	}

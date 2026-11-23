@@ -8,17 +8,16 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/bans"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 const (
@@ -43,23 +42,19 @@ type banListSearch struct {
 }
 
 func banListSearchKey(token string) string {
-	return "alita:banlist:" + token
+	return opstate.Key("banlist", token)
 }
 
 // storeBanListSearch keeps search for chatID's page buttons and returns its
-// token, or "" when it could not be kept (no Redis): the list is then shown
-// without page buttons.
+// token. opstate's local fallback keeps the search on this replica when
+// Redis is absent, so page buttons still work.
 func storeBanListSearch(chatID int64, search string) string {
-	m := cache.GetMarshal()
-	if m == nil {
-		return ""
-	}
-	token, err := newOverwriteToken()
+	token, err := opstate.NewToken()
 	if err != nil {
 		log.WithError(err).Error("[Bans] Failed to make a ban list token")
 		return ""
 	}
-	if err := m.Set(cache.Context, banListSearchKey(token), banListSearch{ChatID: chatID, Search: search}, store.WithExpiration(banListSearchTTL)); err != nil {
+	if err := opstate.Stash(banListSearchKey(token), banListSearch{ChatID: chatID, Search: search}, banListSearchTTL); err != nil {
 		log.WithError(err).Error("[Bans] Failed to keep the ban list search")
 		return ""
 	}
@@ -69,12 +64,8 @@ func storeBanListSearch(chatID int64, search string) string {
 // loadBanListSearch returns the search behind token, if it is still kept and
 // was made for chatID.
 func loadBanListSearch(chatID int64, token string) (string, bool) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return "", false
-	}
-	var kept banListSearch
-	if _, err := m.Get(cache.Context, banListSearchKey(token), &kept); err != nil || kept.ChatID != chatID {
+	kept, err := opstate.Peek[banListSearch](banListSearchKey(token))
+	if err != nil || kept == nil || kept.ChatID != chatID {
 		return "", false
 	}
 	return kept.Search, true

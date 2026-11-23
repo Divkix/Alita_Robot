@@ -25,8 +25,6 @@ const (
 	MinInterval = time.Hour
 )
 
-const cacheKeyPrefix = "recurring_messages"
-
 var (
 	// ErrLimitReached is returned by Add when the chat already has
 	// MaxPerChat recurring messages.
@@ -36,7 +34,7 @@ var (
 )
 
 func listKey(chatID int64) string {
-	return cache.CacheKey(cacheKeyPrefix, chatID)
+	return ListProjection.Key(chatID)
 }
 
 func invalidate(chatID int64) {

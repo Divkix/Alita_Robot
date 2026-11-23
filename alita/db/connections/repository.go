@@ -28,14 +28,14 @@ func ToggleAllowConnect(chatID int64, pref bool) error {
 		log.Errorf("[Database] ToggleAllowConnect: %d - %v", chatID, err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("connection_chat", chatID))
+	cache.DeleteCache(ConnectionChatProjection.Key(chatID))
 	return nil
 }
 
 func GetChatConnectionSetting(chatID int64) *models.ConnectionChatSettings {
 	connectionSrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("connection_chat", chatID),
+		ConnectionChatProjection.Key(chatID),
 		cache.CacheTTLConnections,
 		func(context.Context) (*models.ConnectionChatSettings, error) {
 			return checkChatConnectionSetting(chatID)
@@ -77,7 +77,7 @@ func getUserConnectionSetting(userID int64) (*models.ConnectionSettings, error) 
 func Connection(UserID int64) *models.ConnectionSettings {
 	connectionSrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("connection", UserID),
+		ConnectionProjection.Key(UserID),
 		cache.CacheTTLConnections,
 		func(context.Context) (*models.ConnectionSettings, error) {
 			return getUserConnectionSetting(UserID)
@@ -111,7 +111,7 @@ func ConnectId(UserID, chatID int64) error {
 		log.Errorf("[Database] ConnectId: %v - %d", err, chatID)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("connection", UserID))
+	cache.DeleteCache(ConnectionProjection.Key(UserID))
 	return nil
 }
 
@@ -123,7 +123,7 @@ func DisconnectId(UserID int64) error {
 		log.Errorf("[Database] DisconnectId: %v - %d", err, UserID)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("connection", UserID))
+	cache.DeleteCache(ConnectionProjection.Key(UserID))
 	return nil
 }
 

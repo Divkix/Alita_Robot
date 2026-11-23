@@ -29,7 +29,7 @@ func SetChatReportMuteThreshold(chatID int64, threshold int) error {
 	if err != nil {
 		return fmt.Errorf("set report mute threshold: %w", err)
 	}
-	cache.DeleteCache(cache.CacheKey("report_settings", chatID))
+	cache.DeleteCache(ReportSettingsProjection.Key(chatID))
 	return nil
 }
 

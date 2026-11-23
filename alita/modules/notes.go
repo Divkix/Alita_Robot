@@ -380,39 +380,42 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-//nolint:dupl // rmAllNotes shares confirmation pattern with filters module by design
-func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-
-	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true)
-	if len(noteKeys) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_none_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			return err
+// notesClearAll is the /clearall owner confirmation: the shared skeleton
+// asks, authorizes and answers; these closures hold only the notes work.
+var notesClearAll = ownerConfirmSpec{
+	Namespace: "rmAllNotes",
+	AskKey:    "notes_clear_all_confirm",
+	Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
+		if chat_status.RequireUser(b, ctx) == nil {
+			return false, nil
 		}
-		return ext.EndGroups
-	}
+		if len(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true)) == 0 {
+			text, _ := tr.GetString("notes_none_in_chat")
+			if _, err := ctx.EffectiveMessage.Reply(b, text, formatting.Shtml()); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		return true, nil
+	},
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := notes.RemoveAllNotes(chat.Id); err != nil {
+			log.Errorf("[Notes] Failed to remove all notes: %v", err)
+			return "error_generic", nil, nil
+		}
+		return "", nil, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: "notes_clear_all_success",
+		Cancelled: "notes_clear_all_cancelled",
+		Failed:    "error_generic",
+	},
+}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	clearAllText, _ := tr.GetString("notes_clear_all_confirm")
-	clearAllText = confirmText(ctx, tr, clearAllText, chat)
-	_, err := msg.Reply(b, clearAllText,
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllNotes", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
+var notesClearAllMessage, notesClearAllCallback = registerOwnerConfirm(notesClearAll)
 
-	return ext.EndGroups
+func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
+	return notesClearAllMessage(b, ctx)
 }
 
 func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -504,62 +507,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return err
 	}
 
-	return ext.EndGroups
-}
-
-func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	decoded, _ := decodeCallbackData(query.Data, "rmAllNotes")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	response, _ := decoded.Field("a")
-	if response == "" {
-		log.Warnf("[Notes] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-	var helpText string
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	switch response {
-	case "yes":
-		if err := notes.RemoveAllNotes(chat.Id); err != nil {
-			log.Errorf("[Notes] Failed to remove all notes: %v", err)
-			helpText, _ = tr.GetString("error_generic")
-		} else {
-			helpText, _ = tr.GetString("notes_clear_all_success")
-		}
-	case "no":
-		helpText, _ = tr.GetString("notes_clear_all_cancelled")
-	default:
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	if query.Message == nil {
-		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText}); err != nil {
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b,
-		&gotgbot.AnswerCallbackQueryOpts{
-			Text: helpText,
-		},
-	)
-	if err != nil {
-		return err
-	}
 	return ext.EndGroups
 }
 
@@ -907,7 +854,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		PMGroupArg:     helpers.PMGroupArgNone,
 		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), notesClearAllOwnerCheck},
 	}, pipelineHandler(notesModule.rmAllNotes))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes"), notesModule.notesButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes|"), notesClearAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite"), notesModule.noteOverWriteHandler))
 	dispatcher.AddHandler(
 		handlers.NewMessage(

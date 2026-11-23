@@ -10,7 +10,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
@@ -22,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -663,17 +663,15 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 // AnonAdminCacheKey is the operational Redis key holding the message behind an
 // anonymous admin's confirmation button.
 func AnonAdminCacheKey(chatId, msgId int64) string {
-	return fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId)
+	return opstate.Key("anonAdmin", chatId, msgId)
 }
 
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
-	m := cache.GetMarshal()
-	if m == nil || msg == nil {
-		log.Debug("Skipping anonymous admin cache set: cache unavailable or message nil")
+	if msg == nil {
+		log.Debug("Skipping anonymous admin cache set: message nil")
 		return
 	}
-	err := m.Set(cache.Context, AnonAdminCacheKey(chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
-	if err != nil {
+	if err := opstate.Stash(AnonAdminCacheKey(chatId, msg.MessageId), msg, anonChatMapExpiration); err != nil {
 		log.Errorf("Failed to set anonymous admin cache: %v", err)
 	}
 }

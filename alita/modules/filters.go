@@ -279,93 +279,39 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-//nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
-func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	filterKeys := db_filters.GetFiltersList(chat.Id)
-
-	if len(filterKeys) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("filters_none_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			return err
+// filtersClearAll is the /stopall owner confirmation: the shared skeleton
+// asks, authorizes and answers; these closures hold only the filters work.
+var filtersClearAll = ownerConfirmSpec{
+	Namespace: "rmAllFilters",
+	AskKey:    "filters_clear_all_confirm",
+	Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
+		if len(db_filters.GetFiltersList(chat.Id)) == 0 {
+			text, _ := tr.GetString("filters_none_in_chat")
+			if _, err := ctx.EffectiveMessage.Reply(b, text, formatting.Shtml()); err != nil {
+				return false, err
+			}
+			return false, nil
 		}
-
-		return ext.EndGroups
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	question, _ := tr.GetString("filters_clear_all_confirm")
-	_, err := msg.Reply(b, confirmText(ctx, tr, question, chat),
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllFilters", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+		return true, nil
+	},
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := db_filters.RemoveAllFilters(chat.Id); err != nil {
+			log.Errorf("[Filters] Failed to remove all filters: %v", err)
+			return "error_generic", nil, nil
+		}
+		return "", nil, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: "filters_clear_all_success",
+		Cancelled: "filters_clear_all_cancelled",
+		Failed:    "error_generic",
+	},
 }
 
-func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
+var filtersClearAllMessage, filtersClearAllCallback = registerOwnerConfirm(filtersClearAll)
 
-	decoded, _ := decodeCallbackData(query.Data, "rmAllFilters")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	response, _ := decoded.Field("a")
-	if response == "" {
-		log.Warnf("[Filters] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-	var helpText string
-
-	switch response {
-	case "yes":
-		if err := db_filters.RemoveAllFilters(chat.Id); err != nil {
-			helpText, _ = tr.GetString("filters_clear_all_failed")
-			if helpText == "" {
-				helpText = "Failed to remove all Filters from this Chat ❌"
-			}
-		} else {
-			helpText, _ = tr.GetString("filters_clear_all_success")
-		}
-	case "no":
-		helpText, _ = tr.GetString("filters_clear_all_cancelled")
-	default:
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	if query.Message == nil {
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-		return ext.EndGroups
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b,
-		&gotgbot.AnswerCallbackQueryOpts{
-			Text: helpText,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
+	return filtersClearAllMessage(b, ctx)
 }
 
 func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -599,7 +545,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 			}),
 		},
 	}, pipelineHandler(filtersModule.rmAllFilters))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters"), filtersModule.filtersButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters|"), filtersClearAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("filters_overwrite"), filtersModule.filterOverWriteHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""

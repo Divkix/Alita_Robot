@@ -19,7 +19,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -309,98 +308,30 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	return ext.EndGroups
 }
 
-//nolint:dupl // Similar to other rmAll handlers with distinct callback data and messages
-func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	chat := ctx.EffectiveChat
-
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_ask")
-	text = confirmText(ctx, tr, text, chat)
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllApprovals", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+// approvalsClearAll is the /unapproveall owner confirmation: the shared
+// skeleton asks, authorizes and answers; these closures hold only the
+// approvals work.
+var approvalsClearAll = ownerConfirmSpec{
+	Namespace: "rmAllApprovals",
+	AskKey:    strings.ToLower(approvalsModule.moduleName) + "_unapproveall_ask",
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := approvals.RemoveAllApprovedUsers(chat.Id); err != nil {
+			log.WithFields(log.Fields{"chatId": chat.Id, "error": err}).Error("Failed to remove all approved users")
+			return "error_generic", nil, nil
+		}
+		return "", nil, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: strings.ToLower(approvalsModule.moduleName) + "_unapproveall_done",
+		Cancelled: strings.ToLower(approvalsModule.moduleName) + "_unapproveall_cancel",
+		Failed:    "error_generic",
+	},
 }
 
-func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+var approvalsClearAllMessage, approvalsClearAllCallback = registerOwnerConfirm(approvalsClearAll)
 
-	decoded, _ := decodeCallbackData(query.Data, "rmAllApprovals")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	action, _ := decoded.Field("a")
-	if action == "" {
-		log.Warnf("[Approvals] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	var helpText string
-	switch action {
-	case "yes":
-		if query.Message == nil {
-			log.Warn("[Approvals] Cannot remove all approved users: message was deleted")
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		defer error_handling.RecoverFromPanic("rmAllApprovals", "approvals")
-		if err := approvals.RemoveAllApprovedUsers(chat.Id); err != nil {
-			log.WithFields(log.Fields{
-				"chatId": chat.Id,
-				"error":  err,
-			}).Error("Failed to remove all approved users")
-			helpText, _ = tr.GetString(strings.ToLower(m.moduleName)+"_unapproveall_error", i18n.TranslationParams{"error": err.Error()})
-		} else {
-			helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_done")
-		}
-	case "no":
-		if query.Message == nil {
-			log.Warn("[Approvals] Cannot cancel unapproveall: message was deleted")
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
-	default:
-		if query.Message == nil {
-			log.Warnf("[Approvals] Unexpected action '%s' with nil message", action)
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		log.WithFields(log.Fields{
-			"action": action,
-			"chatId": query.Message.GetChat().Id,
-		}).Warn("[Approvals] Unexpected callback action")
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	return approvalsClearAllMessage(b, ctx)
 }
 
 func extractDisplayName(userID int64) string {
@@ -436,7 +367,7 @@ func LoadApprovals(dispatcher *ext.Dispatcher) {
 		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
 	}, pipelineHandler(approvalsModule.unapproveAllHandler))
 
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals|"), approvalsClearAllCallback))
 }
 
 func init() {

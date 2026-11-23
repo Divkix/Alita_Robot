@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -34,8 +35,6 @@ const (
 	// locks (5/6), so a blocked message is removed before they look at it.
 	probationHandlerGroup = 2
 
-	probationRedisPrefix  = "alita:probation:"
-	probationRedisTimeout = 2 * time.Second
 	// probationRetention is how long a member row may outlive its probation:
 	// past the longest allowed time every row has run out.
 	probationRetention = models.ProbationDurationMax
@@ -66,7 +65,7 @@ var (
 var probationBlockNames = []string{probation.BlockLinks, probation.BlockForwards, probation.BlockMedia}
 
 func probationRedisKey(chatID, userID int64) string {
-	return probationRedisPrefix + strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
+	return opstate.Key("probation", chatID, userID)
 }
 
 // startProbation puts a member who just joined on probation when the chat has
@@ -120,15 +119,7 @@ func endProbationOnLeave(ctx context.Context, chatID, userID int64) {
 }
 
 func probationDropCount(chatID, userID int64) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), probationRedisTimeout)
-	defer cancel()
-	if err := rdb.Del(ctx, probationRedisKey(chatID, userID)).Err(); err != nil {
-		log.WithFields(log.Fields{"chat_id": chatID, "user_id": userID, "error": err}).Warn("[Probation] could not drop the message count")
-	}
+	opstate.Delete(probationRedisKey(chatID, userID))
 }
 
 // probationCount records text as one of userID's messages and returns how
@@ -136,22 +127,15 @@ func probationDropCount(chatID, userID int64) {
 // probation, so nothing is left behind. ok is false without Redis, or when
 // Redis fails: the message is then not counted and probation ends on time.
 func probationCount(chatID, userID int64, text string, ttl time.Duration) (count int64, ok bool) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
+	if cache.GetRedisClient() == nil {
 		return 0, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), probationRedisTimeout)
-	defer cancel()
-	key := probationRedisKey(chatID, userID)
-	pipe := rdb.TxPipeline()
-	pipe.SAdd(ctx, key, probationTextHash(text))
-	pipe.Expire(ctx, key, max(ttl, time.Minute))
-	card := pipe.SCard(ctx, key)
-	if _, err := pipe.Exec(ctx); err != nil {
+	count, err := opstate.MembersAdd(probationRedisKey(chatID, userID), probationTextHash(text), max(ttl, time.Minute))
+	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chatID, "user_id": userID, "error": err}).Warn("[Probation] could not count the message")
 		return 0, false
 	}
-	return card.Val(), true
+	return count, true
 }
 
 // probationTextHash identifies a message by its text with case and spacing
@@ -208,7 +192,7 @@ func (moduleStruct) checkProbation(b *gotgbot.Bot, ctx *ext.Context) error {
 		endProbation(chat.Id, user.Id)
 		return ext.ContinueGroups
 	}
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, user.Id) || chat_status.IsApprovedForUpdate(b, ctx, chat.Id, user.Id) {
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
 
@@ -278,7 +262,7 @@ func sendProbationNotice(b *gotgbot.Bot, ctx *ext.Context, settings *models.Prob
 		return
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("probation_notice", i18n.TranslationParams{
+	text := tr.String("probation_notice", i18n.TranslationParams{
 		"user":    formatting.MentionHtml(user.Id, formatting.GetFullName(user.FirstName, user.LastName)),
 		"blocked": probationBlockedText(tr, settings),
 	})
@@ -305,7 +289,7 @@ func sendProbationNotice(b *gotgbot.Bot, ctx *ext.Context, settings *models.Prob
 func probationBlockedText(tr *i18n.Translator, settings *models.ProbationSettings) string {
 	var names []string
 	for _, kind := range probationBlockedKinds(settings) {
-		name, _ := tr.GetString("probation_block_" + kind)
+		name := tr.String("probation_block_" + kind)
 		names = append(names, name)
 	}
 	return strings.Join(names, ", ")
@@ -372,7 +356,7 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 		if !on {
 			return probationReplyKey(c, "probation_disabled_success")
 		}
-		text, _ := c.Tr.GetString("probation_enabled_success")
+		text := c.Tr.String("probation_enabled_success")
 		if warning := probationNoDeleteWarning(c); warning != "" {
 			text += "\n\n" + warning
 		}
@@ -445,8 +429,8 @@ func probationStatusText(c *helpers.CommandContext, settings *models.ProbationSe
 	if settings.Enabled {
 		stateKey = "probation_status_on"
 	}
-	state, _ := tr.GetString(stateKey)
-	details, _ := tr.GetString("probation_status_details", i18n.TranslationParams{
+	state := tr.String(stateKey)
+	details := tr.String("probation_status_details", i18n.TranslationParams{
 		"blocked":  probationBlockedText(tr, settings),
 		"time":     formatDuration(settings.DurationSeconds),
 		"messages": settings.MessageCount,
@@ -456,10 +440,10 @@ func probationStatusText(c *helpers.CommandContext, settings *models.ProbationSe
 	if settings.Notice {
 		noticeKey = "probation_status_notice_on"
 	}
-	notice, _ := tr.GetString(noticeKey)
+	notice := tr.String(noticeKey)
 	parts := []string{state, details, notice}
 	if cache.GetRedisClient() == nil {
-		warning, _ := tr.GetString("probation_status_no_redis")
+		warning := tr.String("probation_status_no_redis")
 		parts = append(parts, warning)
 	}
 	if settings.Enabled {
@@ -476,12 +460,12 @@ func probationNoDeleteWarning(c *helpers.CommandContext) string {
 	if chat_status.CanBotDeleteForUpdate(c.Bot, c.Ctx, c.Chat) {
 		return ""
 	}
-	warning, _ := c.Tr.GetString("probation_status_no_delete")
+	warning := c.Tr.String("probation_status_no_delete")
 	return warning
 }
 
 func probationUsage(c *helpers.CommandContext) error {
-	usage, _ := c.Tr.GetString("probation_usage")
+	usage := c.Tr.String("probation_usage")
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, "probation", usage)
 }
 
@@ -494,8 +478,7 @@ func probationSaveFailed(c *helpers.CommandContext, err error) error {
 }
 
 func probationReplyKey(c *helpers.CommandContext, key string, params ...i18n.TranslationParams) error {
-	text, _ := c.Tr.GetString(key, params...)
-	return probationReply(c, text)
+	return probationReply(c, c.Tr.String(key, params...))
 }
 
 func probationReply(c *helpers.CommandContext, text string) error {

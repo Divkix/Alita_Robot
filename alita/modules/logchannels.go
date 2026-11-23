@@ -2,7 +2,6 @@ package modules
 
 import (
 	"errors"
-	"fmt"
 	"html"
 	"strconv"
 	"strings"
@@ -12,16 +11,15 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
-	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -33,7 +31,7 @@ var logChannelsModule = moduleStruct{
 }
 
 func setlogPendingKey(channelID, messageID int64) string {
-	return fmt.Sprintf("alita:setlog:%d:%d", channelID, messageID)
+	return opstate.Key("setlog", channelID, messageID)
 }
 
 // setLogChannelCommand is the senderless channel-post step, never a group or PM command.
@@ -48,18 +46,7 @@ func (h setLogChannelCommand) CheckUpdate(b *gotgbot.Bot, ctx *ext.Context) bool
 func (moduleStruct) setLogChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := ctxTr(ctx)
-	m := cache.GetMarshal()
-	if m == nil {
-		text, _ := tr.GetString("common_settings_save_failed")
-		replyHTML(b, msg, text)
-		return ext.EndGroups
-	}
-	if err := m.Set(
-		cache.Context,
-		setlogPendingKey(msg.Chat.Id, msg.MessageId),
-		[]byte("1"),
-		store.WithExpiration(time.Hour),
-	); err != nil {
+	if err := opstate.Stash(setlogPendingKey(msg.Chat.Id, msg.MessageId), []byte("1"), time.Hour); err != nil {
 		log.Errorf("[LogChannels] failed to store pending setlog: %v", err)
 		text, _ := tr.GetString("common_settings_save_failed")
 		replyHTML(b, msg, text)
@@ -314,21 +301,12 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 	if origin.MessageId == 0 {
 		return ext.ContinueGroups
 	}
-	pending := false
-	key := setlogPendingKey(origin.Chat.Id, origin.MessageId)
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		// Atomic consume: concurrent forwards of the same channel message bind once.
-		if err := rdb.GetDel(cache.Context, key).Err(); err == nil {
-			pending = true
-		}
-	} else if m := cache.GetMarshal(); m != nil {
-		var marker []byte
-		if _, err := m.Get(cache.Context, key, &marker); err == nil {
-			pending = true
-			_ = m.Delete(cache.Context, key)
-		}
+	// Atomic consume: concurrent forwards of the same channel message bind once.
+	consumed, err := opstate.Consume[[]byte](setlogPendingKey(origin.Chat.Id, origin.MessageId))
+	if err != nil {
+		log.Debugf("[LogChannels] consume pending setlog: %v", err)
 	}
-	if !pending {
+	if consumed == nil {
 		return ext.ContinueGroups
 	}
 	if err := logchannels.Set(chat.Id, chat.Title, origin.Chat.Id); err != nil {

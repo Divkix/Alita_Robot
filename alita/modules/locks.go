@@ -125,7 +125,7 @@ func (moduleStruct) buildLockTypesMessage(ctx *ext.Context, chatID int64) (res s
 
 	newMapLocks := chatLocks
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	res, _ = tr.GetString("locks_current_locks_header")
+	res = tr.String("locks_current_locks_header")
 
 	keys := make([]string, 0, len(newMapLocks))
 	for k := range newMapLocks {
@@ -146,7 +146,7 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	_locktypes := m.getLockMapAsArray()
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	header, _ := tr.GetString("locks_locktypes_header")
+	header := tr.String("locks_locktypes_header")
 	_, err := msg.Reply(b, header+strings.Join(_locktypes, "\n - "), formatting.Shtml())
 	if err != nil {
 		return err
@@ -203,14 +203,14 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	}
 
 	if len(args) == 0 {
-		text, _ := tr.GetString(keys.whatKey)
+		text := tr.String(keys.whatKey)
 		return reply(text)
 	}
 
 	lockTypes := m.getLockMapAsArray()
 	for _, perm := range args {
 		if !slices.Contains(lockTypes, perm) {
-			temp, _ := tr.GetString("locks_invalid_lock_type")
+			temp := tr.String("locks_invalid_lock_type")
 			return reply(fmt.Sprintf(temp, html.EscapeString(perm)))
 		}
 	}
@@ -224,10 +224,10 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	}
 
 	if len(failedLocks) > 0 {
-		text, _ := tr.GetString(keys.failedKey)
+		text := tr.String(keys.failedKey)
 		return reply(fmt.Sprintf(text, strings.Join(failedLocks, ", ")))
 	}
-	temp, _ := tr.GetString(keys.doneKey)
+	temp := tr.String(keys.doneKey)
 	return reply(fmt.Sprintf(temp, strings.Join(args, "\n - ")))
 }
 
@@ -271,18 +271,13 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
-	// which IsUserAdmin rejects; they are admins and exempt from locks.
-	if sender.IsAnonymousAdmin() {
-		return ext.ContinueGroups
-	}
-
+	// Locks delete content, not senders: anonymous and linked channels stay
+	// deletable, so the protected-user predicate (which also exempts
+	// anonymous admins posting as the group itself) runs only for the rest.
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
-		return ext.ContinueGroups
-	}
-	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
+	if !sender.IsAnonymousChannel() && !sender.IsLinkedChannel() &&
+		chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -328,18 +323,13 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
-	// which IsUserAdmin rejects; they are admins and exempt from locks.
-	if sender.IsAnonymousAdmin() {
-		return ext.ContinueGroups
-	}
-
+	// Locks delete content, not senders: anonymous and linked channels stay
+	// deletable, so the protected-user predicate (which also exempts
+	// anonymous admins posting as the group itself) runs only for the rest.
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
-		return ext.ContinueGroups
-	}
-	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
+	if !sender.IsAnonymousChannel() && !sender.IsLinkedChannel() &&
+		chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -379,17 +369,16 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 		senderID = sender.Id()
 	}
 
-	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
-		return StageNotApplicable
-	}
-	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
+	// Non-positive and anonymous adders are exempt too: they are admins or
+	// senders no check can hold to account.
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return StageNotApplicable
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 	notice := func(key string) {
 		// A ChatMember update has no message to reply to, so send to the chat.
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
 			log.WithContext(tracing.UpdateContext(ctx)).Error(err)
 		}

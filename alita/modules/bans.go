@@ -20,7 +20,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -844,47 +843,19 @@ func (m moduleStruct) banme(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationBanme(&m).run(b, ctx)
 }
 
-func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	if chat_status.RequireUser(b, ctx) == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("bans_unbanall_ask")
-	text = confirmText(ctx, tr, text, ctx.EffectiveChat)
-	_, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{
-		ReplyMarkup: confirmKeyboard(tr, "unbanall", ctx.EffectiveChat),
-	})
-	if err != nil {
-		return err
-	}
-	return ext.EndGroups
-}
-
-func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	decoded, _ := decodeCallbackData(query.Data, "unbanall")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-	action, _ := decoded.Field("a")
-	if action == "" {
-		return answerInvalidCallback(b, ctx, query)
-	}
-	if (action == "yes" || action == "no") && query.Message == nil {
-		text, _ := tr.GetString("common_callback_message_unavailable")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
-	}
-	defer error_handling.RecoverFromPanic("unbanall", "bans")
-	var helpText string
-	switch action {
-	case "yes":
+// bansClearAll is the /unbanall owner confirmation: the shared skeleton
+// asks, authorizes and answers; the commit holds the administrator-list
+// walk that lifts every known user's ban.
+var bansClearAll = ownerConfirmSpec{
+	Namespace: "unbanall",
+	AskKey:    "bans_unbanall_ask",
+	Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
+		if chat_status.RequireUser(b, ctx) == nil {
+			return false, nil
+		}
+		return true, nil
+	},
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
 		chatID := chat.Id
 		users, err := chats.GetChatUsersCachedContext(tracing.UpdateContext(ctx), chatID)
 		if err != nil {
@@ -898,30 +869,26 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			// A record that fails to close is logged by Lift; the unban stands.
 			if result, err := punishment.Lift(tracing.UpdateContext(ctx), b, punishment.LiftRequest{
-				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: query.From.Id,
+				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: actor.Id,
 			}); !result.Applied {
 				log.Debugf("[Bans] unbanall user %d: %v", userID, err)
 				continue
 			}
 			unbanned++
 		}
-		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": unbanned})
-	case "no":
-		helpText, _ = tr.GetString("bans_unbanall_cancel")
-	default:
-		helpText, _ = tr.GetString("bans_unbanall_cancel")
-	}
-	if query.Message != nil {
-		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
-		if err != nil {
-			return err
-		}
-	}
-	_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-	if err != nil {
-		return err
-	}
-	return ext.EndGroups
+		return "bans_unbanall_done", i18n.TranslationParams{"count": unbanned}, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: "bans_unbanall_done",
+		Cancelled: "bans_unbanall_cancel",
+		Failed:    "error_generic",
+	},
+}
+
+var bansClearAllMessage, bansClearAllCallback = registerOwnerConfirm(bansClearAll)
+
+func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	return bansClearAllMessage(b, ctx)
 }
 
 // restrictChecks are the checks of a command that restricts a user; chat
@@ -1069,7 +1036,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("restrict"), bansModule.restrictButtonHandler))
 	helpers.WrapCommand(dispatcher, unrestrictDesc, pipelineHandler(bansModule.unrestrict))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansModule.unbanAllCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansClearAllCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(banListNamespace+"|"), bansModule.banListCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(punishment.LogUnbanNamespace+"|"), bansModule.banLogUnbanCallback))
 }

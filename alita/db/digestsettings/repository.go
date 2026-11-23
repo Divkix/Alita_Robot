@@ -28,8 +28,6 @@ const (
 	DestinationGroup = "group"
 )
 
-const cacheKeyPrefix = "digest_settings"
-
 // ErrInvalidDestination is returned for a destination other than "", log or group.
 var ErrInvalidDestination = errors.New("digestsettings: invalid destination")
 
@@ -43,7 +41,7 @@ func ValidDestination(destination string) bool {
 }
 
 func invalidate(chatID int64) {
-	cache.DeleteCache(cache.CacheKey(cacheKeyPrefix, chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 }
 
 // Get returns the chat's settings. A missing row reads as disabled, following
@@ -53,7 +51,7 @@ func Get(chatID int64) (*models.DigestSettings, error) {
 }
 
 func GetContext(ctx context.Context, chatID int64) (*models.DigestSettings, error) {
-	return cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cacheKeyPrefix, chatID), cache.CacheTTLDigest,
+	return cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLDigest,
 		func(ctx context.Context) (*models.DigestSettings, error) {
 			settings := &models.DigestSettings{}
 			err := db.GetRecordContext(ctx, settings, models.DigestSettings{ChatID: chatID})
