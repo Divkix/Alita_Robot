@@ -4,7 +4,6 @@ import (
 	"html"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
@@ -25,21 +24,18 @@ type menuCommand struct {
 var replyOnlyCommands = map[string]bool{"dban": true, "dkick": true, "dmute": true, "spam": true}
 
 // commandHelpModules maps each command that answers a wrong call with its own
-// help to the lowercase module that registered it. It is derived once from
-// the command manifest WrapCommand fills at registration and the locale
-// config.yml examples: a command belongs when locales/config.yml gives it a
-// <cmd>_example — the sample call that makes the help actionable — or it is
-// a replyOnlyCommands entry. Every such command needs a × /cmd line in all
-// seven locales' <module>_help_msg, with continuation lines ending at a
-// blank line or the next entry, no double quotes or unknown HTML tags, and
-// /cmd in en.yml's <module>_extend_msg.
+// help to the lowercase module that registered it. It is derived from the
+// command manifest WrapCommand fills at registration: a command belongs when
+// locales/config.yml gives it a <cmd>_example — the sample call that makes
+// the help actionable — or it is a replyOnlyCommands entry. Every such
+// command needs a × /cmd line in all seven locales' <module>_help_msg, with
+// continuation lines ending at a blank line or the next entry, no double
+// quotes or unknown HTML tags, and /cmd in en.yml's <module>_extend_msg.
 // TestEveryHelpCommandHasItsLineInEveryLocale enforces the locale contract.
 // The warn commands (/warn, /swarn, /rmwarn, /resetwarns, /warns) answer
 // with their help only from PM: in a group they answer a call without a
 // user with common_no_user_specified alone, as before PM support.
-//
-// The map is built once and shared: callers must not mutate it.
-var commandHelpModules = sync.OnceValue(func() map[string]string {
+func commandHelpModules() map[string]string {
 	out := make(map[string]string)
 	for cmd, entry := range helpers.CommandManifest() {
 		if commandExample(cmd) == "" && !replyOnlyCommands[cmd] {
@@ -48,7 +44,7 @@ var commandHelpModules = sync.OnceValue(func() map[string]string {
 		out[cmd] = strings.ToLower(entry.Module)
 	}
 	return out
-})
+}
 
 // menuCommands lists every command of every en.yml <module>_extend_msg, and
 // nothing else. The module is the one the manifest says registered the
@@ -60,9 +56,7 @@ var commandHelpModules = sync.OnceValue(func() map[string]string {
 // rights. Dev commands have no extend list, so they are not listed.
 // Every listed module needs a one-line <module>_section_desc in all seven
 // locales.
-//
-// The map is built once and shared: callers must not mutate it.
-var menuCommands = sync.OnceValue(func() map[string]menuCommand {
+func menuCommands() map[string]menuCommand {
 	manifest := helpers.CommandManifest()
 	en := i18n.MustNewTranslator("en")
 	out := map[string]menuCommand{}
@@ -83,7 +77,7 @@ var menuCommands = sync.OnceValue(func() map[string]menuCommand {
 		}
 	}
 	return out
-})
+}
 
 // helpCommandLine matches a help line that defines commands: an optional
 // bullet followed by one or more /commands ("× /fban /unfban: ..."). Commands
