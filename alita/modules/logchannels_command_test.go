@@ -129,7 +129,7 @@ func TestLogChannelCommandsAndForwardBind(t *testing.T) {
 	require.Nil(t, logchannels.Get(chatID))
 }
 
-func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.T) {
+func TestSetLogForwardRequiresExactMessageAndBindsThroughLocalFallback(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot := f.bot
 	chatID := f.chat.Id
@@ -157,11 +157,13 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 	}
 	require.Nil(t, logchannels.Get(chatID), "non-/setlog forward must not bind a log channel")
 
+	// Without the cache marshaler the pending marker lives in opstate's
+	// in-process store: the flow still binds, scoped to this replica.
 	withNilCacheMarshal(t)
 	nilBot := f.bot
 	nilSet := newModuleMessageContext(nilBot, channel, admin, "/setlog")
 	if err := logChannelsModule.setLogChannel(nilBot, nilSet); err != ext.EndGroups {
-		t.Fatalf("setLog with nil marshaler: %v", err)
+		t.Fatalf("setLog without cache marshaler: %v", err)
 	}
 	nilFwd := newModuleMessageContext(nilBot, group, admin, "forwarded")
 	nilFwd.EffectiveMessage.ForwardOrigin = gotgbot.MessageOriginChannel{
@@ -170,10 +172,10 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 		MessageId: nilSet.EffectiveMessage.MessageId,
 	}
 	if err := logChannelsModule.captureSetLogForward(nilBot, nilFwd); err != ext.ContinueGroups {
-		t.Fatalf("captureSetLogForward(nil marshaler): %v", err)
+		t.Fatalf("captureSetLogForward without cache marshaler: %v", err)
 	}
-	if got := logchannels.Get(chatID); got != nil {
-		t.Fatal("nil-marshaler setLog bound a log channel")
+	if got := logchannels.Get(chatID); got == nil || got.LogChannelID != channelID {
+		t.Fatalf("setlog without cache marshaler bound %+v, want channel %d", got, channelID)
 	}
 }
 
