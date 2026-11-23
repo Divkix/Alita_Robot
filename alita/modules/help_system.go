@@ -38,7 +38,7 @@ func initHelpButtonsFrom(registry *moduleStruct, langCode string) gotgbot.Inline
 	}
 	zb := slices.Collect(slices.Chunk(kb, 3))
 	tr := i18n.MustNewTranslator(langCode)
-	backText, _ := tr.GetString("helpers_back_button")
+	backText := tr.String("helpers_back_button")
 	zb = append(zb, []gotgbot.InlineKeyboardButton{{
 		Text:         backText,
 		CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}),
@@ -52,12 +52,12 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 		ModName = strings.ToUpper(ModName[:1]) + ModName[1:]
 	}
 	tr := i18n.MustNewTranslator(lang)
-	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
-	headerTemplate, _ := tr.GetString("helpers_module_help_header")
+	helpMsg := tr.String(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
+	headerTemplate := tr.String("helpers_module_help_header")
 	helpText = renderModuleHelp(headerTemplate, ModName, helpMsg)
 
-	backText, _ := tr.GetString("common_back_arrow")
-	homeText, _ := tr.GetString("common_home")
+	backText := tr.String("common_back_arrow")
+	homeText := tr.String("common_home")
 	backBtnSuffix := []gotgbot.InlineKeyboardButton{
 		{
 			Text:         backText,

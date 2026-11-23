@@ -69,21 +69,21 @@ func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (*g
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if len(nArgs) < 2 {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return nil, ext.EndGroups
 	}
 
 	chatID, err := strconv.ParseInt(nArgs[1], 10, 64)
 	if err != nil {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return nil, ext.EndGroups
 	}
 
 	chatinfo, err := b.GetChat(chatID, nil)
 	if err != nil || chatinfo == nil {
-		text, _ := tr.GetString("helpers_chat_not_found")
+		text := tr.String("helpers_chat_not_found")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return nil, ext.EndGroups
 	}
@@ -128,7 +128,7 @@ func callbackAdminChat(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.Callback
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	deny := func(key string) *gotgbot.Chat {
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
 		return nil
 	}

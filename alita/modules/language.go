@@ -28,7 +28,7 @@ func (moduleStruct) genFullLanguageKb(langCode string) [][]gotgbot.InlineKeyboar
 // withHelpTranslateRow appends the Crowdin "help translate" link row, labelled in langCode.
 func withHelpTranslateRow(kb [][]gotgbot.InlineKeyboardButton, langCode string) [][]gotgbot.InlineKeyboardButton {
 	tr := i18n.MustNewTranslator(langCode)
-	helpTranslateText, _ := tr.GetString("language_help_translate")
+	helpTranslateText := tr.String("language_help_translate")
 	return append(
 		kb,
 		[]gotgbot.InlineKeyboardButton{
@@ -56,12 +56,12 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		group := ctx.EffectiveChat
 		// lang.GetLanguage(ctx) answers in the PM's language; name the group's.
 		groupLang := chatsettings.Language.ReadContext(tracing.UpdateContext(ctx), group.Id).Value.(string)
-		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
+		replyString = tr.String("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
 		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id), cLang)
 	} else if msg.Chat.Type == "private" {
-		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
+		replyString = tr.String("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
-		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
+		replyString = tr.String("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	}
 
 	_, err := msg.Reply(
@@ -104,7 +104,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if language == "" {
 		log.Warnf("[Language] Invalid callback data format: %s", query.Data)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		errText, _ := tr.GetString("language_invalid_selection")
+		errText := tr.String("language_invalid_selection")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 			Text: errText,
 		})
@@ -113,7 +113,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chatsettings.Language.Validate(language) != nil {
 		log.Warnf("[Language] Unsupported callback language: %s", language)
 		currentTr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		errText, _ := currentTr.GetString("language_invalid_selection")
+		errText := currentTr.String("language_invalid_selection")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 		return ext.EndGroups
 	}
@@ -144,19 +144,19 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat.Type == "private" {
 		if err := lang.ChangeUserLanguage(user.Id, language); err != nil {
 			log.Errorf("[Language] ChangeUserLanguage failed for user %d: %v", user.Id, err)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 			return ext.EndGroups
 		}
-		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
+		replyString = tr.String("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	} else {
 		if err := chatsettings.Language.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: b}, language); err != nil {
 			log.Errorf("[Language] ChangeGroupLanguage failed for chat %d: %v", chat.Id, err)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 			return ext.EndGroups
 		}
-		replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
+		replyString = tr.String("language_changed_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	}
 
 	if query.Message == nil {

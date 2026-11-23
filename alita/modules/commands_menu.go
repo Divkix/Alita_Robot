@@ -70,8 +70,8 @@ func (moduleStruct) commandsMenu(c *helpers.CommandContext) error {
 	if c.Chat.Type == "private" {
 		return sendCommandsMenu(c.Bot, c.Ctx, c.Tr, c.User.Id, 0)
 	}
-	text, _ := c.Tr.GetString("commands_open_in_pm")
-	button, _ := c.Tr.GetString("commands_open_in_pm_button")
+	text := c.Tr.String("commands_open_in_pm")
+	button := c.Tr.String("commands_open_in_pm_button")
 	_, err := c.Msg.Reply(c.Bot, text, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
 		ReplyParameters: &gotgbot.ReplyParameters{
@@ -93,7 +93,7 @@ func commandsDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Use
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chatID, err := strconv.ParseInt(strings.TrimPrefix(arg, commandsDeepLinkPrefix), 10, 64)
 	if err != nil || chatID >= 0 {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = ctx.EffectiveMessage.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -211,7 +211,7 @@ func commandsHomeScreen(tr *i18n.Translator, view commandsView) (string, gotgbot
 	if view.admin {
 		headerKey = "commands_menu_admin"
 	}
-	header, _ := tr.GetString(headerKey)
+	header := tr.String(headerKey)
 	lines := []string{header, ""}
 	var buttons []gotgbot.InlineKeyboardButton
 	menu := menuCommands()
@@ -257,7 +257,7 @@ func commandsSectionScreen(tr *i18n.Translator, view commandsView, module string
 	if hint, _ := tr.GetString("commands_section_hint"); hint != "" {
 		lines = append(lines, "", hint)
 	}
-	back, _ := tr.GetString("common_back_arrow")
+	back := tr.String("common_back_arrow")
 	rows := append(chunkButtons(buttons), []gotgbot.InlineKeyboardButton{{
 		Text:         back,
 		CallbackData: view.callbackData(map[string]string{"a": "h"}),
@@ -283,13 +283,13 @@ func commandsCommandScreen(tr *i18n.Translator, view commandsView, cmd string) (
 	}
 	var rows [][]gotgbot.InlineKeyboardButton
 	if example != "" {
-		copyText, _ := tr.GetString("commands_copy_example_button")
+		copyText := tr.String("commands_copy_example_button")
 		rows = append(rows, []gotgbot.InlineKeyboardButton{{
 			Text:     copyText,
 			CopyText: &gotgbot.CopyTextButton{Text: example},
 		}})
 	}
-	back, _ := tr.GetString("common_back_arrow")
+	back := tr.String("common_back_arrow")
 	rows = append(rows, []gotgbot.InlineKeyboardButton{{
 		Text:         back,
 		CallbackData: view.callbackData(map[string]string{"a": "s", "m": entry.Module}),

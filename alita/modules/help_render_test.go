@@ -53,6 +53,7 @@ help_button_share: "Share"
 help_share_text: "Share the bot."
 help_button_commands_help: "Commands"
 help_button_language: "Language"
+help_extend_hint: "Hint."
 `)
 	if err != nil {
 		t.Fatalf("NewTestTranslator() error = %v", err)
@@ -70,7 +71,7 @@ func TestHelpTextRendering(t *testing.T) {
 	if got := getStartHelp(tr); got != "Intro. News." {
 		t.Fatalf("getStartHelp() = %q", got)
 	}
-	if got := getMainHelp(tr, "Div"); got != "Hi Div. Use commands." {
+	if got := getMainHelp(tr, "Div"); got != "Hi Div. Use commands.Hint." {
 		t.Fatalf("getMainHelp() = %q", got)
 	}
 }
