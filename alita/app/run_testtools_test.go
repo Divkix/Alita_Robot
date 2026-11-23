@@ -1,6 +1,6 @@
 //go:build testtools
 
-package main
+package app
 
 import (
 	"errors"
@@ -22,21 +22,21 @@ import (
 // a phase — or in a phase outside the declared order — fails here instead of
 // silently landing in the wrong position.
 func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
-	// shutdownDrainSpecs declares the shared tail: database close, stats
+	// ShutdownDrainSpecs declares the shared tail: database close, stats
 	// flush, jobs stop and the module drains.
-	specs := shutdownDrainSpecs(
+	specs := ShutdownDrainSpecs(
 		func() error { return nil },
 		func() error { return nil },
 		func() error { return nil },
-		[]drainSpec{
-			{name: "users drain", handler: func() error { return nil }},
-			{name: "captcha stop", handler: func() error { return nil }},
-			{name: "aispam drain", handler: func() error { return nil }},
+		[]DrainSpec{
+			{Name: "users drain", Handler: func() error { return nil }},
+			{Name: "captcha stop", Handler: func() error { return nil }},
+			{Name: "aispam drain", Handler: func() error { return nil }},
 		},
 	)
 
 	// The remaining drains are registered directly: "updater stop" in
-	// runPolling (polling mode only), "http stop" and "tracer" in main. Their
+	// runPolling (polling mode only), "http stop" and "tracer" in Run. Their
 	// phases are asserted here so the whole set stays enumerable.
 	direct := []struct {
 		name  string
@@ -50,10 +50,10 @@ func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
 	phases := shutdown.Phases()
 	seen := make(map[shutdown.Phase]bool)
 	for _, spec := range specs {
-		if !slices.Contains(phases, spec.phase) {
-			t.Fatalf("drain %q declares phase %v, which Phases() does not list", spec.name, spec.phase)
+		if !slices.Contains(phases, spec.Phase) {
+			t.Fatalf("drain %q declares phase %v, which Phases() does not list", spec.Name, spec.Phase)
 		}
-		seen[spec.phase] = true
+		seen[spec.Phase] = true
 	}
 	for _, d := range direct {
 		if !slices.Contains(phases, d.phase) {
@@ -70,7 +70,7 @@ func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
 
 // No drain registered after the database phase may write to the database: the
 // database is already closed when they run. This registers the same nine
-// drains main registers — same names, same phases — against a real SQLite
+// drains Run registers — same names, same phases — against a real SQLite
 // database. A write probe runs in front of every drain: each probe before the
 // close must land, each probe after it must fail, and a drain that writes
 // after the close makes its probe report an error.
@@ -109,15 +109,15 @@ func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 
 	// wrap puts the probe in front of a drain, so the probe observes the
 	// database state the drain itself would see.
-	wrap := func(name string, phase shutdown.Phase) drainSpec {
-		return drainSpec{name: name, phase: phase, handler: func() error {
+	wrap := func(name string, phase shutdown.Phase) DrainSpec {
+		return DrainSpec{Name: name, Phase: phase, Handler: func() error {
 			probe()
 			return nil
 		}}
 	}
 
 	manager := shutdown.NewManager()
-	registerShutdownSteps(manager, append(shutdownDrainSpecs(
+	RegisterShutdownSteps(manager, append(ShutdownDrainSpecs(
 		func() error {
 			err := closeDBConnections()
 			mu.Lock()
@@ -127,7 +127,7 @@ func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 		},
 		func() error { probe(); return nil }, // stats flush
 		func() error { probe(); return nil }, // jobs stop
-		[]drainSpec{
+		[]DrainSpec{
 			wrap("users drain", 0), // module drains get their phase from the specs helper
 			wrap("captcha stop", 0),
 			wrap("aispam drain", 0),

@@ -1,6 +1,6 @@
 //go:build testtools
 
-package main
+package app
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 // every later one open until the updater cancels it, like a long poll. It
 // records the timeout the first getUpdates asked Telegram to hold it for.
 type longPollClient struct {
-	*mainBotClient
+	*appBotClient
 	polled      chan struct{}
 	held        chan struct{}
 	once        sync.Once
@@ -31,9 +31,9 @@ type longPollClient struct {
 	pollTimeout any
 }
 
-func (c *longPollClient) RequestWithContext(ctx context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+func (c *longPollClient) RequestWithContext(ctx context.Context, _ string, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
 	if method != "getUpdates" {
-		return nil, fmt.Errorf("unexpected method %s", method)
+		return c.appBotClient.RequestWithContext(ctx, "", method, params, opts)
 	}
 	first := false
 	c.once.Do(func() { first = true })
@@ -87,14 +87,14 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 			}
 		}
 		manager.Register("tracer", shutdown.PhaseTelemetry, drain("tracer"))
-		registerShutdownSteps(manager, shutdownDrainSpecs(
+		RegisterShutdownSteps(manager, ShutdownDrainSpecs(
 			drain("db close"),
 			drain("stats flush"),
 			drain("jobs stop"),
-			[]drainSpec{
-				{name: "users drain", handler: drain("users drain")},
-				{name: "captcha stop", handler: drain("captcha stop")},
-				{name: "aispam drain", handler: drain("aispam drain")},
+			[]DrainSpec{
+				{Name: "users drain", Handler: drain("users drain")},
+				{Name: "captcha stop", Handler: drain("captcha stop")},
+				{Name: "aispam drain", Handler: drain("aispam drain")},
 			},
 		)...)
 		httpStopStarted := make(chan struct{})
@@ -126,10 +126,10 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 		defer restoreSignals()
 
 		client := &longPollClient{
-			mainBotClient: &mainBotClient{},
-			polled:        make(chan struct{}),
-			held:          make(chan struct{}),
-			cancelled:     func() { record("updater stop") },
+			appBotClient: &appBotClient{},
+			polled:       make(chan struct{}),
+			held:         make(chan struct{}),
+			cancelled:    func() { record("updater stop") },
 		}
 		bot := &gotgbot.Bot{Token: "999:test", BotClient: client}
 		updater := ext.NewUpdater(ext.NewDispatcher(nil), nil)
