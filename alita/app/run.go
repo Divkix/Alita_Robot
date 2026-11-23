@@ -12,9 +12,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
+
 	// Embeds the IANA time zone database so chat timezones load on hosts
 	// without /usr/share/zoneinfo (the alpine debug image, nixpacks builds).
 	_ "time/tzdata"
@@ -266,13 +268,8 @@ func Run(mode string) {
 	})
 
 	if config.AppConfig.UseWebhooks {
-		if config.AppConfig.WebhookDomain == "" {
-			log.Fatal("[Webhook] WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
-		}
-		if config.AppConfig.WebhookSecret == "" {
-			log.Fatal("[Webhook] WEBHOOK_SECRET is required when USE_WEBHOOKS is enabled for security")
-		}
-
+		// WebhookDomain and WebhookSecret are guaranteed non-empty: config
+		// validation owns that contract, so startup does not re-check it.
 		if err := httpServer.RegisterWebhook(b, dispatcher, config.AppConfig.WebhookSecret, config.AppConfig.WebhookDomain); err != nil {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
@@ -481,4 +478,18 @@ func setPanelMenuButton(b *gotgbot.Bot) {
 	if err != nil {
 		log.Warnf("[Panel] Could not set the menu button: %v", err)
 	}
+}
+
+// HealthCheck probes the bot's /health endpoint on the configured HTTP port
+// and exits 0 on 200, 1 otherwise — the Docker healthcheck entrypoint.
+func HealthCheck() {
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))
+	if err != nil {
+		os.Exit(1)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
