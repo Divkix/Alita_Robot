@@ -38,7 +38,7 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 
 	tr := c.Tr
 
-	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_adminlist")
+	temp := tr.String(strings.ToLower(m.moduleName) + "_adminlist")
 	text := fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 
 	admins, cached := loadAdminCache(c.Bot, chat.Id)
@@ -57,16 +57,16 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 		}
 	}
 	if sb.Len() == 0 {
-		noVisibleText, _ := tr.GetString("admin_no_visible_admins")
+		noVisibleText := tr.String("admin_no_visible_admins")
 		text += noVisibleText
 	} else {
 		text += sb.String()
 	}
 	if !cached {
-		noteText, _ := tr.GetString("admin_adminlist_note_fresh")
+		noteText := tr.String("admin_adminlist_note_fresh")
 		text += noteText
 	} else {
-		noteText, _ := tr.GetString("admin_adminlist_note_cached")
+		noteText := tr.String("admin_adminlist_note_cached")
 		text += noteText
 	}
 	_, err := msg.Reply(c.Bot, text, formatting.Shtml())
@@ -80,7 +80,7 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 func (m moduleStruct) loadAdminCacheOrFail(c *helpers.CommandContext) *cache.AdminCache {
 	admins, _ := loadAdminCache(c.Bot, c.Chat.Id)
 	if len(admins.UserInfo) == 0 {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
 		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -95,7 +95,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 	if userId == -1 {
 		return 0, ext.EndGroups
 	} else if userId < 0 || chat_status.IsSystemUser(userId) {
-		text, _ := c.Tr.GetString("common_anonymous_user_error")
+		text := c.Tr.String("common_anonymous_user_error")
 		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -103,7 +103,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 		}
 		return 0, ext.EndGroups
 	} else if userId == 0 {
-		text, _ := c.Tr.GetString("common_no_user_specified")
+		text := c.Tr.String("common_no_user_specified")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -113,7 +113,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 	}
 
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId) {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_owner")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_demote_is_owner")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -122,7 +122,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 		return 0, ext.EndGroups
 	}
 	if userId == c.Bot.Id {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_bot_itself")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_demote_is_bot_itself")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -131,7 +131,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 		return 0, ext.EndGroups
 	}
 	if !chat_status.IsUserAdmin(c.Bot, c.Chat.Id, userId) {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_not_admin")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_demote_not_admin")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -172,7 +172,7 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 	)
 	if err != nil || !bb {
 		log.Error(err)
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_demote")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_errors_err_cannot_demote")
 		_, err = c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			return err
@@ -212,7 +212,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 	if userId == -1 {
 		return 0, "", ext.EndGroups
 	} else if userId < 0 || chat_status.IsSystemUser(userId) {
-		text, _ := c.Tr.GetString("common_anonymous_user_error")
+		text := c.Tr.String("common_anonymous_user_error")
 		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -220,7 +220,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 		}
 		return 0, "", ext.EndGroups
 	} else if userId == 0 {
-		text, _ := c.Tr.GetString("common_no_user_specified")
+		text := c.Tr.String("common_no_user_specified")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -229,7 +229,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 		return 0, "", ext.EndGroups
 	}
 	if userId == c.Bot.Id {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_bot_itself")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_promote_is_bot_itself")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -238,7 +238,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 		return 0, "", ext.EndGroups
 	}
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId) {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_owner")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_promote_is_owner")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -247,7 +247,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 		return 0, "", ext.EndGroups
 	}
 	if chat_status.IsUserAdmin(c.Bot, c.Chat.Id, userId) {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_admin")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_promote_is_admin")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -293,7 +293,7 @@ func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId i
 	extraText := ""
 	titleRunes := []rune(customTitle)
 	if len(titleRunes) > 16 {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_admin_title_truncated")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_promote_admin_title_truncated")
 		extraText += fmt.Sprintf(temp, len(titleRunes))
 		customTitle = string(titleRunes[0:16])
 	}
@@ -301,7 +301,7 @@ func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId i
 	if customTitle != "" {
 		_, err := c.Chat.SetAdministratorCustomTitle(c.Bot, userId, customTitle, nil)
 		if err != nil {
-			text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_set_title")
+			text := tr.String(strings.ToLower(m.moduleName) + "_errors_err_set_title")
 			_, err = msg.Reply(c.Bot, text, nil)
 			if err != nil {
 				log.Error(err)
@@ -382,7 +382,7 @@ func (m moduleStruct) promote(c *helpers.CommandContext) error {
 
 	status, err := c.Chat.PromoteMember(c.Bot, userId, opts)
 	if err != nil || !status {
-		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_promote")
+		text := c.Tr.String(strings.ToLower(m.moduleName) + "_errors_err_cannot_promote")
 		_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err == nil {
 			err = fmt.Errorf("promote member returned false status")
@@ -399,7 +399,7 @@ func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 	tr := c.Tr
 
 	if chat.Username != "" {
-		linkText, _ := tr.GetString("admin_invitelink_public")
+		linkText := tr.String("admin_invitelink_public")
 		_, _ = msg.Reply(c.Bot, fmt.Sprintf(linkText, "https://t.me/"+chat.Username), nil)
 	} else {
 		nchat, err := c.Bot.GetChat(chat.Id, nil)
@@ -407,7 +407,7 @@ func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 			_, _ = msg.Reply(c.Bot, err.Error(), nil)
 			return ext.EndGroups
 		}
-		linkText, _ := tr.GetString("admin_invitelink_private")
+		linkText := tr.String("admin_invitelink_private")
 		_, _ = msg.Reply(c.Bot, fmt.Sprintf(linkText, nchat.InviteLink), nil)
 	}
 	return ext.EndGroups
@@ -418,17 +418,17 @@ func (moduleStruct) setGTitle(c *helpers.CommandContext) error {
 	tr := c.Tr
 	title := strings.TrimSpace(strings.Join(c.Ctx.Args()[1:], " "))
 	if title == "" {
-		text, _ := tr.GetString("admin_setgtitle_need_title")
+		text := tr.String("admin_setgtitle_need_title")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	if _, err := c.Bot.SetChatTitle(c.Chat.Id, title, nil); err != nil {
 		log.Error(err)
-		text, _ := tr.GetString("admin_setgtitle_failed")
+		text := tr.String("admin_setgtitle_failed")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("admin_setgtitle_ok")
+	text := tr.String("admin_setgtitle_ok")
 	_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 	return ext.EndGroups
 }
@@ -437,7 +437,7 @@ func (moduleStruct) setGPic(c *helpers.CommandContext) error {
 	msg := c.Msg
 	tr := c.Tr
 	if msg.ReplyToMessage == nil || len(msg.ReplyToMessage.Photo) == 0 {
-		text, _ := tr.GetString("admin_setgpic_need_photo")
+		text := tr.String("admin_setgpic_need_photo")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -446,17 +446,17 @@ func (moduleStruct) setGPic(c *helpers.CommandContext) error {
 	data, err := downloadTelegramFile(c.Bot, fileID)
 	if err != nil || len(data) == 0 {
 		log.Error(err)
-		text, _ := tr.GetString("admin_setgpic_failed")
+		text := tr.String("admin_setgpic_failed")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	if _, err := c.Bot.SetChatPhoto(c.Chat.Id, gotgbot.InputFileByReader("photo.jpg", bytes.NewReader(data)), nil); err != nil {
 		log.Error(err)
-		text, _ := tr.GetString("admin_setgpic_failed")
+		text := tr.String("admin_setgpic_failed")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("admin_setgpic_ok")
+	text := tr.String("admin_setgpic_ok")
 	_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 	return ext.EndGroups
 }
@@ -467,11 +467,11 @@ func (moduleStruct) setGDesc(c *helpers.CommandContext) error {
 	desc := strings.TrimSpace(strings.Join(c.Ctx.Args()[1:], " "))
 	if _, err := c.Bot.SetChatDescription(c.Chat.Id, &gotgbot.SetChatDescriptionOpts{Description: desc}); err != nil {
 		log.Error(err)
-		text, _ := tr.GetString("admin_setgdesc_failed")
+		text := tr.String("admin_setgdesc_failed")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("admin_setgdesc_ok")
+	text := tr.String("admin_setgdesc_ok")
 	_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 	return ext.EndGroups
 }
@@ -485,14 +485,14 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if userId < 0 || chat_status.IsSystemUser(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		_, err := msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			return err
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -501,7 +501,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	}
 
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_owner")
+		text := tr.String(strings.ToLower(m.moduleName) + "_title_is_owner")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -509,7 +509,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 	if !chat_status.IsUserAdmin(c.Bot, chat.Id, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_admin")
+		text := tr.String(strings.ToLower(m.moduleName) + "_title_is_admin")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -518,7 +518,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	}
 
 	if userId == c.Bot.Id {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_bot_itself")
+		text := tr.String(strings.ToLower(m.moduleName) + "_title_is_bot_itself")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -529,7 +529,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 
 	var extraText string
 	if customTitle == "" {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_title_empty")
+		text := tr.String(strings.ToLower(m.moduleName) + "_errors_title_empty")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -537,7 +537,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	} else if len([]rune(customTitle)) > 16 {
 		runes := []rune(customTitle)
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_truncated")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_title_truncated")
 		extraText = fmt.Sprintf(temp, len(runes))
 		customTitle = string(runes[:16])
 	}
@@ -562,7 +562,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	)
 	if err != nil {
 		log.Error(err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_set_title")
+		text := tr.String(strings.ToLower(m.moduleName) + "_errors_err_set_title")
 		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
 		return err
 	}
@@ -592,44 +592,44 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 
 	if len(args) == 1 {
 		if anonAdmin {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled")
+			temp := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_enabled")
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		} else {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_disabled")
+			temp := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_disabled")
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		}
 	} else {
 		switch args[1] {
 		case "on", "true", "yes":
 			if anonAdmin {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
+				temp := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
 				if err := chatsettings.AnonAdmin.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, true); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
-					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
+					errorText := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
 					return ext.EndGroups
 				}
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled_now")
+				temp := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_enabled_now")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			}
 		case "off", "no", "false":
 			if !anonAdmin {
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
+				temp := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
 				if err := chatsettings.AnonAdmin.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: chat.Id}, false); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
-					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
+					errorText := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
 					return ext.EndGroups
 				}
-				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_disabled_now")
+				temp := tr.String(strings.ToLower(m.moduleName) + "_anon_admin_disabled_now")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			}
 		default:
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_invalid_arg")
+			text = tr.String(strings.ToLower(m.moduleName) + "_anon_admin_invalid_arg")
 		}
 	}
 
@@ -652,7 +652,7 @@ var adminCacheActorCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *help
 		userMember, lookupErr := b.GetChatMemberWithContext(tracing.UpdateContext(c.Ctx), chat.Id, user.Id, nil)
 		if lookupErr != nil && !error_handling.IsMissingChatMemberError(lookupErr) {
 			log.WithContext(tracing.UpdateContext(c.Ctx)).Errorf("[Admin] Failed to get member %d: %v", user.Id, lookupErr)
-			errorText, _ := c.Tr.GetString("admin_check_status_failed")
+			errorText := c.Tr.String("admin_check_status_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return false
 		}
@@ -662,7 +662,7 @@ var adminCacheActorCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *help
 		}
 	}
 	if !isAdmin {
-		errorText, _ := c.Tr.GetString("admin_need_admin")
+		errorText := c.Tr.String("admin_need_admin")
 		_, err := msg.Reply(b, errorText, nil)
 		if err != nil {
 			log.Error(err)
@@ -677,7 +677,7 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	cache.LoadAdminCache(b, chat.Id)
 
-	k, _ := c.Tr.GetString("commonstrings_admin_cache_cache_reloaded")
+	k := c.Tr.String("commonstrings_admin_cache_cache_reloaded")
 	_, err := msg.Reply(b, k, formatting.Shtml())
 	if err != nil {
 		return err
@@ -832,7 +832,7 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	}
 	log.Infof("[Admin] Cleared admin cache for %d (%s)", chat.Id, chat.Title)
 
-	text, _ := c.Tr.GetString("admin_cache_cleared")
+	text := c.Tr.String("admin_cache_cleared")
 	_, err = msg.Reply(c.Bot, text, formatting.Shtml())
 	if err != nil {
 		return err

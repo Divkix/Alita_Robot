@@ -252,7 +252,7 @@ func reportCardText(chat *gotgbot.Chat, reporter, target *gotgbot.User, reportCo
 func reportCardMarkup(tr *i18n.Translator, chat *gotgbot.Chat, messageID, reportID int64) gotgbot.InlineKeyboardMarkup {
 	markup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{}}
 	if link := chat_status.GetMessageLinkFromMessageId(chat, messageID); link != "" {
-		label, _ := tr.GetString("reports_button_message")
+		label := tr.String("reports_button_message")
 		markup.InlineKeyboard = append(markup.InlineKeyboard, []gotgbot.InlineKeyboardButton{{Text: label, Url: link}})
 	}
 	if reportID == 0 {
@@ -268,7 +268,7 @@ func reportCardMarkup(tr *i18n.Translator, chat *gotgbot.Chat, messageID, report
 			if data == "" {
 				continue
 			}
-			label, _ := tr.GetString(reportCardActions[action].buttonKey)
+			label := tr.String(reportCardActions[action].buttonKey)
 			row = append(row, gotgbot.InlineKeyboardButton{Text: label, CallbackData: data})
 		}
 		if len(row) > 0 {

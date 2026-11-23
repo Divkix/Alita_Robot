@@ -81,12 +81,12 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	noteString, _ := tr.GetString("notes_save_success")
+	noteString := tr.String("notes_save_success")
 
 	reply := extraction.UserReply(msg)
 	if reply != nil && len(args) <= 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_keyword_required")
+		text := tr.String("notes_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -94,7 +94,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	} else if len(args) <= 2 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_invalid")
+		text := tr.String("notes_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -114,7 +114,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if grpOnly && pvtOnly {
 		grpOnly, pvtOnly = false, false
-		noteConflictText, _ := tr.GetString("notes_private_conflict_warning")
+		noteConflictText := tr.String("notes_private_conflict_warning")
 		noteString += noteConflictText
 	}
 
@@ -125,7 +125,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		if tokenErr != nil {
 			log.Errorf("[Notes] Failed to generate overwrite token: %v", tokenErr)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			errorText, _ := tr.GetString("notes_overwrite_token_failed")
+			errorText := tr.String("notes_overwrite_token_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
 		}
@@ -147,14 +147,14 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			NoNotif:     noNotif,
 		}); err != nil {
 			log.Errorf("[Notes] Failed to cache overwrite data: %v", err)
-			errorText, _ := tr.GetString("notes_overwrite_token_failed")
+			errorText := tr.String("notes_overwrite_token_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
 		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		overwriteText, _ := tr.GetString("notes_overwrite_confirm")
-		yesText, _ := tr.GetString("button_yes")
-		noText, _ := tr.GetString("button_no")
+		overwriteText := tr.String("notes_overwrite_confirm")
+		yesText := tr.String("button_yes")
+		noText := tr.String("button_no")
 		_, err := msg.Reply(b,
 			overwriteText,
 			&gotgbot.SendMessageOpts{
@@ -191,7 +191,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err := notes.AddNote(chat.Id, noteWord, text, fileid, buttons, dataType, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif); err != nil {
 		log.Errorf("[Notes] Failed to add note %s in chat %d: %v", noteWord, chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		errorText, _ := tr.GetString("notes_save_failed")
+		errorText := tr.String("notes_save_failed")
 		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
 			return err
@@ -215,7 +215,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) == 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_remove_keyword_required")
+		text := tr.String("notes_remove_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -228,7 +228,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), noteWord) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_not_exists")
+		text := tr.String("notes_not_exists")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -239,7 +239,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err := notes.RemoveNote(chat.Id, noteWord); err != nil {
 		log.Errorf("[Notes] Failed to remove note %s in chat %d: %v", noteWord, chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		errorText, _ := tr.GetString("error_generic")
+		errorText := tr.String("error_generic")
 		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
 			return err
@@ -248,7 +248,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("notes_removed_success")
+	text := tr.String("notes_removed_success")
 	_, err := msg.Reply(b, fmt.Sprintf(text, html.EscapeString(noteWord)), formatting.Shtml())
 	if err != nil {
 		return err
@@ -267,29 +267,29 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch option {
 		case "on", "yes", "true":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			txt, _ = tr.GetString("notes_private_enabled")
+			txt = tr.String("notes_private_enabled")
 			if err := chatsettings.PrivateNotes.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); err != nil {
 				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
-				txt, _ = tr.GetString("error_generic")
+				txt = tr.String("error_generic")
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			txt, _ = tr.GetString("notes_private_disabled")
+			txt = tr.String("notes_private_disabled")
 			if err := chatsettings.PrivateNotes.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); err != nil {
 				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
-				txt, _ = tr.GetString("error_generic")
+				txt = tr.String("error_generic")
 			}
 		default:
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			txt, _ = tr.GetString("notes_private_invalid_option")
+			txt = tr.String("notes_private_invalid_option")
 		}
 	} else {
 		tmp := chatsettings.PrivateNotes.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if tmp {
-			txt, _ = tr.GetString("notes_private_status_on")
+			txt = tr.String("notes_private_status_on")
 		} else {
-			txt, _ = tr.GetString("notes_private_status_off")
+			txt = tr.String("notes_private_status_off")
 		}
 	}
 	_, err := msg.Reply(b, txt, formatting.Smarkdown())
@@ -309,7 +309,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id))
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	info, _ := tr.GetString("notes_none_in_chat")
+	info := tr.String("notes_none_in_chat")
 
 	if len(noteKeys) == 0 {
 		_, err := msg.Reply(b, info, formatting.Shtml())
@@ -322,7 +322,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.Message.Chat.Type == "private" {
 		admin := chat_status.IsUserAdmin(b, chat.Id, user.Id)
 		noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, admin)
-		listText, _ := tr.GetString("notes_list_for_chat")
+		listText := tr.String("notes_list_for_chat")
 		info = fmt.Sprintf(listText, html.EscapeString(chat.Title))
 		var sb strings.Builder
 		for _, note := range noteKeys {
@@ -343,7 +343,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		if sendEphemeral(b, ctx, notesLinkList(b, tr, chat.Id, noteKeys), *formatting.Shtml()) {
 			return ext.EndGroups
 		}
-		checkBtnText, _ := tr.GetString("notes_check_button")
+		checkBtnText := tr.String("notes_check_button")
 		_, err := msg.Reply(b, checkBtnText,
 			&gotgbot.SendMessageOpts{
 				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -362,14 +362,14 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	} else {
-		currentNotesText, _ := tr.GetString("notes_current_in_chat")
+		currentNotesText := tr.String("notes_current_in_chat")
 		info = currentNotesText
 		var sb strings.Builder
 		for _, note := range noteKeys {
 			fmt.Fprintf(&sb, " - <code>#%s</code>\n", html.EscapeString(note))
 		}
 		info += sb.String()
-		instructionText, _ := tr.GetString("notes_get_instruction")
+		instructionText := tr.String("notes_get_instruction")
 		info += instructionText
 		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
@@ -390,7 +390,7 @@ var notesClearAll = ownerConfirmSpec{
 			return false, nil
 		}
 		if len(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true)) == 0 {
-			text, _ := tr.GetString("notes_none_in_chat")
+			text := tr.String("notes_none_in_chat")
 			if _, err := ctx.EffectiveMessage.Reply(b, text, formatting.Shtml()); err != nil {
 				return false, err
 			}
@@ -442,20 +442,20 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		if token != "" {
 			if data, err := consumeNoteOverwriteCache(token); err == nil {
 				if data.UserID != 0 && data.UserID != user.Id {
-					helpText, _ = tr.GetString("notes_overwrite_cancelled")
+					helpText = tr.String("notes_overwrite_cancelled")
 					break
 				}
 			}
 		}
-		helpText, _ = tr.GetString("notes_overwrite_cancelled")
+		helpText = tr.String("notes_overwrite_cancelled")
 	case "yes":
 		if token == "" {
-			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			helpText = tr.String("notes_overwrite_cancelled")
 			break
 		}
 		noteData, err := consumeNoteOverwriteCache(token)
 		if err != nil || (noteData.UserID != 0 && noteData.UserID != user.Id) {
-			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			helpText = tr.String("notes_overwrite_cancelled")
 			break
 		}
 
@@ -475,11 +475,11 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		)
 		if err != nil {
 			log.Errorf("[Notes] Failed to update note during overwrite: %v", err)
-			helpText, _ = tr.GetString("notes_save_failed")
+			helpText = tr.String("notes_save_failed")
 		} else if updated {
-			helpText, _ = tr.GetString("notes_overwrite_success")
+			helpText = tr.String("notes_overwrite_success")
 		} else {
-			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			helpText = tr.String("notes_overwrite_cancelled")
 		}
 	default:
 		log.WithField("action", action).Warn("Unknown note overwrite action")
@@ -544,7 +544,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if noteData.NoteContent == "" && noteData.FileID == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_parsing_error")
+		text := tr.String("notes_parsing_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -555,7 +555,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if noteData.AdminOnly {
 		if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("notes_admin_only")
+			text := tr.String("notes_admin_only")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				return err
@@ -585,7 +585,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 				err = sendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId, media.Rendered)
 			} else if !sendNoteEphemeral(b, ctx, chat, noteData) {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				clickForPrivateText, _ := tr.GetString("notes_click_for_private")
+				clickForPrivateText := tr.String("notes_click_for_private")
 				_, err = msg.Reply(b,
 					fmt.Sprintf(clickForPrivateText, noteName),
 					&gotgbot.SendMessageOpts{
@@ -626,7 +626,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_get_insufficient_args")
+		text := tr.String("notes_get_insufficient_args")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -652,7 +652,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 	}
 	if noteData == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_does_not_exist")
+		text := tr.String("notes_does_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -662,7 +662,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 
 	if noteData.NoteContent == "" && noteData.FileID == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("notes_parsing_error_support")
+		text := tr.String("notes_parsing_error_support")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -673,7 +673,7 @@ func (m moduleStruct) getNotes(c *helpers.CommandContext) error {
 	if noteData.AdminOnly {
 		if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("notes_admin_only_access")
+			text := tr.String("notes_admin_only_access")
 			_, err = msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				return err
@@ -708,7 +708,7 @@ func sendGetNote(c *helpers.CommandContext, noteName string, replyMsgId int64, n
 			return nil
 		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		clickForPrivateText, _ := tr.GetString("notes_click_for_private")
+		clickForPrivateText := tr.String("notes_click_for_private")
 		_, err := msg.Reply(b,
 			fmt.Sprintf(clickForPrivateText, noteName),
 			&gotgbot.SendMessageOpts{
@@ -810,7 +810,7 @@ var notesClearAllOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *h
 	if mem != nil && mem.GetStatus() == "creator" {
 		return true
 	}
-	text, _ := c.Tr.GetString("notes_creator_only")
+	text := c.Tr.String("notes_creator_only")
 	if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
 		_ = helpers.EndGroupsLogging(c.Ctx, err)
 	}
@@ -895,7 +895,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 	_chat := chatinfo.ToChat()
 	if !chat_status.IsUserInChat(b, &_chat, user.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_chat_not_found")
+		text := tr.String("helpers_chat_not_found")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -903,7 +903,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 	admin := chat_status.IsUserAdmin(b, chatinfo.Id, user.Id)
 	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chatinfo.Id, admin)
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	info, _ := tr.GetString("notes_none_in_chat")
+	info := tr.String("notes_none_in_chat")
 	if len(noteKeys) > 0 {
 		info = notesLinkList(b, tr, chatinfo.Id, noteKeys)
 	}
@@ -918,7 +918,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 // notesLinkList is the private-notes list: each note links to the /start
 // parameter that opens it in PM.
 func notesLinkList(b *gotgbot.Bot, tr *i18n.Translator, chatID int64, noteKeys []string) string {
-	info, _ := tr.GetString("helpers_notes_current_header")
+	info := tr.String("helpers_notes_current_header")
 	var sb strings.Builder
 	for _, note := range noteKeys {
 		fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=%s'>%s</a>\n", b.Username, noteStartParam(chatID, note), html.EscapeString(note))
@@ -937,7 +937,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	_chat := chatinfo.ToChat()
 	if !chat_status.IsUserInChat(b, &_chat, user.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_chat_not_found")
+		text := tr.String("helpers_chat_not_found")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -945,7 +945,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	nArgs := strings.SplitN(arg, "_", 3)
 	if len(nArgs) < 3 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -963,7 +963,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if noteData == nil {
-		text, _ := tr.GetString("helpers_note_not_exist")
+		text := tr.String("helpers_note_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -972,7 +972,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	}
 	if noteData.AdminOnly {
 		if !chat_status.IsUserAdmin(b, chatinfo.Id, user.Id) {
-			text, _ := tr.GetString("helpers_note_admin_only")
+			text := tr.String("helpers_note_admin_only")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				return err
@@ -989,7 +989,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 
 func invalidNoteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("helpers_invalid_deep_link")
+	text := tr.String("helpers_invalid_deep_link")
 	_, _ = ctx.EffectiveMessage.Reply(b, text, formatting.Shtml())
 	return ext.EndGroups
 }

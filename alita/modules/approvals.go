@@ -45,7 +45,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -54,7 +54,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if approvals.IsUserApproved(chat.Id, targetUserID) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_already_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			return err
@@ -69,7 +69,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := approvals.AddApprovedUser(chat.Id, targetUserID, user.Id, reason); err != nil {
 		log.Errorf("[Approvals] Failed to approve user %d in chat %d: %v", targetUserID, chat.Id, err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approve_error")
+		text := tr.String(strings.ToLower(m.moduleName) + "_approve_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -79,10 +79,10 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	reasonStr := ""
 	if reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_reason")
 		reasonStr = fmt.Sprintf(temp, html.EscapeString(reason))
 	}
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_approved")
+	text := tr.String(strings.ToLower(m.moduleName) + "_user_approved")
 	baseStr := fmt.Sprintf(text,
 		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 		html.EscapeString(approverName),
@@ -105,7 +105,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -114,7 +114,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if !approvals.IsUserApproved(chat.Id, targetUserID) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			return err
@@ -124,12 +124,12 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := approvals.RemoveApprovedUser(chat.Id, targetUserID); err != nil {
 		log.Errorf("[Approvals] Failed to unapprove user %d in chat %d: %v", targetUserID, chat.Id, err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapprove_error")
+		text := tr.String(strings.ToLower(m.moduleName) + "_unapprove_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_unapproved")
+	text := tr.String(strings.ToLower(m.moduleName) + "_user_unapproved")
 	_, err := msg.Reply(b, fmt.Sprintf(text,
 		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 	), formatting.Shtml())
@@ -149,7 +149,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -167,7 +167,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	if foundUser == nil {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_not_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_check_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text,
 			html.EscapeString(extractDisplayName(targetUserID)),
 		), formatting.Shtml())
@@ -187,11 +187,11 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		targetName = strconv.FormatInt(foundUser.UserID, 10)
 	}
 
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_status")
+	text := tr.String(strings.ToLower(m.moduleName) + "_check_status")
 	dateStr := foundUser.CreatedAt.Format("2006-01-02")
 	reasonStr := ""
 	if foundUser.Reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_reason")
 		// The status template already puts the reason slot on its own line.
 		reasonStr = strings.TrimPrefix(fmt.Sprintf(temp, html.EscapeString(foundUser.Reason)), "\n")
 	}
@@ -215,7 +215,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	approvedUsers := approvals.GetApprovedUsersContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(approvedUsers) == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_none_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_none_approved")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -224,9 +224,9 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	if len(approvedUsers) <= approvedUsersInlineLimit {
-		listHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_header")
-		listItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_item")
-		listReason, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_reason")
+		listHeader := tr.String(strings.ToLower(m.moduleName) + "_list_header")
+		listItem := tr.String(strings.ToLower(m.moduleName) + "_list_item")
+		listReason := tr.String(strings.ToLower(m.moduleName) + "_list_reason")
 		var sb strings.Builder
 		sb.WriteString(listHeader)
 		for _, a := range approvedUsers {
@@ -250,16 +250,16 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	tmpFile, err := os.CreateTemp("", "approved-*.txt")
 	if err != nil {
 		log.Errorf("[Approvals] Failed to create temp file: %v", err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_error")
+		text := tr.String(strings.ToLower(m.moduleName) + "_list_file_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	fileHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_header")
-	fileItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_item")
-	fileReason, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_reason")
+	fileHeader := tr.String(strings.ToLower(m.moduleName) + "_list_file_header")
+	fileItem := tr.String(strings.ToLower(m.moduleName) + "_list_file_item")
+	fileReason := tr.String(strings.ToLower(m.moduleName) + "_list_reason")
 	var fileSb strings.Builder
 	fmt.Fprintf(&fileSb, fileHeader, chat.Id)
 	fmt.Fprintf(&fileSb, "%s\n\n", time.Now().Format(time.RFC3339))
@@ -288,7 +288,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	defer func() { _ = openedFile.Close() }()
 
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approved_list_file_caption")
+	text := tr.String(strings.ToLower(m.moduleName) + "_approved_list_file_caption")
 	_, err = b.SendDocument(
 		msg.Chat.Id,
 		gotgbot.InputFileByReader("approved_users.txt", openedFile),
