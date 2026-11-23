@@ -249,7 +249,7 @@ func Run(mode string, cfg *config.Config, deps Deps) {
 
 	shutdownManager := deps.NewShutdownManager()
 
-	stats.RegisterFlusher()
+	deps.RegisterFlusher()
 
 	deps.RegisterBotSchedulers(b)
 
