@@ -72,7 +72,7 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 		log.Errorf("[Database] EnsureUserInDb: %v", result.Error)
 		return fmt.Errorf("failed to ensure user %d in database: %w", userId, result.Error)
 	}
-	cache.DeleteCache(cache.CacheKey("user", userId))
+	cache.DeleteCache(UserProjection.Key(userId))
 	return nil
 }
 
@@ -113,7 +113,7 @@ func UpdateUser(userId int64, username, name string) error {
 		return upsert.Error
 	}
 	if upsert.RowsAffected > 0 {
-		cache.DeleteCache(cache.CacheKey("user", userId))
+		cache.DeleteCache(UserProjection.Key(userId))
 	}
 	log.Debugf("[Database] UpdateUser: %d", userId)
 	return nil
