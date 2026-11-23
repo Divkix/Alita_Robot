@@ -351,6 +351,10 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 	removeWarnText, _ := tr.GetString("warns_remove_button")
 	rulesButtonText, _ := tr.GetString("common_rules_button_emoji")
 
+	// Warns keep their own exemption chain: an admin target is answered, not
+	// skipped; approved users can still be warned; and the check is on the
+	// target userId rather than the update's sender, so
+	// IsProtectedForUpdate does not apply.
 	if chat_status.IsUserAdmin(b, chat.Id, userId) {
 		text, _ := tr.GetString("warns_admin_warning_error")
 		if _, err = msg.Reply(b, text, nil); err != nil {
