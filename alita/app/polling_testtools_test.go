@@ -1,6 +1,6 @@
 //go:build testtools
 
-package main
+package app
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 )
 
@@ -23,7 +24,7 @@ import (
 // every later one open until the updater cancels it, like a long poll. It
 // records the timeout the first getUpdates asked Telegram to hold it for.
 type longPollClient struct {
-	*mainBotClient
+	*appBotClient
 	polled      chan struct{}
 	held        chan struct{}
 	once        sync.Once
@@ -31,9 +32,9 @@ type longPollClient struct {
 	pollTimeout any
 }
 
-func (c *longPollClient) RequestWithContext(ctx context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+func (c *longPollClient) RequestWithContext(ctx context.Context, _ string, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
 	if method != "getUpdates" {
-		return nil, fmt.Errorf("unexpected method %s", method)
+		return c.appBotClient.RequestWithContext(ctx, "", method, params, opts)
 	}
 	first := false
 	c.once.Do(func() { first = true })
@@ -87,14 +88,14 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 			}
 		}
 		manager.Register("tracer", shutdown.PhaseTelemetry, drain("tracer"))
-		registerShutdownSteps(manager, shutdownDrainSpecs(
+		RegisterShutdownSteps(manager, ShutdownDrainSpecs(
 			drain("db close"),
 			drain("stats flush"),
 			drain("jobs stop"),
-			[]drainSpec{
-				{name: "users drain", handler: drain("users drain")},
-				{name: "captcha stop", handler: drain("captcha stop")},
-				{name: "aispam drain", handler: drain("aispam drain")},
+			[]DrainSpec{
+				{Name: "users drain", Handler: drain("users drain")},
+				{Name: "captcha stop", Handler: drain("captcha stop")},
+				{Name: "aispam drain", Handler: drain("aispam drain")},
 			},
 		)...)
 		httpStopStarted := make(chan struct{})
@@ -126,17 +127,17 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 		defer restoreSignals()
 
 		client := &longPollClient{
-			mainBotClient: &mainBotClient{},
-			polled:        make(chan struct{}),
-			held:          make(chan struct{}),
-			cancelled:     func() { record("updater stop") },
+			appBotClient: &appBotClient{},
+			polled:       make(chan struct{}),
+			held:         make(chan struct{}),
+			cancelled:    func() { record("updater stop") },
 		}
 		bot := &gotgbot.Bot{Token: "999:test", BotClient: client}
 		updater := ext.NewUpdater(ext.NewDispatcher(nil), nil)
 
 		go func() {
 			defer close(returned)
-			runPolling(bot, updater, manager)
+			runPolling(bot, updater, &config.Config{}, manager, func(*shutdown.Manager) { manager.WaitForShutdown() })
 		}()
 
 		<-client.polled
@@ -171,4 +172,102 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 			t.Errorf("drains run before exit = %v, want %v", orderAtExit, want)
 		}
 	})
+}
+
+// Run in webhook mode registers the webhook, runs postInit, starts the HTTP
+// server and waits on the shutdown manager — with no re-validation of the
+// webhook contract config already owns.
+func TestRunWebhookForkRegistersWebhookAndWaits(t *testing.T) {
+	client := &appBotClient{}
+	manager := shutdown.NewManager()
+	waitCalled := make(chan struct{})
+	var drainOrder []string
+	deps := runDeps(client, func(m *shutdown.Manager) {
+		drainOrder = m.ExecuteHandlersForTest()
+		close(waitCalled)
+	})
+	deps.NewShutdownManager = func() *shutdown.Manager { return manager }
+
+	cfg := &config.Config{
+		UseWebhooks:    true,
+		WebhookDomain:  "https://bot.example.com",
+		WebhookSecret:  "secret",
+		HTTPPort:       0,
+		MessageDump:    -100123,
+		AllowedUpdates: []string{"message"},
+	}
+	Run("webhook", cfg, deps)
+
+	<-waitCalled
+	if cfg.WorkingMode != "webhook" {
+		t.Fatalf("WorkingMode = %q, want webhook", cfg.WorkingMode)
+	}
+	webhookCalls := client.callsFor("setWebhook")
+	if len(webhookCalls) != 1 {
+		t.Fatalf("setWebhook calls = %d, want 1", len(webhookCalls))
+	}
+	if got := webhookCalls[0].params["url"]; got != "https://bot.example.com/webhook" {
+		t.Errorf("setWebhook url = %v, want domain + /webhook", got)
+	}
+	if got := webhookCalls[0].params["secret_token"]; got != "secret" {
+		t.Errorf("setWebhook secret_token = %v, want the configured secret", got)
+	}
+	if calls := client.callsFor("deleteWebhook"); len(calls) != 0 {
+		t.Fatalf("deleteWebhook calls = %d, want 0 in webhook mode", len(calls))
+	}
+	if calls := client.callsFor("setMyCommands"); len(calls) != 1 {
+		t.Fatalf("setMyCommands calls = %d, want 1 (postInit ran)", len(calls))
+	}
+
+	want := []string{"http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+	if !slices.Equal(drainOrder, want) {
+		t.Errorf("drains executed = %v, want %v", drainOrder, want)
+	}
+}
+
+// Run in polling mode removes the webhook, runs postInit and registers the
+// updater stop in the update-source phase before waiting on shutdown.
+func TestRunPollingForkDeletesWebhookAndRegistersUpdaterDrain(t *testing.T) {
+	client := &longPollClient{
+		appBotClient: &appBotClient{},
+		polled:       make(chan struct{}),
+		held:         make(chan struct{}),
+		cancelled:    func() {},
+	}
+	manager := shutdown.NewManager()
+	waitCalled := make(chan struct{})
+	var drainOrder []string
+	deps := runDeps(client, func(m *shutdown.Manager) {
+		<-client.held // let the updater hold a poll open, like a real shutdown signal would
+		drainOrder = m.ExecuteHandlersForTest()
+		close(waitCalled)
+	})
+	deps.NewShutdownManager = func() *shutdown.Manager { return manager }
+
+	cfg := &config.Config{
+		UseWebhooks:    false,
+		HTTPPort:       0,
+		MessageDump:    -100123,
+		AllowedUpdates: []string{"message"},
+	}
+	Run("polling", cfg, deps)
+
+	<-waitCalled
+	if cfg.WorkingMode != "polling" {
+		t.Fatalf("WorkingMode = %q, want polling", cfg.WorkingMode)
+	}
+	if calls := client.callsFor("deleteWebhook"); len(calls) != 1 {
+		t.Fatalf("deleteWebhook calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("setWebhook"); len(calls) != 0 {
+		t.Fatalf("setWebhook calls = %d, want 0 in polling mode", len(calls))
+	}
+	if calls := client.callsFor("setMyCommands"); len(calls) != 1 {
+		t.Fatalf("setMyCommands calls = %d, want 1 (postInit ran)", len(calls))
+	}
+
+	want := []string{"updater stop", "http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+	if !slices.Equal(drainOrder, want) {
+		t.Errorf("drains executed = %v, want %v", drainOrder, want)
+	}
 }
