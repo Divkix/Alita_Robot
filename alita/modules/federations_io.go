@@ -243,7 +243,7 @@ func downloadTelegramFile(b *gotgbot.Bot, fileID string) ([]byte, error) {
 }
 
 func downloadFedBanDocument(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translator) ([]byte, string) {
-	fail, _ := tr.GetString("feds_import_failed")
+	fail := tr.String("feds_import_failed")
 	if doc.FileSize > maxBackupFileSize {
 		return nil, fail
 	}

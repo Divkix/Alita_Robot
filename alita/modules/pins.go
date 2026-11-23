@@ -72,10 +72,10 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 		if err != nil {
 			return err
 		}
-		replyText, _ = c.Tr.GetString("pins_unpinned_message")
+		replyText = c.Tr.String("pins_unpinned_message")
 		replyMsgId = rMsg.MessageId
 	} else {
-		replyText, _ = c.Tr.GetString("pins_unpinned_last")
+		replyText = c.Tr.String("pins_unpinned_last")
 		_, err := c.Bot.UnpinChatMessage(chat.Id, nil)
 		if err != nil {
 			return err
@@ -148,7 +148,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			return fmt.Errorf("UnpinAllChatMessages failed for chat %d", chat.Id)
 		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("pins_unpin_all_success")
+		text := tr.String("pins_unpin_all_success")
 		if query.Message == nil {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
@@ -160,7 +160,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, nil)
 	case "no":
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("pins_unpin_all_cancelled")
+		text := tr.String("pins_unpin_all_cancelled")
 		if query.Message == nil {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
@@ -177,9 +177,9 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (moduleStruct) unpinAll(c *helpers.CommandContext) error {
-	text, _ := c.Tr.GetString("pins_unpin_all_confirm")
-	yesText, _ := c.Tr.GetString("button_yes")
-	noText, _ := c.Tr.GetString("button_no")
+	text := c.Tr.String("pins_unpin_all_confirm")
+	yesText := c.Tr.String("button_yes")
+	noText := c.Tr.String("button_no")
 	_, err := c.Bot.SendMessage(c.Chat.Id, text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -204,7 +204,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	args := c.Ctx.Args()
 
 	if len(args) == 1 && extraction.UserReply(msg) == nil {
-		text, _ := c.Tr.GetString("pins_permapin_reply_or_text")
+		text := c.Tr.String("pins_permapin_reply_or_text")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -219,7 +219,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 
 	pinT.FileID, pinT.MsgText, pinT.DataType, buttons = m.GetPinType(msg)
 	if pinT.DataType == -1 {
-		text, _ := c.Tr.GetString("pins_permapin_unsupported")
+		text := c.Tr.String("pins_permapin_unsupported")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -243,7 +243,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 
 	if pin {
 		pinLink := chat_status.GetMessageLinkFromMessageId(chat, msgToPin)
-		temp, _ := c.Tr.GetString("pins_pinned_message")
+		temp := c.Tr.String("pins_pinned_message")
 		text := fmt.Sprintf(temp, pinLink)
 		_, err = msg.Reply(c.Bot, text,
 			&gotgbot.SendMessageOpts{
@@ -273,7 +273,7 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 
 	prevMessage := extraction.UserReply(msg)
 	if prevMessage == nil {
-		text, _ := c.Tr.GetString("pins_reply_to_pin")
+		text := c.Tr.String("pins_reply_to_pin")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -281,12 +281,12 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	pinMsg, _ := c.Tr.GetString("pins_pinned_message")
+	pinMsg := c.Tr.String("pins_pinned_message")
 
 	if len(args) > 1 {
 		isSilent = !slices.Contains([]string{"notify", "violent", "loud"}, args[1])
 		if !isSilent {
-			pinMsg, _ = c.Tr.GetString("pins_pinned_message_loud")
+			pinMsg = c.Tr.String("pins_pinned_message_loud")
 		}
 	}
 
@@ -359,26 +359,26 @@ func pinToggle(b *gotgbot.Bot, ctx *ext.Context, cfg pinToggleConfig) error {
 			on = true
 		case "off", "no", "false":
 		default:
-			text, _ = tr.GetString("pins_input_not_recognized")
+			text = tr.String("pins_input_not_recognized")
 			return replyPinToggle(b, msg, text)
 		}
 		if err := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, on); err != nil {
 			log.Errorf("[Pins] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, err)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(b, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
 		if on {
-			text, _ = tr.GetString(cfg.enabledKey)
+			text = tr.String(cfg.enabledKey)
 		} else {
-			text, _ = tr.GetString(cfg.disabledKey)
+			text = tr.String(cfg.disabledKey)
 		}
 	} else {
 		key := cfg.currentDisabledKey
 		if cfg.setting.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
 			key = cfg.currentEnabledKey
 		}
-		temp, _ := tr.GetString(key)
+		temp := tr.String(key)
 		text = fmt.Sprintf(temp, html.EscapeString(chat.Title))
 	}
 	return replyPinToggle(b, msg, text)
@@ -414,7 +414,7 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 	pinnedMsg := chatInfo.PinnedMessage
 
 	if pinnedMsg == nil {
-		text, _ := c.Tr.GetString("pins_no_pinned_message")
+		text := c.Tr.String("pins_no_pinned_message")
 		_, err = msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -424,9 +424,9 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 
 	pinLink = chat_status.GetMessageLinkFromMessageId(chat, pinnedMsg.MessageId)
 
-	temp, _ := c.Tr.GetString("pins_here_is_pinned")
+	temp := c.Tr.String("pins_here_is_pinned")
 	text := fmt.Sprintf(temp, pinLink)
-	buttonText, _ := c.Tr.GetString("pins_pinned_message_button")
+	buttonText := c.Tr.String("pins_pinned_message_button")
 	_, err = msg.Reply(c.Bot, text,
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,

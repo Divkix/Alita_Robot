@@ -129,7 +129,7 @@ func nightModeRefused(c *helpers.CommandContext, err error) error {
 		params["input"] = html.EscapeString(inputError.Input)
 		params["type"] = html.EscapeString(inputError.LockType)
 	}
-	refusal, _ := c.Tr.GetString(chatsettings.RefusalKey(err), params)
+	refusal := c.Tr.String(chatsettings.RefusalKey(err), params)
 	if err := replyCommandHelp(c.Bot, c.Msg, c.Tr, nightModeDesc.Name, refusal); err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).
 			Warn("[NightMode] could not send the usage reply")
@@ -150,7 +150,7 @@ func nightModeOnText(c *helpers.CommandContext, settings *models.NightModeSettin
 	loc := chattz.Location(c.Chat.Id)
 	now := nightModeNow().In(loc)
 	start, end, types := nightWindowLabel(settings)
-	text, _ := c.Tr.GetString("nightmode_status_on", i18n.TranslationParams{
+	text := c.Tr.String("nightmode_status_on", i18n.TranslationParams{
 		"start":    start,
 		"end":      end,
 		"timezone": html.EscapeString(loc.String()),
@@ -160,7 +160,7 @@ func nightModeOnText(c *helpers.CommandContext, settings *models.NightModeSettin
 	if nightmode.ActiveAt(settings, now) {
 		nowKey = "nightmode_now_active"
 	}
-	nowText, _ := c.Tr.GetString(nowKey, i18n.TranslationParams{"time": now.Format("15:04")})
+	nowText := c.Tr.String(nowKey, i18n.TranslationParams{"time": now.Format("15:04")})
 	return text + "\n" + nowText
 }
 

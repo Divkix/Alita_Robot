@@ -109,7 +109,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 		}
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString(config.statusKey)
+		text := tr.String(config.statusKey)
 		_, err := msg.Reply(bot, fmt.Sprintf(text,
 			strconv.FormatBool(shouldGreet),
 			strconv.FormatBool(cleanGreet),
@@ -143,7 +143,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			on, key = true, config.enabledKey
 		case "off", "no":
 		default:
-			text, _ := tr.GetString(config.invalidKey)
+			text := tr.String(config.invalidKey)
 			_, err := msg.Reply(bot, text, formatting.Shtml())
 			if err != nil {
 				return err
@@ -154,7 +154,7 @@ func (moduleStruct) displayGreeting(c *helpers.CommandContext, config greetingCo
 			log.Errorf("[Greetings] %s failed for chat %d: %v", config.setting.Key, chat.Id, err)
 			key = "common_settings_save_failed"
 		}
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		if _, err := msg.Reply(bot, text, formatting.Shtml()); err != nil {
 			return err
 		}
@@ -185,11 +185,11 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if dbErr := greetings.SetWelcomeText(chat.Id, text, content, buttons, dataType); dbErr != nil {
 		log.Errorf("[Greetings] SetWelcomeText failed for chat %d: %v", chat.Id, dbErr)
-		errText, _ := tr.GetString("common_settings_save_failed")
+		errText := tr.String("common_settings_save_failed")
 		_, _ = msg.Reply(bot, errText, formatting.Shtml())
 		return ext.EndGroups
 	}
-	successText, _ := tr.GetString("greetings_welcome_set_success")
+	successText := tr.String("greetings_welcome_set_success")
 	_, err := msg.Reply(bot, successText, formatting.Shtml())
 	if err != nil {
 		return err
@@ -207,14 +207,14 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	if isWelcome {
 		if dbErr := greetings.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT); dbErr != nil {
 			log.Errorf("[Greetings] SetWelcomeText failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
 	} else {
 		if dbErr := greetings.SetGoodbyeText(chat.Id, db.DefaultGoodbye, "", nil, db.TEXT); dbErr != nil {
 			log.Errorf("[Greetings] SetGoodbyeText failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
@@ -223,7 +223,7 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	if !isWelcome {
 		translationKey = "greetings_goodbye_reset"
 	}
-	successText, _ := tr.GetString(translationKey)
+	successText := tr.String(translationKey)
 	_, err := msg.Reply(bot, successText, formatting.Shtml())
 	if err != nil {
 		return err
@@ -259,11 +259,11 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if dbErr := greetings.SetGoodbyeText(chat.Id, text, content, buttons, dataType); dbErr != nil {
 		log.Errorf("[Greetings] SetGoodbyeText failed for chat %d: %v", chat.Id, dbErr)
-		errText, _ := tr.GetString("common_settings_save_failed")
+		errText := tr.String("common_settings_save_failed")
 		_, _ = msg.Reply(bot, errText, formatting.Shtml())
 		return ext.EndGroups
 	}
-	successText, _ := tr.GetString("greetings_goodbye_set_success")
+	successText := tr.String("greetings_goodbye_set_success")
 	_, err := msg.Reply(bot, successText, formatting.Shtml())
 	if err != nil {
 		return err
@@ -335,14 +335,14 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 
 	if len(args) == 0 {
 		if cfg.setting.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
-			text, _ := tr.GetString(cfg.showEnabled)
+			text := tr.String(cfg.showEnabled)
 			if cfg.useMarkdownOnEnabled {
 				_, err = msg.Reply(bot, text, formatting.Smarkdown())
 			} else {
 				_, err = msg.Reply(bot, text, formatting.Shtml())
 			}
 		} else {
-			text, _ := tr.GetString(cfg.showDisabled)
+			text := tr.String(cfg.showDisabled)
 			_, err = msg.Reply(bot, text, formatting.Shtml())
 		}
 		if err != nil {
@@ -355,23 +355,23 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 	case "off", "no":
 		if dbErr := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, false); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString(cfg.setDisabled)
+		text := tr.String(cfg.setDisabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	case "on", "yes":
 		if dbErr := cfg.setting.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, true); dbErr != nil {
 			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.setting.Key, chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
+			errText := tr.String("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString(cfg.setEnabled)
+		text := tr.String(cfg.setEnabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	default:
-		text, _ := tr.GetString(cfg.invalid)
+		text := tr.String(cfg.invalid)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	}
 
@@ -630,12 +630,12 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 // sendJoinRequestAdminNotice preserves the manual join-request controls for
 // delivery failures and approvals Telegram could not complete.
 func sendJoinRequestAdminNotice(bot *gotgbot.Bot, chat *gotgbot.Chat, user gotgbot.User, tr *i18n.Translator) error {
-	newUserText, _ := tr.GetString("greetings_join_request_new")
-	approveText, _ := tr.GetString("greetings_join_request_approve_btn")
-	declineText, _ := tr.GetString("greetings_join_request_decline_btn")
-	banText, _ := tr.GetString("greetings_join_request_ban_btn")
-	userInfoTemplate, _ := tr.GetString("format_user_info")
-	userIdTemplate, _ := tr.GetString("format_user_id")
+	newUserText := tr.String("greetings_join_request_new")
+	approveText := tr.String("greetings_join_request_approve_btn")
+	declineText := tr.String("greetings_join_request_decline_btn")
+	banText := tr.String("greetings_join_request_ban_btn")
+	userInfoTemplate := tr.String("format_user_info")
+	userIdTemplate := tr.String("format_user_id")
 	const namespace = "join_request"
 
 	_, err := helpers.SendMessageWithErrorHandling(bot, chat.Id,
@@ -739,10 +739,10 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	// joined some other way is gone; report that instead of the requested action.
 	switch response {
 	case "accept":
-		helpText, _ = tr.GetString("greetings_join_request_accepted")
+		helpText = tr.String("greetings_join_request_accepted")
 		if _, err = b.ApproveChatJoinRequest(chat.Id, joinUserId, nil); err != nil {
 			if isJoinRequestGone(err) {
-				helpText, _ = tr.GetString("greetings_join_request_already_handled")
+				helpText = tr.String("greetings_join_request_already_handled")
 			} else if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error approving join for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
@@ -750,10 +750,10 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 			}
 		}
 	case "decline":
-		helpText, _ = tr.GetString("greetings_join_request_declined")
+		helpText = tr.String("greetings_join_request_declined")
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUserId, nil); err != nil {
 			if isJoinRequestGone(err) {
-				helpText, _ = tr.GetString("greetings_join_request_already_handled")
+				helpText = tr.String("greetings_join_request_already_handled")
 			} else if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error declining join for user %d in chat %d: %v", joinUserId, chat.Id, err)
 			} else {
@@ -781,7 +781,7 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 				return err
 			}
 		}
-		helpText, _ = tr.GetString("greetings_join_request_banned")
+		helpText = tr.String("greetings_join_request_banned")
 	}
 	m.clearPendingJoins(chat.Id, joinUserId)
 

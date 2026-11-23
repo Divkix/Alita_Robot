@@ -77,23 +77,23 @@ func (moduleStruct) newFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	name := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if name == "" {
-		text, _ := tr.GetString("feds_need_name")
+		text := tr.String("feds_need_name")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	fed, err := federations.CreateFederation(from.Id, name)
 	if err != nil {
 		if errors.Is(err, federations.ErrAlreadyOwnsFed) {
-			text, _ := tr.GetString("feds_already_own")
+			text := tr.String("feds_already_own")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
 		log.Errorf("[Federations] newFed: %v", err)
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_created", i18n.TranslationParams{
+	text := tr.String("feds_created", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 		"id":   fed.FedID,
 	})
@@ -107,22 +107,22 @@ func (moduleStruct) renameFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	name := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if name == "" {
-		text, _ := tr.GetString("feds_need_name")
+		text := tr.String("feds_need_name")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	fed, err := federations.RenameFederation(from.Id, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			text, _ := tr.GetString("feds_no_fed")
+			text := tr.String("feds_no_fed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_rename_failed")
+		text := tr.String("feds_rename_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_renamed", i18n.TranslationParams{
+	text := tr.String("feds_renamed", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 	})
 	replyHTML(b, msg, text)
@@ -135,11 +135,11 @@ func (moduleStruct) delFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	data := encodeCallbackData(fedCallbackNamespace, map[string]string{"a": "del"})
 	cancel := encodeCallbackData(fedCallbackNamespace, map[string]string{"a": "noop"})
-	confirm, _ := tr.GetString("feds_delfed_confirm", i18n.TranslationParams{
+	confirm := tr.String("feds_delfed_confirm", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 	})
-	yes, _ := tr.GetString("feds_delfed_confirm_btn")
-	no, _ := tr.GetString("feds_delfed_cancel_btn")
+	yes := tr.String("feds_delfed_confirm_btn")
+	no := tr.String("feds_delfed_cancel_btn")
 	_, err := msg.Reply(b, confirm, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -163,28 +163,28 @@ func (moduleStruct) joinFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fedID, ok := parseFedID(strings.Join(ctx.Args()[1:], " "))
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_id")
+		text := tr.String("feds_invalid_id")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	fed := federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_found")
+		text := tr.String("feds_not_found")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	err := federations.JoinFed(chat.Id, chat.Title, fedID)
 	if err != nil {
 		if errors.Is(err, federations.ErrAlreadyJoined) {
-			text, _ := tr.GetString("feds_already_joined")
+			text := tr.String("feds_already_joined")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_join_failed")
+		text := tr.String("feds_join_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_joined", i18n.TranslationParams{
+	text := tr.String("feds_joined", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 		"id":   fed.FedID,
 	})
@@ -197,11 +197,11 @@ func (moduleStruct) leaveFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	tr := ctxTr(ctx)
 	if err := federations.LeaveFed(chat.Id); err != nil {
-		text, _ := tr.GetString("feds_not_in_fed")
+		text := tr.String("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_left")
+	text := tr.String("feds_left")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -212,18 +212,18 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	enabled, ok := parseToggleArg(args[0])
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := chatsettings.QuietFed.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, enabled); err != nil {
-		text, _ := tr.GetString("feds_not_in_fed")
+		text := tr.String("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -231,7 +231,7 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	if enabled {
 		key = "feds_quiet_on"
 	}
-	text, _ := tr.GetString(key)
+	text := tr.String(key)
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -243,7 +243,7 @@ func formatFedInfo(tr *i18n.Translator, fed *models.Federation) string {
 		}
 		return trS(tr, "common_no")
 	}
-	text, _ := tr.GetString("feds_info", i18n.TranslationParams{
+	text := tr.String("feds_info", i18n.TranslationParams{
 		"name":   html.EscapeString(fed.Name),
 		"id":     fed.FedID,
 		"owner":  strconv.FormatInt(fed.OwnerID, 10),
@@ -267,7 +267,7 @@ func (moduleStruct) fedInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	if arg != "" {
 		fedID, ok := parseFedID(arg)
 		if !ok {
-			text, _ := tr.GetString("feds_invalid_id")
+			text := tr.String("feds_invalid_id")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
@@ -281,7 +281,7 @@ func (moduleStruct) fedInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		fed = federations.GetFedByOwner(from.Id)
 	}
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_found")
+		text := tr.String("feds_not_found")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -298,7 +298,7 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 	if arg != "" {
 		fedID, ok := parseFedID(arg)
 		if !ok {
-			text, _ := tr.GetString("feds_invalid_id")
+			text := tr.String("feds_invalid_id")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
@@ -312,12 +312,12 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_found")
+		text := tr.String("feds_not_found")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	var bld strings.Builder
-	header, _ := tr.GetString("feds_admins_header", i18n.TranslationParams{
+	header := tr.String("feds_admins_header", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 	})
 	bld.WriteString(header)
@@ -340,11 +340,11 @@ func (moduleStruct) chatFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	membership := ctx.Data["federationCommandChat"].(*models.FederationChat)
 	fed := federations.GetFedContext(tracing.UpdateContext(ctx), membership.FedID)
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_in_fed")
+		text := tr.String("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_chatfed", i18n.TranslationParams{
+	text := tr.String("feds_chatfed", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 		"id":   fed.FedID,
 	})
@@ -358,11 +358,11 @@ func (moduleStruct) myFeds(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	feds := federations.ListFedsForAdmin(from.Id)
 	if len(feds) == 0 {
-		text, _ := tr.GetString("feds_myfeds_none")
+		text := tr.String("feds_myfeds_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	header, _ := tr.GetString("feds_myfeds_header")
+	header := tr.String("feds_myfeds_header")
 	var bld strings.Builder
 	bld.WriteString(header)
 	for _, fed := range feds {
@@ -394,17 +394,17 @@ func (moduleStruct) changeFedAdmin(b *gotgbot.Bot, ctx *ext.Context, promote boo
 		return ext.EndGroups
 	}
 	if targetID == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == from.Id {
-		text, _ := tr.GetString("feds_cannot_promote_self")
+		text := tr.String("feds_cannot_promote_self")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == fed.OwnerID {
-		text, _ := tr.GetString("feds_cannot_promote_owner")
+		text := tr.String("feds_cannot_promote_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -412,26 +412,26 @@ func (moduleStruct) changeFedAdmin(b *gotgbot.Bot, ctx *ext.Context, promote boo
 		err := federations.PromoteFedAdmin(fed.FedID, targetID)
 		if err != nil {
 			if errors.Is(err, federations.ErrAlreadyAdmin) || errors.Is(err, federations.ErrOwnerIsAdmin) {
-				text, _ := tr.GetString("feds_already_admin")
+				text := tr.String("feds_already_admin")
 				replyHTML(b, msg, text)
 				return ext.EndGroups
 			}
-			text, _ := tr.GetString("feds_create_failed")
+			text := tr.String("feds_create_failed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_promoted", i18n.TranslationParams{
+		text := tr.String("feds_promoted", i18n.TranslationParams{
 			"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 		})
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := federations.DemoteFedAdmin(fed.FedID, targetID); err != nil {
-		text, _ := tr.GetString("feds_not_fed_admin")
+		text := tr.String("feds_not_fed_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_demoted", i18n.TranslationParams{
+	text := tr.String("feds_demoted", i18n.TranslationParams{
 		"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 	})
 	replyHTML(b, msg, text)
@@ -444,21 +444,21 @@ func (moduleStruct) fedDemoteMe(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fedID, ok := parseFedID(strings.Join(ctx.Args()[1:], " "))
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_id")
+		text := tr.String("feds_invalid_id")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if federations.IsFedOwner(fedID, from.Id) {
-		text, _ := tr.GetString("feds_demoteme_owner")
+		text := tr.String("feds_demoteme_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := federations.DemoteFedAdmin(fedID, from.Id); err != nil {
-		text, _ := tr.GetString("feds_demoteme_not_admin")
+		text := tr.String("feds_demoteme_not_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_demoteme_ok")
+	text := tr.String("feds_demoteme_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -486,18 +486,18 @@ func toggleOwnedFed(
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	enabled, ok := parseToggleArg(args[0])
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := set(fed.FedID, enabled); err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -505,7 +505,7 @@ func toggleOwnedFed(
 	if enabled {
 		key = onKey
 	}
-	text, _ := tr.GetString(key)
+	text := tr.String(key)
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -528,47 +528,47 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		return ext.EndGroups
 	}
 	if targetID == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if !chat_status.IsValidUserId(targetID) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == from.Id || targetID == b.Id {
-		text, _ := tr.GetString("feds_cannot_fban_self")
+		text := tr.String("feds_cannot_fban_self")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == fed.OwnerID {
-		text, _ := tr.GetString("feds_cannot_fban_owner")
+		text := tr.String("feds_cannot_fban_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if federations.IsFedAdmin(fed.FedID, targetID) {
-		text, _ := tr.GetString("feds_cannot_fban_admin")
+		text := tr.String("feds_cannot_fban_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if ban {
 		if fed.RequireReason && strings.TrimSpace(reason) == "" {
-			text, _ := tr.GetString("feds_need_reason")
+			text := tr.String("feds_need_reason")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
 		_, created, err := federations.Fban(fed.FedID, targetID, from.Id, reason)
 		if err != nil {
-			text, _ := tr.GetString("feds_fban_failed")
+			text := tr.String("feds_fban_failed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
 		if !created {
-			text, _ := tr.GetString("feds_fban_already")
+			text := tr.String("feds_fban_already")
 			replyHTML(b, msg, text)
 		} else {
-			text, _ := tr.GetString("feds_fban_ok", i18n.TranslationParams{
+			text := tr.String("feds_fban_ok", i18n.TranslationParams{
 				"user":   formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 				"name":   html.EscapeString(fed.Name),
 				"reason": html.EscapeString(reason),
@@ -587,11 +587,11 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		return ext.EndGroups
 	}
 	if err := federations.Unfban(fed.FedID, targetID); err != nil {
-		text, _ := tr.GetString("feds_unfban_not_banned")
+		text := tr.String("feds_unfban_not_banned")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_unfban_ok", i18n.TranslationParams{
+	text := tr.String("feds_unfban_ok", i18n.TranslationParams{
 		"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 		"name": html.EscapeString(fed.Name),
 	})
@@ -810,7 +810,7 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 	if reasonFed != "" {
 		ban := federations.GetFedBanContext(tracing.UpdateContext(ctx), reasonFed, targetID)
 		if ban == nil {
-			text, _ := tr.GetString("feds_fedstat_none")
+			text := tr.String("feds_fedstat_none")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
@@ -819,7 +819,7 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 		if fed != nil {
 			name = fed.Name
 		}
-		text, _ := tr.GetString("feds_fedstat_reason", i18n.TranslationParams{
+		text := tr.String("feds_fedstat_reason", i18n.TranslationParams{
 			"name":   html.EscapeString(name),
 			"id":     reasonFed,
 			"reason": html.EscapeString(ban.Reason),
@@ -830,11 +830,11 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	bans, err := federations.ListUserFedBans(targetID)
 	if err != nil || len(bans) == 0 {
-		text, _ := tr.GetString("feds_fedstat_none")
+		text := tr.String("feds_fedstat_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	header, _ := tr.GetString("feds_fedstat_header", i18n.TranslationParams{
+	header := tr.String("feds_fedstat_header", i18n.TranslationParams{
 		"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 	})
 	var bld strings.Builder
@@ -864,7 +864,7 @@ func changeSub(b *gotgbot.Bot, ctx *ext.Context, subscribe bool) error {
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	targetID, ok := parseFedID(strings.Join(ctx.Args()[1:], " "))
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_id")
+		text := tr.String("feds_invalid_id")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -873,30 +873,30 @@ func changeSub(b *gotgbot.Bot, ctx *ext.Context, subscribe bool) error {
 		if err != nil {
 			switch {
 			case errors.Is(err, federations.ErrSubSelf):
-				text, _ := tr.GetString("feds_sub_self")
+				text := tr.String("feds_sub_self")
 				replyHTML(b, msg, text)
 			case errors.Is(err, federations.ErrAlreadySub):
-				text, _ := tr.GetString("feds_already_sub")
+				text := tr.String("feds_already_sub")
 				replyHTML(b, msg, text)
 			case errors.Is(err, federations.ErrSubLimit):
-				text, _ := tr.GetString("feds_sub_max")
+				text := tr.String("feds_sub_max")
 				replyHTML(b, msg, text)
 			default:
-				text, _ := tr.GetString("feds_not_found")
+				text := tr.String("feds_not_found")
 				replyHTML(b, msg, text)
 			}
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_sub_ok")
+		text := tr.String("feds_sub_ok")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := federations.UnsubscribeFed(fed.FedID, targetID); err != nil {
-		text, _ := tr.GetString("feds_not_sub")
+		text := tr.String("feds_not_sub")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_unsub_ok")
+	text := tr.String("feds_unsub_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -907,11 +907,11 @@ func (moduleStruct) fedSubs(b *gotgbot.Bot, ctx *ext.Context) error {
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	subs := federations.ListSubscribedFedIDs(fed.FedID)
 	if len(subs) == 0 {
-		text, _ := tr.GetString("feds_subs_none")
+		text := tr.String("feds_subs_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	header, _ := tr.GetString("feds_subs_header")
+	header := tr.String("feds_subs_header")
 	var bld strings.Builder
 	bld.WriteString(header)
 	for _, id := range subs {
@@ -931,11 +931,11 @@ func (moduleStruct) setFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	if err := federations.SetFedLogChat(fed.FedID, chat.Id); err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_setfedlog_ok")
+	text := tr.String("feds_setfedlog_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -945,11 +945,11 @@ func (moduleStruct) unsetFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	if err := federations.SetFedLogChat(fed.FedID, 0); err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_unsetfedlog_ok")
+	text := tr.String("feds_unsetfedlog_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -977,7 +977,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	if !allowFedExport(fed.FedID) {
-		text, _ := tr.GetString("feds_export_wait")
+		text := tr.String("feds_export_wait")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -989,12 +989,12 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 	bans, err := federations.ListFedBans(fed.FedID)
 	if err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if len(bans) == 0 {
-		text, _ := tr.GetString("feds_export_empty")
+		text := tr.String("feds_export_empty")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1018,7 +1018,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 		fileName = "fbanlist.csv"
 	}
 	if err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1027,7 +1027,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	if err != nil {
 		log.Error(err)
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 	} else {
 		delivered = true
@@ -1045,7 +1045,7 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 		doc = msg.ReplyToMessage.Document
 	}
 	if doc == nil {
-		text, _ := tr.GetString("feds_import_need_file")
+		text := tr.String("feds_import_need_file")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1059,7 +1059,7 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	bans, err := parseFedBanFile(doc.FileName, data)
 	if err != nil || len(bans) == 0 {
-		text, _ := tr.GetString("feds_import_failed")
+		text := tr.String("feds_import_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1081,11 +1081,11 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 	written, err := federations.ImportBans(fed.FedID, bans)
 	if err != nil {
 		log.Errorf("[Federations] importFBans: %v", err)
-		text, _ := tr.GetString("feds_import_failed")
+		text := tr.String("feds_import_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_import_ok", i18n.TranslationParams{"count": written})
+	text := tr.String("feds_import_ok", i18n.TranslationParams{"count": written})
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -1115,7 +1115,7 @@ func (moduleStruct) fedCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: trS(tr, "feds_delete_failed"), ShowAlert: true})
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_deleted")
+		text := tr.String("feds_deleted")
 		if query.Message != nil {
 			_, _, _ = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML})
 		}
@@ -1220,7 +1220,7 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		if fed := federations.GetFedContext(tracing.UpdateContext(ctx), sourceFed); fed != nil {
 			fedName = fed.Name
 		}
-		text, _ := tr.GetString("feds_passive_ban", i18n.TranslationParams{
+		text := tr.String("feds_passive_ban", i18n.TranslationParams{
 			"user":   formatting.MentionHtml(userID, name),
 			"name":   html.EscapeString(fedName),
 			"reason": html.EscapeString(ban.Reason),

@@ -55,7 +55,7 @@ func settingsPickerWait(tr *i18n.Translator, userID int64) (notice string, wait 
 		return "", false
 	}
 	seconds := max(int(math.Ceil(remaining.Seconds())), 1)
-	notice, _ = tr.GetString("settings_picker_wait", i18n.TranslationParams{"seconds": strconv.Itoa(seconds)})
+	notice = tr.String("settings_picker_wait", i18n.TranslationParams{"seconds": strconv.Itoa(seconds)})
 	return notice, true
 }
 
@@ -84,14 +84,14 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("settings_open_in_pm")
-	button, _ := tr.GetString("settings_open_in_pm_button")
+	text := tr.String("settings_open_in_pm")
+	button := tr.String("settings_open_in_pm_button")
 	rows := [][]gotgbot.InlineKeyboardButton{{{
 		Text: button,
 		Url:  fmt.Sprintf("https://t.me/%s?start=settings_%d", b.Username, chat.Id),
 	}}}
 	if config.AppConfig.PanelEnabled {
-		panelButton, _ := tr.GetString("panel_open_button")
+		panelButton := tr.String("panel_open_button")
 		rows = append(rows, []gotgbot.InlineKeyboardButton{{
 			Text: panelButton,
 			Url:  panel.EntryURL(b.Username, config.AppConfig.PanelMiniAppShortName, chat.Id),
@@ -210,7 +210,7 @@ func storedSettingsPicker(tr *i18n.Translator, userID int64) (text string, kb go
 // first, so a list shown again after a pick shows the new connection.
 func settingsPickerView(tr *i18n.Translator, userID int64, entries []settingsPickerEntry) (string, gotgbot.InlineKeyboardMarkup) {
 	if len(entries) == 0 {
-		text, _ := tr.GetString("settings_picker_empty")
+		text := tr.String("settings_picker_empty")
 		return text, gotgbot.InlineKeyboardMarkup{}
 	}
 	var connectedID int64
@@ -234,7 +234,7 @@ func settingsPickerView(tr *i18n.Translator, userID int64, entries []settingsPic
 		}
 		rows = append(rows, row)
 	}
-	text, _ := tr.GetString("settings_picker_text")
+	text := tr.String("settings_picker_text")
 	return text, gotgbot.InlineKeyboardMarkup{InlineKeyboard: rows}
 }
 
@@ -340,8 +340,8 @@ func settingsPickerLoadPanicked(err error) bool {
 func settingsSummaryView(ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) (string, gotgbot.InlineKeyboardMarkup) {
 	sections := collectChatSettings(tracing.UpdateContext(ctx), chat.Id)
 	text := renderSettingsSummary(tr, chat.Title, sections)
-	refresh, _ := tr.GetString("settings_btn_refresh")
-	other, _ := tr.GetString("settings_btn_other_group")
+	refresh := tr.String("settings_btn_refresh")
+	other := tr.String("settings_btn_other_group")
 	rows := append(settingsToggleRows(chat.Id, sections), []gotgbot.InlineKeyboardButton{
 		{Text: refresh, CallbackData: encodeCallbackData("settings", map[string]string{"a": "r", "c": strconv.FormatInt(chat.Id, 10)})},
 		{Text: other, CallbackData: encodeCallbackData("settings", map[string]string{"a": "l"})},
@@ -394,7 +394,7 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		chat, denyKey := connectForSettings(b, chatID, query.From.Id)
 		if chat == nil {
-			deny, _ := tr.GetString(denyKey)
+			deny := tr.String(denyKey)
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: deny, ShowAlert: true})
 			return ext.EndGroups
 		}
@@ -445,13 +445,13 @@ func settingsDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Use
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chatID, err := strconv.ParseInt(strings.TrimPrefix(arg, "settings_"), 10, 64)
 	if err != nil {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	chat, denyKey := connectForSettings(b, chatID, user.Id)
 	if chat == nil {
-		text, _ := tr.GetString(denyKey)
+		text := tr.String(denyKey)
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
