@@ -16,6 +16,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 )
 
@@ -136,7 +137,7 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 
 		go func() {
 			defer close(returned)
-			runPolling(bot, updater, manager)
+			runPolling(bot, updater, &config.Config{}, manager, func(*shutdown.Manager) { manager.WaitForShutdown() })
 		}()
 
 		<-client.polled
@@ -171,4 +172,102 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 			t.Errorf("drains run before exit = %v, want %v", orderAtExit, want)
 		}
 	})
+}
+
+// Run in webhook mode registers the webhook, runs postInit, starts the HTTP
+// server and waits on the shutdown manager — with no re-validation of the
+// webhook contract config already owns.
+func TestRunWebhookForkRegistersWebhookAndWaits(t *testing.T) {
+	client := &appBotClient{}
+	manager := shutdown.NewManager()
+	waitCalled := make(chan struct{})
+	var drainOrder []string
+	deps := runDeps(client, func(m *shutdown.Manager) {
+		drainOrder = m.ExecuteHandlersForTest()
+		close(waitCalled)
+	})
+	deps.NewShutdownManager = func() *shutdown.Manager { return manager }
+
+	cfg := &config.Config{
+		UseWebhooks:    true,
+		WebhookDomain:  "https://bot.example.com",
+		WebhookSecret:  "secret",
+		HTTPPort:       0,
+		MessageDump:    -100123,
+		AllowedUpdates: []string{"message"},
+	}
+	Run("webhook", cfg, deps)
+
+	<-waitCalled
+	if cfg.WorkingMode != "webhook" {
+		t.Fatalf("WorkingMode = %q, want webhook", cfg.WorkingMode)
+	}
+	webhookCalls := client.callsFor("setWebhook")
+	if len(webhookCalls) != 1 {
+		t.Fatalf("setWebhook calls = %d, want 1", len(webhookCalls))
+	}
+	if got := webhookCalls[0].params["url"]; got != "https://bot.example.com/webhook" {
+		t.Errorf("setWebhook url = %v, want domain + /webhook", got)
+	}
+	if got := webhookCalls[0].params["secret_token"]; got != "secret" {
+		t.Errorf("setWebhook secret_token = %v, want the configured secret", got)
+	}
+	if calls := client.callsFor("deleteWebhook"); len(calls) != 0 {
+		t.Fatalf("deleteWebhook calls = %d, want 0 in webhook mode", len(calls))
+	}
+	if calls := client.callsFor("setMyCommands"); len(calls) != 1 {
+		t.Fatalf("setMyCommands calls = %d, want 1 (postInit ran)", len(calls))
+	}
+
+	want := []string{"http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+	if !slices.Equal(drainOrder, want) {
+		t.Errorf("drains executed = %v, want %v", drainOrder, want)
+	}
+}
+
+// Run in polling mode removes the webhook, runs postInit and registers the
+// updater stop in the update-source phase before waiting on shutdown.
+func TestRunPollingForkDeletesWebhookAndRegistersUpdaterDrain(t *testing.T) {
+	client := &longPollClient{
+		appBotClient: &appBotClient{},
+		polled:       make(chan struct{}),
+		held:         make(chan struct{}),
+		cancelled:    func() {},
+	}
+	manager := shutdown.NewManager()
+	waitCalled := make(chan struct{})
+	var drainOrder []string
+	deps := runDeps(client, func(m *shutdown.Manager) {
+		<-client.held // let the updater hold a poll open, like a real shutdown signal would
+		drainOrder = m.ExecuteHandlersForTest()
+		close(waitCalled)
+	})
+	deps.NewShutdownManager = func() *shutdown.Manager { return manager }
+
+	cfg := &config.Config{
+		UseWebhooks:    false,
+		HTTPPort:       0,
+		MessageDump:    -100123,
+		AllowedUpdates: []string{"message"},
+	}
+	Run("polling", cfg, deps)
+
+	<-waitCalled
+	if cfg.WorkingMode != "polling" {
+		t.Fatalf("WorkingMode = %q, want polling", cfg.WorkingMode)
+	}
+	if calls := client.callsFor("deleteWebhook"); len(calls) != 1 {
+		t.Fatalf("deleteWebhook calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("setWebhook"); len(calls) != 0 {
+		t.Fatalf("setWebhook calls = %d, want 0 in polling mode", len(calls))
+	}
+	if calls := client.callsFor("setMyCommands"); len(calls) != 1 {
+		t.Fatalf("setMyCommands calls = %d, want 1 (postInit ran)", len(calls))
+	}
+
+	want := []string{"updater stop", "http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+	if !slices.Equal(drainOrder, want) {
+		t.Errorf("drains executed = %v, want %v", drainOrder, want)
+	}
 }

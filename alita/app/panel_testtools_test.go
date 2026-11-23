@@ -18,8 +18,8 @@ import (
 )
 
 // initTestLocales serves the real locale files from disk through the i18n
-// test override, as Run's locale init does in production, so a test compares
-// against the real user-visible labels instead of empty strings.
+// test override, as Run's InitializeLocales does in production, so a test
+// compares against the real user-visible labels instead of empty strings.
 func initTestLocales(t *testing.T) {
 	t.Helper()
 	entries, err := os.ReadDir("../../locales")
@@ -53,20 +53,16 @@ func TestPanelMenuButtonFollowsPanelConfig(t *testing.T) {
 		t.Fatalf("panel_open_button = %q, %v; want a label", label, err)
 	}
 
-	previous := config.AppConfig
-	config.AppConfig.PanelEnabled = false
-	config.AppConfig.PanelPublicURL = "https://panel.example.com"
-	t.Cleanup(func() { config.AppConfig = previous })
-
+	cfg := &config.Config{PanelEnabled: false, PanelPublicURL: "https://panel.example.com"}
 	disabled := &appBotClient{}
-	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: disabled})
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: disabled}, cfg)
 	if calls := disabled.callsFor("setChatMenuButton"); len(calls) != 0 {
 		t.Fatalf("disabled panel sent %d setChatMenuButton calls, want none", len(calls))
 	}
 
-	config.AppConfig.PanelEnabled = true
+	cfg.PanelEnabled = true
 	enabled := &appBotClient{}
-	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: enabled})
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: enabled}, cfg)
 	calls := enabled.callsFor("setChatMenuButton")
 	if len(calls) != 1 {
 		t.Fatalf("setChatMenuButton calls = %d, want 1", len(calls))
@@ -87,7 +83,7 @@ func TestPanelMenuButtonFollowsPanelConfig(t *testing.T) {
 
 	// A restart repeats the same write, so the button never drifts.
 	restart := &appBotClient{}
-	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: restart})
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: restart}, cfg)
 	again := restart.callsFor("setChatMenuButton")
 	if len(again) != 1 {
 		t.Fatalf("restart setChatMenuButton calls = %d, want 1", len(again))
@@ -101,21 +97,18 @@ func TestPanelMenuButtonFollowsPanelConfig(t *testing.T) {
 // menu and the group buttons keep working.
 func TestPanelMenuButtonRefusalOnlyWarns(t *testing.T) {
 	initTestLocales(t)
-	previous := config.AppConfig
-	config.AppConfig.PanelEnabled = true
-	config.AppConfig.PanelPublicURL = "https://panel.example.com"
-	t.Cleanup(func() { config.AppConfig = previous })
-
 	previousLevel := log.GetLevel()
 	log.SetLevel(log.DebugLevel)
 	t.Cleanup(func() { log.SetLevel(previousLevel) })
 	hook := logrustest.NewGlobal()
 	t.Cleanup(hook.Reset)
 
+	cfg := &config.Config{PanelEnabled: true, PanelPublicURL: "https://panel.example.com"}
+
 	client := &appBotClient{failMethods: map[string]error{
 		"setChatMenuButton": errors.New("Bad Request: BUTTON_URL_INVALID"),
 	}}
-	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: client})
+	setPanelMenuButton(&gotgbot.Bot{Token: "999:test", BotClient: client}, cfg)
 
 	var warned bool
 	for _, entry := range hook.AllEntries() {

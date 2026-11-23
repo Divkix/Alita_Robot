@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -19,7 +21,44 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
+	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
+	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
+	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 )
+
+// runDeps returns Deps with every seam faked: no cache, no real services, a
+// fake bot on the given client, and a shutdown wait the test controls.
+func runDeps(client gotgbot.BotClient, wait func(*shutdown.Manager)) Deps {
+	return Deps{
+		InitCache:         func() error { return nil },
+		InitializeLocales: func() error { return nil },
+		NewBot: func(*config.Config) (*gotgbot.Bot, error) {
+			return &gotgbot.Bot{Token: "999:test", BotClient: client}, nil
+		},
+		InitialChecks:      func(*gotgbot.Bot) error { return nil },
+		NewDispatcher:      func(*config.Config) *ext.Dispatcher { return ext.NewDispatcher(nil) },
+		NewShutdownManager: shutdown.NewManager,
+		NewHTTPServer: func(port int, _ time.Time) *httpserver.Server {
+			return httpserver.New(port, time.Now())
+		},
+		StartHTTPServer:       func(s *httpserver.Server) error { return s.Start() },
+		StopHTTPServer:        func(s *httpserver.Server) error { return s.Stop() },
+		ShutdownWait:          wait,
+		StartActivityMonitor:  func() {},
+		RegisterFlusher:       func() {},
+		RegisterBotSchedulers: func(*gotgbot.Bot) {},
+		ModuleDrains: func() []DrainSpec {
+			return []DrainSpec{
+				{Name: "users drain", Handler: func() error { return nil }},
+				{Name: "captcha stop", Handler: func() error { return nil }},
+				{Name: "aispam drain", Handler: func() error { return nil }},
+			}
+		},
+		LoadModules:           func(*ext.Dispatcher) {},
+		StartCaptchaLifecycle: func(*gotgbot.Bot) error { return nil },
+		ListModules:           func() string { return "[]" },
+	}
+}
 
 type appBotCall struct {
 	method string
@@ -118,12 +157,7 @@ func TestBaseBotClientUsesResolvedAPIURL(t *testing.T) {
 }
 
 func TestPostInitSetsCommandsAndStartupMessage(t *testing.T) {
-	previousConfig := config.AppConfig
-	config.AppConfig.MessageDump = -100123
-	config.AppConfig.WorkingMode = ""
-	t.Cleanup(func() {
-		config.AppConfig = previousConfig
-	})
+	cfg := &config.Config{MessageDump: -100123, WorkingMode: ""}
 
 	previousDB := db.DB
 	testDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -151,10 +185,15 @@ func TestPostInitSetsCommandsAndStartupMessage(t *testing.T) {
 	}
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 
-	postInit(bot, dispatcher, bot.Username, "polling")
+	deps := Deps{
+		LoadModules:           func(*ext.Dispatcher) {},
+		StartCaptchaLifecycle: modules.StartCaptchaLifecycle,
+		ListModules:           func() string { return "[]" },
+	}
+	postInit(bot, dispatcher, bot.Username, "polling", cfg, deps)
 
-	if config.AppConfig.WorkingMode != "polling" {
-		t.Fatalf("WorkingMode = %q, want polling", config.AppConfig.WorkingMode)
+	if cfg.WorkingMode != "polling" {
+		t.Fatalf("WorkingMode = %q, want polling", cfg.WorkingMode)
 	}
 	if len(client.calls) != 2 {
 		t.Fatalf("got %d bot calls, want setMyCommands and sendMessage", len(client.calls))
@@ -253,5 +292,106 @@ func TestCloseDBConnectionsNilDBReturnsNil(t *testing.T) {
 
 	if err := closeDBConnections(); err != nil {
 		t.Fatalf("closeDBConnections() with nil DB = %v, want nil", err)
+	}
+}
+
+// fakeRemediator records that the performance-monitoring wiring registered it.
+type fakeRemediator struct {
+	registered bool
+}
+
+func (f *fakeRemediator) Register() { f.registered = true }
+
+// With every flag on, Run wires each flag-gated service through its Deps
+// seam in order, hands the background-stats collector to the remediation
+// manager, and always starts the activity monitor.
+func TestRunWiresFlagGatedServices(t *testing.T) {
+	var calls []string
+	var statsCollector *monitoring.BackgroundStatsCollector
+	var remediationCollector *monitoring.BackgroundStatsCollector
+	remediation := &fakeRemediator{}
+
+	deps := runDeps(&appBotClient{}, func(*shutdown.Manager) {})
+	deps.NewShutdownManager = shutdown.NewManager
+	deps.RegisterDBMonitoring = func() { calls = append(calls, "dbMonitoring") }
+	deps.NewBackgroundStats = func() *monitoring.BackgroundStatsCollector {
+		statsCollector = &monitoring.BackgroundStatsCollector{}
+		return statsCollector
+	}
+	deps.SetGlobalCollector = func(c *monitoring.BackgroundStatsCollector) {
+		calls = append(calls, "setGlobalCollector")
+	}
+	deps.SetOnErrorCallback = func(func()) { calls = append(calls, "setOnError") }
+	deps.SetOnProcessUpdate = func(func()) { calls = append(calls, "setOnProcessUpdate") }
+	deps.RegisterBackgroundStats = func(c *monitoring.BackgroundStatsCollector) {
+		calls = append(calls, "registerBackgroundStats")
+	}
+	deps.NewAutoRemediation = func(c *monitoring.BackgroundStatsCollector) Remediator {
+		remediationCollector = c
+		calls = append(calls, "newAutoRemediation")
+		return remediation
+	}
+	deps.StartActivityMonitor = func() { calls = append(calls, "activityMonitor") }
+
+	cfg := &config.Config{
+		EnableDBMonitoring:          true,
+		EnableBackgroundStats:       true,
+		EnablePerformanceMonitoring: true,
+		UseWebhooks:                 true,
+		WebhookDomain:               "https://bot.example.com",
+		WebhookSecret:               "secret",
+		HTTPPort:                    0,
+		MessageDump:                 -100123,
+	}
+	Run("webhook", cfg, deps)
+
+	want := []string{
+		"dbMonitoring",
+		"setGlobalCollector",
+		"setOnError",
+		"setOnProcessUpdate",
+		"registerBackgroundStats",
+		"newAutoRemediation",
+		"activityMonitor",
+	}
+	if !slices.Equal(calls, want) {
+		t.Fatalf("service wiring order = %v, want %v", calls, want)
+	}
+	if remediationCollector != statsCollector {
+		t.Error("auto-remediation got a different collector than background stats produced")
+	}
+	if !remediation.registered {
+		t.Error("auto-remediation manager was not registered")
+	}
+}
+
+// With the flags off, Run wires none of the gated services but still starts
+// the activity monitor.
+func TestRunSkipsFlagGatedServicesWhenDisabled(t *testing.T) {
+	var calls []string
+
+	deps := runDeps(&appBotClient{}, func(*shutdown.Manager) {})
+	deps.RegisterDBMonitoring = func() { calls = append(calls, "dbMonitoring") }
+	deps.NewBackgroundStats = func() *monitoring.BackgroundStatsCollector {
+		calls = append(calls, "newBackgroundStats")
+		return &monitoring.BackgroundStatsCollector{}
+	}
+	deps.NewAutoRemediation = func(*monitoring.BackgroundStatsCollector) Remediator {
+		calls = append(calls, "newAutoRemediation")
+		return &fakeRemediator{}
+	}
+	deps.StartActivityMonitor = func() { calls = append(calls, "activityMonitor") }
+
+	cfg := &config.Config{
+		UseWebhooks:   true,
+		WebhookDomain: "https://bot.example.com",
+		WebhookSecret: "secret",
+		HTTPPort:      0,
+		MessageDump:   -100123,
+	}
+	Run("webhook", cfg, deps)
+
+	if !slices.Equal(calls, []string{"activityMonitor"}) {
+		t.Fatalf("service wiring = %v, want only the activity monitor", calls)
 	}
 }

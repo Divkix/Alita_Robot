@@ -1,7 +1,11 @@
 // Package app is the startup composition root: Run assembles the bot's
 // services — flag-gated monitoring, panel and pprof wiring, scheduler and
 // drain registration through the shutdown phase API, the HTTP server, and the
-// webhook-vs-polling fork. main() only dispatches the CLI modes and calls Run.
+// webhook-vs-polling fork — behind one small interface. main() only dispatches
+// the CLI modes and calls Run.
+//
+// Deps is the injection seam: a nil field selects the production
+// implementation, so tests substitute fakes only for what they assert on.
 package app
 
 import (
@@ -12,11 +16,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime/debug"
 	"strings"
 	"time"
-
 	// Embeds the IANA time zone database so chat timezones load on hosts
 	// without /usr/share/zoneinfo (the alpine debug image, nixpacks builds).
 	_ "time/tzdata"
@@ -50,9 +52,86 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
-// Locales is the embedded locale filesystem main() provides before calling
-// Run; Run's locale-manager init loads it.
-var Locales embed.FS
+// HealthCheck reports whether the running bot's HTTP server answers /health.
+// main's --health mode calls it after config has loaded, so the port is the
+// one config resolved — HTTP_PORT, then PORT, then 8080 — and nothing here
+// re-reads the environment.
+func HealthCheck() error {
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("health endpoint returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// Deps carries the startup seams Run composes through. A nil field selects
+// the production implementation; tests fill only the fields they assert on.
+type Deps struct {
+	// InitCache initializes the read-through cache (Redis).
+	InitCache func() error
+	// InitializeLocales loads the embedded locales into the i18n manager.
+	InitializeLocales func() error
+	// Locales is the embedded locale filesystem main() provides; the default
+	// InitializeLocales loads it into the i18n manager.
+	Locales embed.FS
+	// NewBot builds the bot client from cfg (token, API server, transport).
+	NewBot func(cfg *config.Config) (*gotgbot.Bot, error)
+	// InitialChecks runs the pre-dispatcher database checks (bot row).
+	InitialChecks func(b *gotgbot.Bot) error
+	// NewDispatcher builds the update dispatcher for cfg.
+	NewDispatcher func(cfg *config.Config) *ext.Dispatcher
+	// NewShutdownManager builds the drain manager the drains register on.
+	NewShutdownManager func() *shutdown.Manager
+	// NewHTTPServer builds the unified HTTP server for cfg's port.
+	NewHTTPServer func(port int, startTime time.Time) *httpserver.Server
+
+	// The flag-gated services. Each runs only when its config flag is set,
+	// except StartActivityMonitor, which always starts.
+	RegisterDBMonitoring    func()
+	NewBackgroundStats      func() *monitoring.BackgroundStatsCollector
+	SetGlobalCollector      func(*monitoring.BackgroundStatsCollector)
+	SetOnErrorCallback      func(func())
+	SetOnProcessUpdate      func(func())
+	RegisterBackgroundStats func(*monitoring.BackgroundStatsCollector)
+	NewAutoRemediation      func(*monitoring.BackgroundStatsCollector) Remediator
+	StartActivityMonitor    func()
+
+	// RegisterFlusher registers the periodic stats flush job.
+	RegisterFlusher func()
+	// RegisterBotSchedulers registers the digest, member-snapshot and
+	// recurring-message schedulers for bot.
+	RegisterBotSchedulers func(b *gotgbot.Bot)
+	// ModuleDrains returns the module-owned shutdown drains (async writes,
+	// captcha lifecycle, AI spam checks) in registration order.
+	ModuleDrains func() []DrainSpec
+	// PanelHandler builds the admin panel handler when the panel is enabled.
+	PanelHandler func(b *gotgbot.Bot, cfg *config.Config) http.Handler
+	// StartHTTPServer starts the assembled HTTP server.
+	StartHTTPServer func(s *httpserver.Server) error
+	// StopHTTPServer stops it; registered as the HTTP-server-phase drain.
+	StopHTTPServer func(s *httpserver.Server) error
+	// ShutdownWait blocks until the shutdown manager runs the drains and
+	// exits the process.
+	ShutdownWait func(m *shutdown.Manager)
+
+	// postInit's seams: module loading, the captcha lifecycle and the module
+	// list it logs. Tests substitute fakes so postInit runs without loading
+	// the real module registry or touching the database.
+	LoadModules           func(d *ext.Dispatcher)
+	StartCaptchaLifecycle func(b *gotgbot.Bot) error
+	ListModules           func() string
+}
+
+// Remediator is the periodic auto-remediation job the performance-monitoring
+// flag registers; *monitoring.AutoRemediationManager satisfies it, and tests
+// substitute a fake.
+type Remediator interface {
+	Register()
+}
 
 // DrainSpec is one shutdown drain with the phase it belongs to; the manager
 // orders execution by phase, so the spec carries the ordering as data.
@@ -103,10 +182,11 @@ func closeDBConnections() error {
 const pollingTimeout = 8 * time.Second
 
 // Run composes and starts the bot. mode is the update-source name
-// ("webhook" or "polling") postInit records as WorkingMode. It blocks on
-// shutdown once the update source is running.
-func Run(mode string) {
-	appStartTime := time.Now()
+// ("webhook" or "polling") postInit records as WorkingMode; cfg is the loaded,
+// validated configuration. It blocks on shutdown once the update source is
+// running; it returns only when startup fails before that point.
+func Run(mode string, cfg *config.Config, deps Deps) {
+	deps = defaultDeps(cfg, deps)
 
 	// gotgbot's dispatcher and updater log panics and polling errors through
 	// slog; send them, and the standard log package, through logrus.
@@ -119,85 +199,59 @@ func Run(mode string) {
 		}
 	}()
 
-	if config.AppConfig.Debug {
+	if cfg.Debug {
 		log.Info("Running in DEBUG Mode...")
 	} else {
 		log.Info("Running in RELEASE Mode...")
 	}
 
-	if err := cache.InitCache(); err != nil {
+	if err := deps.InitCache(); err != nil {
 		log.Fatalf("Failed to initialize cache: %v", err)
 	}
 	log.Info("Cache system initialized successfully")
 
-	localeManager := i18n.GetManager()
-	if err := localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig()); err != nil {
+	if err := deps.InitializeLocales(); err != nil {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
 	}
-	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
+	log.Infof("Locale manager initialized with %d languages: %v", len(i18n.GetManager().GetAvailableLanguages()), i18n.GetManager().GetAvailableLanguages())
 
-	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
-	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost
-
-	transport := newBotAPITransport(maxIdleConns, maxIdleConnsPerHost)
-
-	log.Infof("[Main] HTTP transport configured with MaxIdleConns: %d, MaxIdleConnsPerHost: %d", maxIdleConns, maxIdleConnsPerHost)
-
-	log.Info("[Main] Initializing bot with optimized HTTP client (connection pooling enabled)")
-	b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
-		BotClient: &helpers.ReplySafeBotClient{
-			BotClient: &gotgbot.BaseBotClient{
-				Client: http.Client{
-					Transport: tracing.BotAPITransport(transport),
-					Timeout:   constants.LongTimeout,
-				},
-				UseTestEnvironment: false,
-				DefaultRequestOpts: &gotgbot.RequestOpts{
-					Timeout: time.Duration(constants.LongTimeout),
-					APIURL:  resolveBotAPIURL(config.AppConfig.ApiServer),
-				},
-			},
-		},
-	})
+	b, err := deps.NewBot(cfg)
 	if err != nil {
 		log.Fatalf("Failed to create new bot: %v", err)
 	}
-	log.Infof("[Main] Bot initialized with optimized connection pooling (MaxIdleConns: %d, MaxIdleConnsPerHost: %d, HTTP/2 enabled)", maxIdleConns, maxIdleConnsPerHost)
 
 	botUsername := resolveBotUsername(b)
 
-	if err := alita.InitialChecks(b); err != nil {
+	if err := deps.InitialChecks(b); err != nil {
 		log.Fatalf("Initial checks failed: %v", err)
 	}
 
-	dispatcher := newConfiguredDispatcher(config.AppConfig.DispatcherMaxRoutines)
+	dispatcher := deps.NewDispatcher(cfg)
 
-	if config.AppConfig.EnableDBMonitoring {
-		dbmonitoring.Register(time.Minute)
+	if cfg.EnableDBMonitoring {
+		deps.RegisterDBMonitoring()
 	}
 
 	var statsCollector *monitoring.BackgroundStatsCollector
-	if config.AppConfig.EnableBackgroundStats {
-		statsCollector = monitoring.NewBackgroundStatsCollector()
-		monitoring.SetGlobalCollector(statsCollector)
-		error_handling.SetOnErrorCallback(monitoring.GlobalRecordError)
-		tracing.SetOnProcessUpdateCallback(monitoring.GlobalRecordMessage)
-		statsCollector.Register()
+	if cfg.EnableBackgroundStats {
+		statsCollector = deps.NewBackgroundStats()
+		deps.SetGlobalCollector(statsCollector)
+		deps.SetOnErrorCallback(monitoring.GlobalRecordError)
+		deps.SetOnProcessUpdate(monitoring.GlobalRecordMessage)
+		deps.RegisterBackgroundStats(statsCollector)
 	}
 
-	if config.AppConfig.EnablePerformanceMonitoring {
-		monitoring.NewAutoRemediationManager(statsCollector).Register()
+	if cfg.EnablePerformanceMonitoring {
+		deps.NewAutoRemediation(statsCollector).Register()
 	}
 
-	monitoring.NewActivityMonitor().Start()
+	deps.StartActivityMonitor()
 
-	shutdownManager := shutdown.NewManager()
+	shutdownManager := deps.NewShutdownManager()
 
 	stats.RegisterFlusher()
 
-	digest.Register(b)
-	membersnapshot.Register(b)
-	recurring.Register(b)
+	deps.RegisterBotSchedulers(b)
 
 	// The tracer drain is declared in the telemetry phase so it runs last:
 	// every other drain's logs and spans are exported before the providers
@@ -221,41 +275,22 @@ func Run(mode string) {
 			jobs.Stop()
 			return nil
 		},
-		[]DrainSpec{
-			{Name: "users drain", Handler: func() error {
-				log.Info("[Shutdown] Draining users async writes...")
-				modules.DrainUsersAsyncWrites()
-				return nil
-			}},
-			{Name: "captcha stop", Handler: func() error {
-				log.Info("[Shutdown] Stopping captcha lifecycle...")
-				modules.StopCaptchaLifecycle()
-				return nil
-			}},
-			{Name: "aispam drain", Handler: func() error {
-				log.Info("[Shutdown] Draining AI spam checks...")
-				modules.DrainAISpamChecks()
-				return nil
-			}},
-		},
+		deps.ModuleDrains(),
 	)...)
 	jobs.Start()
 
-	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
+	httpServer := deps.NewHTTPServer(cfg.HTTPPort, time.Now())
 	httpServer.RegisterHealth()
-	httpServer.SetMetricsAuthToken(config.AppConfig.MetricsAuthToken)
+	httpServer.SetMetricsAuthToken(cfg.MetricsAuthToken)
 	httpServer.RegisterMetrics()
 	httpServer.RegisterDBMetrics()
 
-	if config.AppConfig.PanelEnabled {
-		httpServer.RegisterPanel(panel.New(b, panel.Deps{
-			SessionMaxAge: config.AppConfig.PanelSessionMaxAge,
-			LookupChats:   chats.ListChatsWithUser,
-		}))
-		log.Infof("[Main] Admin panel enabled at %s", config.AppConfig.PanelPublicURL)
+	if cfg.PanelEnabled {
+		httpServer.RegisterPanel(deps.PanelHandler(b, cfg))
+		log.Infof("[Main] Admin panel enabled at %s", cfg.PanelPublicURL)
 	}
 
-	if config.AppConfig.EnablePPROF {
+	if cfg.EnablePPROF {
 		httpServer.RegisterPPROF()
 		log.Warn("[Main] pprof endpoints enabled - DO NOT enable in production!")
 	}
@@ -264,34 +299,33 @@ func Run(mode string) {
 	// update intake, so it runs in the HTTP-server phase either way.
 	shutdownManager.Register("http stop", shutdown.PhaseHTTPServer, func() error {
 		log.Info("[Shutdown] Stopping HTTP server...")
-		return httpServer.Stop()
+		return deps.StopHTTPServer(httpServer)
 	})
 
-	if config.AppConfig.UseWebhooks {
+	if cfg.UseWebhooks {
 		// WebhookDomain and WebhookSecret are guaranteed non-empty: config
 		// validation owns that contract, so startup does not re-check it.
-		if err := httpServer.RegisterWebhook(b, dispatcher, config.AppConfig.WebhookSecret, config.AppConfig.WebhookDomain); err != nil {
+		if err := httpServer.RegisterWebhook(b, dispatcher, cfg.WebhookSecret, cfg.WebhookDomain); err != nil {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
-		postInit(b, dispatcher, botUsername, "webhook")
+		postInit(b, dispatcher, botUsername, "webhook", cfg, deps)
 
-		if err := httpServer.Start(); err != nil {
+		if err := deps.StartHTTPServer(httpServer); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
 		}
 
-		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", config.AppConfig.HTTPPort)
+		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", cfg.HTTPPort)
 		// WorkingMode already set by postInit before Start serves traffic; writing it
 		// here would race concurrent webhook-handler/tracing readers.
 
-		shutdownManager.WaitForShutdown()
+		deps.ShutdownWait(shutdownManager)
 	} else {
-
-		if err := httpServer.Start(); err != nil {
+		if err := deps.StartHTTPServer(httpServer); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
 		}
 
-		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", config.AppConfig.HTTPPort)
+		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", cfg.HTTPPort)
 
 		updater := ext.NewUpdater(dispatcher, nil)
 
@@ -300,9 +334,9 @@ func Run(mode string) {
 		}
 		log.Info("[Polling] Removed Webhook!")
 
-		postInit(b, dispatcher, botUsername, "polling")
+		postInit(b, dispatcher, botUsername, "polling", cfg, deps)
 
-		runPolling(b, updater, shutdownManager)
+		runPolling(b, updater, cfg, shutdownManager, deps.ShutdownWait)
 	}
 }
 
@@ -310,7 +344,7 @@ func Run(mode string) {
 // long polling and blocks on the shutdown manager, whose exit after the last
 // drain is the only way out. It never waits on the updater's Idle: the updater
 // stop releases that wait, so the process would leave before the later drains.
-func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.Manager) {
+func runPolling(b *gotgbot.Bot, updater *ext.Updater, cfg *config.Config, shutdownManager *shutdown.Manager, wait func(*shutdown.Manager)) {
 	shutdownManager.Register("updater stop", shutdown.PhaseUpdateSource, func() error {
 		log.Info("[Polling] Stopping updater...")
 		err := updater.Stop()
@@ -324,10 +358,10 @@ func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.
 
 	err := updater.StartPolling(b,
 		&ext.PollingOpts{
-			DropPendingUpdates: config.AppConfig.DropPendingUpdates,
+			DropPendingUpdates: cfg.DropPendingUpdates,
 			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
 				Timeout:        int64(pollingTimeout / time.Second),
-				AllowedUpdates: config.AppConfig.AllowedUpdates,
+				AllowedUpdates: cfg.AllowedUpdates,
 			},
 		},
 	)
@@ -336,7 +370,7 @@ func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.
 	}
 	log.Info("[Polling] Started Polling...!")
 
-	shutdownManager.WaitForShutdown()
+	wait(shutdownManager)
 }
 
 func newBotAPITransport(maxIdleConns, maxIdleConnsPerHost int) *http.Transport {
@@ -407,14 +441,18 @@ func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.Dis
 	return ext.DispatcherActionNoop
 }
 
-func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
-	alita.LoadModules(d)
-	if err := modules.StartCaptchaLifecycle(b); err != nil {
+// postInit loads the modules, starts the captcha lifecycle, publishes the
+// command menu and startup message, then records mode as the working mode.
+// It runs inside the update-source fork: webhook mode calls it before the
+// server starts serving, polling mode after the webhook is removed.
+func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string, cfg *config.Config, deps Deps) {
+	deps.LoadModules(d)
+	if err := deps.StartCaptchaLifecycle(b); err != nil {
 		log.Fatalf("[Captcha] Failed to start lifecycle: %v", err)
 	}
-	log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
+	log.Infof("[Modules] Loaded modules: %s", deps.ListModules())
 
-	config.AppConfig.WorkingMode = mode
+	cfg.WorkingMode = mode
 
 	tr := i18n.MustNewTranslator("en")
 	startDesc, _ := tr.GetString("main_bot_command_start")
@@ -438,10 +476,10 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	}
 	log.Info("Custom bot commands set for private chats")
 
-	setPanelMenuButton(b)
+	setPanelMenuButton(b, cfg)
 
-	_, err = b.SendMessage(config.AppConfig.MessageDump,
-		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, alita.ListModules()),
+	_, err = b.SendMessage(cfg.MessageDump,
+		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, deps.ListModules()),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 		},
@@ -463,8 +501,8 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 // is disabled, which leaves the button untouched. Repeating the same value on
 // every start is harmless, and a refusal only warns: the group buttons and the
 // /start panel_<chatID> deep link still open the panel.
-func setPanelMenuButton(b *gotgbot.Bot) {
-	if !config.AppConfig.PanelEnabled {
+func setPanelMenuButton(b *gotgbot.Bot, cfg *config.Config) {
+	if !cfg.PanelEnabled {
 		return
 	}
 	tr := i18n.MustNewTranslator("en")
@@ -472,7 +510,7 @@ func setPanelMenuButton(b *gotgbot.Bot) {
 	_, err := b.SetChatMenuButton(&gotgbot.SetChatMenuButtonOpts{
 		MenuButton: gotgbot.MenuButtonWebApp{
 			Text:   text,
-			WebApp: gotgbot.WebAppInfo{Url: config.AppConfig.PanelPublicURL},
+			WebApp: gotgbot.WebAppInfo{Url: cfg.PanelPublicURL},
 		},
 	})
 	if err != nil {
@@ -480,16 +518,153 @@ func setPanelMenuButton(b *gotgbot.Bot) {
 	}
 }
 
-// HealthCheck probes the bot's /health endpoint on the configured HTTP port
-// and exits 0 on 200, 1 otherwise — the Docker healthcheck entrypoint.
-func HealthCheck() {
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))
+// defaultDeps fills every nil Deps field with the production implementation,
+// leaving the fields the caller set untouched.
+func defaultDeps(cfg *config.Config, deps Deps) Deps {
+	if deps.InitCache == nil {
+		deps.InitCache = cache.InitCache
+	}
+	if deps.InitializeLocales == nil {
+		deps.InitializeLocales = func() error {
+			return i18n.GetManager().Initialize(&deps.Locales, "locales", i18n.DefaultManagerConfig())
+		}
+	}
+	if deps.NewBot == nil {
+		deps.NewBot = newBot
+	}
+	if deps.InitialChecks == nil {
+		deps.InitialChecks = alita.InitialChecks
+	}
+	if deps.NewDispatcher == nil {
+		deps.NewDispatcher = func(cfg *config.Config) *ext.Dispatcher {
+			return newConfiguredDispatcher(cfg.DispatcherMaxRoutines)
+		}
+	}
+	if deps.NewShutdownManager == nil {
+		deps.NewShutdownManager = shutdown.NewManager
+	}
+	if deps.NewHTTPServer == nil {
+		deps.NewHTTPServer = func(port int, startTime time.Time) *httpserver.Server {
+			return httpserver.New(port, startTime)
+		}
+	}
+
+	if deps.RegisterDBMonitoring == nil {
+		deps.RegisterDBMonitoring = func() { dbmonitoring.Register(time.Minute) }
+	}
+	if deps.NewBackgroundStats == nil {
+		deps.NewBackgroundStats = monitoring.NewBackgroundStatsCollector
+	}
+	if deps.SetGlobalCollector == nil {
+		deps.SetGlobalCollector = monitoring.SetGlobalCollector
+	}
+	if deps.SetOnErrorCallback == nil {
+		deps.SetOnErrorCallback = error_handling.SetOnErrorCallback
+	}
+	if deps.SetOnProcessUpdate == nil {
+		deps.SetOnProcessUpdate = tracing.SetOnProcessUpdateCallback
+	}
+	if deps.RegisterBackgroundStats == nil {
+		deps.RegisterBackgroundStats = func(c *monitoring.BackgroundStatsCollector) { c.Register() }
+	}
+	if deps.NewAutoRemediation == nil {
+		deps.NewAutoRemediation = func(c *monitoring.BackgroundStatsCollector) Remediator {
+			return monitoring.NewAutoRemediationManager(c)
+		}
+	}
+	if deps.StartActivityMonitor == nil {
+		deps.StartActivityMonitor = func() { monitoring.NewActivityMonitor().Start() }
+	}
+
+	if deps.RegisterFlusher == nil {
+		deps.RegisterFlusher = stats.RegisterFlusher
+	}
+	if deps.RegisterBotSchedulers == nil {
+		deps.RegisterBotSchedulers = func(b *gotgbot.Bot) {
+			digest.Register(b)
+			membersnapshot.Register(b)
+			recurring.Register(b)
+		}
+	}
+	if deps.ModuleDrains == nil {
+		deps.ModuleDrains = func() []DrainSpec {
+			return []DrainSpec{
+				{Name: "users drain", Handler: func() error {
+					log.Info("[Shutdown] Draining users async writes...")
+					modules.DrainUsersAsyncWrites()
+					return nil
+				}},
+				{Name: "captcha stop", Handler: func() error {
+					log.Info("[Shutdown] Stopping captcha lifecycle...")
+					modules.StopCaptchaLifecycle()
+					return nil
+				}},
+				{Name: "aispam drain", Handler: func() error {
+					log.Info("[Shutdown] Draining AI spam checks...")
+					modules.DrainAISpamChecks()
+					return nil
+				}},
+			}
+		}
+	}
+	if deps.PanelHandler == nil {
+		deps.PanelHandler = func(b *gotgbot.Bot, cfg *config.Config) http.Handler {
+			return panel.New(b, panel.Deps{
+				SessionMaxAge: cfg.PanelSessionMaxAge,
+				LookupChats:   chats.ListChatsWithUser,
+			})
+		}
+	}
+	if deps.StartHTTPServer == nil {
+		deps.StartHTTPServer = func(s *httpserver.Server) error { return s.Start() }
+	}
+	if deps.StopHTTPServer == nil {
+		deps.StopHTTPServer = func(s *httpserver.Server) error { return s.Stop() }
+	}
+	if deps.ShutdownWait == nil {
+		deps.ShutdownWait = func(m *shutdown.Manager) { m.WaitForShutdown() }
+	}
+	if deps.LoadModules == nil {
+		deps.LoadModules = alita.LoadModules
+	}
+	if deps.StartCaptchaLifecycle == nil {
+		deps.StartCaptchaLifecycle = modules.StartCaptchaLifecycle
+	}
+	if deps.ListModules == nil {
+		deps.ListModules = alita.ListModules
+	}
+	return deps
+}
+
+// newBot builds the production bot: pooled HTTP transport wrapped in the
+// reply-safe client, resolved API URL and long timeout.
+func newBot(cfg *config.Config) (*gotgbot.Bot, error) {
+	maxIdleConns := cfg.HTTPMaxIdleConns
+	maxIdleConnsPerHost := cfg.HTTPMaxIdleConnsPerHost
+
+	transport := newBotAPITransport(maxIdleConns, maxIdleConnsPerHost)
+
+	log.Infof("[Main] HTTP transport configured with MaxIdleConns: %d, MaxIdleConnsPerHost: %d", maxIdleConns, maxIdleConnsPerHost)
+
+	log.Info("[Main] Initializing bot with optimized HTTP client (connection pooling enabled)")
+	b, err := gotgbot.NewBot(cfg.BotToken, &gotgbot.BotOpts{
+		BotClient: &helpers.ReplySafeBotClient{
+			BotClient: &gotgbot.BaseBotClient{
+				Client: http.Client{
+					Transport: tracing.BotAPITransport(transport),
+					Timeout:   constants.LongTimeout,
+				},
+				UseTestEnvironment: false,
+				DefaultRequestOpts: &gotgbot.RequestOpts{
+					Timeout: time.Duration(constants.LongTimeout),
+					APIURL:  resolveBotAPIURL(cfg.ApiServer),
+				},
+			},
+		},
+	})
 	if err != nil {
-		os.Exit(1)
+		return nil, err
 	}
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		os.Exit(1)
-	}
-	os.Exit(0)
+	log.Infof("[Main] Bot initialized with optimized connection pooling (MaxIdleConns: %d, MaxIdleConnsPerHost: %d, HTTP/2 enabled)", maxIdleConns, maxIdleConnsPerHost)
+	return b, nil
 }
