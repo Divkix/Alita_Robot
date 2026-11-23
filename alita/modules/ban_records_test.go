@@ -321,8 +321,8 @@ func TestUnbanAllClosesTheBanRecordsOfTheUsersItUnbanned(t *testing.T) {
 	dbcache.DeleteCache(dbcache.CacheKey("chat_users", f.chat.Id))
 
 	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
-	if err := bansModule.unbanAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data)); err != ext.EndGroups {
-		t.Fatalf("unbanAllCallback(yes) error = %v, want EndGroups", err)
+	if err := bansClearAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data)); err != ext.EndGroups {
+		t.Fatalf("bansClearAllCallback(yes) error = %v, want EndGroups", err)
 	}
 
 	for _, r := range banRecordsOf(t, f.chat.Id) {

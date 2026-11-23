@@ -118,7 +118,7 @@ func TestAdminWarnActionsLogUnderTheWarnsCategory(t *testing.T) {
 			run: func(t *testing.T, f adminChatFixture) {
 				seedWarns(t, f.chat.Id, f.member.Id, 1)
 				data := confirmData("rmAllChatWarns", "yes", &f.chat)
-				_ = warnsModule.warnsButtonHandler(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data))
+				_ = warnsClearAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data))
 				if warns.GetAllChatWarns(f.chat.Id) != 0 {
 					t.Fatal("chat warns remain after the reset")
 				}
@@ -169,7 +169,7 @@ func TestFailedWarnActionsLogNothing(t *testing.T) {
 		f.makeOwner()
 		seedWarns(t, f.chat.Id, f.member.Id, 1)
 		data := confirmData("rmAllChatWarns", "no", &f.chat)
-		_ = warnsModule.warnsButtonHandler(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data))
+		_ = warnsClearAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data))
 		requireNoLogEntry(t, f)
 	})
 

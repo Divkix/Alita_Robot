@@ -4,6 +4,7 @@ package modules
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func pmResetDispatcher() *ext.Dispatcher {
@@ -543,5 +545,128 @@ func TestResetConfirmationInPMNamesGroup(t *testing.T) {
 				t.Fatalf("/%s in the group asked %q, want the question as it was: %q", tc.cmd, got, want)
 			}
 		})
+	}
+}
+
+// registerOwnerConfirm owns the whole reset-confirmation lifecycle; this
+// exercises it once through callback queries against the fake BotClient.
+func TestOwnerConfirmSkeletonLifecycle(t *testing.T) {
+	useEnglishLocale(t)
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, owner := f.client, f.bot, f.chat, f.admin
+
+	commits := 0
+	fail := false
+	message, callback := registerOwnerConfirm(ownerConfirmSpec{
+		Namespace: "testconfirm",
+		AskKey:    "notes_clear_all_confirm",
+		Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
+			return true, nil
+		},
+		Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+			commits++
+			if fail {
+				return "", nil, errors.New("commit failed")
+			}
+			return "", nil, nil
+		},
+		Keys: ownerConfirmKeys{
+			Confirmed: "notes_clear_all_success",
+			Cancelled: "notes_clear_all_cancelled",
+			Failed:    "error_generic",
+		},
+	})
+
+	// The command sends the question with a yes/no keyboard naming the chat.
+	if err := message(bot, newModuleMessageContext(bot, chat, owner, "/testconfirm")); err != ext.EndGroups {
+		t.Fatalf("message handler error = %v, want EndGroups", err)
+	}
+	prompt := client.onlyCall(t, "sendMessage")
+	markup, ok := prompt.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok || len(markup.InlineKeyboard) != 1 || len(markup.InlineKeyboard[0]) != 2 {
+		t.Fatalf("prompt markup = %#v, want one row of two buttons", prompt.Params["reply_markup"])
+	}
+	buttons := map[string]string{}
+	for _, button := range markup.InlineKeyboard[0] {
+		decoded, ok := decodeCallbackData(button.CallbackData, "testconfirm")
+		if !ok {
+			t.Fatalf("button data %q does not decode in the namespace", button.CallbackData)
+		}
+		if c, _ := decoded.Field("c"); c != fmt.Sprint(chat.Id) {
+			t.Fatalf("button names group %q, want %d", c, chat.Id)
+		}
+		if a, _ := decoded.Field("a"); a == "yes" || a == "no" {
+			buttons[a] = button.CallbackData
+		}
+	}
+	if len(buttons) != 2 {
+		t.Fatalf("prompt buttons = %v, want yes and no", buttons)
+	}
+
+	lastAnswer := func() string {
+		calls := client.callsFor("answerCallbackQuery")
+		if len(calls) == 0 {
+			t.Fatal("no answerCallbackQuery sent")
+		}
+		return fmt.Sprint(calls[len(calls)-1].Params["text"])
+	}
+
+	// yes commits and edits the prompt to the confirmed text.
+	if err := callback(bot, newModuleCallbackContext(bot, chat, owner, buttons["yes"])); err != ext.EndGroups {
+		t.Fatalf("callback(yes) error = %v, want EndGroups", err)
+	}
+	if commits != 1 {
+		t.Fatalf("commits = %d, want 1", commits)
+	}
+	if got, want := lastAnswer(), translated(t, "notes_clear_all_success"); got != want {
+		t.Fatalf("yes answer = %q, want %q", got, want)
+	}
+	if edits := client.callsFor("editMessageText"); len(edits) != 1 {
+		t.Fatalf("editMessageText calls = %d, want 1", len(edits))
+	}
+
+	// no cancels without committing.
+	if err := callback(bot, newModuleCallbackContext(bot, chat, owner, buttons["no"])); err != ext.EndGroups {
+		t.Fatalf("callback(no) error = %v, want EndGroups", err)
+	}
+	if commits != 1 {
+		t.Fatalf("commits after no = %d, want still 1", commits)
+	}
+	if got, want := lastAnswer(), translated(t, "notes_clear_all_cancelled"); got != want {
+		t.Fatalf("no answer = %q, want %q", got, want)
+	}
+
+	// A failed commit answers with the failed text.
+	fail = true
+	if err := callback(bot, newModuleCallbackContext(bot, chat, owner, buttons["yes"])); err != ext.EndGroups {
+		t.Fatalf("callback(yes, failing commit) error = %v, want EndGroups", err)
+	}
+	if commits != 2 {
+		t.Fatalf("commits after failing yes = %d, want 2", commits)
+	}
+	if got, want := lastAnswer(), translated(t, "error_generic"); got != want {
+		t.Fatalf("failed answer = %q, want %q", got, want)
+	}
+
+	// A non-owner's press is refused and commits nothing.
+	if err := callback(bot, newModuleCallbackContext(bot, chat, f.member, buttons["yes"])); err != ext.EndGroups {
+		t.Fatalf("callback(member yes) error = %v, want EndGroups", err)
+	}
+	if commits != 2 {
+		t.Fatalf("commits after member press = %d, want still 2", commits)
+	}
+
+	// A press whose confirmation message is gone is answered, never committed.
+	gone := newModuleCallbackContext(bot, chat, owner, buttons["yes"])
+	gone.CallbackQuery.Message = nil
+	if err := callback(bot, gone); err != ext.EndGroups {
+		t.Fatalf("callback(gone message) error = %v, want EndGroups", err)
+	}
+	if commits != 2 {
+		t.Fatalf("commits after gone-message press = %d, want still 2", commits)
+	}
+	if got, want := lastAnswer(), translated(t, "common_callback_message_unavailable"); got != want {
+		t.Fatalf("gone-message answer = %q, want %q", got, want)
 	}
 }

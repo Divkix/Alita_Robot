@@ -293,8 +293,8 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	}
 
 	callbackCtx := newModuleCallbackContext(bot, chat, admin, data)
-	if err := notesModule.notesButtonHandler(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("notesButtonHandler() error = %v, want EndGroups", err)
+	if err := notesClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("notesClearAllCallback() error = %v, want EndGroups", err)
 	}
 	if notes := notes.GetNotesList(chat.Id, true); len(notes) != 0 {
 		t.Fatalf("notes after clear all = %v, want none", notes)
@@ -347,16 +347,16 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 		admin,
 		encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
 	)
-	if err := notesModule.notesButtonHandler(bot, cancelCtx); err != ext.EndGroups {
-		t.Fatalf("notesButtonHandler(cancel) error = %v, want EndGroups", err)
+	if err := notesClearAllCallback(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("notesClearAllCallback(cancel) error = %v, want EndGroups", err)
 	}
 	if !notes.DoesNoteExists(chat.Id, "rules") {
 		t.Fatal("note was removed by cancel callback")
 	}
 
 	invalidCtx := newModuleCallbackContext(bot, chat, admin, "rmAllNotes")
-	if err := notesModule.notesButtonHandler(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("notesButtonHandler(invalid) error = %v, want EndGroups", err)
+	if err := notesClearAllCallback(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("notesClearAllCallback(invalid) error = %v, want EndGroups", err)
 	}
 	unknownCtx := newModuleCallbackContext(
 		bot,
@@ -364,8 +364,8 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 		admin,
 		encodeCallbackData("rmAllNotes", map[string]string{"a": "crafted"}),
 	)
-	if err := notesModule.notesButtonHandler(bot, unknownCtx); err != ext.EndGroups {
-		t.Fatalf("notesButtonHandler(unknown action) error = %v, want EndGroups", err)
+	if err := notesClearAllCallback(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("notesClearAllCallback(unknown action) error = %v, want EndGroups", err)
 	}
 
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
@@ -385,22 +385,24 @@ func TestNotesButtonHandlerSkipsMissingCallbackAndPropagatesRequestErrors(t *tes
 	noCallbackClient := newModuleBotClient()
 	noCallbackBot := newModuleTestBot(noCallbackClient)
 	noCallbackCtx := newModuleMessageContext(noCallbackBot, chat, admin, "/clearall")
-	if err := notesModule.notesButtonHandler(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
-		t.Fatalf("notesButtonHandler(no callback) error = %v, want EndGroups", err)
+	if err := notesClearAllCallback(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
+		t.Fatalf("notesClearAllCallback(no callback) error = %v, want EndGroups", err)
 	}
 	if calls := noCallbackClient.callsFor("answerCallbackQuery"); len(calls) != 0 {
 		t.Fatalf("answerCallbackQuery calls = %d, want none without callback query", len(calls))
 	}
 
 	for _, tt := range []struct {
-		name   string
-		method string
-		data   string
+		name          string
+		method        string
+		data          string
+		wantEndGroups bool
 	}{
 		{
-			name:   "edit failure",
-			method: "editMessageText",
-			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
+			name:          "edit failure",
+			method:        "editMessageText",
+			data:          encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
+			wantEndGroups: true,
 		},
 		{
 			name:   "answer failure",
@@ -416,9 +418,19 @@ func TestNotesButtonHandlerSkipsMissingCallbackAndPropagatesRequestErrors(t *tes
 			client.errors[tt.method] = requestErr
 			ctx := newModuleCallbackContext(bot, chat, admin, tt.data)
 
-			err := notesModule.notesButtonHandler(bot, ctx)
+			err := notesClearAllCallback(bot, ctx)
+			if tt.wantEndGroups {
+				// A failed edit still answers the callback so the button stops spinning.
+				if err != ext.EndGroups {
+					t.Fatalf("notesClearAllCallback() error = %v, want EndGroups", err)
+				}
+				if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+					t.Fatalf("notesClearAllCallback() answerCallbackQuery calls = %d, want 1 after the failed edit", len(calls))
+				}
+				return
+			}
 			if !errors.Is(err, requestErr) {
-				t.Fatalf("notesButtonHandler() error = %v, want request error", err)
+				t.Fatalf("notesClearAllCallback() error = %v, want request error", err)
 			}
 		})
 	}

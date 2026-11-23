@@ -23,7 +23,12 @@ func handler() {
 	tr.GetStringSlice("slice_key")
 	c.Tr.GetString("context_key")
 	tempTr.GetStringSlice("temporary_slice_key")
+	tr.String("string_key")
+	c.Tr.String("context_string_key")
+	builder.String("builder_key")
+	c.String("plain_string_key")
 }
+
 `
 	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
 		t.Fatalf("write temp file: %v", err)
@@ -44,6 +49,8 @@ func handler() {
 		{key: "slice_key", line: 11},
 		{key: "context_key", line: 12},
 		{key: "temporary_slice_key", line: 13},
+		{key: "string_key", line: 14},
+		{key: "context_string_key", line: 15},
 	}
 	if len(keys) != len(want) {
 		t.Fatalf("extractKeysFromFile() returned %d keys, want %d: %#v", len(keys), len(want), keys)

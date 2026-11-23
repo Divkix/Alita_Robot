@@ -163,9 +163,6 @@ blacklists_ls_bl_list_bl: "Эти слова в чёрном списке в э�
 blacklists_ls_bl_no_blacklisted: В этом чате нет слов в чёрном списке.
 blacklists_rm_all_bl_ask: |
   Вы уверены, что хотите удалить все слова из чёрного списка этого чата?
-blacklists_rm_all_bl_button_handler_no: |
-  Отменено удаление всех чёрных списков этого чата ❌
-blacklists_rm_all_bl_button_handler_yes: Удалены все чёрные списки из этого чата ✅
 blacklists_set_bl_action_changed_mode: "Успешно изменён режим чёрного списка на: *%s*"
 blist_action_tban: "Режим чёрного списка изменён на tban сроком на %s."
 blist_action_tmute: "Режим чёрного списка изменён на tmute сроком на %s."
@@ -997,7 +994,6 @@ warns_limit_updated: "Настройки лимита предупреждени
 warns_reset_success: Предупреждения сброшены!
 warns_no_users_warned: В этом чате нет пользователей с предупреждениями!
 warns_reset_all_confirm: Вы уверены, что хотите удалить все предупреждения всех пользователей в этом чате?
-warns_reset_all_success: Удалены все предупреждения всех пользователей в этом чате!
 warns_reset_all_cancelled: Отменено удаление всех предупреждений всех пользователей в этом чате!
 warns_reset_all_final: Удалены все предупреждения всех пользователей в этом чате.
 
@@ -1265,7 +1261,6 @@ filters_none_in_chat: "В этом чате нет фильтров!"
 filters_current_in_chat: "Это текущие фильтры в этом чате:"
 filters_clear_all_confirm: "Вы уверены, что хотите удалить все фильтры из этого чата?"
 filters_clear_all_success: "Удалены все фильтры из этого чата ✅"
-filters_clear_all_failed: "Не удалось удалить все фильтры из этого чата ❌"
 filters_clear_all_cancelled: "Отменено удаление всех фильтров из этого чата ❌"
 filters_overwrite_success: "Фильтр успешно перезаписан ✅"
 filters_overwrite_cancelled: "Отменена перезапись фильтра ❌"
@@ -2415,7 +2410,6 @@ approvals_unapproveall_done: "Все одобренные пользовател
 approvals_unapproveall_cancel: "Удаление всех одобрений отменено."
 approvals_approve_error: "Не удалось одобрить пользователя. Пожалуйста, попробуйте снова."
 approvals_unapprove_error: "Не удалось удалить пользователя из списка одобренных."
-approvals_unapproveall_error: "Не удалось удалить всех одобренных пользователей: {error}"
 approvals_reason: "\nПричина: %s"
 approvals_list_header: "Одобренные пользователи:\n"
 approvals_list_item: " - %s"

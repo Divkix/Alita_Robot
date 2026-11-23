@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -13,6 +14,11 @@ var (
 	paramRegex       = regexp.MustCompile(`\{([^}]+)\}`)
 	legacyParamRegex = regexp.MustCompile(`%[sdvfbtoxX]`)
 )
+
+// reportedMisses dedupes String's miss logging: one Warn per key per process,
+// so a typo'd key is greppable in telemetry without flooding it on every
+// reply. GetString callers that branch on the error do not touch it.
+var reportedMisses sync.Map
 
 func (t *Translator) GetString(key string, params ...TranslationParams) (string, error) {
 	if t.manager == nil {
@@ -44,6 +50,36 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 	}
 
 	return result, nil
+}
+
+// String is the never-error form of GetString for reply text: it resolves in
+// the translator's language (the caller builds it from the chat's language),
+// interpolates params, falls back to the default language, and on a total
+// miss logs the key once and returns the key itself — a visible, greppable
+// miss instead of a silently empty message. Callers that must detect a miss
+// keep using GetString.
+func (t *Translator) String(key string, params ...TranslationParams) string {
+	if t == nil {
+		return key
+	}
+	result, err := t.GetString(key, params...)
+	if err == nil || result != "" {
+		// A non-empty result with an error is interpolation's partially
+		// filled text, still the best sendable value.
+		return result
+	}
+	if t.manager != nil && t.langCode != t.manager.defaultLang {
+		// GetString already fell back to the default language; a miss there
+		// is a total miss. Let that translator's String log it under its own
+		// language, so the Warn names the locale that lacks the key.
+		if defaultTranslator, derr := t.manager.GetTranslator(t.manager.defaultLang); derr == nil && defaultTranslator != t {
+			return defaultTranslator.String(key, params...)
+		}
+	}
+	if _, reported := reportedMisses.LoadOrStore(key, struct{}{}); !reported {
+		log.Warnf("[i18n] missing translation key=%q lang=%q; returning the key", key, t.langCode)
+	}
+	return key
 }
 
 func (t *Translator) GetStringSlice(key string) ([]string, error) {

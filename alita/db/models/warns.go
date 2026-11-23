@@ -46,6 +46,13 @@ func (WarnSettings) TableName() string {
 	return "warns_settings"
 }
 
+// DefaultWarnSettings is the row a chat without one reads as: warn limit 3,
+// mode mute, no action time, expiry off. Repository loaders, settings
+// declarations and the backup importer consume it.
+func DefaultWarnSettings(chatID int64) *WarnSettings {
+	return &WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
+}
+
 type Warns struct {
 	ID        uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64       `gorm:"column:user_id;not null;uniqueIndex:uk_warns_users_user_chat" json:"user_id,omitempty"`

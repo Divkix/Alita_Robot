@@ -22,7 +22,7 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 	}
 
 	handlers := []callbackHandler{
-		{name: "unapproveAllCallback", want: ext.EndGroups, call: module.unapproveAllCallback},
+		{name: "approvalsClearAllCallback", want: ext.EndGroups, call: approvalsClearAllCallback},
 		{name: "captchaVerifyCallback", want: ext.EndGroups, call: module.captchaVerifyCallback},
 		{name: "captchaRefreshCallback", want: ext.EndGroups, call: module.captchaRefreshCallback},
 		{name: "joinRequestHandler", want: ext.EndGroups, call: module.joinRequestHandler},
@@ -32,11 +32,11 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 		{name: "backupCallbackHandler", want: ext.EndGroups, call: module.backupCallbackHandler},
 		{name: "verifyAnonymousAdmin", want: ext.EndGroups, call: verifyAnonymousAdmin},
 		{name: "noteOverWriteHandler", want: ext.EndGroups, call: module.noteOverWriteHandler},
-		{name: "notesButtonHandler", want: ext.EndGroups, call: module.notesButtonHandler},
-		{name: "filtersButtonHandler", want: ext.EndGroups, call: module.filtersButtonHandler},
+		{name: "notesClearAllCallback", want: ext.EndGroups, call: notesClearAllCallback},
+		{name: "filtersClearAllCallback", want: ext.EndGroups, call: filtersClearAllCallback},
 		{name: "filterOverWriteHandler", want: ext.EndGroups, call: module.filterOverWriteHandler},
 		{name: "rmWarnButton", want: ext.EndGroups, call: module.rmWarnButton},
-		{name: "warnsButtonHandler", want: ext.EndGroups, call: module.warnsButtonHandler},
+		{name: "warnsClearAllCallback", want: ext.EndGroups, call: warnsClearAllCallback},
 		{name: "unpinallCallback", want: ext.EndGroups, call: module.unpinallCallback},
 		{name: "reactionsHelpHandler", want: ext.EndGroups, call: module.reactionsHelpHandler},
 		{name: "langBtnHandler", want: ext.EndGroups, call: module.langBtnHandler},
@@ -44,7 +44,8 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 		{name: "connectionButtons", want: ext.EndGroups, call: module.connectionButtons},
 		{name: "restrictButtonHandler", want: ext.EndGroups, call: module.restrictButtonHandler},
 		{name: "unrestrictButtonHandler", want: ext.EndGroups, call: module.unrestrictButtonHandler},
-		{name: "buttonHandler", want: ext.EndGroups, call: module.buttonHandler},
+		{name: "blacklistsClearAllCallback", want: ext.EndGroups, call: blacklistsClearAllCallback},
+		{name: "bansClearAllCallback", want: ext.EndGroups, call: bansClearAllCallback},
 		{name: "antiRaidCallbackHandler", want: ext.ContinueGroups, call: antiRaid.callbackHandler},
 	}
 

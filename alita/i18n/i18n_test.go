@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //go:embed testdata/locales/* testdata/locales/nested/* testdata/badlocales/* testdata/nodefault/*
@@ -582,6 +586,116 @@ func TestTranslator_GetString_EmptyKey(t *testing.T) {
 	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound, got: %v", err)
 	}
+}
+
+// newTestTranslatorPair builds a manager holding en and fr locales so tests can
+// exercise String's language resolution and English fallback.
+func newTestTranslatorPair(t *testing.T, enYAML, frYAML string) (*Translator, *Translator) {
+	t.Helper()
+	parse := func(yamlContent string) map[string]any {
+		data, err := parseYAML([]byte(yamlContent))
+		if err != nil {
+			t.Fatalf("parseYAML() error = %v", err)
+		}
+		return data
+	}
+	var dummyFS embed.FS
+	lm := &LocaleManager{
+		defaultLang: "en",
+		localeMaps: map[string]map[string]any{
+			"en": parse(enYAML),
+			"fr": parse(frYAML),
+		},
+		localeFS: &dummyFS,
+	}
+	trEn, err := lm.GetTranslator("en")
+	if err != nil {
+		t.Fatalf("GetTranslator(en) error = %v", err)
+	}
+	trFr, err := lm.GetTranslator("fr")
+	if err != nil {
+		t.Fatalf("GetTranslator(fr) error = %v", err)
+	}
+	return trEn, trFr
+}
+
+func TestTranslator_String(t *testing.T) {
+	t.Parallel()
+
+	const enYAML = "greet: \"Hello, {user}!\"\nonly_en: \"English only\"\n"
+	const frYAML = "greet: \"Bonjour, {user}!\"\nonly_fr: \"Français seulement\"\n"
+
+	t.Run("interpolates params in the translator's language", func(t *testing.T) {
+		t.Parallel()
+		_, trFr := newTestTranslatorPair(t, enYAML, frYAML)
+		if got := trFr.String("greet", TranslationParams{"user": "Alice"}); got != "Bonjour, Alice!" {
+			t.Fatalf("String(greet) = %q, want %q", got, "Bonjour, Alice!")
+		}
+	})
+
+	t.Run("falls back to English for a key missing in the chat language", func(t *testing.T) {
+		t.Parallel()
+		_, trFr := newTestTranslatorPair(t, enYAML, frYAML)
+		if got := trFr.String("only_en"); got != "English only" {
+			t.Fatalf("String(only_en) = %q, want %q", got, "English only")
+		}
+	})
+
+	t.Run("total miss returns the key and logs it once", func(t *testing.T) {
+		t.Parallel()
+		trEn, trFr := newTestTranslatorPair(t, enYAML, frYAML)
+
+		// reportedMisses is process-global, so the key must be unique per run
+		// or a repeated -count=N run would already have it deduped.
+		missingKey := fmt.Sprintf("totally_missing_string_key_%d", time.Now().UnixNano())
+		hook := &testMissHook{}
+		log.AddHook(hook)
+		t.Cleanup(func() { log.StandardLogger().ReplaceHooks(make(log.LevelHooks)) })
+
+		if got := trFr.String(missingKey); got != missingKey {
+			t.Fatalf("String(%s) = %q, want the key itself", missingKey, got)
+		}
+		if got := trEn.String(missingKey); got != missingKey {
+			t.Fatalf("String(%s) on en = %q, want the key itself", missingKey, got)
+		}
+		if got := trFr.String(missingKey); got != missingKey {
+			t.Fatalf("String(%s) second call = %q, want the key itself", missingKey, got)
+		}
+
+		// Parallel tests log unrelated warnings; count only entries naming
+		// this run's key.
+		var misses int
+		for _, entry := range hook.Entries() {
+			if strings.Contains(entry.Message, missingKey) {
+				misses++
+			}
+		}
+		if misses != 1 {
+			t.Fatalf("logged %d miss entries for %s, want 1 (one per key)", misses, missingKey)
+		}
+	})
+}
+
+// testMissHook counts Warn-level entries so the miss test can assert the
+// translation module logs a missing key exactly once per language.
+type testMissHook struct {
+	mu      sync.Mutex
+	entries []*log.Entry
+}
+
+func (h *testMissHook) Levels() []log.Level { return log.AllLevels }
+
+func (h *testMissHook) Fire(entry *log.Entry) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.entries = append(h.entries, entry)
+	return nil
+}
+
+func (h *testMissHook) Entries() []*log.Entry {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]*log.Entry(nil), h.entries...)
 }
 
 func TestTranslator_GetStringSlice_NilManager(t *testing.T) {
