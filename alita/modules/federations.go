@@ -1218,31 +1218,31 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 
 // Federation checks retain their resolved input on this update so the domain
 // handler uses exactly the federation authorised for the effective actor.
-func federationPrivateCheck(c *helpers.CommandContext) bool {
+var federationPrivateCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if chat_status.RequirePrivate(c.Bot, c.Ctx, c.Chat) {
 		return true
 	}
 	replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_pm_only"))
 	return false
-}
+})
 
-func federationGroupCheck(c *helpers.CommandContext) bool {
+var federationGroupCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if !chat_status.RequirePrivate(c.Bot, c.Ctx, c.Chat) {
 		return true
 	}
 	replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_group_only"))
 	return false
-}
+})
 
-func federationChatOwnerCheck(c *helpers.CommandContext) bool {
+var federationChatOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, c.Chat, c.User.Id) {
 		return true
 	}
 	replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_owner_only_join"))
 	return false
-}
+})
 
-func federationOwnerCheck(c *helpers.CommandContext) bool {
+var federationOwnerCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	fed := federations.GetFedByOwner(c.User.Id)
 	if fed == nil {
 		replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_no_fed"))
@@ -1250,9 +1250,9 @@ func federationOwnerCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.Data["federationCommandFed"] = fed
 	return true
-}
+})
 
-func federationChatCheck(c *helpers.CommandContext) bool {
+var federationChatCheck = helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 	membership := federations.GetChatFedContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if membership == nil {
 		replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_not_in_fed"))
@@ -1260,13 +1260,13 @@ func federationChatCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.Data["federationCommandChat"] = membership
 	return true
-}
+})
 
-func federationBanCheck(c *helpers.CommandContext) bool {
+var federationBanCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if chat_status.RequirePrivate(c.Bot, c.Ctx, c.Chat) {
-		return federationOwnerCheck(c)
+		return federationOwnerCheck.Run(c)
 	}
-	if !federationChatCheck(c) {
+	if !federationChatCheck.Run(c) {
 		return false
 	}
 	membership := c.Ctx.Data["federationCommandChat"].(*models.FederationChat)
@@ -1280,86 +1280,86 @@ func federationBanCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.Data["federationCommandFed"] = fed
 	return true
-}
+})
 
 func LoadFederations(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(federationsModule.moduleName, true)
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "newfed", RequiredChecks: []helpers.CheckFunc{federationPrivateCheck},
+		Name: "newfed", RequiredChecks: []helpers.Check{federationPrivateCheck},
 	}, pipelineHandler(federationsModule.newFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "renamefed", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "renamefed", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.renameFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "delfed", RequiredChecks: []helpers.CheckFunc{federationPrivateCheck, federationOwnerCheck},
+		Name: "delfed", RequiredChecks: []helpers.Check{federationPrivateCheck, federationOwnerCheck},
 	}, pipelineHandler(federationsModule.delFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "joinfed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatOwnerCheck},
+		Name: "joinfed", RequiredChecks: []helpers.Check{federationGroupCheck, federationChatOwnerCheck},
 	}, pipelineHandler(federationsModule.joinFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "leavefed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatOwnerCheck},
+		Name: "leavefed", RequiredChecks: []helpers.Check{federationGroupCheck, federationChatOwnerCheck},
 	}, pipelineHandler(federationsModule.leaveFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "quietfed", RequiredChecks: append([]helpers.CheckFunc{federationGroupCheck}, declaredGroupSettingChecks(chatsettings.QuietFed)...),
+		Name: "quietfed", RequiredChecks: append([]helpers.Check{federationGroupCheck}, declaredGroupSettingChecks(chatsettings.QuietFed)...),
 	}, pipelineHandler(federationsModule.quietFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedinfo", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "fedinfo", Disableable: true, RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedInfo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedadmins", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "fedadmins", Disableable: true, RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedAdmins))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "chatfed", Disableable: true, RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatCheck},
+		Name: "chatfed", Disableable: true, RequiredChecks: []helpers.Check{federationGroupCheck, federationChatCheck},
 	}, pipelineHandler(federationsModule.chatFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "myfeds", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "myfeds", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.myFeds))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedpromote", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fedpromote", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedPromote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "feddemote", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "feddemote", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedDemote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "feddemoteme", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "feddemoteme", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedDemoteMe))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedreason", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fedreason", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedReason))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fednotif", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fednotif", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedNotif))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fban", RequiredChecks: []helpers.CheckFunc{federationBanCheck},
+		Name: "fban", RequiredChecks: []helpers.Check{federationBanCheck},
 	}, pipelineHandler(federationsModule.fban))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "unfban", Aliases: []string{"funban"}, RequiredChecks: []helpers.CheckFunc{federationBanCheck},
+		Name: "unfban", Aliases: []string{"funban"}, RequiredChecks: []helpers.Check{federationBanCheck},
 	}, pipelineHandler(federationsModule.unfban))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "fedstat", Aliases: []string{"fbanstat"}, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedStat))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "subfed", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "subfed", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.subFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "unsubfed", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "unsubfed", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.unsubFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedsubs", Disableable: true, RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fedsubs", Disableable: true, RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedSubs))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "setfedlog", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationOwnerCheck},
+		Name: "setfedlog", RequiredChecks: []helpers.Check{federationGroupCheck, federationOwnerCheck},
 	}, pipelineHandler(federationsModule.setFedLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "unsetfedlog", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "unsetfedlog", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.unsetFedLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fbanlist", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fbanlist", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fbanList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "importfbans", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "importfbans", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.importFBans))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(fedCallbackNamespace+"|"), federationsModule.fedCallback))
 

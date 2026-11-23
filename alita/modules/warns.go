@@ -895,7 +895,7 @@ var (
 
 // warnsChatCheck resolves the PM target as a member and drops PM reply targets.
 // WrapCommand applies the resolved group's disable setting.
-func warnsChatCheck(c *helpers.CommandContext) bool {
+var warnsChatCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if !inPM(c.Ctx.EffectiveMessage) {
 		return true
 	}
@@ -907,11 +907,11 @@ func warnsChatCheck(c *helpers.CommandContext) bool {
 	c.Chat = chat
 	dropPMReply(c)
 	return true
-}
+})
 
 // adminBotUserChecks are the checks of a command an admin runs with the bot
 // an admin; chat checks (pmTargetChatCheck) run before the group's.
-func adminBotUserChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
+func adminBotUserChecks(chat ...helpers.Check) []helpers.Check {
 	return append(chat,
 		helpers.RequireGroup(),
 		helpers.RequireBotAdmin(),
@@ -925,7 +925,7 @@ func initWarnDescs() {
 	dwarnDesc.RequiredChecks = deleteRestrictChecks()
 	resetWarnsDesc.RequiredChecks = adminBotUserChecks(pmTargetChatCheck)
 	removeWarnDesc.RequiredChecks = adminBotUserChecks(pmTargetChatCheck)
-	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{warnsChatCheck}
+	warnsStatusDesc.RequiredChecks = []helpers.Check{warnsChatCheck}
 	warningsDesc.RequiredChecks = adminBotUserChecks(groupOnlyChatCheck)
 }
 
@@ -939,7 +939,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, resetWarnsDesc, pipelineHandler(warnsModule.resetWarns))
 	helpers.WrapCommand(dispatcher, removeWarnDesc, pipelineHandler(warnsModule.removeWarn))
 	helpers.WrapCommand(dispatcher, warnsStatusDesc, pipelineHandler(warnsModule.warns))
-	resetChecks := []helpers.CheckFunc{
+	resetChecks := []helpers.Check{
 		groupOnlyChatCheck,
 		helpers.RequireGroup(),
 		helpers.RequireUserOwner(),
@@ -948,7 +948,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		name    string
 		arg     helpers.PMGroupArg
 		handler func(*gotgbot.Bot, *ext.Context) error
-		checks  []helpers.CheckFunc
+		checks  []helpers.Check
 	}{
 		{"setwarnlimit", helpers.PMGroupArgOwn, warnsModule.setWarnLimit, declaredSettingChecks(chatsettings.WarnLimit)},
 		{"setwarnmode", helpers.PMGroupArgOwn, warnsModule.setWarnMode, declaredSettingChecks(chatsettings.WarnMode)},

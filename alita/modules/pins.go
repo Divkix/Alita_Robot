@@ -520,7 +520,7 @@ var (
 	unpinDesc = helpers.CommandDescriptor{
 		Name:  "unpin",
 		Group: pinsModule.handlerGroup,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
@@ -531,7 +531,7 @@ var (
 	unpinAllDesc = helpers.CommandDescriptor{
 		Name:  "unpinall",
 		Group: pinsModule.handlerGroup,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
@@ -542,7 +542,7 @@ var (
 	pinDesc = helpers.CommandDescriptor{
 		Name:  "pin",
 		Group: pinsModule.handlerGroup,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
@@ -553,7 +553,7 @@ var (
 	permaPinDesc = helpers.CommandDescriptor{
 		Name:  "permapin",
 		Group: pinsModule.handlerGroup,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
@@ -564,7 +564,7 @@ var (
 	pinnedDesc = helpers.CommandDescriptor{
 		Name:  "pinned",
 		Group: pinsModule.handlerGroup,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 		},

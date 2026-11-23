@@ -192,14 +192,14 @@ func LoadLanguage(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "lang",
-		RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(
-			func(c *helpers.CommandContext) bool {
+		RequiredChecks: []helpers.Check{checkInPMOrGroup(
+			helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 				args := c.Ctx.Args()
 				return len(args) == 1 || !strings.EqualFold(args[1], "group") || helpers.RunChecks(c, connectedChecks)
-			},
-			func(c *helpers.CommandContext) bool {
+			}),
+			helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 				return helpers.RunChecks(c, groupChecks)
-			},
+			}),
 		)},
 	}, pipelineHandler(languagesModule.changeLanguage))
 }

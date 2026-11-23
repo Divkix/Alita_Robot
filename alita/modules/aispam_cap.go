@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 //
@@ -24,21 +24,10 @@ const aispamDailyKeyTTL = 48 * time.Hour
 // aispamDailyNow is the cap's clock; tests move it to the next UTC day.
 var aispamDailyNow = time.Now
 
-// aispamDailyScript counts one check against the day's counter and returns the
-// new count. The first check of the day sets the key's lifetime, in the same
-// call, so a counter never outlives its TTL.
-var aispamDailyScript = redis.NewScript(`
-local n = redis.call('INCR', KEYS[1])
-if n == 1 then
-  redis.call('EXPIRE', KEYS[1], ARGV[1])
-end
-return n
-`)
-
 // aispamDailyKey is shared by replicas for one UTC day's AISPAM_DAILY_LIMIT count.
 // It is operational state outside alita:cache:, so CLEAR_CACHE_ON_STARTUP leaves it intact.
 func aispamDailyKey(day string) string {
-	return "alita:aispam:daily:" + day
+	return opstate.Key("aispam:daily", day)
 }
 
 // aispamLocalDaily counts the day's checks in this process when Redis is not
@@ -79,8 +68,8 @@ func aispamClaimDailyCheck() bool {
 // aispamCountDailyCheck adds one check to the day's count and returns it:
 // the count shared through Redis, or this process's own without it.
 func aispamCountDailyCheck(day string) int64 {
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		count, err := aispamDailyScript.Run(cache.Context, rdb, []string{aispamDailyKey(day)}, int(aispamDailyKeyTTL.Seconds())).Int64()
+	if cache.GetRedisClient() != nil {
+		count, err := opstate.CounterAdd(aispamDailyKey(day), aispamDailyKeyTTL)
 		if err == nil {
 			return count
 		}

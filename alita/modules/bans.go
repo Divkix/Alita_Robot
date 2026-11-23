@@ -893,7 +893,7 @@ func (m moduleStruct) unbanAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // restrictChecks are the checks of a command that restricts a user; chat
 // checks (pmTargetChatCheck) run before the group's.
-func restrictChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
+func restrictChecks(chat ...helpers.Check) []helpers.Check {
 	return append(chat,
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
@@ -903,7 +903,7 @@ func restrictChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
 	)
 }
 
-func deleteRestrictChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
+func deleteRestrictChecks(chat ...helpers.Check) []helpers.Check {
 	return append(restrictChecks(chat...), helpers.CanBotDelete(), helpers.CanUserDelete())
 }
 
@@ -911,13 +911,13 @@ func deleteRestrictChecks(chat ...helpers.CheckFunc) []helpers.CheckFunc {
 // From PM a reply is to a PM message, the bot's or the caller's own, so it
 // names no target: the command reads its user from the arguments after the
 // group only.
-func pmTargetChatCheck(c *helpers.CommandContext) bool {
-	if !groupOnlyChatCheck(c) {
+var pmTargetChatCheck = helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
+	if !groupOnlyChatCheck.Run(c) {
 		return false
 	}
 	dropPMReply(c)
 	return true
-}
+})
 
 // dropPMReply drops the reply from a command sent in PM, where the message
 // replied to is no group member's.
@@ -1000,14 +1000,14 @@ func initBanDescs() {
 	tbanDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
 	dbanDesc.RequiredChecks = deleteRestrictChecks()
 	unbanDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
-	banmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.RequireGroup(), helpers.CanBotRestrict()}
-	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
+	banmeDesc.RequiredChecks = []helpers.Check{helpers.RequireGroup(), helpers.CanBotRestrict()}
+	unbanAllDesc.RequiredChecks = []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
 	kickDesc.RequiredChecks = restrictChecks(pmTargetChatCheck)
 	dkickDesc.RequiredChecks = deleteRestrictChecks()
 	skickDesc.RequiredChecks = deleteRestrictChecks(pmTargetChatCheck)
-	kickmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.RequireGroup(), helpers.CanBotRestrict()}
-	restrictDesc.RequiredChecks = []helpers.CheckFunc{pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
-	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	kickmeDesc.RequiredChecks = []helpers.Check{helpers.RequireGroup(), helpers.CanBotRestrict()}
+	restrictDesc.RequiredChecks = []helpers.Check{pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	unrestrictDesc.RequiredChecks = []helpers.Check{pmTargetChatCheck, helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
 	initBanRecordDescs()
 }
 

@@ -30,7 +30,7 @@ var digestDesc = helpers.CommandDescriptor{
 	// Every /digest form is admin-only, so a chat cannot silence it: /digest
 	// off already is the switch. A stored disable row must not block that.
 	Disableable:    false,
-	RequiredChecks: append([]helpers.CheckFunc{helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.DigestEnabled)...),
+	RequiredChecks: append([]helpers.Check{helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.DigestEnabled)...),
 }
 
 // digestNow is the clock the command reads. Tests replace it to pin the day

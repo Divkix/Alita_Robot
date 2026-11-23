@@ -113,6 +113,7 @@ func TestBanInfoWithoutRecordSaysSo(t *testing.T) {
 
 func TestBanInfoWithoutUserAnswersWithItsHelp(t *testing.T) {
 	useRealLocales(t)
+	withCommandManifest(t)
 	f := newAdminChatFixture(t)
 
 	text := soleText(t, banInfoReply(t, f, f.chat, f.admin, "/baninfo"))

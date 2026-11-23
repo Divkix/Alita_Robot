@@ -448,16 +448,16 @@ func LoadMisc(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "stat", Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup()},
+		RequiredChecks: []helpers.Check{helpers.RequireGroup()},
 	}, pipelineHandler(miscModule.stat))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "id", Disableable: true}, pipelineHandler(miscModule.getId))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "tell",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
-			func(c *helpers.CommandContext) bool {
+			helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 				return c.User != nil && chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
-			},
+			}),
 		},
 	}, pipelineHandler(miscModule.echomsg))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "ping", Disableable: true}, pipelineHandler(miscModule.ping))

@@ -191,6 +191,7 @@ func nightModeDispatcher() *ext.Dispatcher {
 func nightModeFixture(t *testing.T) adminChatFixture {
 	t.Helper()
 	useRealLocales(t)
+	withCommandManifest(t)
 	pinNightModeNow(t, 1, 0)
 	f := newAdminChatFixture(t)
 	cleanupNightMode(t, f.chat.Id)

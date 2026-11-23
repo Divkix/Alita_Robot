@@ -33,7 +33,7 @@ func TestPipelineProofKeepsActorAliasReplyAndTapRules(t *testing.T) {
 			}
 			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 			LoadBotUpdates(d)
-			helpers.WrapCommand(d, helpers.CommandDescriptor{Name: "proofcontract", Aliases: []string{"proofalias"}, RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup(), helpers.CanUserRestrict()}}, func(c *helpers.CommandContext) error {
+			helpers.WrapCommand(d, helpers.CommandDescriptor{Name: "proofcontract", Aliases: []string{"proofalias"}, RequiredChecks: []helpers.Check{helpers.RequireGroup(), helpers.CanUserRestrict()}}, func(c *helpers.CommandContext) error {
 				text := c.Msg.Text
 				if text == "" {
 					text = c.Msg.Caption

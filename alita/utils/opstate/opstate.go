@@ -18,6 +18,13 @@
 //     reports the local answer on a Redis error; Stash/Consume/Peek return
 //     the error to the caller, which owns the user-visible degrade.
 //
+// Counter, Window, Members and Swap cover the remaining operational shapes:
+// an incrementing count with a lifetime, a sorted-set sliding window, a
+// set of distinct members with a lifetime, and a compare-and-set on a
+// stashed payload. Redis absent they report an error and the caller owns
+// the degrade, matching the fail-open sites they replace; Swap alone also
+// runs against this replica's local payload store.
+//
 // These keys sit outside alita:cache:, so CLEAR_CACHE_ON_STARTUP keeps them.
 package opstate
 
@@ -26,6 +33,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -61,8 +69,9 @@ const (
 	ClaimLocal
 )
 
-// localStore is the in-process fallback for every primitive. claimLocal
-// writes an expiry marker; payloadLocal holds msgpack'd values.
+// localStore is the in-process fallback for every primitive that declares
+// one: claimLocal writes an expiry marker; payloadLocal holds msgpack'd
+// values for Stash/Consume/Peek/Swap.
 type localStore struct {
 	mu       sync.Mutex
 	claims   map[string]time.Time
@@ -145,6 +154,29 @@ func (s *localStore) peek(key string) []byte {
 	return p.data
 }
 
+// swap replaces the payload at key with data when the stored bytes equal
+// expectedRaw, or deletes it when data is nil. expectedRaw nil matches only
+// an absent or expired key. It mirrors the swapScript compare-and-set.
+func (s *localStore) swap(key string, data, expectedRaw []byte, ttl time.Duration) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.payloads[key]
+	live := ok && time.Now().Before(p.exp)
+	if expectedRaw == nil {
+		if live {
+			return false
+		}
+	} else if !live || string(p.data) != string(expectedRaw) {
+		return false
+	}
+	if data == nil {
+		delete(s.payloads, key)
+		return true
+	}
+	s.payloads[key] = localPayload{data: data, exp: time.Now().Add(ttl)}
+	return true
+}
+
 // Claim takes key for ttl: one winner across replicas through Redis SET NX,
 // or this replica alone when Redis is absent. A Redis error is logged and
 // degrades to the local claim rather than failing the caller silently.
@@ -221,8 +253,9 @@ func Stash[T any](key string, v T, ttl time.Duration) error {
 	return nil
 }
 
-// Delete drops a stashed payload on both stores, best-effort: Redis errors
-// are ignored. For cleanup paths, not for consume semantics.
+// Delete drops whatever operational state sits at key on both stores,
+// best-effort: Redis errors are ignored. For cleanup paths, not for consume
+// semantics.
 func Delete(key string) {
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		_ = rdb.Del(cache.Context, key).Err()
@@ -292,3 +325,179 @@ func NewToken() (string, error) {
 	}
 	return hex.EncodeToString(buf), nil
 }
+
+// CounterAdd increments the counter at key through Redis and returns the
+// new count — the INCR + EXPIRE-on-first shape: the first increment after
+// the key appears or expires sets its TTL. Without Redis, or on a Redis
+// error, it returns an error and the caller owns the degrade.
+func CounterAdd(key string, ttl time.Duration) (int64, error) {
+	rdb := cache.GetRedisClient()
+	if rdb == nil {
+		return 0, errors.New("opstate: counter requires Redis")
+	}
+	n, err := counterScript.Run(cache.Context, rdb, []string{key}, int64(ttl/time.Second)).Int64()
+	if err != nil {
+		return 0, fmt.Errorf("opstate counter %s: %w", key, err)
+	}
+	return n, nil
+}
+
+var counterScript = redis.NewScript(`
+local n = redis.call('INCR', KEYS[1])
+if n == 1 then
+	redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return n
+`)
+
+// WindowAdd records member at score now in the sorted set at key, drops
+// entries older than now-window and, when max is positive, trims the set
+// to max members, all in one atomic step. It returns the number of
+// members already inside the window (before this add) and the payloads of
+// the members still in the window, oldest first, excluding the member just
+// added — at most recentMax of them when recentMax is positive, all of
+// them otherwise. payload may be empty; it is what recent carries back.
+//
+// Members are stored as "<score>\x00<member>\x00<payload>" so one set serves
+// both the count and the remembered payloads. Without Redis, or on a Redis
+// error, it returns an error: the callers it replaces failed open
+// (untracked joins, unjudged sender history), so Window does not invent a
+// per-replica window.
+func WindowAdd(key string, now time.Time, window time.Duration, member, payload string, max, recentMax int) (int64, []string, error) {
+	rdb := cache.GetRedisClient()
+	if rdb == nil {
+		return 0, nil, errors.New("opstate: window requires Redis")
+	}
+	score := now.UnixMilli()
+	stored := strconv.FormatInt(score, 10) + "\x00" + member
+	if payload != "" {
+		stored += "\x00" + payload
+	}
+	out, err := windowScript.Run(
+		cache.Context, rdb, []string{key},
+		score, stored, now.Add(-window).UnixMilli(), int64(window/time.Second), max, recentMax,
+	).Result()
+	if err != nil {
+		return 0, nil, fmt.Errorf("opstate window %s: %w", key, err)
+	}
+	values, ok := out.([]any)
+	if !ok || len(values) == 0 {
+		return 0, nil, nil
+	}
+	prior, _ := values[0].(int64)
+	recent := make([]string, 0, len(values)-1)
+	for _, v := range values[1:] {
+		if s, ok := v.(string); ok {
+			recent = append(recent, s)
+		}
+	}
+	return prior, recent, nil
+}
+
+var windowScript = redis.NewScript(`
+local cutoff = tonumber(ARGV[3])
+redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, cutoff)
+local prior = redis.call('ZCARD', KEYS[1])
+redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
+if tonumber(ARGV[5]) > 0 then
+	redis.call('ZREMRANGEBYRANK', KEYS[1], 0, -tonumber(ARGV[5]) - 1)
+end
+redis.call('EXPIRE', KEYS[1], ARGV[4])
+local members = redis.call('ZRANGE', KEYS[1], 0, -1, 'REV')
+local recent = {}
+for i = 1, #members do
+	local m = members[i]
+	if m ~= ARGV[2] then
+		local sep = string.find(m, '\0', 1, true)
+		if sep then
+			local rest = string.sub(m, sep + 1)
+			local psep = string.find(rest, '\0', 1, true)
+			if psep then
+				recent[#recent + 1] = string.sub(rest, psep + 1)
+			end
+		end
+	end
+	if tonumber(ARGV[6]) > 0 and #recent >= tonumber(ARGV[6]) then
+		break
+	end
+end
+local out = {prior}
+for i = #recent, 1, -1 do out[#out + 1] = recent[i] end
+return out
+`)
+
+// MembersAdd records member in the set at key and returns the set's size
+// after the add, refreshing the set's TTL to ttl on every call — the shape
+// of "count distinct things seen during a window that slides with use".
+// Without Redis or on a Redis error it returns an error: the probation
+// counter it replaces failed open, so Members does not count in-process.
+func MembersAdd(key, member string, ttl time.Duration) (int64, error) {
+	rdb := cache.GetRedisClient()
+	if rdb == nil {
+		return 0, errors.New("opstate: members requires Redis")
+	}
+	pipe := rdb.TxPipeline()
+	pipe.SAdd(cache.Context, key, member)
+	pipe.Expire(cache.Context, key, ttl)
+	card := pipe.SCard(cache.Context, key)
+	if _, err := pipe.Exec(cache.Context); err != nil {
+		return 0, fmt.Errorf("opstate members %s: %w", key, err)
+	}
+	return card.Val(), nil
+}
+
+// Swap is a compare-and-set on the payload at key: when the stored bytes
+// equal the msgpack encoding of expected it stores the msgpack encoding of
+// to (deleting the key when to is nil) and returns true; otherwise it
+// changes nothing and returns false. expected nil matches only an absent
+// key. ttl applies to the stored value; ignored when to is nil.
+//
+// Without Redis the swap runs against this replica's local payload store,
+// serialized by the store's mutex.
+func Swap(key string, to, expected any, ttl time.Duration) (bool, error) {
+	var expectedRaw, data []byte
+	var err error
+	if expected != nil {
+		if expectedRaw, err = msgpack.Marshal(expected); err != nil {
+			return false, fmt.Errorf("opstate swap %s: %w", key, err)
+		}
+	}
+	if to != nil {
+		if data, err = msgpack.Marshal(to); err != nil {
+			return false, fmt.Errorf("opstate swap %s: %w", key, err)
+		}
+	}
+
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		argv := []any{""}
+		if expectedRaw != nil {
+			argv[0] = expectedRaw
+		}
+		argv = append(argv, "")
+		if data != nil {
+			argv[1] = data
+		}
+		argv = append(argv, int64(ttl/time.Millisecond))
+		n, err := swapScript.Run(cache.Context, rdb, []string{key}, argv...).Int()
+		if err != nil {
+			return false, fmt.Errorf("opstate swap %s: %w", key, err)
+		}
+		return n == 1, nil
+	}
+	return local.swap(key, data, expectedRaw, ttl), nil
+}
+
+var swapScript = redis.NewScript(`
+local current = redis.call('GET', KEYS[1])
+if ARGV[1] == '' then
+	if current ~= false then return 0 end
+elseif current ~= ARGV[1] then
+	return 0
+end
+if ARGV[2] == '' then
+	redis.call('DEL', KEYS[1])
+else
+	redis.call('SET', KEYS[1], ARGV[2], 'PX', ARGV[3])
+end
+return 1
+`)
