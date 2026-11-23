@@ -85,7 +85,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 		return target{}, replyAnonymousTarget(c)
 	}
 	if uid == 0 {
-		text, _ := c.Tr.GetString("common_no_user_specified")
+		text := c.Tr.String("common_no_user_specified")
 		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
@@ -97,7 +97,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 
 // replyAnonymousTarget refuses a channel or anonymous admin as the target.
 func replyAnonymousTarget(c *moderationCtx) error {
-	text, _ := c.Tr.GetString("bans_anonymous_ban_only_error")
+	text := c.Tr.String("bans_anonymous_ban_only_error")
 	if _, err := c.Msg.Reply(c.Bot, text, formatting.Shtml()); err != nil {
 		log.Error(err)
 		return err
@@ -109,7 +109,7 @@ func replyAnonymousTarget(c *moderationCtx) error {
 func extractFromReply(c *moderationCtx) (target, error) {
 	reply := c.Reply
 	if reply == nil {
-		text, _ := c.Tr.GetString("bans_dkick_no_reply")
+		text := c.Tr.String("bans_dkick_no_reply")
 		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
@@ -117,7 +117,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		return target{}, fmt.Errorf("no reply")
 	}
 	if reply.From == nil {
-		text, _ := c.Tr.GetString("bans_cannot_identify_user")
+		text := c.Tr.String("bans_cannot_identify_user")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -131,7 +131,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 	}
 	if uid == 0 {
 		noUserKey := "common_no_user_specified"
-		text, _ := c.Tr.GetString(noUserKey)
+		text := c.Tr.String(noUserKey)
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -352,7 +352,7 @@ func validateTarget(c *moderationCtx, userID int64, checkInChat bool, notInChatK
 // extractor's reply, which names the accepted units.
 func extractTemporalTarget(c *moderationCtx, t *target) (time.Duration, bool) {
 	if len(strings.Fields(t.reason)) == 0 {
-		text, _ := c.Tr.GetString("extraction_no_time_specified")
+		text := c.Tr.String("extraction_no_time_specified")
 		if err := c.replyCommandHelp(html.EscapeString(text)); err != nil {
 			log.Error(err)
 		}
@@ -408,7 +408,7 @@ func liftPunishment(ctx context.Context, b *gotgbot.Bot, request punishment.Lift
 // answerKickTargetBanned answers a Kick button whose target is banned by now
 // (punishment.ErrKickTargetBanned) with bans_kick_target_banned as an alert.
 func answerKickTargetBanned(b *gotgbot.Bot, query *gotgbot.CallbackQuery, tr *i18n.Translator) error {
-	text, _ := tr.GetString("bans_kick_target_banned")
+	text := tr.String("bans_kick_target_banned")
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
 	return ext.EndGroups
 }

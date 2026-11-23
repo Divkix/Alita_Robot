@@ -62,7 +62,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	filtersNum := db_filters.CountFilters(chat.Id)
 	if filtersNum >= 150 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("filters_limit_exceeded")
+		text := tr.String("filters_limit_exceeded")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	reply := extraction.UserReply(msg)
 	if reply != nil && len(args) <= 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("filters_keyword_required")
+		text := tr.String("filters_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -82,7 +82,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	} else if len(args) <= 2 && reply == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("filters_invalid")
+		text := tr.String("filters_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -104,7 +104,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len([]rune(filterWord)) > 100 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("filters_keyword_too_long")
+		text := tr.String("filters_keyword_too_long")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -117,7 +117,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		if tokenErr != nil {
 			log.Errorf("[Filters] Failed to generate overwrite token: %v", tokenErr)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			errorText, _ := tr.GetString("filters_overwrite_token_failed")
+			errorText := tr.String("filters_overwrite_token_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
 		}
@@ -136,15 +136,15 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			log.Errorf("[Filters] Failed to cache overwrite data: %v", err)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			errorText, _ := tr.GetString("filters_overwrite_token_failed")
+			errorText := tr.String("filters_overwrite_token_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
 		}
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		confirmText, _ := tr.GetString("filters_overwrite_confirm")
-		yesText, _ := tr.GetString("common_yes")
-		noText, _ := tr.GetString("common_no")
+		confirmText := tr.String("filters_overwrite_confirm")
+		yesText := tr.String("common_yes")
+		noText := tr.String("common_no")
 		_, err = msg.Reply(b,
 			confirmText,
 			&gotgbot.SendMessageOpts{
@@ -181,13 +181,13 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err := db_filters.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType); err != nil {
 		log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		errText, _ := tr.GetString("common_settings_save_failed")
+		errText := tr.String("common_settings_save_failed")
 		_, _ = msg.Reply(b, errText, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	successText, _ := tr.GetString("filters_added_success")
+	successText := tr.String("filters_added_success")
 	_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 	if err != nil {
 		return err
@@ -203,7 +203,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("filters_remove_keyword_required")
+		text := tr.String("filters_remove_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -214,7 +214,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if !slices.Contains(db_filters.GetFiltersList(chat.Id), strings.ToLower(filterWord)) {
-			text, _ := tr.GetString("filters_not_exists")
+			text := tr.String("filters_not_exists")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				return err
@@ -222,11 +222,11 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			if err := db_filters.RemoveFilter(chat.Id, strings.ToLower(filterWord)); err != nil {
 				log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
+				errText := tr.String("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
-			successText, _ := tr.GetString("filters_removed_success")
+			successText := tr.String("filters_removed_success")
 			_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 			if err != nil {
 				return err
@@ -250,7 +250,7 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	filterKeys := db_filters.GetFiltersList(chat.Id)
-	info, _ := tr.GetString("filters_none_in_chat")
+	info := tr.String("filters_none_in_chat")
 	newFilterKeys := make([]string, 0, len(filterKeys))
 
 	for _, fkey := range filterKeys {
@@ -258,7 +258,7 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if len(newFilterKeys) > 0 {
-		info, _ = tr.GetString("filters_current_in_chat")
+		info = tr.String("filters_current_in_chat")
 		info += "\n - " + strings.Join(newFilterKeys, "\n - ")
 	}
 
@@ -286,7 +286,7 @@ var filtersClearAll = ownerConfirmSpec{
 	AskKey:    "filters_clear_all_confirm",
 	Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
 		if len(db_filters.GetFiltersList(chat.Id)) == 0 {
-			text, _ := tr.GetString("filters_none_in_chat")
+			text := tr.String("filters_none_in_chat")
 			if _, err := ctx.EffectiveMessage.Reply(b, text, formatting.Shtml()); err != nil {
 				return false, err
 			}
@@ -347,7 +347,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	if action == "cancel" {
 		if token != "" {
 			if data, err := consumeFilterOverwriteCache(token); err == nil && data.UserID != 0 && data.UserID != user.Id {
-				helpText, _ = tr.GetString("filters_overwrite_expired")
+				helpText = tr.String("filters_overwrite_expired")
 				if query.Message != nil {
 					_ = edit(helpText)
 				}
@@ -355,7 +355,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 				return ext.EndGroups
 			}
 		}
-		helpText, _ = tr.GetString("filters_overwrite_cancelled")
+		helpText = tr.String("filters_overwrite_cancelled")
 		if query.Message != nil {
 			if editErr := edit(helpText); editErr != nil {
 				log.Error(editErr)
@@ -371,7 +371,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	filterData, err := consumeFilterOverwriteCache(token)
 	if err != nil || filterData == nil {
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
-		helpText, _ = tr.GetString("filters_overwrite_expired")
+		helpText = tr.String("filters_overwrite_expired")
 		if query.Message != nil {
 			if editErr := edit(helpText); editErr != nil {
 				log.Error(editErr)
@@ -384,7 +384,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 	if filterData.UserID != 0 && filterData.UserID != user.Id {
-		helpText, _ = tr.GetString("filters_overwrite_expired")
+		helpText = tr.String("filters_overwrite_expired")
 		if query.Message != nil {
 			_ = edit(helpText)
 		}
@@ -402,11 +402,11 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	)
 	if updateErr != nil {
 		log.Errorf("[Filters] UpdateFilter failed for chat %d: %v", filterData.ChatID, updateErr)
-		helpText, _ = tr.GetString("common_settings_save_failed")
+		helpText = tr.String("common_settings_save_failed")
 	} else if updated {
-		helpText, _ = tr.GetString("filters_overwrite_success")
+		helpText = tr.String("filters_overwrite_success")
 	} else {
-		helpText, _ = tr.GetString("filters_overwrite_cancelled")
+		helpText = tr.String("filters_overwrite_cancelled")
 	}
 
 	if query.Message == nil {
