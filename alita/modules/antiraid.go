@@ -740,8 +740,6 @@ func formatDuration(seconds int) string {
 }
 
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(antiRaidModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antiraid", PMGroupArg: helpers.PMGroupArgOwn, Disableable: true,
 		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},

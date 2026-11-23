@@ -546,8 +546,6 @@ func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(antifloodModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setflood", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: declaredSettingChecks(chatsettings.FloodLimit),

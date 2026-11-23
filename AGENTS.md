@@ -52,8 +52,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
 - gotgbot stops a group at its first matching handler: watchers return `ext.ContinueGroups`, commands
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
-- Modules register in `init()` with `RegisterLegacyModule(name, priority, load)`. Names must be unique (a duplicate
-  is dropped silently); priority sets load order and group-0 precedence.
+- Modules register in `init()` with `RegisterLegacyModule(name, priority, load)`. Names must be unique (a duplicate is dropped silently);
+  priority sets load order and group-0 precedence; loading marks the module enabled in `/help` (`NoHelp` opts out), Help last at `PriorityFinal`.
 - Every user command uses `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`. Declare its aliases,
   ordered rights checks, PM group argument and `Disableable` there; handlers contain domain work, not a rights preamble.
 - `WrapCommand` derives anonymous-admin replay for the command's name and every alias; never register a replay

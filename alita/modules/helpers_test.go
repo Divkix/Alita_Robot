@@ -39,10 +39,10 @@ func TestListModules(t *testing.T) {
 	t.Parallel()
 
 	helpRegistry := newHelpRegistry()
-	helpRegistry.AbleMap["admin"] = true
-	helpRegistry.AbleMap["filters"] = true
-	helpRegistry.AbleMap["help"] = true
-	helpRegistry.AbleMap["disabled"] = false
+	helpRegistry.setEnabled("admin", true)
+	helpRegistry.setEnabled("filters", true)
+	helpRegistry.setEnabled("help", true)
+	helpRegistry.setEnabled("disabled", false)
 
 	result := listModulesFrom(helpRegistry)
 
@@ -61,9 +61,9 @@ func TestListModules(t *testing.T) {
 func TestListModulesViaDefaultRegistry(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
 	defaultHelpRegistry = newHelpRegistry()
-	defaultHelpRegistry.AbleMap["Bans"] = true
-	defaultHelpRegistry.AbleMap["Admin"] = true
-	defaultHelpRegistry.AbleMap["Filters"] = true
+	defaultHelpRegistry.setEnabled("Bans", true)
+	defaultHelpRegistry.setEnabled("Admin", true)
+	defaultHelpRegistry.setEnabled("Filters", true)
 	defer func() {
 		defaultHelpRegistry = previousRegistry
 	}()
@@ -82,17 +82,14 @@ func TestListModulesViaDefaultRegistry(t *testing.T) {
 }
 
 func TestInitHelpButtonsBuildsSortedKeyboard(t *testing.T) {
-	registry := DefaultHelpRegistry()
-	previousAbleMap := registry.AbleMap
-	registry.AbleMap = make(map[string]bool)
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	defaultHelpRegistry.setEnabled("Warns", true)
+	defaultHelpRegistry.setEnabled("Admin", true)
+	defaultHelpRegistry.setEnabled("Filters", true)
 	t.Cleanup(func() {
-		registry.AbleMap = previousAbleMap
+		defaultHelpRegistry = previousRegistry
 	})
-
-	registry.AbleMap["Warns"] = true
-	registry.AbleMap["Admin"] = true
-	registry.AbleMap["Filters"] = true
-
 	kb := initHelpButtonsFrom(DefaultHelpRegistry(), "en")
 	if len(kb.InlineKeyboard) == 0 {
 		t.Fatal("initHelpButtonsFrom() produced no rows")
@@ -119,7 +116,7 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 	})
 
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
+	registry.setEnabled("Admin", true)
 	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	})
@@ -161,7 +158,7 @@ func TestHandleDeepLinkRoutesHelpDeepLink(t *testing.T) {
 	})
 
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
+	registry.setEnabled("Admin", true)
 	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	})
@@ -357,7 +354,7 @@ func TestHandleDeepLinkSendsAboutAndDefaultHelp(t *testing.T) {
 
 func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
-	localRegistry.AbleMap["Admin"] = true
+	localRegistry.setEnabled("Admin", true)
 	setHelpKb(localRegistry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "FakeAdminBtn", CallbackData: "test-admin"}},
 		{{Text: "FakeAdminBtn2", CallbackData: "test-admin2"}},
@@ -396,8 +393,8 @@ func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 
 func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
-	localRegistry.AbleMap["Filters"] = true
-	localRegistry.AbleMap["Admin"] = true
+	localRegistry.setEnabled("Filters", true)
+	localRegistry.setEnabled("Admin", true)
 
 	cases := []struct {
 		name     string
@@ -422,8 +419,8 @@ func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
 
 func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
-	localRegistry.AbleMap["Admin"] = true
-	localRegistry.AbleMap["Filters"] = true
+	localRegistry.setEnabled("Admin", true)
+	localRegistry.setEnabled("Filters", true)
 	setHelpKb(localRegistry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "CustomAdmin", CallbackData: "custom-admin"}},
 	})
@@ -662,6 +659,6 @@ func TestDeepLinkMemberAllowed(t *testing.T) {
 }
 
 // setHelpKb gives a module fixed help buttons in every language.
-func setHelpKb(registry *moduleStruct, name string, kb [][]gotgbot.InlineKeyboardButton) {
+func setHelpKb(registry *helpRegistry, name string, kb [][]gotgbot.InlineKeyboardButton) {
 	registry.helpKbBuilders[name] = func(string) [][]gotgbot.InlineKeyboardButton { return kb }
 }

@@ -1262,9 +1262,9 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 
 func TestLoadCaptchaRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadCaptcha(dispatcher)
+	loadModuleByName(t, "Captcha", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[captchaModule.moduleName] {
+	if !DefaultHelpRegistry().isEnabled(captchaModule.moduleName) {
 		t.Fatal("captcha help registration = false, want enabled")
 	}
 }

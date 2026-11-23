@@ -802,7 +802,6 @@ func aispamReply(c *helpers.CommandContext, text string) error {
 //
 
 func LoadAISpam(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(aispamModule.moduleName, true)
 	aispamEnsureWorkers()
 
 	helpers.WrapCommand(dispatcher, aispamDesc, aispamModule.aispam)

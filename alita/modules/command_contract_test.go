@@ -48,8 +48,8 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	if len(names) != 228 {
-		t.Fatalf("LoadAllModules registered %d names, want 228: %v", len(names), names)
+	if len(names) != 234 {
+		t.Fatalf("LoadAllModules registered %d names, want 234: %v", len(names), names)
 	}
 	disable, ok := byName["disable"]
 	if !ok {
@@ -290,6 +290,13 @@ func commandContractOutcome(t *testing.T, d *ext.Dispatcher, f adminChatFixture,
 		if err := cache.GetRedisClient().Del(cache.Context, fmt.Sprintf("backup:export:%d", f.chat.Id)).Err(); err != nil {
 			t.Fatalf("reset export fixture cooldown: %v", err)
 		}
+	}
+	// /start answers a group call once per claim window; each attempt must
+	// reach the real reply or the stored-row comparison sees a stale claim.
+	if name == "start" {
+		groupStartReplies.Lock()
+		delete(groupStartReplies.expires, f.chat.Id)
+		groupStartReplies.Unlock()
 	}
 	before := commandContractCallCount(f.client)
 	commandContractProcess(t, d, f, user, commandContractInput(name), false)

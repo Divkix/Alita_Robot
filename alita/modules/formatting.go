@@ -181,7 +181,6 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 }
 
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(formattingModule.moduleName, true)
 	SetModuleHelpBuilder(formattingModule.moduleName, formattingModule.genFormattingKb)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "markdownhelp", Aliases: []string{"formatting"},

@@ -13,6 +13,7 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 	t.Parallel()
 
 	module := moduleStruct{}
+	helpReg := &helpRegistry{}
 	antiRaid := &antiRaidStruct{}
 
 	type callbackHandler struct {
@@ -26,8 +27,8 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 		{name: "captchaVerifyCallback", want: ext.EndGroups, call: module.captchaVerifyCallback},
 		{name: "captchaRefreshCallback", want: ext.EndGroups, call: module.captchaRefreshCallback},
 		{name: "joinRequestHandler", want: ext.EndGroups, call: module.joinRequestHandler},
-		{name: "helpButtonHandler", want: ext.EndGroups, call: module.helpButtonHandler},
-		{name: "botConfig", want: ext.EndGroups, call: module.botConfig},
+		{name: "helpButtonHandler", want: ext.EndGroups, call: helpReg.helpButtonHandler},
+		{name: "botConfig", want: ext.EndGroups, call: helpReg.botConfig},
 		{name: "formattingHandler", want: ext.EndGroups, call: module.formattingHandler},
 		{name: "backupCallbackHandler", want: ext.EndGroups, call: module.backupCallbackHandler},
 		{name: "verifyAnonymousAdmin", want: ext.EndGroups, call: verifyAnonymousAdmin},
