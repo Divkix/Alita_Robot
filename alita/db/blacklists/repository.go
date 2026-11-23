@@ -52,7 +52,7 @@ func AddBlacklist(chatId int64, trigger string) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("blacklist", chatId))
+	cache.DeleteCache(BlacklistProjection.Key(chatId))
 	return nil
 }
 
@@ -113,7 +113,7 @@ func AddBlacklistBulk(chatId int64, triggers []string) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("blacklist", chatId))
+	cache.DeleteCache(BlacklistProjection.Key(chatId))
 	return nil
 }
 
@@ -125,7 +125,7 @@ func RemoveBlacklist(chatId int64, trigger string) error {
 	}
 
 	if result.RowsAffected > 0 {
-		cache.DeleteCache(cache.CacheKey("blacklist", chatId))
+		cache.DeleteCache(BlacklistProjection.Key(chatId))
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func RemoveAllBlacklist(chatId int64) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("blacklist", chatId))
+	cache.DeleteCache(BlacklistProjection.Key(chatId))
 	return nil
 }
 
@@ -161,7 +161,7 @@ func SetBlacklistAction(chatId int64, action string, actionTime int) error {
 		return ErrNoBlacklistWords
 	}
 
-	cache.DeleteCache(cache.CacheKey("blacklist", chatId))
+	cache.DeleteCache(BlacklistProjection.Key(chatId))
 	return nil
 }
 
@@ -170,7 +170,7 @@ func GetBlacklistSettings(chatId int64) models.BlacklistSettingsSlice {
 }
 
 func GetBlacklistSettingsContext(ctx context.Context, chatId int64) models.BlacklistSettingsSlice {
-	cacheKey := cache.CacheKey("blacklist", chatId)
+	cacheKey := BlacklistProjection.Key(chatId)
 	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLBlacklist, func(ctx context.Context) (models.BlacklistSettingsSlice, error) {
 		var blacklists []*models.BlacklistSettings
 		err := db.GetRecordsContext(ctx, &blacklists, models.BlacklistSettings{ChatId: chatId})

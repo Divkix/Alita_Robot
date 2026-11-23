@@ -13,3 +13,7 @@ var (
 func invalidateNotesCache(chatID int64) {
 	cache.DeleteCache(ListProjection.Key(chatID))
 }
+
+// ChatKeys returns the cache keys a chat's notes backup import or clear
+// invalidates.
+var ChatKeys = cache.Keys(SettingsProjection, ListProjection)

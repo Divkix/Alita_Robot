@@ -20,3 +20,20 @@ func InvalidateWarnCaches(userID, chatID int64) {
 func InvalidateWarnSettingsCache(chatID int64) {
 	cache.DeleteCache(WarnSettingsProjection.Key(chatID))
 }
+
+// ChatKeys returns the cache keys a chat's warns backup import or clear
+// invalidates: the settings projection plus the per-user warns projection
+// for each of userIDs. Pass the union of the user ids the write removed and
+// the ids it restored.
+func ChatKeys(chatID int64, userIDs ...int64) []string {
+	keys := []string{WarnSettingsProjection.Key(chatID)}
+	seen := make(map[int64]struct{}, len(userIDs))
+	for _, userID := range userIDs {
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		keys = append(keys, WarnsProjection.Key(userID, chatID))
+	}
+	return keys
+}

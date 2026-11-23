@@ -262,7 +262,7 @@ func sendProbationNotice(b *gotgbot.Bot, ctx *ext.Context, settings *models.Prob
 		return
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("probation_notice", i18n.TranslationParams{
+	text := tr.String("probation_notice", i18n.TranslationParams{
 		"user":    formatting.MentionHtml(user.Id, formatting.GetFullName(user.FirstName, user.LastName)),
 		"blocked": probationBlockedText(tr, settings),
 	})
@@ -289,7 +289,7 @@ func sendProbationNotice(b *gotgbot.Bot, ctx *ext.Context, settings *models.Prob
 func probationBlockedText(tr *i18n.Translator, settings *models.ProbationSettings) string {
 	var names []string
 	for _, kind := range probationBlockedKinds(settings) {
-		name, _ := tr.GetString("probation_block_" + kind)
+		name := tr.String("probation_block_" + kind)
 		names = append(names, name)
 	}
 	return strings.Join(names, ", ")
@@ -356,7 +356,7 @@ func (moduleStruct) probation(c *helpers.CommandContext) error {
 		if !on {
 			return probationReplyKey(c, "probation_disabled_success")
 		}
-		text, _ := c.Tr.GetString("probation_enabled_success")
+		text := c.Tr.String("probation_enabled_success")
 		if warning := probationNoDeleteWarning(c); warning != "" {
 			text += "\n\n" + warning
 		}
@@ -429,8 +429,8 @@ func probationStatusText(c *helpers.CommandContext, settings *models.ProbationSe
 	if settings.Enabled {
 		stateKey = "probation_status_on"
 	}
-	state, _ := tr.GetString(stateKey)
-	details, _ := tr.GetString("probation_status_details", i18n.TranslationParams{
+	state := tr.String(stateKey)
+	details := tr.String("probation_status_details", i18n.TranslationParams{
 		"blocked":  probationBlockedText(tr, settings),
 		"time":     formatDuration(settings.DurationSeconds),
 		"messages": settings.MessageCount,
@@ -440,10 +440,10 @@ func probationStatusText(c *helpers.CommandContext, settings *models.ProbationSe
 	if settings.Notice {
 		noticeKey = "probation_status_notice_on"
 	}
-	notice, _ := tr.GetString(noticeKey)
+	notice := tr.String(noticeKey)
 	parts := []string{state, details, notice}
 	if cache.GetRedisClient() == nil {
-		warning, _ := tr.GetString("probation_status_no_redis")
+		warning := tr.String("probation_status_no_redis")
 		parts = append(parts, warning)
 	}
 	if settings.Enabled {
@@ -460,12 +460,12 @@ func probationNoDeleteWarning(c *helpers.CommandContext) string {
 	if chat_status.CanBotDeleteForUpdate(c.Bot, c.Ctx, c.Chat) {
 		return ""
 	}
-	warning, _ := c.Tr.GetString("probation_status_no_delete")
+	warning := c.Tr.String("probation_status_no_delete")
 	return warning
 }
 
 func probationUsage(c *helpers.CommandContext) error {
-	usage, _ := c.Tr.GetString("probation_usage")
+	usage := c.Tr.String("probation_usage")
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, "probation", usage)
 }
 
@@ -478,8 +478,7 @@ func probationSaveFailed(c *helpers.CommandContext, err error) error {
 }
 
 func probationReplyKey(c *helpers.CommandContext, key string, params ...i18n.TranslationParams) error {
-	text, _ := c.Tr.GetString(key, params...)
-	return probationReply(c, text)
+	return probationReply(c, c.Tr.String(key, params...))
 }
 
 func probationReply(c *helpers.CommandContext, text string) error {

@@ -14,19 +14,22 @@ func HandlerTimeoutForTest() time.Duration {
 	return handlerTimeout
 }
 
-// ExecuteHandlersForTest runs the registered handlers in the same LIFO order
-// and with the same panic recovery as shutdown, without exiting the process.
-// It exists so tests outside this package can assert the relative order of
-// the drains main.go registers.
-func (m *Manager) ExecuteHandlersForTest() {
+// ExecuteHandlersForTest runs the registered handlers in the same phase order
+// and with the same panic recovery as shutdown, without exiting the process,
+// and returns their names in execution order. It exists so tests outside this
+// package can assert the drains main.go registers.
+func (m *Manager) ExecuteHandlersForTest() []string {
 	m.mu.RLock()
-	handlers := make([]func() error, len(m.handlers))
+	handlers := make([]handlerEntry, len(m.handlers))
 	copy(handlers, m.handlers)
 	m.mu.RUnlock()
 
-	for i := len(handlers) - 1; i >= 0; i-- {
-		_ = m.executeHandler(handlers[i], i)
+	names := make([]string, 0, len(handlers))
+	for _, entry := range handlers {
+		names = append(names, entry.name)
+		_ = m.executeHandler(entry)
 	}
+	return names
 }
 
 // SetExitForTest replaces the process exit that ends a shutdown with exit and

@@ -166,14 +166,15 @@ func main() {
 	membersnapshot.Register(b)
 	recurring.Register(b)
 
-	// Registered first so it runs last: every other handler's logs and spans
-	// are exported before the providers close.
-	shutdownManager.RegisterHandler(func() error {
+	// The tracer drain is declared in the telemetry phase so it runs last:
+	// every other drain's logs and spans are exported before the providers
+	// close.
+	shutdownManager.Register("tracer", shutdown.PhaseTelemetry, func() error {
 		log.Info("[Shutdown] Shutting down tracer provider...")
 		return tracing.Shutdown(context.Background())
 	})
 
-	registerShutdownDrains(shutdownManager,
+	registerShutdownSteps(shutdownManager, shutdownDrainSpecs(
 		func() error {
 			log.Info("[Shutdown] Closing database connections...")
 			return closeDBConnections()
@@ -187,26 +188,25 @@ func main() {
 			jobs.Stop()
 			return nil
 		},
-	)
+		[]drainSpec{
+			{name: "users drain", handler: func() error {
+				log.Info("[Shutdown] Draining users async writes...")
+				modules.DrainUsersAsyncWrites()
+				return nil
+			}},
+			{name: "captcha stop", handler: func() error {
+				log.Info("[Shutdown] Stopping captcha lifecycle...")
+				modules.StopCaptchaLifecycle()
+				return nil
+			}},
+			{name: "aispam drain", handler: func() error {
+				log.Info("[Shutdown] Draining AI spam checks...")
+				modules.DrainAISpamChecks()
+				return nil
+			}},
+		},
+	)...)
 	jobs.Start()
-
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Draining users async writes...")
-		modules.DrainUsersAsyncWrites()
-		return nil
-	})
-
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Stopping captcha lifecycle...")
-		modules.StopCaptchaLifecycle()
-		return nil
-	})
-
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Draining AI spam checks...")
-		modules.DrainAISpamChecks()
-		return nil
-	})
 
 	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
 	httpServer.RegisterHealth()
@@ -227,6 +227,13 @@ func main() {
 		log.Warn("[Main] pprof endpoints enabled - DO NOT enable in production!")
 	}
 
+	// Both modes stop the same HTTP server; in webhook mode it is also the
+	// update intake, so it runs in the HTTP-server phase either way.
+	shutdownManager.Register("http stop", shutdown.PhaseHTTPServer, func() error {
+		log.Info("[Shutdown] Stopping HTTP server...")
+		return httpServer.Stop()
+	})
+
 	if config.AppConfig.UseWebhooks {
 		if config.AppConfig.WebhookDomain == "" {
 			log.Fatal("[Webhook] WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
@@ -238,11 +245,6 @@ func main() {
 		if err := httpServer.RegisterWebhook(b, dispatcher, config.AppConfig.WebhookSecret, config.AppConfig.WebhookDomain); err != nil {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
-
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping HTTP server...")
-			return httpServer.Stop()
-		})
 
 		postInit(b, dispatcher, botUsername, "webhook")
 
@@ -256,11 +258,6 @@ func main() {
 
 		shutdownManager.WaitForShutdown()
 	} else {
-
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping HTTP server...")
-			return httpServer.Stop()
-		})
 
 		if err := httpServer.Start(); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
@@ -288,12 +285,12 @@ func main() {
 // so shutdown never waits it out.
 const pollingTimeout = 8 * time.Second
 
-// runPolling registers the updater stop as the first shutdown step, starts
+// runPolling registers the updater stop in the update-source phase, starts
 // long polling and blocks on the shutdown manager, whose exit after the last
 // drain is the only way out. It never waits on the updater's Idle: the updater
 // stop releases that wait, so the process would leave before the later drains.
 func runPolling(b *gotgbot.Bot, updater *ext.Updater, shutdownManager *shutdown.Manager) {
-	shutdownManager.RegisterHandler(func() error {
+	shutdownManager.Register("updater stop", shutdown.PhaseUpdateSource, func() error {
 		log.Info("[Polling] Stopping updater...")
 		err := updater.Stop()
 		if err != nil {
@@ -480,13 +477,35 @@ func setPanelMenuButton(b *gotgbot.Bot) {
 	}
 }
 
-// registerShutdownDrains registers the database-close handler and the drains
-// that must finish before it. Shutdown executes handlers in reverse
-// registration order, so the close handler registered first runs last.
-func registerShutdownDrains(m *shutdown.Manager, closeDB func() error, drains ...func() error) {
-	m.RegisterHandler(closeDB)
-	for _, drain := range drains {
-		m.RegisterHandler(drain)
+// drainSpec is one shutdown drain with the phase it belongs to; the manager
+// orders execution by phase, so the spec carries the ordering as data.
+type drainSpec struct {
+	name    string
+	phase   shutdown.Phase
+	handler func() error
+}
+
+// shutdownDrainSpecs declares main's drains in the phases the shutdown
+// contract fixes: database close, stats flush, jobs stop, then the module
+// drains in the module-drains phase. The polling test registers the same
+// specs, so the test exercises the real phase assignment rather than a copy
+// of it.
+func shutdownDrainSpecs(closeDB, flushStats, stopJobs func() error, moduleDrains []drainSpec) []drainSpec {
+	specs := []drainSpec{
+		{name: "db close", phase: shutdown.PhaseDatabase, handler: closeDB},
+		{name: "stats flush", phase: shutdown.PhaseFlush, handler: flushStats},
+		{name: "jobs stop", phase: shutdown.PhaseJobs, handler: stopJobs},
+	}
+	for _, drain := range moduleDrains {
+		drain.phase = shutdown.PhaseModuleDrains
+		specs = append(specs, drain)
+	}
+	return specs
+}
+
+func registerShutdownSteps(m *shutdown.Manager, specs ...drainSpec) {
+	for _, spec := range specs {
+		m.Register(spec.name, spec.phase, spec.handler)
 	}
 }
 

@@ -14,8 +14,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-const defaultFloodsettingsMode string = "mute"
-
 func GetFlood(chatID int64) *models.AntifloodSettings {
 	return GetFloodContext(context.Background(), chatID)
 }
@@ -24,10 +22,10 @@ func GetFloodContext(ctx context.Context, chatID int64) (floodSrc *models.Antifl
 	floodSrc, err := GetAntifloodSettingsCachedContext(ctx, chatID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &models.AntifloodSettings{ChatId: chatID, Limit: 0, Action: defaultFloodsettingsMode}
+			return models.DefaultAntifloodSettings(chatID)
 		}
 		log.Errorf("[Database][GetFlood]: %v", err)
-		return &models.AntifloodSettings{ChatId: chatID, Limit: 0, Action: defaultFloodsettingsMode}
+		return models.DefaultAntifloodSettings(chatID)
 	}
 	return floodSrc
 }
@@ -57,7 +55,7 @@ func upsertChatFields(ctx context.Context, chatID int64, fields map[string]any) 
 		log.Errorf("[Database] upsertChatFields: %v - %d", err, chatID)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("antiflood", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
 

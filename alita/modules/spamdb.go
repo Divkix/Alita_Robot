@@ -222,9 +222,9 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	if spamDBCheckRuns(c) {
 		enabledKey, warningKey = "spamdb_db_enabled", "spamdb_db_lols_warning"
 	}
-	text, _ := c.Tr.GetString(enabledKey, params)
+	text := c.Tr.String(enabledKey, params)
 	if database.source == spamdb.SourceLols {
-		warning, _ := c.Tr.GetString(warningKey)
+		warning := c.Tr.String(warningKey)
 		text += "\n\n" + warning
 	}
 	return spamDBReply(c, text)
@@ -256,7 +256,7 @@ func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) stri
 	if settings.Enabled {
 		lineKey = "spamdb_status_enabled"
 	}
-	line, _ := tr.GetString(lineKey, i18n.TranslationParams{"action": settings.Action})
+	line := tr.String(lineKey, i18n.TranslationParams{"action": settings.Action})
 
 	sources := spamDBSources(settings)
 	var entries, services []string
@@ -274,22 +274,22 @@ func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) stri
 				services = append(services, d.service)
 			}
 		}
-		entry, _ := tr.GetString(stateKey, i18n.TranslationParams{"database": d.source.Name()})
+		entry := tr.String(stateKey, i18n.TranslationParams{"database": d.source.Name()})
 		entries = append(entries, entry)
 	}
-	databases, _ := tr.GetString("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(entries, ", ")})
+	databases := tr.String("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(entries, ", ")})
 
 	parts := []string{line, databases}
 	if !config.AppConfig.EnableSpamDB {
-		warning, _ := tr.GetString("spamdb_status_globally_disabled")
+		warning := tr.String("spamdb_status_globally_disabled")
 		parts = append(parts, warning)
 	}
 	if settings.CheckShared {
-		sharedNotice, _ := tr.GetString("spamdb_shared_data_notice")
+		sharedNotice := tr.String("spamdb_shared_data_notice")
 		parts = append(parts, sharedNotice)
 	}
 	if len(services) > 0 {
-		notice, _ := tr.GetString("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
+		notice := tr.String("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
 		parts = append(parts, notice)
 	}
 
@@ -305,13 +305,7 @@ func spamDBSaveFailed(c *helpers.CommandContext, err error) error {
 }
 
 func spamDBReplyKey(c *helpers.CommandContext, key string, params i18n.TranslationParams) error {
-	var text string
-	if params == nil {
-		text, _ = c.Tr.GetString(key)
-	} else {
-		text, _ = c.Tr.GetString(key, params)
-	}
-	return spamDBReply(c, text)
+	return spamDBReply(c, c.Tr.String(key, params))
 }
 
 func spamDBReply(c *helpers.CommandContext, text string) error {
