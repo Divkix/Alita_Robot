@@ -366,5 +366,5 @@ func LoadDev(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
-	RegisterLegacyModule("Dev", 120, LoadDev)
+	RegisterLegacyModule("Dev", 120, LoadDev, RegisterLegacyModuleOptions{NoHelp: true})
 }

@@ -800,9 +800,9 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 
 func TestLoadWarnsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadWarns(dispatcher)
+	loadModuleByName(t, "Warns", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[warnsModule.moduleName] {
+	if !DefaultHelpRegistry().isEnabled(warnsModule.moduleName) {
 		t.Fatal("warns help registration = false, want enabled")
 	}
 }

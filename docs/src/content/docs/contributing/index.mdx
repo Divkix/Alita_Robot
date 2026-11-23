@@ -110,7 +110,7 @@ Alita_Robot/
   </Step>
 
   <Step title="Self-register in init()">
-    Use `RegisterLegacyModule("MyModule", priority, LoadMyModule)` with a unique name (duplicates are dropped silently). Modules auto-load via `LoadAllModules()` (`alita/modules/registry.go`), called from `LoadModules` in `alita/main.go`.
+    Use `RegisterLegacyModule("MyModule", priority, LoadMyModule)` with a unique name (duplicates are dropped silently). Modules auto-load via `LoadAllModules()` (`alita/modules/registry.go`), called from `LoadModules` in `alita/main.go`; loading marks the module enabled in `/help` (pass `RegisterLegacyModuleOptions{NoHelp: true}` to stay out).
   </Step>
 
   <Step title="Add translations">
@@ -150,7 +150,6 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadMyModule(d *ext.Dispatcher) {
-    SetModuleEnabled(myModule.moduleName, true)
     helpers.WrapCommand(d, myCommandDesc, pipelineHandler(myModule.myCommand))
 }
 

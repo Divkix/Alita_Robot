@@ -1008,7 +1008,6 @@ func initBanDescs() {
 }
 
 func LoadBans(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(bansModule.moduleName, true)
 	initBanDescs()
 	registerRetentionSweep("moderationEventRetention", time.Hour, sweepExpiredModerationEvents)
 	registerRetentionSweep("banRecordRetention", time.Hour, sweepExpiredBanRecords)

@@ -465,9 +465,9 @@ func TestInfoRepliesForKnownChannel(t *testing.T) {
 
 func TestLoadMiscRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadMisc(dispatcher)
+	loadModuleByName(t, "Misc", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[miscModule.moduleName] {
+	if !DefaultHelpRegistry().isEnabled(miscModule.moduleName) {
 		t.Fatal("misc help registration = false, want enabled")
 	}
 }

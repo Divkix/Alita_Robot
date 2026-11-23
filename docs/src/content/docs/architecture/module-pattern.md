@@ -97,9 +97,6 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // LoadExample registers all handlers for this module
 func LoadExample(dispatcher *ext.Dispatcher) {
-    // Register in help system (takes the registry lock)
-    SetModuleEnabled(exampleModule.moduleName, true)
-
     // Register commands through the pipeline
     helpers.WrapCommand(dispatcher, exampleDesc, pipelineHandler(exampleModule.exampleCommand))
 
@@ -110,7 +107,8 @@ func LoadExample(dispatcher *ext.Dispatcher) {
     ))
 }
 
-// Register the module in init() so LoadAllModules picks it up
+// Register the module in init() so LoadAllModules picks it up; loading it
+// marks the module enabled in the /help menu automatically
 func init() {
     RegisterLegacyModule("Example", 100, LoadExample)
 }
@@ -285,20 +283,20 @@ Modules self-register via `init()` using the registry system. `LoadModules` in `
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
     modules.ResetHelpRegistry()
-    defer modules.LoadHelp(dispatcher)
 
-    // Loads all modules registered via RegisterLegacyModule
+    // Loads all modules registered via RegisterLegacyModule;
+    // Help registers at PriorityFinal and loads last
     modules.LoadAllModules(dispatcher)
 }
 ```
 
 There is one registration pattern:
 
-- **`RegisterLegacyModule(name, priority, loadFunc)`** in `init()` — wraps existing `LoadXxx(dispatcher)` functions. There is no newer `RegisterModule` interface; `RegisterLegacyModule` is the only registry entry point.
+- **`RegisterLegacyModule(name, priority, loadFunc, opts...)`** in `init()` — wraps existing `LoadXxx(dispatcher)` functions. There is no newer `RegisterModule` interface; `RegisterLegacyModule` is the only registry entry point. Loading a module marks it enabled in `/help`; pass `RegisterLegacyModuleOptions{NoHelp: true}` for watcher-only modules that stay out of the help menu.
 
-:::note[Load order matters]
-Priority determines load order (lower numbers load first). Place your module at a priority after any modules it depends on (e.g., after `Users` if you need user lookups). `LoadHelp` is deferred and always loads last.
-:::
+::::note[Load order matters]
+Priority determines load order (lower numbers load first). Place your module at a priority after any modules it depends on (e.g., after `Users` if you need user lookups). Help registers at `PriorityFinal` (`math.MaxInt`) and always loads last.
+::::
 
 ### Step 6: Regenerate Docs and Validate
 
@@ -524,8 +522,6 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadWelcome(dispatcher *ext.Dispatcher) {
-    SetModuleEnabled(welcomeModule.moduleName, true)
-
     helpers.WrapCommand(dispatcher, welcomeStatusDesc, pipelineHandler(welcomeModule.welcomestatus))
     helpers.WrapCommand(dispatcher, toggleWelcomeDesc, pipelineHandler(welcomeModule.togglewelcome))
 }
@@ -656,7 +652,7 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - [ ] Read through `cache.GetFromCacheOrLoad`; `cache.DeleteCache` on every write
 - [ ] Add translations to all 7 locale files, including `<module>_help_msg`
 - [ ] Register module in `init()` with `RegisterLegacyModule`
-- [ ] Enable the module in help with `SetModuleEnabled(name, true)` (never write `AbleMap` directly)
+- [ ] Loading the module enables it in `/help`; declare `NoHelp` only for watcher-only modules
 - [ ] Run `make generate-docs`, `make check-translations`, `make check-docs`, `make test`, `make lint`
 - [ ] Test in development environment
 

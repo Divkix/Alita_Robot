@@ -792,8 +792,6 @@ var (
 )
 
 func LoadAdmin(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled("Admin", true)
-
 	helpers.WrapCommand(dispatcher, adminlistDesc, adminModule.adminlist)
 	helpers.WrapCommand(dispatcher, promoteDesc, adminModule.promote)
 	helpers.WrapCommand(dispatcher, demoteDesc, adminModule.demote)

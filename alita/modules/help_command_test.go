@@ -144,8 +144,7 @@ func TestHelpCommandRoutesSpecificModuleInPrivateAndGroup(t *testing.T) {
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
-	registry.AltHelpOptions["Admin"] = []string{"admin"}
+	registry.setEnabled("Admin", true)
 	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}})
 
 	client := newModuleBotClient()
@@ -362,7 +361,7 @@ func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 	})
 
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
+	registry.setEnabled("Admin", true)
 	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	})
@@ -497,7 +496,7 @@ func TestDonateAndHelpListFollowTheReadersLanguage(t *testing.T) {
 		defaultHelpRegistry = previousRegistry
 		cachedBotUsername = ""
 	})
-	DefaultHelpRegistry().AbleMap["Admin"] = true
+	DefaultHelpRegistry().setEnabled("Admin", true)
 
 	es := i18n.MustNewTranslator("es")
 	en := i18n.MustNewTranslator("en")
@@ -558,8 +557,7 @@ func TestPrivateHelpWithExtraWordsAnswers(t *testing.T) {
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
-	registry.AltHelpOptions["Admin"] = []string{"admin"}
+	registry.setEnabled("Admin", true)
 	setHelpKb(registry, "Admin", [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}})
 
 	client := newModuleBotClient()
@@ -596,8 +594,7 @@ func TestGroupModuleHelpNamesTheModuleInChatLanguage(t *testing.T) {
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
-	registry.AltHelpOptions["Admin"] = []string{"admin"}
+	registry.setEnabled("Admin", true)
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -630,7 +627,7 @@ func TestGroupHelpWithExtraWordsLinksTheModule(t *testing.T) {
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
+	registry.setEnabled("Admin", true)
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -667,7 +664,7 @@ func TestHelpRepliesDisableLinkPreviews(t *testing.T) {
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
-	registry.AbleMap["Admin"] = true
+	registry.setEnabled("Admin", true)
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

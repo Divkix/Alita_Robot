@@ -314,7 +314,6 @@ func spamDBReply(c *helpers.CommandContext, text string) error {
 }
 
 func LoadSpamDB(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(spamDBModule.moduleName, true)
 	spamDBChecker = spamdb.New(spamdb.Options{
 		CASAPIKey: config.AppConfig.CASAPIKey,
 		Redis:     cache.GetRedisClient,

@@ -928,8 +928,8 @@ func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 	}
 
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadBans(dispatcher)
-	if !DefaultHelpRegistry().AbleMap[bansModule.moduleName] {
+	loadModuleByName(t, "Bans", dispatcher)
+	if !DefaultHelpRegistry().isEnabled(bansModule.moduleName) {
 		t.Fatal("bans help registration = false, want enabled")
 	}
 }

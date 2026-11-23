@@ -152,3 +152,103 @@ func TestRegisteredModulesRespectGotgbotDefaultGroupSemantics(t *testing.T) {
 		t.Fatalf("gotgbot default group semantics = %v, want %v", handled, want)
 	}
 }
+
+func withResetHelpRegistry(t *testing.T) {
+	t.Helper()
+
+	defaultHelpRegistry.reset()
+	t.Cleanup(defaultHelpRegistry.reset)
+}
+
+// The registry owns enabled-state: loading a module marks it in the help
+// registry unless it declared NoHelp, and nothing else writes the set.
+func TestLoadAllModulesMarksEachHelpModuleEnabled(t *testing.T) {
+	withIsolatedRegistry(t)
+	withResetHelpRegistry(t)
+
+	RegisterLegacyModule("watched", 10, func(_ *ext.Dispatcher) {}, RegisterLegacyModuleOptions{NoHelp: true})
+	RegisterLegacyModule("listed", 20, func(_ *ext.Dispatcher) {})
+	RegisterLegacyModule("also-listed", 30, func(_ *ext.Dispatcher) {})
+
+	loaded := LoadAllModules(nil)
+
+	if !reflect.DeepEqual(loaded, []string{"watched", "listed", "also-listed"}) {
+		t.Fatalf("LoadAllModules load order = %v", loaded)
+	}
+	for _, name := range loaded {
+		seen := 0
+		for _, other := range loaded {
+			if other == name {
+				seen++
+			}
+		}
+		if seen != 1 {
+			t.Fatalf("module %q loaded %d times", name, seen)
+		}
+	}
+
+	enabled := defaultHelpRegistry.enabledModules()
+	if !reflect.DeepEqual(enabled, []string{"also-listed", "listed"}) {
+		t.Fatalf("enabled modules = %v, want the two help-listed modules", enabled)
+	}
+}
+
+// PriorityFinal is the declared way to load after every numbered module; the
+// help module uses it.
+func TestLoadAllModulesLoadsFinalModuleLast(t *testing.T) {
+	withIsolatedRegistry(t)
+	withResetHelpRegistry(t)
+
+	var order []string
+	RegisterLegacyModule("first", 10, func(_ *ext.Dispatcher) { order = append(order, "first") })
+	RegisterLegacyModule("last", PriorityFinal, func(_ *ext.Dispatcher) { order = append(order, "last") }, RegisterLegacyModuleOptions{NoHelp: true})
+
+	loaded := LoadAllModules(nil)
+
+	if !reflect.DeepEqual(order, []string{"first", "last"}) {
+		t.Fatalf("load order = %v, want first then last", order)
+	}
+	if loaded[len(loaded)-1] != "last" {
+		t.Fatalf("LoadAllModules last = %q, want last", loaded[len(loaded)-1])
+	}
+}
+
+// The real registry: every module that loads and did not declare NoHelp is
+// enabled exactly once, and Help — registered at PriorityFinal — loads last.
+func TestLoadAllModulesEnabledSetMatchesLoadedModules(t *testing.T) {
+	withResetHelpRegistry(t)
+
+	loaded := LoadAllModules(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+
+	noHelp := map[string]bool{}
+	for _, m := range registry {
+		noHelp[m.name] = m.noHelp
+	}
+	want := map[string]bool{}
+	for _, name := range loaded {
+		if _, dup := want[name]; dup {
+			t.Errorf("module %q loaded more than once", name)
+		}
+		want[name] = !noHelp[name]
+	}
+	got := map[string]bool{}
+	for _, name := range defaultHelpRegistry.enabledModules() {
+		got[name] = true
+	}
+	for name, enabled := range want {
+		if enabled && !got[name] {
+			t.Errorf("module %q loaded but not enabled in the help registry", name)
+		}
+		if !enabled && got[name] {
+			t.Errorf("module %q declared NoHelp but is enabled", name)
+		}
+	}
+	for name := range got {
+		if _, ok := want[name]; !ok {
+			t.Errorf("module %q enabled but never loaded", name)
+		}
+	}
+	if loaded[len(loaded)-1] != "Help" {
+		t.Fatalf("last loaded module = %q, want Help", loaded[len(loaded)-1])
+	}
+}

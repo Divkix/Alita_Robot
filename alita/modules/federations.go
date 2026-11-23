@@ -1283,8 +1283,6 @@ var federationBanCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpe
 })
 
 func LoadFederations(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(federationsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "newfed", RequiredChecks: []helpers.Check{federationPrivateCheck},
 	}, pipelineHandler(federationsModule.newFed))

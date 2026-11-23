@@ -49,6 +49,20 @@ func withNilCacheMarshal(t *testing.T) {
 	})
 }
 
+// loadModuleByName runs name's registered loader the way LoadAllModules does:
+// through the registry wrapper that points the command manifest at the
+// module and marks it enabled in the help registry.
+func loadModuleByName(t *testing.T, name string, dispatcher *ext.Dispatcher) {
+	t.Helper()
+	for _, m := range registry {
+		if m.name == name {
+			loadModule(m, dispatcher)
+			return
+		}
+	}
+	t.Fatalf("no module registered as %q", name)
+}
+
 type moduleBotCall struct {
 	Method string
 	Params map[string]any

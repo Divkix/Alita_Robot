@@ -486,9 +486,9 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 
 func TestLoadBlacklistsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadBlacklists(dispatcher)
+	loadModuleByName(t, "Blacklists", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[blacklistsModule.moduleName] {
+	if !DefaultHelpRegistry().isEnabled(blacklistsModule.moduleName) {
 		t.Fatal("blacklists help registration = false, want enabled")
 	}
 }

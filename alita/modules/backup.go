@@ -717,8 +717,6 @@ var (
 )
 
 func LoadBackup(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(backupModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, backupExportDesc, backupModule.exportHandler)
 	helpers.WrapCommand(dispatcher, backupImportDesc, backupModule.importHandler)
 	helpers.WrapCommand(dispatcher, backupResetDesc, backupModule.resetHandler)
