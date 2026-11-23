@@ -33,8 +33,6 @@ const (
 	DatabaseShared = "shared"
 )
 
-const cacheKeyPrefix = "spam_db_settings"
-
 var (
 	// ErrInvalidAction is returned for an action other than ban, mute or log.
 	ErrInvalidAction = errors.New("spamdbsettings: invalid action")
@@ -64,7 +62,7 @@ func ValidAction(action string) bool {
 // GetSpamDBSettingsContext returns the chat's settings. A missing row reads as
 // disabled, CAS only, with the ban action.
 func GetSpamDBSettingsContext(ctx context.Context, chatID int64) (*models.SpamDBSettings, error) {
-	return cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cacheKeyPrefix, chatID), cache.CacheTTLSpamDB,
+	return cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLSpamDB,
 		func(ctx context.Context) (*models.SpamDBSettings, error) {
 			return loadSettings(ctx, chatID)
 		})
@@ -203,6 +201,6 @@ func upsert(chatID int64, column string, row map[string]any) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey(cacheKeyPrefix, chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }

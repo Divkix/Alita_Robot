@@ -49,9 +49,6 @@ const (
 	sharedCandidates  = 1000
 	sharedRowsPerText = 20
 
-	settingsCacheModule = "spam_filter_settings"
-	samplesCacheModule  = "spam_samples"
-	sharedCacheModule   = "spam_shared_corpus"
 	// sharedCacheTTL is how long the shared corpus is served before it is
 	// computed again; a write anywhere also clears it.
 	sharedCacheTTL = 10 * time.Minute
@@ -86,9 +83,9 @@ func Hash(normalized string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func settingsKey(chatID int64) string { return cache.CacheKey(settingsCacheModule, chatID) }
-func samplesKey(chatID int64) string  { return cache.CacheKey(samplesCacheModule, chatID) }
-func sharedKey() string               { return cache.CacheKey(sharedCacheModule) }
+func settingsKey(chatID int64) string { return SettingsProjection.Key(chatID) }
+func samplesKey(chatID int64) string  { return SamplesProjection.Key(chatID) }
+func sharedKey() string               { return SharedProjection.Key() }
 
 // invalidateSamples clears the chat's samples and the shared corpus, which
 // any chat's spam rows feed.

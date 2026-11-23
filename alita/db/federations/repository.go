@@ -19,14 +19,9 @@ import (
 )
 
 const (
-	maxFedNameLen       = 64
-	maxFedSubs          = 5
-	cachePrefixFed      = "fed"
-	cachePrefixFedChat  = "fed_chat"
-	cachePrefixFedAdmin = "fed_admins"
-	cachePrefixFedBan   = "fed_ban"
-	cachePrefixFedSubs  = "fed_subs"
-	missingBanUserID    = -9999
+	maxFedNameLen    = 64
+	maxFedSubs       = 5
+	missingBanUserID = -9999
 )
 
 var (
@@ -44,9 +39,9 @@ const MaxSubscriptions = maxFedSubs
 
 func invalidateFed(fedID string, extra ...string) {
 	keys := []string{
-		cache.CacheKey(cachePrefixFed, fedID),
-		cache.CacheKey(cachePrefixFedAdmin, fedID),
-		cache.CacheKey(cachePrefixFedSubs, fedID),
+		FedProjection.Key(fedID),
+		FedAdminsProjection.Key(fedID),
+		FedSubsProjection.Key(fedID),
 	}
 	keys = append(keys, extra...)
 	for _, key := range keys {
@@ -55,11 +50,11 @@ func invalidateFed(fedID string, extra ...string) {
 }
 
 func invalidateChat(chatID int64) {
-	cache.DeleteCache(cache.CacheKey(cachePrefixFedChat, chatID))
+	cache.DeleteCache(FedChatProjection.Key(chatID))
 }
 
 func invalidateBan(fedID string, userID int64) {
-	cache.DeleteCache(cache.CacheKey(cachePrefixFedBan, fedID, userID))
+	cache.DeleteCache(FedBanProjection.Key(fedID, userID))
 }
 
 func trimFedName(name string) string {
@@ -173,7 +168,7 @@ func DeleteFederation(fedID string) error {
 		invalidateBan(fedID, ban.UserID)
 	}
 	for _, sub := range subscribers {
-		cache.DeleteCache(cache.CacheKey(cachePrefixFedSubs, sub.FedID))
+		cache.DeleteCache(FedSubsProjection.Key(sub.FedID))
 	}
 	return nil
 }
@@ -187,7 +182,7 @@ func GetFedContext(ctx context.Context, fedID string) *models.Federation {
 	if fedID == "" {
 		return nil
 	}
-	result, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cachePrefixFed, fedID), cache.CacheTTLFederation, func(ctx context.Context) (models.Federation, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, FedProjection.Key(fedID), cache.CacheTTLFederation, func(ctx context.Context) (models.Federation, error) {
 		var fed models.Federation
 		err := db.GetRecordContext(ctx, &fed, models.Federation{FedID: fedID})
 		if err != nil {
@@ -221,7 +216,7 @@ func GetChatFed(chatID int64) *models.FederationChat {
 }
 
 func GetChatFedContext(ctx context.Context, chatID int64) *models.FederationChat {
-	result, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cachePrefixFedChat, chatID), cache.CacheTTLFederation, func(ctx context.Context) (models.FederationChat, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, FedChatProjection.Key(chatID), cache.CacheTTLFederation, func(ctx context.Context) (models.FederationChat, error) {
 		var row models.FederationChat
 		err := db.GetRecordContext(ctx, &row, models.FederationChat{ChatID: chatID})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -389,7 +384,7 @@ func listCachedColumnE[Row any, ID any](ctx context.Context, cacheKey string, fi
 
 func ListFedAdmins(fedID string) []int64 {
 	return listCachedColumn(
-		cache.CacheKey(cachePrefixFedAdmin, fedID),
+		FedAdminsProjection.Key(fedID),
 		"ListFedAdmins",
 		models.FederationAdmin{FedID: fedID},
 		func(row models.FederationAdmin) int64 { return row.UserID },
@@ -414,7 +409,7 @@ func PromoteFedAdmin(fedID string, userID int64) error {
 		log.Errorf("[Federations] PromoteFedAdmin: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey(cachePrefixFedAdmin, fedID))
+	cache.DeleteCache(FedAdminsProjection.Key(fedID))
 	return nil
 }
 
@@ -427,7 +422,7 @@ func DemoteFedAdmin(fedID string, userID int64) error {
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
-	cache.DeleteCache(cache.CacheKey(cachePrefixFedAdmin, fedID))
+	cache.DeleteCache(FedAdminsProjection.Key(fedID))
 	return nil
 }
 
@@ -545,7 +540,7 @@ func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.F
 // Every ban or unban write must invalidate that key after the write succeeds.
 func GetFedBanE(ctx context.Context, fedID string, userID int64) (*models.FederationBan, error) {
 	result, err := cache.GetFromCacheOrLoad(ctx,
-		cache.CacheKey(cachePrefixFedBan, fedID, userID),
+		FedBanProjection.Key(fedID, userID),
 		cache.CacheTTLFederation,
 		func(ctx context.Context) (models.FederationBan, error) {
 			var row models.FederationBan
@@ -648,7 +643,7 @@ func SubscribeFed(subscriberFedID, targetFedID string) error {
 		log.Errorf("[Federations] SubscribeFed: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey(cachePrefixFedSubs, subscriberFedID))
+	cache.DeleteCache(FedSubsProjection.Key(subscriberFedID))
 	return nil
 }
 
@@ -662,7 +657,7 @@ func UnsubscribeFed(subscriberFedID, targetFedID string) error {
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
-	cache.DeleteCache(cache.CacheKey(cachePrefixFedSubs, subscriberFedID))
+	cache.DeleteCache(FedSubsProjection.Key(subscriberFedID))
 	return nil
 }
 
@@ -677,7 +672,7 @@ func ListSubscribedFedIDs(subscriberFedID string) []string {
 
 func listSubscribedFedIDs(ctx context.Context, subscriberFedID string) ([]string, error) {
 	return listCachedColumnE(ctx,
-		cache.CacheKey(cachePrefixFedSubs, subscriberFedID),
+		FedSubsProjection.Key(subscriberFedID),
 		models.FederationSub{FedID: subscriberFedID},
 		func(row models.FederationSub) string { return row.SubscribedFedID },
 	)

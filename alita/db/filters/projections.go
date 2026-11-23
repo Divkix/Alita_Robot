@@ -13,3 +13,7 @@ func invalidateFilterCaches(chatID int64) {
 	cache.DeleteCache(ListProjection.Key(chatID))
 	cache.DeleteCache(OptimizedProjection.Key(chatID))
 }
+
+// ChatKeys returns the cache keys a chat's filters backup import or clear
+// invalidates.
+var ChatKeys = cache.Keys(ListProjection, OptimizedProjection)

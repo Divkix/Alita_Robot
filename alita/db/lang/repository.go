@@ -145,7 +145,6 @@ func ChangeGroupLanguage(GroupID int64, lang string) error {
 			return err
 		}
 		cache.DeleteCache(chats.ChatLangProjection.Key(GroupID))
-		cache.DeleteCache(chats.ChatSettingsProjection.Key(GroupID))
 		cache.DeleteCache(chats.ChatProjection.Key(GroupID))
 		log.Infof("[Database] ChangeGroupLanguage: created new chat %d with language %s", GroupID, lang)
 		return nil
@@ -159,7 +158,6 @@ func ChangeGroupLanguage(GroupID int64, lang string) error {
 		return err
 	}
 	cache.DeleteCache(chats.ChatLangProjection.Key(GroupID))
-	cache.DeleteCache(chats.ChatSettingsProjection.Key(GroupID))
 	cache.DeleteCache(chats.ChatProjection.Key(GroupID))
 	log.Infof("[Database] ChangeGroupLanguage: %d", GroupID)
 	return nil

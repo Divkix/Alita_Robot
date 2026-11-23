@@ -230,9 +230,9 @@ func lockChat(tx *gorm.DB, chatId int64) error {
 		Take(&chat).Error
 }
 
-// lockChatForReset is lockChat for the resets, which also run for a chat with
-// no chats row and then have nothing to wait for.
-func lockChatForReset(tx *gorm.DB, chatId int64) error {
+// LockChatForReset is lockChat for the resets and the backup importer, which
+// also run for a chat with no chats row and then have nothing to wait for.
+func LockChatForReset(tx *gorm.DB, chatId int64) error {
 	if err := lockChat(tx, chatId); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -384,7 +384,7 @@ func ResetUserWarns(userId, chatId int64) (bool, error) {
 	// warns_users row is still an uncommitted INSERT, can commit between them:
 	// its entry is deleted and its warn row survives.
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := lockChatForReset(tx, chatId); err != nil {
+		if err := LockChatForReset(tx, chatId); err != nil {
 			return err
 		}
 		result := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
@@ -539,7 +539,7 @@ func ResetAllChatWarns(chatId int64) error {
 	// The chat-row lock, for the reason given in ResetUserWarns. The users are
 	// read under it, so a warn committed just before is in the cache sweep.
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := lockChatForReset(tx, chatId); err != nil {
+		if err := LockChatForReset(tx, chatId); err != nil {
 			return err
 		}
 		if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {

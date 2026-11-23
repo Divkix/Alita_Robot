@@ -42,12 +42,12 @@ func SetAISpamEnabled(chatID int64, enabled bool) error {
 		return err
 	}
 
-	cache.DeleteCache(cache.CacheKey("ai_spam_settings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
 
 func getAISpamSettingsCachedContext(ctx context.Context, chatID int64) (*models.AISpamSettings, error) {
-	return cache.GetFromCacheOrLoad(ctx, cache.CacheKey("ai_spam_settings", chatID), cache.CacheTTLAISpam,
+	return cache.GetFromCacheOrLoad(ctx, SettingsProjection.Key(chatID), cache.CacheTTLAISpam,
 		func(ctx context.Context) (*models.AISpamSettings, error) {
 			settings := &models.AISpamSettings{}
 			err := db.GetRecordContext(ctx, settings, models.AISpamSettings{ChatID: chatID})
