@@ -2,16 +2,13 @@ package modules
 
 import (
 	"errors"
-	"fmt"
-	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/stats"
 )
 
@@ -188,35 +185,28 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 // processes a join. Only membership intake takes, keeps or releases it — its
 // handlers in greetings.go and ProcessSingleJoin through deps.Claim. A guard
 // never touches it; the federation watcher reports a ban through
-// markJoinHandled.
-var (
-	recentJoinProcessTTL = 5 * time.Second
-	recentJoinProcessing sync.Map
-)
-
-type joinClaim struct{ exp time.Time }
+// markJoinHandled. opstate owns the key, the Redis-absent fallback and the
+// error policy.
+const recentJoinProcessTTL = 5 * time.Second
 
 func joinClaimKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:recentJoinProcessing:%d:%d", chatID, userID)
+	return opstate.Key("recentJoinProcessing", chatID, userID)
 }
 
-// claimJoin is membership intake's join claim. A Redis error falls back to a
+// claimJoin is membership intake's join claim. A Redis error degrades to a
 // claim local to this replica, which lets the guard stages run but not the
 // challenge or welcome, so an outage neither lets a banned user in nor greets
 // anyone twice.
 func claimJoin(chatID, userID int64) JoinClaim {
-	claimed, err := tryClaimJoin(chatID, userID)
-	if err != nil {
-		log.Debugf("[Membership] Redis SETNX failed for join dedupe key %s, using the local claim: %v", joinClaimKey(chatID, userID), err)
-		if claimJoinLocally(joinClaimKey(chatID, userID)) {
-			return ClaimLocal
-		}
+	switch opstate.Claim(joinClaimKey(chatID, userID), recentJoinProcessTTL) {
+	case opstate.ClaimShared:
+		return ClaimShared
+	case opstate.ClaimLocal:
+		log.Debugf("[Membership] join claim for %s degraded to this replica", joinClaimKey(chatID, userID))
+		return ClaimLocal
+	default:
 		return ClaimLost
 	}
-	if claimed {
-		return ClaimShared
-	}
-	return ClaimLost
 }
 
 // markJoinHandled claims userID's join for a guard that removed them on
@@ -225,62 +215,6 @@ func markJoinHandled(chatID, userID int64) {
 	claimJoin(chatID, userID)
 }
 
-// tryClaimJoin takes the join claim in Redis, or in this
-// replica without Redis. It returns the Redis error instead of a decision.
-func tryClaimJoin(chatID, userID int64) (bool, error) {
-	key := joinClaimKey(chatID, userID)
-
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		_, err := rdb.SetArgs(cache.Context, key, true, redis.SetArgs{
-			Mode: "NX",
-			TTL:  recentJoinProcessTTL,
-		}).Result()
-		if err == nil {
-			return true, nil
-		}
-		if errors.Is(err, redis.Nil) {
-			return false, nil
-		}
-		return false, err
-	}
-	return claimJoinLocally(key), nil
-}
-
-func claimJoinLocally(key string) bool {
-	now := time.Now()
-	for {
-		newClaim := joinClaim{exp: now.Add(recentJoinProcessTTL)}
-		actual, loaded := recentJoinProcessing.LoadOrStore(key, newClaim)
-		if !loaded {
-			expireRecentJoinClaim(key, newClaim)
-			return true
-		}
-		if c, ok := actual.(joinClaim); ok && now.Before(c.exp) {
-			return false
-		}
-		newClaim = joinClaim{exp: time.Now().Add(recentJoinProcessTTL)}
-		if recentJoinProcessing.CompareAndSwap(key, actual, newClaim) {
-			expireRecentJoinClaim(key, newClaim)
-			return true
-		}
-		now = time.Now()
-	}
-}
-
-func expireRecentJoinClaim(key string, claim joinClaim) {
-	time.AfterFunc(recentJoinProcessTTL, func() {
-		recentJoinProcessing.CompareAndDelete(key, claim)
-	})
-}
-
 func clearJoinClaim(chatID, userID int64) {
-	key := joinClaimKey(chatID, userID)
-
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		if err := rdb.Del(cache.Context, key).Err(); err != nil {
-			log.Debugf("[Membership] Failed to clear shared join dedupe key %s: %v", key, err)
-		}
-	}
-
-	recentJoinProcessing.Delete(key)
+	opstate.Release(joinClaimKey(chatID, userID))
 }

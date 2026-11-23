@@ -13,9 +13,9 @@
 //   - Atomicity: claims are SET NX PX (or an in-process CAS); Consume is
 //     GETDEL (or a mutex-serialized local read+delete); Stash/Peek are plain
 //     writes/reads.
-//   - Error policy: Claim logs a Redis error and claims locally (degraded,
-//     never silent); Release logs and still clears locally; Held reports
-//     false on a Redis error after checking local; Stash/Consume/Peek return
+//   - Error policy: Claim reports ClaimLocal (logged, never silent) when a
+//     configured Redis errors; Release logs and still clears locally; Held
+//     reports the local answer on a Redis error; Stash/Consume/Peek return
 //     the error to the caller, which owns the user-visible degrade.
 //
 // These keys sit outside alita:cache:, so CLEAR_CACHE_ON_STARTUP keeps them.
@@ -51,11 +51,12 @@ type ClaimResult int
 const (
 	// ClaimLost: the key is already held (by this or another replica).
 	ClaimLost ClaimResult = iota
-	// ClaimShared: this call won the claim every replica sees.
+	// ClaimShared: this call won and nothing is degraded — the shared claim
+	// through Redis, or the in-process claim when Redis is not configured.
 	ClaimShared
-	// ClaimLocal: Redis was absent or errored; this replica claimed the key
-	// for itself. The claim still excludes duplicates on this replica, but
-	// other replicas cannot see it.
+	// ClaimLocal: Redis is configured but errored; this replica claimed the
+	// key for itself. The claim still excludes duplicates on this replica,
+	// but callers that must not act degraded treat it as lost.
 	ClaimLocal
 )
 
@@ -171,7 +172,7 @@ func Claim(key string, ttl time.Duration) ClaimResult {
 		return ClaimLost
 	}
 	if local.claim(key, ttl) {
-		return ClaimLocal
+		return ClaimShared
 	}
 	return ClaimLost
 }

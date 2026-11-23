@@ -43,19 +43,44 @@ func TestClaimSharedAndLost(t *testing.T) {
 	}
 }
 
-func TestClaimLocalWithoutRedis(t *testing.T) {
+func TestClaimWithoutRedis(t *testing.T) {
 	cache.DisableRedisForTest()
 	key := Key("test", "claim-local", t.Name())
 
-	if got := Claim(key, time.Minute); got != ClaimLocal {
-		t.Fatalf("first Claim() = %v, want ClaimLocal", got)
+	// Redis absent: the in-process claim wins and reports ClaimShared —
+	// nothing is degraded, the claim simply cannot cross replicas.
+	if got := Claim(key, time.Minute); got != ClaimShared {
+		t.Fatalf("first Claim() = %v, want ClaimShared", got)
 	}
 	if got := Claim(key, time.Minute); got != ClaimLost {
 		t.Fatalf("second Claim() = %v, want ClaimLost", got)
 	}
 	Release(key)
+	if got := Claim(key, time.Minute); got != ClaimShared {
+		t.Fatalf("Claim() after Release = %v, want ClaimShared", got)
+	}
+}
+
+func TestClaimLocalOnRedisError(t *testing.T) {
+	// A configured but unreachable Redis degrades the claim to this
+	// replica and reports ClaimLocal.
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{
+		Addr:               mr.Addr(),
+		MaxRetries:         -1,
+		DialerRetries:      1,
+		DialerRetryTimeout: time.Millisecond,
+	})
+	t.Cleanup(func() { _ = client.Close() })
+	mr.Close()
+	cache.SetRedisClientForTest(t, client)
+
+	key := Key("test", "claim-err", t.Name())
 	if got := Claim(key, time.Minute); got != ClaimLocal {
-		t.Fatalf("Claim() after Release = %v, want ClaimLocal", got)
+		t.Fatalf("Claim() with dead Redis = %v, want ClaimLocal", got)
+	}
+	if got := Claim(key, time.Minute); got != ClaimLost {
+		t.Fatalf("second Claim() = %v, want ClaimLost", got)
 	}
 }
 
@@ -76,17 +101,14 @@ func TestClaimIsAtomicUnderRace(t *testing.T) {
 	wg.Wait()
 	close(wins)
 
-	shared, localWins := 0, 0
+	winners := 0
 	for r := range wins {
-		switch r {
-		case ClaimShared:
-			shared++
-		case ClaimLocal:
-			localWins++
+		if r == ClaimShared || r == ClaimLocal {
+			winners++
 		}
 	}
-	if shared+localWins != 1 {
-		t.Fatalf("claim winners = %d shared + %d local, want exactly 1", shared, localWins)
+	if winners != 1 {
+		t.Fatalf("claim winners = %d, want exactly 1", winners)
 	}
 }
 
