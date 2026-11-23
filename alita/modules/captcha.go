@@ -19,7 +19,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
-	"github.com/eko/gocache/lib/v4/store"
 	"github.com/mojocn/base64Captcha"
 	log "github.com/sirupsen/logrus"
 
@@ -39,6 +38,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
@@ -1746,14 +1746,14 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 		return err
 	}
 
-	cooldownKey := fmt.Sprintf("alita:captcha:refresh:cooldown:%d:%d", chat.Id, targetUserID)
-	if m := cache.GetMarshal(); m != nil {
-		if exists, _ := m.Get(cache.Context, cooldownKey, new(bool)); exists != nil {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("captcha_wait_refresh")
-			_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return err
-		}
+	// One atomic claim per refresh window: the old check-then-set let two
+	// concurrent refreshes both pass the cooldown check.
+	cooldownKey := opstate.Key("captcha:refresh:cooldown", chat.Id, targetUserID)
+	if opstate.Claim(cooldownKey, time.Duration(captchaRefreshCooldownS)*time.Second) == opstate.ClaimLost {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_wait_refresh")
+		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return err
 	}
 
 	attempt, err := captcha.GetCaptchaAttempt(targetUserID, chat.Id)
@@ -1872,12 +1872,6 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	if oldMessageID > 0 {
 		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, oldMessageID); err != nil {
 			log.Warnf("[CaptchaRefresh] Failed to delete old message %d in chat %d: %v", oldMessageID, chat.Id, err)
-		}
-	}
-
-	if m := cache.GetMarshal(); m != nil {
-		if err := m.Set(cache.Context, cooldownKey, true, store.WithExpiration(time.Duration(captchaRefreshCooldownS)*time.Second)); err != nil {
-			log.Errorf("[CaptchaRefresh] Failed to set refresh cooldown for chat %d user %d: %v", chat.Id, targetUserID, err)
 		}
 	}
 
