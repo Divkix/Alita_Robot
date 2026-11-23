@@ -147,12 +147,8 @@ var (
 // notice that captcha needs the bot's "Ban users" right.
 const captchaRightsNoticeCooldown = 6 * time.Hour
 
-// captchaRightsNoticeLocal holds the notice cooldown expiry per chat when
-// Redis is not configured.
-var captchaRightsNoticeLocal sync.Map
-
 func captchaRightsNoticeKey(chatID int64) string {
-	return fmt.Sprintf("alita:captcha:rightsNotice:%d", chatID)
+	return opstate.Key("captcha:rightsNotice", chatID)
 }
 
 // claimCaptchaRightsNotice reports whether this call may send the missing-right
@@ -160,27 +156,9 @@ func captchaRightsNoticeKey(chatID int64) string {
 // replicas. A Redis error sends nothing: a missed notice comes back on a later
 // join, a repeated one is noise.
 func claimCaptchaRightsNotice(chatID int64) bool {
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		claimed, err := rdb.SetNX(cache.Context, captchaRightsNoticeKey(chatID), 1, captchaRightsNoticeCooldown).Result()
-		if err != nil {
-			log.Debugf("[Captcha] Failed to claim the rights notice for chat %d: %v", chatID, err)
-			return false
-		}
-		return claimed
-	}
-	for {
-		now := time.Now()
-		prev, loaded := captchaRightsNoticeLocal.LoadOrStore(chatID, now.Add(captchaRightsNoticeCooldown))
-		if !loaded {
-			return true
-		}
-		if expiry, ok := prev.(time.Time); ok && now.Before(expiry) {
-			return false
-		}
-		if captchaRightsNoticeLocal.CompareAndSwap(chatID, prev, now.Add(captchaRightsNoticeCooldown)) {
-			return true
-		}
-	}
+	// ClaimShared covers the Redis win and the Redis-absent local claim;
+	// ClaimLocal means Redis errored, which this notice treats as lost.
+	return opstate.Claim(captchaRightsNoticeKey(chatID), captchaRightsNoticeCooldown) == opstate.ClaimShared
 }
 
 // captchaBotCanRestrict reports whether the bot holds the right to mute
