@@ -253,32 +253,6 @@ func Run(mode string, cfg *config.Config, deps Deps) {
 
 	deps.RegisterBotSchedulers(b)
 
-	// The tracer drain is declared in the telemetry phase so it runs last:
-	// every other drain's logs and spans are exported before the providers
-	// close.
-	shutdownManager.Register("tracer", shutdown.PhaseTelemetry, func() error {
-		log.Info("[Shutdown] Shutting down tracer provider...")
-		return tracing.Shutdown(context.Background())
-	})
-
-	RegisterShutdownSteps(shutdownManager, ShutdownDrainSpecs(
-		func() error {
-			log.Info("[Shutdown] Closing database connections...")
-			return closeDBConnections()
-		},
-		func() error {
-			log.Info("[Shutdown] Flushing daily stats counters...")
-			return stats.Flush()
-		},
-		func() error {
-			log.Info("[Shutdown] Stopping periodic jobs...")
-			jobs.Stop()
-			return nil
-		},
-		deps.ModuleDrains(),
-	)...)
-	jobs.Start()
-
 	httpServer := deps.NewHTTPServer(cfg.HTTPPort, time.Now())
 	httpServer.RegisterHealth()
 	httpServer.SetMetricsAuthToken(cfg.MetricsAuthToken)
@@ -295,12 +269,29 @@ func Run(mode string, cfg *config.Config, deps Deps) {
 		log.Warn("[Main] pprof endpoints enabled - DO NOT enable in production!")
 	}
 
-	// Both modes stop the same HTTP server; in webhook mode it is also the
-	// update intake, so it runs in the HTTP-server phase either way.
-	shutdownManager.Register("http stop", shutdown.PhaseHTTPServer, func() error {
-		log.Info("[Shutdown] Stopping HTTP server...")
-		return deps.StopHTTPServer(httpServer)
-	})
+	// RunDrainSpecs declares every drain but the polling updater stop as
+	// data so the whole set stays enumerable for tests. Both modes stop the
+	// same HTTP server; in webhook mode it is also the update intake, so it
+	// runs in the HTTP-server phase either way.
+	RegisterShutdownSteps(shutdownManager, RunDrainSpecs(
+		func() error {
+			log.Info("[Shutdown] Closing database connections...")
+			return closeDBConnections()
+		},
+		func() error {
+			log.Info("[Shutdown] Flushing daily stats counters...")
+			return stats.Flush()
+		},
+		func() error {
+			log.Info("[Shutdown] Stopping periodic jobs...")
+			jobs.Stop()
+			return nil
+		},
+		deps.ModuleDrains(),
+		httpServer,
+		deps.StopHTTPServer,
+	)...)
+	jobs.Start()
 
 	if cfg.UseWebhooks {
 		// WebhookDomain and WebhookSecret are guaranteed non-empty: config
@@ -336,16 +327,14 @@ func Run(mode string, cfg *config.Config, deps Deps) {
 
 		postInit(b, dispatcher, botUsername, "polling", cfg, deps)
 
-		runPolling(b, updater, cfg, shutdownManager, deps.ShutdownWait)
+		runPolling(b, updater, cfg, updaterStopSpec(updater), shutdownManager, deps.ShutdownWait)
 	}
 }
 
-// runPolling registers the updater stop in the update-source phase, starts
-// long polling and blocks on the shutdown manager, whose exit after the last
-// drain is the only way out. It never waits on the updater's Idle: the updater
-// stop releases that wait, so the process would leave before the later drains.
-func runPolling(b *gotgbot.Bot, updater *ext.Updater, cfg *config.Config, shutdownManager *shutdown.Manager, wait func(*shutdown.Manager)) {
-	shutdownManager.Register("updater stop", shutdown.PhaseUpdateSource, func() error {
+// updaterStopSpec is the polling mode's update-source drain: it stops the
+// long poll so a held getUpdates does not delay the later drains.
+func updaterStopSpec(updater *ext.Updater) DrainSpec {
+	return DrainSpec{Name: "updater stop", Phase: shutdown.PhaseUpdateSource, Handler: func() error {
 		log.Info("[Polling] Stopping updater...")
 		err := updater.Stop()
 		if err != nil {
@@ -354,7 +343,39 @@ func runPolling(b *gotgbot.Bot, updater *ext.Updater, cfg *config.Config, shutdo
 		}
 		log.Info("[Polling] Updater stopped successfully")
 		return nil
+	}}
+}
+
+// RunDrainSpecs declares every drain Run registers outside polling mode's
+// updater stop: the shared tail, the HTTP server stop and the tracer drain
+// last, so its telemetry phase runs after every other drain. server may be
+// nil in tests that only enumerate the specs.
+func RunDrainSpecs(closeDB, flushStats, stopJobs func() error, moduleDrains []DrainSpec, server *httpserver.Server, stopHTTP func(*httpserver.Server) error) []DrainSpec {
+	specs := ShutdownDrainSpecs(closeDB, flushStats, stopJobs, moduleDrains)
+	specs = append(specs, DrainSpec{
+		Name:  "http stop",
+		Phase: shutdown.PhaseHTTPServer,
+		Handler: func() error {
+			log.Info("[Shutdown] Stopping HTTP server...")
+			return stopHTTP(server)
+		},
+	}, DrainSpec{
+		Name:  "tracer",
+		Phase: shutdown.PhaseTelemetry,
+		Handler: func() error {
+			log.Info("[Shutdown] Shutting down tracer provider...")
+			return tracing.Shutdown(context.Background())
+		},
 	})
+	return specs
+}
+
+// runPolling registers the updater stop in the update-source phase, starts
+// long polling and blocks on the shutdown manager, whose exit after the last
+// drain is the only way out. It never waits on the updater's Idle: the updater
+// stop releases that wait, so the process would leave before the later drains.
+func runPolling(b *gotgbot.Bot, updater *ext.Updater, cfg *config.Config, updaterStop DrainSpec, shutdownManager *shutdown.Manager, wait func(*shutdown.Manager)) {
+	shutdownManager.Register(updaterStop.Name, updaterStop.Phase, updaterStop.Handler)
 
 	err := updater.StartPolling(b,
 		&ext.PollingOpts{

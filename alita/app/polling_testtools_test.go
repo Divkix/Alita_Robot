@@ -137,7 +137,7 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 
 		go func() {
 			defer close(returned)
-			runPolling(bot, updater, &config.Config{}, manager, func(*shutdown.Manager) { manager.WaitForShutdown() })
+			runPolling(bot, updater, &config.Config{}, updaterStopSpec(updater), manager, func(*shutdown.Manager) { manager.WaitForShutdown() })
 		}()
 
 		<-client.polled
