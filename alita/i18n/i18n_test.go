@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -644,7 +645,9 @@ func TestTranslator_String(t *testing.T) {
 		t.Parallel()
 		trEn, trFr := newTestTranslatorPair(t, enYAML, frYAML)
 
-		const missingKey = "totally_missing_string_key"
+		// reportedMisses is process-global, so the key must be unique per run
+		// or a repeated -count=N run would already have it deduped.
+		missingKey := fmt.Sprintf("totally_missing_string_key_%d", time.Now().UnixNano())
 		hook := &testMissHook{}
 		log.AddHook(hook)
 		t.Cleanup(func() { log.StandardLogger().ReplaceHooks(make(log.LevelHooks)) })
@@ -659,12 +662,16 @@ func TestTranslator_String(t *testing.T) {
 			t.Fatalf("String(%s) second call = %q, want the key itself", missingKey, got)
 		}
 
-		entries := hook.Entries()
-		if len(entries) != 1 {
-			t.Fatalf("logged %d miss entries for %s, want 1 (one per lang+key)", len(entries), missingKey)
+		// Parallel tests log unrelated warnings; count only entries naming
+		// this run's key.
+		var misses int
+		for _, entry := range hook.Entries() {
+			if strings.Contains(entry.Message, missingKey) {
+				misses++
+			}
 		}
-		if !strings.Contains(entries[0].Message, missingKey) {
-			t.Fatalf("log entry %q does not name the missing key %q", entries[0].Message, missingKey)
+		if misses != 1 {
+			t.Fatalf("logged %d miss entries for %s, want 1 (one per key)", misses, missingKey)
 		}
 	})
 }
