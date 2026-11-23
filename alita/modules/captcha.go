@@ -28,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -1390,15 +1391,10 @@ const (
 	captchaFailedWrongAnswers = "wrong answers"
 )
 
-// reportCaptchaFailure logs an applied failure action to the log channel and
-// posts the group notice, which deletes itself after 30 seconds. The log
-// entry carries unban, the Unban button of a ban (nil for none).
-func reportCaptchaFailure(bot *gotgbot.Bot, chatID, userID int64, userName, action, cause string, storedMsgCount int64, unban *gotgbot.InlineKeyboardMarkup) {
-	actionlog.AutomatedWithMarkup(bot, captchaLogChat(chatID), unban, "CAPTCHA_FAILED", userID, userName,
-		actionlog.Field{Name: "Action", Value: action},
-		actionlog.Field{Name: "Cause", Value: cause},
-	)
-
+// reportCaptchaFailure posts the group notice of an applied failure action,
+// which deletes itself after 30 seconds. The CAPTCHA_FAILED log entry is
+// written by executeCaptchaFailureAction's enforce spec.
+func reportCaptchaFailure(bot *gotgbot.Bot, chatID, userID int64, userName, action string, storedMsgCount int64) {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: &gotgbot.Chat{Id: chatID}}))
 	failureMsg := buildCaptchaFailureMessage(tr, action, userID, userName, storedMsgCount)
 	sent, err := helpers.SendMessageWithErrorHandling(bot, chatID, failureMsg, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
@@ -1448,8 +1444,12 @@ func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64
 
 // executeCaptchaFailureAction applies the chat's failure action and returns
 // the log entry's Unban button (nil unless a ban was recorded). A mute gets no
-// Telegram until_date: captcha's unmute worker lifts it after 24 hours.
-func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action, cause string) (*gotgbot.InlineKeyboardMarkup, error) {
+// Telegram until_date: captcha's unmute worker lifts it after 24 hours. The
+// failure has no update behind it — the timeout sweep and the wrong-answers
+// settle both land here — so the spec runs on a bare chat context: the apply
+// keeps its deliberate context.Background() and the log names the member,
+// not a sender.
+func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action, cause, userName string) (*gotgbot.InlineKeyboardMarkup, error) {
 	mode, _ := chatsettings.PunishmentMode(action)
 	mute := mode == punishment.Mute
 	unmuteAt := time.Now().Add(24 * time.Hour)
@@ -1458,9 +1458,27 @@ func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action,
 			return nil, fmt.Errorf("store automatic unmute: %w", err)
 		}
 	}
-	result, err := applyPunishment(context.Background(), bot, punishment.Request{
-		ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: mode,
-		Source: models.BanSourceCaptcha, Detail: cause,
+	result, err := enforce.Automated(bot, &ext.Context{EffectiveChat: captchaLogChat(chatID)}, enforce.Spec{
+		Request: punishment.Request{
+			ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: mode,
+			Source: models.BanSourceCaptcha, Detail: cause,
+		},
+		// The failure paths exempt nobody here: the timeout sweep already
+		// released approved members, and a wrong-answers failure punishes
+		// them like anyone else.
+		Exempt: enforce.NeverExempt,
+		// A refusal is a failure too, as applyPunishment made it.
+		Apply: func(applyCtx context.Context, applyBot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
+			return applyPunishment(applyCtx, applyBot, request)
+		},
+		Log: &enforce.LogSpec{
+			Tag:  "CAPTCHA_FAILED",
+			Name: userName,
+			Fields: []actionlog.Field{
+				{Name: "Action", Value: action},
+				{Name: "Cause", Value: cause},
+			},
+		},
 	})
 	if err != nil {
 		err = fmt.Errorf("%s: %w", action, err)
@@ -2071,9 +2089,13 @@ func unmuteExpiredCaptchaUsers(bot *gotgbot.Bot) {
 		if currentErr != nil {
 			log.Errorf("[CaptchaUnmute] Failed to reload schedule for user %d: %v", user.UserID, currentErr)
 		} else if current != nil && current.UnmuteAt.After(user.UnmuteAt) {
-			if _, remuteErr := punishment.Apply(context.Background(), bot, punishment.Request{
-				ChatID: user.ChatID, Target: punishment.Target{ID: user.UserID}, Mode: punishment.Mute, Source: models.BanSourceCaptcha,
-			}); remuteErr != nil {
+			_, remuteErr := enforce.Automated(bot, &ext.Context{EffectiveChat: captchaLogChat(user.ChatID)}, enforce.Spec{
+				Request: punishment.Request{
+					ChatID: user.ChatID, Target: punishment.Target{ID: user.UserID}, Mode: punishment.Mute, Source: models.BanSourceCaptcha,
+				},
+				Exempt: enforce.NeverExempt,
+			})
+			if remuteErr != nil {
 				log.Errorf("[CaptchaUnmute] Failed to restore newer mute for user %d: %v", user.UserID, remuteErr)
 			}
 		}
