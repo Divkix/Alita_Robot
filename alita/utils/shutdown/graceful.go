@@ -1,9 +1,11 @@
 package shutdown
 
 import (
+	"cmp"
 	"context"
 	"os"
 	"os/signal"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -14,8 +16,18 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
+// handlerEntry is one registered drain. handlers stays sorted by phase, then
+// by registration sequence descending, so iterating it forward runs phases in
+// order and drains registered later first inside their phase.
+type handlerEntry struct {
+	name   string
+	phase  Phase
+	seq    int
+	handle func() error
+}
+
 type Manager struct {
-	handlers        []func() error
+	handlers        []handlerEntry
 	mu              sync.RWMutex
 	once            sync.Once
 	shutdownStarted atomic.Bool
@@ -34,17 +46,27 @@ const handlerTimeout = 10 * time.Second
 
 func NewManager() *Manager {
 	return &Manager{
-		handlers: make([]func() error, 0),
+		handlers: make([]handlerEntry, 0),
 	}
 }
 
-func (m *Manager) RegisterHandler(handler func() error) {
+// Register adds a named drain to phase. Drains run in phase order — see
+// Phases — and drains registered later run first inside one phase, so a drain
+// that must precede another in the same phase registers after it.
+func (m *Manager) Register(name string, phase Phase, handler func() error) {
 	if m.shutdownStarted.Load() {
-		log.Warn("[Shutdown] RegisterHandler called after shutdown started - handler may not run")
+		log.Warnf("[Shutdown] Register(%s) called after shutdown started - handler may not run", name)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.handlers = append(m.handlers, handler)
+	entry := handlerEntry{name: name, phase: phase, seq: len(m.handlers), handle: handler}
+	m.handlers = append(m.handlers, entry)
+	slices.SortFunc(m.handlers, func(a, b handlerEntry) int {
+		return cmp.Or(
+			cmp.Compare(a.phase, b.phase),
+			cmp.Compare(b.seq, a.seq),
+		)
+	})
 }
 
 func (m *Manager) WaitForShutdown() {
@@ -60,13 +82,13 @@ func (m *Manager) WaitForShutdown() {
 	m.shutdown()
 }
 
-func (m *Manager) executeHandler(handler func() error, index int) (err error) {
+func (m *Manager) executeHandler(entry handlerEntry) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("[Shutdown] Handler %d panicked: %v", index, r)
+			log.Errorf("[Shutdown] Handler %q panicked: %v", entry.name, r)
 		}
 	}()
-	return handler()
+	return entry.handle()
 }
 
 func (m *Manager) shutdown() {
@@ -79,24 +101,24 @@ func (m *Manager) shutdown() {
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
-		m.mu.Lock()
-		handlers := make([]func() error, len(m.handlers))
+		m.mu.RLock()
+		handlers := make([]handlerEntry, len(m.handlers))
 		copy(handlers, m.handlers)
-		m.mu.Unlock()
+		m.mu.RUnlock()
 
-		for i := len(handlers) - 1; i >= 0; i-- {
+		for _, entry := range handlers {
 			hCtx, hCancel := context.WithTimeout(ctx, handlerTimeout)
 			done := make(chan error, 1)
-			go func(h func() error, idx int) {
-				done <- m.executeHandler(h, idx)
-			}(handlers[i], i)
+			go func(e handlerEntry) {
+				done <- m.executeHandler(e)
+			}(entry)
 
 			select {
 			case <-hCtx.Done():
-				log.Warnf("[Shutdown] Handler %d timeout, skipping", i)
+				log.Warnf("[Shutdown] Handler %q timed out, skipping", entry.name)
 			case err := <-done:
 				if err != nil {
-					log.Errorf("[Shutdown] Handler %d error: %v", i, err)
+					log.Errorf("[Shutdown] Handler %q error: %v", entry.name, err)
 				}
 			}
 			hCancel()
