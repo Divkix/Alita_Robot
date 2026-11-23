@@ -571,7 +571,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 		}}}
 	})
-	changeInfoChecks := []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
+	changeInfoChecks := []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired), helpers.CanUserChangeInfo()}
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "filter",
 		Aliases:        []string{"addfilter"},
@@ -586,17 +586,17 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 		Name:           "filters",
 		PMGroupArg:     helpers.PMGroupArgNone,
 		Disableable:    true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(filtersModule.filtersList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:       "stopall",
 		PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			groupOnlyChatCheck,
-			func(c *helpers.CommandContext) bool {
+			helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 				// An empty list answers before ownership is checked.
-				return len(db_filters.GetFiltersList(c.Chat.Id)) == 0 || helpers.RequireUserOwner()(c)
-			},
+				return len(db_filters.GetFiltersList(c.Chat.Id)) == 0 || helpers.RequireUserOwner().Run(c)
+			}),
 		},
 	}, pipelineHandler(filtersModule.rmAllFilters))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters"), filtersModule.filtersButtonHandler))

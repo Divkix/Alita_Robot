@@ -370,8 +370,8 @@ func escapeLegacyMarkdown(s string) string {
 	return legacyMarkdownEscaper.Replace(s)
 }
 
-func purgeChecks() []helpers.CheckFunc {
-	return []helpers.CheckFunc{helpers.RequireGroup(),
+func purgeChecks() []helpers.Check {
+	return []helpers.Check{helpers.RequireGroup(),
 		helpers.RequireBotAdmin(),
 		helpers.CanBotDelete(),
 		helpers.RequireUserAdmin(),

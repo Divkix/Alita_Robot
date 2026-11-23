@@ -370,7 +370,7 @@ func (moduleStruct) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error
 
 func loadCommandsMenu(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "commands", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "commands", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, DefaultHelpRegistry().commandsMenu)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(commandsMenuNamespace+"|"), DefaultHelpRegistry().commandsMenuCallback))
 }

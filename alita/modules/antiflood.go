@@ -580,7 +580,7 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(antifloodModule.setFloodDeleter))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "flood", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(antifloodModule.flood))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 }

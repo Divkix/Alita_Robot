@@ -2144,7 +2144,7 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 		desc := helpers.CommandDescriptor{
 			Name:           cfg.name,
 			PMGroupArg:     helpers.PMGroupArgOwn,
-			RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)},
+			RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminNotRequired)},
 		}
 		if cfg.setting != nil {
 			desc.RequiredChecks = declaredSettingChecks(cfg.setting)

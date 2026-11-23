@@ -53,18 +53,137 @@ func buildCommandContext(b *gotgbot.Bot, ctx *ext.Context, requireUser bool) (*C
 	}, nil
 }
 
+// CheckFunc is the runnable half of a Check: it replies on refusal and
+// returns whether the command may run.
 type CheckFunc func(c *CommandContext) bool
+
+// CheckKind classifies what a Check gates on, so the command manifest can
+// derive whether any member-usable form of a command exists without running
+// the opaque CheckFunc.
+type CheckKind int
+
+const (
+	// CheckKindAny gates on neither role nor identity: chat shape, connection
+	// state, federation membership, argument shape. A member can pass it.
+	CheckKindAny CheckKind = iota
+	// CheckKindMember additionally requires an identifiable user or a group,
+	// never an admin role.
+	CheckKindMember
+	// CheckKindBotTeam restricts to the bot owner, developers, sudo users or
+	// the bot's own admin status: invisible to group members either way.
+	CheckKindBotTeam
+	// CheckKindAdmin requires a group admin role (user admin, owner, a
+	// connected/named group's admin, a CanUser* right, or a setting declared
+	// with an admin Right).
+	CheckKindAdmin
+	// CheckKindUnknown is for checks whose kind was not declared. It counts
+	// as admin-gated so an unlabeled check can never leak a command into the
+	// member menu; declare the kind instead of leaving this.
+	CheckKindUnknown
+)
+
+// checkKindAdminOnly reports whether a check of this kind can only pass for
+// an admin (or the bot team), never for a plain member.
+func checkKindAdminOnly(kind CheckKind) bool {
+	switch kind {
+	case CheckKindAny, CheckKindMember:
+		return false
+	default:
+		return true
+	}
+}
+
+// Check is one RequiredChecks entry: the runnable check plus the CheckKind
+// the command manifest derives admin-only visibility from. Declare checks
+// through the helpers.Check* constructors or helpers.NewCheck; a bare
+// CheckFunc literal has no kind and must not appear in RequiredChecks.
+type Check struct {
+	Kind CheckKind
+	Run  CheckFunc
+}
+
+// NewCheck pairs run with kind. Use the CheckKind constants; CheckKindUnknown
+// keeps the command out of the member menu.
+func NewCheck(kind CheckKind, run CheckFunc) Check {
+	return Check{Kind: kind, Run: run}
+}
+
+// adminOnly reports whether a plain member can never run the command: one
+// admin-, bot-team- or unknown-gated check is enough, since every check in
+// RequiredChecks must pass.
+func adminOnly(checks []Check) bool {
+	for _, check := range checks {
+		if checkKindAdminOnly(check.Kind) {
+			return true
+		}
+	}
+	return false
+}
+
+// CommandEntry is the manifest record WrapCommand writes once per command
+// name (aliases included): the module that registered it and whether the
+// /commands menu shows it to members only.
+type CommandEntry struct {
+	// Module is the registered module name ("Bans", "AntiRaid"), not the
+	// lowercase locale key; callers lowercase it.
+	Module string
+	// AdminOnly is the menu's member-visibility flag: derived from
+	// RequiredChecks unless the descriptor set AdminOnlySet.
+	AdminOnly bool
+}
+
+var (
+	commandManifestMu sync.Mutex
+	commandManifest   = map[string]CommandEntry{}
+	// currentCommandModule is the module whose loader is running; set by
+	// loadModule in alita/modules, read by WrapCommand.
+	currentCommandModule string
+)
+
+// SetCommandModule records the module a loader is registering commands for.
+// It is set by the module loader wrapper, not by callers.
+func SetCommandModule(name string) { currentCommandModule = name }
+
+// CurrentCommandModule returns the module whose loader is running, or ""
+// outside one (direct LoadXxx calls in tests).
+func CurrentCommandModule() string { return currentCommandModule }
+
+// RecordCommand stores name's manifest entry. WrapCommand calls it for the
+// command name and every alias.
+func RecordCommand(name string, entry CommandEntry) {
+	commandManifestMu.Lock()
+	defer commandManifestMu.Unlock()
+	commandManifest[strings.ToLower(name)] = entry
+}
+
+// CommandManifest returns a copy of the recorded command→module manifest.
+func CommandManifest() map[string]CommandEntry {
+	commandManifestMu.Lock()
+	defer commandManifestMu.Unlock()
+	out := make(map[string]CommandEntry, len(commandManifest))
+	for k, v := range commandManifest {
+		out[k] = v
+	}
+	return out
+}
 
 type CommandDescriptor struct {
 	Name    string
 	Aliases []string
 	Group   int
 	// Checks require an identifiable user. With no checks, User may be nil.
-	RequiredChecks []CheckFunc
+	RequiredChecks []Check
 	Disableable    bool
 	// PMGroupArg lets the command name its group as the first argument in
 	// PM. The group is resolved before RequiredChecks.
 	PMGroupArg PMGroupArg
+	// AdminOnlySet marks AdminOnly as an explicit declaration instead of the
+	// value derived from RequiredChecks. Set it only when the checks cannot
+	// express the menu's member visibility (a member-usable command the menu
+	// hides, or an admin-gated command a member path makes look open); record
+	// why next to the descriptor.
+	AdminOnlySet bool
+	AdminOnly    bool
 }
 
 // PMGroupArg says whether a command takes its group as the first argument in
@@ -117,6 +236,11 @@ func WrapCommand(
 	handler func(c *CommandContext) error,
 ) {
 	names := append([]string{desc.Name}, desc.Aliases...)
+	entryAdminOnly := desc.AdminOnly
+	if !desc.AdminOnlySet {
+		entryAdminOnly = adminOnly(desc.RequiredChecks)
+	}
+	entry := CommandEntry{Module: currentCommandModule, AdminOnly: entryAdminOnly}
 	h := func(b *gotgbot.Bot, ctx *ext.Context) (result error) {
 		defer error_handling.RecoverFromUpdatePanic(ctx, "command_pipeline", "WrapCommand")
 		// Runs before the recover above, so a panic after a swap ends groups too.
@@ -141,7 +265,7 @@ func WrapCommand(
 		}
 		checkedChat := c.Chat
 		for _, check := range desc.RequiredChecks {
-			if !check(c) {
+			if !check.Run(c) {
 				return ext.EndGroups
 			}
 			// A PM connection check may resolve a different target. Honour that
@@ -161,6 +285,7 @@ func WrapCommand(
 		if desc.Disableable {
 			AddCmdToDisableable(name)
 		}
+		RecordCommand(name, entry)
 	}
 }
 
@@ -224,18 +349,22 @@ const (
 // RequireConnectedAdmin resolves the current group, or the named/connected group
 // in PM, requiring its admin (and the bot when requested). Connection refusals
 // keep their bot-before-user ordering. Both context chat fields follow the target.
-func RequireConnectedAdmin(botAdmin BotAdminRequirement) CheckFunc {
+func RequireConnectedAdmin(botAdmin BotAdminRequirement) Check {
 	return requireConnectedChat(true, bool(botAdmin))
 }
 
 // RequireConnectedMember resolves the same target without requiring user admin.
 // PM membership and stale connections are checked by IsUserConnected.
-func RequireConnectedMember(botAdmin BotAdminRequirement) CheckFunc {
+func RequireConnectedMember(botAdmin BotAdminRequirement) Check {
 	return requireConnectedChat(false, bool(botAdmin))
 }
 
-func requireConnectedChat(requireUserAdmin, requireBotAdmin bool) CheckFunc {
-	return func(c *CommandContext) bool {
+func requireConnectedChat(requireUserAdmin, requireBotAdmin bool) Check {
+	kind := CheckKindMember
+	if requireUserAdmin {
+		kind = CheckKindAdmin
+	}
+	return NewCheck(kind, func(c *CommandContext) bool {
 		chat := chat_status.IsUserConnected(c.Bot, c.Ctx, requireUserAdmin, requireBotAdmin)
 		if chat == nil {
 			return false
@@ -243,27 +372,27 @@ func requireConnectedChat(requireUserAdmin, requireBotAdmin bool) CheckFunc {
 		c.Chat = chat
 		c.Ctx.EffectiveChat = chat
 		return true
-	}
+	})
 }
 
 // RequireBotOwner silently refuses everyone except the configured bot owner.
-func RequireBotOwner() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireBotOwner() Check {
+	return NewCheck(CheckKindBotTeam, func(c *CommandContext) bool {
 		return c.User != nil && c.User.Id == config.AppConfig.OwnerId
-	}
+	})
 }
 
 // RequireBotDeveloper accepts the bot owner and developers, but not sudo users.
 // Bot-team checks deliberately send no permission refusal.
-func RequireBotDeveloper() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireBotDeveloper() Check {
+	return NewCheck(CheckKindBotTeam, func(c *CommandContext) bool {
 		return c.User != nil && (c.User.Id == config.AppConfig.OwnerId || devs.GetTeamMemInfo(c.User.Id).IsDev)
-	}
+	})
 }
 
 // RequireBotTeamMember silently accepts the bot owner, developers and sudo users.
-func RequireBotTeamMember() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireBotTeamMember() Check {
+	return NewCheck(CheckKindBotTeam, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -272,41 +401,43 @@ func RequireBotTeamMember() CheckFunc {
 		}
 		member := devs.GetTeamMemInfo(c.User.Id)
 		return member.IsDev || member.Sudo
-	}
+	})
 }
 
 // RequireIdentifiedUser preserves identity-only gates on commands with no role check.
-func RequireIdentifiedUser() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireIdentifiedUser() Check {
+	return NewCheck(CheckKindMember, func(c *CommandContext) bool {
 		if c.User != nil {
 			return true
 		}
 		return chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-	}
+	})
 }
 
-func RequireGroup() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireGroup() Check {
+	return NewCheck(CheckKindMember, func(c *CommandContext) bool {
 		result := chat_status.RequireGroup(c.Bot, c.Ctx, nil)
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		}
 		return result
-	}
+	})
 }
 
-func RequireBotAdmin() CheckFunc {
-	return func(c *CommandContext) bool {
+// RequireBotAdmin gates on the bot's own admin status, not the caller's role:
+// a member can run a command whose only checks are this and member-safe ones.
+func RequireBotAdmin() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		result := chat_status.IsBotAdminForUpdate(c.Bot, c.Ctx, nil)
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		}
 		return result
-	}
+	})
 }
 
-func RequireUserAdmin() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireUserAdmin() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -319,7 +450,7 @@ func RequireUserAdmin() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		}
 		return result
-	}
+	})
 }
 
 // anonProofSent reports whether a chat_status check has already answered an
@@ -333,8 +464,8 @@ func anonProofSent(c *CommandContext) bool {
 	return s != nil && s.IsAnonymousAdmin()
 }
 
-func CanUserPromote() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanUserPromote() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -345,11 +476,11 @@ func CanUserPromote() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		}
 		return result
-	}
+	})
 }
 
-func CanBotPromote() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanBotPromote() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
 			return m.CanPromoteMembers
 		})
@@ -357,11 +488,11 @@ func CanBotPromote() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_promote_error", "")
 		}
 		return result
-	}
+	})
 }
 
-func CanUserPin() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanUserPin() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -372,11 +503,11 @@ func CanUserPin() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_user_error", "")
 		}
 		return result
-	}
+	})
 }
 
-func CanBotPin() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanBotPin() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
 			return m.CanPinMessages
 		})
@@ -384,11 +515,11 @@ func CanBotPin() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_bot_error", "")
 		}
 		return result
-	}
+	})
 }
 
-func CanInvite() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanInvite() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		if c.Msg == nil {
 			return false
 		}
@@ -402,11 +533,11 @@ func CanInvite() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, key, "")
 		}
 		return result
-	}
+	})
 }
 
-func CanUserChangeInfo() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanUserChangeInfo() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -421,11 +552,11 @@ func CanUserChangeInfo() CheckFunc {
 			)
 		}
 		return result
-	}
+	})
 }
 
-func CanBotChangeInfo() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanBotChangeInfo() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
 			return m.CanChangeInfo
 		})
@@ -433,11 +564,11 @@ func CanBotChangeInfo() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_change_info_error", "")
 		}
 		return result
-	}
+	})
 }
 
-func CanUserRestrict() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanUserRestrict() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -448,11 +579,11 @@ func CanUserRestrict() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		}
 		return result
-	}
+	})
 }
 
-func CanBotRestrict() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanBotRestrict() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
 			return m.CanRestrictMembers
 		})
@@ -460,11 +591,11 @@ func CanBotRestrict() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		}
 		return result
-	}
+	})
 }
 
-func RequireUserOwner() CheckFunc {
-	return func(c *CommandContext) bool {
+func RequireUserOwner() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -473,11 +604,11 @@ func RequireUserOwner() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		}
 		return result
-	}
+	})
 }
 
-func CanUserDelete() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanUserDelete() Check {
+	return NewCheck(CheckKindAdmin, func(c *CommandContext) bool {
 		if c.User == nil {
 			return false
 		}
@@ -488,11 +619,11 @@ func CanUserDelete() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		}
 		return result
-	}
+	})
 }
 
-func CanBotDelete() CheckFunc {
-	return func(c *CommandContext) bool {
+func CanBotDelete() Check {
+	return NewCheck(CheckKindAny, func(c *CommandContext) bool {
 		result := chat_status.BotHasPermissionForUpdate(c.Bot, c.Ctx, nil, func(m *gotgbot.MergedChatMember) bool {
 			return m.CanDeleteMessages
 		})
@@ -500,13 +631,13 @@ func CanBotDelete() CheckFunc {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		}
 		return result
-	}
+	})
 }
 
 // RunChecks runs ordered checks until the first refusal.
-func RunChecks(c *CommandContext, checks []CheckFunc) bool {
+func RunChecks(c *CommandContext, checks []Check) bool {
 	for _, check := range checks {
-		if !check(c) {
+		if !check.Run(c) {
 			return false
 		}
 	}

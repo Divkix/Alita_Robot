@@ -831,7 +831,7 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "antiraid", PMGroupArg: helpers.PMGroupArgOwn, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(antiRaidModule.antiraid))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "raidtime", PMGroupArg: helpers.PMGroupArgOwn,

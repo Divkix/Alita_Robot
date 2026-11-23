@@ -680,19 +680,19 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64, token string) gotgbot
 }
 
 // backupImportOwnerCheck preserves import's custom HTML creator-only refusal.
-func backupImportOwnerCheck(c *helpers.CommandContext) bool {
+var backupImportOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id) {
 		return true
 	}
 	text, _ := c.Tr.GetString("backup_import_creator_only")
 	_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	return false
-}
+})
 
 var (
 	backupExportDesc = helpers.CommandDescriptor{
 		Name: "export",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
@@ -700,7 +700,7 @@ var (
 	}
 	backupImportDesc = helpers.CommandDescriptor{
 		Name: "import",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			backupImportOwnerCheck,
@@ -708,7 +708,7 @@ var (
 	}
 	backupResetDesc = helpers.CommandDescriptor{
 		Name: "reset",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),
 			helpers.RequireUserOwner(),

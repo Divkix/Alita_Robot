@@ -417,23 +417,23 @@ func LoadApprovals(dispatcher *ext.Dispatcher) {
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approve", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.approveUser))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unapprove", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.unapproveUser))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approval", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.checkApprovalStatus))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approved", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.listApprovedUsers))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unapproveall", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
+		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
 	}, pipelineHandler(approvalsModule.unapproveAllHandler))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))
