@@ -65,7 +65,7 @@ func getGroupLanguage(GroupID int64) string {
 }
 
 func getGroupLanguageContext(ctx context.Context, groupID int64) string {
-	return getCachedLanguage(ctx, cache.CacheKey("chat_lang", groupID), &models.Chat{}, "chat_id", groupID)
+	return getCachedLanguage(ctx, chats.ChatLangProjection.Key(groupID), &models.Chat{}, "chat_id", groupID)
 }
 
 func getUserLanguage(userID int64) string {
@@ -73,7 +73,7 @@ func getUserLanguage(userID int64) string {
 }
 
 func getUserLanguageContext(ctx context.Context, userID int64) string {
-	return getCachedLanguage(ctx, cache.CacheKey("user_lang", userID), &models.User{}, "user_id", userID)
+	return getCachedLanguage(ctx, user.UserLangProjection.Key(userID), &models.User{}, "user_id", userID)
 }
 
 func getCachedLanguage(ctx context.Context, key string, model any, idColumn string, id int64) string {
@@ -112,8 +112,8 @@ func ChangeUserLanguage(UserID int64, lang string) error {
 			log.Errorf("[Database] ChangeUserLanguage (create): %v - %d", err, UserID)
 			return err
 		}
-		cache.DeleteCache(cache.CacheKey("user_lang", UserID))
-		cache.DeleteCache(cache.CacheKey("user", UserID))
+		cache.DeleteCache(user.UserLangProjection.Key(UserID))
+		cache.DeleteCache(user.UserProjection.Key(UserID))
 		log.Infof("[Database] ChangeUserLanguage: created new user %d with language %s", UserID, lang)
 		return nil
 	} else if userc.Language == lang {
@@ -125,8 +125,8 @@ func ChangeUserLanguage(UserID int64, lang string) error {
 		log.Errorf("[Database] ChangeUserLanguage: %v - %d", err, UserID)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("user_lang", UserID))
-	cache.DeleteCache(cache.CacheKey("user", UserID))
+	cache.DeleteCache(user.UserLangProjection.Key(UserID))
+	cache.DeleteCache(user.UserProjection.Key(UserID))
 	log.Infof("[Database] ChangeUserLanguage: %d", UserID)
 	return nil
 }
@@ -144,9 +144,9 @@ func ChangeGroupLanguage(GroupID int64, lang string) error {
 			log.Errorf("[Database] ChangeGroupLanguage (create): %v - %d", err, GroupID)
 			return err
 		}
-		cache.DeleteCache(cache.CacheKey("chat_lang", GroupID))
-		cache.DeleteCache(cache.CacheKey("chat_settings", GroupID))
-		cache.DeleteCache(cache.CacheKey("chat", GroupID))
+		cache.DeleteCache(chats.ChatLangProjection.Key(GroupID))
+		cache.DeleteCache(chats.ChatSettingsProjection.Key(GroupID))
+		cache.DeleteCache(chats.ChatProjection.Key(GroupID))
 		log.Infof("[Database] ChangeGroupLanguage: created new chat %d with language %s", GroupID, lang)
 		return nil
 	} else if groupc.Language == lang {
@@ -158,9 +158,9 @@ func ChangeGroupLanguage(GroupID int64, lang string) error {
 		log.Errorf("[Database] ChangeGroupLanguage: %v - %d", err, GroupID)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("chat_lang", GroupID))
-	cache.DeleteCache(cache.CacheKey("chat_settings", GroupID))
-	cache.DeleteCache(cache.CacheKey("chat", GroupID))
+	cache.DeleteCache(chats.ChatLangProjection.Key(GroupID))
+	cache.DeleteCache(chats.ChatSettingsProjection.Key(GroupID))
+	cache.DeleteCache(chats.ChatProjection.Key(GroupID))
 	log.Infof("[Database] ChangeGroupLanguage: %d", GroupID)
 	return nil
 }
