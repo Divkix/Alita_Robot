@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -34,8 +35,6 @@ const (
 	// locks (5/6), so a blocked message is removed before they look at it.
 	probationHandlerGroup = 2
 
-	probationRedisPrefix  = "alita:probation:"
-	probationRedisTimeout = 2 * time.Second
 	// probationRetention is how long a member row may outlive its probation:
 	// past the longest allowed time every row has run out.
 	probationRetention = models.ProbationDurationMax
@@ -66,7 +65,7 @@ var (
 var probationBlockNames = []string{probation.BlockLinks, probation.BlockForwards, probation.BlockMedia}
 
 func probationRedisKey(chatID, userID int64) string {
-	return probationRedisPrefix + strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
+	return opstate.Key("probation", chatID, userID)
 }
 
 // startProbation puts a member who just joined on probation when the chat has
@@ -120,15 +119,7 @@ func endProbationOnLeave(ctx context.Context, chatID, userID int64) {
 }
 
 func probationDropCount(chatID, userID int64) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), probationRedisTimeout)
-	defer cancel()
-	if err := rdb.Del(ctx, probationRedisKey(chatID, userID)).Err(); err != nil {
-		log.WithFields(log.Fields{"chat_id": chatID, "user_id": userID, "error": err}).Warn("[Probation] could not drop the message count")
-	}
+	opstate.Delete(probationRedisKey(chatID, userID))
 }
 
 // probationCount records text as one of userID's messages and returns how
@@ -136,22 +127,15 @@ func probationDropCount(chatID, userID int64) {
 // probation, so nothing is left behind. ok is false without Redis, or when
 // Redis fails: the message is then not counted and probation ends on time.
 func probationCount(chatID, userID int64, text string, ttl time.Duration) (count int64, ok bool) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
+	if cache.GetRedisClient() == nil {
 		return 0, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), probationRedisTimeout)
-	defer cancel()
-	key := probationRedisKey(chatID, userID)
-	pipe := rdb.TxPipeline()
-	pipe.SAdd(ctx, key, probationTextHash(text))
-	pipe.Expire(ctx, key, max(ttl, time.Minute))
-	card := pipe.SCard(ctx, key)
-	if _, err := pipe.Exec(ctx); err != nil {
+	count, err := opstate.MembersAdd(probationRedisKey(chatID, userID), probationTextHash(text), max(ttl, time.Minute))
+	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chatID, "user_id": userID, "error": err}).Warn("[Probation] could not count the message")
 		return 0, false
 	}
-	return card.Val(), true
+	return count, true
 }
 
 // probationTextHash identifies a message by its text with case and spacing

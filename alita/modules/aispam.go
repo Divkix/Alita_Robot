@@ -16,7 +16,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -33,6 +32,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -548,80 +548,27 @@ func aispamBreakerRecordSuccess(chatID int64) {
 // about a message is stored anywhere.
 //
 
-// aispamHistoryScript reads a sender's window and records this message in one
-// atomic round trip, so two replicas cannot interleave a read with a write. It
-// answers with the number of messages already inside the window, followed by
-// the recorded texts oldest first.
-//
-// ponytail: the count saturates at aispamHistoryMaxTimestamps, so a 200+/hour
-// poster reads as 200. It is a profile hint, and antiflood is what punishes
-// volume.
-var aispamHistoryScript = redis.NewScript(`
-local texts = redis.call('LRANGE', KEYS[2], 0, -1)
-redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[3])
-local prior = redis.call('ZCARD', KEYS[1])
-redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
-redis.call('ZREMRANGEBYRANK', KEYS[1], 0, -tonumber(ARGV[6]) - 1)
-redis.call('EXPIRE', KEYS[1], ARGV[4])
-if ARGV[5] ~= '' then
-	redis.call('RPUSH', KEYS[2], ARGV[5])
-	redis.call('LTRIM', KEYS[2], -tonumber(ARGV[7]), -1)
-end
-redis.call('EXPIRE', KEYS[2], ARGV[4])
-local out = {prior}
-for i = 1, #texts do out[#out + 1] = texts[i] end
-return out
-`)
-
-// aispamMessagesKey holds the window's timestamps. Its members are message ids,
-// so a redelivered update is counted once rather than twice.
-func aispamMessagesKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:aispam:msgs:%d:%d", chatID, userID)
-}
-
-func aispamTextsKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:aispam:texts:%d:%d", chatID, userID)
-}
-
 // observeAISpamSender returns the sender's prior texts and how many messages
 // they posted in the last hour, this one included, then records this message.
 // Losing Redis costs the window and not the check: the message is still judged,
 // with no history and a count of one.
+//
+// ponytail: the count saturates at aispamHistoryMaxTimestamps, so a 200+/hour
+// poster reads as 200. It is a profile hint, and antiflood is what punishes
+// volume.
 func observeAISpamSender(chatID, userID, messageID int64, text string, now time.Time) ([]string, int) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
+	if cache.GetRedisClient() == nil {
 		return nil, 1
 	}
 
-	millis := now.UnixMilli()
-	recorded, err := aispamHistoryScript.Run(
-		cache.Context,
-		rdb,
-		[]string{aispamMessagesKey(chatID, userID), aispamTextsKey(chatID, userID)},
-		millis,
-		strconv.FormatInt(messageID, 10),
-		millis-aispamHistoryWindow.Milliseconds(),
-		int(aispamHistoryWindow.Seconds()),
-		text,
-		aispamHistoryMaxTimestamps,
-		aispamHistoryTexts,
-	).Result()
+	member := strconv.FormatInt(messageID, 10)
+	prior, recent, err := opstate.WindowAdd(
+		opstate.Key("aispam:msgs", chatID, userID),
+		now, aispamHistoryWindow, member, text, aispamHistoryMaxTimestamps, aispamHistoryTexts,
+	)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chatID, "error": err}).Debug("[AISpam] sender history unavailable")
 		return nil, 1
-	}
-
-	values, ok := recorded.([]any)
-	if !ok || len(values) == 0 {
-		return nil, 1
-	}
-	prior, _ := values[0].(int64)
-
-	recent := make([]string, 0, len(values)-1)
-	for _, value := range values[1:] {
-		if priorText, ok := value.(string); ok {
-			recent = append(recent, priorText)
-		}
 	}
 	return recent, int(prior) + 1
 }
