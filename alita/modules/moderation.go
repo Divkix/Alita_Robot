@@ -386,10 +386,6 @@ func (c *moderationCtx) lift(t *target, mode punishment.Mode) error {
 	})
 }
 
-// punisher is the punishment.Apply seam watchers take so tests can observe
-// their decision.
-type punisher func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error)
-
 // applyPunishment is punishment.Apply for an action that never asks for one
 // the module refuses: a refusal is an error too, punishment.ErrKickTargetBanned
 // for a kick of a banned user, which only a stale button can ask for.

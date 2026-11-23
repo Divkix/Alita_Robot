@@ -3,22 +3,17 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
-	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 func TestWarnLimitDispatcherDecidesPunishment(t *testing.T) {
@@ -26,20 +21,21 @@ func TestWarnLimitDispatcherDecidesPunishment(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		settings models.WarnSettings
-		mode     punishment.Mode
+		method   string
 		duration time.Duration
+		timed    bool
 		text     string
 	}{
-		{"kick", models.WarnSettings{WarnMode: "kick"}, punishment.Kick, 0, "kicked"},
-		{"mute", models.WarnSettings{WarnMode: "mute"}, punishment.Mute, 0, "Muted"},
-		{"ban", models.WarnSettings{WarnMode: "ban"}, punishment.Ban, 0, "banned"},
-		{"tban", models.WarnSettings{WarnMode: "tban", WarnActionTime: 86400}, punishment.Ban, 24 * time.Hour, "banned for 1d"},
-		{"tmute", models.WarnSettings{WarnMode: "tmute", WarnActionTime: 7200}, punishment.Mute, 2 * time.Hour, "muted for 2h"},
-		{"longest", models.WarnSettings{WarnMode: "tban", WarnActionTime: 366 * 86400}, punishment.Ban, 366 * 24 * time.Hour, "banned for 366d"},
+		{"kick", models.WarnSettings{WarnMode: "kick"}, "unbanChatMember", 0, false, "kicked"},
+		{"mute", models.WarnSettings{WarnMode: "mute"}, "restrictChatMember", 0, false, "Muted"},
+		{"ban", models.WarnSettings{WarnMode: "ban"}, "banChatMember", 0, false, "banned"},
+		{"tban", models.WarnSettings{WarnMode: "tban", WarnActionTime: 86400}, "banChatMember", 24 * time.Hour, true, "banned for 1d"},
+		{"tmute", models.WarnSettings{WarnMode: "tmute", WarnActionTime: 7200}, "restrictChatMember", 2 * time.Hour, true, "muted for 2h"},
+		{"longest", models.WarnSettings{WarnMode: "tban", WarnActionTime: 366 * 86400}, "banChatMember", 366 * 24 * time.Hour, true, "banned for 366d"},
 		// Rows without a usable duration keep the one-hour fallback.
-		{"legacy zero", models.WarnSettings{WarnMode: "tmute"}, punishment.Mute, time.Hour, "muted for 1h"},
-		{"too short", models.WarnSettings{WarnMode: "tban", WarnActionTime: 30}, punishment.Ban, time.Hour, "banned for 1h"},
-		{"too long", models.WarnSettings{WarnMode: "tmute", WarnActionTime: 366*86400 + 1}, punishment.Mute, time.Hour, "muted for 1h"},
+		{"legacy zero", models.WarnSettings{WarnMode: "tmute"}, "restrictChatMember", time.Hour, true, "muted for 1h"},
+		{"too short", models.WarnSettings{WarnMode: "tban", WarnActionTime: 30}, "banChatMember", time.Hour, true, "banned for 1h"},
+		{"too long", models.WarnSettings{WarnMode: "tmute", WarnActionTime: 366*86400 + 1}, "restrictChatMember", time.Hour, true, "muted for 1h"},
 	} {
 		// The bot's own warns (blacklists) punish as the bot.
 		for _, issuer := range []string{"admin", "bot"} {
@@ -54,29 +50,41 @@ func TestWarnLimitDispatcherDecidesPunishment(t *testing.T) {
 				if issuer == "bot" {
 					warnedBy, actorID = f.bot.Id, 0
 				}
-				var requests []punishment.Request
-				d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-				d.AddHandlerToGroup(handlers.NewMessage(message.All, func(bot *gotgbot.Bot, ctx *ext.Context) error {
-					return warnsModule.warnThisUserWithPunisher(bot, ctx, f.member.Id, "limit reached", "warn", models.WarnEntry{WarnedBy: warnedBy},
-						func(ctx context.Context, bot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
-							requests = append(requests, request)
-							return punishment.Apply(ctx, bot, request)
-						})
-				}), 0)
 				for i := range 2 {
-					if err := d.ProcessUpdate(f.bot, newWarnReplyContext(f.bot, f.chat, f.admin, f.member, "/warn limit reached").Update, nil); err != nil {
-						t.Fatal(err)
+					ctx := newWarnReplyContext(f.bot, f.chat, f.admin, f.member, "/warn limit reached")
+					before := time.Now().Unix()
+					err := warnsModule.warnThisUser(f.bot, ctx, f.member.Id, "limit reached", "warn", models.WarnEntry{WarnedBy: warnedBy})
+					after := time.Now().Unix()
+					if err != ext.EndGroups {
+						t.Fatalf("warnThisUser() error = %v, want EndGroups", err)
 					}
-					if i == 0 && len(requests) != 0 {
-						t.Fatalf("below the limit requests = %+v, want none", requests)
+					calls := punishmentCalls(f.client)
+					if i == 0 {
+						if len(calls) != 0 {
+							t.Fatalf("below the limit punishment calls = %+v, want none", calls)
+						}
+						continue
 					}
-				}
-				want := punishment.Request{
-					ChatID: f.chat.Id, Target: punishment.Target{ID: f.member.Id}, Mode: tc.mode, Duration: tc.duration,
-					Source: models.BanSourceWarn, Reason: "limit reached", ActorID: actorID,
-				}
-				if len(requests) != 1 || requests[0] != want {
-					t.Fatalf("punishment decisions = %+v, want [%+v]", requests, want)
+					if len(calls) != 1 || calls[0].Method != tc.method {
+						t.Fatalf("punishment calls = %+v, want one %s", calls, tc.method)
+					}
+					assertParams(t, calls[0], targetParams(f.chat.Id, f.member.Id))
+					if !tc.timed {
+						if calls[0].Params["until_date"] != nil {
+							t.Fatalf("%s params = %#v, want no until_date", calls[0].Method, calls[0].Params)
+						}
+					} else {
+						secs := int64(tc.duration / time.Second)
+						if until := untilDateParam(t, calls[0]); until < before+secs || until > after+secs {
+							t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, secs, before+secs, after+secs)
+						}
+					}
+					if tc.method == "banChatMember" {
+						record := singleBanRecord(t, f.chat.Id)
+						if record.Source != models.BanSourceWarn || record.BannedBy != actorID || record.Reason != "limit reached" {
+							t.Fatalf("warn-limit record = %+v", record)
+						}
+					}
 				}
 				if numWarns, _ := warns.GetWarns(f.member.Id, f.chat.Id); numWarns != 0 {
 					t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
@@ -95,14 +103,13 @@ func TestWarnLimitExemptsAdmins(t *testing.T) {
 	if err := warns.SetWarnLimit(f.chat.Id, 1); err != nil {
 		t.Fatal(err)
 	}
-	called := false
-	err := warnsModule.warnThisUserWithPunisher(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/warn"), f.admin.Id, "", "warn", warnIssuer(newModuleMessageContext(f.bot, f.chat, f.admin, "/warn")),
-		func(context.Context, *gotgbot.Bot, punishment.Request) (punishment.Result, error) {
-			called = true
-			return punishment.Result{}, nil
-		})
-	if err != ext.EndGroups || called {
-		t.Fatalf("warn of an admin: err = %v, punished = %v, want EndGroups and no punishment", err, called)
+	ctx := newModuleMessageContext(f.bot, f.chat, f.admin, "/warn")
+	err := warnsModule.warnThisUser(f.bot, ctx, f.admin.Id, "", "warn", warnIssuer(ctx))
+	if err != ext.EndGroups {
+		t.Fatalf("warn of an admin: err = %v, want EndGroups", err)
+	}
+	if calls := punishmentCalls(f.client); len(calls) != 0 {
+		t.Fatalf("admin punished: %+v", calls)
 	}
 }
 
