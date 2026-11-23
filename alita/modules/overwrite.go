@@ -46,7 +46,7 @@ type overwriteNote struct {
 }
 
 func overwriteCacheKey(kind, token string) string {
-	return opstate.Key(kind + "_overwrite", token)
+	return opstate.Key(kind+"_overwrite", token)
 }
 
 func setOverwriteCache(key string, data any) error {

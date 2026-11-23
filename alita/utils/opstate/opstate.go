@@ -24,6 +24,7 @@ package opstate
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -238,7 +239,7 @@ func Consume[T any](key string) (*T, error) {
 	var raw []byte
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		b, err := rdb.GetDel(cache.Context, key).Bytes()
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
 		if err != nil {
@@ -263,7 +264,7 @@ func Peek[T any](key string) (*T, error) {
 	var raw []byte
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		b, err := rdb.Get(cache.Context, key).Bytes()
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
 		if err != nil {
@@ -291,4 +292,3 @@ func NewToken() (string, error) {
 	}
 	return hex.EncodeToString(buf), nil
 }
-
