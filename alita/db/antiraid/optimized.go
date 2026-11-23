@@ -14,7 +14,7 @@ import (
 
 func getAntiRaidSettingsRawContext(ctx context.Context, chatID int64) (*models.AntiRaidSettings, error) {
 	if db.DB == nil {
-		return defaultAntiRaidSettings(chatID), errors.New("database not initialized")
+		return models.DefaultAntiRaidSettings(chatID), errors.New("database not initialized")
 	}
 
 	var settings models.AntiRaidSettings
@@ -24,7 +24,7 @@ func getAntiRaidSettingsRawContext(ctx context.Context, chatID int64) (*models.A
 		First(&settings).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return defaultAntiRaidSettings(chatID), nil
+		return models.DefaultAntiRaidSettings(chatID), nil
 	}
 	if err != nil {
 		log.Errorf("[OptimizedAntiRaidQueries] getAntiRaidSettingsRaw: %v", err)
@@ -39,7 +39,7 @@ func GetAntiRaidSettingsCached(chatID int64) (*models.AntiRaidSettings, error) {
 }
 
 func GetAntiRaidSettingsCachedContext(ctx context.Context, chatID int64) (*models.AntiRaidSettings, error) {
-	cacheKey := cache.CacheKey("antiraid", chatID)
+	cacheKey := SettingsProjection.Key(chatID)
 
 	cached, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLAntiRaid, func(ctx context.Context) (*models.AntiRaidSettings, error) {
 		return getAntiRaidSettingsRawContext(ctx, chatID)

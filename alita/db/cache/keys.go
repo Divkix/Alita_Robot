@@ -28,3 +28,29 @@ func CacheKey(module string, ids ...any) string {
 	}
 	return b.String()
 }
+
+// A Projection is one cache key shape a domain reads, declared once beside the
+// domain's repository. Write paths invalidate through it and readers build
+// their key with Key, so the module name lives in exactly one place. ids are
+// the same arguments CacheKey takes, in the order the key spells them.
+type Projection struct {
+	Name string
+}
+
+// Key returns the cache key for ids, e.g. projection.Key(chatID).
+func (p Projection) Key(ids ...any) string {
+	return CacheKey(p.Name, ids...)
+}
+
+// Keys returns the cache keys for ids, one per projection. Consumers that
+// enumerate a chat's invalidations (backup import) use it; projections of one
+// entity must share the id shape.
+func Keys(projections ...Projection) func(ids ...any) []string {
+	return func(ids ...any) []string {
+		keys := make([]string, len(projections))
+		for i, p := range projections {
+			keys[i] = p.Key(ids...)
+		}
+		return keys
+	}
+}

@@ -15,3 +15,15 @@ type AntiRaidSettings struct {
 func (AntiRaidSettings) TableName() string {
 	return "antiraid_settings"
 }
+
+// DefaultAntiRaidSettings is the row a chat without one reads as: raid
+// window 6 hours, action window 1 hour, auto anti-raid off. Repository
+// loaders and settings declarations consume it.
+func DefaultAntiRaidSettings(chatID int64) *AntiRaidSettings {
+	return &AntiRaidSettings{
+		ChatID:                chatID,
+		RaidTime:              21600,
+		RaidActionTime:        3600,
+		AutoAntiRaidThreshold: 0,
+	}
+}

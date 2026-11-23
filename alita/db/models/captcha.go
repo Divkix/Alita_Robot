@@ -22,6 +22,19 @@ func (CaptchaSettings) TableName() string {
 	return "captcha_settings"
 }
 
+// DefaultCaptchaSettings is the row a chat without one reads as: captcha off,
+// math mode, 2 minute timeout, kick on failure, 3 attempts, join requests
+// off. Repository loaders and settings declarations consume it.
+func DefaultCaptchaSettings(chatID int64) *CaptchaSettings {
+	return &CaptchaSettings{
+		ChatID:        chatID,
+		CaptchaMode:   "math",
+		Timeout:       2,
+		FailureAction: "kick",
+		MaxAttempts:   3,
+	}
+}
+
 type CaptchaAttempts struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserID       int64     `gorm:"column:user_id;not null;uniqueIndex:uk_captcha_user_chat" json:"user_id,omitempty"`

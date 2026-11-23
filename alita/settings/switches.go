@@ -14,7 +14,7 @@ import (
 )
 
 var PrivateNotes = &Declaration{
-	Key: "notes.private_notes", Type: Switch, Default: false, Right: Admin,
+	Key: "notes.private_notes", Type: Switch, Default: models.DefaultNotesSettings(0).Private, Right: Admin,
 	read: func(ctx context.Context, chatID int64) any {
 		row := notes.GetNotes(chatID)
 		if row.ID == 0 {

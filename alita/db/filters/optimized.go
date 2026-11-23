@@ -35,7 +35,7 @@ func GetChatFiltersCached(chatID int64) ([]*models.ChatFilters, error) {
 }
 
 func GetChatFiltersCachedContext(ctx context.Context, chatID int64) ([]*models.ChatFilters, error) {
-	cacheKey := cache.CacheKey("filters_optimized", chatID)
+	cacheKey := OptimizedProjection.Key(chatID)
 
 	cached, err := cache.GetFromCacheOrLoad(ctx, cacheKey, 15*time.Minute, func(ctx context.Context) ([]*models.ChatFilters, error) {
 		return GetChatFiltersOptimizedContext(ctx, chatID)
