@@ -1026,8 +1026,6 @@ blacklists_blacklist_word_too_long: "ये शब्द बहुत लंब�
 blacklists_ls_bl_list_bl: "इस चैट में ये शब्द ब्लैकलिस्ट किए गए हैं:"
 blacklists_ls_bl_no_blacklisted: इस चैट में कोई ब्लैकलिस्ट किए गए शब्द नहीं हैं।
 blacklists_rm_all_bl_ask: "क्या आप वाकई इस चैट से सभी ब्लैकलिस्ट किए गए शब्दों को हटाना चाहते हैं?"
-blacklists_rm_all_bl_button_handler_no: "इस चैट की सभी ब्लैकलिस्ट को हटाना रद्द किया गया ❌"
-blacklists_rm_all_bl_button_handler_yes: "इस चैट से सभी ब्लैकलिस्ट हटा दी गईं ✅"
 blacklists_set_bl_action_changed_mode: "ब्लैकलिस्ट मोड सफलतापूर्वक बदल दिया गया: *%s*"
 blist_action_tban: "ब्लैकलिस्ट मोड %s के लिए tban पर सेट किया गया है।"
 blist_action_tmute: "ब्लैकलिस्ट मोड %s के लिए tmute पर सेट किया गया है।"
@@ -1336,7 +1334,6 @@ filters_none_in_chat: "इस चैट में कोई फ़िल्ट�
 filters_current_in_chat: "इस चैट में वर्तमान फ़िल्टर हैं:"
 filters_clear_all_confirm: "क्या आप वाकई इस चैट से सभी फ़िल्टर हटाना चाहते हैं?"
 filters_clear_all_success: "इस चैट से सभी फ़िल्टर हटा दिए गए ✅"
-filters_clear_all_failed: "इस चैट से सभी फ़िल्टर हटाने में विफल ❌"
 filters_clear_all_cancelled: "इस चैट से सभी फ़िल्टर हटाना रद्द किया गया ❌"
 filters_overwrite_success: "फ़िल्टर सफलतापूर्वक ओवरराइट किया गया ✅"
 filters_overwrite_cancelled: "फ़िल्टर ओवरराइट करना रद्द किया गया ❌"
@@ -1896,7 +1893,6 @@ warns_limit_updated: "इस चैट के लिए चेतावनी �
 warns_reset_success: चेतावनियां रीसेट कर दी गई हैं!
 warns_no_users_warned: इस चैट में किसी उपयोगकर्ता को चेतावनी नहीं दी गई है!
 warns_reset_all_confirm: क्या आप वाकई इस चैट के सभी उपयोगकर्ताओं की सभी चेतावनियां हटाना चाहते हैं?
-warns_reset_all_success: इस चैट के सभी उपयोगकर्ताओं की सभी चेतावनियां हटा दी गईं!
 warns_reset_all_cancelled: इस चैट के सभी उपयोगकर्ताओं की चेतावनियां हटाना रद्द कर दिया गया!
 warns_reset_all_final: इस चैट के सभी उपयोगकर्ताओं की सभी चेतावनियां हटा दी गईं।
 
@@ -2354,7 +2350,6 @@ approvals_unapproveall_done: "सभी स्वीकृत उपयोगक
 approvals_unapproveall_cancel: "सभी को अस्वीकृत करना रद्द किया गया।"
 approvals_approve_error: "उपयोगकर्ता को स्वीकृत करने में विफल। कृपया फिर से प्रयास करें।"
 approvals_unapprove_error: "उपयोगकर्ता को स्वीकृत सूची से हटाने में विफल।"
-approvals_unapproveall_error: "सभी स्वीकृत उपयोगकर्ताओं को हटाने में विफल: {error}"
 approvals_reason: "\nकारण: %s"
 approvals_list_header: "स्वीकृत उपयोगकर्ता:\n"
 approvals_list_item: " - %s"

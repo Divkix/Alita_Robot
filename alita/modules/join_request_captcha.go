@@ -94,17 +94,17 @@ func handleJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context) (bool, error) 
 	if !settings.JoinRequests {
 		return false, nil
 	}
-	if chat_status.IsApproved(bot, chat.Id, applicant.Id) {
+	if chat_status.IsProtectedForUpdate(bot, ctx, chat.Id, applicant.Id) {
 		_, err = bot.ApproveChatJoinRequestWithContext(tracing.UpdateContext(ctx), chat.Id, applicant.Id, nil)
 		if isJoinRequestGone(err) {
 			return true, nil
 		}
 		if err != nil {
-			log.WithContext(tracing.UpdateContext(ctx)).Warnf("[JoinCaptcha] Approved-user request could not be approved: %v", err)
+			log.WithContext(tracing.UpdateContext(ctx)).Warnf("[JoinCaptcha] Protected-user request could not be approved: %v", err)
 			return true, errors.Join(err, joinRequestApprovalFallback(bot, &chat, applicant))
 		}
 		actionlog.Automated(bot, &chat, "JOIN_REQUEST_APPROVED", applicant.Id, applicant.FirstName,
-			actionlog.Field{Name: "Reason", Value: "approved user"})
+			actionlog.Field{Name: "Reason", Value: "protected user"})
 		return true, nil
 	}
 	if handled, err := checkJoinRequestSpamDB(bot, ctx); handled || err != nil {

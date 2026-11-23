@@ -688,8 +688,8 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 		ctx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
 
-		if err := warnsModule.warnsButtonHandler(bot, ctx); err != ext.EndGroups {
-			t.Fatalf("warnsButtonHandler(no callback) error = %v, want EndGroups", err)
+		if err := warnsClearAllCallback(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("warnsClearAllCallback(no callback) error = %v, want EndGroups", err)
 		}
 		if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
 			t.Fatalf("answerCallbackQuery calls = %d, want none without callback", len(calls))
@@ -714,9 +714,19 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"})
 			ctx := newModuleCallbackContext(bot, chat, admin, data)
 
-			err := warnsModule.warnsButtonHandler(bot, ctx)
+			err := warnsClearAllCallback(bot, ctx)
+			if tt.method == "editMessageText" {
+				// A failed edit still answers the callback so the button stops spinning.
+				if err != ext.EndGroups {
+					t.Fatalf("warnsClearAllCallback() error = %v, want EndGroups", err)
+				}
+				if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+					t.Fatalf("answerCallbackQuery calls = %d, want 1 after the failed edit", len(calls))
+				}
+				return
+			}
 			if !errors.Is(err, requestErr) {
-				t.Fatalf("warnsButtonHandler() error = %v, want request error", err)
+				t.Fatalf("warnsClearAllCallback() error = %v, want request error", err)
 			}
 		})
 	}
@@ -742,8 +752,8 @@ func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
 	}
 
 	callbackCtx := newModuleCallbackContext(bot, chat, admin, data)
-	if err := warnsModule.warnsButtonHandler(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("warnsButtonHandler() error = %v, want EndGroups", err)
+	if err := warnsClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("warnsClearAllCallback() error = %v, want EndGroups", err)
 	}
 	if got := warns.GetAllChatWarns(chat.Id); got != 0 {
 		t.Fatalf("GetAllChatWarns() = %d, want 0 after reset all", got)
@@ -762,16 +772,16 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 
 	_, _, _ = warns.WarnUser(42, chat.Id, models.WarnEntry{Reason: "first"})
 	cancelCtx := newModuleCallbackContext(bot, chat, admin, "rmAllChatWarns.no")
-	if err := warnsModule.warnsButtonHandler(bot, cancelCtx); err != ext.EndGroups {
-		t.Fatalf("warnsButtonHandler cancel error = %v, want EndGroups", err)
+	if err := warnsClearAllCallback(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("warnsClearAllCallback cancel error = %v, want EndGroups", err)
 	}
 	if got := warns.GetAllChatWarns(chat.Id); got != 1 {
 		t.Fatalf("GetAllChatWarns() = %d, want warning retained after cancel", got)
 	}
 
 	invalidCtx := newModuleCallbackContext(bot, chat, admin, "rmAllChatWarns")
-	if err := warnsModule.warnsButtonHandler(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("warnsButtonHandler invalid error = %v, want EndGroups", err)
+	if err := warnsClearAllCallback(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("warnsClearAllCallback invalid error = %v, want EndGroups", err)
 	}
 	unknownCtx := newModuleCallbackContext(
 		bot,
@@ -779,8 +789,8 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 		admin,
 		encodeCallbackData("rmAllChatWarns", map[string]string{"a": "crafted"}),
 	)
-	if err := warnsModule.warnsButtonHandler(bot, unknownCtx); err != ext.EndGroups {
-		t.Fatalf("warnsButtonHandler unknown action error = %v, want EndGroups", err)
+	if err := warnsClearAllCallback(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("warnsClearAllCallback unknown action error = %v, want EndGroups", err)
 	}
 
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {

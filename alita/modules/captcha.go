@@ -1390,6 +1390,9 @@ func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
 
 func expireCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) (bool, error) {
 	outcome := captchaReleased
+	// Approved-only, not IsProtectedForUpdate: every caller is a background
+	// sweep or timer with no update context for the predicate's sender steps
+	// and memo, and admins are captcha'd on join like anyone else.
 	if !chat_status.IsApproved(bot, attempt.ChatID, attempt.UserID) {
 		settings, err := chatsettings.ReadCaptcha(attempt.ChatID)
 		if err != nil {
@@ -1935,10 +1938,7 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 		return ext.ContinueGroups
 	}
 
-	if chat_status.IsUserAdminForUpdate(bot, ctx, chat.Id, user.Id) {
-		return ext.ContinueGroups
-	}
-	if chat_status.IsApprovedForUpdate(bot, ctx, chat.Id, user.Id) {
+	if chat_status.IsProtectedForUpdate(bot, ctx, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
 

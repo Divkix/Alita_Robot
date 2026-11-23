@@ -101,8 +101,7 @@ func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot
 	if !settings.Enabled {
 		return StageNotApplicable
 	}
-	if chat_status.IsApprovedForUpdate(b, ctx, chat.Id, member.Id) ||
-		chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, member.Id) {
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, member.Id) {
 		return StageNotApplicable
 	}
 

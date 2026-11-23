@@ -271,18 +271,13 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
-	// which IsUserAdmin rejects; they are admins and exempt from locks.
-	if sender.IsAnonymousAdmin() {
-		return ext.ContinueGroups
-	}
-
+	// Locks delete content, not senders: anonymous and linked channels stay
+	// deletable, so the protected-user predicate (which also exempts
+	// anonymous admins posting as the group itself) runs only for the rest.
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
-		return ext.ContinueGroups
-	}
-	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
+	if !sender.IsAnonymousChannel() && !sender.IsLinkedChannel() &&
+		chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -328,18 +323,13 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
-	// which IsUserAdmin rejects; they are admins and exempt from locks.
-	if sender.IsAnonymousAdmin() {
-		return ext.ContinueGroups
-	}
-
+	// Locks delete content, not senders: anonymous and linked channels stay
+	// deletable, so the protected-user predicate (which also exempts
+	// anonymous admins posting as the group itself) runs only for the rest.
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
-		return ext.ContinueGroups
-	}
-	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
+	if !sender.IsAnonymousChannel() && !sender.IsLinkedChannel() &&
+		chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -379,10 +369,9 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 		senderID = sender.Id()
 	}
 
-	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
-		return StageNotApplicable
-	}
-	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
+	// Non-positive and anonymous adders are exempt too: they are admins or
+	// senders no check can hold to account.
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return StageNotApplicable
 	}
 

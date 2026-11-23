@@ -381,7 +381,7 @@ func raidApplies(bot *gotgbot.Bot, ctx *ext.Context, userID int64) bool {
 		log.WithContext(tracing.UpdateContext(ctx)).WithFields(log.Fields{"chatId": chat.Id}).Debug("Antiraid action skipped: bot lacks restrict permissions")
 		return false
 	}
-	return !chat_status.IsApproved(bot, chat.Id, userID) && !chat_status.IsUserAdmin(bot, chat.Id, userID)
+	return !chat_status.IsProtectedForUpdate(bot, ctx, chat.Id, userID)
 }
 
 // countJoin counts userID's join towards the chat's auto-antiraid threshold

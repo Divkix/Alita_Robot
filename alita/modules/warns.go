@@ -351,6 +351,10 @@ func (moduleStruct) warnThisUserWithPunisher(b *gotgbot.Bot, ctx *ext.Context, u
 	removeWarnText := tr.String("warns_remove_button")
 	rulesButtonText := tr.String("common_rules_button_emoji")
 
+	// Warns keep their own exemption chain: an admin target is answered, not
+	// skipped; approved users can still be warned; and the check is on the
+	// target userId rather than the update's sender, so
+	// IsProtectedForUpdate does not apply.
 	if chat_status.IsUserAdmin(b, chat.Id, userId) {
 		text := tr.String("warns_admin_warning_error")
 		if _, err = msg.Reply(b, text, nil); err != nil {
@@ -780,93 +784,43 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	warnrc := warns.GetAllChatWarns(chat.Id)
-	if warnrc == 0 {
-		text := tr.String("warns_no_users_warned")
-		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-			return err
+// warnsClearAll is the /resetallwarns owner confirmation: the shared
+// skeleton asks, authorizes and answers; these closures hold only the
+// warns work.
+var warnsClearAll = ownerConfirmSpec{
+	Namespace: "rmAllChatWarns",
+	AskKey:    "warns_reset_all_confirm",
+	Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
+		if chat_status.RequireUser(b, ctx) == nil {
+			return false, nil
 		}
-		return ext.EndGroups
-	}
-
-	text := tr.String("warns_reset_all_confirm")
-	text = confirmText(ctx, tr, text, chat)
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllChatWarns", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+		if warns.GetAllChatWarns(chat.Id) == 0 {
+			text := tr.String("warns_no_users_warned")
+			if _, err := ctx.EffectiveMessage.Reply(b, text, formatting.Shtml()); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		return true, nil
+	},
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := warns.ResetAllChatWarns(chat.Id); err != nil {
+			return "error_generic", nil, nil
+		}
+		actionlog.Warn(b, chat, actor, "RESETALLWARNS", 0, "")
+		return "", nil, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: "warns_reset_all_final",
+		Cancelled: "warns_reset_all_cancelled",
+		Failed:    "error_generic",
+	},
 }
 
-func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+var warnsClearAllMessage, warnsClearAllCallback = registerOwnerConfirm(warnsClearAll)
 
-	decoded, _ := decodeCallbackData(query.Data, "rmAllChatWarns")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	response, _ := decoded.Field("a")
-	if response == "" {
-		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-	var helpText string
-
-	var replyText string
-
-	switch response {
-	case "yes":
-		if err := warns.ResetAllChatWarns(chat.Id); err == nil {
-			helpText = tr.String("warns_reset_all_success")
-			replyText = tr.String("warns_reset_all_final")
-			actionlog.Warn(b, chat, &query.From, "RESETALLWARNS", 0, "")
-		} else {
-			helpText = tr.String("error_generic")
-			replyText = helpText
-		}
-	case "no":
-		helpText = tr.String("warns_reset_all_cancelled")
-		replyText = helpText
-	default:
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	if query.Message == nil {
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-		return ext.EndGroups
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b,
-		&gotgbot.AnswerCallbackQueryOpts{
-			Text: helpText,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
+	return warnsClearAllMessage(b, ctx)
 }
 
 func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -1005,7 +959,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns"), warnsModule.warnsButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns|"), warnsClearAllCallback))
 	helpers.WrapCommand(dispatcher, warningsDesc, pipelineHandler(warnsModule.warnings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmWarn"), warnsModule.rmWarnButton))
 }

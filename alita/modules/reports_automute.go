@@ -9,7 +9,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -38,7 +37,7 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 	if threshold <= 0 {
 		return
 	}
-	target := autoMuteTarget(b, chat.Id, reported)
+	target := autoMuteTarget(b, ctx, chat.Id, reported)
 	if target == nil {
 		return
 	}
@@ -115,15 +114,16 @@ func autoMuteReported(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, cha
 
 // autoMuteTarget returns the author of reported when the auto-mute may apply
 // to them in chatID: a user who is not the bot, a system account, an
-// anonymous or channel sender, or approved. Admins are left to the live
-// member check.
-func autoMuteTarget(b *gotgbot.Bot, chatID int64, reported *gotgbot.Message) *gotgbot.User {
+// anonymous or channel sender, an admin or approved user. The protected-user
+// predicate covers the system, approved and admin-cache answers; the live
+// member check in autoMuteReported still decides everyone else, refusing
+// anything but a plain member.
+func autoMuteTarget(b *gotgbot.Bot, ctx *ext.Context, chatID int64, reported *gotgbot.Message) *gotgbot.User {
 	if reported == nil || reported.From == nil || reported.SenderChat != nil {
 		return nil
 	}
 	target := reported.From
-	if target.Id <= 0 || target.Id == b.Id || chat_status.IsSystemUser(target.Id) ||
-		approvals.IsUserApproved(chatID, target.Id) {
+	if target.Id == b.Id || chat_status.IsProtectedForUpdate(b, ctx, chatID, target.Id) {
 		return nil
 	}
 	return target

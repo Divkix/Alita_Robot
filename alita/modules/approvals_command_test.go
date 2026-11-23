@@ -146,8 +146,8 @@ func TestApprovalCommandsRefuseNonAdmins(t *testing.T) {
 
 	// /unapproveall needs the owner; the fixture admin is not one.
 	callbackCtx := newModuleCallbackContext(bot, chat, f.admin, encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}))
-	if err := approvalsModule.unapproveAllCallback(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback(admin) error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback(admin) error = %v, want EndGroups", err)
 	}
 	if !approvals.IsUserApproved(chat.Id, 43) {
 		t.Fatal("a non-owner admin cleared the approval list")
@@ -256,8 +256,8 @@ func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
 
 	data := encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"})
 	callbackCtx := newModuleCallbackContext(bot, chat, owner, data)
-	if err := approvalsModule.unapproveAllCallback(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback error = %v, want EndGroups", err)
 	}
 	if got := len(approvals.GetApprovedUsers(chat.Id)); got != 0 {
 		t.Fatalf("approved users after callback = %d, want none", got)
@@ -276,37 +276,37 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 	}
 
 	cancelCtx := newModuleCallbackContext(bot, chat, owner, encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}))
-	if err := approvalsModule.unapproveAllCallback(bot, cancelCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback cancel error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback cancel error = %v, want EndGroups", err)
 	}
 	if !approvals.IsUserApproved(chat.Id, 42) {
 		t.Fatal("cancel callback removed approved user")
 	}
 
 	invalidCtx := newModuleCallbackContext(bot, chat, owner, "not-a-valid-callback")
-	if err := approvalsModule.unapproveAllCallback(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback invalid error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback invalid error = %v, want EndGroups", err)
 	}
 
 	defaultCtx := newModuleCallbackContext(bot, chat, owner, encodeCallbackData("rmAllApprovals", map[string]string{"a": "maybe"}))
-	if err := approvalsModule.unapproveAllCallback(bot, defaultCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback default error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(bot, defaultCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback default error = %v, want EndGroups", err)
 	}
 
 	missingMessageCtx := newModuleCallbackContext(bot, chat, owner, encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}))
 	missingMessageCtx.CallbackQuery.Message = nil
-	if err := approvalsModule.unapproveAllCallback(bot, missingMessageCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback missing message error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(bot, missingMessageCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback missing message error = %v, want EndGroups", err)
 	}
 	if !approvals.IsUserApproved(chat.Id, 42) {
 		t.Fatal("missing-message callback removed approved user")
 	}
 
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
-		t.Fatalf("answerCallbackQuery calls = %d, want cancel, invalid, and default answers", len(calls))
+		t.Fatalf("answerCallbackQuery calls = %d, want cancel, invalid and default answers", len(calls))
 	}
-	if calls := client.callsFor("editMessageText"); len(calls) != 2 {
-		t.Fatalf("editMessageText calls = %d, want cancel and default edits", len(calls))
+	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
+		t.Fatalf("editMessageText calls = %d, want only the cancel edit", len(calls))
 	}
 }
 
@@ -424,8 +424,8 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 	noCallbackBot := newModuleTestBot(noCallbackClient)
 	noCallbackChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
 	noCallbackCtx := newModuleMessageContext(noCallbackBot, noCallbackChat, owner, "/unapproveall")
-	if err := approvalsModule.unapproveAllCallback(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
-		t.Fatalf("unapproveAllCallback(no callback) error = %v, want EndGroups", err)
+	if err := approvalsClearAllCallback(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
+		t.Fatalf("approvalsClearAllCallback(no callback) error = %v, want EndGroups", err)
 	}
 	if calls := noCallbackClient.callsFor("answerCallbackQuery"); len(calls) != 0 {
 		t.Fatalf("answerCallbackQuery calls = %d, want none without callback", len(calls))
@@ -459,9 +459,19 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			}
 			ctx := newModuleCallbackContext(bot, chat, owner, tt.data)
 
-			err := approvalsModule.unapproveAllCallback(bot, ctx)
+			err := approvalsClearAllCallback(bot, ctx)
+			if tt.method == "editMessageText" {
+				// A failed edit still answers the callback so the button stops spinning.
+				if err != ext.EndGroups {
+					t.Fatalf("approvalsClearAllCallback() error = %v, want EndGroups", err)
+				}
+				if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+					t.Fatalf("answerCallbackQuery calls = %d, want 1 after the failed edit", len(calls))
+				}
+				return
+			}
 			if !errors.Is(err, requestErr) {
-				t.Fatalf("unapproveAllCallback() error = %v, want request error", err)
+				t.Fatalf("approvalsClearAllCallback() error = %v, want request error", err)
 			}
 		})
 	}
