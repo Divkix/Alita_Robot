@@ -51,6 +51,7 @@ func setPMGroupCandidates(t *testing.T, groups ...models.Chat) *atomic.Int32 {
 func titleFixture(t *testing.T, title string) adminChatFixture {
 	t.Helper()
 	useRealLocales(t)
+	withCommandManifest(t)
 	f := newAdminChatFixture(t)
 	f.chat.Title = title
 	f.addGroup(t, f.chat.Id, title, true)
@@ -288,7 +289,7 @@ func TestPMGroupListsEscapeTitles(t *testing.T) {
 // command's help entry, its example and the user's groups.
 func assertPMGroupHelp(t *testing.T, text, cmd string, groups ...gotgbot.Chat) {
 	t.Helper()
-	block := commandHelpBlock(translated(t, commandHelpModules[cmd]+"_help_msg"), cmd)
+	block := commandHelpBlock(translated(t, commandHelpModules()[cmd]+"_help_msg"), cmd)
 	if block == "" {
 		t.Fatalf("en.yml has no help entry for /%s", cmd)
 	}

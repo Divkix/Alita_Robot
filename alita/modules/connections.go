@@ -103,7 +103,7 @@ func (m moduleStruct) connect(c *helpers.CommandContext) error {
 			return ext.EndGroups
 		}
 
-		if !connectionTargetCheck(chat.Id)(c) {
+		if !connectionTargetCheck(chat.Id).Run(c) {
 			return ext.EndGroups
 		}
 		if err := connections.ConnectId(user.Id, chat.Id); err != nil {
@@ -114,7 +114,7 @@ func (m moduleStruct) connect(c *helpers.CommandContext) error {
 			replyMarkup = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 		}
 	} else {
-		if !connectionTargetCheck(chat.Id)(c) {
+		if !connectionTargetCheck(chat.Id).Run(c) {
 			return ext.EndGroups
 		}
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_tap_btn_connect")
@@ -259,7 +259,7 @@ func (m moduleStruct) reconnect(c *helpers.CommandContext) error {
 			text, _ = tr.GetString("error_generic")
 		} else {
 			chat := gchat.ToChat()
-			if !helpers.RunChecks(c, []helpers.CheckFunc{reconnectTargetCheck(&chat, chatId)}) {
+			if !helpers.RunChecks(c, []helpers.Check{reconnectTargetCheck(&chat, chatId)}) {
 				return ext.EndGroups
 			}
 			if err := connections.ConnectId(user.Id, chatId); err != nil {
@@ -287,58 +287,58 @@ func (m moduleStruct) reconnect(c *helpers.CommandContext) error {
 
 // connectionPrivateCheck keeps /connection's generic PM refusal before its
 // saved-connection and membership checks.
-func connectionPrivateCheck(c *helpers.CommandContext) bool {
+var connectionPrivateCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if chat_status.RequirePrivate(c.Bot, c.Ctx, nil) {
 		return true
 	}
 	chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pm_only_error", "", chat_status.WithReply())
 	return false
-}
+})
 
-func connectionSavedCheck(c *helpers.CommandContext) bool {
+var connectionSavedCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if conn := connections.Connection(c.User.Id); conn.Connected && conn.ChatId != 0 {
 		return true
 	}
 	sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, "connections_not_connected"))
 	return false
-}
+})
 
 // connectionPMOnlyCheck preserves disconnect/reconnect's distinct group replies.
-func connectionPMOnlyCheck(key string) helpers.CheckFunc {
-	return func(c *helpers.CommandContext) bool {
+func connectionPMOnlyCheck(key string) helpers.Check {
+	return helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 		if c.Msg.Chat.Type == "private" {
 			return true
 		}
 		sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
-	}
+	})
 }
 
 // allowConnectAdminCheck keeps group non-admins silent, without anonymous proof.
-func allowConnectAdminCheck(c *helpers.CommandContext) bool {
+var allowConnectAdminCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 	if c.Msg.Chat.Type != "private" && !chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id) {
 		return false
 	}
 	return helpers.RunChecks(c, declaredSettingChecks(chatsettings.AllowConnect))
-}
+})
 
 // connectionTargetCheck applies the shared policy only after the command has
 // read its actual target; a saved connection is not /connect's target.
-func connectionTargetCheck(chatID int64) helpers.CheckFunc {
-	return func(c *helpers.CommandContext) bool {
+func connectionTargetCheck(chatID int64) helpers.Check {
+	return helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 		allowed, key := canUserConnectToChat(c.Bot, chatID, c.User.Id)
 		if allowed {
 			return true
 		}
 		sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
-	}
+	})
 }
 
 // reconnectTargetCheck requires live membership before the allow-connect policy.
 // Lookup failures preserve the saved connection; only a former member is detached.
-func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.CheckFunc {
-	return func(c *helpers.CommandContext) bool {
+func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.Check {
+	return helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 		isMember, err := chat_status.IsUserInChatWithError(c.Bot, chat, c.User.Id)
 		var key string
 		if err != nil {
@@ -351,26 +351,26 @@ func reconnectTargetCheck(chat *gotgbot.Chat, chatID int64) helpers.CheckFunc {
 				key = "connections_stale_connection"
 			}
 		} else {
-			return connectionTargetCheck(chatID)(c)
+			return connectionTargetCheck(chatID).Run(c)
 		}
 		sendHTMLReply(c.Bot, c.Msg, trS(c.Tr, key))
 		return false
-	}
+	})
 }
 
 func LoadConnections(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(ConnectionsModule.moduleName, true)
 
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "connect", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "connect", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, ConnectionsModule.connect)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "disconnect",
-		RequiredChecks: []helpers.CheckFunc{connectionPMOnlyCheck("connections_disconnect_need_pm")},
+		RequiredChecks: []helpers.Check{connectionPMOnlyCheck("connections_disconnect_need_pm")},
 	}, ConnectionsModule.disconnect)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "connection",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			connectionPrivateCheck,
 			connectionSavedCheck,
 			helpers.RequireConnectedMember(helpers.BotAdminNotRequired),
@@ -378,16 +378,20 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	}, ConnectionsModule.connection)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "reconnect",
-		RequiredChecks: []helpers.CheckFunc{connectionPMOnlyCheck("connections_reconnect_need_pm")},
+		RequiredChecks: []helpers.Check{connectionPMOnlyCheck("connections_reconnect_need_pm")},
 	}, ConnectionsModule.reconnect)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "allowconnect",
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{allowConnectAdminCheck},
+		RequiredChecks: []helpers.Check{allowConnectAdminCheck},
 	}, ConnectionsModule.allowConnect)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "settings", RequiredChecks: []helpers.CheckFunc{checkInPMOrGroup(nil, helpers.RequireUserAdmin())},
+		Name: "settings",
+		// The PM picker is open to anyone but only lists groups the user
+		// admins; the group form requires admin, so the menu hides it.
+		AdminOnlySet: true, AdminOnly: true,
+		RequiredChecks: []helpers.Check{checkInPMOrGroup(helpers.Check{}, helpers.RequireUserAdmin())},
 	}, pipelineHandler(ConnectionsModule.settings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))
 	dispatcher.AddHandlerToGroup(connectedChatGuard{}, connectedChatGuardGroup)

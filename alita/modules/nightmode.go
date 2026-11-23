@@ -60,7 +60,7 @@ func withNightLocks(ctx context.Context, chatID int64, chatLocks map[string]bool
 var nightModeDesc = helpers.CommandDescriptor{
 	Name:       "nightmode",
 	PMGroupArg: helpers.PMGroupArgOwn,
-	RequiredChecks: append([]helpers.CheckFunc{
+	RequiredChecks: append([]helpers.Check{
 		groupOnlyChatCheck,
 		helpers.RequireGroup(),
 	}, declaredGroupSettingChecks(chatsettings.NightModeEnabled)...),

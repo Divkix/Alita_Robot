@@ -32,8 +32,8 @@ var spamFilterModule = moduleStruct{moduleName: "SpamFilter"}
 // spamFilterAdminChecks are the checks of the commands that read or change a
 // chat's samples and switch. They are group-only: the samples belong to the
 // group, and /spam needs a reply to a group message anyway.
-func spamFilterAdminChecks() []helpers.CheckFunc {
-	return []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()}
+func spamFilterAdminChecks() []helpers.Check {
+	return []helpers.Check{helpers.RequireGroup(), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()}
 }
 
 var (

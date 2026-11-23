@@ -52,7 +52,7 @@ var (
 		// /probation off already is the switch.
 		Disableable:    false,
 		PMGroupArg:     helpers.PMGroupArgOwn,
-		RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup()}, declaredSettingChecks(chatsettings.ProbationEnabled)...),
+		RequiredChecks: append([]helpers.Check{groupOnlyChatCheck, helpers.RequireGroup()}, declaredSettingChecks(chatsettings.ProbationEnabled)...),
 	}
 
 	// probationNoticeLifetime is how long the notice to a member stays in the

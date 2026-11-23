@@ -16,14 +16,30 @@ import (
 )
 
 // checkInPMOrGroup chooses by the original message chat, even after a PM target
-// has been resolved. A nil check leaves that chat type unrestricted.
-func checkInPMOrGroup(pmCheck, groupCheck helpers.CheckFunc) helpers.CheckFunc {
+// has been resolved. A nil check leaves that chat type unrestricted. The
+// combined kind is the least restrictive of the two paths: the command stays
+// member-visible when either the PM or the group form works for a member.
+func checkInPMOrGroup(pmCheck, groupCheck helpers.Check) helpers.Check {
+	kind := helpers.CheckKindAny
+	for _, check := range []helpers.Check{pmCheck, groupCheck} {
+		if check.Run == nil {
+			// An unrestricted path stays member-usable.
+			return helpers.NewCheck(helpers.CheckKindAny, checkInPMOrGroupRun(pmCheck, groupCheck))
+		}
+		if kind == helpers.CheckKindAny || check.Kind < kind {
+			kind = check.Kind
+		}
+	}
+	return helpers.NewCheck(kind, checkInPMOrGroupRun(pmCheck, groupCheck))
+}
+
+func checkInPMOrGroupRun(pmCheck, groupCheck helpers.Check) helpers.CheckFunc {
 	return func(c *helpers.CommandContext) bool {
 		check := groupCheck
 		if c.Msg.Chat.Type == "private" {
 			check = pmCheck
 		}
-		return check == nil || check(c)
+		return check.Run == nil || check.Run(c)
 	}
 }
 

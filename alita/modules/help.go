@@ -675,6 +675,11 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func LoadHelp(dispatcher *ext.Dispatcher) {
 	helpModule := DefaultHelpRegistry()
+	// LoadHelp runs outside LoadAllModules; point the command manifest at the
+	// help module so /commands, /start and friends record "Help" as theirs.
+	previous := helpers.CurrentCommandModule()
+	helpers.SetCommandModule(helpModule.moduleName)
+	defer helpers.SetCommandModule(previous)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "start"}, pipelineHandler(helpModule.start))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "help"}, pipelineHandler(helpModule.help))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "extend"}, pipelineHandler(helpModule.extend))
