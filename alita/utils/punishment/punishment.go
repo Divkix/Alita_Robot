@@ -146,7 +146,7 @@ func unbanLogMarkup(ctx context.Context, chatID, recordID int64) *gotgbot.Inline
 		return nil
 	}
 	tr := i18n.MustNewTranslator(lang.GetGroupLanguage(ctx, chatID))
-	label, _ := tr.GetString("bans_log_unban_button")
+	label := tr.String("bans_log_unban_button")
 	return &gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{Text: label, CallbackData: data}}}}
 }
 

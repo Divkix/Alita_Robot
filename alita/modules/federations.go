@@ -1051,9 +1051,6 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	data, failText := downloadFedBanDocument(b, doc, tr)
 	if data == nil {
-		if failText == "" {
-			failText, _ = tr.GetString("feds_import_failed")
-		}
 		replyHTML(b, msg, failText)
 		return ext.EndGroups
 	}

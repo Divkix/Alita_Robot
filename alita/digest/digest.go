@@ -156,11 +156,7 @@ func actionName(tr *i18n.Translator, action string) string {
 	default:
 		return ""
 	}
-	name, err := tr.GetString(key)
-	if err != nil {
-		return ""
-	}
-	return name
+	return tr.String(key)
 }
 
 // dashboardKeyboard adds the dashboard button only when a panel URL is known.
@@ -168,10 +164,7 @@ func dashboardKeyboard(tr *i18n.Translator, dashboardURL string) *gotgbot.Inline
 	if dashboardURL == "" {
 		return nil
 	}
-	label, err := tr.GetString("digest_dashboard_button")
-	if err != nil {
-		return nil
-	}
+	label := tr.String("digest_dashboard_button")
 	return &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
 			{Text: label, Url: dashboardURL},
@@ -179,9 +172,7 @@ func dashboardKeyboard(tr *i18n.Translator, dashboardURL string) *gotgbot.Inline
 	}
 }
 
-// digestLine reads a localized string. A missing key yields "", which callers
-// treat as an absent line; the locale check enforces the key's presence.
+// digestLine reads a localized string for one digest line.
 func digestLine(tr *i18n.Translator, key string, params ...i18n.TranslationParams) string {
-	text, _ := tr.GetString(key, params...)
-	return text
+	return tr.String(key, params...)
 }

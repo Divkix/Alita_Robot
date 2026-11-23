@@ -59,23 +59,14 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	tr := i18n.MustNewTranslator(language)
 
 	if msg == nil {
-		result.ErrorMsg, _ = tr.GetString("content_invalid_message")
-		if result.ErrorMsg == "" {
-			result.ErrorMsg = "Invalid message: message is nil"
-		}
+		result.ErrorMsg = tr.String("content_invalid_message")
 		return result
 	}
 
 	if isFilter {
-		result.ErrorMsg, _ = tr.GetString("content_need_filter_content")
-		if result.ErrorMsg == "" {
-			result.ErrorMsg = "You need to give the filter some content!"
-		}
+		result.ErrorMsg = tr.String("content_need_filter_content")
 	} else {
-		result.ErrorMsg, _ = tr.GetString("content_need_note_content")
-		if result.ErrorMsg == "" {
-			result.ErrorMsg = "You need to give the note some content!"
-		}
+		result.ErrorMsg = tr.String("content_need_note_content")
 	}
 
 	var (
@@ -221,14 +212,12 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	var result WelcomeResult
 	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
-	needKey, needFallback := "content_need_welcome_content", "You need to give me some content to welcome users!"
+	needKey := "content_need_welcome_content"
 	if greetingType == "goodbye" {
-		needKey, needFallback = "content_need_goodbye_content", "You need to give me some content to say goodbye to users!"
+		needKey = "content_need_goodbye_content"
 	}
-	result.ErrorMsg, _ = tr.GetString(needKey)
-	if result.ErrorMsg == "" {
-		result.ErrorMsg = needFallback
-	}
+	result.ErrorMsg = tr.String(needKey)
+
 	var (
 		rawText string
 		args    = commandArgs(msg.Text)
@@ -285,12 +274,10 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 
 	if *dataType == db.TEXT && textRuneCount > 4096 {
 		*dataType = -1
-		template, _ := tr.GetString("content_text_too_long")
-		*errorMsg = fmt.Sprintf(template, textRuneCount)
+		*errorMsg = fmt.Sprintf(tr.String("content_text_too_long"), textRuneCount)
 	} else if *dataType != db.TEXT && textRuneCount > 1024 {
 		*dataType = -1
-		template, _ := tr.GetString("content_caption_too_long")
-		*errorMsg = fmt.Sprintf(template, textRuneCount)
+		*errorMsg = fmt.Sprintf(tr.String("content_caption_too_long"), textRuneCount)
 	} else {
 		for i, button := range buttons {
 			if button.Name == "" {

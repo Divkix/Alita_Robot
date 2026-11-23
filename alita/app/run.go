@@ -455,10 +455,10 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string, c
 	cfg.WorkingMode = mode
 
 	tr := i18n.MustNewTranslator("en")
-	startDesc, _ := tr.GetString("main_bot_command_start")
-	helpDesc, _ := tr.GetString("main_bot_command_help")
-	extendDesc, _ := tr.GetString("main_bot_command_extend")
-	commandsDesc, _ := tr.GetString("main_bot_command_commands")
+	startDesc := tr.String("main_bot_command_start")
+	helpDesc := tr.String("main_bot_command_help")
+	extendDesc := tr.String("main_bot_command_extend")
+	commandsDesc := tr.String("main_bot_command_commands")
 	_, err := b.SetMyCommands(
 		[]gotgbot.BotCommand{
 			{Command: "start", Description: startDesc},
@@ -506,7 +506,7 @@ func setPanelMenuButton(b *gotgbot.Bot, cfg *config.Config) {
 		return
 	}
 	tr := i18n.MustNewTranslator("en")
-	text, _ := tr.GetString("panel_open_button")
+	text := tr.String("panel_open_button")
 	_, err := b.SetChatMenuButton(&gotgbot.SetChatMenuButtonOpts{
 		MenuButton: gotgbot.MenuButtonWebApp{
 			Text:   text,

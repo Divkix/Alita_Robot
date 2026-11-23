@@ -44,7 +44,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 			chat, err := b.GetChat(chatId, nil)
 			if err != nil {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				text, _ := tr.GetString("extraction_chat_not_found")
+				text := tr.String("extraction_chat_not_found")
 				_, err := msg.Reply(b, text, nil)
 				if err != nil {
 					log.Error(err)
@@ -58,7 +58,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 			chat, err := chat_status.GetChat(b, args[0])
 			if err != nil {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				text, _ := tr.GetString("extraction_chat_not_found")
+				text := tr.String("extraction_chat_not_found")
 				_, err := msg.Reply(b, text, nil)
 				if err != nil {
 					log.Error(err)
@@ -70,7 +70,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 		}
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("extraction_need_chat_id")
+	text := tr.String("extraction_need_chat_id")
 	_, err := msg.Reply(b, text, nil)
 	if err != nil {
 		log.Error(err)
@@ -176,7 +176,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		userId = GetUserId(b, user)
 		if userId == 0 {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("extraction_user_not_found")
+			text := tr.String("extraction_user_not_found")
 			_, err := msg.Reply(b, text, nil)
 			if err != nil {
 				log.Errorf("[Extraction] Failed to reply with user not found: %v", err)
@@ -338,7 +338,7 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 func ExtractDuration(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (seconds int64) {
 	if len(strings.Fields(inputVal)) > 1 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_invalid_time_format")
+		text := tr.String("extraction_invalid_time_format")
 		if _, err := ctx.EffectiveMessage.Reply(b, text, nil); err != nil {
 			log.Errorf("[Extraction] Failed to reply with invalid time format: %v", err)
 		}
@@ -361,14 +361,14 @@ func ExtractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow in
 	if err == nil {
 		langCode := lang.GetLanguage(ctx)
 		tr := i18n.MustNewTranslator(langCode)
-		unitText, _ := tr.GetString(durationUnitKey(langCode, unit, amount))
+		unitText := tr.String(durationUnitKey(langCode, unit, amount))
 		return banTime, fmt.Sprintf("%d %s", amount, unitText), reason
 	}
 
 	switch {
 	case errors.Is(err, errNoTimeSpecified):
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_no_time_specified")
+		text := tr.String("extraction_no_time_specified")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Errorf("[Extraction] Failed to reply with no time specified: %v", err)
@@ -376,7 +376,7 @@ func ExtractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow in
 		return -1, "", ""
 	case errors.Is(err, errInvalidTimeAmount):
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_invalid_time_amount")
+		text := tr.String("extraction_invalid_time_amount")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Errorf("[Extraction] Failed to reply with invalid time amount: %v", err)
@@ -384,7 +384,7 @@ func ExtractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow in
 		return -1, "", ""
 	case errors.Is(err, errTimeLimitExceeded):
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_time_limit_exceeded")
+		text := tr.String("extraction_time_limit_exceeded")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Errorf("[Extraction] Failed to reply with time limit exceeded: %v", err)
@@ -396,7 +396,7 @@ func ExtractTimeAt(b *gotgbot.Bot, ctx *ext.Context, inputVal string, timeNow in
 			timeVal = args[0]
 		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_invalid_time_type", i18n.TranslationParams{"0": timeVal})
+		text := tr.String("extraction_invalid_time_type", i18n.TranslationParams{"0": timeVal})
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Errorf("[Extraction] Failed to reply with invalid time type: %v", err)
