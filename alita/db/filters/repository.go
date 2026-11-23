@@ -15,25 +15,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-func filterListCacheKey(chatID int64) string {
-	return cache.CacheKey("filter_list", chatID)
-}
-
-func optimizedFilterCacheKey(chatID int64) string {
-	return cache.CacheKey("filters_optimized", chatID)
-}
-
-func invalidateFilterCaches(chatID int64) {
-	cache.DeleteCache(filterListCacheKey(chatID))
-	cache.DeleteCache(optimizedFilterCacheKey(chatID))
-}
-
 func GetFiltersList(chatID int64) (allFilterWords []string) {
 	return GetFiltersListContext(context.Background(), chatID)
 }
 
 func GetFiltersListContext(ctx context.Context, chatID int64) (allFilterWords []string) {
-	cacheKey := filterListCacheKey(chatID)
+	cacheKey := ListProjection.Key(chatID)
 	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLFilterList, func(ctx context.Context) ([]string, error) {
 		var results []*models.ChatFilters
 		err := db.GetRecordsContext(ctx, &results, map[string]any{"chat_id": chatID})
