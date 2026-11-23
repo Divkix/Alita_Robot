@@ -234,8 +234,8 @@ func aispamIsCommandForBot(text, botUsername string) bool {
 }
 
 // aispamCarvedOut reports the carve-outs that need a lookup: members still
-// solving captcha belong to the captcha module, and admins and approved users
-// are trusted by definition.
+// solving captcha belong to the captcha module, and protected users are
+// trusted by definition.
 func aispamCarvedOut(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
 	// Only query the user's attempt when the chat has one pending (or the
 	// cached flag is unavailable).
@@ -245,7 +245,7 @@ func aispamCarvedOut(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) boo
 			return true
 		}
 	}
-	return chat_status.IsUserAdminForUpdate(b, ctx, chatID, userID) || chat_status.IsApprovedForUpdate(b, ctx, chatID, userID)
+	return chat_status.IsProtectedForUpdate(b, ctx, chatID, userID)
 }
 
 func aispamMessageText(msg *gotgbot.Message) string {
