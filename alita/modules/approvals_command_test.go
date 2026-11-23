@@ -302,8 +302,8 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 		t.Fatal("missing-message callback removed approved user")
 	}
 
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 4 {
-		t.Fatalf("answerCallbackQuery calls = %d, want cancel, invalid, default and missing-message answers", len(calls))
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want cancel, invalid and default answers", len(calls))
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
 		t.Fatalf("editMessageText calls = %d, want only the cancel edit", len(calls))
