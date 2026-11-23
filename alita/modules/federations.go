@@ -1211,6 +1211,11 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		log.WithContext(tracing.UpdateContext(ctx)).Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
 		return StageFailed
 	}
+	// The notice stays inline: Spec.Notice cannot express the Quiet gate,
+	// and routing it through Automated would propagate a send error as
+	// StageFailed — letting the already-banned member continue to the
+	// welcome stages — where the inline send's ignored error keeps
+	// StageRemoved.
 	if !membership.Quiet {
 		tr := ctxTr(ctx)
 		fedName := sourceFed
