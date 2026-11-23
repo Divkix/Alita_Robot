@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -15,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 func TestAdminPermissionUpdatesRefreshAuthorization(t *testing.T) {
@@ -352,12 +354,10 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 			Text:      "/unknown",
 		}
 		key := chat_status.AnonAdminCacheKey(chat.Id, cached.MessageId)
-		if err := m.Set(cache.Context, key, cached); err != nil {
-			t.Fatalf("cache set: %v", err)
+		if err := opstate.Stash(key, cached, time.Minute); err != nil {
+			t.Fatalf("opstate stash: %v", err)
 		}
-		t.Cleanup(func() {
-			_ = m.Delete(cache.Context, key)
-		})
+		t.Cleanup(func() { opstate.Delete(key) })
 		data := encodeCallbackData("anon_admin", map[string]string{
 			"c": fmt.Sprint(chat.Id),
 			"m": fmt.Sprint(cached.MessageId),
@@ -393,12 +393,10 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 		Text: "/unknown",
 	}
 	key := chat_status.AnonAdminCacheKey(chat.Id, cached.MessageId)
-	if err := m.Set(cache.Context, key, cached); err != nil {
-		t.Fatalf("cache set: %v", err)
+	if err := opstate.Stash(key, cached, time.Minute); err != nil {
+		t.Fatalf("opstate stash: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = m.Delete(cache.Context, key)
-	})
+	t.Cleanup(func() { opstate.Delete(key) })
 	data := encodeCallbackData("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": fmt.Sprint(cached.MessageId),
@@ -504,7 +502,7 @@ func runAnonymousAdminBan(t *testing.T, chat gotgbot.Chat, promptChat *gotgbot.C
 		t.Fatal("anonymous admin confirmation button was not sent")
 	}
 	t.Cleanup(func() {
-		_ = cache.GetMarshal().Delete(cache.Context, chat_status.AnonAdminCacheKey(chat.Id, command.MessageId))
+		opstate.Delete(chat_status.AnonAdminCacheKey(chat.Id, command.MessageId))
 	})
 
 	if promptChat == nil {

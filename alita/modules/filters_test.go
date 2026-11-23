@@ -26,7 +26,7 @@ func TestFilterOverwriteCacheKeysAndToken(t *testing.T) {
 	}
 }
 
-func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
+func TestFilterOverwriteCacheLocalFallback(t *testing.T) {
 	withNilCacheMarshal(t)
 
 	data := overwriteFilter{overwriteBase: overwriteBase{
@@ -36,13 +36,18 @@ func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
 		DataType: 1,
 	}}
 
-	if err := setFilterOverwriteCache("token", data); err == nil {
-		t.Fatal("setFilterOverwriteCache() error = nil, want cache not initialized")
+	// Without Redis the overwrite stash lives in opstate's in-process store:
+	// the round trip still works on this replica.
+	if err := setFilterOverwriteCache("token", data); err != nil {
+		t.Fatalf("setFilterOverwriteCache() error = %v", err)
 	}
-	if _, err := getOverwriteCache[overwriteFilter](filterOverwriteCacheKey("token")); err == nil {
-		t.Fatal("getOverwriteCache[overwriteFilter]() error = nil, want cache not initialized")
+	got, err := getOverwriteCache[overwriteFilter](filterOverwriteCacheKey("token"))
+	if err != nil {
+		t.Fatalf("getOverwriteCache[overwriteFilter]() error = %v", err)
 	}
-
+	if got.ItemName != data.ItemName || got.Text != data.Text {
+		t.Fatalf("getOverwriteCache[overwriteFilter]() = %+v, want %+v", got, data)
+	}
 	deleteFilterOverwriteCache("token")
 }
 
