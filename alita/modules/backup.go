@@ -179,7 +179,7 @@ func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
 			var parseErr error
 			modules, parseErr = parseModuleArgs(args[1:], backup.IsValidModule)
 			if parseErr != nil {
-				text, _ := tr.GetString("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(backup.AllExportableModules(), ", ")})
+				text := tr.String("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(backup.AllExportableModules(), ", ")})
 				_, _ = msg.Reply(b, text, formatting.Shtml())
 				return ext.EndGroups
 			}
@@ -189,7 +189,7 @@ func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
 	limiter := ratelimit.GetBackupRateLimiter()
 	if allowed, cooldown := limiter.AcquireExport(chat.Id); !allowed {
 		cooldownStr := ratelimit.FormatCooldown(cooldown)
-		text, _ := tr.GetString("backup_export_rate_limited", i18n.TranslationParams{
+		text := tr.String("backup_export_rate_limited", i18n.TranslationParams{
 			"time": cooldownStr,
 		})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -199,13 +199,13 @@ func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
 	bkp, err := backup.ExportChatData(chat.Id, chat.Title, user.Id, modules, b.Id)
 	if err != nil {
 		log.Errorf("[Backup] Export failed for chat %d: %v", chat.Id, err)
-		text, _ := tr.GetString("backup_export_failed")
+		text := tr.String("backup_export_failed")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	if len(bkp.Data) == 0 {
-		text, _ := tr.GetString("backup_export_no_modules")
+		text := tr.String("backup_export_no_modules")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -213,7 +213,7 @@ func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
 	jsonData, err := bkp.ToJSON()
 	if err != nil {
 		log.Errorf("[Backup] Failed to marshal backup: %v", err)
-		text, _ := tr.GetString("backup_export_failed")
+		text := tr.String("backup_export_failed")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -232,7 +232,7 @@ func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
 	)
 	if err != nil {
 		log.Errorf("[Backup] Failed to send document: %v", err)
-		text, _ := tr.GetString("backup_export_failed")
+		text := tr.String("backup_export_failed")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -243,12 +243,12 @@ func (m moduleStruct) exportHandler(c *helpers.CommandContext) error {
 
 func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translator) ([]byte, string) {
 	if !strings.HasSuffix(strings.ToLower(doc.FileName), ".json") {
-		text, _ := tr.GetString("backup_import_invalid_file")
+		text := tr.String("backup_import_invalid_file")
 		return nil, text
 	}
 
 	if doc.FileSize > maxBackupFileSize {
-		text, _ := tr.GetString("backup_import_file_too_large")
+		text := tr.String("backup_import_file_too_large")
 		return nil, text
 	}
 
@@ -256,10 +256,10 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 	if err != nil {
 		log.Errorf("[Backup] Failed to download file: %v", err)
 		if errors.Is(err, errTelegramFileTooLarge) {
-			text, _ := tr.GetString("backup_import_file_too_large")
+			text := tr.String("backup_import_file_too_large")
 			return nil, text
 		}
-		text, _ := tr.GetString("backup_import_download_failed")
+		text := tr.String("backup_import_download_failed")
 		return nil, text
 	}
 
@@ -306,7 +306,7 @@ func (m moduleStruct) importHandler(c *helpers.CommandContext) error {
 	b, msg, chat, tr := c.Bot, c.Msg, c.Chat, c.Tr
 
 	if msg.ReplyToMessage == nil || msg.ReplyToMessage.Document == nil {
-		text, _ := tr.GetString("backup_import_no_reply")
+		text := tr.String("backup_import_no_reply")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -322,27 +322,27 @@ func (m moduleStruct) importHandler(c *helpers.CommandContext) error {
 	bkp, err := backup.BackupFormatFromJSON(fileData)
 	if err != nil {
 		log.Errorf("[Backup] Failed to parse backup: %v", err)
-		text, _ := tr.GetString("backup_import_invalid_file")
+		text := tr.String("backup_import_invalid_file")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	if err := bkp.Validate(); err != nil {
 		log.Errorf("[Backup] Invalid backup: %v", err)
-		text, _ := tr.GetString("backup_import_invalid_file")
+		text := tr.String("backup_import_invalid_file")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	if !bkp.IsCompatibleVersion() {
-		text, _ := tr.GetString("backup_import_version_mismatch")
+		text := tr.String("backup_import_version_mismatch")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	importModules, parseErr := parseImportModules(msg.Text, bkp.Data)
 	if parseErr != nil {
-		text, _ := tr.GetString("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(bkp.Modules, ", ")})
+		text := tr.String("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(bkp.Modules, ", ")})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -353,7 +353,7 @@ func (m moduleStruct) importHandler(c *helpers.CommandContext) error {
 
 	limiter := ratelimit.GetBackupRateLimiter()
 	if allowed, cooldown := limiter.AcquireImport(chat.Id); !allowed {
-		text, _ := tr.GetString("backup_import_rate_limited", i18n.TranslationParams{
+		text := tr.String("backup_import_rate_limited", i18n.TranslationParams{
 			"time": ratelimit.FormatCooldown(cooldown),
 		})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -363,12 +363,12 @@ func (m moduleStruct) importHandler(c *helpers.CommandContext) error {
 	token, err := storePendingImport(chat.Id, bkp, importModules)
 	if err != nil {
 		log.Errorf("[Backup] Failed to store pending import: %v", err)
-		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{"error": html.EscapeString(err.Error())})
+		text := tr.String("backup_import_failed", i18n.TranslationParams{"error": html.EscapeString(err.Error())})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	confirmText, _ := tr.GetString("backup_import_confirm", backupConfirmParams(importModules))
+	confirmText := tr.String("backup_import_confirm", backupConfirmParams(importModules))
 
 	keyboard := buildImportKeyboard(tr, chat.Id, token)
 
@@ -394,7 +394,7 @@ func (m moduleStruct) resetHandler(c *helpers.CommandContext) error {
 			var parseErr error
 			resetModules, parseErr = parseModuleArgs(args[1:], backup.IsValidModule)
 			if parseErr != nil {
-				text, _ := tr.GetString("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(backup.AllExportableModules(), ", ")})
+				text := tr.String("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(backup.AllExportableModules(), ", ")})
 				_, _ = msg.Reply(b, text, formatting.Shtml())
 				return ext.EndGroups
 			}
@@ -407,7 +407,7 @@ func (m moduleStruct) resetHandler(c *helpers.CommandContext) error {
 
 	limiter := ratelimit.GetBackupRateLimiter()
 	if allowed, cooldown := limiter.AcquireReset(chat.Id); !allowed {
-		text, _ := tr.GetString("backup_reset_rate_limited", i18n.TranslationParams{
+		text := tr.String("backup_reset_rate_limited", i18n.TranslationParams{
 			"time": ratelimit.FormatCooldown(cooldown),
 		})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -417,12 +417,12 @@ func (m moduleStruct) resetHandler(c *helpers.CommandContext) error {
 	token, err := storePendingReset(chat.Id, resetModules)
 	if err != nil {
 		log.Errorf("[Backup] Failed to store pending reset: %v", err)
-		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{"error": html.EscapeString(err.Error())})
+		text := tr.String("backup_reset_failed", i18n.TranslationParams{"error": html.EscapeString(err.Error())})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	confirmText, _ := tr.GetString("backup_reset_confirm", backupConfirmParams(resetModules))
+	confirmText := tr.String("backup_reset_confirm", backupConfirmParams(resetModules))
 
 	keyboard := buildResetKeyboard(tr, chat.Id, token)
 
@@ -461,7 +461,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		if action == backupActionConfirmReset || action == backupActionCancelReset {
 			key = "backup_reset_creator_only"
 		}
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 			Text:      text,
 			ShowAlert: true,
@@ -496,7 +496,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat, token string) error {
 	bkp, modules, ok := consumePendingImport(chat.Id, token)
 	if !ok {
-		text, _ := tr.GetString("backup_import_expired")
+		text := tr.String("backup_import_expired")
 		_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
 		if err != nil {
 			log.Errorf("[Backup] Failed to send message: %v", err)
@@ -507,17 +507,17 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	notices, err := backup.ImportChatData(chat.Id, bkp, modules)
 	if err != nil {
 		log.Errorf("[Backup] Import failed for chat %d: %v", chat.Id, err)
-		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{
+		text := tr.String("backup_import_failed", i18n.TranslationParams{
 			"error": html.EscapeString(err.Error()),
 		})
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("backup_import_success", backupResultParams(modules))
+	text := tr.String("backup_import_success", backupResultParams(modules))
 	// Every notice is a skipped federation (backup.ImportNotice).
 	for _, notice := range notices {
-		line, _ := tr.GetString("backup_import_federation_skipped", i18n.TranslationParams{"fed_id": html.EscapeString(notice.ID)})
+		line := tr.String("backup_import_federation_skipped", i18n.TranslationParams{"fed_id": html.EscapeString(notice.ID)})
 		text += "\n" + line
 	}
 	if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
@@ -532,12 +532,12 @@ func (m moduleStruct) handleCancelPending(b *gotgbot.Bot, ctx *ext.Context, tr *
 	chat := ctx.EffectiveChat
 
 	if !discard(chat.Id, token) {
-		text, _ := tr.GetString(expiredKey)
+		text := tr.String(expiredKey)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString(cancelKey)
+	text := tr.String(cancelKey)
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 		Text: text,
 	})
@@ -557,21 +557,21 @@ func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i
 func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat, token string) error {
 	modules, ok := consumePendingReset(chat.Id, token)
 	if !ok || len(modules) == 0 {
-		text, _ := tr.GetString("backup_reset_expired")
+		text := tr.String("backup_reset_expired")
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	if err := backup.ClearChatData(chat.Id, modules); err != nil {
 		log.Errorf("[Backup] Reset failed for chat %d: %v", chat.Id, err)
-		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{
+		text := tr.String("backup_reset_failed", i18n.TranslationParams{
 			"error": html.EscapeString(err.Error()),
 		})
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("backup_reset_success", backupResultParams(modules))
+	text := tr.String("backup_reset_success", backupResultParams(modules))
 	_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
 	if err != nil {
 		log.Errorf("[Backup] Failed to send success message: %v", err)
@@ -592,7 +592,7 @@ func buildExportCaption(tr *i18n.Translator, backup *backup.BackupFormat) string
 	chatName := html.EscapeString(backup.ChatName)
 	exportedAt := backup.ExportedAt.Format("2006-01-02 15:04:05")
 	modulesList := buildModuleList(backup.Modules)
-	caption, _ := tr.GetString("backup_export_success", i18n.TranslationParams{
+	caption := tr.String("backup_export_success", i18n.TranslationParams{
 		"modules": strconv.Itoa(len(backup.Data)),
 		"list":    modulesList,
 		"chat":    chatName,
@@ -684,7 +684,7 @@ var backupImportOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *he
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id) {
 		return true
 	}
-	text, _ := c.Tr.GetString("backup_import_creator_only")
+	text := c.Tr.String("backup_import_creator_only")
 	_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	return false
 })
