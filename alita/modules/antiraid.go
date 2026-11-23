@@ -328,16 +328,29 @@ func (a *antiRaidStruct) countJoin(bot *gotgbot.Bot, ctx *ext.Context, userID in
 		// Another join switched it on first and reported it.
 		return
 	}
+	// The entry logs no user (userID 0): Spec.Log's Name fallback is moot
+	// because actionlog skips the user line at ID 0. The notice sends Raw,
+	// keeping the Shtml options the inline send used.
 	log.WithContext(tracing.UpdateContext(ctx)).Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
-	actionlog.Automated(bot, chat, "ANTIRAID", 0, "",
-		actionlog.Field{Name: "Joins", Value: strconv.Itoa(count)},
-		actionlog.Field{Name: "Threshold", Value: strconv.Itoa(settings.AutoAntiRaidThreshold)},
-		actionlog.Field{Name: "Duration", Value: formatDuration(settings.RaidTime)},
-		actionlog.Field{Name: "Joiners banned for", Value: formatDuration(settings.RaidActionTime)},
-	)
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text := tr.String("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
-	_, _ = chat.SendMessage(bot, text, formatting.Shtml())
+	_, _ = enforce.Automated(bot, ctx, enforce.Spec{
+		Request: punishment.Request{ChatID: chat.Id},
+		Exempt:  enforce.NeverExempt,
+		LogOnly: true,
+		Log: &enforce.LogSpec{
+			Tag: "ANTIRAID",
+			Fields: []actionlog.Field{
+				{Name: "Joins", Value: strconv.Itoa(count)},
+				{Name: "Threshold", Value: strconv.Itoa(settings.AutoAntiRaidThreshold)},
+				{Name: "Duration", Value: formatDuration(settings.RaidTime)},
+				{Name: "Joiners banned for", Value: formatDuration(settings.RaidActionTime)},
+			},
+		},
+		Notice: &enforce.NoticeSpec{
+			Key:    "antiraid_auto_triggered",
+			Params: i18n.TranslationParams{"count": strconv.Itoa(count)},
+			Raw:    true,
+		},
+	})
 }
 
 // antiRaidStage is membership intake's raid guard: while a raid is on it bans
