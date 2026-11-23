@@ -455,8 +455,6 @@ func (m moduleStruct) blacklistWatcherWithPunisher(b *gotgbot.Bot, ctx *ext.Cont
 }
 
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(blacklistsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "blacklists",
 		Aliases:        []string{"blocklists"},

@@ -778,16 +778,12 @@ func TestSpamDBStatusMarksSharedInertWhenReputationDisabled(t *testing.T) {
 
 func TestSpamDBIsReachableFromHelp(t *testing.T) {
 	registry := DefaultHelpRegistry()
-	previousEnabled, hadEnabled := registry.AbleMap[spamDBModule.moduleName]
+	previousEnabled := registry.isEnabled(spamDBModule.moduleName)
 	t.Cleanup(func() {
-		if hadEnabled {
-			registry.AbleMap[spamDBModule.moduleName] = previousEnabled
-			return
-		}
-		delete(registry.AbleMap, spamDBModule.moduleName)
+		registry.setEnabled(spamDBModule.moduleName, previousEnabled)
 	})
 
-	LoadSpamDB(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+	loadModuleByName(t, "SpamDB", ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
 
 	var button bool
 	for _, row := range initHelpButtonsFrom(registry, "en").InlineKeyboard {

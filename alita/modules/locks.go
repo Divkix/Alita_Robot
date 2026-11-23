@@ -416,8 +416,6 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 }
 
 func LoadLocks(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(locksModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "lock", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.Check{

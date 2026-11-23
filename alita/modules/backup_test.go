@@ -50,29 +50,17 @@ func TestBackupModuleStructure(t *testing.T) {
 }
 
 func TestLoadBackupDoesNotRegisterDeadHelpButtons(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() { defaultHelpRegistry = previousRegistry })
+
+	loadModuleByName(t, "Backup", ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+
 	registry := DefaultHelpRegistry()
-	previousButtons, hadButtons := registry.helpKbBuilders[backupModule.moduleName]
-	previousEnabled, hadEnabled := registry.AbleMap[backupModule.moduleName]
-	delete(registry.helpKbBuilders, backupModule.moduleName)
-	delete(registry.AbleMap, backupModule.moduleName)
-	t.Cleanup(func() {
-		if hadButtons {
-			registry.helpKbBuilders[backupModule.moduleName] = previousButtons
-		} else {
-			delete(registry.helpKbBuilders, backupModule.moduleName)
-		}
-		if hadEnabled {
-			registry.AbleMap[backupModule.moduleName] = previousEnabled
-		} else {
-			delete(registry.AbleMap, backupModule.moduleName)
-		}
-	})
-
-	LoadBackup(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
-
-	assert.True(t, registry.AbleMap[backupModule.moduleName])
-	_, ok := registry.helpKbBuilders[backupModule.moduleName]
-	assert.False(t, ok)
+	assert.True(t, registry.isEnabled(backupModule.moduleName))
+	if builder := registry.helpKbBuilder(backupModule.moduleName); builder != nil {
+		t.Fatal("LoadBackup registered a help keyboard builder")
+	}
 }
 
 func TestBuildModuleList(t *testing.T) {

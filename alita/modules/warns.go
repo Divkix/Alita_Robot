@@ -927,7 +927,6 @@ func initWarnDescs() {
 }
 
 func LoadWarns(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(warnsModule.moduleName, true)
 	initWarnDescs()
 
 	helpers.WrapCommand(dispatcher, warnDesc, pipelineHandler(warnsModule.warnUser))

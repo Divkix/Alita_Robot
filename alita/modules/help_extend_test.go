@@ -38,7 +38,7 @@ func withExtendRegistry(t *testing.T, modules ...string) {
 	previousRegistry := defaultHelpRegistry
 	defaultHelpRegistry = newHelpRegistry()
 	for _, m := range modules {
-		defaultHelpRegistry.AbleMap[m] = true
+		defaultHelpRegistry.setEnabled(m, true)
 	}
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
@@ -190,8 +190,8 @@ func TestStartExtendDeepLinkSendsCommandList(t *testing.T) {
 	}
 }
 
-// helpOnlyModules have help text but no button in the /help menu: Devs is
-// owner-only, Help and Users never call SetModuleEnabled.
+// helpOnlyModules have help text but no button in the /help menu: they
+// registered with NoHelp (Dev, Help, Users).
 var helpOnlyModules = map[string]bool{"devs": true, "help": true, "users": true}
 
 // Every module whose help documents commands must have a one-line-per-command

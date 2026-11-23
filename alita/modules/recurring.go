@@ -354,8 +354,6 @@ func recurringReply(c *helpers.CommandContext, key string, params i18n.Translati
 }
 
 func LoadRecurring(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(recurringModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, recurringDesc, recurringModule.recurring)
 
 }

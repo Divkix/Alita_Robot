@@ -818,8 +818,6 @@ var notesClearAllOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *h
 })
 
 func LoadNotes(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(notesModule.moduleName, true)
-
 	SetModuleHelpBuilder(notesModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
 		return [][]gotgbot.InlineKeyboardButton{{{
 			Text:         trS(i18n.MustNewTranslator(l), "button_formatting"),

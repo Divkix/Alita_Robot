@@ -650,7 +650,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 
 ### Legacy Registration
 
-Every module except Help, BotUpdates included (`RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates)`), registers with `RegisterLegacyModule` in its `init()` function. Help is loaded last by `main.go` (`defer modules.LoadHelp(dispatcher)`):
+Every module registers with `RegisterLegacyModule` in its `init()` function. Loading a module marks it enabled in `/help` automatically; watcher-only modules pass `RegisterLegacyModuleOptions{NoHelp: true}`. Help registers at `PriorityFinal` and loads last inside `LoadAllModules`:
 
 ```go
 func init() {

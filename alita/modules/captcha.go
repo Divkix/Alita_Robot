@@ -2093,8 +2093,6 @@ func registerCaptchaWorkers(bot *gotgbot.Bot) {
 }
 
 func LoadCaptcha(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(captchaModule.moduleName, true)
-
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
 
 	for _, cfg := range []struct {

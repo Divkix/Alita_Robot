@@ -224,8 +224,6 @@ func digestReplyKey(c *helpers.CommandContext, key string, params i18n.Translati
 }
 
 func LoadDigest(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(digestModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, digestDesc, digestModule.digest)
 
 	// The windows are weeks long, but a weekly job would never tick on a

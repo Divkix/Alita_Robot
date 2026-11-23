@@ -344,8 +344,6 @@ func extractDisplayName(userID int64) string {
 
 //nolint:dupl // Pattern matches other LoadXxx functions
 func LoadApprovals(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(approvalsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approve", PMGroupArg: helpers.PMGroupArgOwn,
 		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},

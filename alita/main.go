@@ -2,7 +2,6 @@ package alita
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -14,14 +13,7 @@ import (
 )
 
 func ListModules() string {
-	var modSlice []string
-	for module, enabled := range modules.GetAbleMap() {
-		if enabled {
-			modSlice = append(modSlice, module)
-		}
-	}
-	slices.Sort(modSlice)
-	return fmt.Sprintf("[%s]", strings.Join(modSlice, ", "))
+	return fmt.Sprintf("[%s]", strings.Join(modules.EnabledModules(), ", "))
 }
 
 func InitialChecks(b *gotgbot.Bot) error {
@@ -35,8 +27,8 @@ func InitialChecks(b *gotgbot.Bot) error {
 func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.ResetHelpRegistry()
 
-	defer modules.LoadHelp(dispatcher)
-
+	// Help registers with PriorityFinal, so it loads last inside
+	// LoadAllModules like every other module.
 	modules.LoadAllModules(dispatcher)
 	// CommandModules derives from the manifest LoadAllModules just filled.
 	metrics.SetCommandModules(modules.CommandModules())

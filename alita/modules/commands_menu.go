@@ -66,7 +66,7 @@ func commandsViewFromCallback(decoded *callbackcodec.Decoded) commandsView {
 
 // commandsMenu answers /commands: in PM with the menu, in a group with a
 // button that opens it in PM for that group.
-func (moduleStruct) commandsMenu(c *helpers.CommandContext) error {
+func (*helpRegistry) commandsMenu(c *helpers.CommandContext) error {
 	if c.Chat.Type == "private" {
 		return sendCommandsMenu(c.Bot, c.Ctx, c.Tr, c.User.Id, 0)
 	}
@@ -317,7 +317,7 @@ func exampleNamingGroup(example string, groupID int64) string {
 	return example
 }
 
-func (moduleStruct) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups

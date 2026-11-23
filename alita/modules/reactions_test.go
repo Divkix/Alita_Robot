@@ -263,19 +263,17 @@ func TestReactionCommandsWorkWithNilCacheMarshal(t *testing.T) {
 func TestLoadReactionsRegistersHelpAndHandlers(t *testing.T) {
 	useRealLocales(t)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadReactions(dispatcher)
+	loadModuleByName(t, "Reactions", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] {
+	registry := DefaultHelpRegistry()
+	if !registry.isEnabled(reactionsModule.moduleName) {
 		t.Fatal("reactions help registration = false, want enabled")
 	}
-	if got := DefaultHelpRegistry().AltHelpOptions["Reactions"]; len(got) != 1 || got[0] != "reaction" {
-		t.Fatalf("reactions alt help = %v, want [reaction]", got)
-	}
-	if got := DefaultHelpRegistry().helpKbBuilders["Reactions"]("en"); len(got) != 1 || len(got[0]) != 2 {
+	if got := registry.helpKbBuilder(reactionsModule.moduleName)("en"); len(got) != 1 || len(got[0]) != 2 {
 		t.Fatalf("reactions help keyboard = %#v, want one row with two buttons", got)
 	}
 	// The buttons follow the viewer's language.
-	es := DefaultHelpRegistry().helpKbBuilders["Reactions"]("es")
+	es := registry.helpKbBuilder(reactionsModule.moduleName)("es")
 	want := trS(i18n.MustNewTranslator("es"), "reactions_button_add")
 	if want == "" || es[0][0].Text != want {
 		t.Fatalf("reactions es add button = %q, want %q", es[0][0].Text, want)

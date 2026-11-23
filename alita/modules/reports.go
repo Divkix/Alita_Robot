@@ -617,8 +617,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 }
 
 func LoadReports(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(reportsModule.moduleName, true)
-
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {
