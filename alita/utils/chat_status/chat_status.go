@@ -555,7 +555,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 				if err := connections.DisconnectId(user.Id); err != nil {
 					key = "error_generic"
 				}
-				text, _ := tr.GetString(key)
+				text := tr.String(key)
 				respond(text)
 			}
 
@@ -566,7 +566,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 					"chatId": conn.ChatId,
 					"error":  err,
 				}).Warn("Connected chat lookup failed")
-				text, _ := tr.GetString("error_generic")
+				text := tr.String("error_generic")
 				respond(text)
 				return nil
 			}
@@ -582,7 +582,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 						"chatId": conn.ChatId,
 						"error":  err,
 					}).Warn("Connected chat membership check failed")
-					text, _ := tr.GetString("error_generic")
+					text := tr.String("error_generic")
 					respond(text)
 					return nil
 				}
@@ -597,7 +597,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 			}
 			chat = &_chat
 		} else {
-			text, _ := tr.GetString("connections_is_user_connected_need_group")
+			text := tr.String("connections_is_user_connected_need_group")
 			if query, ok := CallbackQueryFromContext(ctx); ok {
 				_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			} else {
@@ -621,7 +621,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 	if botAdmin {
 		if !isUserAdminForContext(b, ctx, chat.Id, b.Id) {
-			text, _ := tr.GetString("connections_is_user_connected_bot_not_admin")
+			text := tr.String("connections_is_user_connected_bot_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -633,7 +633,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 	if chatAdmin {
 		if !userAdminVerified && !isUserAdminForContext(b, ctx, chat.Id, user.Id) {
-			text, _ := tr.GetString("connections_is_user_connected_user_not_admin")
+			text := tr.String("connections_is_user_connected_user_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -759,8 +759,8 @@ func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.C
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	mainText, _ := tr.GetString("chat_status_anon_confirm")
-	buttonText, _ := tr.GetString("chat_status_anon_prove_admin")
+	mainText := tr.String("chat_status_anon_confirm")
+	buttonText := tr.String("chat_status_anon_prove_admin")
 	callbackData, err := callbackcodec.Encode("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": fmt.Sprint(msg.MessageId),

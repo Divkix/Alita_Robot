@@ -73,7 +73,7 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 	if btnKey != "" {
 		query, _ := CallbackQueryFromContext(ctx)
 		if query != nil {
-			text, _ := tr.GetString(btnKey)
+			text := tr.String(btnKey)
 			_, err := query.Answer(r.bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -85,7 +85,7 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 		}
 	}
 
-	text, _ := tr.GetString(cmdKey)
+	text := tr.String(cmdKey)
 
 	if cfg.useReply {
 		msg := ctx.EffectiveMessage

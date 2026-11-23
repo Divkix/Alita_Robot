@@ -25,7 +25,7 @@ func GetLangFormat(langCode string) string {
 // non-zero chatID names the group it acts on in the "c" field, for a button
 // sent in PM; without one it acts on the chat it is pressed in.
 func UnrestrictButton(tr *i18n.Translator, labelKey, action string, userID, chatID int64) gotgbot.InlineKeyboardButton {
-	label, _ := tr.GetString(labelKey)
+	label := tr.String(labelKey)
 	fields := map[string]string{
 		"a": action,
 		"u": strconv.FormatInt(userID, 10),
@@ -94,14 +94,8 @@ func InitButtons(b *gotgbot.Bot, tr *i18n.Translator, chatId, userId int64) gotg
 	if tr == nil {
 		tr = i18n.MustNewTranslator("en")
 	}
-	adminText, _ := tr.GetString("helpers_admin_commands")
-	if adminText == "" {
-		adminText = "Admin commands"
-	}
-	userText, _ := tr.GetString("helpers_user_commands")
-	if userText == "" {
-		userText = "User commands"
-	}
+	adminText := tr.String("helpers_admin_commands")
+	userText := tr.String("helpers_user_commands")
 
 	var connButtons [][]gotgbot.InlineKeyboardButton
 	if chat_status.IsUserAdmin(b, chatId, userId) {
