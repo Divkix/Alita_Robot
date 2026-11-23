@@ -330,8 +330,8 @@ func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 
 	data := encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"})
 	callbackCtx := newModuleCallbackContext(bot, chat, owner, data)
-	if err := filtersModule.filtersButtonHandler(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("filtersButtonHandler error = %v, want EndGroups", err)
+	if err := filtersClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("filtersClearAllCallback error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
 		return len(filters.GetFiltersList(chat.Id)) == 0
@@ -353,16 +353,16 @@ func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 	cancelCtx := newModuleCallbackContext(bot, chat, owner, "rmAllFilters.no")
-	if err := filtersModule.filtersButtonHandler(bot, cancelCtx); err != ext.EndGroups {
-		t.Fatalf("filtersButtonHandler cancel error = %v, want EndGroups", err)
+	if err := filtersClearAllCallback(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("filtersClearAllCallback cancel error = %v, want EndGroups", err)
 	}
 	if !filters.DoesFilterExists(chat.Id, "keep") {
 		t.Fatal("filter was removed after cancel callback")
 	}
 
 	invalidCtx := newModuleCallbackContext(bot, chat, owner, "rmAllFilters")
-	if err := filtersModule.filtersButtonHandler(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("filtersButtonHandler invalid error = %v, want EndGroups", err)
+	if err := filtersClearAllCallback(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("filtersClearAllCallback invalid error = %v, want EndGroups", err)
 	}
 	unknownCtx := newModuleCallbackContext(
 		bot,
@@ -370,8 +370,8 @@ func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
 		owner,
 		encodeCallbackData("rmAllFilters", map[string]string{"a": "crafted"}),
 	)
-	if err := filtersModule.filtersButtonHandler(bot, unknownCtx); err != ext.EndGroups {
-		t.Fatalf("filtersButtonHandler unknown action error = %v, want EndGroups", err)
+	if err := filtersClearAllCallback(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("filtersClearAllCallback unknown action error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid acknowledgements", len(calls))
@@ -496,17 +496,19 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 
 	for _, tt := range []struct {
-		name   string
-		method string
-		run    func(*gotgbot.Bot, *ext.Context) error
-		data   string
-		setup  func(t *testing.T, chat gotgbot.Chat)
+		name          string
+		method        string
+		run           func(*gotgbot.Bot, *ext.Context) error
+		data          string
+		setup         func(t *testing.T, chat gotgbot.Chat)
+		wantEndGroups bool
 	}{
 		{
-			name:   "remove all edit failure",
-			method: "editMessageText",
-			run:    filtersModule.filtersButtonHandler,
-			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
+			name:          "remove all edit failure",
+			method:        "editMessageText",
+			run:           filtersClearAllCallback,
+			wantEndGroups: true,
+			data:          encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
 				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
@@ -517,7 +519,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		{
 			name:   "remove all answer failure",
 			method: "answerCallbackQuery",
-			run:    filtersModule.filtersButtonHandler,
+			run:    filtersClearAllCallback,
 			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
@@ -586,6 +588,16 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			ctx := newModuleCallbackContext(bot, chat, admin, tt.data)
 
 			err := tt.run(bot, ctx)
+			if tt.wantEndGroups {
+				// A failed edit still answers the callback so the button stops spinning.
+				if err != ext.EndGroups {
+					t.Fatalf("%s error = %v, want EndGroups", tt.name, err)
+				}
+				if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+					t.Fatalf("%s: answerCallbackQuery calls = %d, want 1 after the failed edit", tt.name, len(calls))
+				}
+				return
+			}
 			if !errors.Is(err, requestErr) {
 				t.Fatalf("%s error = %v, want request error", tt.name, err)
 			}
@@ -608,8 +620,8 @@ func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
 	if rmAllCtx.EffectiveChat != nil {
 		t.Fatalf("press without a message has chat %d", rmAllCtx.EffectiveChat.Id)
 	}
-	if err := filtersModule.filtersButtonHandler(bot, rmAllCtx); err != ext.EndGroups {
-		t.Fatalf("filtersButtonHandler(no chat) error = %v, want EndGroups", err)
+	if err := filtersClearAllCallback(bot, rmAllCtx); err != ext.EndGroups {
+		t.Fatalf("filtersClearAllCallback(no chat) error = %v, want EndGroups", err)
 	}
 
 	overwriteCtx := newModuleCallbackContext(bot, chat, admin, encodeCallbackData("filters_overwrite", map[string]string{"a": "cancel"}))

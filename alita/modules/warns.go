@@ -780,94 +780,45 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// warnsClearAll is the /resetallwarns owner confirmation: the shared
+// skeleton asks, authorizes and answers; these closures hold only the
+// warns work.
+var warnsClearAll = ownerConfirmSpec{
+	Namespace: "rmAllChatWarns",
+	AskKey:    "warns_reset_all_confirm",
+	Ask: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error) {
+		if chat_status.RequireUser(b, ctx) == nil {
+			return false, nil
+		}
+		if warns.GetAllChatWarns(chat.Id) == 0 {
+			text, _ := tr.GetString("warns_no_users_warned")
+			if _, err := ctx.EffectiveMessage.Reply(b, text, formatting.Shtml()); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		return true, nil
+	},
+	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := warns.ResetAllChatWarns(chat.Id); err != nil {
+			return "error_generic", nil, nil
+		}
+		actionlog.Warn(b, chat, actor, "RESETALLWARNS", 0, "")
+		return "", nil, nil
+	},
+	Keys: ownerConfirmKeys{
+		Confirmed: "warns_reset_all_final",
+		Cancelled: "warns_reset_all_cancelled",
+		Failed:    "error_generic",
+	},
+}
+
+var warnsClearAllMessage, warnsClearAllCallback = registerOwnerConfirm(warnsClearAll)
+
 func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	warnrc := warns.GetAllChatWarns(chat.Id)
-	if warnrc == 0 {
-		text, _ := tr.GetString("warns_no_users_warned")
-		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	text, _ := tr.GetString("warns_reset_all_confirm")
-	text = confirmText(ctx, tr, text, chat)
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllChatWarns", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+	return warnsClearAllMessage(b, ctx)
 }
 
-func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	decoded, _ := decodeCallbackData(query.Data, "rmAllChatWarns")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	response, _ := decoded.Field("a")
-	if response == "" {
-		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-	var helpText string
-
-	var replyText string
-
-	switch response {
-	case "yes":
-		if err := warns.ResetAllChatWarns(chat.Id); err == nil {
-			helpText, _ = tr.GetString("warns_reset_all_success")
-			replyText, _ = tr.GetString("warns_reset_all_final")
-			actionlog.Warn(b, chat, &query.From, "RESETALLWARNS", 0, "")
-		} else {
-			helpText, _ = tr.GetString("error_generic")
-			replyText = helpText
-		}
-	case "no":
-		helpText, _ = tr.GetString("warns_reset_all_cancelled")
-		replyText = helpText
-	default:
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	if query.Message == nil {
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-		return ext.EndGroups
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b,
-		&gotgbot.AnswerCallbackQueryOpts{
-			Text: helpText,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
-}
 
 func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
@@ -1005,7 +956,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 		}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns"), warnsModule.warnsButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns|"), warnsClearAllCallback))
 	helpers.WrapCommand(dispatcher, warningsDesc, pipelineHandler(warnsModule.warnings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmWarn"), warnsModule.rmWarnButton))
 }
