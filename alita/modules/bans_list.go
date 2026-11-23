@@ -85,8 +85,7 @@ func banListEntry(tr *i18n.Translator, n int, r models.BanRecord) string {
 		key = "bans_banlist_entry_until"
 		params["until"] = r.Until.UTC().Format(banRecordTimeFormat)
 	}
-	line, _ := tr.GetString(key, params)
-	return line
+	return tr.String(key, params)
 }
 
 // banListPage renders page (from 0) of chat's open bans matching search, as
@@ -102,9 +101,9 @@ func banListPage(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, 
 	if total == 0 {
 		var text string
 		if search == "" {
-			text, _ = tr.GetString("bans_banlist_empty")
+			text = tr.String("bans_banlist_empty")
 		} else {
-			text, _ = tr.GetString("bans_banlist_no_match", i18n.TranslationParams{"query": html.EscapeString(search)})
+			text = tr.String("bans_banlist_no_match", i18n.TranslationParams{"query": html.EscapeString(search)})
 		}
 		return withGroupLine(tr, msg, chat, text), none, nil
 	}
@@ -116,7 +115,7 @@ func banListPage(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, 
 		headerKey = "bans_banlist_header_search"
 		params["query"] = html.EscapeString(search)
 	}
-	header, _ := tr.GetString(headerKey, params)
+	header := tr.String(headerKey, params)
 	lines := make([]string, 0, len(rows)+1)
 	lines = append(lines, header)
 	for i := range rows {
@@ -134,7 +133,7 @@ func banListPage(tr *i18n.Translator, msg *gotgbot.Message, chat *gotgbot.Chat, 
 		}
 	}
 	button := func(key string, to int) gotgbot.InlineKeyboardButton {
-		label, _ := tr.GetString(key)
+		label := tr.String(key)
 		fields := map[string]string{"p": strconv.Itoa(to)}
 		if token != "" {
 			fields["t"] = token
@@ -169,7 +168,7 @@ func (moduleStruct) banList(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, kb, err := banListPage(tr, msg, chat, search, "", 0, time.Now())
 	if err != nil {
 		log.WithError(err).WithField("chat_id", chat.Id).Error("[Bans] Failed to list the open bans")
-		text, _ = tr.GetString("bans_record_read_failed")
+		text = tr.String("bans_record_read_failed")
 	}
 	opts := formatting.Shtml()
 	opts.ReplyMarkup = kb
@@ -208,7 +207,7 @@ func (moduleStruct) banListCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	answer := func(key string) error {
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
 		return ext.EndGroups
 	}

@@ -3,7 +3,6 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,7 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 )
 
 func TestBlacklistDispatcherDecidesPunishment(t *testing.T) {
@@ -26,21 +24,22 @@ func TestBlacklistDispatcherDecidesPunishment(t *testing.T) {
 		action   string
 		stored   int
 		punishes bool
-		mode     punishment.Mode
+		method   string
 		duration time.Duration
+		timed    bool
 	}{
-		{"ban", 0, true, punishment.Ban, 0},
-		{"kick", 0, true, punishment.Kick, 0},
-		{"mute", 0, true, punishment.Mute, 0},
-		{"tban", 600, true, punishment.Ban, 10 * time.Minute},
-		{"tmute", 86400, true, punishment.Mute, 24 * time.Hour},
+		{"ban", 0, true, "banChatMember", 0, false},
+		{"kick", 0, true, "unbanChatMember", 0, false},
+		{"mute", 0, true, "restrictChatMember", 0, false},
+		{"tban", 600, true, "banChatMember", 10 * time.Minute, true},
+		{"tmute", 86400, true, "restrictChatMember", 24 * time.Hour, true},
 		// Rows without a usable duration keep the one-hour fallback.
-		{"tban", 0, true, punishment.Ban, time.Hour},
-		{"tban", 30, true, punishment.Ban, time.Hour},
-		{"tmute", 366*86400 + 1, true, punishment.Mute, time.Hour},
+		{"tban", 0, true, "banChatMember", time.Hour, true},
+		{"tban", 30, true, "banChatMember", time.Hour, true},
+		{"tmute", 366*86400 + 1, true, "restrictChatMember", time.Hour, true},
 		// A warn goes to the warns module; none only deletes the message.
-		{"warn", 0, false, "", 0},
-		{"none", 0, false, "", 0},
+		{"warn", 0, false, "", 0, false},
+		{"none", 0, false, "", 0, false},
 	} {
 		for _, actor := range []string{"member", "channel", "approved", "admin"} {
 			t.Run(fmt.Sprintf("%s/%d/%s", tc.action, tc.stored, actor), func(t *testing.T) {
@@ -56,14 +55,8 @@ func TestBlacklistDispatcherDecidesPunishment(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				var requests []punishment.Request
 				d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-				d.AddHandlerToGroup(handlers.NewMessage(message.All, func(bot *gotgbot.Bot, ctx *ext.Context) error {
-					return blacklistsModule.blacklistWatcherWithPunisher(bot, ctx, func(ctx context.Context, bot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
-						requests = append(requests, request)
-						return punishment.Apply(ctx, bot, request)
-					})
-				}), blacklistsModule.handlerGroup)
+				d.AddHandlerToGroup(handlers.NewMessage(message.All, blacklistsModule.blacklistWatcher), blacklistsModule.handlerGroup)
 				user := f.member
 				if actor == "admin" {
 					user = f.admin
@@ -74,29 +67,47 @@ func TestBlacklistDispatcherDecidesPunishment(t *testing.T) {
 					ctx.EffectiveMessage.From = nil
 					ctx.EffectiveMessage.SenderChat = &channel
 				}
+				before := time.Now().Unix()
 				if err := d.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
 					t.Fatal(err)
 				}
+				after := time.Now().Unix()
+
+				calls := punishmentCalls(f.client)
 				if !tc.punishes || actor == "approved" || actor == "admin" {
-					if len(requests) != 0 {
-						t.Fatalf("requests = %+v, want none", requests)
+					if len(calls) != 0 {
+						t.Fatalf("punishment calls = %+v, want none", calls)
 					}
 					return
 				}
-				if len(requests) != 1 {
-					t.Fatalf("requests = %+v, want one", requests)
-				}
-				id := f.member.Id
 				if actor == "channel" {
-					id = channel.Id
+					// A sender chat takes only a permanent ban; every other
+					// mode is refused inside punishment.Apply before any call.
+					if tc.action != "ban" {
+						if len(calls) != 0 {
+							t.Fatalf("sender chat punished with %s: %+v", tc.action, calls)
+						}
+						return
+					}
+					if len(calls) != 1 || calls[0].Method != "banChatSenderChat" {
+						t.Fatalf("sender chat punishment calls = %+v, want one banChatSenderChat", calls)
+					}
+					assertParams(t, calls[0], map[string]any{"chat_id": f.chat.Id, "sender_chat_id": channel.Id})
+					return
 				}
-				want := punishment.Request{
-					ChatID: f.chat.Id, Target: punishment.Target{ID: id, SenderChat: actor == "channel"},
-					Mode: tc.mode, Duration: tc.duration, Source: models.BanSourceBlacklist,
-					Reason: "Blacklisted word: 'spam'",
+				if len(calls) != 1 || calls[0].Method != tc.method {
+					t.Fatalf("punishment calls = %+v, want one %s", calls, tc.method)
 				}
-				if requests[0] != want {
-					t.Fatalf("punishment decision = %+v, want %+v", requests[0], want)
+				assertParams(t, calls[0], targetParams(f.chat.Id, f.member.Id))
+				if !tc.timed {
+					if calls[0].Params["until_date"] != nil {
+						t.Fatalf("%s params = %#v, want no until_date", calls[0].Method, calls[0].Params)
+					}
+					return
+				}
+				secs := int64(tc.duration / time.Second)
+				if until := untilDateParam(t, calls[0]); until < before+secs || until > after+secs {
+					t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, secs, before+secs, after+secs)
 				}
 			})
 		}

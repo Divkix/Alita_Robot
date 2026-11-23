@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -27,7 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
-	keyboardutils "github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -247,11 +247,6 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 }
 
 func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
-	return m.checkFloodWithPunisher(b, ctx, punishment.Apply)
-}
-
-//nolint:gocyclo // The ordered exemptions and flood-message deletion form one watcher pass.
-func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, apply punisher) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	if user == nil {
@@ -275,79 +270,21 @@ func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, a
 		return ext.ContinueGroups
 	}
 
-	var keyboard [][]gotgbot.InlineKeyboardButton
 	userId := user.Id()
 
 	// Counting is in-memory while the exemption checks read the cache or call
 	// Telegram, so they run only once the user crosses the limit.
 	flooded, floodCrc := antifloodModule.updateFloodWithSettings(chatId, userId, msg.MessageId, flood)
 	// Anonymous-channel senders stay punishable through SenderChat, so the
-	// protected-user predicate runs only for user-shaped senders. The
-	// flood-exempt admin check above is a declared specialization: its
-	// semaphore and fail-exempt timeout guard slow admin lookups.
-	if !flooded || antifloodModule.userIsFloodExempt(b, chatId, userId) ||
-		(user.IsUser() && chat_status.IsProtectedForUpdate(b, ctx, chatId, userId)) {
+	// protected-user predicate runs only for user-shaped senders (enforce's
+	// sender gate). The flood-exempt admin check above is a declared
+	// specialization: its semaphore and fail-exempt timeout guard slow admin
+	// lookups.
+	if !flooded || antifloodModule.userIsFloodExempt(b, chatId, userId) {
 		return ext.ContinueGroups
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if slices.Contains([]string{"mute", "kick", "ban", "tban", "tmute"}, flood.Action) {
-		if !chat_status.CanBotRestrict(b, ctx, chat) {
-			log.WithFields(log.Fields{
-				"chatId": chatId,
-			}).Debug("Antiflood action skipped: bot lacks restrict permissions")
-			return ext.ContinueGroups
-		}
-	}
-
-	if flood.DeleteAntifloodMessage {
-		var firstError error
-		var errorMu sync.Mutex
-
-		recordError := func(err error, msgId int64) {
-			if err != nil {
-				log.Errorf("Failed to delete flood message %d: %v", msgId, err)
-				errorMu.Lock()
-				if firstError == nil {
-					firstError = err
-				}
-				errorMu.Unlock()
-			}
-		}
-
-		if len(floodCrc.messageIDs) <= 3 {
-			for _, i := range floodCrc.messageIDs {
-				err := helpers.DeleteMessageWithErrorHandling(b, chatId, i)
-				recordError(err, i)
-			}
-		} else {
-			sem := make(chan struct{}, maxConcurrentMsgDeletions)
-			var wg sync.WaitGroup
-
-			for _, msgId := range floodCrc.messageIDs {
-				wg.Add(1)
-				sem <- struct{}{}
-
-				go func(messageId int64) {
-					defer wg.Done()
-					defer func() { <-sem }()
-					defer error_handling.RecoverFromPanic("floodMsgDelete", "antiflood")
-
-					err := helpers.DeleteMessageWithErrorHandling(b, chatId, messageId)
-					recordError(err, messageId)
-				}(msgId)
-			}
-
-			wg.Wait()
-		}
-
-		if firstError != nil {
-			log.Warnf("[Antiflood] Some flood messages could not be deleted (may be too old): %v", firstError)
-		}
-	} else {
-		_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
-	}
 
 	mode, timed := chatsettings.PunishmentMode(flood.Action)
 	request := punishment.Request{
@@ -357,37 +294,78 @@ func (m moduleStruct) checkFloodWithPunisher(b *gotgbot.Bot, ctx *ext.Context, a
 	if timed {
 		request.Duration = time.Duration(flood.FloodActionTime) * time.Second
 	}
-	result, err := apply(tracing.UpdateContext(ctx), b, request)
-	if err != nil {
-		return err
-	}
-	if !result.Applied {
-		return ext.ContinueGroups
-	}
-	if request.Mode == punishment.Mute {
-		keyboard = [][]gotgbot.InlineKeyboardButton{
-			{keyboardutils.UnrestrictButton(tr, "button_unmute_admins", "unmute", userId, 0)},
-		}
-	} else if request.Target.SenderChat && request.Mode == punishment.Ban {
-		keyboard = [][]gotgbot.InlineKeyboardButton{
-			{keyboardutils.UnrestrictButton(tr, "antiflood_button_unban_admins", "unban", userId, 0)},
-		}
-	}
-	logAction := floodModeLabel(flood)
-	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "ANTIFLOOD", userId, user.Name(), actionlog.Field{Name: "Action", Value: logAction})
-	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
-		fmt.Sprintf(tr.String(strings.ToLower(m.moduleName)+"_checkflood_perform_action"), formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood)),
-		&gotgbot.SendMessageOpts{
-			ParseMode: formatting.HTML,
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: keyboard,
-			},
-			MessageThreadId: msg.MessageThreadId,
+
+	spec := enforce.Spec{
+		Request: request,
+		Log: &enforce.LogSpec{
+			Tag:    "ANTIFLOOD",
+			Fields: []actionlog.Field{{Name: "Action", Value: floodModeLabel(flood)}},
 		},
-	); err != nil {
-		return err
+		Notice: &enforce.NoticeSpec{
+			Key:      strings.ToLower(m.moduleName) + "_checkflood_perform_action",
+			Params:   i18n.TranslationParams{"0": formatting.MentionHtml(userId, user.Name()), "1": floodActionLabel(tr, flood)},
+			Keyboard: enforce.KeyboardUnrestrict,
+			ThreadID: msg.MessageThreadId,
+		},
+		BeforeApply: func() {
+			if flood.DeleteAntifloodMessage {
+				var firstError error
+				var errorMu sync.Mutex
+
+				recordError := func(err error, msgId int64) {
+					if err != nil {
+						log.Errorf("Failed to delete flood message %d: %v", msgId, err)
+						errorMu.Lock()
+						if firstError == nil {
+							firstError = err
+						}
+						errorMu.Unlock()
+					}
+				}
+
+				if len(floodCrc.messageIDs) <= 3 {
+					for _, i := range floodCrc.messageIDs {
+						err := helpers.DeleteMessageWithErrorHandling(b, chatId, i)
+						recordError(err, i)
+					}
+				} else {
+					sem := make(chan struct{}, maxConcurrentMsgDeletions)
+					var wg sync.WaitGroup
+
+					for _, msgId := range floodCrc.messageIDs {
+						wg.Add(1)
+						sem <- struct{}{}
+
+						go func(messageId int64) {
+							defer wg.Done()
+							defer func() { <-sem }()
+							defer error_handling.RecoverFromPanic("floodMsgDelete", "antiflood")
+
+							err := helpers.DeleteMessageWithErrorHandling(b, chatId, messageId)
+							recordError(err, messageId)
+						}(msgId)
+					}
+
+					wg.Wait()
+				}
+
+				if firstError != nil {
+					log.Warnf("[Antiflood] Some flood messages could not be deleted (may be too old): %v", firstError)
+				}
+			} else {
+				_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
+			}
+		},
+	}
+	// Only a punishment mode needs the bot's restrict right; an unknown mode
+	// reaches Apply, which refuses it before any API call.
+	if mode != "" {
+		spec.PermissionCheck = chat_status.CanBotRestrict
 	}
 
+	if _, err := enforce.Automated(b, ctx, spec); err != nil {
+		return err
+	}
 	return ext.ContinueGroups
 }
 

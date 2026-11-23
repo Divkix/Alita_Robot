@@ -45,7 +45,7 @@ func (moduleStruct) banLogUnbanCallback(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	tr := i18n.MustNewTranslator(language)
 	answer := func(key string) error {
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
