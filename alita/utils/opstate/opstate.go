@@ -265,25 +265,40 @@ func Delete(key string) {
 	local.mu.Unlock()
 }
 
-// Consume reads and deletes the payload at key in one step: GETDEL against
-// Redis, a mutex-serialized local take without it. A missing or expired key
-// returns (nil, nil); a decode failure returns the error.
-func Consume[T any](key string) (*T, error) {
-	var raw []byte
+// readPayload fetches the raw bytes at key for op ("consume" or "peek"),
+// taking it through getdel when op is consume. A missing or expired key
+// returns (nil, nil); storage failures return the error.
+func readPayload(key, op string) ([]byte, error) {
+	consume := op == "consume"
 	if rdb := cache.GetRedisClient(); rdb != nil {
-		b, err := rdb.GetDel(cache.Context, key).Bytes()
+		var b []byte
+		var err error
+		if consume {
+			b, err = rdb.GetDel(cache.Context, key).Bytes()
+		} else {
+			b, err = rdb.Get(cache.Context, key).Bytes()
+		}
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("opstate consume %s: %w", key, err)
+			return nil, fmt.Errorf("opstate %s %s: %w", op, key, err)
 		}
-		raw = b
-	} else {
-		raw = local.take(key)
-		if raw == nil {
-			return nil, nil
-		}
+		return b, nil
+	}
+	if consume {
+		return local.take(key), nil
+	}
+	return local.peek(key), nil
+}
+
+// Consume reads and deletes the payload at key in one step: GETDEL against
+// Redis, a mutex-serialized local take without it. A missing or expired key
+// returns (nil, nil); a decode failure returns the error.
+func Consume[T any](key string) (*T, error) {
+	raw, err := readPayload(key, "consume")
+	if err != nil || raw == nil {
+		return nil, err
 	}
 	var v T
 	if err := msgpack.Unmarshal(raw, &v); err != nil {
@@ -294,21 +309,9 @@ func Consume[T any](key string) (*T, error) {
 
 // Peek reads the payload at key without deleting it.
 func Peek[T any](key string) (*T, error) {
-	var raw []byte
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		b, err := rdb.Get(cache.Context, key).Bytes()
-		if errors.Is(err, redis.Nil) {
-			return nil, nil
-		}
-		if err != nil {
-			return nil, fmt.Errorf("opstate peek %s: %w", key, err)
-		}
-		raw = b
-	} else {
-		raw = local.peek(key)
-		if raw == nil {
-			return nil, nil
-		}
+	raw, err := readPayload(key, "peek")
+	if err != nil || raw == nil {
+		return nil, err
 	}
 	var v T
 	if err := msgpack.Unmarshal(raw, &v); err != nil {
