@@ -69,7 +69,9 @@ func GetChatReportSettings(chatID int64) *models.ReportChatSettings {
 		},
 	)
 	if err != nil || reportsrc == nil {
-		reportsrc, _ = readChatReportSettings(chatID)
+		// The read failed or returned nothing: fall back to the declared
+		// default row so callers always get a non-nil settings object.
+		return DefaultReportChatSettings(chatID)
 	}
 	return reportsrc
 }
