@@ -294,13 +294,7 @@ var filtersClearAll = ownerConfirmSpec{
 		}
 		return true, nil
 	},
-	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
-		if err := db_filters.RemoveAllFilters(chat.Id); err != nil {
-			log.Errorf("[Filters] Failed to remove all filters: %v", err)
-			return "error_generic", nil, nil
-		}
-		return "", nil, nil
-	},
+	Commit: removeAllCommit("Failed to remove all filters", db_filters.RemoveAllFilters),
 	Keys: ownerConfirmKeys{
 		Confirmed: "filters_clear_all_success",
 		Cancelled: "filters_clear_all_cancelled",

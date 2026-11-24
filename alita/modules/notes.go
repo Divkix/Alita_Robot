@@ -398,13 +398,7 @@ var notesClearAll = ownerConfirmSpec{
 		}
 		return true, nil
 	},
-	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
-		if err := notes.RemoveAllNotes(chat.Id); err != nil {
-			log.Errorf("[Notes] Failed to remove all notes: %v", err)
-			return "error_generic", nil, nil
-		}
-		return "", nil, nil
-	},
+	Commit: removeAllCommit("Failed to remove all notes", notes.RemoveAllNotes),
 	Keys: ownerConfirmKeys{
 		Confirmed: "notes_clear_all_success",
 		Cancelled: "notes_clear_all_cancelled",

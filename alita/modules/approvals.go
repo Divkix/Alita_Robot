@@ -314,13 +314,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 var approvalsClearAll = ownerConfirmSpec{
 	Namespace: "rmAllApprovals",
 	AskKey:    strings.ToLower(approvalsModule.moduleName) + "_unapproveall_ask",
-	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
-		if err := approvals.RemoveAllApprovedUsers(chat.Id); err != nil {
-			log.WithFields(log.Fields{"chatId": chat.Id, "error": err}).Error("Failed to remove all approved users")
-			return "error_generic", nil, nil
-		}
-		return "", nil, nil
-	},
+	Commit:    removeAllCommit("Failed to remove all approved users", approvals.RemoveAllApprovedUsers),
 	Keys: ownerConfirmKeys{
 		Confirmed: strings.ToLower(approvalsModule.moduleName) + "_unapproveall_done",
 		Cancelled: strings.ToLower(approvalsModule.moduleName) + "_unapproveall_cancel",

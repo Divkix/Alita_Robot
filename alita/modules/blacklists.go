@@ -306,13 +306,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 var blacklistsClearAll = ownerConfirmSpec{
 	Namespace: "rmAllBlacklist",
 	AskKey:    strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_ask",
-	Commit: func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
-		if err := blacklists.RemoveAllBlacklist(chat.Id); err != nil {
-			log.WithFields(log.Fields{"chatId": chat.Id, "error": err}).Error("Failed to remove all blacklists")
-			return "error_generic", nil, nil
-		}
-		return "", nil, nil
-	},
+	Commit:    removeAllCommit("Failed to remove all blacklists", blacklists.RemoveAllBlacklist),
 	Keys: ownerConfirmKeys{
 		Confirmed: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_done",
 		Cancelled: strings.ToLower(blacklistsModule.moduleName) + "_rm_all_bl_cancel",

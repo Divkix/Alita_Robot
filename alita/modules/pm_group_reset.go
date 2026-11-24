@@ -7,6 +7,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -145,6 +146,19 @@ type ownerConfirmSpec struct {
 	Ask       func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error)
 	Commit    func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (key string, params i18n.TranslationParams, err error)
 	Keys      ownerConfirmKeys
+}
+
+// removeAllCommit builds the Commit for a reset whose work is
+// removeAll(chatID): the error is logged with the chat and answered with
+// error_generic, success lets the skeleton substitute Keys.Confirmed.
+func removeAllCommit(logPrefix string, removeAll func(chatID int64) error) func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+	return func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (string, i18n.TranslationParams, error) {
+		if err := removeAll(chat.Id); err != nil {
+			log.WithFields(log.Fields{"chatId": chat.Id, "error": err}).Error(logPrefix)
+			return "error_generic", nil, nil
+		}
+		return "", nil, nil
+	}
 }
 
 // ownerConfirmKey translates key with params, falling back to the generic
