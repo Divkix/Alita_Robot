@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"strconv"
@@ -169,6 +170,67 @@ func TestStandaloneEchoPostsFormattedTextInTopic(t *testing.T) {
 			})
 			if reply := call.Params["reply_parameters"]; reply != nil {
 				t.Fatalf("%s sent a reply instead of a standalone post: %#v", tc.command, reply)
+			}
+		})
+	}
+}
+
+func TestStandaloneEchoPostsCaptionTextAndEntities(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		caption  string
+		entities []gotgbot.MessageEntity
+		want     string
+	}{
+		{name: "say caption keeps native entities and drops detected ones",
+			caption:  "/say Heads up! https://example.com",
+			entities: []gotgbot.MessageEntity{{Type: "bot_command", Length: 4}, {Type: "bold", Offset: 5, Length: 9}, {Type: "url", Offset: 15, Length: 19}},
+			want:     "<b>Heads up!</b> https://example.com"},
+		{name: "echo caption converts typed markup without entities",
+			caption: "/echo *typed* caption",
+			want:    "<b>typed</b> caption"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadMisc(d)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tc.caption)
+			msg := ctx.EffectiveMessage
+			msg.Text, msg.Entities = "", nil
+			msg.Caption, msg.CaptionEntities = tc.caption, tc.entities
+			msg.Photo = []gotgbot.PhotoSize{{FileId: "photo-1", FileUniqueId: "photo-u1", Width: 90, Height: 90}}
+			if err := d.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+				t.Fatal(err)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			assertParams(t, call, map[string]any{
+				"chat_id": f.chat.Id, "text": tc.want, "parse_mode": "HTML",
+			})
+			if reply := call.Params["reply_parameters"]; reply != nil {
+				t.Fatalf("captioned %s sent a reply instead of a standalone post: %#v", tc.name, reply)
+			}
+		})
+	}
+}
+
+func TestStandaloneEchoBareRepliesHelp(t *testing.T) {
+	useRealLocales(t)
+	for _, command := range []string{"/echo", "/say"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			loadModuleByName(t, "Misc", d)
+			if err := d.ProcessUpdate(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, command).Update, nil); err != nil {
+				t.Fatal(err)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			text, _ := call.Params["text"].(string)
+			usage := trS(i18n.MustNewTranslator("en"), "misc_provide_content")
+			if !strings.HasPrefix(text, usage) || strings.HasPrefix(text, "\n") {
+				t.Fatalf("bare %s help = %q, want it to start with %q", command, text, usage)
+			}
+			if want := "<code>" + html.EscapeString(commandExample("echo")) + "</code>"; !strings.Contains(text, want) {
+				t.Fatalf("bare %s help lacks its example %q: %q", command, want, text)
 			}
 		})
 	}
