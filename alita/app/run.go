@@ -53,11 +53,14 @@ import (
 )
 
 // HealthCheck reports whether the running bot's HTTP server answers /health.
-// main's --health mode calls it after config has loaded, so the port is the
-// one config resolved — HTTP_PORT, then PORT, then 8080 — and nothing here
-// re-reads the environment.
+// In --health mode, config initialization leaves the port unset, so the check
+// resolves it from HTTP_PORT, then PORT, with 8080 as the default.
 func HealthCheck() error {
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))
+	port := config.AppConfig.HTTPPort
+	if port == 0 {
+		port = config.HTTPPortFromEnv()
+	}
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", port))
 	if err != nil {
 		return err
 	}
