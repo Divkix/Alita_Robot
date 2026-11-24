@@ -27,6 +27,7 @@ import (
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
 	"github.com/divkix/Alita_Robot/alita/utils/logredact"
 )
 
@@ -156,6 +157,16 @@ func getHTTPPort() int {
 		value = os.Getenv("PORT")
 	}
 	return typeConvertor{str: value}.Int()
+}
+
+// HTTPPortFromEnv resolves HTTP_PORT, then PORT if HTTP_PORT is empty.
+// It returns the default port when the selected value is unset or invalid.
+func HTTPPortFromEnv() int {
+	port := getHTTPPort()
+	if port <= 0 || port > 65535 {
+		return constants.DefaultHTTPPort
+	}
+	return port
 }
 
 // Shared reputation network defaults. The window is capped at the 180-day
@@ -578,7 +589,7 @@ func (cfg *Config) setDefaults() {
 	}
 
 	if cfg.HTTPPort == 0 {
-		cfg.HTTPPort = 8080
+		cfg.HTTPPort = constants.DefaultHTTPPort
 	}
 
 	if cfg.InactivityThresholdDays == 0 {

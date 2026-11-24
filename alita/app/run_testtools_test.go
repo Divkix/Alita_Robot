@@ -4,6 +4,7 @@ package app
 
 import (
 	"errors"
+	"net/http"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -14,10 +15,56 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 )
+
+type healthCheckTransport func(*http.Request) (*http.Response, error)
+
+func (transport healthCheckTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return transport(req)
+}
+
+func TestHealthCheckCLIPort(t *testing.T) {
+	previousConfig := config.AppConfig
+	config.AppConfig = &config.Config{}
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+
+	tests := []struct {
+		name     string
+		httpPort string
+		port     string
+		wantPort string
+	}{
+		{name: "HTTP_PORT takes precedence", httpPort: "8081", port: "9091", wantPort: "8081"},
+		{name: "PORT fallback", port: "9091", wantPort: "9091"},
+		{name: "default port", wantPort: "8080"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("HTTP_PORT", test.httpPort)
+			t.Setenv("PORT", test.port)
+
+			var requestedURL string
+			previousClient := http.DefaultClient
+			http.DefaultClient = &http.Client{Transport: healthCheckTransport(func(req *http.Request) (*http.Response, error) {
+				requestedURL = req.URL.String()
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})}
+			t.Cleanup(func() { http.DefaultClient = previousClient })
+
+			if err := HealthCheck(); err != nil {
+				t.Fatalf("HealthCheck() failed: %v", err)
+			}
+			wantURL := "http://localhost:" + test.wantPort + "/health"
+			if requestedURL != wantURL {
+				t.Errorf("HealthCheck() requested %q, want %q", requestedURL, wantURL)
+			}
+		})
+	}
+}
 
 // The shutdown contract is declared as data: every drain carries a phase, and
 // the registered set covers every phase Phases() lists. A drain added without
