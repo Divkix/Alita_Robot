@@ -542,6 +542,12 @@ func setPanelMenuButton(b *gotgbot.Bot, cfg *config.Config) {
 // defaultDeps fills every nil Deps field with the production implementation,
 // leaving the fields the caller set untouched.
 func defaultDeps(cfg *config.Config, deps Deps) Deps {
+	return defaultLifecycleDeps(cfg, defaultServiceDeps(deps))
+}
+
+// defaultServiceDeps fills the transport, dispatcher, locale and monitoring
+// fields of Deps.
+func defaultServiceDeps(deps Deps) Deps {
 	if deps.InitCache == nil {
 		deps.InitCache = cache.InitCache
 	}
@@ -596,7 +602,12 @@ func defaultDeps(cfg *config.Config, deps Deps) Deps {
 	if deps.StartActivityMonitor == nil {
 		deps.StartActivityMonitor = func() { monitoring.NewActivityMonitor().Start() }
 	}
+	return deps
+}
 
+// defaultLifecycleDeps fills the schedulers, drains, panel, HTTP server,
+// shutdown and module-loading fields of Deps.
+func defaultLifecycleDeps(cfg *config.Config, deps Deps) Deps {
 	if deps.RegisterFlusher == nil {
 		deps.RegisterFlusher = stats.RegisterFlusher
 	}
