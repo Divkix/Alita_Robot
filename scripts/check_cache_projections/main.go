@@ -92,7 +92,21 @@ func main() {
 
 // scanFile collects declared projection names and CacheKey module arguments.
 func scanFile(file *ast.File, facts *packageFacts) {
-	// String constants resolve first arguments that name a module indirectly.
+	consts := stringConsts(file)
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.CompositeLit:
+			scanProjectionLit(n, consts, facts)
+		case *ast.CallExpr:
+			scanCacheKeyCall(n, consts, facts)
+		}
+		return true
+	})
+}
+
+// stringConsts maps each package-scope `const name = "literal"` so call sites
+// that name a module indirectly can be resolved.
+func stringConsts(file *ast.File) map[string]string {
 	consts := map[string]string{}
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -116,64 +130,64 @@ func scanFile(file *ast.File, facts *packageFacts) {
 			}
 		}
 	}
+	return consts
+}
 
-	ast.Inspect(file, func(node ast.Node) bool {
-		switch n := node.(type) {
-		case *ast.CompositeLit:
-			// cache.Projection{Name: "module"} declares a key shape.
-			sel, ok := n.Type.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "Projection" {
-				return true
-			}
-			for _, elt := range n.Elts {
-				kv, ok := elt.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				key, ok := kv.Key.(*ast.Ident)
-				if !ok || key.Name != "Name" {
-					continue
-				}
-				switch v := kv.Value.(type) {
-				case *ast.BasicLit:
-					if v.Kind == token.STRING {
-						if s, err := strconv.Unquote(v.Value); err == nil {
-							facts.declared[s] = true
-						}
-					}
-				case *ast.Ident:
-					if s, ok := consts[v.Name]; ok {
-						facts.declared[s] = true
-					}
-				}
-			}
-		case *ast.CallExpr:
-			// cache.CacheKey("module", ...) / dbcache.CacheKey("module", ...)
-			// builds a key outside the declared projections.
-			sel, ok := n.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "CacheKey" {
-				return true
-			}
-			pkg, ok := sel.X.(*ast.Ident)
-			if !ok || (pkg.Name != "cache" && pkg.Name != "dbcache") {
-				return true
-			}
-			if len(n.Args) == 0 {
-				return true
-			}
-			switch arg := n.Args[0].(type) {
-			case *ast.BasicLit:
-				if arg.Kind == token.STRING {
-					if s, err := strconv.Unquote(arg.Value); err == nil {
-						facts.used[s] = true
-					}
-				}
-			case *ast.Ident:
-				if s, ok := consts[arg.Name]; ok {
-					facts.used[s] = true
-				}
-			}
+// stringValue resolves a literal or a known string const to its value.
+func stringValue(expr ast.Expr, consts map[string]string) (string, bool) {
+	switch v := expr.(type) {
+	case *ast.BasicLit:
+		if v.Kind != token.STRING {
+			return "", false
 		}
-		return true
-	})
+		if s, err := strconv.Unquote(v.Value); err == nil {
+			return s, true
+		}
+	case *ast.Ident:
+		if s, ok := consts[v.Name]; ok {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+// scanProjectionLit records the Name of every cache.Projection{...} literal.
+func scanProjectionLit(n *ast.CompositeLit, consts map[string]string, facts *packageFacts) {
+	sel, ok := n.Type.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Projection" {
+		return
+	}
+	for _, elt := range n.Elts {
+		kv, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := kv.Key.(*ast.Ident)
+		if !ok || key.Name != "Name" {
+			continue
+		}
+		if s, ok := stringValue(kv.Value, consts); ok {
+			facts.declared[s] = true
+		}
+	}
+}
+
+// scanCacheKeyCall records the first argument of every
+// cache.CacheKey("module", ...) / dbcache.CacheKey("module", ...) call: a key
+// built outside the declared projections.
+func scanCacheKeyCall(n *ast.CallExpr, consts map[string]string, facts *packageFacts) {
+	sel, ok := n.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "CacheKey" {
+		return
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	if !ok || (pkg.Name != "cache" && pkg.Name != "dbcache") {
+		return
+	}
+	if len(n.Args) == 0 {
+		return
+	}
+	if s, ok := stringValue(n.Args[0], consts); ok {
+		facts.used[s] = true
+	}
 }
