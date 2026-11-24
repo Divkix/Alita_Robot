@@ -40,7 +40,7 @@ When an anonymous admin (GroupAnonymousBot) sends a command, the bot cannot dire
 - Bans: `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/kick`, `/dkick`, `/skick`, `/restrict`, `/unrestrict`
 - Mutes: `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute`
 - Pins: `/pin`, `/unpin`, `/permapin`, `/unpinall`
-- Purges: `/purge`, `/del`, `/purgefrom`, `/purgeto`
+- Purges: `/purge`, `/del`, `/purgefrom`, `/purgeto`, `/spurge`
 - Warns: `/warn`, `/swarn`, `/dwarn`
 
 ## Available Commands

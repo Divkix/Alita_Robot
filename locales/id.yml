@@ -859,13 +859,15 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Hapus pesan yang dikirim oleh kanal yang terhubung."
 purges_help_msg: "*Admin saja:*
 
-  - /purge <alasan>: menghapus semua pesan antara ini dan pesan yang dibalas. Alasan bersifat opsional dan ditampilkan dalam konfirmasi.
+  - /purge [count=<n>] [alasan]: menghapus semua pesan antara ini dan pesan yang dibalas, atau hanya <n> pesan pertama saat count=<n> diberikan. Alasan bersifat opsional dan ditampilkan dalam konfirmasi.
 
   - /del: menghapus pesan yang Anda balas.
 
   - /purgefrom: menandai pesan yang dibalas sebagai awal rentang yang akan dihapus (lalu gunakan /purgeto).
 
   - /purgeto <alasan>: menghapus semua pesan dari tanda /purgefrom sampai pesan yang dibalas. Alasan bersifat opsional dan ditampilkan dalam konfirmasi.
+
+  - /spurge [count=<n>] [alasan]: sama seperti /purge tetapi tanpa pesan konfirmasi.
 
 
   *Contoh*:
@@ -1241,6 +1243,8 @@ purges_need_purgefrom: Anda hanya dapat menggunakan perintah ini setelah menggun
 purges_use_del_single: Gunakan perintah /del untuk menghapus satu pesan!
 purges_reply_to_purgeto: Balas ke pesan untuk menunjukkan sampai di mana membersihkan.
 purges_limit_exceeded: "Tidak dapat membersihkan lebih dari %d pesan sekaligus! Silakan pilih rentang yang lebih kecil."
+purges_forum_scope: "Tidak dapat dibuktikan bahwa pembersihan ini tetap dalam satu topik forum, jadi ditolak. Dalam forum hanya count=1 dalam satu topik yang sama yang diizinkan."
+purges_invalid_count: "Jumlah tidak valid: gunakan bilangan bulat positif, mis. /purge count=10."
 
 # Rules module strings
 rules_cleared_successfully: Berhasil menghapus aturan!
@@ -2039,7 +2043,7 @@ admin_extended_docs: |
   Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Bisu: /mute, /smute, /dmute, /tmute, /unmute
   Pin: /pin, /unpin, /permapin, /unpinall
-  Pembersihan: /purge, /del, /purgefrom, /purgeto
+  Pembersihan: /purge, /del, /purgefrom, /purgeto, /spurge
   Peringatan: /warn, /swarn, /dwarn
 
 admin_notes_docs: |
@@ -2167,12 +2171,18 @@ purges_extended_docs: |
   • <b>Batas usia pesan:</b> Pesan yang lebih dari 48 jam mungkin tidak dapat dihapus (pembatasan API Telegram)
   • <b>Izin yang diperlukan:</b> Baik pengguna maupun bot harus memiliki izin "Hapus Pesan"
 
+  <b>Pembersihan Selektif dan Senyap:</b>
+  <code>/purge count=&lt;n&gt;</code> hanya menghapus &lt;n&gt; pesan pertama mulai dari balasan; argumen lain apa pun ditampilkan sebagai alasan. Count yang salah format ditolak alih-alih memperluas pembersihan.
+  <code>/spurge</code> menerima argumen yang sama tetapi tidak mengirim konfirmasi.
+  Dalam grup forum ID pesan saling berselang antar topik, jadi bentuk baru dibatasi: pembersihan dengan <code>count=&lt;n&gt;</code> dan <code>/spurge</code> hanya berjalan sebagai <code>count=1</code> — hanya menghapus pesan yang dibalas dan perintah — dan hanya bila perintah dan pesan yang dibalas berada di topik bernama yang sama; setiap bentuk baru yang lebih luas ditolak. <code>/purge</code> lama tanpa <code>count=</code> mempertahankan perilakunya sebelumnya. Ini tidak berlaku untuk rentang /purgefrom + /purgeto, yang mempertahankan perilaku lamanya.
+
 purges_notes_docs: |
   <b>Catatan:</b>
   • Penanda <code>/purgefrom</code> kedaluwarsa setelah 30 detik jika tidak diikuti dengan <code>/purgeto</code>
   • Menghapus rentang besar menggunakan pemrosesan konkuren untuk kinerja yang lebih baik
   • Pesan status (menunjukkan berapa banyak pesan yang dihapus) menghapus diri secara otomatis setelah 3 detik
   • Bot menangani pesan yang sudah dihapus dengan anggun tanpa kesalahan
+  • Dalam grup forum pembersihan dengan <code>count=&lt;n&gt;</code> dan <code>/spurge</code> hanya berjalan sebagai <code>count=1</code>, dan hanya di dalam satu topik bernama yang sama; bentuk baru yang lebih luas ditolak, sementara <code>/purge</code> lama tanpa <code>count=</code> tidak berubah
 
 # Extended documentation locale keys - Reports module
 reports_extended_docs: |
@@ -3171,6 +3181,7 @@ purges_extend_msg: |
   /purge — hapus semuanya mulai dari pesan yang dibalas
   /purgefrom — tandai awal rentang yang dihapus
   /purgeto — hapus sampai pesan yang dibalas
+  /spurge — bersihkan tanpa pesan konfirmasi
 reactions_extend_msg: |
   /addreaction — beri reaksi emoji pada kata kunci
   /removereaction — hapus reaksi kata kunci

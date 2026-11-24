@@ -45,7 +45,7 @@ Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
 Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
 Mutes: /mute, /smute, /dmute, /tmute, /unmute
 Pins: /pin, /unpin, /permapin, /unpinall
-Purges: /purge, /del, /purgefrom, /purgeto
+Purges: /purge, /del, /purgefrom, /purgeto, /spurge
 Warns: /warn, /swarn, /dwarn
 
 

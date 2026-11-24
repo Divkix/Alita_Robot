@@ -831,13 +831,15 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Deleta mensagens enviadas pelo canal vinculado."
 purges_help_msg: "*Apenas Admin:*
 
-  - /purge <motivo>: deleta todas as mensagens entre esta e a mensagem respondida. O motivo é opcional e aparece na confirmação.
+  - /purge [count=<n>] [motivo]: deleta todas as mensagens entre esta e a mensagem respondida, ou apenas as primeiras <n> quando count=<n> é informado. O motivo é opcional e aparece na confirmação.
 
   - /del: deleta a mensagem que você respondeu.
 
   - /purgefrom: marca a mensagem respondida como início de um intervalo a deletar (depois use /purgeto).
 
   - /purgeto <motivo>: deleta todas as mensagens da marca do /purgefrom até a mensagem respondida. O motivo é opcional e aparece na confirmação.
+
+  - /spurge [count=<n>] [motivo]: igual ao /purge mas sem a mensagem de confirmação.
 
 
   *Exemplos*:
@@ -1213,6 +1215,8 @@ purges_need_purgefrom: Você só pode usar este comando depois de ter usado o co
 purges_use_del_single: Use o comando /del para deletar uma mensagem!
 purges_reply_to_purgeto: Responda a uma mensagem para me mostrar até onde purgar.
 purges_limit_exceeded: "Não é possível purgar mais de %d mensagens de uma vez! Por favor selecione um intervalo menor."
+purges_forum_scope: "Não é possível provar que esta purga fica dentro de um único tópico do fórum, então foi recusada. Em fóruns, apenas count=1 dentro de um mesmo tópico é permitido."
+purges_invalid_count: "Contagem inválida: use um número inteiro positivo, ex. /purge count=10."
 
 # Rules module strings
 rules_cleared_successfully: Regras limpas com sucesso!
@@ -2011,7 +2015,7 @@ admin_extended_docs: |
   Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del, /purgefrom, /purgeto
+  Purges: /purge, /del, /purgefrom, /purgeto, /spurge
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |
@@ -2139,12 +2143,18 @@ purges_extended_docs: |
   • <b>Limite de idade de mensagem:</b> Mensagens com mais de 48 horas podem não ser deletáveis (restrição da API Telegram)
   • <b>Permissões necessárias:</b> Tanto o usuário quanto o bot devem ter permissão "Deletar Mensagens"
 
+  <b>Purgas seletivas e silenciosas:</b>
+  <code>/purge count=&lt;n&gt;</code> deleta apenas as primeiras &lt;n&gt; mensagens a partir da resposta; qualquer outro argumento é mostrado como motivo. Um count malformado é recusado em vez de ampliar a purga.
+  <code>/spurge</code> aceita os mesmos argumentos mas não envia confirmação.
+  Em grupos fórum os IDs de mensagens se intercalam entre tópicos, então as novas formas são restritas: purgas com <code>count=&lt;n&gt;</code> e <code>/spurge</code> só executam como <code>count=1</code> — deletam apenas a mensagem respondida e o comando — e somente quando o comando e a mensagem respondida estão no mesmo tópico nomeado; qualquer nova forma mais ampla é recusada. Um <code>/purge</code> legado sem <code>count=</code> mantém o comportamento anterior. Isso não se aplica ao intervalo /purgefrom + /purgeto, que mantém o comportamento anterior.
+
 purges_notes_docs: |
   <b>Notas:</b>
   • O marcador <code>/purgefrom</code> expira após 30 segundos se não seguido por <code>/purgeto</code>
   • Deletar intervalos grandes usa processamento concorrente para melhor performance
   • Mensagens de status (mostrando quantas mensagens foram deletadas) auto-deletam após 3 segundos
   • O bot lida com mensagens já deletadas graciosamente sem erros
+  • Em grupos fórum purgas com <code>count=&lt;n&gt;</code> e <code>/spurge</code> só executam como <code>count=1</code>, e somente dentro de um mesmo tópico nomeado; novas formas mais amplas são recusadas, enquanto um <code>/purge</code> legado sem <code>count=</code> não muda
 
 # Extended documentation locale keys - Reports module
 reports_extended_docs: |
@@ -3144,6 +3154,7 @@ purges_extend_msg: |
   /purge — apagar tudo a partir da mensagem respondida
   /purgefrom — marcar o início de um intervalo a apagar
   /purgeto — apagar até a mensagem respondida
+  /spurge — purgar sem a mensagem de confirmação
 reactions_extend_msg: |
   /addreaction — reagir com um emoji a uma palavra-chave
   /removereaction — remover a reação a uma palavra-chave

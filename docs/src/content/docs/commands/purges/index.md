@@ -7,7 +7,8 @@ description: Complete guide to Purges module commands and features
 # 🧹 Purges Commands
 
 *Admin only:*
-- /purge <reason>: deletes all messages between this and the replied-to message. The reason is optional and is shown in the confirmation.
+- /purge [count=<n>] [reason]: deletes all messages between this and the replied-to message, or only the first <n> of them when count=<n> is given. The reason is optional and is shown in the confirmation; a bare number such as `/purge 10` is still treated as the reason, not a count.
+- /spurge [count=<n>] [reason]: the same purge as /purge but without the confirmation message.
 - /del: deletes the message you replied to.
 
 *Examples*:
@@ -31,6 +32,7 @@ This is useful when you can't easily scroll to the starting point or need to ver
 **Limits and Restrictions:**
 - **Maximum messages per purge:** 1000 messages
 - **Message age limit:** Messages older than 48 hours may not be deletable (Telegram API restriction)
+- **Forum groups:** message IDs interleave across topics, so an unscoped range could delete another topic's messages. In forums the new forms are restricted: `count=<n>` purges and `/spurge` run only as `count=1` — deleting just the replied message and the command itself — and only when the command and the replied-to message are in the same named topic; every wider new form is refused without deleting anything. A legacy `/purge` without `count=` keeps its previous behavior, even when replying to a message. A malformed `count=` is refused too. `/purgefrom` and `/purgeto` keep their legacy behavior.
 - **Permissions required:** Both the user and the bot must have "Delete Messages" permission
 
 
@@ -48,9 +50,10 @@ This module can be accessed using the following aliases:
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/del` | Delete the replied message | ❌ |
-| `/purge` | Purge messages from replied message to current, with an optional reason | ❌ |
+| `/purge` | Purge messages from replied message to current, with an optional `count=<n>` bound and reason | ❌ |
 | `/purgefrom` | Mark start point for a purge range | ❌ |
 | `/purgeto` | Purge messages from marked start to this message, with an optional reason | ❌ |
+| `/spurge` | Purge like /purge but without the confirmation message | ❌ |
 
 ## Usage Examples
 
@@ -59,7 +62,8 @@ This module can be accessed using the following aliases:
 ```
 /del
 /purge
-/purge spam cleanup
+/purge count=10 spam cleanup
+/spurge
 /purgefrom
 ```
 

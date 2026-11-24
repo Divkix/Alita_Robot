@@ -905,13 +905,15 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel."
 purges_help_msg: "*Admin only:*
 
-  - /purge <reason>: deletes all messages between this and the replied-to message. The reason is optional and is shown in the confirmation.
+  - /purge [count=<n>] [reason]: deletes all messages between this and the replied-to message, or only the first <n> of them when count=<n> is given. The reason is optional and is shown in the confirmation.
 
   - /del: deletes the message you replied to.
 
   - /purgefrom: marks the replied-to message as the start of a range to delete (then use /purgeto).
 
   - /purgeto <reason>: deletes every message from the /purgefrom mark up to the replied-to message. The reason is optional and is shown in the confirmation.
+
+  - /spurge [count=<n>] [reason]: the same purge as /purge but without the confirmation message.
 
 
   *Examples*:
@@ -1287,6 +1289,8 @@ purges_need_purgefrom: You can only use this command after having used the /purg
 purges_use_del_single: Use /del command to delete one message!
 purges_reply_to_purgeto: Reply to a message to show me till where to purge.
 purges_limit_exceeded: "Cannot purge more than %d messages at once! Please select a smaller range."
+purges_forum_scope: This purge cannot be proven to stay inside one forum topic, so it was refused. In forums, only count=1 within a single topic is allowed.
+purges_invalid_count: "Invalid count: use a positive whole number, e.g. /purge count=10."
 
 # Rules module strings
 rules_cleared_successfully: Successfully cleared rules!
@@ -2087,7 +2091,7 @@ admin_extended_docs: |
   Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del, /purgefrom, /purgeto
+  Purges: /purge, /del, /purgefrom, /purgeto, /spurge
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |
@@ -2215,12 +2219,18 @@ purges_extended_docs: |
   • <b>Message age limit:</b> Messages older than 48 hours may not be deletable (Telegram API restriction)
   • <b>Permissions required:</b> Both the user and the bot must have "Delete Messages" permission
 
+  <b>Selective and silent purges:</b>
+  <code>/purge count=&lt;n&gt;</code> deletes only the first &lt;n&gt; messages starting at the reply; any other argument is shown as the reason. A malformed count is refused instead of widening the purge.
+  <code>/spurge</code> accepts the same arguments but sends no confirmation.
+  In forum groups message IDs interleave across topics, so the new forms are restricted: <code>count=&lt;n&gt;</code> purges and <code>/spurge</code> run only as <code>count=1</code> — deleting just the replied message and the command — and only when the command and the replied-to message are in the same named topic; every wider new form is refused. A legacy <code>/purge</code> without <code>count=</code> keeps its previous behavior. This does not apply to the /purgefrom + /purgeto range, which keeps its legacy behavior.
+
 purges_notes_docs: |
   <b>Notes:</b>
   • The <code>/purgefrom</code> marker expires after 30 seconds if not followed by <code>/purgeto</code>
   • Deleting large ranges uses concurrent processing for better performance
   • Status messages (showing how many messages were deleted) auto-delete after 3 seconds
   • The bot handles already-deleted messages gracefully without errors
+  • In forum groups <code>count=&lt;n&gt;</code> purges and <code>/spurge</code> run only as <code>count=1</code>, and only inside one named topic; wider new forms are refused, while a legacy <code>/purge</code> without <code>count=</code> is unchanged
 
 # Extended documentation locale keys - Reports module
 reports_extended_docs: |
@@ -3189,6 +3199,7 @@ purges_extend_msg: |
   /purge — delete everything from the replied message on
   /purgefrom — mark where a range delete starts
   /purgeto — delete up to the replied message
+  /spurge — purge without the confirmation message
 reactions_extend_msg: |
   /addreaction — react to a keyword with an emoji
   /removereaction — remove a keyword reaction

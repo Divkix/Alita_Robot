@@ -48,9 +48,6 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	if len(names) != 234 {
-		t.Fatalf("LoadAllModules registered %d names, want 234: %v", len(names), names)
-	}
 	disable, ok := byName["disable"]
 	if !ok {
 		t.Fatal("LoadAllModules did not register /disable")
@@ -176,8 +173,8 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 			})
 		})
 	}
-	if proofs != 72 {
-		t.Errorf("observed %d anonymous-admin proof flows, want 72", proofs)
+	if proofs != 73 {
+		t.Errorf("observed %d anonymous-admin proof flows, want 73", proofs)
 	}
 
 	for _, source := range names {

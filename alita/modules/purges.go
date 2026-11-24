@@ -3,6 +3,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +35,56 @@ type PurgeWorker struct {
 	errors     []error
 	errorCount int
 	mu         sync.Mutex
+}
+
+// purgeArgs is a purge command's arguments after the command word: an
+// optional leading count=<n> bound and the remaining words as the reason.
+// count is 0 when no bound was given; malformed is set when the first word
+// looks like count= but is not a positive whole number, which must refuse
+// the purge instead of silently widening it.
+type purgeArgs struct {
+	count     int64
+	reason    []string
+	malformed bool
+}
+
+func parsePurgeArgs(args []string) purgeArgs {
+	if len(args) > 0 {
+		if key, value, ok := strings.Cut(args[0], "="); ok && strings.EqualFold(key, "count") {
+			if n, err := strconv.ParseInt(value, 10, 64); err == nil && n > 0 {
+				return purgeArgs{count: n, reason: args[1:]}
+			}
+			return purgeArgs{malformed: true}
+		}
+	}
+	return purgeArgs{reason: args}
+}
+
+// purgeForumScope reports whether a reply-addressed purge may touch only the
+// two endpoint messages in a forum: the command and the replied-to message
+// must share a named topic (the same nonzero thread). Message IDs interleave
+// across topics, so even matching endpoints prove nothing about the messages
+// between them; a zero thread is the topic-less General view and cannot be
+// told apart from an unscoped range, so it is refused too. Non-forum chats
+// are always in scope.
+func purgeForumScope(chat *gotgbot.Chat, msg, reply *gotgbot.Message) bool {
+	if chat == nil || !chat.IsForum {
+		return true
+	}
+	return msg != nil && reply != nil &&
+		(msg.MessageThreadId != 0 || reply.MessageThreadId != 0) &&
+		msg.MessageThreadId == reply.MessageThreadId
+}
+
+// isSpurgeCommand reports whether the message that carried ctx invoked
+// /spurge, the silent variant of /purge.
+func isSpurgeCommand(ctx *ext.Context) bool {
+	args := ctx.Args()
+	if len(args) == 0 {
+		return false
+	}
+	name, _, _ := strings.Cut(args[0], "@")
+	return strings.EqualFold(strings.TrimPrefix(name, "/"), "spurge")
 }
 
 var errPurgeDeletePanicked = errors.New("message deletion panicked")
@@ -139,16 +190,38 @@ func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, 
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	args := ctx.Args()[1:]
+	args := parsePurgeArgs(ctx.Args()[1:])
+	silent := isSpurgeCommand(ctx)
 
 	if reply := extraction.UserReply(msg); reply != nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		if args.malformed {
+			_, _ = msg.Reply(bot, tr.String("purges_invalid_count"), nil)
+			return ext.EndGroups
+		}
+		// The forum guard applies only to the new forms — a count=<n> bound or
+		// the silent /spurge — so the legacy /purge (even /purge 10, where the
+		// number is the reason) keeps its old unscoped behavior. For those new
+		// forms only count=1 is provably topic-safe, and only when both
+		// endpoints share one named topic; anything wider could delete another
+		// topic's messages.
+		if chat.IsForum && (silent || args.count > 0) &&
+			(args.count != 1 || !purgeForumScope(chat, msg, reply)) {
+			_, _ = msg.Reply(bot, tr.String("purges_forum_scope"), nil)
+			return ext.EndGroups
+		}
+
 		msgId := reply.MessageId
 		deleteTo := msg.MessageId - 1
+		// Compare the requested count against the inclusive range length before
+		// adding count-1, so a huge count cannot overflow the addition.
+		if args.count > 0 && args.count < deleteTo-msgId+1 {
+			deleteTo = msgId + args.count - 1
+		}
 		totalMsgs := deleteTo - msgId + 1
 
 		const maxPurgeMessages = 1000
 		if totalMsgs > maxPurgeMessages {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text := tr.String("purges_limit_exceeded")
 			_, err := msg.Reply(bot, fmt.Sprintf(text, maxPurgeMessages), formatting.Shtml())
 			if err != nil {
@@ -160,8 +233,8 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 		purge := m.purgeMsgs(bot, chat, false, msgId, deleteTo)
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId)
 
-		if purge {
-			announcePurge(bot, ctx, chat, args, totalMsgs)
+		if purge && !silent {
+			announcePurge(bot, ctx, chat, args.reason, totalMsgs)
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -383,6 +456,7 @@ var (
 	purgeDesc     = helpers.CommandDescriptor{Name: "purge"}
 	purgeFromDesc = helpers.CommandDescriptor{Name: "purgefrom"}
 	purgeToDesc   = helpers.CommandDescriptor{Name: "purgeto"}
+	spurgeDesc    = helpers.CommandDescriptor{Name: "spurge"}
 )
 
 func initPurgeDescs() {
@@ -390,6 +464,7 @@ func initPurgeDescs() {
 	purgeDesc.RequiredChecks = purgeChecks()
 	purgeFromDesc.RequiredChecks = purgeChecks()
 	purgeToDesc.RequiredChecks = purgeChecks()
+	spurgeDesc.RequiredChecks = purgeChecks()
 }
 
 func LoadPurges(dispatcher *ext.Dispatcher) {
@@ -399,6 +474,7 @@ func LoadPurges(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, purgeDesc, pipelineHandler(purgesModule.purge))
 	helpers.WrapCommand(dispatcher, purgeFromDesc, pipelineHandler(purgesModule.purgeFrom))
 	helpers.WrapCommand(dispatcher, purgeToDesc, pipelineHandler(purgesModule.purgeTo))
+	helpers.WrapCommand(dispatcher, spurgeDesc, pipelineHandler(purgesModule.purge))
 }
 
 func init() {
