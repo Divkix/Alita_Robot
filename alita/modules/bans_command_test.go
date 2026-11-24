@@ -544,12 +544,12 @@ func TestUnbanAllConfirmFlow(t *testing.T) {
 		t.Fatal("unbanall prompt has no confirmation buttons")
 	}
 	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
-	if err := bansModule.unbanAllCallback(bot, newModuleCallbackContext(bot, chat, owner, data)); err != ext.EndGroups {
-		t.Fatalf("unbanAllCallback yes: %v", err)
+	if err := bansClearAllCallback(bot, newModuleCallbackContext(bot, chat, owner, data)); err != ext.EndGroups {
+		t.Fatalf("bansClearAllCallback yes: %v", err)
 	}
 	cancel := encodeCallbackData("unbanall", map[string]string{"a": "no"})
-	if err := bansModule.unbanAllCallback(bot, newModuleCallbackContext(bot, chat, owner, cancel)); err != ext.EndGroups {
-		t.Fatalf("unbanAllCallback no: %v", err)
+	if err := bansClearAllCallback(bot, newModuleCallbackContext(bot, chat, owner, cancel)); err != ext.EndGroups {
+		t.Fatalf("bansClearAllCallback no: %v", err)
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 2 {
 		t.Fatalf("editMessageText calls = %d, want the prompt resolved by yes and by no", len(calls))
@@ -928,8 +928,8 @@ func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 	}
 
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadBans(dispatcher)
-	if !DefaultHelpRegistry().AbleMap[bansModule.moduleName] {
+	loadModuleByName(t, "Bans", dispatcher)
+	if !DefaultHelpRegistry().isEnabled(bansModule.moduleName) {
 		t.Fatal("bans help registration = false, want enabled")
 	}
 }

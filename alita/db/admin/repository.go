@@ -16,7 +16,7 @@ import (
 func GetAdminSettings(chatID int64) *models.AdminSettings {
 	settings, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("admin", chatID),
+		AdminSettingsProjection.Key(chatID),
 		cache.CacheTTLAdminSettings,
 		func(context.Context) (*models.AdminSettings, error) {
 			return checkAdminSetting(chatID)
@@ -50,6 +50,6 @@ func SetAnonAdminMode(chatID int64, val bool) error {
 		log.Errorf("[Database] SetAnonAdminMode: %v - %d", err, chatID)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("admin", chatID))
+	cache.DeleteCache(AdminSettingsProjection.Key(chatID))
 	return nil
 }

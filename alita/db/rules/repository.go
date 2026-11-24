@@ -52,7 +52,7 @@ func readRulesSetting(chatID int64) (*models.RulesSettings, error) {
 func GetChatRulesInfo(chatId int64) *models.RulesSettings {
 	rulesrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("rules", chatId),
+		RulesProjection.Key(chatId),
 		cache.CacheTTLRules,
 		func(context.Context) (*models.RulesSettings, error) {
 			return readRulesSetting(chatId)
@@ -73,7 +73,7 @@ func SetChatRules(chatId int64, rules string) error {
 		log.Errorf("[Database] SetChatRules: %v - %d", err, chatId)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("rules", chatId))
+	cache.DeleteCache(RulesProjection.Key(chatId))
 	return nil
 }
 
@@ -86,7 +86,7 @@ func SetChatRulesButton(chatId int64, rulesButton string) error {
 		log.Errorf("[Database] SetChatRulesButton: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("rules", chatId))
+	cache.DeleteCache(RulesProjection.Key(chatId))
 	return nil
 }
 
@@ -99,7 +99,7 @@ func SetPrivateRules(chatId int64, pref bool) error {
 		log.Errorf("[Database] SetPrivateRules: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("rules", chatId))
+	cache.DeleteCache(RulesProjection.Key(chatId))
 	return nil
 }
 

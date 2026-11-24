@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -125,7 +126,7 @@ func (moduleStruct) buildLockTypesMessage(ctx *ext.Context, chatID int64) (res s
 
 	newMapLocks := chatLocks
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	res, _ = tr.GetString("locks_current_locks_header")
+	res = tr.String("locks_current_locks_header")
 
 	keys := make([]string, 0, len(newMapLocks))
 	for k := range newMapLocks {
@@ -146,7 +147,7 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	_locktypes := m.getLockMapAsArray()
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	header, _ := tr.GetString("locks_locktypes_header")
+	header := tr.String("locks_locktypes_header")
 	_, err := msg.Reply(b, header+strings.Join(_locktypes, "\n - "), formatting.Shtml())
 	if err != nil {
 		return err
@@ -203,14 +204,14 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	}
 
 	if len(args) == 0 {
-		text, _ := tr.GetString(keys.whatKey)
+		text := tr.String(keys.whatKey)
 		return reply(text)
 	}
 
 	lockTypes := m.getLockMapAsArray()
 	for _, perm := range args {
 		if !slices.Contains(lockTypes, perm) {
-			temp, _ := tr.GetString("locks_invalid_lock_type")
+			temp := tr.String("locks_invalid_lock_type")
 			return reply(fmt.Sprintf(temp, html.EscapeString(perm)))
 		}
 	}
@@ -224,10 +225,10 @@ func (m moduleStruct) setLocks(b *gotgbot.Bot, ctx *ext.Context, lock bool, keys
 	}
 
 	if len(failedLocks) > 0 {
-		text, _ := tr.GetString(keys.failedKey)
+		text := tr.String(keys.failedKey)
 		return reply(fmt.Sprintf(text, strings.Join(failedLocks, ", ")))
 	}
-	temp, _ := tr.GetString(keys.doneKey)
+	temp := tr.String(keys.doneKey)
 	return reply(fmt.Sprintf(temp, strings.Join(args, "\n - ")))
 }
 
@@ -271,18 +272,13 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
-	// which IsUserAdmin rejects; they are admins and exempt from locks.
-	if sender.IsAnonymousAdmin() {
-		return ext.ContinueGroups
-	}
-
+	// Locks delete content, not senders: anonymous and linked channels stay
+	// deletable, so the protected-user predicate (which also exempts
+	// anonymous admins posting as the group itself) runs only for the rest.
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
-		return ext.ContinueGroups
-	}
-	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
+	if !sender.IsAnonymousChannel() && !sender.IsLinkedChannel() &&
+		chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -328,18 +324,13 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
-	// which IsUserAdmin rejects; they are admins and exempt from locks.
-	if sender.IsAnonymousAdmin() {
-		return ext.ContinueGroups
-	}
-
+	// Locks delete content, not senders: anonymous and linked channels stay
+	// deletable, so the protected-user predicate (which also exempts
+	// anonymous admins posting as the group itself) runs only for the rest.
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
-		return ext.ContinueGroups
-	}
-	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
+	if !sender.IsAnonymousChannel() && !sender.IsLinkedChannel() &&
+		chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -379,17 +370,16 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 		senderID = sender.Id()
 	}
 
-	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
-		return StageNotApplicable
-	}
-	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
+	// Non-positive and anonymous adders are exempt too: they are admins or
+	// senders no check can hold to account.
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, senderID) {
 		return StageNotApplicable
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 	notice := func(key string) {
 		// A ChatMember update has no message to reply to, so send to the chat.
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		if _, err := b.SendMessage(chat.Id, text, formatting.Shtml()); err != nil {
 			log.WithContext(tracing.UpdateContext(ctx)).Error(err)
 		}
@@ -404,50 +394,62 @@ func (moduleStruct) botsLockStage(b *gotgbot.Bot, ctx *ext.Context, mem gotgbot.
 	}
 
 	// A permanent ban, not a kick: the removed bot cannot simply be added again.
-	reqCtx := tracing.UpdateContext(ctx)
-	result, err := punishment.Apply(reqCtx, b, punishment.Request{
-		ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
-		Source: models.BanSourceLock, Detail: "bots",
-	})
-	if err != nil {
-		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
-		return StageFailed
-	}
-	if !result.Applied {
-		log.WithContext(reqCtx).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %s", mem.Id, chat.Id, result.Refusal)
-		return StageFailed
-	}
 	var addedBy string
 	if sender != nil {
 		addedBy = fmt.Sprintf("%s (%d)", sender.Name(), senderID)
 	}
-	actionlog.AutomatedWithMarkup(b, chat, result.LogMarkup, "LOCK_BOTS", mem.Id, mem.FirstName, actionlog.Field{Name: "Added by", Value: addedBy})
-	notice("locks_bot_only_admins")
+	result, err := enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{
+			ChatID: chat.Id, Target: punishment.Target{ID: mem.Id}, Mode: punishment.Ban,
+			Source: models.BanSourceLock, Detail: "bots",
+		},
+		// The adder's protected-user check ran above on the sender, not the
+		// joined bot; the default predicate must not exempt the bot a second
+		// time.
+		Exempt: enforce.NeverExempt,
+		Log: &enforce.LogSpec{
+			Tag:    "LOCK_BOTS",
+			Name:   mem.FirstName,
+			Fields: []actionlog.Field{{Name: "Added by", Value: addedBy}},
+		},
+		Notice: &enforce.NoticeSpec{Key: "locks_bot_only_admins", Raw: true},
+	})
+	// A notice failure does not undo an applied ban; only the ban's own
+	// error or refusal fails the stage.
+	if !result.Applied {
+		if err != nil {
+			log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %v", mem.Id, chat.Id, err)
+		} else {
+			log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Locks] bots lock could not ban bot %d in chat %d: %s", mem.Id, chat.Id, result.Refusal)
+		}
+		return StageFailed
+	}
+	if err != nil {
+		log.WithContext(tracing.UpdateContext(ctx)).Error(err)
+	}
 	return StageRemoved
 }
 
 func LoadLocks(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(locksModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "lock", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
 		},
 	}, pipelineHandler(locksModule.lockPerm))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unlock", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireBotAdmin(), helpers.RequireUserAdmin(),
 		},
 	}, pipelineHandler(locksModule.unlockPerm))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "locktypes", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locktypes))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "locks", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locks))
 	loadNightMode(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)

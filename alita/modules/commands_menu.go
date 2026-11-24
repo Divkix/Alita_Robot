@@ -66,12 +66,12 @@ func commandsViewFromCallback(decoded *callbackcodec.Decoded) commandsView {
 
 // commandsMenu answers /commands: in PM with the menu, in a group with a
 // button that opens it in PM for that group.
-func (moduleStruct) commandsMenu(c *helpers.CommandContext) error {
+func (*helpRegistry) commandsMenu(c *helpers.CommandContext) error {
 	if c.Chat.Type == "private" {
 		return sendCommandsMenu(c.Bot, c.Ctx, c.Tr, c.User.Id, 0)
 	}
-	text, _ := c.Tr.GetString("commands_open_in_pm")
-	button, _ := c.Tr.GetString("commands_open_in_pm_button")
+	text := c.Tr.String("commands_open_in_pm")
+	button := c.Tr.String("commands_open_in_pm_button")
 	_, err := c.Msg.Reply(c.Bot, text, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
 		ReplyParameters: &gotgbot.ReplyParameters{
@@ -93,7 +93,7 @@ func commandsDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Use
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chatID, err := strconv.ParseInt(strings.TrimPrefix(arg, commandsDeepLinkPrefix), 10, 64)
 	if err != nil || chatID >= 0 {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = ctx.EffectiveMessage.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -161,11 +161,11 @@ func commandsSections() (modules []string, names map[string]string) {
 
 // sectionCommands lists module's commands the view shows, in the order of the
 // English <module>_extend_msg.
-func sectionCommands(module string, view commandsView) []string {
+func sectionCommands(module string, view commandsView, menu map[string]menuCommand) []string {
 	order, _ := extendLines(i18n.MustNewTranslator("en"), module)
 	var out []string
 	for _, cmd := range order {
-		entry, ok := menuCommands[cmd]
+		entry, ok := menu[cmd]
 		if ok && entry.Module == module && (view.admin || !entry.AdminOnly) {
 			out = append(out, cmd)
 		}
@@ -211,12 +211,13 @@ func commandsHomeScreen(tr *i18n.Translator, view commandsView) (string, gotgbot
 	if view.admin {
 		headerKey = "commands_menu_admin"
 	}
-	header, _ := tr.GetString(headerKey)
+	header := tr.String(headerKey)
 	lines := []string{header, ""}
 	var buttons []gotgbot.InlineKeyboardButton
+	menu := menuCommands()
 	modules, names := commandsSections()
 	for _, module := range modules {
-		if len(sectionCommands(module, view)) == 0 {
+		if len(sectionCommands(module, view, menu)) == 0 {
 			continue
 		}
 		lines = append(lines, sectionHeading(tr, module, names[module]))
@@ -234,7 +235,7 @@ func commandsHomeScreen(tr *i18n.Translator, view commandsView) (string, gotgbot
 func commandsSectionScreen(tr *i18n.Translator, view commandsView, module string) (string, gotgbot.InlineKeyboardMarkup, bool) {
 	_, names := commandsSections()
 	name, listed := names[module]
-	commands := sectionCommands(module, view)
+	commands := sectionCommands(module, view, menuCommands())
 	if !listed || len(commands) == 0 {
 		return "", gotgbot.InlineKeyboardMarkup{}, false
 	}
@@ -256,7 +257,7 @@ func commandsSectionScreen(tr *i18n.Translator, view commandsView, module string
 	if hint, _ := tr.GetString("commands_section_hint"); hint != "" {
 		lines = append(lines, "", hint)
 	}
-	back, _ := tr.GetString("common_back_arrow")
+	back := tr.String("common_back_arrow")
 	rows := append(chunkButtons(buttons), []gotgbot.InlineKeyboardButton{{
 		Text:         back,
 		CallbackData: view.callbackData(map[string]string{"a": "h"}),
@@ -268,7 +269,7 @@ func commandsSectionScreen(tr *i18n.Translator, view commandsView, module string
 // language has no entry for it), its PM example naming the view's group, a
 // button that copies the example, and Back to its section.
 func commandsCommandScreen(tr *i18n.Translator, view commandsView, cmd string) (string, gotgbot.InlineKeyboardMarkup, bool) {
-	entry, ok := menuCommands[cmd]
+	entry, ok := menuCommands()[cmd]
 	if !ok {
 		return "", gotgbot.InlineKeyboardMarkup{}, false
 	}
@@ -282,13 +283,13 @@ func commandsCommandScreen(tr *i18n.Translator, view commandsView, cmd string) (
 	}
 	var rows [][]gotgbot.InlineKeyboardButton
 	if example != "" {
-		copyText, _ := tr.GetString("commands_copy_example_button")
+		copyText := tr.String("commands_copy_example_button")
 		rows = append(rows, []gotgbot.InlineKeyboardButton{{
 			Text:     copyText,
 			CopyText: &gotgbot.CopyTextButton{Text: example},
 		}})
 	}
-	back, _ := tr.GetString("common_back_arrow")
+	back := tr.String("common_back_arrow")
 	rows = append(rows, []gotgbot.InlineKeyboardButton{{
 		Text:         back,
 		CallbackData: view.callbackData(map[string]string{"a": "s", "m": entry.Module}),
@@ -316,7 +317,7 @@ func exampleNamingGroup(example string, groupID int64) string {
 	return example
 }
 
-func (moduleStruct) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups
@@ -370,7 +371,7 @@ func (moduleStruct) commandsMenuCallback(b *gotgbot.Bot, ctx *ext.Context) error
 
 func loadCommandsMenu(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "commands", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "commands", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, DefaultHelpRegistry().commandsMenu)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(commandsMenuNamespace+"|"), DefaultHelpRegistry().commandsMenuCallback))
 }

@@ -16,16 +16,23 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
+// DefaultReportChatSettings is the row a chat without one reads as: reports
+// on, status on, nobody blocked. Repository loaders and the backup importer
+// consume it.
+func DefaultReportChatSettings(chatID int64) *models.ReportChatSettings {
+	return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true, BlockedList: models.Int64Array{}}
+}
+
 func checkChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
 	reportsrc := &models.ReportChatSettings{}
 	err := db.GetRecord(reportsrc, models.ReportChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 			log.Errorf("[Database] GetChatReportSettings: Failed to ensure chat exists for %d: %v", chatID, err)
-			return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, err
+			return DefaultReportChatSettings(chatID), err
 		}
 
-		reportsrc = &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
+		reportsrc = DefaultReportChatSettings(chatID)
 		if err := db.CreateRecord(reportsrc); err != nil {
 			log.Error(err)
 			return reportsrc, err
@@ -34,7 +41,7 @@ func checkChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
 	}
 	if err != nil {
 		log.Error(err)
-		return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, err
+		return DefaultReportChatSettings(chatID), err
 	}
 	return reportsrc, nil
 }
@@ -44,10 +51,10 @@ func readChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
 	row := &models.ReportChatSettings{}
 	err := db.GetRecord(row, models.ReportChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, nil
+		return DefaultReportChatSettings(chatID), nil
 	}
 	if err != nil {
-		return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}, err
+		return DefaultReportChatSettings(chatID), err
 	}
 	return row, nil
 }
@@ -55,14 +62,16 @@ func readChatReportSettings(chatID int64) (*models.ReportChatSettings, error) {
 func GetChatReportSettings(chatID int64) *models.ReportChatSettings {
 	reportsrc, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("report_settings", chatID),
+		ReportSettingsProjection.Key(chatID),
 		cache.CacheTTLReportSettings,
 		func(context.Context) (*models.ReportChatSettings, error) {
 			return readChatReportSettings(chatID)
 		},
 	)
 	if err != nil || reportsrc == nil {
-		reportsrc, _ = readChatReportSettings(chatID)
+		// The read failed or returned nothing: fall back to the declared
+		// default row so callers always get a non-nil settings object.
+		return DefaultReportChatSettings(chatID)
 	}
 	return reportsrc
 }
@@ -80,7 +89,7 @@ func SetChatReportStatus(chatID int64, pref bool) error {
 		log.Errorf("[Database] SetChatReportStatus: %v", err)
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("report_settings", chatID))
+	cache.DeleteCache(ReportSettingsProjection.Key(chatID))
 	return nil
 }
 
@@ -120,7 +129,7 @@ func updateReportBlockList(chatId, userId int64, block bool) error {
 			Where("chat_id = ?", chatId).
 			Take(&settings).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			settings = models.ReportChatSettings{ChatId: chatId, Enabled: true, Status: true}
+			settings = *DefaultReportChatSettings(chatId)
 			if err := tx.Create(&settings).Error; err != nil {
 				return err
 			}
@@ -144,7 +153,7 @@ func updateReportBlockList(chatId, userId int64, block bool) error {
 	if err != nil {
 		return err
 	}
-	cache.DeleteCache(cache.CacheKey("report_settings", chatId))
+	cache.DeleteCache(ReportSettingsProjection.Key(chatId))
 	return nil
 }
 

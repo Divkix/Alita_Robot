@@ -275,7 +275,7 @@ func LoadUsers(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
-	RegisterLegacyModule("Users", 100, LoadUsers)
+	RegisterLegacyModule("Users", 100, LoadUsers, RegisterLegacyModuleOptions{NoHelp: true})
 	jobs.Register("usersThrottleSweep", time.Minute, func(context.Context) error {
 		sweepUsersThrottleCaches(time.Now())
 		return nil

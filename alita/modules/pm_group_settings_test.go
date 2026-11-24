@@ -204,8 +204,8 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 	LoadAllModules(all)
 	pick := translated(t, "connections_pm_group_pick")
 	commands := dispatcherCommands(t, all)
-	if len(commands) != 228 {
-		t.Fatalf("LoadAllModules registered %d command names, want 228", len(commands))
+	if len(commands) != 234 {
+		t.Fatalf("LoadAllModules registered %d command names, want 234", len(commands))
 	}
 	slices.SortFunc(commands, func(a, b handlers.Command) int { return strings.Compare(a.Command, b.Command) })
 	var asked []string
@@ -228,7 +228,7 @@ func TestEveryPMGroupCommandHasHelpEntry(t *testing.T) {
 		}
 		asked = append(asked, cmd.Command)
 		text := fmt.Sprint(replies[0].Params["text"])
-		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules)), func(help string) bool {
+		if !slices.ContainsFunc(slices.Collect(maps.Keys(commandHelpModules())), func(help string) bool {
 			example := commandPMExample(help)
 			return example != "" && strings.Contains(text, html.EscapeString(example))
 		}) {

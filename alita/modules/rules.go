@@ -54,9 +54,9 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 	if err := rules.SetChatRules(chat.Id, ""); err != nil {
 		log.Errorf("[Rules] Failed to clear rules for chat %d: %v", chat.Id, err)
-		text, _ = tr.GetString("common_settings_save_failed")
+		text = tr.String("common_settings_save_failed")
 	} else {
-		text, _ = tr.GetString("rules_cleared_successfully")
+		text = tr.String("rules_cleared_successfully")
 	}
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
@@ -78,25 +78,25 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "yes", "true":
 			if err := chatsettings.PrivateRules.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: bot}, true); err != nil {
 				log.Errorf("[Rules] Failed to enable private rules for chat %d: %v", chat.Id, err)
-				text, _ = tr.GetString("common_settings_save_failed")
+				text = tr.String("common_settings_save_failed")
 			} else {
-				text, _ = tr.GetString("rules_private_pm_usage")
+				text = tr.String("rules_private_pm_usage")
 			}
 		case "off", "no", "false":
 			if err := chatsettings.PrivateRules.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id, Title: chat.Title, Bot: bot}, false); err != nil {
 				log.Errorf("[Rules] Failed to disable private rules for chat %d: %v", chat.Id, err)
-				text, _ = tr.GetString("common_settings_save_failed")
+				text = tr.String("common_settings_save_failed")
 			} else {
-				temp, _ := tr.GetString("rules_private_group_usage")
+				temp := tr.String("rules_private_group_usage")
 				text = fmt.Sprintf(temp, html.EscapeString(chat.Title))
 			}
 		default:
-			text, _ = tr.GetString("pins_input_not_recognized")
+			text = tr.String("pins_input_not_recognized")
 		}
 	} else if chatsettings.PrivateRules.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
-		text, _ = tr.GetString("rules_private_current_pm")
+		text = tr.String("rules_private_current_pm")
 	} else {
-		temp2, _ := tr.GetString("rules_private_current_group")
+		temp2 := tr.String("rules_private_current_group")
 		text = fmt.Sprintf(temp2, html.EscapeString(chat.Title))
 	}
 
@@ -133,11 +133,11 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	normalizedRules := normalizeRulesForHTML(rules.Rules)
 	if normalizedRules != "" {
-		temp, _ := tr.GetString("rules_for_chat_header")
+		temp := tr.String("rules_for_chat_header")
 		Text += fmt.Sprintf(temp, html.EscapeString(chat.Title)) + "\n\n"
 		Text += normalizedRules
 	} else {
-		Text, _ = tr.GetString("rules_no_rules_set")
+		Text = tr.String("rules_no_rules_set")
 	}
 
 	if msg.Chat.Type != "private" && chatsettings.PrivateRules.ReadContext(tracing.UpdateContext(ctx), chat.Id).Value.(bool) {
@@ -145,7 +145,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if sendEphemeral(bot, ctx, Text, gotgbot.SendMessageOpts{ParseMode: formatting.HTML}) {
 			return ext.EndGroups
 		}
-		Text, _ = tr.GetString("rules_click_for_rules")
+		Text = tr.String("rules_click_for_rules")
 		rulesKb = gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 				{
@@ -187,12 +187,12 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		rulesText = textAfterCommand(msg.OriginalMDV2())
 	}
 	if strings.TrimSpace(rulesText) == "" {
-		text, _ = tr.GetString("rules_need_text")
+		text = tr.String("rules_need_text")
 	} else if err := rules.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(rulesText)); err != nil {
 		log.Errorf("[Rules] Failed to set rules for chat %d: %v", chat.Id, err)
-		text, _ = tr.GetString("common_settings_save_failed")
+		text = tr.String("common_settings_save_failed")
 	} else {
-		text, _ = tr.GetString("rules_set_successfully")
+		text = tr.String("rules_set_successfully")
 	}
 
 	_, err := msg.Reply(bot, text, formatting.Shtml())
@@ -214,26 +214,26 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		rulesBtnCustomText := strings.Join(args[1:], " ")
 		if len([]rune(rulesBtnCustomText)) > 30 {
-			text, _ = tr.GetString("rules_button_too_long")
+			text = tr.String("rules_button_too_long")
 		} else {
 			if err := rules.SetChatRulesButton(chat.Id, rulesBtnCustomText); err != nil {
 				log.Errorf("[Rules] Failed to set rules button for chat %d: %v", chat.Id, err)
-				text, _ = tr.GetString("common_settings_save_failed")
+				text = tr.String("common_settings_save_failed")
 			} else {
-				temp3, _ := tr.GetString("rules_button_set_successfully")
+				temp3 := tr.String("rules_button_set_successfully")
 				text = fmt.Sprintf(temp3, html.EscapeString(rulesBtnCustomText))
 			}
 		}
 	} else {
 		customRulesBtn := rules.GetChatRulesInfo(chat.Id).RulesBtn
 		if customRulesBtn == "" {
-			temp4, _ := tr.GetString("rules_button_not_set")
+			temp4 := tr.String("rules_button_not_set")
 			// The button is drawn in the group, so its label follows the
 			// group's language even when /rulesbtn runs from a connected PM.
 			groupTr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 			text = fmt.Sprintf(temp4, html.EscapeString(m.defaultRulesButtonText(groupTr)))
 		} else {
-			temp5, _ := tr.GetString("rules_button_current")
+			temp5 := tr.String("rules_button_current")
 			text = fmt.Sprintf(temp5, html.EscapeString(customRulesBtn))
 		}
 	}
@@ -255,9 +255,9 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 	if err := rules.SetChatRulesButton(chat.Id, ""); err != nil {
 		log.Errorf("[Rules] Failed to clear rules button for chat %d: %v", chat.Id, err)
-		text, _ = tr.GetString("common_settings_save_failed")
+		text = tr.String("common_settings_save_failed")
 	} else {
-		text, _ = tr.GetString("rules_button_cleared")
+		text = tr.String("rules_button_cleared")
 	}
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
@@ -268,19 +268,17 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadRules(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(rulesModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "rules", PMGroupArg: helpers.PMGroupArgNone, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedMember(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.sendRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "setrules", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.setRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "resetrules", Aliases: []string{"clearrules"}, PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.clearRules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "privaterules", PMGroupArg: helpers.PMGroupArgOwn,
@@ -288,11 +286,11 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 	}, pipelineHandler(rulesModule.privaterules))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "rulesbtn", Aliases: []string{"rulesbutton"}, PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.rulesBtn))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "resetrulesbutton", Aliases: []string{"clearrulesbutton", "clearrulesbtn", "resetrulesbtn"}, PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(rulesModule.resetRulesBtn))
 }
 
@@ -313,7 +311,7 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 	_chat := chatinfo.ToChat()
 	if !chat_status.IsUserInChat(b, &_chat, user.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_chat_not_found")
+		text := tr.String("helpers_chat_not_found")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -323,7 +321,7 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 
 	if normalizedRules == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("rules_not_set")
+		text := tr.String("rules_not_set")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -332,7 +330,7 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("rules_for_chat", i18n.TranslationParams{
+	text := tr.String("rules_for_chat", i18n.TranslationParams{
 		"first":  html.EscapeString(chatinfo.Title),
 		"second": normalizedRules,
 	})

@@ -39,7 +39,7 @@ func GetChannelSettingsCached(chatID int64) (*models.ChannelSettings, error) {
 }
 
 func GetChannelSettingsCachedContext(ctx context.Context, chatID int64) (*models.ChannelSettings, error) {
-	cacheKey := cache.CacheKey("channel", chatID)
+	cacheKey := ChannelProjection.Key(chatID)
 
 	cached, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLChannels, func(ctx context.Context) (*models.ChannelSettings, error) {
 		return getChannelSettingsRawContext(ctx, chatID)

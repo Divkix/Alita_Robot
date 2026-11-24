@@ -116,7 +116,6 @@ approvals_unapproveall_done: "All approved users have been removed."
 approvals_unapproveall_cancel: "Unapprove all cancelled."
 approvals_approve_error: "Failed to approve the user. Please try again."
 approvals_unapprove_error: "Failed to remove the user from the approved list."
-approvals_unapproveall_error: "Failed to remove all approved users: {error}"
 approvals_reason: "\nReason: %s"
 approvals_list_header: "Approved users:\n"
 approvals_list_item: " - %s"
@@ -288,10 +287,10 @@ blacklists_ls_bl_no_blacklisted: There are no blacklisted words in this chat.
 blacklists_rm_all_bl_ask:
   Are you sure you want to remove all blacklisted words from
   this chat?
-blacklists_rm_all_bl_button_handler_no:
+blacklists_rm_all_bl_cancel:
   Canceled removing all Blacklists of this Chat
   ❌
-blacklists_rm_all_bl_button_handler_yes: Removed all Blacklists from this Chat ✅
+blacklists_rm_all_bl_done: Removed all Blacklists from this Chat ✅
 blacklists_set_bl_action_changed_mode: "Successfully Changed blacklist mode to: *%s*"
 blist_action_tban: "Successfully changed blacklist mode to: tban for %s"
 blist_action_tmute: "Successfully changed blacklist mode to: tmute for %s"
@@ -1222,7 +1221,6 @@ warns_limit_updated: "Warn limit settings for this chat have been updated to %d.
 warns_reset_success: Warnings have been reset!
 warns_no_users_warned: No users are warned in this chat!
 warns_reset_all_confirm: Are you sure you want to remove all the warns of all the users in this chat?
-warns_reset_all_success: Removed all warns of all the users in this chat !
 warns_reset_all_cancelled: Cancelled the removal of all the warns of all the users in this chat !
 warns_reset_all_final: Removed all warns of all users in this chat.
 
@@ -1492,7 +1490,6 @@ filters_none_in_chat: "There are no filters in this chat!"
 filters_current_in_chat: "These are the current filters in this Chat:"
 filters_clear_all_confirm: "Are you sure you want to remove all Filters from this chat?"
 filters_clear_all_success: "Removed all Filters from this Chat ✅"
-filters_clear_all_failed: "Failed to remove all Filters from this Chat ❌"
 filters_clear_all_cancelled: "Cancelled removing all Filters from this Chat ❌"
 filters_overwrite_success: "Filter has been overwritten successfully ✅"
 filters_overwrite_cancelled: "Cancelled overwriting of filter ❌"

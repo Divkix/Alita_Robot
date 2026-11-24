@@ -30,7 +30,7 @@ var digestDesc = helpers.CommandDescriptor{
 	// Every /digest form is admin-only, so a chat cannot silence it: /digest
 	// off already is the switch. A stored disable row must not block that.
 	Disableable:    false,
-	RequiredChecks: append([]helpers.CheckFunc{helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.DigestEnabled)...),
+	RequiredChecks: append([]helpers.Check{helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.DigestEnabled)...),
 }
 
 // digestNow is the clock the command reads. Tests replace it to pin the day
@@ -185,7 +185,7 @@ func digestStatusText(tr *i18n.Translator, settings *models.DigestSettings, hasL
 }
 
 func digestReplyUsage(c *helpers.CommandContext) error {
-	usage, _ := c.Tr.GetString("digest_usage")
+	usage := c.Tr.String("digest_usage")
 	return replyCommandHelp(c.Bot, c.Msg, c.Tr, "digest", usage)
 }
 
@@ -208,24 +208,22 @@ func digestDashboardURL(botUsername string, chatID int64) string {
 }
 
 func digestString(tr *i18n.Translator, key string, params ...i18n.TranslationParams) string {
-	text, _ := tr.GetString(key, params...)
+	text := tr.String(key, params...)
 	return text
 }
 
 func digestReplyKey(c *helpers.CommandContext, key string, params i18n.TranslationParams) error {
 	var text string
 	if params == nil {
-		text, _ = c.Tr.GetString(key)
+		text = c.Tr.String(key)
 	} else {
-		text, _ = c.Tr.GetString(key, params)
+		text = c.Tr.String(key, params)
 	}
 	_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	return err
 }
 
 func LoadDigest(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(digestModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, digestDesc, digestModule.digest)
 
 	// The windows are weeks long, but a weekly job would never tick on a

@@ -92,7 +92,7 @@ func GetChatDisabledCMDsCached(chatId int64) []string {
 }
 
 func GetChatDisabledCMDsCachedContext(ctx context.Context, chatId int64) []string {
-	cacheKey := cache.CacheKey("disabled_cmds", chatId)
+	cacheKey := DisabledCommandsProjection.Key(chatId)
 	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLDisabledCmds, func(ctx context.Context) ([]string, error) {
 		return getChatDisabledCMDsContext(ctx, chatId)
 	})
@@ -108,7 +108,7 @@ func IsCommandDisabled(chatId int64, cmd string) bool {
 }
 
 func invalidateDisabledCommandsCache(chatID int64) {
-	cache.DeleteCache(cache.CacheKey("disabled_cmds", chatID))
+	cache.DeleteCache(DisabledCommandsProjection.Key(chatID))
 }
 
 func ToggleDel(chatId int64, pref bool) error {

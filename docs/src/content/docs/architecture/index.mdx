@@ -214,11 +214,10 @@ MaxRoutines: 200  // Configurable via DISPATCHER_MAX_ROUTINES
 ### Graceful Shutdown
 
 ```go
-// Shutdown manager coordinates cleanup in order
+// Shutdown drains run in declared phases, LIFO within a phase
 shutdownManager := shutdown.NewManager()
-shutdownManager.RegisterHandler(func() error {
-    // Cleanup monitoring, database, cache
-    return nil
+shutdownManager.Register("db close", shutdown.PhaseDatabase, func() error {
+    return db.Close()
 })
 ```
 

@@ -407,8 +407,8 @@ func TestRemoveAllBlacklistsConfirmationAndCallback(t *testing.T) {
 
 	data := encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"})
 	callbackCtx := newModuleCallbackContext(bot, chat, owner, data)
-	if err := blacklistsModule.buttonHandler(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("buttonHandler error = %v, want EndGroups", err)
+	if err := blacklistsClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("blacklistsClearAllCallback error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
 		return len(blacklists.GetBlacklistSettings(chat.Id).Triggers()) == 0
@@ -423,8 +423,8 @@ func TestRemoveAllBlacklistsRefusesNonOwnerAdmin(t *testing.T) {
 	}
 
 	callbackCtx := newModuleCallbackContext(bot, chat, admin, encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"}))
-	if err := blacklistsModule.buttonHandler(bot, callbackCtx); err != ext.EndGroups {
-		t.Fatalf("buttonHandler(admin) error = %v, want EndGroups", err)
+	if err := blacklistsClearAllCallback(bot, callbackCtx); err != ext.EndGroups {
+		t.Fatalf("blacklistsClearAllCallback(admin) error = %v, want EndGroups", err)
 	}
 	if got := len(blacklists.GetBlacklistSettings(chat.Id).Triggers()); got != 1 {
 		t.Fatalf("blacklist triggers after a non-owner confirmed = %d, want 1", got)
@@ -459,16 +459,16 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 	}
 
 	cancelCtx := newModuleCallbackContext(bot, chat, owner, "rmAllBlacklist.no")
-	if err := blacklistsModule.buttonHandler(bot, cancelCtx); err != ext.EndGroups {
-		t.Fatalf("buttonHandler cancel error = %v, want EndGroups", err)
+	if err := blacklistsClearAllCallback(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("blacklistsClearAllCallback cancel error = %v, want EndGroups", err)
 	}
 	if got := len(blacklists.GetBlacklistSettings(chat.Id).Triggers()); got != 1 {
 		t.Fatalf("blacklist triggers after cancel = %d, want retained trigger", got)
 	}
 
 	invalidCtx := newModuleCallbackContext(bot, chat, owner, "rmAllBlacklist")
-	if err := blacklistsModule.buttonHandler(bot, invalidCtx); err != ext.EndGroups {
-		t.Fatalf("buttonHandler invalid error = %v, want EndGroups", err)
+	if err := blacklistsClearAllCallback(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("blacklistsClearAllCallback invalid error = %v, want EndGroups", err)
 	}
 	unknownCtx := newModuleCallbackContext(
 		bot,
@@ -476,8 +476,8 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 		owner,
 		encodeCallbackData("rmAllBlacklist", map[string]string{"a": "crafted"}),
 	)
-	if err := blacklistsModule.buttonHandler(bot, unknownCtx); err != ext.EndGroups {
-		t.Fatalf("buttonHandler unknown action error = %v, want EndGroups", err)
+	if err := blacklistsClearAllCallback(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("blacklistsClearAllCallback unknown action error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid answers", len(calls))
@@ -486,9 +486,9 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 
 func TestLoadBlacklistsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadBlacklists(dispatcher)
+	loadModuleByName(t, "Blacklists", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[blacklistsModule.moduleName] {
+	if !DefaultHelpRegistry().isEnabled(blacklistsModule.moduleName) {
 		t.Fatal("blacklists help registration = false, want enabled")
 	}
 }

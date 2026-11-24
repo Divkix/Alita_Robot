@@ -32,8 +32,8 @@ var spamFilterModule = moduleStruct{moduleName: "SpamFilter"}
 // spamFilterAdminChecks are the checks of the commands that read or change a
 // chat's samples and switch. They are group-only: the samples belong to the
 // group, and /spam needs a reply to a group message anyway.
-func spamFilterAdminChecks() []helpers.CheckFunc {
-	return []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()}
+func spamFilterAdminChecks() []helpers.Check {
+	return []helpers.Check{helpers.RequireGroup(), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()}
 }
 
 var (
@@ -75,7 +75,7 @@ func moderationSpam(m *moduleStruct) *moderationCommand {
 		module:  m,
 		extract: func(c *moderationCtx) (target, error) {
 			if c.Reply == nil {
-				text, _ := c.Tr.GetString("spamfilter_spam_no_reply")
+				text := c.Tr.String("spamfilter_spam_no_reply")
 				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return target{}, err
@@ -159,15 +159,15 @@ func spamReply(c *moderationCtx, t *target, stored *models.SpamSample, tooShort 
 	if reply := c.Reply; reply != nil && reply.From != nil {
 		name = reply.From.FirstName
 	}
-	text, _ := c.Tr.GetString("spamfilter_spam_banned", i18n.TranslationParams{
+	text := c.Tr.String("spamfilter_spam_banned", i18n.TranslationParams{
 		"user": formatting.MentionHtml(t.userID, name),
 	})
 	switch {
 	case stored != nil:
-		line, _ := c.Tr.GetString("spamfilter_spam_saved", i18n.TranslationParams{"id": stored.ID})
+		line := c.Tr.String("spamfilter_spam_saved", i18n.TranslationParams{"id": stored.ID})
 		text += "\n" + line
 	case tooShort:
-		line, _ := c.Tr.GetString("spamfilter_spam_too_short")
+		line := c.Tr.String("spamfilter_spam_too_short")
 		text += "\n" + line
 	}
 	_, err := c.Msg.Reply(c.Bot, text, &gotgbot.SendMessageOpts{
@@ -221,7 +221,7 @@ func (moduleStruct) spamFilter(c *helpers.CommandContext) error {
 			threshold /= 100
 		}
 		if err != nil || !spamfilter.ValidThreshold(threshold) {
-			usage, _ := c.Tr.GetString("spamfilter_threshold_invalid")
+			usage := c.Tr.String("spamfilter_threshold_invalid")
 			return replyCommandHelp(c.Bot, c.Msg, c.Tr, "spamfilter", usage)
 		}
 		if err := spamfilter.SetThreshold(c.Chat.Id, threshold); err != nil {
@@ -231,14 +231,14 @@ func (moduleStruct) spamFilter(c *helpers.CommandContext) error {
 			actionlog.Field{Name: "Threshold", Value: strconv.FormatFloat(threshold, 'f', 2, 64)})
 		return spamFilterReplyStatus(c)
 	default:
-		usage, _ := c.Tr.GetString("spamfilter_usage")
+		usage := c.Tr.String("spamfilter_usage")
 		return replyCommandHelp(c.Bot, c.Msg, c.Tr, "spamfilter", usage)
 	}
 }
 
 func spamFilterFailed(c *helpers.CommandContext, err error) error {
 	log.WithError(err).WithField("chat_id", c.Chat.Id).Error("[SpamFilter] could not save the chat's spam filter")
-	text, _ := c.Tr.GetString("error_generic")
+	text := c.Tr.String("error_generic")
 	_, replyErr := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	return replyErr
 }
@@ -264,7 +264,7 @@ func spamFilterReplyStatus(c *helpers.CommandContext) error {
 // channel to go to.
 func spamFilterStatusText(tr *i18n.Translator, settings *models.SpamFilterSettings, spam, ham int, hasLog bool, now time.Time) string {
 	str := func(key string, params ...i18n.TranslationParams) string {
-		text, _ := tr.GetString(key, params...)
+		text := tr.String(key, params...)
 		return text
 	}
 	var mode string
@@ -313,11 +313,11 @@ func (moduleStruct) spamSamples(c *helpers.CommandContext) error {
 	}
 	spam, ham := spamSampleCounts(samples)
 	if spam == 0 {
-		text, _ := c.Tr.GetString("spamfilter_samples_empty", i18n.TranslationParams{"ham": ham})
+		text := c.Tr.String("spamfilter_samples_empty", i18n.TranslationParams{"ham": ham})
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		return err
 	}
-	header, _ := c.Tr.GetString("spamfilter_samples_header", i18n.TranslationParams{"spam": spam, "ham": ham})
+	header := c.Tr.String("spamfilter_samples_header", i18n.TranslationParams{"spam": spam, "ham": ham})
 	lines := []string{header, ""}
 	shown := 0
 	for _, s := range samples {
@@ -331,7 +331,7 @@ func (moduleStruct) spamSamples(c *helpers.CommandContext) error {
 		lines = append(lines, fmt.Sprintf("<code>#%d</code> · %s · %s",
 			s.ID, s.CreatedAt.UTC().Format("2006-01-02"), html.EscapeString(spamSamplePreview(s.Text))))
 	}
-	footer, _ := c.Tr.GetString("spamfilter_samples_footer")
+	footer := c.Tr.String("spamfilter_samples_footer")
 	lines = append(lines, "", footer)
 	_, err = c.Msg.Reply(c.Bot, strings.Join(lines, "\n"), formatting.Shtml())
 	return err
@@ -355,7 +355,7 @@ func (moduleStruct) forgetSpam(c *helpers.CommandContext) error {
 		id, err = strconv.ParseInt(strings.TrimPrefix(args[0], "#"), 10, 64)
 	}
 	if len(args) != 1 || err != nil || id <= 0 {
-		usage, _ := c.Tr.GetString("spamfilter_forget_usage")
+		usage := c.Tr.String("spamfilter_forget_usage")
 		return replyCommandHelp(c.Bot, c.Msg, c.Tr, "forgetspam", usage)
 	}
 	removed, err := spamfilter.Delete(c.Chat.Id, id)
@@ -367,7 +367,7 @@ func (moduleStruct) forgetSpam(c *helpers.CommandContext) error {
 		key = "spamfilter_forget_done"
 		spamCorpusForget(c.Chat.Id)
 	}
-	text, _ := c.Tr.GetString(key, i18n.TranslationParams{"id": id})
+	text := c.Tr.String(key, i18n.TranslationParams{"id": id})
 	_, err = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 	return err
 }
@@ -390,8 +390,6 @@ func sweepExpiredSpamSamples(now time.Time) {
 }
 
 func LoadSpamFilter(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(spamFilterModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, spamDesc, pipelineHandler(spamFilterModule.spamCommand))
 	helpers.WrapCommand(dispatcher, spamFilterDesc, spamFilterModule.spamFilter)
 	helpers.WrapCommand(dispatcher, spamSamplesDesc, spamFilterModule.spamSamples)

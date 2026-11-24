@@ -355,7 +355,16 @@ func extractKeysFromFile(filePath string) ([]TranslationKey, error) {
 		}
 
 		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || (sel.Sel.Name != "GetString" && sel.Sel.Name != "GetStringSlice") || len(call.Args) == 0 {
+		if !ok || len(call.Args) == 0 {
+			return true
+		}
+		name := sel.Sel.Name
+		// String is also the signature of strings.Builder, url.URL and friends;
+		// only count it on receivers that look like an i18n translator.
+		if name == "String" && !isTranslatorReceiver(sel.X) {
+			return true
+		}
+		if name != "GetString" && name != "GetStringSlice" && name != "String" {
 			return true
 		}
 		lit, ok := call.Args[0].(*ast.BasicLit)
@@ -373,6 +382,34 @@ func extractKeysFromFile(filePath string) ([]TranslationKey, error) {
 	})
 
 	return keys, nil
+}
+
+// isTranslatorName reports whether a Go identifier names an i18n translator:
+// the codebase's convention is tr, tempTr, ctxTr, c.Tr or a MustNewTranslator
+// call. "Tr" is matched case-sensitively so attr-like names cannot collide.
+func isTranslatorName(name string) bool {
+	return name == "tr" || strings.HasSuffix(name, "Tr") || strings.Contains(strings.ToLower(name), "translator")
+}
+
+// isTranslatorReceiver reports whether expr is a receiver that plausibly holds
+// an *i18n.Translator. Without type info this is a name heuristic; GetString
+// and GetStringSlice stay unrestricted because no other type defines them.
+// Convention: translator receivers must be named tr, *Tr or *translator for
+// key extraction — tr2.String and the like are not detected.
+func isTranslatorReceiver(expr ast.Expr) bool {
+	switch x := expr.(type) {
+	case *ast.Ident:
+		return isTranslatorName(x.Name)
+	case *ast.SelectorExpr:
+		return isTranslatorName(x.Sel.Name) || isTranslatorReceiver(x.X)
+	case *ast.CallExpr:
+		return isTranslatorReceiver(x.Fun)
+	case *ast.IndexExpr:
+		return isTranslatorReceiver(x.X)
+	case *ast.ParenExpr:
+		return isTranslatorReceiver(x.X)
+	}
+	return false
 }
 
 func loadLocaleFiles(localesDir string) (map[string]map[string]any, error) {

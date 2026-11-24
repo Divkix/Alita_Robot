@@ -45,7 +45,6 @@ Disposable snapshots use `alita:cache:`. Operational state uses its existing `al
 
 | Key Pattern | Description |
 |-------------|-------------|
-| `alita:cache:chat_settings:{chatId}` | Legacy invalidation target only — settings are read via `alita:cache:chat:{chatId}` |
 | `alita:cache:user_lang:{userId}` | User language preference |
 | `alita:cache:chat_lang:{chatId}` | Chat language preference |
 | `alita:cache:filter_list:{chatId}` | List of filters for chat |
@@ -94,7 +93,7 @@ _, err := cache.GetMarshal().Get(
 The anonymous admin verification window is intentionally short. If the admin does not click the verification button within 20 seconds, the cached message expires and the command is silently dropped. This prevents stale command executions and reduces cache memory usage.
 :::
 
-Generate database cache keys with `cache.CacheKey("domain", id, ...)` from `alita/db/cache`. The domain must match the corresponding writer's invalidation key; package names and cache domains sometimes differ.
+Covered domains declare their projections once beside the repository (`cache.Projection` in `alita/db/cache`) and build or invalidate keys through them; `cache.CacheKey("domain", id, ...)` remains for domains not yet migrated. The domain must match the corresponding writer's invalidation key; package names and cache domains sometimes differ.
 
 ## Stampede Protection
 

@@ -12,6 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -101,8 +102,7 @@ func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot
 	if !settings.Enabled {
 		return StageNotApplicable
 	}
-	if chat_status.IsApprovedForUpdate(b, ctx, chat.Id, member.Id) ||
-		chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, member.Id) {
+	if chat_status.IsProtectedForUpdate(b, ctx, chat.Id, member.Id) {
 		return StageNotApplicable
 	}
 
@@ -117,10 +117,17 @@ func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot
 
 	answer, outcome := StageNotApplicable, settings.Action
 	var logMarkup *gotgbot.InlineKeyboardMarkup
+	request := punishment.Request{
+		ChatID: chat.Id, Target: punishment.Target{ID: member.Id},
+		Source: models.BanSourceSpamDB, Detail: source.Name(),
+	}
 	if mode, punishes := spamDBPunishments[settings.Action]; punishes {
-		result, err := punishment.Apply(reqCtx, b, punishment.Request{
-			ChatID: chat.Id, Target: punishment.Target{ID: member.Id}, Mode: mode,
-			Source: models.BanSourceSpamDB, Detail: source.Name(),
+		request.Mode = mode
+		result, err := enforce.Automated(b, ctx, enforce.Spec{
+			Request: request,
+			// The protected-user check ran above on the joining member; the
+			// default predicate must not exempt them a second time.
+			Exempt: enforce.NeverExempt,
 		})
 		switch {
 		case err != nil || !result.Applied:
@@ -132,10 +139,20 @@ func (moduleStruct) spamDBStage(b *gotgbot.Bot, ctx *ext.Context, member gotgbot
 			answer, logMarkup = StageRemoved, result.LogMarkup
 		}
 	}
-	actionlog.AutomatedWithMarkup(b, chat, logMarkup, "SPAMDB", member.Id, member.FirstName,
-		actionlog.Field{Name: "Listed in", Value: source.Name()},
-		actionlog.Field{Name: "Action", Value: outcome},
-	)
+	_, _ = enforce.Automated(b, ctx, enforce.Spec{
+		Request: request,
+		Exempt:  enforce.NeverExempt,
+		LogOnly: true,
+		Log: &enforce.LogSpec{
+			Tag:    "SPAMDB",
+			Name:   member.FirstName,
+			Markup: logMarkup,
+			Fields: []actionlog.Field{
+				{Name: "Listed in", Value: source.Name()},
+				{Name: "Action", Value: outcome},
+			},
+		},
+	})
 	return answer
 }
 
@@ -223,9 +240,9 @@ func spamDBDatabase(c *helpers.CommandContext, args []string) error {
 	if spamDBCheckRuns(c) {
 		enabledKey, warningKey = "spamdb_db_enabled", "spamdb_db_lols_warning"
 	}
-	text, _ := c.Tr.GetString(enabledKey, params)
+	text := c.Tr.String(enabledKey, params)
 	if database.source == spamdb.SourceLols {
-		warning, _ := c.Tr.GetString(warningKey)
+		warning := c.Tr.String(warningKey)
 		text += "\n\n" + warning
 	}
 	return spamDBReply(c, text)
@@ -257,7 +274,7 @@ func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) stri
 	if settings.Enabled {
 		lineKey = "spamdb_status_enabled"
 	}
-	line, _ := tr.GetString(lineKey, i18n.TranslationParams{"action": settings.Action})
+	line := tr.String(lineKey, i18n.TranslationParams{"action": settings.Action})
 
 	sources := spamDBSources(settings)
 	var entries, services []string
@@ -275,22 +292,22 @@ func spamDBStatusText(tr *i18n.Translator, settings *models.SpamDBSettings) stri
 				services = append(services, d.service)
 			}
 		}
-		entry, _ := tr.GetString(stateKey, i18n.TranslationParams{"database": d.source.Name()})
+		entry := tr.String(stateKey, i18n.TranslationParams{"database": d.source.Name()})
 		entries = append(entries, entry)
 	}
-	databases, _ := tr.GetString("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(entries, ", ")})
+	databases := tr.String("spamdb_status_databases", i18n.TranslationParams{"databases": strings.Join(entries, ", ")})
 
 	parts := []string{line, databases}
 	if !config.AppConfig.EnableSpamDB {
-		warning, _ := tr.GetString("spamdb_status_globally_disabled")
+		warning := tr.String("spamdb_status_globally_disabled")
 		parts = append(parts, warning)
 	}
 	if settings.CheckShared {
-		sharedNotice, _ := tr.GetString("spamdb_shared_data_notice")
+		sharedNotice := tr.String("spamdb_shared_data_notice")
 		parts = append(parts, sharedNotice)
 	}
 	if len(services) > 0 {
-		notice, _ := tr.GetString("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
+		notice := tr.String("spamdb_data_notice", i18n.TranslationParams{"services": strings.Join(services, ", ")})
 		parts = append(parts, notice)
 	}
 
@@ -306,13 +323,7 @@ func spamDBSaveFailed(c *helpers.CommandContext, err error) error {
 }
 
 func spamDBReplyKey(c *helpers.CommandContext, key string, params i18n.TranslationParams) error {
-	var text string
-	if params == nil {
-		text, _ = c.Tr.GetString(key)
-	} else {
-		text, _ = c.Tr.GetString(key, params)
-	}
-	return spamDBReply(c, text)
+	return spamDBReply(c, c.Tr.String(key, params))
 }
 
 func spamDBReply(c *helpers.CommandContext, text string) error {
@@ -321,7 +332,6 @@ func spamDBReply(c *helpers.CommandContext, text string) error {
 }
 
 func LoadSpamDB(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(spamDBModule.moduleName, true)
 	spamDBChecker = spamdb.New(spamdb.Options{
 		CASAPIKey: config.AppConfig.CASAPIKey,
 		Redis:     cache.GetRedisClient,

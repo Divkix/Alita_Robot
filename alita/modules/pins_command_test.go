@@ -392,9 +392,9 @@ func TestGetPinTypeExtractsMedia(t *testing.T) {
 
 func TestLoadPinRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadPin(dispatcher)
+	loadModuleByName(t, "Pins", dispatcher)
 
-	if !DefaultHelpRegistry().AbleMap[pinsModule.moduleName] {
+	if !DefaultHelpRegistry().isEnabled(pinsModule.moduleName) {
 		t.Fatal("pins help registration = false, want enabled")
 	}
 }

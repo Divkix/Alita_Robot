@@ -29,8 +29,8 @@ var banInfoDesc = helpers.CommandDescriptor{Name: "baninfo", PMGroupArg: helpers
 // banRecordChecks are the checks of a command that reads the ban records: an
 // admin who can restrict members, as for /ban. The bot needs no right of its
 // own, since it only reads its records.
-func banRecordChecks() []helpers.CheckFunc {
-	return []helpers.CheckFunc{pmTargetChatCheck,
+func banRecordChecks() []helpers.Check {
+	return []helpers.Check{pmTargetChatCheck,
 		helpers.RequireGroup(),
 		helpers.RequireUserAdmin(),
 		helpers.CanUserRestrict()}
@@ -89,7 +89,7 @@ func banRecordText(tr *i18n.Translator, r *models.BanRecord, now time.Time) stri
 		if r.LiftedBy != nil {
 			liftedBy = *r.LiftedBy
 		}
-		status, _ = tr.GetString("bans_baninfo_status_lifted", i18n.TranslationParams{
+		status = tr.String("bans_baninfo_status_lifted", i18n.TranslationParams{
 			"admin": banRecordActor(tr, liftedBy),
 			"date":  r.LiftedAt.UTC().Format(banRecordTimeFormat),
 		})
@@ -102,7 +102,7 @@ func banRecordText(tr *i18n.Translator, r *models.BanRecord, now time.Time) stri
 	if r.Until != nil {
 		until = r.Until.UTC().Format(banRecordTimeFormat)
 	}
-	text, _ := tr.GetString("bans_baninfo_record", i18n.TranslationParams{
+	text := tr.String("bans_baninfo_record", i18n.TranslationParams{
 		"user":   banRecordUser(r.UserId),
 		"id":     r.UserId,
 		"status": status,
@@ -112,7 +112,7 @@ func banRecordText(tr *i18n.Translator, r *models.BanRecord, now time.Time) stri
 		"until":  until,
 	})
 	if r.Reason != "" {
-		reason, _ := tr.GetString("bans_baninfo_reason", i18n.TranslationParams{"reason": html.EscapeString(r.Reason)})
+		reason := tr.String("bans_baninfo_reason", i18n.TranslationParams{"reason": html.EscapeString(r.Reason)})
 		text += reason
 	}
 	return text
@@ -131,7 +131,7 @@ func (moduleStruct) banInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		// Extraction has already said why.
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		if err := replyCommandHelp(b, msg, tr, "baninfo", text); err != nil {
 			return err
 		}
@@ -143,9 +143,9 @@ func (moduleStruct) banInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	switch {
 	case err != nil:
 		log.WithError(err).WithField("chat_id", chat.Id).Error("[Bans] Failed to read the ban record")
-		text, _ = tr.GetString("bans_record_read_failed")
+		text = tr.String("bans_record_read_failed")
 	case record == nil:
-		text, _ = tr.GetString("bans_baninfo_none", i18n.TranslationParams{"user": banRecordUser(userID)})
+		text = tr.String("bans_baninfo_none", i18n.TranslationParams{"user": banRecordUser(userID)})
 	default:
 		text = banRecordText(tr, record, time.Now())
 	}

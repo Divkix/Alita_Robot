@@ -46,11 +46,11 @@ func (moduleStruct) stickerID(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if msg == nil || msg.ReplyToMessage == nil || msg.ReplyToMessage.Sticker == nil {
-		text, _ := tr.GetString("misc_stickerid_need_sticker")
+		text := tr.String("misc_stickerid_need_sticker")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("misc_stickerid_result", i18n.TranslationParams{
+	text := tr.String("misc_stickerid_result", i18n.TranslationParams{
 		"id": html.EscapeString(msg.ReplyToMessage.Sticker.FileId),
 	})
 	replyHTML(b, msg, text)
@@ -61,7 +61,7 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	scanText, _ := tr.GetString("misc_zombies_scanning")
+	scanText := tr.String("misc_zombies_scanning")
 	replyHTML(b, msg, scanText)
 	cleaned := 0
 	users, _ := chats.GetChatUsersCachedContext(tracing.UpdateContext(ctx), chat.Id)
@@ -86,11 +86,11 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 		cleaned++
 	}
 	if cleaned == 0 {
-		text, _ := tr.GetString("misc_zombies_none")
+		text := tr.String("misc_zombies_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("misc_zombies_cleaned", i18n.TranslationParams{"count": cleaned})
+	text := tr.String("misc_zombies_cleaned", i18n.TranslationParams{"count": cleaned})
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -176,13 +176,13 @@ func lookupAndReply(
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	query := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if query == "" {
-		text, _ := tr.GetString(usageKey)
+		text := tr.String(usageKey)
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, err := lookup(query)
 	if err != nil {
-		fail, _ := tr.GetString(failKey)
+		fail := tr.String(failKey)
 		replyHTML(b, msg, fail)
 		return ext.EndGroups
 	}
@@ -282,7 +282,7 @@ func registerMiscExtras(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "stickerid", Disableable: true}, pipelineHandler(miscModule.stickerID))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "zombies",
-		RequiredChecks: []helpers.CheckFunc{
+		RequiredChecks: []helpers.Check{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
 			helpers.CanBotRestrict(),

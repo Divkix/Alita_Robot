@@ -10,7 +10,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/admin"
@@ -22,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -555,7 +555,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 				if err := connections.DisconnectId(user.Id); err != nil {
 					key = "error_generic"
 				}
-				text, _ := tr.GetString(key)
+				text := tr.String(key)
 				respond(text)
 			}
 
@@ -566,7 +566,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 					"chatId": conn.ChatId,
 					"error":  err,
 				}).Warn("Connected chat lookup failed")
-				text, _ := tr.GetString("error_generic")
+				text := tr.String("error_generic")
 				respond(text)
 				return nil
 			}
@@ -582,7 +582,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 						"chatId": conn.ChatId,
 						"error":  err,
 					}).Warn("Connected chat membership check failed")
-					text, _ := tr.GetString("error_generic")
+					text := tr.String("error_generic")
 					respond(text)
 					return nil
 				}
@@ -597,7 +597,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 			}
 			chat = &_chat
 		} else {
-			text, _ := tr.GetString("connections_is_user_connected_need_group")
+			text := tr.String("connections_is_user_connected_need_group")
 			if query, ok := CallbackQueryFromContext(ctx); ok {
 				_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			} else {
@@ -621,7 +621,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 	if botAdmin {
 		if !isUserAdminForContext(b, ctx, chat.Id, b.Id) {
-			text, _ := tr.GetString("connections_is_user_connected_bot_not_admin")
+			text := tr.String("connections_is_user_connected_bot_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -633,7 +633,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 	if chatAdmin {
 		if !userAdminVerified && !isUserAdminForContext(b, ctx, chat.Id, user.Id) {
-			text, _ := tr.GetString("connections_is_user_connected_user_not_admin")
+			text := tr.String("connections_is_user_connected_user_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
@@ -663,17 +663,15 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 // AnonAdminCacheKey is the operational Redis key holding the message behind an
 // anonymous admin's confirmation button.
 func AnonAdminCacheKey(chatId, msgId int64) string {
-	return fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId)
+	return opstate.Key("anonAdmin", chatId, msgId)
 }
 
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
-	m := cache.GetMarshal()
-	if m == nil || msg == nil {
-		log.Debug("Skipping anonymous admin cache set: cache unavailable or message nil")
+	if msg == nil {
+		log.Debug("Skipping anonymous admin cache set: message nil")
 		return
 	}
-	err := m.Set(cache.Context, AnonAdminCacheKey(chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
-	if err != nil {
+	if err := opstate.Stash(AnonAdminCacheKey(chatId, msg.MessageId), msg, anonChatMapExpiration); err != nil {
 		log.Errorf("Failed to set anonymous admin cache: %v", err)
 	}
 }
@@ -761,8 +759,8 @@ func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.C
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	mainText, _ := tr.GetString("chat_status_anon_confirm")
-	buttonText, _ := tr.GetString("chat_status_anon_prove_admin")
+	mainText := tr.String("chat_status_anon_confirm")
+	buttonText := tr.String("chat_status_anon_prove_admin")
 	callbackData, err := callbackcodec.Encode("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": fmt.Sprint(msg.MessageId),

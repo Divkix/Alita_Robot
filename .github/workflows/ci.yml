@@ -155,8 +155,11 @@ jobs:
           skip-save-cache: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           # dupl and gocyclo are left out of the main run (.golangci.yml) so
           # their existing backlog does not fail it; new code must pass them.
-          args: --enable-only dupl,gocyclo --timeout 10m
-          only-new-issues: true
+          # Newness is computed from the clone's merge base, not the action's
+          # only-new-issues input: that input fetches the PR patch from the
+          # GitHub API, which refuses diffs over 20k lines and the action then
+          # silently runs unfiltered - flagging the whole backlog on a large PR.
+          args: --enable-only dupl,gocyclo --timeout 10m --new-from-merge-base origin/${{ github.base_ref || 'main' }}
 
       - name: Cyclomatic Complexity Analysis
         run: |

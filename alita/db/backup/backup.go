@@ -11,9 +11,27 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/admin"
+	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
+	"github.com/divkix/Alita_Robot/alita/db/filters"
+	"github.com/divkix/Alita_Robot/alita/db/greetings"
+	"github.com/divkix/Alita_Robot/alita/db/locks"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/db/pins"
+	"github.com/divkix/Alita_Robot/alita/db/reactions"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 )
 
 // ExportModuleData exports one module. botID is the exporting bot's own id;
@@ -306,10 +324,6 @@ func invalidate(keys ...string) {
 	for _, key := range keys {
 		dbcache.DeleteCache(key)
 	}
-}
-
-func cacheKey(module string, chatID int64) string {
-	return dbcache.CacheKey(module, chatID)
 }
 
 func exportAdminData(chatID int64) (*AdminBackup, error) {
@@ -608,13 +622,12 @@ func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 			return nil, fmt.Errorf("restore blacklist mode: %w", err)
 		}
 	}
-	return []string{
-		cacheKey("admin", chatID),
-		cacheKey("antiflood", chatID),
-		cacheKey("captcha_settings", chatID),
-		cacheKey("blacklist", chatID),
-		cacheKey("connection_chat", chatID),
-	}, nil
+	keys := admin.ChatKeys(chatID)
+	keys = append(keys, antiflood.ChatKeys(chatID)...)
+	keys = append(keys, captcha.ChatKeys(chatID)...)
+	keys = append(keys, blacklists.ChatKeys(chatID)...)
+	keys = append(keys, connections.ChatKeys(chatID)...)
+	return keys, nil
 }
 
 func importAntiflood(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -635,7 +648,7 @@ func importAntiflood(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("antiflood", chatID)}, nil
+	return antiflood.ChatKeys(chatID), nil
 }
 
 func importAntiraid(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -652,7 +665,7 @@ func importAntiraid(tx *gorm.DB, chatID int64, payload interface{}) ([]string, e
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("antiraid", chatID)}, nil
+	return antiraid.ChatKeys(chatID), nil
 }
 
 func importApprovals(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -669,7 +682,7 @@ func importApprovals(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if err := replaceChatRows(tx, chatID, data.ApprovedUsers); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("approvals", chatID)}, nil
+	return approvals.ChatKeys(chatID), nil
 }
 
 func importBlacklists(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -704,7 +717,7 @@ func importBlacklists(tx *gorm.DB, chatID int64, payload interface{}) ([]string,
 	if err := replaceChatRows(tx, chatID, data.Entries); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("blacklist", chatID)}, nil
+	return blacklists.ChatKeys(chatID), nil
 }
 
 func importCaptcha(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -718,7 +731,7 @@ func importCaptcha(tx *gorm.DB, chatID int64, payload interface{}) ([]string, er
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("captcha_settings", chatID)}, nil
+	return captcha.ChatKeys(chatID), nil
 }
 
 func importConnections(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -732,7 +745,7 @@ func importConnections(tx *gorm.DB, chatID int64, payload interface{}) ([]string
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("connection_chat", chatID)}, nil
+	return connections.ChatKeys(chatID), nil
 }
 
 func importDisabling(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
@@ -762,7 +775,7 @@ func importDisabling(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if err := replaceChatRows(tx, chatID, commands); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("disabled_cmds", chatID)}, nil
+	return disabling.ChatKeys(chatID), nil
 }
 
 func importFilters(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
@@ -779,10 +792,7 @@ func importFilters(tx *gorm.DB, chatID int64, payload interface{}) ([]string, er
 	if err := replaceChatRows(tx, chatID, data.Filters); err != nil {
 		return nil, err
 	}
-	return []string{
-		cacheKey("filter_list", chatID),
-		cacheKey("filters_optimized", chatID),
-	}, nil
+	return filters.ChatKeys(chatID), nil
 }
 
 func importGreetings(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -796,7 +806,7 @@ func importGreetings(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("greetings", chatID)}, nil
+	return greetings.ChatKeys(chatID), nil
 }
 
 func importLocks(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
@@ -813,7 +823,7 @@ func importLocks(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	if err := replaceChatRows(tx, chatID, data.Locks); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("lock", chatID), cacheKey("locks_map", chatID)}, nil
+	return locks.ChatKeys(chatID), nil
 }
 
 func importNotes(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyOmissions bool) ([]string, error) { //nolint:dupl // module-specific schema
@@ -839,7 +849,7 @@ func importNotes(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 	if err := replaceChatRows(tx, chatID, data.Notes); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("notes_settings", chatID), cacheKey("notes_list", chatID)}, nil
+	return notes.ChatKeys(chatID), nil
 }
 
 func importPins(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -853,7 +863,7 @@ func importPins(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("pins", chatID)}, nil
+	return pins.ChatKeys(chatID), nil
 }
 
 func importReactions(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -870,7 +880,7 @@ func importReactions(tx *gorm.DB, chatID int64, payload interface{}) ([]string, 
 	if err := replaceChatRows(tx, chatID, data.Reactions); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("reactions", chatID)}, nil
+	return reactions.ChatKeys(chatID), nil
 }
 
 func importReports(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -885,7 +895,7 @@ func importReports(tx *gorm.DB, chatID int64, payload interface{}) ([]string, er
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("report_settings", chatID)}, nil
+	return reports.ChatKeys(chatID), nil
 }
 
 func importRules(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -899,7 +909,7 @@ func importRules(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("rules", chatID)}, nil
+	return rules.ChatKeys(chatID), nil
 }
 
 func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyOmissions bool) ([]string, error) {
@@ -908,7 +918,7 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 	if err := decodeModuleData(payload, BackupModuleWarns, &data); err != nil {
 		return nil, err
 	}
-	if err := lockWarnsChat(tx, chatID); err != nil {
+	if err := warns.LockChatForReset(tx, chatID); err != nil {
 		return nil, err
 	}
 	if data.WarnSettings != nil {
@@ -977,16 +987,14 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		}
 	}
 
-	keys := []string{cacheKey("warn_settings", chatID)}
-	for _, userID := range oldUserIDs {
-		keys = append(keys, dbcache.CacheKey("warns", userID, chatID))
-	}
+	var newUserIDs []int64
 	if restoreWarns {
-		for _, row := range data.Warns {
-			keys = append(keys, dbcache.CacheKey("warns", row.UserId, chatID))
+		newUserIDs = make([]int64, len(data.Warns))
+		for i, row := range data.Warns {
+			newUserIDs[i] = row.UserId
 		}
 	}
-	return keys, nil
+	return warns.ChatKeys(chatID, append(oldUserIDs, newUserIDs...)...), nil
 }
 
 // restoredWarnEntries returns the entries to store for an imported warns
@@ -1100,146 +1108,90 @@ func clearAdmin(tx *gorm.DB, chatID int64) ([]string, error) {
 		Updates(map[string]any{"action": "warn", "action_time": 0}).Error; err != nil {
 		return nil, err
 	}
-	return []string{
-		cacheKey("admin", chatID),
-		cacheKey("antiflood", chatID),
-		cacheKey("captcha_settings", chatID),
-		cacheKey("blacklist", chatID),
-		cacheKey("connection_chat", chatID),
-	}, nil
+	keys := admin.ChatKeys(chatID)
+	keys = append(keys, antiflood.ChatKeys(chatID)...)
+	keys = append(keys, captcha.ChatKeys(chatID)...)
+	keys = append(keys, blacklists.ChatKeys(chatID)...)
+	keys = append(keys, connections.ChatKeys(chatID)...)
+	return keys, nil
 }
 
 func clearAntiflood(tx *gorm.DB, chatID int64) ([]string, error) {
-	settings := &models.AntifloodSettings{ChatId: chatID, Limit: 0, Action: "mute"}
-	return []string{cacheKey("antiflood", chatID)}, replaceChatSetting(tx, chatID, settings)
+	return antiflood.ChatKeys(chatID), replaceChatSetting(tx, chatID, models.DefaultAntifloodSettings(chatID))
 }
 
 func clearAntiraid(tx *gorm.DB, chatID int64) ([]string, error) {
-	settings := &models.AntiRaidSettings{
-		ChatID:                chatID,
-		RaidTime:              21600,
-		RaidActionTime:        3600,
-		AutoAntiRaidThreshold: 0,
-	}
-	return []string{cacheKey("antiraid", chatID)}, replaceChatSetting(tx, chatID, settings)
+	return antiraid.ChatKeys(chatID), replaceChatSetting(tx, chatID, models.DefaultAntiRaidSettings(chatID))
 }
 
 func clearApprovals(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{cacheKey("approvals", chatID)}, replaceChatRows[models.ApprovedUsers](tx, chatID, nil)
+	return approvals.ChatKeys(chatID), replaceChatRows[models.ApprovedUsers](tx, chatID, nil)
 }
 
 func clearBlacklists(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{cacheKey("blacklist", chatID)}, replaceChatRows[models.BlacklistSettings](tx, chatID, nil)
+	return blacklists.ChatKeys(chatID), replaceChatRows[models.BlacklistSettings](tx, chatID, nil)
 }
 
 func clearCaptcha(tx *gorm.DB, chatID int64) ([]string, error) {
-	settings := &models.CaptchaSettings{
-		ChatID:        chatID,
-		CaptchaMode:   "math",
-		Timeout:       2,
-		FailureAction: "kick",
-		MaxAttempts:   3,
-	}
-	return []string{cacheKey("captcha_settings", chatID)}, replaceChatSetting(tx, chatID, settings)
+	return captcha.ChatKeys(chatID), replaceChatSetting(tx, chatID, models.DefaultCaptchaSettings(chatID))
 }
 
 func clearConnections(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{cacheKey("connection_chat", chatID)}, replaceChatSetting(tx, chatID, &models.ConnectionChatSettings{ChatId: chatID})
+	return connections.ChatKeys(chatID), replaceChatSetting(tx, chatID, &models.ConnectionChatSettings{ChatId: chatID})
 }
 
 func clearDisabling(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := replaceChatSetting(tx, chatID, &models.DisableChatSettings{ChatId: chatID}); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("disabled_cmds", chatID)}, replaceChatRows[models.DisableSettings](tx, chatID, nil)
+	return disabling.ChatKeys(chatID), replaceChatRows[models.DisableSettings](tx, chatID, nil)
 }
 
 func clearFilters(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{
-		cacheKey("filter_list", chatID),
-		cacheKey("filters_optimized", chatID),
-	}, replaceChatRows[models.ChatFilters](tx, chatID, nil)
+	return filters.ChatKeys(chatID), replaceChatRows[models.ChatFilters](tx, chatID, nil)
 }
 
 func clearGreetings(tx *gorm.DB, chatID int64) ([]string, error) {
-	settings := &models.GreetingSettings{
-		ChatID: chatID,
-		WelcomeSettings: &models.WelcomeSettings{
-			WelcomeText: db.DefaultWelcome,
-			WelcomeType: db.TEXT,
-			Button:      models.ButtonArray{},
-		},
-		GoodbyeSettings: &models.GoodbyeSettings{
-			GoodbyeText: db.DefaultGoodbye,
-			GoodbyeType: db.TEXT,
-			Button:      models.ButtonArray{},
-		},
-	}
-	return []string{cacheKey("greetings", chatID)}, replaceChatSetting(tx, chatID, settings)
+	return greetings.ChatKeys(chatID), replaceChatSetting(tx, chatID, greetings.DefaultGreetingSettings(chatID))
 }
 
 func clearLocks(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{
-		cacheKey("lock", chatID),
-		cacheKey("locks_map", chatID),
-	}, replaceChatRows[models.LockSettings](tx, chatID, nil)
+	return locks.ChatKeys(chatID), replaceChatRows[models.LockSettings](tx, chatID, nil)
 }
 
 func clearNotes(tx *gorm.DB, chatID int64) ([]string, error) {
-	if err := replaceChatSetting(tx, chatID, &models.NotesSettings{ChatId: chatID}); err != nil {
+	settings := models.DefaultNotesSettings(chatID)
+	if err := replaceChatSetting(tx, chatID, &settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("notes_settings", chatID), cacheKey("notes_list", chatID)}, replaceChatRows[models.Notes](tx, chatID, nil)
+	return notes.ChatKeys(chatID), replaceChatRows[models.Notes](tx, chatID, nil)
 }
 
 func clearPins(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{cacheKey("pins", chatID)}, replaceChatSetting(tx, chatID, &models.PinSettings{ChatId: chatID})
+	return pins.ChatKeys(chatID), replaceChatSetting(tx, chatID, &models.PinSettings{ChatId: chatID})
 }
 
 func clearReactions(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{cacheKey("reactions", chatID)}, replaceChatRows[models.Reactions](tx, chatID, nil)
+	return reactions.ChatKeys(chatID), replaceChatRows[models.Reactions](tx, chatID, nil)
 }
 
 func clearReports(tx *gorm.DB, chatID int64) ([]string, error) {
-	settings := &models.ReportChatSettings{
-		ChatId:      chatID,
-		Enabled:     true,
-		Status:      true,
-		BlockedList: models.Int64Array{},
-	}
-	return []string{cacheKey("report_settings", chatID)}, replaceChatSetting(tx, chatID, settings)
+	return reports.ChatKeys(chatID), replaceChatSetting(tx, chatID, reports.DefaultReportChatSettings(chatID))
 }
 
 func clearRules(tx *gorm.DB, chatID int64) ([]string, error) {
-	return []string{cacheKey("rules", chatID)}, replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
-}
-
-// lockWarnsChat takes the chat-row lock every warn write in alita/db/warns
-// holds, so a concurrent first warn commits before warns_users and
-// warn_entries are replaced rather than between the two. A chat with no chats
-// row has nothing to wait for.
-func lockWarnsChat(tx *gorm.DB, chatID int64) error {
-	var chat models.Chat
-	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Select("id").
-		Where("chat_id = ?", chatID).
-		Take(&chat).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil
-	}
-	return err
+	return rules.ChatKeys(chatID), replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
 }
 
 func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
-	if err := lockWarnsChat(tx, chatID); err != nil {
+	if err := warns.LockChatForReset(tx, chatID); err != nil {
 		return nil, err
 	}
 	var userIDs []int64
 	if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &userIDs).Error; err != nil {
 		return nil, err
 	}
-	// "mute" is the mode a chat without settings gets; Postgres rejects ''.
-	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}); err != nil {
+	if err := replaceChatSetting(tx, chatID, models.DefaultWarnSettings(chatID)); err != nil {
 		return nil, err
 	}
 	if err := replaceChatRows[models.Warns](tx, chatID, nil); err != nil {
@@ -1248,11 +1200,7 @@ func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := tx.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error; err != nil {
 		return nil, err
 	}
-	keys := []string{cacheKey("warn_settings", chatID)}
-	for _, userID := range userIDs {
-		keys = append(keys, dbcache.CacheKey("warns", userID, chatID))
-	}
-	return keys, nil
+	return warns.ChatKeys(chatID, userIDs...), nil
 }
 
 // importFederations replaces the chat's membership. A backup naming a
@@ -1280,7 +1228,7 @@ func importFederations(tx *gorm.DB, chatID int64, payload interface{}, notices *
 		}
 		if found.RowsAffected == 0 {
 			*notices = append(*notices, ImportNotice{ID: data.Membership.FedID})
-			return []string{cacheKey("fed_chat", chatID)}, nil
+			return federations.ChatKeys(chatID), nil
 		}
 		row := models.FederationChat{
 			FedID:  data.Membership.FedID,
@@ -1291,7 +1239,7 @@ func importFederations(tx *gorm.DB, chatID int64, payload interface{}, notices *
 			return nil, fmt.Errorf("restore federation membership: %w", err)
 		}
 	}
-	return []string{cacheKey("fed_chat", chatID)}, nil
+	return federations.ChatKeys(chatID), nil
 }
 
 func importLogChannels(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -1305,19 +1253,19 @@ func importLogChannels(tx *gorm.DB, chatID int64, payload interface{}) ([]string
 	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("log_channel", chatID)}, nil
+	return logchannels.ChatKeys(chatID), nil
 }
 
 func clearFederations(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := tx.Where("chat_id = ?", chatID).Delete(&models.FederationChat{}).Error; err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("fed_chat", chatID)}, nil
+	return federations.ChatKeys(chatID), nil
 }
 
 func clearLogChannels(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := replaceChatSetting(tx, chatID, (*models.LogChannel)(nil)); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("log_channel", chatID)}, nil
+	return logchannels.ChatKeys(chatID), nil
 }

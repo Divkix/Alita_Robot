@@ -15,7 +15,10 @@ import (
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
-func defaultGreetingSettings(chatID int64) *models.GreetingSettings {
+// DefaultGreetingSettings is the row a chat without one reads as: welcomes
+// and goodbyes on with the default texts. Repository loaders and the backup
+// importer consume it.
+func DefaultGreetingSettings(chatID int64) *models.GreetingSettings {
 	return &models.GreetingSettings{
 		ChatID:             chatID,
 		ShouldCleanService: false,
@@ -43,20 +46,20 @@ func checkGreetingSettings(chatID int64) (*models.GreetingSettings, error) {
 	err := db.GetRecord(greetingSrc, map[string]any{"chat_id": chatID})
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return defaultGreetingSettings(chatID), nil
+		return DefaultGreetingSettings(chatID), nil
 	} else if err != nil {
 		log.Errorf("[Database][checkGreetingSettings]: %v", err)
-		return defaultGreetingSettings(chatID), err
+		return DefaultGreetingSettings(chatID), err
 	}
 
 	if greetingSrc.WelcomeSettings == nil {
-		greetingSrc.WelcomeSettings = defaultGreetingSettings(chatID).WelcomeSettings
+		greetingSrc.WelcomeSettings = DefaultGreetingSettings(chatID).WelcomeSettings
 	} else if greetingSrc.WelcomeSettings.WelcomeText == "" {
 		greetingSrc.WelcomeSettings.WelcomeText = db.DefaultWelcome
 	}
 
 	if greetingSrc.GoodbyeSettings == nil {
-		greetingSrc.GoodbyeSettings = defaultGreetingSettings(chatID).GoodbyeSettings
+		greetingSrc.GoodbyeSettings = DefaultGreetingSettings(chatID).GoodbyeSettings
 	} else if greetingSrc.GoodbyeSettings.GoodbyeText == "" {
 		greetingSrc.GoodbyeSettings.GoodbyeText = db.DefaultGoodbye
 	}
@@ -68,7 +71,7 @@ func checkGreetingSettings(chatID int64) (*models.GreetingSettings, error) {
 func GetGreetingSettings(chatID int64) *models.GreetingSettings {
 	settings, err := cache.GetFromCacheOrLoad(
 		context.Background(),
-		cache.CacheKey("greetings", chatID),
+		SettingsProjection.Key(chatID),
 		cache.CacheTTLGreetings,
 		func(context.Context) (*models.GreetingSettings, error) {
 			return checkGreetingSettings(chatID)
@@ -78,7 +81,7 @@ func GetGreetingSettings(chatID int64) *models.GreetingSettings {
 		settings, _ = checkGreetingSettings(chatID)
 	}
 	if settings == nil {
-		return defaultGreetingSettings(chatID)
+		return DefaultGreetingSettings(chatID)
 	}
 	return settings
 }
@@ -133,7 +136,7 @@ func upsertGreetingSettings(chatID int64, updates map[string]any) error {
 		Updates(updates).Error; err != nil {
 		return alitaerrors.Wrapf(err, "update greeting settings for chat %d", chatID)
 	}
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
+	cache.DeleteCache(SettingsProjection.Key(chatID))
 	return nil
 }
 

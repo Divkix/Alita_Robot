@@ -9,12 +9,14 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -117,13 +119,10 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 	if err != nil || !claimed {
 		return false, false, err
 	}
-	var (
-		name  string
-		unban *gotgbot.InlineKeyboardMarkup
-	)
+	var name string
 	switch outcome.ending {
 	case captchaEndFailed:
-		name, unban, applied, err = failCaptchaMember(bot, attempt, outcome)
+		name, applied, err = failCaptchaMember(bot, attempt, outcome)
 	case captchaEndLeft:
 		// Nobody to unmute, and the claim scheduled nothing.
 	default:
@@ -137,7 +136,7 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 	case outcome.ending == captchaEndPassed && err == nil:
 		reportCaptchaPass(bot, attempt, outcome, stored)
 	case applied:
-		reportCaptchaFailure(bot, attempt.ChatID, attempt.UserID, name, outcome.action, outcome.cause, storedCount, unban)
+		reportCaptchaFailure(bot, attempt.ChatID, attempt.UserID, name, outcome.action, storedCount)
 	}
 	return true, applied, err
 }
@@ -147,8 +146,8 @@ func settleCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome
 // keeps it as its timer, a kick or ban clears it, and an action that fails
 // lifts the mute as for a release. A member who is gone, or whom someone else
 // banned, gets nothing: a kick would lift that ban. name is the member's
-// first name for the report, unban the log entry's Unban button of a ban.
-func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (name string, unban *gotgbot.InlineKeyboardMarkup, applied bool, err error) {
+// first name for the report.
+func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome captchaOutcome) (name string, applied bool, err error) {
 	chatID, userID := attempt.ChatID, attempt.UserID
 	name = "User"
 	member, memberErr := bot.GetChatMember(chatID, userID, nil)
@@ -157,21 +156,23 @@ func failCaptchaMember(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 	}
 	if error_handling.IsMissingChatMemberError(memberErr) || (memberErr == nil && (member.GetStatus() == "left" || member.GetStatus() == "kicked")) {
 		log.Debugf("[Captcha] User %d is no longer a member of chat %d; skipping %s", userID, chatID, outcome.action)
-		return name, nil, false, captcha.DeleteMutedUser(userID, chatID)
+		return name, false, captcha.DeleteMutedUser(userID, chatID)
 	}
-	unban, err = executeCaptchaFailureAction(bot, chatID, userID, outcome.action, outcome.cause)
-	if err != nil {
+	if _, err = executeCaptchaFailureAction(bot, chatID, userID, outcome.action, outcome.cause, name); err != nil {
 		log.WithFields(log.Fields{"chat_id": chatID, "user_id": userID, "action": outcome.action, "cause": outcome.cause}).
 			Warnf("[Captcha] Failure action refused; lifting the mute as for a release: %v", err)
 		if outcome.action == "kick" {
-			_, _ = punishment.Apply(context.Background(), bot, punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick})
+			_, _ = enforce.Automated(bot, &ext.Context{EffectiveChat: captchaLogChat(chatID)}, enforce.Spec{
+				Request: punishment.Request{ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Kick},
+				Exempt:  enforce.NeverExempt,
+			})
 		}
-		return name, nil, false, liftCaptchaMute(bot, chatID, userID)
+		return name, false, liftCaptchaMute(bot, chatID, userID)
 	}
 	if outcome.action == "mute" {
-		return name, unban, true, nil
+		return name, true, nil
 	}
-	return name, unban, true, captcha.DeleteMutedUser(userID, chatID)
+	return name, true, captcha.DeleteMutedUser(userID, chatID)
 }
 
 // reportCaptchaPass logs the pass with its attempts, the correct answer
@@ -191,7 +192,7 @@ func reportCaptchaPass(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, outcome ca
 			kinds = append(kinds, kind)
 		}
 	}
-	text, _ := tr.GetString("captcha_stored_messages_summary",
+	text := tr.String("captcha_stored_messages_summary",
 		captchaStoredSummaryParams(formatting.MentionHtml(attempt.UserID, outcome.name), len(stored), strings.Join(kinds, ", ")))
 	var sent *gotgbot.Message
 	_ = ratelimit.GlobalSendLimiter().Do(context.Background(), func() error {

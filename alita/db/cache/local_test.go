@@ -289,46 +289,6 @@ func TestLocalLayerDisabledWithZeroTTL(t *testing.T) {
 	}
 }
 
-func TestExcludedKeysNeverServedLocally(t *testing.T) {
-	mr := setupLocalRedis(t, 10)
-	ctx := context.Background()
-	key := CacheKey("captcha_pending", int64(-100123))
-	var calls atomic.Int32
-
-	if _, err := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, true)); err != nil {
-		t.Fatal(err)
-	}
-	// Written elsewhere (another replica): must be visible immediately.
-	if err := utilsCache.GetMarshal().Set(ctx, key, false, store.WithExpiration(time.Minute)); err != nil {
-		t.Fatal(err)
-	}
-	if got, _ := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, true)); got {
-		t.Fatal("captcha_pending read = true, want false written to Redis")
-	}
-	mr.FlushAll()
-	if _, err := GetFromCacheOrLoad(ctx, key, time.Minute, countingLoader(&calls, true)); err != nil {
-		t.Fatal(err)
-	}
-	if n := calls.Load(); n != 2 {
-		t.Fatalf("loader calls = %d, want 2", n)
-	}
-}
-
-func TestSkipLocalMatchesOnlyFreshnessCriticalKeys(t *testing.T) {
-	if !skipLocal(CacheKey("captcha_pending", int64(-1001))) {
-		t.Fatal("captcha_pending key not excluded")
-	}
-	if !skipLocal(CacheKey("probation_member", int64(-1001), int64(42))) {
-		t.Fatal("probation_member key not excluded")
-	}
-	if skipLocal(CacheKey("probation_settings", int64(-1001))) {
-		t.Fatal("probation_settings key excluded, want it cached locally")
-	}
-	if skipLocal(CacheKey("captcha_settings", int64(-1001))) {
-		t.Fatal("captcha_settings key excluded, want it cached locally")
-	}
-}
-
 func TestSwappingBackingStoreDropsLocalEntries(t *testing.T) {
 	setupLocalRedis(t, 10)
 	ctx := context.Background()

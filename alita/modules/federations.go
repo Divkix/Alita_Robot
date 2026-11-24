@@ -24,14 +24,15 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/enforce"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	chatsettings "github.com/divkix/Alita_Robot/alita/settings"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/punishment"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
@@ -39,7 +40,6 @@ import (
 const (
 	fedHandlerGroup      = -6
 	fedExportCooldown    = 30 * time.Minute
-	fedExportKeyPrefix   = "alita:fed_export:"
 	fedCallbackNamespace = "fed"
 )
 
@@ -77,23 +77,23 @@ func (moduleStruct) newFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	name := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if name == "" {
-		text, _ := tr.GetString("feds_need_name")
+		text := tr.String("feds_need_name")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	fed, err := federations.CreateFederation(from.Id, name)
 	if err != nil {
 		if errors.Is(err, federations.ErrAlreadyOwnsFed) {
-			text, _ := tr.GetString("feds_already_own")
+			text := tr.String("feds_already_own")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
 		log.Errorf("[Federations] newFed: %v", err)
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_created", i18n.TranslationParams{
+	text := tr.String("feds_created", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 		"id":   fed.FedID,
 	})
@@ -107,22 +107,22 @@ func (moduleStruct) renameFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	name := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if name == "" {
-		text, _ := tr.GetString("feds_need_name")
+		text := tr.String("feds_need_name")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	fed, err := federations.RenameFederation(from.Id, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			text, _ := tr.GetString("feds_no_fed")
+			text := tr.String("feds_no_fed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_rename_failed")
+		text := tr.String("feds_rename_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_renamed", i18n.TranslationParams{
+	text := tr.String("feds_renamed", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 	})
 	replyHTML(b, msg, text)
@@ -135,11 +135,11 @@ func (moduleStruct) delFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	data := encodeCallbackData(fedCallbackNamespace, map[string]string{"a": "del"})
 	cancel := encodeCallbackData(fedCallbackNamespace, map[string]string{"a": "noop"})
-	confirm, _ := tr.GetString("feds_delfed_confirm", i18n.TranslationParams{
+	confirm := tr.String("feds_delfed_confirm", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 	})
-	yes, _ := tr.GetString("feds_delfed_confirm_btn")
-	no, _ := tr.GetString("feds_delfed_cancel_btn")
+	yes := tr.String("feds_delfed_confirm_btn")
+	no := tr.String("feds_delfed_cancel_btn")
 	_, err := msg.Reply(b, confirm, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -163,28 +163,28 @@ func (moduleStruct) joinFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fedID, ok := parseFedID(strings.Join(ctx.Args()[1:], " "))
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_id")
+		text := tr.String("feds_invalid_id")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	fed := federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_found")
+		text := tr.String("feds_not_found")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	err := federations.JoinFed(chat.Id, chat.Title, fedID)
 	if err != nil {
 		if errors.Is(err, federations.ErrAlreadyJoined) {
-			text, _ := tr.GetString("feds_already_joined")
+			text := tr.String("feds_already_joined")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_join_failed")
+		text := tr.String("feds_join_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_joined", i18n.TranslationParams{
+	text := tr.String("feds_joined", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 		"id":   fed.FedID,
 	})
@@ -197,11 +197,11 @@ func (moduleStruct) leaveFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	tr := ctxTr(ctx)
 	if err := federations.LeaveFed(chat.Id); err != nil {
-		text, _ := tr.GetString("feds_not_in_fed")
+		text := tr.String("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_left")
+	text := tr.String("feds_left")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -212,18 +212,18 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	enabled, ok := parseToggleArg(args[0])
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := chatsettings.QuietFed.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(ctx), ChatID: chat.Id}, enabled); err != nil {
-		text, _ := tr.GetString("feds_not_in_fed")
+		text := tr.String("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -231,7 +231,7 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	if enabled {
 		key = "feds_quiet_on"
 	}
-	text, _ := tr.GetString(key)
+	text := tr.String(key)
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -243,7 +243,7 @@ func formatFedInfo(tr *i18n.Translator, fed *models.Federation) string {
 		}
 		return trS(tr, "common_no")
 	}
-	text, _ := tr.GetString("feds_info", i18n.TranslationParams{
+	text := tr.String("feds_info", i18n.TranslationParams{
 		"name":   html.EscapeString(fed.Name),
 		"id":     fed.FedID,
 		"owner":  strconv.FormatInt(fed.OwnerID, 10),
@@ -267,7 +267,7 @@ func (moduleStruct) fedInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	if arg != "" {
 		fedID, ok := parseFedID(arg)
 		if !ok {
-			text, _ := tr.GetString("feds_invalid_id")
+			text := tr.String("feds_invalid_id")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
@@ -281,7 +281,7 @@ func (moduleStruct) fedInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		fed = federations.GetFedByOwner(from.Id)
 	}
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_found")
+		text := tr.String("feds_not_found")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -298,7 +298,7 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 	if arg != "" {
 		fedID, ok := parseFedID(arg)
 		if !ok {
-			text, _ := tr.GetString("feds_invalid_id")
+			text := tr.String("feds_invalid_id")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
@@ -312,12 +312,12 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_found")
+		text := tr.String("feds_not_found")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	var bld strings.Builder
-	header, _ := tr.GetString("feds_admins_header", i18n.TranslationParams{
+	header := tr.String("feds_admins_header", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 	})
 	bld.WriteString(header)
@@ -340,11 +340,11 @@ func (moduleStruct) chatFed(b *gotgbot.Bot, ctx *ext.Context) error {
 	membership := ctx.Data["federationCommandChat"].(*models.FederationChat)
 	fed := federations.GetFedContext(tracing.UpdateContext(ctx), membership.FedID)
 	if fed == nil {
-		text, _ := tr.GetString("feds_not_in_fed")
+		text := tr.String("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_chatfed", i18n.TranslationParams{
+	text := tr.String("feds_chatfed", i18n.TranslationParams{
 		"name": html.EscapeString(fed.Name),
 		"id":   fed.FedID,
 	})
@@ -358,11 +358,11 @@ func (moduleStruct) myFeds(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	feds := federations.ListFedsForAdmin(from.Id)
 	if len(feds) == 0 {
-		text, _ := tr.GetString("feds_myfeds_none")
+		text := tr.String("feds_myfeds_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	header, _ := tr.GetString("feds_myfeds_header")
+	header := tr.String("feds_myfeds_header")
 	var bld strings.Builder
 	bld.WriteString(header)
 	for _, fed := range feds {
@@ -394,17 +394,17 @@ func (moduleStruct) changeFedAdmin(b *gotgbot.Bot, ctx *ext.Context, promote boo
 		return ext.EndGroups
 	}
 	if targetID == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == from.Id {
-		text, _ := tr.GetString("feds_cannot_promote_self")
+		text := tr.String("feds_cannot_promote_self")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == fed.OwnerID {
-		text, _ := tr.GetString("feds_cannot_promote_owner")
+		text := tr.String("feds_cannot_promote_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -412,26 +412,26 @@ func (moduleStruct) changeFedAdmin(b *gotgbot.Bot, ctx *ext.Context, promote boo
 		err := federations.PromoteFedAdmin(fed.FedID, targetID)
 		if err != nil {
 			if errors.Is(err, federations.ErrAlreadyAdmin) || errors.Is(err, federations.ErrOwnerIsAdmin) {
-				text, _ := tr.GetString("feds_already_admin")
+				text := tr.String("feds_already_admin")
 				replyHTML(b, msg, text)
 				return ext.EndGroups
 			}
-			text, _ := tr.GetString("feds_create_failed")
+			text := tr.String("feds_create_failed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_promoted", i18n.TranslationParams{
+		text := tr.String("feds_promoted", i18n.TranslationParams{
 			"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 		})
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := federations.DemoteFedAdmin(fed.FedID, targetID); err != nil {
-		text, _ := tr.GetString("feds_not_fed_admin")
+		text := tr.String("feds_not_fed_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_demoted", i18n.TranslationParams{
+	text := tr.String("feds_demoted", i18n.TranslationParams{
 		"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 	})
 	replyHTML(b, msg, text)
@@ -444,21 +444,21 @@ func (moduleStruct) fedDemoteMe(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fedID, ok := parseFedID(strings.Join(ctx.Args()[1:], " "))
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_id")
+		text := tr.String("feds_invalid_id")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if federations.IsFedOwner(fedID, from.Id) {
-		text, _ := tr.GetString("feds_demoteme_owner")
+		text := tr.String("feds_demoteme_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := federations.DemoteFedAdmin(fedID, from.Id); err != nil {
-		text, _ := tr.GetString("feds_demoteme_not_admin")
+		text := tr.String("feds_demoteme_not_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_demoteme_ok")
+	text := tr.String("feds_demoteme_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -486,18 +486,18 @@ func toggleOwnedFed(
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	enabled, ok := parseToggleArg(args[0])
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_toggle")
+		text := tr.String("feds_invalid_toggle")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := set(fed.FedID, enabled); err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -505,7 +505,7 @@ func toggleOwnedFed(
 	if enabled {
 		key = onKey
 	}
-	text, _ := tr.GetString(key)
+	text := tr.String(key)
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -528,47 +528,47 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		return ext.EndGroups
 	}
 	if targetID == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if !chat_status.IsValidUserId(targetID) {
-		text, _ := tr.GetString("common_anonymous_user_error")
+		text := tr.String("common_anonymous_user_error")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == from.Id || targetID == b.Id {
-		text, _ := tr.GetString("feds_cannot_fban_self")
+		text := tr.String("feds_cannot_fban_self")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if targetID == fed.OwnerID {
-		text, _ := tr.GetString("feds_cannot_fban_owner")
+		text := tr.String("feds_cannot_fban_owner")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if federations.IsFedAdmin(fed.FedID, targetID) {
-		text, _ := tr.GetString("feds_cannot_fban_admin")
+		text := tr.String("feds_cannot_fban_admin")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if ban {
 		if fed.RequireReason && strings.TrimSpace(reason) == "" {
-			text, _ := tr.GetString("feds_need_reason")
+			text := tr.String("feds_need_reason")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
 		_, created, err := federations.Fban(fed.FedID, targetID, from.Id, reason)
 		if err != nil {
-			text, _ := tr.GetString("feds_fban_failed")
+			text := tr.String("feds_fban_failed")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
 		if !created {
-			text, _ := tr.GetString("feds_fban_already")
+			text := tr.String("feds_fban_already")
 			replyHTML(b, msg, text)
 		} else {
-			text, _ := tr.GetString("feds_fban_ok", i18n.TranslationParams{
+			text := tr.String("feds_fban_ok", i18n.TranslationParams{
 				"user":   formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 				"name":   html.EscapeString(fed.Name),
 				"reason": html.EscapeString(reason),
@@ -587,11 +587,11 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		return ext.EndGroups
 	}
 	if err := federations.Unfban(fed.FedID, targetID); err != nil {
-		text, _ := tr.GetString("feds_unfban_not_banned")
+		text := tr.String("feds_unfban_not_banned")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_unfban_ok", i18n.TranslationParams{
+	text := tr.String("feds_unfban_ok", i18n.TranslationParams{
 		"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 		"name": html.EscapeString(fed.Name),
 	})
@@ -810,7 +810,7 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 	if reasonFed != "" {
 		ban := federations.GetFedBanContext(tracing.UpdateContext(ctx), reasonFed, targetID)
 		if ban == nil {
-			text, _ := tr.GetString("feds_fedstat_none")
+			text := tr.String("feds_fedstat_none")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
@@ -819,7 +819,7 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 		if fed != nil {
 			name = fed.Name
 		}
-		text, _ := tr.GetString("feds_fedstat_reason", i18n.TranslationParams{
+		text := tr.String("feds_fedstat_reason", i18n.TranslationParams{
 			"name":   html.EscapeString(name),
 			"id":     reasonFed,
 			"reason": html.EscapeString(ban.Reason),
@@ -830,11 +830,11 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	bans, err := federations.ListUserFedBans(targetID)
 	if err != nil || len(bans) == 0 {
-		text, _ := tr.GetString("feds_fedstat_none")
+		text := tr.String("feds_fedstat_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	header, _ := tr.GetString("feds_fedstat_header", i18n.TranslationParams{
+	header := tr.String("feds_fedstat_header", i18n.TranslationParams{
 		"user": formatting.MentionHtml(targetID, strconv.FormatInt(targetID, 10)),
 	})
 	var bld strings.Builder
@@ -864,7 +864,7 @@ func changeSub(b *gotgbot.Bot, ctx *ext.Context, subscribe bool) error {
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	targetID, ok := parseFedID(strings.Join(ctx.Args()[1:], " "))
 	if !ok {
-		text, _ := tr.GetString("feds_invalid_id")
+		text := tr.String("feds_invalid_id")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -873,30 +873,30 @@ func changeSub(b *gotgbot.Bot, ctx *ext.Context, subscribe bool) error {
 		if err != nil {
 			switch {
 			case errors.Is(err, federations.ErrSubSelf):
-				text, _ := tr.GetString("feds_sub_self")
+				text := tr.String("feds_sub_self")
 				replyHTML(b, msg, text)
 			case errors.Is(err, federations.ErrAlreadySub):
-				text, _ := tr.GetString("feds_already_sub")
+				text := tr.String("feds_already_sub")
 				replyHTML(b, msg, text)
 			case errors.Is(err, federations.ErrSubLimit):
-				text, _ := tr.GetString("feds_sub_max")
+				text := tr.String("feds_sub_max")
 				replyHTML(b, msg, text)
 			default:
-				text, _ := tr.GetString("feds_not_found")
+				text := tr.String("feds_not_found")
 				replyHTML(b, msg, text)
 			}
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_sub_ok")
+		text := tr.String("feds_sub_ok")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if err := federations.UnsubscribeFed(fed.FedID, targetID); err != nil {
-		text, _ := tr.GetString("feds_not_sub")
+		text := tr.String("feds_not_sub")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_unsub_ok")
+	text := tr.String("feds_unsub_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -907,11 +907,11 @@ func (moduleStruct) fedSubs(b *gotgbot.Bot, ctx *ext.Context) error {
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	subs := federations.ListSubscribedFedIDs(fed.FedID)
 	if len(subs) == 0 {
-		text, _ := tr.GetString("feds_subs_none")
+		text := tr.String("feds_subs_none")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	header, _ := tr.GetString("feds_subs_header")
+	header := tr.String("feds_subs_header")
 	var bld strings.Builder
 	bld.WriteString(header)
 	for _, id := range subs {
@@ -931,11 +931,11 @@ func (moduleStruct) setFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	if err := federations.SetFedLogChat(fed.FedID, chat.Id); err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_setfedlog_ok")
+	text := tr.String("feds_setfedlog_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -945,35 +945,31 @@ func (moduleStruct) unsetFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	if err := federations.SetFedLogChat(fed.FedID, 0); err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_unsetfedlog_ok")
+	text := tr.String("feds_unsetfedlog_ok")
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
 
+func fedExportKey(fedID string) string {
+	return opstate.Key("fed_export", fedID)
+}
+
+// allowFedExport claims the export cooldown. Declared policy: without Redis
+// the claim falls back to this replica, so the cooldown still applies rather
+// than silently disabling; a Redis error stays fail-open like the old
+// SetNX path (an export is never blocked by a broken cache).
 func allowFedExport(fedID string) bool {
-	client := cache.GetRedisClient()
-	if client == nil {
-		return true
-	}
-	ok, err := client.SetNX(cache.Context, fedExportKeyPrefix+fedID, "1", fedExportCooldown).Result()
-	if err != nil {
-		return true
-	}
-	return ok
+	return opstate.Claim(fedExportKey(fedID), fedExportCooldown) != opstate.ClaimLost
 }
 
 // releaseFedExport frees the export cooldown claimed by allowFedExport, for an
 // export that delivered no file.
 func releaseFedExport(fedID string) {
-	if client := cache.GetRedisClient(); client != nil {
-		if err := client.Del(cache.Context, fedExportKeyPrefix+fedID).Err(); err != nil {
-			log.Debugf("[Federations] release export cooldown: %v", err)
-		}
-	}
+	opstate.Release(fedExportKey(fedID))
 }
 
 func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -981,7 +977,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
 	if !allowFedExport(fed.FedID) {
-		text, _ := tr.GetString("feds_export_wait")
+		text := tr.String("feds_export_wait")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -993,12 +989,12 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 	bans, err := federations.ListFedBans(fed.FedID)
 	if err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if len(bans) == 0 {
-		text, _ := tr.GetString("feds_export_empty")
+		text := tr.String("feds_export_empty")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1022,7 +1018,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 		fileName = "fbanlist.csv"
 	}
 	if err != nil {
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1031,7 +1027,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	if err != nil {
 		log.Error(err)
-		text, _ := tr.GetString("feds_create_failed")
+		text := tr.String("feds_create_failed")
 		replyHTML(b, msg, text)
 	} else {
 		delivered = true
@@ -1049,21 +1045,18 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 		doc = msg.ReplyToMessage.Document
 	}
 	if doc == nil {
-		text, _ := tr.GetString("feds_import_need_file")
+		text := tr.String("feds_import_need_file")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	data, failText := downloadFedBanDocument(b, doc, tr)
 	if data == nil {
-		if failText == "" {
-			failText, _ = tr.GetString("feds_import_failed")
-		}
 		replyHTML(b, msg, failText)
 		return ext.EndGroups
 	}
 	bans, err := parseFedBanFile(doc.FileName, data)
 	if err != nil || len(bans) == 0 {
-		text, _ := tr.GetString("feds_import_failed")
+		text := tr.String("feds_import_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
@@ -1085,11 +1078,11 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 	written, err := federations.ImportBans(fed.FedID, bans)
 	if err != nil {
 		log.Errorf("[Federations] importFBans: %v", err)
-		text, _ := tr.GetString("feds_import_failed")
+		text := tr.String("feds_import_failed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	text, _ := tr.GetString("feds_import_ok", i18n.TranslationParams{"count": written})
+	text := tr.String("feds_import_ok", i18n.TranslationParams{"count": written})
 	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
@@ -1119,7 +1112,7 @@ func (moduleStruct) fedCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: trS(tr, "feds_delete_failed"), ShowAlert: true})
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("feds_deleted")
+		text := tr.String("feds_deleted")
 		if query.Message != nil {
 			_, _, _ = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML})
 		}
@@ -1187,28 +1180,49 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 	if ban == nil {
 		return StageNotApplicable
 	}
+	// Federation bans exempt admins only: an approved user is still banned —
+	// the federation's judgment is not the chat's. Deliberate divergence from
+	// IsProtectedForUpdate.
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 		return StageNotApplicable
 	}
-	var result punishment.Result
-	if err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
-		var err error
-		result, err = punishment.Apply(tracing.UpdateContext(ctx), b, punishment.Request{
+	result, err := enforce.Automated(b, ctx, enforce.Spec{
+		Request: punishment.Request{
 			ChatID: chat.Id, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
 			Source: models.BanSourceFed, Detail: sourceFed, ActorID: ban.BannedBy,
-		})
-		return err
-	}); err != nil || !result.Applied {
+		},
+		// The admin-only exemption ran above; the default predicate would
+		// also exempt approved users, which federation bans deliberately do
+		// not.
+		Exempt: enforce.NeverExempt,
+		// A flood wait short enough to end inside the join claim is waited
+		// out; a longer one fails the ban.
+		Apply: func(applyCtx context.Context, applyBot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
+			var applied punishment.Result
+			err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
+				var applyErr error
+				applied, applyErr = punishment.Apply(applyCtx, applyBot, request)
+				return applyErr
+			})
+			return applied, err
+		},
+	})
+	if err != nil || !result.Applied {
 		log.WithContext(tracing.UpdateContext(ctx)).Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
 		return StageFailed
 	}
+	// The notice stays inline: Spec.Notice cannot express the Quiet gate,
+	// and routing it through Automated would propagate a send error as
+	// StageFailed — letting the already-banned member continue to the
+	// welcome stages — where the inline send's ignored error keeps
+	// StageRemoved.
 	if !membership.Quiet {
 		tr := ctxTr(ctx)
 		fedName := sourceFed
 		if fed := federations.GetFedContext(tracing.UpdateContext(ctx), sourceFed); fed != nil {
 			fedName = fed.Name
 		}
-		text, _ := tr.GetString("feds_passive_ban", i18n.TranslationParams{
+		text := tr.String("feds_passive_ban", i18n.TranslationParams{
 			"user":   formatting.MentionHtml(userID, name),
 			"name":   html.EscapeString(fedName),
 			"reason": html.EscapeString(ban.Reason),
@@ -1220,31 +1234,31 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 
 // Federation checks retain their resolved input on this update so the domain
 // handler uses exactly the federation authorised for the effective actor.
-func federationPrivateCheck(c *helpers.CommandContext) bool {
+var federationPrivateCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if chat_status.RequirePrivate(c.Bot, c.Ctx, c.Chat) {
 		return true
 	}
 	replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_pm_only"))
 	return false
-}
+})
 
-func federationGroupCheck(c *helpers.CommandContext) bool {
+var federationGroupCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if !chat_status.RequirePrivate(c.Bot, c.Ctx, c.Chat) {
 		return true
 	}
 	replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_group_only"))
 	return false
-}
+})
 
-func federationChatOwnerCheck(c *helpers.CommandContext) bool {
+var federationChatOwnerCheck = helpers.NewCheck(helpers.CheckKindAdmin, func(c *helpers.CommandContext) bool {
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, c.Chat, c.User.Id) {
 		return true
 	}
 	replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_owner_only_join"))
 	return false
-}
+})
 
-func federationOwnerCheck(c *helpers.CommandContext) bool {
+var federationOwnerCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	fed := federations.GetFedByOwner(c.User.Id)
 	if fed == nil {
 		replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_no_fed"))
@@ -1252,9 +1266,9 @@ func federationOwnerCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.Data["federationCommandFed"] = fed
 	return true
-}
+})
 
-func federationChatCheck(c *helpers.CommandContext) bool {
+var federationChatCheck = helpers.NewCheck(helpers.CheckKindAny, func(c *helpers.CommandContext) bool {
 	membership := federations.GetChatFedContext(tracing.UpdateContext(c.Ctx), c.Chat.Id)
 	if membership == nil {
 		replyHTML(c.Bot, c.Msg, trS(c.Tr, "feds_not_in_fed"))
@@ -1262,13 +1276,13 @@ func federationChatCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.Data["federationCommandChat"] = membership
 	return true
-}
+})
 
-func federationBanCheck(c *helpers.CommandContext) bool {
+var federationBanCheck = helpers.NewCheck(helpers.CheckKindMember, func(c *helpers.CommandContext) bool {
 	if chat_status.RequirePrivate(c.Bot, c.Ctx, c.Chat) {
-		return federationOwnerCheck(c)
+		return federationOwnerCheck.Run(c)
 	}
-	if !federationChatCheck(c) {
+	if !federationChatCheck.Run(c) {
 		return false
 	}
 	membership := c.Ctx.Data["federationCommandChat"].(*models.FederationChat)
@@ -1282,86 +1296,84 @@ func federationBanCheck(c *helpers.CommandContext) bool {
 	}
 	c.Ctx.Data["federationCommandFed"] = fed
 	return true
-}
+})
 
 func LoadFederations(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(federationsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "newfed", RequiredChecks: []helpers.CheckFunc{federationPrivateCheck},
+		Name: "newfed", RequiredChecks: []helpers.Check{federationPrivateCheck},
 	}, pipelineHandler(federationsModule.newFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "renamefed", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "renamefed", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.renameFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "delfed", RequiredChecks: []helpers.CheckFunc{federationPrivateCheck, federationOwnerCheck},
+		Name: "delfed", RequiredChecks: []helpers.Check{federationPrivateCheck, federationOwnerCheck},
 	}, pipelineHandler(federationsModule.delFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "joinfed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatOwnerCheck},
+		Name: "joinfed", RequiredChecks: []helpers.Check{federationGroupCheck, federationChatOwnerCheck},
 	}, pipelineHandler(federationsModule.joinFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "leavefed", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatOwnerCheck},
+		Name: "leavefed", RequiredChecks: []helpers.Check{federationGroupCheck, federationChatOwnerCheck},
 	}, pipelineHandler(federationsModule.leaveFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "quietfed", RequiredChecks: append([]helpers.CheckFunc{federationGroupCheck}, declaredGroupSettingChecks(chatsettings.QuietFed)...),
+		Name: "quietfed", RequiredChecks: append([]helpers.Check{federationGroupCheck}, declaredGroupSettingChecks(chatsettings.QuietFed)...),
 	}, pipelineHandler(federationsModule.quietFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedinfo", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "fedinfo", Disableable: true, RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedInfo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedadmins", Disableable: true, RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "fedadmins", Disableable: true, RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedAdmins))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "chatfed", Disableable: true, RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationChatCheck},
+		Name: "chatfed", Disableable: true, RequiredChecks: []helpers.Check{federationGroupCheck, federationChatCheck},
 	}, pipelineHandler(federationsModule.chatFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "myfeds", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "myfeds", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.myFeds))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedpromote", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fedpromote", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedPromote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "feddemote", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "feddemote", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedDemote))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "feddemoteme", RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		Name: "feddemoteme", RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedDemoteMe))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedreason", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fedreason", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedReason))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fednotif", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fednotif", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedNotif))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fban", RequiredChecks: []helpers.CheckFunc{federationBanCheck},
+		Name: "fban", RequiredChecks: []helpers.Check{federationBanCheck},
 	}, pipelineHandler(federationsModule.fban))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "unfban", Aliases: []string{"funban"}, RequiredChecks: []helpers.CheckFunc{federationBanCheck},
+		Name: "unfban", Aliases: []string{"funban"}, RequiredChecks: []helpers.Check{federationBanCheck},
 	}, pipelineHandler(federationsModule.unfban))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "fedstat", Aliases: []string{"fbanstat"}, Disableable: true,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+		RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 	}, pipelineHandler(federationsModule.fedStat))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "subfed", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "subfed", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.subFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "unsubfed", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "unsubfed", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.unsubFed))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fedsubs", Disableable: true, RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fedsubs", Disableable: true, RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fedSubs))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "setfedlog", RequiredChecks: []helpers.CheckFunc{federationGroupCheck, federationOwnerCheck},
+		Name: "setfedlog", RequiredChecks: []helpers.Check{federationGroupCheck, federationOwnerCheck},
 	}, pipelineHandler(federationsModule.setFedLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "unsetfedlog", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "unsetfedlog", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.unsetFedLog))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "fbanlist", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "fbanlist", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.fbanList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-		Name: "importfbans", RequiredChecks: []helpers.CheckFunc{federationOwnerCheck},
+		Name: "importfbans", RequiredChecks: []helpers.Check{federationOwnerCheck},
 	}, pipelineHandler(federationsModule.importFBans))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(fedCallbackNamespace+"|"), federationsModule.fedCallback))
 

@@ -16,7 +16,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -33,6 +32,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jobs"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -234,8 +234,8 @@ func aispamIsCommandForBot(text, botUsername string) bool {
 }
 
 // aispamCarvedOut reports the carve-outs that need a lookup: members still
-// solving captcha belong to the captcha module, and admins and approved users
-// are trusted by definition.
+// solving captcha belong to the captcha module, and protected users are
+// trusted by definition.
 func aispamCarvedOut(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
 	// Only query the user's attempt when the chat has one pending (or the
 	// cached flag is unavailable).
@@ -245,7 +245,7 @@ func aispamCarvedOut(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) boo
 			return true
 		}
 	}
-	return chat_status.IsUserAdminForUpdate(b, ctx, chatID, userID) || chat_status.IsApprovedForUpdate(b, ctx, chatID, userID)
+	return chat_status.IsProtectedForUpdate(b, ctx, chatID, userID)
 }
 
 func aispamMessageText(msg *gotgbot.Message) string {
@@ -548,80 +548,27 @@ func aispamBreakerRecordSuccess(chatID int64) {
 // about a message is stored anywhere.
 //
 
-// aispamHistoryScript reads a sender's window and records this message in one
-// atomic round trip, so two replicas cannot interleave a read with a write. It
-// answers with the number of messages already inside the window, followed by
-// the recorded texts oldest first.
-//
-// ponytail: the count saturates at aispamHistoryMaxTimestamps, so a 200+/hour
-// poster reads as 200. It is a profile hint, and antiflood is what punishes
-// volume.
-var aispamHistoryScript = redis.NewScript(`
-local texts = redis.call('LRANGE', KEYS[2], 0, -1)
-redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[3])
-local prior = redis.call('ZCARD', KEYS[1])
-redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
-redis.call('ZREMRANGEBYRANK', KEYS[1], 0, -tonumber(ARGV[6]) - 1)
-redis.call('EXPIRE', KEYS[1], ARGV[4])
-if ARGV[5] ~= '' then
-	redis.call('RPUSH', KEYS[2], ARGV[5])
-	redis.call('LTRIM', KEYS[2], -tonumber(ARGV[7]), -1)
-end
-redis.call('EXPIRE', KEYS[2], ARGV[4])
-local out = {prior}
-for i = 1, #texts do out[#out + 1] = texts[i] end
-return out
-`)
-
-// aispamMessagesKey holds the window's timestamps. Its members are message ids,
-// so a redelivered update is counted once rather than twice.
-func aispamMessagesKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:aispam:msgs:%d:%d", chatID, userID)
-}
-
-func aispamTextsKey(chatID, userID int64) string {
-	return fmt.Sprintf("alita:aispam:texts:%d:%d", chatID, userID)
-}
-
 // observeAISpamSender returns the sender's prior texts and how many messages
 // they posted in the last hour, this one included, then records this message.
 // Losing Redis costs the window and not the check: the message is still judged,
 // with no history and a count of one.
+//
+// ponytail: the count saturates at aispamHistoryMaxTimestamps, so a 200+/hour
+// poster reads as 200. It is a profile hint, and antiflood is what punishes
+// volume.
 func observeAISpamSender(chatID, userID, messageID int64, text string, now time.Time) ([]string, int) {
-	rdb := cache.GetRedisClient()
-	if rdb == nil {
+	if cache.GetRedisClient() == nil {
 		return nil, 1
 	}
 
-	millis := now.UnixMilli()
-	recorded, err := aispamHistoryScript.Run(
-		cache.Context,
-		rdb,
-		[]string{aispamMessagesKey(chatID, userID), aispamTextsKey(chatID, userID)},
-		millis,
-		strconv.FormatInt(messageID, 10),
-		millis-aispamHistoryWindow.Milliseconds(),
-		int(aispamHistoryWindow.Seconds()),
-		text,
-		aispamHistoryMaxTimestamps,
-		aispamHistoryTexts,
-	).Result()
+	member := strconv.FormatInt(messageID, 10)
+	prior, recent, err := opstate.WindowAdd(
+		opstate.Key("aispam:msgs", chatID, userID),
+		now, aispamHistoryWindow, member, text, aispamHistoryMaxTimestamps, aispamHistoryTexts,
+	)
 	if err != nil {
 		log.WithFields(log.Fields{"chat_id": chatID, "error": err}).Debug("[AISpam] sender history unavailable")
 		return nil, 1
-	}
-
-	values, ok := recorded.([]any)
-	if !ok || len(values) == 0 {
-		return nil, 1
-	}
-	prior, _ := values[0].(int64)
-
-	recent := make([]string, 0, len(values)-1)
-	for _, value := range values[1:] {
-		if priorText, ok := value.(string); ok {
-			recent = append(recent, priorText)
-		}
 	}
 	return recent, int(prior) + 1
 }
@@ -799,17 +746,17 @@ func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 
 	want, ok := parseToggleArg(args[0])
 	if !ok {
-		text, _ := c.Tr.GetString("aispam_invalid_option")
+		text := c.Tr.String("aispam_invalid_option")
 		return aispamReply(c, text)
 	}
 
 	if err := chatsettings.AISpamEnabled.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id}, want); err != nil {
 		if key := chatsettings.RefusalKey(err); key != "" {
-			text, _ := c.Tr.GetString(key)
+			text := c.Tr.String(key)
 			return aispamReply(c, text)
 		}
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Error("[AISpam] failed to save the setting")
-		text, _ := c.Tr.GetString("common_settings_save_failed")
+		text := c.Tr.String("common_settings_save_failed")
 		if replyErr := aispamReply(c, text); replyErr != nil {
 			return replyErr
 		}
@@ -820,7 +767,7 @@ func (m moduleStruct) aispam(c *helpers.CommandContext) error {
 	if want {
 		key = "aispam_enabled_success"
 	}
-	text, _ := c.Tr.GetString(key)
+	text := c.Tr.String(key)
 	return aispamReply(c, text)
 }
 
@@ -829,17 +776,17 @@ func aispamStatusText(tr *i18n.Translator, enabled bool) string {
 	if enabled {
 		lineKey = "aispam_status_enabled"
 	}
-	line, _ := tr.GetString(lineKey)
+	line := tr.String(lineKey)
 
 	parts := []string{line}
 	if config.AppConfig.TypeSafeAPIKey == "" {
-		warning, _ := tr.GetString("aispam_status_key_missing")
+		warning := tr.String("aispam_status_key_missing")
 		parts = append(parts, warning)
 	} else if !config.AppConfig.EnableAISpam {
-		warning, _ := tr.GetString("aispam_status_globally_disabled")
+		warning := tr.String("aispam_status_globally_disabled")
 		parts = append(parts, warning)
 	}
-	notice, _ := tr.GetString("aispam_data_notice")
+	notice := tr.String("aispam_data_notice")
 	parts = append(parts, notice)
 
 	return strings.Join(parts, "\n\n")
@@ -855,7 +802,6 @@ func aispamReply(c *helpers.CommandContext, text string) error {
 //
 
 func LoadAISpam(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(aispamModule.moduleName, true)
 	aispamEnsureWorkers()
 
 	helpers.WrapCommand(dispatcher, aispamDesc, aispamModule.aispam)

@@ -51,7 +51,7 @@ func (moduleStruct) ephemeral(c *helpers.CommandContext) error {
 			}
 		}
 	}
-	text, _ := c.Tr.GetString(key)
+	text := c.Tr.String(key)
 	if _, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml()); err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Warn("[Ephemeral] could not reply")
 		return err

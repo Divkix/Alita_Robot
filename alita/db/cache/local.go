@@ -35,7 +35,7 @@ type localLayer struct {
 }
 
 var (
-	localMu    sync.Mutex
+	localMu    sync.RWMutex
 	localState atomic.Pointer[localLayer]
 
 	// beforeLocalSetHook runs at the start of localSet, i.e. after the Redis
@@ -43,10 +43,10 @@ var (
 	// set it to stage a DeleteCache in that window; it is nil in production.
 	beforeLocalSetHook func(key string)
 
-	captchaPendingPrefix = CacheKey("captcha_pending") + ":"
-	// probationMemberPrefix is alita/db/probation.MemberKeyPrefix, which
-	// cannot be imported here.
-	probationMemberPrefix = CacheKey("probation_member") + ":"
+	// skipLocalPrefixes holds the CacheKey(module)+":" prefixes domains
+	// register through RegisterLocalSkipPrefix; domains cannot be imported
+	// here (they import this package), so they register from init.
+	skipLocalPrefixes []string
 )
 
 // skipLocal reports whether key must never be served from process memory.
@@ -55,10 +55,14 @@ var (
 // a value written on another replica (or outside DeleteCache) would otherwise
 // be served stale for up to CACHE_LOCAL_TTL seconds.
 func skipLocal(key string) bool {
-	// Captcha pending flag gates whether a new member's messages are held;
-	// a replica must see a flag set elsewhere immediately. A probation row
-	// gates a new member's first messages the same way.
-	return strings.HasPrefix(key, captchaPendingPrefix) || strings.HasPrefix(key, probationMemberPrefix)
+	localMu.RLock()
+	defer localMu.RUnlock()
+	for _, prefix := range skipLocalPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func localSettings() (ttl, size int) {

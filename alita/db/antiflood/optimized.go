@@ -14,11 +14,7 @@ import (
 
 func GetAntifloodSettingsContext(ctx context.Context, chatID int64) (*models.AntifloodSettings, error) {
 	if db.DB == nil {
-		return &models.AntifloodSettings{
-			ChatId: chatID,
-			Limit:  0,
-			Action: "mute",
-		}, errors.New("database not initialized")
+		return models.DefaultAntifloodSettings(chatID), errors.New("database not initialized")
 	}
 
 	var settings models.AntifloodSettings
@@ -28,11 +24,7 @@ func GetAntifloodSettingsContext(ctx context.Context, chatID int64) (*models.Ant
 		First(&settings).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return &models.AntifloodSettings{
-			ChatId: chatID,
-			Limit:  0,
-			Action: "mute",
-		}, nil
+		return models.DefaultAntifloodSettings(chatID), nil
 	}
 	if err != nil {
 		log.Errorf("[OptimizedAntifloodQueries] GetAntifloodSettings: %v", err)
@@ -43,7 +35,7 @@ func GetAntifloodSettingsContext(ctx context.Context, chatID int64) (*models.Ant
 }
 
 func GetAntifloodSettingsCachedContext(ctx context.Context, chatID int64) (*models.AntifloodSettings, error) {
-	cacheKey := cache.CacheKey("antiflood", chatID)
+	cacheKey := SettingsProjection.Key(chatID)
 
 	return cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLAntiflood, func(ctx context.Context) (*models.AntifloodSettings, error) {
 		return GetAntifloodSettingsContext(ctx, chatID)

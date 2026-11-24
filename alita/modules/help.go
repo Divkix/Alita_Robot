@@ -93,38 +93,38 @@ func getBotUsername(b *gotgbot.Bot) string {
 }
 
 func getAboutText(tr *i18n.Translator) string {
-	text, _ := tr.GetString("help_info_about_header")
+	text := tr.String("help_info_about_header")
 	if config.AppConfig.PanelEnabled {
 		// The menu button of a private chat is the panel while it is enabled,
 		// so the hint can point at it without a URL of its own.
-		hint, _ := tr.GetString("help_about_panel_hint")
+		hint := tr.String("help_about_panel_hint")
 		text += hint
 	}
 	return text
 }
 
 func getStartHelp(tr *i18n.Translator) string {
-	text1, _ := tr.GetString("help_bot_intro")
-	text2, _ := tr.GetString("help_news_channel_text")
+	text1 := tr.String("help_bot_intro")
+	text2 := tr.String("help_news_channel_text")
 	return text1 + text2
 }
 
 func getMainHelp(tr *i18n.Translator, firstName string) string {
-	text1, _ := tr.GetString("help_pm_intro", i18n.TranslationParams{"s": firstName})
-	text2, _ := tr.GetString("help_all_commands_usage")
-	text3, _ := tr.GetString("help_extend_hint")
+	text1 := tr.String("help_pm_intro", i18n.TranslationParams{"s": firstName})
+	text2 := tr.String("help_all_commands_usage")
+	text3 := tr.String("help_extend_hint")
 	return text1 + text2 + text3
 }
 
 func getAboutKb(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
-	aboutMeText, _ := tr.GetString("help_button_about_me")
-	addToChatText, _ := tr.GetString("help_button_add_to_chat")
-	shareText, _ := tr.GetString("help_button_share")
-	shareSummary, _ := tr.GetString("help_share_text")
-	newsChannelText, _ := tr.GetString("help_button_news_channel")
-	supportGroupText, _ := tr.GetString("help_button_support_group")
-	configurationText, _ := tr.GetString("help_button_configuration")
-	backText, _ := tr.GetString("common_back_arrow_alt")
+	aboutMeText := tr.String("help_button_about_me")
+	addToChatText := tr.String("help_button_add_to_chat")
+	shareText := tr.String("help_button_share")
+	shareSummary := tr.String("help_share_text")
+	newsChannelText := tr.String("help_button_news_channel")
+	supportGroupText := tr.String("help_button_support_group")
+	configurationText := tr.String("help_button_configuration")
+	backText := tr.String("common_back_arrow_alt")
 
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -181,11 +181,11 @@ func shareBotURL(botUsername, text string) string {
 }
 
 func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
-	aboutText, _ := tr.GetString("help_button_about")
-	addToChatText, _ := tr.GetString("help_button_add_to_chat")
-	supportGroupText, _ := tr.GetString("help_button_support_group")
-	commandsHelpText, _ := tr.GetString("help_button_commands_help")
-	languageText, _ := tr.GetString("help_button_language")
+	aboutText := tr.String("help_button_about")
+	addToChatText := tr.String("help_button_add_to_chat")
+	supportGroupText := tr.String("help_button_support_group")
+	commandsHelpText := tr.String("help_button_commands_help")
+	languageText := tr.String("help_button_language")
 
 	addToChatUrl := helpers.AddToGroupURL(botUsername)
 
@@ -223,7 +223,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	}
 }
 
-func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -252,9 +252,9 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			currText = getAboutText(tr)
 			currKb = getAboutKb(tr, b.Username)
 		case "me":
-			temp, _ := tr.GetString("help_about")
+			temp := tr.String("help_about")
 			currText = fmt.Sprintf(temp, b.Username, config.AppConfig.BotVersion)
-			backText, _ := tr.GetString("common_back")
+			backText := tr.String("common_back")
 			currKb = gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
@@ -288,8 +288,8 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			currText = getAboutText(tr)
 			currKb = getAboutKb(tr, b.Username)
 		} else {
-			clickButtonText, _ := tr.GetString("help_click_button_info")
-			aboutButtonText, _ := tr.GetString("help_button_about")
+			clickButtonText := tr.String("help_click_button_info")
+			aboutButtonText := tr.String("help_button_about")
 			currText = clickButtonText
 			if uname := getBotUsername(b); uname != "" {
 				currKb = gotgbot.InlineKeyboardMarkup{
@@ -335,7 +335,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups
@@ -395,7 +395,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
@@ -434,7 +434,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("help_pm_questions")
+		text := tr.String("help_pm_questions")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -443,7 +443,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
@@ -467,7 +467,7 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups
@@ -482,7 +482,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if msg.GetChat().Type != "private" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("help_config_private_only")
+		text := tr.String("help_config_private_only")
 		_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if err != nil {
 			return err
@@ -510,8 +510,8 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch response {
 	case "step1":
-		addAlitaText, _ := tr.GetString("help_button_add_alita")
-		doneText, _ := tr.GetString("common_done")
+		addAlitaText := tr.String("help_button_add_alita")
+		doneText := tr.String("common_done")
 		iKeyboard = [][]gotgbot.InlineKeyboardButton{
 			{
 				{
@@ -526,9 +526,9 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			},
 		}
-		text, _ = tr.GetString("help_configuration_step-1")
+		text = tr.String("help_configuration_step-1")
 	case "step2":
-		doneText, _ := tr.GetString("common_done")
+		doneText := tr.String("common_done")
 		iKeyboard = [][]gotgbot.InlineKeyboardButton{
 			{
 				{
@@ -537,10 +537,10 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			},
 		}
-		temp, _ := tr.GetString("help_configuration_step-2")
+		temp := tr.String("help_configuration_step-2")
 		text = fmt.Sprintf(temp, b.Username)
 	case "step3":
-		continueText, _ := tr.GetString("common_continue")
+		continueText := tr.String("common_continue")
 		iKeyboard = [][]gotgbot.InlineKeyboardButton{
 			{
 				{
@@ -549,7 +549,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			},
 		}
-		text, _ = tr.GetString("help_configuration_step-3")
+		text = tr.String("help_configuration_step-3")
 	default:
 		return answerInvalidCallback(b, ctx, query)
 	}
@@ -574,7 +574,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) help(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
@@ -618,9 +618,9 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		pmMeKbText, _ := tr.GetString("help_click_here")
+		pmMeKbText := tr.String("help_click_here")
 		pmMeKbUri := fmt.Sprintf("https://t.me/%s?start=help_help", b.Username)
-		moduleHelpString, _ := tr.GetString("help_contact_pm")
+		moduleHelpString := tr.String("help_contact_pm")
 		replyMsgId := msg.MessageId
 		var lowerModName string
 
@@ -629,7 +629,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			lowerModName = strings.ToLower(helpModName)
 			originalModuleName := getModuleNameFromAltName(lowerModName, DefaultHelpRegistry())
 			if originalModuleName != "" && slices.Contains(getAltNamesOfModule(originalModuleName), lowerModName) {
-				moduleHelpString, _ = tr.GetString("help_contact_pm_module", i18n.TranslationParams{"module": html.EscapeString(originalModuleName)})
+				moduleHelpString = tr.String("help_contact_pm_module", i18n.TranslationParams{"module": html.EscapeString(originalModuleName)})
 				pmMeKbUri = fmt.Sprintf("https://t.me/%s?start=help_%s", b.Username, lowerModName)
 			}
 		}
@@ -640,7 +640,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		rows := [][]gotgbot.InlineKeyboardButton{{{Text: pmMeKbText, Url: pmMeKbUri}}}
 		if config.AppConfig.PanelEnabled {
-			panelText, _ := tr.GetString("panel_open_button")
+			panelText := tr.String("panel_open_button")
 			rows = append(rows, []gotgbot.InlineKeyboardButton{{
 				Text: panelText,
 				Url:  panel.EntryURL(b.Username, config.AppConfig.PanelMiniAppShortName, chat.Id),
@@ -687,6 +687,10 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
+	// Help loads last: it answers /start, /help, /extend and /commands for
+	// every other module, so it registers at PriorityFinal and stays out of
+	// its own menu with NoHelp.
+	RegisterLegacyModule("Help", PriorityFinal, LoadHelp, RegisterLegacyModuleOptions{NoHelp: true})
 	RegisterDeepLinkHandler("help_", helpDeepLinkHandler)
 	RegisterExactDeepLinkHandler("about", aboutDeepLinkHandler)
 	RegisterExactDeepLinkHandler("extend", extendDeepLinkHandler)
@@ -696,7 +700,7 @@ func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	parts := strings.Split(arg, "_")
 	if len(parts) < 2 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = ctx.EffectiveMessage.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}

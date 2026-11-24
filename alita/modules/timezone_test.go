@@ -47,6 +47,7 @@ func cleanupChatTimezone(t *testing.T, chatIDs ...int64) {
 func timezoneFixture(t *testing.T) adminChatFixture {
 	t.Helper()
 	useRealLocales(t)
+	withCommandManifest(t)
 	pinTimezoneNow(t)
 	f := newAdminChatFixture(t)
 	cleanupChatTimezone(t, f.chat.Id)

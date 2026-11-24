@@ -28,8 +28,8 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 			reply = msg.ReplyToMessage.Reply
 		}
 
-		markdownHelpText, _ := tr.GetString("help_markdown_help_button")
-		pressButtonText, _ := tr.GetString("formatting_press_button")
+		markdownHelpText := tr.String("help_markdown_help_button")
+		pressButtonText := tr.String("formatting_press_button")
 
 		_, err := reply(b,
 			pressButtonText,
@@ -51,7 +51,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	} else {
-		backText, _ := tr.GetString("common_back")
+		backText := tr.String("common_back")
 
 		Mkdkb := append(m.genFormattingKb(lang.GetLanguage(ctx)),
 			[]gotgbot.InlineKeyboardButton{
@@ -62,7 +62,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 
-		largeOptionsText, _ := tr.GetString("formatting_large_options")
+		largeOptionsText := tr.String("formatting_large_options")
 		_, err := msg.Reply(b,
 			largeOptionsText,
 			&gotgbot.SendMessageOpts{
@@ -92,9 +92,9 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 		make([]gotgbot.InlineKeyboardButton, 1),
 	}
 
-	markdownFormattingText, _ := tr.GetString("help_markdown_formatting_button")
-	fillingsText, _ := tr.GetString("help_fillings_button")
-	randomContentText, _ := tr.GetString("help_random_content_button")
+	markdownFormattingText := tr.String("help_markdown_formatting_button")
+	fillingsText := tr.String("help_fillings_button")
+	randomContentText := tr.String("help_random_content_button")
 
 	keyboard[0][0] = gotgbot.InlineKeyboardButton{
 		Text:         markdownFormattingText,
@@ -117,11 +117,11 @@ func (moduleStruct) getMarkdownHelp(tr *i18n.Translator, module string) string {
 	var helpTxt string
 	switch module {
 	case "md_formatting":
-		helpTxt, _ = tr.GetString("formatting_markdown")
+		helpTxt = tr.String("formatting_markdown")
 	case "fillings":
-		helpTxt, _ = tr.GetString("formatting_fillings")
+		helpTxt = tr.String("formatting_fillings")
 	case "random":
-		helpTxt, _ = tr.GetString("formatting_random")
+		helpTxt = tr.String("formatting_random")
 	}
 	return helpTxt
 }
@@ -151,7 +151,7 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return answerInvalidCallback(b, ctx, query)
 	}
 
-	backText, _ := tr.GetString("common_back")
+	backText := tr.String("common_back")
 
 	opts := &gotgbot.EditMessageTextOpts{
 		MessageId: msg.GetMessageId(),
@@ -181,7 +181,6 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 }
 
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(formattingModule.moduleName, true)
 	SetModuleHelpBuilder(formattingModule.moduleName, formattingModule.genFormattingKb)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "markdownhelp", Aliases: []string{"formatting"},

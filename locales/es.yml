@@ -252,10 +252,10 @@ blacklists_ls_bl_no_blacklisted: No hay palabras en la lista negra en este chat.
 blacklists_rm_all_bl_ask:
   ¿Estás seguro de que quieres eliminar todas las palabras de la lista negra de
   este chat?
-blacklists_rm_all_bl_button_handler_no:
+blacklists_rm_all_bl_cancel:
   Cancelada la eliminación de todas las Listas Negras de este Chat
   ❌
-blacklists_rm_all_bl_button_handler_yes: Eliminadas todas las Listas Negras de este Chat ✅
+blacklists_rm_all_bl_done: Eliminadas todas las Listas Negras de este Chat ✅
 blacklists_set_bl_action_changed_mode: "Modo de lista negra cambiado exitosamente a: *%s*"
 blist_action_tban: "Modo de lista negra cambiado a: tban durante %s"
 blist_action_tmute: "Modo de lista negra cambiado a: tmute durante %s"
@@ -1185,7 +1185,6 @@ warns_limit_updated: "La configuración del límite de advertencias para este ch
 warns_reset_success: ¡Las advertencias han sido restablecidas!
 warns_no_users_warned: ¡No hay usuarios advertidos en este chat!
 warns_reset_all_confirm: ¿Estás seguro de que quieres eliminar todas las advertencias de todos los usuarios en este chat?
-warns_reset_all_success: ¡Eliminadas todas las advertencias de todos los usuarios en este chat!
 warns_reset_all_cancelled: ¡Cancelada la eliminación de todas las advertencias de todos los usuarios en este chat!
 warns_reset_all_final: Eliminadas todas las advertencias de todos los usuarios en este chat.
 
@@ -1452,7 +1451,6 @@ filters_none_in_chat: "¡No hay filtros en este chat!"
 filters_current_in_chat: "Estos son los filtros actuales en este Chat:"
 filters_clear_all_confirm: "¿Estás seguro de que quieres eliminar todos los Filtros de este chat?"
 filters_clear_all_success: "Eliminados todos los Filtros de este Chat ✅"
-filters_clear_all_failed: "Error al eliminar todos los Filtros de este Chat ❌"
 filters_clear_all_cancelled: "Cancelada la eliminación de todos los Filtros de este Chat ❌"
 filters_overwrite_success: "El filtro ha sido sobrescrito exitosamente ✅"
 filters_overwrite_cancelled: "Cancelada la sobrescritura del filtro ❌"
@@ -2643,7 +2641,6 @@ approvals_unapproveall_done: "Se han eliminado todos los usuarios aprobados."
 approvals_unapproveall_cancel: "Cancelada la eliminación de todas las aprobaciones."
 approvals_approve_error: "No se pudo aprobar al usuario. Por favor, inténtalo de nuevo."
 approvals_unapprove_error: "No se pudo eliminar al usuario de la lista de aprobados."
-approvals_unapproveall_error: "No se pudo eliminar a todos los usuarios aprobados: {error}"
 approvals_reason: "\nMotivo: %s"
 approvals_list_header: "Usuarios aprobados:\n"
 approvals_list_item: " - %s"

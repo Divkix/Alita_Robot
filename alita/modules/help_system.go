@@ -14,20 +14,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
-func listModulesFrom(registry *moduleStruct) []string {
-	var modules []string
-	for module, enabled := range registry.AbleMap {
-		if enabled {
-			modules = append(modules, module)
-		}
-	}
-	slices.Sort(modules)
-	return modules
+func listModulesFrom(registry *helpRegistry) []string {
+	return registry.enabledModules()
 }
 
 // initHelpButtonsFrom builds the module list keyboard with its Back button
 // labelled in langCode.
-func initHelpButtonsFrom(registry *moduleStruct, langCode string) gotgbot.InlineKeyboardMarkup {
+func initHelpButtonsFrom(registry *helpRegistry, langCode string) gotgbot.InlineKeyboardMarkup {
 	var kb []gotgbot.InlineKeyboardButton
 
 	for _, i := range listModulesFrom(registry) {
@@ -38,7 +31,7 @@ func initHelpButtonsFrom(registry *moduleStruct, langCode string) gotgbot.Inline
 	}
 	zb := slices.Collect(slices.Chunk(kb, 3))
 	tr := i18n.MustNewTranslator(langCode)
-	backText, _ := tr.GetString("helpers_back_button")
+	backText := tr.String("helpers_back_button")
 	zb = append(zb, []gotgbot.InlineKeyboardButton{{
 		Text:         backText,
 		CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}),
@@ -46,18 +39,18 @@ func initHelpButtonsFrom(registry *moduleStruct, langCode string) gotgbot.Inline
 	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: zb}
 }
 
-func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
+func getModuleHelpAndKb(module, lang string, registry *helpRegistry) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
 	ModName := module
 	if ModName != "" {
 		ModName = strings.ToUpper(ModName[:1]) + ModName[1:]
 	}
 	tr := i18n.MustNewTranslator(lang)
-	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
-	headerTemplate, _ := tr.GetString("helpers_module_help_header")
+	helpMsg := tr.String(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
+	headerTemplate := tr.String("helpers_module_help_header")
 	helpText = renderModuleHelp(headerTemplate, ModName, helpMsg)
 
-	backText, _ := tr.GetString("common_back_arrow")
-	homeText, _ := tr.GetString("common_home")
+	backText := tr.String("common_back_arrow")
+	homeText := tr.String("common_home")
 	backBtnSuffix := []gotgbot.InlineKeyboardButton{
 		{
 			Text:         backText,
@@ -69,9 +62,7 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 		},
 	}
 
-	ableMapMu.RLock()
-	build := registry.helpKbBuilders[ModName]
-	ableMapMu.RUnlock()
+	build := registry.helpKbBuilder(ModName)
 	var kb [][]gotgbot.InlineKeyboardButton
 	if build != nil {
 		kb = build(lang)
@@ -87,7 +78,7 @@ func renderModuleHelp(headerTemplate, modName, helpMsg string) string {
 		formatting.ToTelegramHTML(helpMsg)
 }
 
-func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *moduleStruct) (msg *gotgbot.Message, err error) {
+func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *helpRegistry) (msg *gotgbot.Message, err error) {
 	module = strings.ToLower(module)
 	if module == "help" {
 		langCode := lang.GetLanguage(ctx)
@@ -119,7 +110,7 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *modul
 	return
 }
 
-func getModuleNameFromAltName(altName string, registry *moduleStruct) string {
+func getModuleNameFromAltName(altName string, registry *helpRegistry) string {
 	for _, modName := range listModulesFrom(registry) {
 		altNames := getAltNamesOfModule(modName)
 		for _, altNameInSlice := range altNames {
@@ -137,7 +128,7 @@ func getAltNamesOfModule(moduleName string) []string {
 	return append(altNamesFromConfig, strings.ToLower(moduleName))
 }
 
-func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruct) (helpText string, kbmarkup gotgbot.InlineKeyboardMarkup, _parsemode string) {
+func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *helpRegistry) (helpText string, kbmarkup gotgbot.InlineKeyboardMarkup, _parsemode string) {
 	var moduleName string
 	userOrGroupLanguage := lang.GetLanguage(ctx)
 

@@ -54,7 +54,6 @@ func TestLanguageCRUD(t *testing.T) {
 		t.Cleanup(func() {
 			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
 			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
-			cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
 			cache.DeleteCache(cache.CacheKey("chat", chatID))
 		})
 
@@ -89,7 +88,6 @@ func TestLanguageCRUD(t *testing.T) {
 		t.Cleanup(func() {
 			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
 			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
-			cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
 			cache.DeleteCache(cache.CacheKey("chat", chatID))
 		})
 
@@ -128,7 +126,6 @@ func TestLanguageCRUD(t *testing.T) {
 		t.Cleanup(func() {
 			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
 			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
-			cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
 			cache.DeleteCache(cache.CacheKey("chat", chatID))
 		})
 

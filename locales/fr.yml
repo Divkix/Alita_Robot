@@ -361,7 +361,6 @@ warns_limit_updated: "Les paramètres de limite d'avertissements de ce chat ont 
 warns_reset_success: Les avertissements ont été réinitialisés !
 warns_no_users_warned: Aucun utilisateur n'est averti dans ce chat !
 warns_reset_all_confirm: Êtes-vous sûr de vouloir supprimer tous les avertissements de tous les utilisateurs de ce chat ?
-warns_reset_all_success: Tous les avertissements de tous les utilisateurs de ce chat ont été supprimés !
 warns_reset_all_cancelled: Suppression de tous les avertissements de tous les utilisateurs de ce chat annulée !
 warns_reset_all_final: Tous les avertissements de tous les utilisateurs de ce chat ont été supprimés.
 warns_extended_docs: |
@@ -441,10 +440,10 @@ blacklists_ls_bl_no_blacklisted: Il n'y a pas de mots sur la liste noire dans ce
 blacklists_rm_all_bl_ask:
   "Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
   ce chat ?"
-blacklists_rm_all_bl_button_handler_no:
+blacklists_rm_all_bl_cancel:
   "Suppression de toutes les listes noires de ce chat annulée
   ❌"
-blacklists_rm_all_bl_button_handler_yes: Tous les mots de la liste noire ont été supprimés de ce chat ✅
+blacklists_rm_all_bl_done: Tous les mots de la liste noire ont été supprimés de ce chat ✅
 blacklists_set_bl_action_changed_mode: "Mode de liste noire changé avec succès : *%s*"
 blist_action_tban: "Mode de liste noire changé : tban pendant %s"
 blist_action_tmute: "Mode de liste noire changé : tmute pendant %s"
@@ -737,7 +736,6 @@ filters_none_in_chat: "Il n'y a pas de filtres dans ce chat !"
 filters_current_in_chat: "Voici les filtres actuels dans ce chat :"
 filters_clear_all_confirm: "Êtes-vous sûr de vouloir supprimer tous les filtres de ce chat ?"
 filters_clear_all_success: "Tous les filtres ont été supprimés de ce chat ✅"
-filters_clear_all_failed: "Échec de la suppression de tous les filtres de ce chat ❌"
 filters_clear_all_cancelled: "Suppression de tous les filtres de ce chat annulée ❌"
 filters_overwrite_success: "Le filtre a été écrasé avec succès ✅"
 filters_overwrite_cancelled: "Écrasement du filtre annulé ❌"
@@ -2550,7 +2548,6 @@ approvals_unapproveall_done: "Tous les utilisateurs approuvés ont été supprim
 approvals_unapproveall_cancel: "Suppression de toutes les approbations annulée."
 approvals_approve_error: "Échec de l'approbation de l'utilisateur. Veuillez réessayer."
 approvals_unapprove_error: "Échec de la suppression de l'utilisateur de la liste des approuvés."
-approvals_unapproveall_error: "Échec de la suppression de tous les utilisateurs approuvés : {error}"
 approvals_reason: "\nRaison : %s"
 approvals_list_header: "Utilisateurs approuvés :\n"
 approvals_list_item: " - %s"

@@ -19,7 +19,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -46,7 +45,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -55,7 +54,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if approvals.IsUserApproved(chat.Id, targetUserID) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_already_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			return err
@@ -70,7 +69,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := approvals.AddApprovedUser(chat.Id, targetUserID, user.Id, reason); err != nil {
 		log.Errorf("[Approvals] Failed to approve user %d in chat %d: %v", targetUserID, chat.Id, err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approve_error")
+		text := tr.String(strings.ToLower(m.moduleName) + "_approve_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -80,10 +79,10 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	reasonStr := ""
 	if reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_reason")
 		reasonStr = fmt.Sprintf(temp, html.EscapeString(reason))
 	}
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_approved")
+	text := tr.String(strings.ToLower(m.moduleName) + "_user_approved")
 	baseStr := fmt.Sprintf(text,
 		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 		html.EscapeString(approverName),
@@ -106,7 +105,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -115,7 +114,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if !approvals.IsUserApproved(chat.Id, targetUserID) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID))), formatting.Shtml())
 		if err != nil {
 			return err
@@ -125,12 +124,12 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := approvals.RemoveApprovedUser(chat.Id, targetUserID); err != nil {
 		log.Errorf("[Approvals] Failed to unapprove user %d in chat %d: %v", targetUserID, chat.Id, err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapprove_error")
+		text := tr.String(strings.ToLower(m.moduleName) + "_unapprove_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_unapproved")
+	text := tr.String(strings.ToLower(m.moduleName) + "_user_unapproved")
 	_, err := msg.Reply(b, fmt.Sprintf(text,
 		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 	), formatting.Shtml())
@@ -150,7 +149,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
+		text := tr.String("common_no_user_specified")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -168,7 +167,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	if foundUser == nil {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_not_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_check_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text,
 			html.EscapeString(extractDisplayName(targetUserID)),
 		), formatting.Shtml())
@@ -188,11 +187,11 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		targetName = strconv.FormatInt(foundUser.UserID, 10)
 	}
 
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_status")
+	text := tr.String(strings.ToLower(m.moduleName) + "_check_status")
 	dateStr := foundUser.CreatedAt.Format("2006-01-02")
 	reasonStr := ""
 	if foundUser.Reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		temp := tr.String(strings.ToLower(m.moduleName) + "_reason")
 		// The status template already puts the reason slot on its own line.
 		reasonStr = strings.TrimPrefix(fmt.Sprintf(temp, html.EscapeString(foundUser.Reason)), "\n")
 	}
@@ -216,7 +215,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	approvedUsers := approvals.GetApprovedUsersContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(approvedUsers) == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_none_approved")
+		text := tr.String(strings.ToLower(m.moduleName) + "_none_approved")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -225,9 +224,9 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	if len(approvedUsers) <= approvedUsersInlineLimit {
-		listHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_header")
-		listItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_item")
-		listReason, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_reason")
+		listHeader := tr.String(strings.ToLower(m.moduleName) + "_list_header")
+		listItem := tr.String(strings.ToLower(m.moduleName) + "_list_item")
+		listReason := tr.String(strings.ToLower(m.moduleName) + "_list_reason")
 		var sb strings.Builder
 		sb.WriteString(listHeader)
 		for _, a := range approvedUsers {
@@ -251,16 +250,16 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	tmpFile, err := os.CreateTemp("", "approved-*.txt")
 	if err != nil {
 		log.Errorf("[Approvals] Failed to create temp file: %v", err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_error")
+		text := tr.String(strings.ToLower(m.moduleName) + "_list_file_error")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	fileHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_header")
-	fileItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_item")
-	fileReason, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_reason")
+	fileHeader := tr.String(strings.ToLower(m.moduleName) + "_list_file_header")
+	fileItem := tr.String(strings.ToLower(m.moduleName) + "_list_file_item")
+	fileReason := tr.String(strings.ToLower(m.moduleName) + "_list_reason")
 	var fileSb strings.Builder
 	fmt.Fprintf(&fileSb, fileHeader, chat.Id)
 	fmt.Fprintf(&fileSb, "%s\n\n", time.Now().Format(time.RFC3339))
@@ -289,7 +288,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	defer func() { _ = openedFile.Close() }()
 
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approved_list_file_caption")
+	text := tr.String(strings.ToLower(m.moduleName) + "_approved_list_file_caption")
 	_, err = b.SendDocument(
 		msg.Chat.Id,
 		gotgbot.InputFileByReader("approved_users.txt", openedFile),
@@ -309,98 +308,24 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	return ext.EndGroups
 }
 
-//nolint:dupl // Similar to other rmAll handlers with distinct callback data and messages
-func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	chat := ctx.EffectiveChat
-
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_ask")
-	text = confirmText(ctx, tr, text, chat)
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyMarkup: confirmKeyboard(tr, "rmAllApprovals", chat),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+// approvalsClearAll is the /unapproveall owner confirmation: the shared
+// skeleton asks, authorizes and answers; these closures hold only the
+// approvals work.
+var approvalsClearAll = ownerConfirmSpec{
+	Namespace: "rmAllApprovals",
+	AskKey:    strings.ToLower(approvalsModule.moduleName) + "_unapproveall_ask",
+	Commit:    removeAllCommit("Failed to remove all approved users", approvals.RemoveAllApprovedUsers),
+	Keys: ownerConfirmKeys{
+		Confirmed: strings.ToLower(approvalsModule.moduleName) + "_unapproveall_done",
+		Cancelled: strings.ToLower(approvalsModule.moduleName) + "_unapproveall_cancel",
+		Failed:    "error_generic",
+	},
 }
 
-func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
-	query, ok := callbackQueryFromContext(ctx)
-	if !ok {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+var approvalsClearAllMessage, approvalsClearAllCallback = registerOwnerConfirm(approvalsClearAll)
 
-	decoded, _ := decodeCallbackData(query.Data, "rmAllApprovals")
-	chat := ownerConfirmChat(b, ctx, query, decoded)
-	if chat == nil {
-		return ext.EndGroups
-	}
-
-	action, _ := decoded.Field("a")
-	if action == "" {
-		log.Warnf("[Approvals] Invalid callback data format: %s", query.Data)
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	var helpText string
-	switch action {
-	case "yes":
-		if query.Message == nil {
-			log.Warn("[Approvals] Cannot remove all approved users: message was deleted")
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		defer error_handling.RecoverFromPanic("rmAllApprovals", "approvals")
-		if err := approvals.RemoveAllApprovedUsers(chat.Id); err != nil {
-			log.WithFields(log.Fields{
-				"chatId": chat.Id,
-				"error":  err,
-			}).Error("Failed to remove all approved users")
-			helpText, _ = tr.GetString(strings.ToLower(m.moduleName)+"_unapproveall_error", i18n.TranslationParams{"error": err.Error()})
-		} else {
-			helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_done")
-		}
-	case "no":
-		if query.Message == nil {
-			log.Warn("[Approvals] Cannot cancel unapproveall: message was deleted")
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
-	default:
-		if query.Message == nil {
-			log.Warnf("[Approvals] Unexpected action '%s' with nil message", action)
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		log.WithFields(log.Fields{
-			"action": action,
-			"chatId": query.Message.GetChat().Id,
-		}).Warn("[Approvals] Unexpected callback action")
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
-	}
-
-	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
-	if err != nil {
-		return err
-	}
-
-	_, err = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-	if err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	return approvalsClearAllMessage(b, ctx)
 }
 
 func extractDisplayName(userID int64) string {
@@ -413,30 +338,28 @@ func extractDisplayName(userID int64) string {
 
 //nolint:dupl // Pattern matches other LoadXxx functions
 func LoadApprovals(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(approvalsModule.moduleName, true)
-
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approve", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.approveUser))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unapprove", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.unapproveUser))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approval", PMGroupArg: helpers.PMGroupArgOwn,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.checkApprovalStatus))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "approved", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
+		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired), helpers.RequireUserAdmin()},
 	}, pipelineHandler(approvalsModule.listApprovedUsers))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name: "unapproveall", PMGroupArg: helpers.PMGroupArgNone,
-		RequiredChecks: []helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
+		RequiredChecks: []helpers.Check{groupOnlyChatCheck, helpers.RequireGroup(), helpers.RequireUserOwner()},
 	}, pipelineHandler(approvalsModule.unapproveAllHandler))
 
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals|"), approvalsClearAllCallback))
 }
 
 func init() {

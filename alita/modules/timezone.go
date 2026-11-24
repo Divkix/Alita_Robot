@@ -24,7 +24,7 @@ import (
 var timezoneDesc = helpers.CommandDescriptor{
 	Name:           "timezone",
 	PMGroupArg:     helpers.PMGroupArgOwn,
-	RequiredChecks: append([]helpers.CheckFunc{groupOnlyChatCheck, helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.Timezone)...),
+	RequiredChecks: append([]helpers.Check{groupOnlyChatCheck, helpers.RequireGroup()}, declaredGroupSettingChecks(chatsettings.Timezone)...),
 }
 
 // timezoneNow is the clock the replies show the local time from. Tests pin
@@ -48,7 +48,7 @@ func (moduleStruct) timezone(c *helpers.CommandContext) error {
 	input := strings.Join(args, " ")
 	err := chatsettings.Timezone.Write(chatsettings.WriteContext{Context: tracing.UpdateContext(c.Ctx), ChatID: c.Chat.Id, Title: c.Chat.Title, Bot: c.Bot}, input)
 	if errors.Is(err, chattz.ErrUnknownTimezone) {
-		text, _ := c.Tr.GetString("timezone_invalid", i18n.TranslationParams{"input": html.EscapeString(input)})
+		text := c.Tr.String("timezone_invalid", i18n.TranslationParams{"input": html.EscapeString(input)})
 		if replyErr := replyCommandHelp(c.Bot, c.Msg, c.Tr, timezoneDesc.Name, text); replyErr != nil {
 			log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": replyErr}).
 				Warn("[Timezone] could not send the invalid-name reply")
@@ -81,7 +81,7 @@ func timezoneParams(name string) i18n.TranslationParams {
 // timezoneReply answers in the chat the command came from; from PM the reply
 // also names the group it acted on.
 func timezoneReply(c *helpers.CommandContext, key string, params ...i18n.TranslationParams) error {
-	text, _ := c.Tr.GetString(key, params...)
+	text := c.Tr.String(key, params...)
 	if _, err := c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, text), formatting.Shtml()); err != nil {
 		log.WithFields(log.Fields{"chat_id": c.Chat.Id, "error": err}).Warn("[Timezone] could not reply")
 		return err

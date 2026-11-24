@@ -16,14 +16,30 @@ import (
 )
 
 // checkInPMOrGroup chooses by the original message chat, even after a PM target
-// has been resolved. A nil check leaves that chat type unrestricted.
-func checkInPMOrGroup(pmCheck, groupCheck helpers.CheckFunc) helpers.CheckFunc {
+// has been resolved. A nil check leaves that chat type unrestricted. The
+// combined kind is the least restrictive of the two paths: the command stays
+// member-visible when either the PM or the group form works for a member.
+func checkInPMOrGroup(pmCheck, groupCheck helpers.Check) helpers.Check {
+	kind := helpers.CheckKindAny
+	for _, check := range []helpers.Check{pmCheck, groupCheck} {
+		if check.Run == nil {
+			// An unrestricted path stays member-usable.
+			return helpers.NewCheck(helpers.CheckKindAny, checkInPMOrGroupRun(pmCheck, groupCheck))
+		}
+		if kind == helpers.CheckKindAny || check.Kind < kind {
+			kind = check.Kind
+		}
+	}
+	return helpers.NewCheck(kind, checkInPMOrGroupRun(pmCheck, groupCheck))
+}
+
+func checkInPMOrGroupRun(pmCheck, groupCheck helpers.Check) helpers.CheckFunc {
 	return func(c *helpers.CommandContext) bool {
 		check := groupCheck
 		if c.Msg.Chat.Type == "private" {
 			check = pmCheck
 		}
-		return check == nil || check(c)
+		return check.Run == nil || check.Run(c)
 	}
 }
 
@@ -53,21 +69,21 @@ func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (*g
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if len(nArgs) < 2 {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return nil, ext.EndGroups
 	}
 
 	chatID, err := strconv.ParseInt(nArgs[1], 10, 64)
 	if err != nil {
-		text, _ := tr.GetString("helpers_invalid_deep_link")
+		text := tr.String("helpers_invalid_deep_link")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return nil, ext.EndGroups
 	}
 
 	chatinfo, err := b.GetChat(chatID, nil)
 	if err != nil || chatinfo == nil {
-		text, _ := tr.GetString("helpers_chat_not_found")
+		text := tr.String("helpers_chat_not_found")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return nil, ext.EndGroups
 	}
@@ -112,7 +128,7 @@ func callbackAdminChat(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.Callback
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	deny := func(key string) *gotgbot.Chat {
-		text, _ := tr.GetString(key)
+		text := tr.String(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
 		return nil
 	}

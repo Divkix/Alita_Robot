@@ -41,8 +41,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   `isCliModeActive` (`--version`, `--health` and test binaries without `ALITA_TEST_DATABASE=true` skip DB init).
 - Once config has loaded, exit through `log.Fatal*` or `log.StandardLogger().Exit`: its exit handler flushes
   telemetry, which `os.Exit` skips.
-- Shutdown runs LIFO within 60 s: periodic work registers a job (one drain stops all); register any other drain
-  after DB-close so it runs before it.
+- Shutdown runs in declared phases (`shutdown.Phase`; `Phases()` lists the order), LIFO within a phase in 60 s:
+  periodic work registers a job (one drain stops all), and nothing after `PhaseDatabase` writes to the database.
 
 ## Handlers
 
@@ -52,8 +52,8 @@ CGO_ENABLED=0 go build ./...   # compile check
   `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
 - gotgbot stops a group at its first matching handler: watchers return `ext.ContinueGroups`, commands
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
-- Modules register in `init()` with `RegisterLegacyModule(name, priority, load)`. Names must be unique (a duplicate
-  is dropped silently); priority sets load order and group-0 precedence.
+- Modules register in `init()` with `RegisterLegacyModule(name, priority, load)`. Names must be unique (a duplicate is dropped silently);
+  priority sets load order and group-0 precedence; loading marks the module enabled in `/help` (`NoHelp` opts out), Help last at `PriorityFinal`.
 - Every user command uses `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`. Declare its aliases,
   ordered rights checks, PM group argument and `Disableable` there; handlers contain domain work, not a rights preamble.
 - `WrapCommand` derives anonymous-admin replay for the command's name and every alias; never register a replay

@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 )
 
 // function used to get status of bot when it joined a group and send a message to the group
@@ -37,9 +38,9 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat.Type == "group" || chat.Type == "channel" {
 		if chat.Type == "group" {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("bot_updates_need_supergroup")
-			convertInstr, _ := tr.GetString("bot_updates_convert_instruction")
-			convertHowto, _ := tr.GetString("bot_updates_convert_howto")
+			text := tr.String("bot_updates_need_supergroup")
+			convertInstr := tr.String("bot_updates_convert_instruction")
+			convertHowto := tr.String("bot_updates_convert_howto")
 			_, err := b.SendMessage(
 				chat.Id,
 				fmt.Sprint(
@@ -69,15 +70,15 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 	// used to check if bot was added as admin or not
 	msgAdmin := ""
 	if !chat_status.IsBotAdmin(b, ctx, chat) {
-		msgAdmin, _ = tr.GetString("bot_updates_make_me_admin")
+		msgAdmin = tr.String("bot_updates_make_me_admin")
 	}
 
 	// send a message to group itself
-	thanksText, _ := tr.GetString("bot_updates_thanks_for_adding")
-	creatorsPlug, _ := tr.GetString("bot_updates_creators_plug")
+	thanksText := tr.String("bot_updates_thanks_for_adding")
+	creatorsPlug := tr.String("bot_updates_creators_plug")
 	// Offer captcha with a button; it stays off until an admin presses it.
 	var opts *gotgbot.SendMessageOpts
-	buttonText, _ := tr.GetString("captcha_join_enable_button")
+	buttonText := tr.String("captcha_join_enable_button")
 	if markup, ok := captchaJoinOfferMarkup(ctx, chat.Id, buttonText); ok {
 		opts = &gotgbot.SendMessageOpts{ReplyMarkup: markup}
 	}
@@ -159,7 +160,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	// if non-admins try to press it
 	// using this func because it's the only one that can be called by taking chatId from callback query
 	if !chat_status.IsUserAdmin(b, chatId, query.From.Id) {
-		text, _ := tr.GetString("bot_updates_need_admin")
+		text := tr.String("bot_updates_need_admin")
 		_, err := query.Answer(b,
 			&gotgbot.AnswerCallbackQueryOpts{
 				Text: text,
@@ -175,7 +176,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if errCache != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		expiredText, _ := tr.GetString("bot_updates_button_expired")
+		expiredText := tr.String("bot_updates_button_expired")
 		_, _, err := qmsg.EditText(b, &gotgbot.EditMessageTextOpts{Text: expiredText})
 		if err != nil {
 			return err
@@ -229,15 +230,14 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 // getAnonAdminCache retrieves cached message data for anonymous admin verification.
 // Returns the original message context stored during anonymous admin command execution.
 func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return nil, fmt.Errorf("cache not initialized")
-	}
-	result, err := m.Get(cache.Context, chat_status.AnonAdminCacheKey(chatId, msgId), new(gotgbot.Message))
+	msg, err := opstate.Peek[gotgbot.Message](chat_status.AnonAdminCacheKey(chatId, msgId))
 	if err != nil {
 		return nil, err
 	}
-	return result.(*gotgbot.Message), nil
+	if msg == nil {
+		return nil, fmt.Errorf("anonymous admin cache miss")
+	}
+	return msg, nil
 }
 
 // LoadBotUpdates registers bot event handlers for group management.
@@ -268,5 +268,5 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
-	RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates)
+	RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates, RegisterLegacyModuleOptions{NoHelp: true})
 }

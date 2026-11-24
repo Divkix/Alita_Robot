@@ -376,8 +376,8 @@ func chatSettingsSection(ctx context.Context, chatID int64) settingsSection {
 }
 
 func renderSettingsSummary(tr *i18n.Translator, chatTitle string, sections []settingsSection) string {
-	legend, _ := tr.GetString("settings_summary_legend")
-	hint, _ := tr.GetString("settings_summary_toggle_hint")
+	legend := tr.String("settings_summary_legend")
+	hint := tr.String("settings_summary_toggle_hint")
 	var b strings.Builder
 	b.WriteString("⚙️ <b>")
 	b.WriteString(formatting.HtmlEscape(chatTitle))

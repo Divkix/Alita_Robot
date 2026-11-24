@@ -39,7 +39,7 @@ var reportsModule = moduleStruct{
 var reportDesc = helpers.CommandDescriptor{
 	Name:           "report",
 	Disableable:    true,
-	RequiredChecks: []helpers.CheckFunc{helpers.RequireIdentifiedUser()},
+	RequiredChecks: []helpers.Check{helpers.RequireIdentifiedUser()},
 }
 
 var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
@@ -94,21 +94,21 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	reported := extraction.UserReply(msg)
 	if reported == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_reply_to_report")
+		text := tr.String("reports_reply_to_report")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
 	if reported.From == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_cannot_report_channel")
+		text := tr.String("reports_cannot_report_channel")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 
 	if reported.From.Id == user.Id {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_cannot_report_self")
+		text := tr.String("reports_cannot_report_self")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -131,13 +131,13 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if chat_status.IsSystemUser(user.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_expose_yourself")
+		text := tr.String("reports_expose_yourself")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
 	if chat_status.IsSystemUser(reported.From.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_special_account")
+		text := tr.String("reports_special_account")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -150,7 +150,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if slices.Contains(adminArray, user.Id) ||
 		(len(adminArray) == 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id)) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_admin_report")
+		text := tr.String("reports_admin_report")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -163,7 +163,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if reportedUser.Id == b.Id {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_why_report_myself")
+		text := tr.String("reports_why_report_myself")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -172,7 +172,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if slices.Contains(adminArray, reportedUser.Id) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reports_why_report_admin")
+		text := tr.String("reports_why_report_admin")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			return err
@@ -197,11 +197,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if storeErr == nil && !created && reporterDecided(chat.Id, reportedMsgId, user.Id) {
 		// The admins decided this member's report of the message: repeating
 		// it neither pings them again nor counts on a card.
-		text, _ := tr.GetString("reports_already_reviewed")
+		text := tr.String("reports_already_reviewed")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
-	reportTemplate, _ := tr.GetString("reports_message_template")
+	reportTemplate := tr.String("reports_message_template")
 	reportText := fmt.Sprintf(
 		reportTemplate,
 		formatting.MentionHtml(user.Id, user.FirstName),
@@ -263,7 +263,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	// reply failed.
 	deliverReport(b, tr, chat, user, reported, reason, storeErr == nil, created)
 	if storeErr == nil && created {
-		autoMuteReported(b, ctx, tr, chat, reported, reportprefs.MuteThreshold)
+		autoMuteReported(b, ctx, chat, reported, reportprefs.MuteThreshold)
 	}
 	if err != nil {
 		return err
@@ -398,10 +398,9 @@ func reportsBlockText(c *helpers.CommandContext, tr *i18n.Translator, block bool
 	if err := apply(c.Chat.Id, target.Id); err != nil {
 		return trS(tr, "common_settings_save_failed")
 	}
-	text, _ := tr.GetString(doneKey, i18n.TranslationParams{
+	return tr.String(doneKey, i18n.TranslationParams{
 		"s": formatting.MentionHtml(target.Id, target.FirstName),
 	})
-	return text
 }
 
 // reportsBlocklistText lists the members blocked from reporting in the group.
@@ -465,7 +464,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 
-	invalidActionText, _ := tr.GetString("reports_invalid_action")
+	invalidActionText := tr.String("reports_invalid_action")
 
 	action := ""
 	userIDRaw := ""
@@ -532,7 +531,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		var stored bool
 		stored, err = reports.HasReports(chat.Id, msgId)
 		if err == nil && stored {
-			handledText, _ := tr.GetString("reports_already_handled")
+			handledText := tr.String("reports_already_handled")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: handledText})
 			return ext.EndGroups
 		}
@@ -540,7 +539,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	}
 	if err != nil {
 		log.Errorf("[Reports] failed to close reports of message %d in %d for %s: %v", msgId, chat.Id, action, err)
-		failedText, _ := tr.GetString("reports_action_failed")
+		failedText := tr.String("reports_action_failed")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: failedText})
 		return err
 	}
@@ -552,9 +551,9 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 
 	switch action {
 	case "kick":
-		replyQuery, _ = tr.GetString("reports_success_kick")
-		kickedText, _ := tr.GetString("reports_user_kicked")
-		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
+		replyQuery = tr.String("reports_success_kick")
+		kickedText := tr.String("reports_user_kicked")
+		actionBy := tr.String("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
 		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Kick, user.Id, ""); errors.Is(err, punishment.ErrKickTargetBanned) {
 			reopen()
@@ -565,9 +564,9 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		}
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionKick, "")
 	case "ban":
-		replyQuery, _ = tr.GetString("reports_success_ban")
-		bannedText, _ := tr.GetString("reports_user_banned")
-		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
+		replyQuery = tr.String("reports_success_ban")
+		bannedText := tr.String("reports_user_banned")
+		actionBy := tr.String("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", bannedText, actionBy)
 		if err := applyReportPunishment(tracing.UpdateContext(ctx), b, chat.Id, userId, punishment.Ban, user.Id, ""); err != nil {
 			reopen()
@@ -576,17 +575,17 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		recordModerationEvent(chat.Id, user.Id, userId, models.ModerationActionBan, "")
 
 	case "delete":
-		replyQuery, _ = tr.GetString("reports_success_delete")
-		deletedText, _ := tr.GetString("reports_message_deleted")
-		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
+		replyQuery = tr.String("reports_success_delete")
+		deletedText := tr.String("reports_message_deleted")
+		actionBy := tr.String("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", deletedText, actionBy)
 		if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId); err != nil {
 			reopen()
 			return err
 		}
 	case "resolved":
-		replyQuery, _ = tr.GetString("reports_resolved_success")
-		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
+		replyQuery = tr.String("reports_resolved_success")
+		replyText = tr.String("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
 	settleReportAutoMute(b, ctx, chat.Id, userId, status)
 	if legacy {
@@ -617,8 +616,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 }
 
 func LoadReports(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(reportsModule.moduleName, true)
-
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {

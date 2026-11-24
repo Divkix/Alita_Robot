@@ -33,8 +33,8 @@ func panelDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("panel_open_message")
-	buttonText, _ := tr.GetString("panel_open_button")
+	text := tr.String("panel_open_message")
+	buttonText := tr.String("panel_open_button")
 
 	keyboard := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{

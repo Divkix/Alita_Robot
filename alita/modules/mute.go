@@ -29,10 +29,10 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 		return err
 	}
 
-	baseStr, _ := c.Tr.GetString("mutes_mute_message")
+	baseStr := c.Tr.String("mutes_mute_message")
 	text := fmt.Sprintf(baseStr, formatting.MentionHtml(muteUser.Id, muteUser.FirstName))
 	if t.reason != "" {
-		temp, _ := c.Tr.GetString("mutes_reason_suffix")
+		temp := trS(c.Tr, "mutes_reason_suffix")
 		text += fmt.Sprintf(temp, html.EscapeString(t.reason))
 	}
 
@@ -59,7 +59,7 @@ func extractUserOnly(c *moderationCtx) (target, error) {
 		return target{}, fmt.Errorf("extraction failed")
 	}
 	if chat_status.IsChannelId(uid) {
-		text, _ := c.Tr.GetString("common_anonymous_user_error")
+		text := c.Tr.String("common_anonymous_user_error")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -68,7 +68,7 @@ func extractUserOnly(c *moderationCtx) (target, error) {
 		return target{}, fmt.Errorf("anonymous user")
 	}
 	if uid == 0 {
-		text, _ := c.Tr.GetString("common_no_user_specified")
+		text := c.Tr.String("common_no_user_specified")
 		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
@@ -97,11 +97,10 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 				return err
 			}
 
-			temp, _ := c.Tr.GetString("mutes_tmute_message")
+			temp := c.Tr.String("mutes_tmute_message")
 			baseStr := fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName), t.timeVal)
 			if t.reason != "" {
-				temp, _ := c.Tr.GetString("mutes_reason_suffix")
-				baseStr += fmt.Sprintf(temp, html.EscapeString(t.reason))
+				baseStr += fmt.Sprintf(c.Tr.String("mutes_reason_suffix"), html.EscapeString(t.reason))
 			}
 
 			_, err = c.Msg.Reply(c.Bot, withGroupLine(c.Tr, c.Msg, c.Chat, baseStr), formatting.Shtml())
@@ -190,7 +189,7 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 		extract: extractUserOnly,
 		validate: func(c *moderationCtx, t *target) error {
 			if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
-				text, _ := c.Tr.GetString("common_user_not_in_chat")
+				text := c.Tr.String("common_user_not_in_chat")
 				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 				if err != nil {
 					log.Error(err)
@@ -221,7 +220,7 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 				return err
 			}
 
-			temp, _ := c.Tr.GetString("mutes_unmute_message")
+			temp := c.Tr.String("mutes_unmute_message")
 			_, err = c.Msg.Reply(c.Bot,
 				withGroupLine(c.Tr, c.Msg, c.Chat, fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName))),
 				formatting.Shtml(),
@@ -275,7 +274,6 @@ func initMuteDescs() {
 }
 
 func LoadMutes(dispatcher *ext.Dispatcher) {
-	SetModuleEnabled(mutesModule.moduleName, true)
 	initMuteDescs()
 
 	helpers.WrapCommand(dispatcher, muteDesc, pipelineHandler(mutesModule.mute))

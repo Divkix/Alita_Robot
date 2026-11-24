@@ -248,10 +248,10 @@ blacklists_ls_bl_no_blacklisted: Tidak ada kata yang didaftar hitam di obrolan i
 blacklists_rm_all_bl_ask:
   "Apakah Anda yakin ingin menghapus semua kata yang didaftar hitam dari
   obrolan ini?"
-blacklists_rm_all_bl_button_handler_no:
+blacklists_rm_all_bl_cancel:
   "Dibatalkan menghapus semua Daftar Hitam dari Obrolan Ini
   ❌"
-blacklists_rm_all_bl_button_handler_yes: Menghapus semua Daftar Hitam dari Obrolan Ini ✅
+blacklists_rm_all_bl_done: Menghapus semua Daftar Hitam dari Obrolan Ini ✅
 blacklists_set_bl_action_changed_mode: "Berhasil mengubah mode daftar hitam ke: *%s*"
 blist_action_tban: "Mode daftar hitam berhasil diubah ke tban selama %s."
 blist_action_tmute: "Mode daftar hitam berhasil diubah ke tmute selama %s."
@@ -1175,7 +1175,6 @@ warns_limit_updated: "Pengaturan batas peringatan untuk obrolan ini telah diperb
 warns_reset_success: Peringatan telah diatur ulang!
 warns_no_users_warned: Tidak ada pengguna yang diperingatkan di obrolan ini!
 warns_reset_all_confirm: Apakah Anda yakin ingin menghapus semua peringatan semua pengguna di obrolan ini?
-warns_reset_all_success: Menghapus semua peringatan semua pengguna di obrolan ini!
 warns_reset_all_cancelled: Membatalkan penghapusan semua peringatan semua pengguna di obrolan ini!
 warns_reset_all_final: Menghapus semua peringatan semua pengguna di obrolan ini.
 
@@ -1445,7 +1444,6 @@ filters_none_in_chat: "Tidak ada filter di obrolan ini!"
 filters_current_in_chat: "Ini adalah filter saat ini di Obrolan ini:"
 filters_clear_all_confirm: "Apakah Anda yakin ingin menghapus semua Filter dari obrolan ini?"
 filters_clear_all_success: "Menghapus semua Filter dari Obrolan Ini ✅"
-filters_clear_all_failed: "Gagal menghapus semua Filter dari Obrolan Ini ❌"
 filters_clear_all_cancelled: "Dibatalkan menghapus semua Filter dari Obrolan Ini ❌"
 filters_overwrite_success: "Filter berhasil ditimpa ✅"
 filters_overwrite_cancelled: "Dibatalkan menimpa filter ❌"
@@ -2634,7 +2632,6 @@ approvals_unapproveall_done: "Semua pengguna yang disetujui telah dihapus."
 approvals_unapproveall_cancel: "Pembatalan penghapusan semua persetujuan."
 approvals_approve_error: "Gagal menyetujui pengguna. Silakan coba lagi."
 approvals_unapprove_error: "Gagal menghapus pengguna dari daftar yang disetujui."
-approvals_unapproveall_error: "Gagal menghapus semua pengguna yang disetujui: {error}"
 approvals_reason: "\nAlasan: %s"
 approvals_list_header: "Pengguna yang disetujui:\n"
 approvals_list_item: " - %s"

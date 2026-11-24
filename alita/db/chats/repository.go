@@ -51,8 +51,8 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 		log.Errorf("[Database] EnsureChatInDb: %v", err)
 		return fmt.Errorf("failed to ensure chat %d in database: %w", chatId, err)
 	}
-	cache.DeleteCache(cache.CacheKey("chat", chatId))
-	cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+	cache.DeleteCache(ChatProjection.Key(chatId))
+	cache.DeleteCache(ChatUsersProjection.Key(chatId))
 	return nil
 }
 
@@ -89,7 +89,7 @@ func TouchChat(chatId int64, chatname string) error {
 		return upsert.Error
 	}
 	if upsert.RowsAffected > 0 {
-		cache.DeleteCache(cache.CacheKey("chat", chatId))
+		cache.DeleteCache(ChatProjection.Key(chatId))
 	}
 	log.Debugf("[Database] TouchChat: %d", chatId)
 	return nil
@@ -111,7 +111,7 @@ func AddChatMember(chatId, userid int64) error {
 		return result.Error
 	}
 	if result.RowsAffected > 0 {
-		cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+		cache.DeleteCache(ChatUsersProjection.Key(chatId))
 	}
 
 	log.Debugf("[Database] AddChatMember: %d %d", chatId, userid)

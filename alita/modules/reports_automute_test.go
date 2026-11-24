@@ -331,6 +331,7 @@ func TestReportDismissLiftsOnlyTheAutoMute(t *testing.T) {
 }
 
 func TestReportsMuteSetting(t *testing.T) {
+	useRealLocales(t)
 	d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadReports(d)
 	f := newAdminChatFixture(t)

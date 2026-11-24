@@ -18,7 +18,7 @@ import (
 // as fit Telegram's limit. A module never straddles two messages unless its own
 // block exceeds the limit, in which case it is split by lines.
 func buildExtendMessages(tr *i18n.Translator, modules []string) []string {
-	header, _ := tr.GetString("help_extend_header")
+	header := tr.String("help_extend_header")
 
 	var blocks []string
 	for _, module := range modules {
@@ -105,15 +105,15 @@ func sendExtendList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // extend sends every command of every help-menu module in one list, one line per
 // command. In groups it points to PM instead of flooding the chat.
-func (moduleStruct) extend(b *gotgbot.Bot, ctx *ext.Context) error {
+func (*helpRegistry) extend(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	if ctx.EffectiveChat.Type == "private" {
 		return sendExtendList(b, ctx)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("help_extend_pm")
-	buttonText, _ := tr.GetString("help_extend_button")
+	text := tr.String("help_extend_pm")
+	buttonText := tr.String("help_extend_button")
 	_, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
 		ReplyParameters: &gotgbot.ReplyParameters{

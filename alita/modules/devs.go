@@ -31,7 +31,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		replyText, _ = tr.GetString("devs_specify_chat")
+		replyText = tr.String("devs_specify_chat")
 	} else {
 		_chatId := args[1]
 		chatId, _ := strconv.ParseInt(_chatId, 10, 64)
@@ -44,7 +44,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		gChat := &_chat
 		con, _ := gChat.GetMemberCount(b, nil)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		textTemplate, _ := tr.GetString("devs_chat_info")
+		textTemplate := tr.String("devs_chat_info")
 		replyText = fmt.Sprintf(textTemplate, html.EscapeString(chat.Title), chat.Id, con, html.EscapeString(chat.InviteLink))
 	}
 
@@ -61,7 +61,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("devs_getting_chat_list")
+	text := tr.String("devs_getting_chat_list")
 	rMsg, err := msg.Reply(
 		b,
 		text,
@@ -112,7 +112,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		replyText, _ := tr.GetString("devs_specify_chat")
+		replyText := tr.String("devs_specify_chat")
 		_, err := msg.Reply(b, replyText, formatting.Shtml())
 		if err != nil {
 			return err
@@ -128,7 +128,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("devs_left_chat")
+	text := tr.String("devs_left_chat")
 	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		return err
@@ -173,16 +173,16 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 
 	hasRole := cfg.checkRole(memStatus)
 	if cfg.add && hasRole {
-		txt, _ = tr.GetString(cfg.alreadyMsgKey)
+		txt = tr.String(cfg.alreadyMsgKey)
 	} else if !cfg.add && !hasRole {
-		txt, _ = tr.GetString(cfg.notRoleMsgKey)
+		txt = tr.String(cfg.notRoleMsgKey)
 	} else {
 		if err := cfg.dbOp(userId); err != nil {
 			log.Errorf("[Devs] Failed to %s %s for user %d: %v",
 				map[bool]string{true: "add", false: "remove"}[cfg.add], cfg.roleName, userId, err)
-			txt, _ = tr.GetString(cfg.failMsgKey)
+			txt = tr.String(cfg.failMsgKey)
 		} else {
-			textTemplate, _ := tr.GetString(cfg.successMsgKey)
+			textTemplate := tr.String(cfg.successMsgKey)
 			txt = fmt.Sprintf(textTemplate, formatting.MentionHtml(reqUser.Id, reqUser.FirstName))
 		}
 	}
@@ -245,8 +245,8 @@ func (m moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 	teamUsers := devs.GetTeamMembers()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	devHeader, _ := tr.GetString("devs_dev_users_header")
-	sudoHeader, _ := tr.GetString("devs_sudo_users_header")
+	devHeader := tr.String("devs_dev_users_header")
+	sudoHeader := tr.String("devs_sudo_users_header")
 	var (
 		txt       string
 		dev       = devHeader + "\n"
@@ -257,7 +257,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
 	if len(teamUsers) == 0 {
-		txt, _ = tr.GetString("devs_no_team_users")
+		txt = tr.String("devs_no_team_users")
 	} else {
 		for userId, uPerm := range teamUsers {
 			reqUser, err := b.GetChat(userId, nil)
@@ -281,7 +281,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 				sudoUsers = append(sudoUsers, fmt.Sprintf("• %s", userMentioned))
 			}
 		}
-		noUsersText, _ := tr.GetString("devs_no_users")
+		noUsersText := tr.String("devs_no_users")
 		if len(sudoUsers) == 0 {
 			sudo += "\n" + noUsersText
 		} else {
@@ -306,7 +306,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	text, _ := tr.GetString("devs_fetching_stats")
+	text := tr.String("devs_fetching_stats")
 	edits, err := msg.Reply(
 		b,
 		text,
@@ -329,42 +329,42 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadDev(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "stats",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.getStats))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "addsudo",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.addSudo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "adddev",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.addDev))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "remsudo",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.remSudo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "remdev",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotOwner()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotOwner()},
 	}, pipelineHandler(devsModule.remDev))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "teamusers",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotTeamMember()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotTeamMember()},
 	}, pipelineHandler(devsModule.listTeam))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "chatinfo",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.chatInfo))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "chatlist",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.chatList))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 		Name:           "leavechat",
-		RequiredChecks: []helpers.CheckFunc{helpers.RequireBotDeveloper()},
+		RequiredChecks: []helpers.Check{helpers.RequireBotDeveloper()},
 	}, pipelineHandler(devsModule.leaveChat))
 }
 
 func init() {
-	RegisterLegacyModule("Dev", 120, LoadDev)
+	RegisterLegacyModule("Dev", 120, LoadDev, RegisterLegacyModuleOptions{NoHelp: true})
 }

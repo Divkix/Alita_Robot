@@ -30,6 +30,7 @@ var helpMenuModules = []string{
 func commandsMenuFixture(t *testing.T) adminChatFixture {
 	t.Helper()
 	useRealLocales(t)
+	withCommandManifest(t)
 	withExtendRegistry(t, helpMenuModules...)
 	f := newAdminChatFixture(t)
 	original, originalCooldown := settingsCandidateChats, settingsPickerCooldown
@@ -226,7 +227,7 @@ func TestCommandsMenuButtonsAllEncode(t *testing.T) {
 			continue
 		}
 		assertButtonsEncode(t, kb)
-		for _, cmd := range sectionCommands(module, view) {
+		for _, cmd := range sectionCommands(module, view, menuCommands()) {
 			_, kb, ok := commandsCommandScreen(tr, view, cmd)
 			if !ok {
 				t.Errorf("/%s has no command screen", cmd)
