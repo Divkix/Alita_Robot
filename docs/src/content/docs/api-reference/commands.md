@@ -301,6 +301,7 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
+| `/echo` | Post formatted text without replying (groups only) | Admin | ❌ | `/say` |
 | `/github` | Look up a GitHub user or repository | Everyone | ✅ | — |
 | `/id` | Get user or chat ID | Everyone | ✅ | — |
 | `/info` | Get user information | Everyone | ✅ | — |
@@ -487,6 +488,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/dmute` | Mutes | Mute a user and delete their message | Admin |
 | `/donate` | Help | Show donation information | Everyone |
 | `/dwarn` | Warns | Warn a user and delete their message | Admin |
+| `/echo` | Misc | Post formatted text without replying (groups only) | Admin |
 | `/enable` | Disabling | Re-enable a disabled command | Admin |
 | `/ephemeral` | Admin | Show answers that would open in PM only to the asker | Admin |
 | `/export` | Backup | Export all group settings to a JSON file | Admin |
@@ -587,6 +589,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/runs` | Misc | Reply with a random quip | Everyone |
 | `/save` | Notes | Save a note | Admin |
 | `/saved` | Notes | List all saved notes | Everyone |
+| `/say` | Misc | Alias of `/echo` | Admin |
 | `/sban` | Bans | Silently ban a user | Admin |
 | `/setdescription` | Admin | Alias of `/setgdesc` | Admin |
 | `/setfedlog` | Federations | Make this group the federation log chat (groups only) | Fed owner |

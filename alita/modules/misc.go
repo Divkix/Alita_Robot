@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -99,6 +100,42 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	return ext.EndGroups
+}
+
+func announce(c *helpers.CommandContext) error {
+	text := c.Msg.Text
+	end := strings.IndexFunc(text, unicode.IsSpace)
+	var body string
+	if end >= 0 {
+		body = strings.TrimLeftFunc(text[end:], unicode.IsSpace)
+	}
+	if body == "" {
+		return helpers.EndGroupsLogging(c.Ctx, replyCommandHelp(c.Bot, c.Msg, c.Tr, "echo", ""))
+	}
+
+	// Native Telegram entities take precedence over typed markup. Rebase the
+	// entities without changing the update or dropping formatting across the cut.
+	offset := int64(formatting.UTF16Len(text[:len(text)-len(body)]))
+	var entities []gotgbot.MessageEntity
+	for _, entity := range c.Msg.Entities {
+		start, end := max(offset, entity.Offset), entity.Offset+entity.Length
+		if end <= start {
+			continue
+		}
+		entity.Offset, entity.Length = start-offset, end-start
+		entities = append(entities, entity)
+	}
+	if len(entities) == 0 {
+		body = formatting.ToTelegramHTML(body)
+	} else {
+		body = gotgbot.Message{Text: body, Entities: entities}.OriginalHTML()
+	}
+	opts := &gotgbot.SendMessageOpts{ParseMode: formatting.HTML}
+	if c.Msg.IsTopicMessage {
+		opts.MessageThreadId = c.Msg.MessageThreadId
+	}
+	_, err := c.Bot.SendMessage(c.Chat.Id, body, opts)
+	return helpers.EndGroupsLogging(c.Ctx, err)
 }
 
 func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -458,6 +495,10 @@ func LoadMisc(dispatcher *ext.Dispatcher) {
 			}),
 		},
 	}, pipelineHandler(miscModule.echomsg))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "echo", Aliases: []string{"say"},
+		RequiredChecks: []helpers.Check{helpers.RequireGroup(), helpers.RequireUserAdmin()},
+	}, announce)
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "ping", Disableable: true}, pipelineHandler(miscModule.ping))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "info", Disableable: true}, pipelineHandler(miscModule.info))
 	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "tr", Disableable: true}, pipelineHandler(miscModule.translate))

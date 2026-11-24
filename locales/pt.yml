@@ -743,6 +743,8 @@ misc_help_msg:
 
   × /tell <texto>: (admin, somente grupos) Responda a uma mensagem para o bot enviar <texto> como resposta a ela; sua mensagem de comando é apagada.
 
+  × /echo /say <texto>: (admin, somente grupos) Publique texto formatado na conversa ou no tópico atual sem responder a uma mensagem.
+
   × /stickerid: Responda a um sticker para obter o ID do arquivo.
 
   × /zombies: Expulsa as contas excluídas que o bot conhece (admin).
@@ -3102,6 +3104,8 @@ misc_extend_msg: |
   /ping — verificar o tempo de resposta do bot
   /stat — contar as mensagens do chat
   /tell — fazer o bot responder a uma mensagem com o seu texto
+  /echo — publicar texto formatado sem responder
+  /say — igual a /echo
   /tr — traduzir uma mensagem
   /removebotkeyboard — remover um teclado do bot travado
   /stickerid — obter o file ID de um sticker

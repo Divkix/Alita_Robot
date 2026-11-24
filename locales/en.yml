@@ -816,6 +816,8 @@ misc_help_msg:
 
   × /tell <text>: (admin, groups only) Reply to a message to make the bot send <text> as a reply to it; your command message is deleted.
 
+  × /echo /say <text>: (admin, groups only) Post formatted text in the current chat or topic without replying to a message.
+
   × /stickerid: Reply to a sticker to get its file ID.
 
   × /zombies: Kick deleted accounts the bot knows about (admin).
@@ -3147,6 +3149,8 @@ misc_extend_msg: |
   /ping — check the bot's response time
   /stat — count messages in the chat
   /tell — make the bot reply to a message with your text
+  /echo — post formatted text without replying
+  /say — same as /echo
   /tr — translate a message
   /removebotkeyboard — remove a stuck bot keyboard
   /stickerid — get a sticker's file ID

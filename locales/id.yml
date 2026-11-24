@@ -771,6 +771,8 @@ misc_help_msg:
 
   × /tell <teks>: (admin, hanya grup) Balas sebuah pesan agar bot mengirim <teks> sebagai balasan untuk pesan itu; pesan perintah Anda akan dihapus.
 
+  × /echo /say <teks>: (admin, hanya grup) Kirim teks berformat di obrolan atau topik saat ini tanpa membalas pesan.
+
   × /stickerid: Balas stiker untuk mendapatkan ID file-nya.
 
   × /zombies: Keluarkan akun terhapus yang dikenal bot (admin).
@@ -3129,6 +3131,8 @@ misc_extend_msg: |
   /ping — cek waktu respons bot
   /stat — hitung pesan di obrolan
   /tell — buat bot membalas sebuah pesan dengan teks Anda
+  /echo — kirim teks berformat tanpa membalas pesan
+  /say — sama seperti /echo
   /tr — terjemahkan pesan
   /removebotkeyboard — hapus keyboard bot yang macet
   /stickerid — dapatkan file ID stiker

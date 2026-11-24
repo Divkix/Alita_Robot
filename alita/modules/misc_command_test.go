@@ -137,6 +137,42 @@ func TestEchoMessageRequiresReplyAndContent(t *testing.T) {
 	}
 }
 
+func TestStandaloneEchoPostsFormattedTextInTopic(t *testing.T) {
+	useRealLocales(t)
+	for _, tc := range []struct {
+		command, body, want string
+		entities            []gotgbot.MessageEntity
+	}{
+		{command: "/echo", body: "Heads up & stay safe!", want: "<b>Heads up</b> &amp; stay safe!",
+			entities: []gotgbot.MessageEntity{{Type: "bold", Offset: 6, Length: 8}}},
+		{command: "/say", body: "*Heads up!*", want: "<b>Heads up!</b>"},
+	} {
+		t.Run(tc.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			f.chat.IsForum = true
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			LoadMisc(d)
+			update := newModuleMessageContext(f.bot, f.chat, f.admin, tc.command+"\n"+tc.body).Update
+			update.Message.IsTopicMessage = true
+			update.Message.MessageThreadId = 7
+			update.Message.Entities = append([]gotgbot.MessageEntity{
+				{Type: "bot_command", Length: int64(len(tc.command))},
+			}, tc.entities...)
+			if err := d.ProcessUpdate(f.bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			assertParams(t, call, map[string]any{
+				"chat_id": f.chat.Id, "message_thread_id": int64(7),
+				"text": tc.want, "parse_mode": "HTML",
+			})
+			if reply := call.Params["reply_parameters"]; reply != nil {
+				t.Fatalf("%s sent a reply instead of a standalone post: %#v", tc.command, reply)
+			}
+		})
+	}
+}
+
 func TestTranslateMissingInputReplies(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -505,6 +541,8 @@ func TestMiscCommandPermissionPrecedence(t *testing.T) {
 		wantCount  int
 	}{
 		{name: "tell member silent", command: "/tell hi", member: true},
+		{name: "echo member refused", command: "/echo hi", member: true, wantKey: "chat_status_user_admin_cmd_error", wantCount: 1},
+		{name: "say PM stays group only", command: "/say hi", private: true, wantKey: "chat_status_group_only_error", wantCount: 1},
 		{name: "tell admin", command: "/tell hi", wantKey: "misc_reply_to_someone", wantCount: 1},
 		{name: "tell needs no restrict rights", command: "/tell hi", limited: true, limitedBot: true, wantKey: "misc_reply_to_someone", wantCount: 1},
 		{name: "tell PM stays group only", command: "/tell hi", private: true, wantKey: "chat_status_group_only_error", wantCount: 1},

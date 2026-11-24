@@ -13,6 +13,7 @@ description: Complete guide to Misc module commands and features
 × /removebotkeyboard: Removes the stuck bot keyboard from your chat.
 × /stat: Gets the count of the total number of messages in the chat.
 × /tell <text>: (admin, groups only) Reply to a message to make the bot send <text> as a reply to it; your command message is deleted.
+× /echo /say <text>: (admin, groups only) Post formatted text in the current chat or topic without replying to a message.
 × /stickerid: Reply to a sticker to get its file ID.
 × /zombies: Kick deleted accounts the bot knows about (admin).
 × /github <user|user/repo>: Look up a GitHub user or repository.
@@ -39,6 +40,7 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
+| `/echo`, `/say` | Post formatted text as a standalone message | ❌ |
 | `/github` | Look up a GitHub user or repository | ✅ |
 | `/id` | Get chat or user ID | ✅ |
 | `/info` | Get user info | ✅ |
@@ -63,6 +65,15 @@ This module can be accessed using the following aliases:
 /ping
 ```
 
+### Announce in a group or topic
+
+```text
+/echo *Reminder:* Read the pinned rules.
+```
+
+`/say` is an alias of `/echo`. Type Markdown or format the message in Telegram.
+If you apply formatting in Telegram, the bot keeps that formatting as sent.
+
 For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
@@ -70,6 +81,8 @@ For detailed command usage, refer to the commands table above.
 - `/tell` — Requires **Admin** (`RequireGroup` + `IsUserAdmin`). Must be used
   as a reply to another message. The bot deletes the original command message
   and echoes the command arguments as a reply to the target message.
+- `/echo`, `/say` — Requires **Admin** in the current group. The bot posts in
+  the topic the command was sent in, without a reply target.
 - `/zombies` — Requires **Admin**, works in groups only (`RequireGroup` +
   `RequireUserAdmin`), and the bot needs the right to restrict members
   (`CanBotRestrict`). Kicks tracked members whose first name is empty or

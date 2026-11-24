@@ -137,6 +137,7 @@ ephemeral_example: "/ephemeral on"
 ephemeral_pm_example: "/ephemeral @mygroup on"
 digest_example: "/digest now"
 recurring_example: "/recurring add 6h Read the rules before posting!"
+echo_example: "/echo *Reminder:* Read the pinned rules."
 alt_names:
   Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc, timezone, ephemeral]
   Approvals: [approval, approve, unapprove]
