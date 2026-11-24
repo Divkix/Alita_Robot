@@ -145,7 +145,8 @@ func TestStandaloneEchoPostsFormattedTextInTopic(t *testing.T) {
 	}{
 		{command: "/echo", body: "Heads up & stay safe!", want: "<b>Heads up</b> &amp; stay safe!",
 			entities: []gotgbot.MessageEntity{{Type: "bold", Offset: 6, Length: 8}}},
-		{command: "/say", body: "*Heads up!*", want: "<b>Heads up!</b>"},
+		{command: "/say", body: "*Heads up!* https://example.com", want: "<b>Heads up!</b> https://example.com",
+			entities: []gotgbot.MessageEntity{{Type: "url", Offset: 17, Length: 19}}},
 	} {
 		t.Run(tc.command, func(t *testing.T) {
 			f := newAdminChatFixture(t)

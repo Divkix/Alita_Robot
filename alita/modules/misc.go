@@ -113,11 +113,16 @@ func announce(c *helpers.CommandContext) error {
 		return helpers.EndGroupsLogging(c.Ctx, replyCommandHelp(c.Bot, c.Msg, c.Tr, "echo", ""))
 	}
 
-	// Native Telegram entities take precedence over typed markup. Rebase the
-	// entities without changing the update or dropping formatting across the cut.
+	// Native Telegram formatting takes precedence over typed markup, but
+	// automatically detected links and mentions are not formatting.
 	offset := int64(formatting.UTF16Len(text[:len(text)-len(body)]))
 	var entities []gotgbot.MessageEntity
 	for _, entity := range c.Msg.Entities {
+		switch entity.Type {
+		case "mention", "hashtag", "cashtag", "bot_command", "url", "email",
+			"phone_number", "bank_card_number", "ton_address":
+			continue
+		}
 		start, end := max(offset, entity.Offset), entity.Offset+entity.Length
 		if end <= start {
 			continue
