@@ -28,7 +28,7 @@ func after(d time.Duration) {
 func TestJobTicksOncePerIntervalAndNotBeforeTheFirst(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		var ticks atomic.Int32
 		r.register("probe", time.Minute, counter(&ticks))
 		r.start()
@@ -51,7 +51,7 @@ func TestJobTicksOncePerIntervalAndNotBeforeTheFirst(t *testing.T) {
 func TestTickAfterAnErrorAndAPanic(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		var ticks atomic.Int32
 		r.register("flaky", time.Minute, func(context.Context) error {
 			switch ticks.Add(1) {
@@ -74,7 +74,7 @@ func TestTickAfterAnErrorAndAPanic(t *testing.T) {
 func TestLongTickDoesNotOverlapItself(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		var running, maxRunning, ticks atomic.Int32
 		r.register("slow", time.Minute, func(context.Context) error {
 			ticks.Add(1)
@@ -118,7 +118,7 @@ func TestStopWaitsForTheTickInFlightAndCancelsIt(t *testing.T) {
 			t.Fatal("tick not in flight")
 		}
 
-		r.stop()
+		_ = r.stop(context.Background())
 		if !finished.Load() {
 			t.Fatal("stop returned before the tick in flight finished")
 		}
@@ -135,8 +135,8 @@ func TestStopWaitsForTheTickInFlightAndCancelsIt(t *testing.T) {
 func TestStopTwiceAndWithoutStart(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		r.stop()
-		r.stop()
+		_ = r.stop(context.Background())
+		_ = r.stop(context.Background())
 
 		var ticks atomic.Int32
 		r.register("late", time.Minute, counter(&ticks))
@@ -151,7 +151,7 @@ func TestStopTwiceAndWithoutStart(t *testing.T) {
 func TestStartTwiceRunsEachJobOnce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		var ticks atomic.Int32
 		r.register("probe", time.Minute, counter(&ticks))
 		r.start()
@@ -167,7 +167,7 @@ func TestStartTwiceRunsEachJobOnce(t *testing.T) {
 func TestJobRegisteredAfterStartTicks(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		r.start()
 		var ticks atomic.Int32
 		r.register("late", time.Minute, counter(&ticks))
@@ -182,7 +182,7 @@ func TestJobRegisteredAfterStartTicks(t *testing.T) {
 func TestNameRegisteredTwiceRunsOnce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		var first, second atomic.Int32
 		r.register("dup", time.Minute, counter(&first))
 		r.register("dup", time.Minute, counter(&second))
@@ -198,7 +198,7 @@ func TestNameRegisteredTwiceRunsOnce(t *testing.T) {
 func TestJobsWithDifferentIntervalsDoNotDelayEachOther(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &registry{}
-		defer r.stop()
+		defer func() { _ = r.stop(context.Background()) }()
 		var fast, slow atomic.Int32
 		r.register("slow", time.Minute, func(ctx context.Context) error {
 			slow.Add(1)
@@ -217,6 +217,42 @@ func TestJobsWithDifferentIntervalsDoNotDelayEachOther(t *testing.T) {
 		}
 		if got := slow.Load(); got != 1 {
 			t.Fatalf("slow ticks = %d, want 1", got)
+		}
+	})
+}
+
+// A tick that ignores the cancellation keeps StopContext from waiting forever:
+// the bounded stop returns its context error once the budget ends, and the
+// tick in flight still ends on its own context.
+func TestStopContextTimesOutOnATickThatIgnoresCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := &registry{}
+		release := make(chan struct{})
+		started := make(chan struct{})
+		r.register("stuck", time.Minute, func(context.Context) error {
+			close(started)
+			<-release
+			return nil
+		})
+		r.start()
+		after(time.Minute)
+		<-started
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		start := time.Now()
+		err := r.stop(ctx)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("stop with a 1s budget = %v, want context.DeadlineExceeded", err)
+		}
+		if elapsed := time.Since(start); elapsed != time.Second {
+			t.Fatalf("stop took %v, want the 1s budget", elapsed)
+		}
+
+		close(release)
+		if err := r.stop(context.Background()); err != nil {
+			t.Fatalf("final stop = %v, want nil", err)
 		}
 	})
 }

@@ -104,10 +104,17 @@ func RecordLeave(chatID int64) {
 	record(chatID, metricLeaves)
 }
 
-// Flush drains the counters and writes them as one additive upsert. When the
-// write fails the drained deltas are put back, so the next flush retries them
-// instead of losing them.
+// Flush drains the counters and writes them as one additive upsert, without a
+// deadline. When the write fails the drained deltas are put back, so the next
+// flush retries them instead of losing them.
 func Flush() error {
+	return FlushContext(context.Background())
+}
+
+// FlushContext is Flush bounded by ctx: a cancelled write puts the drained
+// deltas back, so the next flush retries them. Shutdown uses it so a flush
+// abandoned at its handler limit stops writing instead of running on past it.
+func FlushContext(ctx context.Context) error {
 	flushMu.Lock()
 	defer flushMu.Unlock()
 
@@ -128,7 +135,7 @@ func Flush() error {
 		Hourly:  hourlyRowsFromDeltas(deltas),
 		Members: memberRowsFromDeltas(memberDeltas),
 	}
-	if err := chatstats.Add(batch); err != nil {
+	if err := chatstats.AddContext(ctx, batch); err != nil {
 		for key, delta := range deltas {
 			counter(key).Add(delta)
 		}
@@ -224,7 +231,7 @@ func pruneBefore(today string, hour int16) {
 // statsFlush; jobs.Start begins it. Shutdown calls Flush once more after the
 // jobs stop, before the database closes.
 func RegisterFlusher() {
-	jobs.Register("statsFlush", flushInterval, func(context.Context) error {
-		return Flush()
+	jobs.Register("statsFlush", flushInterval, func(ctx context.Context) error {
+		return FlushContext(ctx)
 	})
 }

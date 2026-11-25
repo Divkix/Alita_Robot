@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -147,7 +148,7 @@ func TestImportFBansNeedsFileAndOwnedFedLookup(t *testing.T) {
 	require.Equal(t, "You don't own a federation. Create one with /newfed.", sentTexts(client)[1])
 
 	notifyFedAction(bot, federations.GetFed(fed.FedID), &stranger, "notify")
-	applyActiveFban(bot, fed.FedID, 42, 1)
+	applyActiveFban(context.Background(), bot, fed.FedID, 42, 1)
 }
 
 func TestJoinFedRejectsNonOwner(t *testing.T) {
@@ -513,7 +514,7 @@ func TestUnfbanChatFailureDoesNotStopOtherChats(t *testing.T) {
 	chatA := seedFedChat(t, fed.FedID, target)
 	chatB := seedFedChat(t, fed.FedID, target)
 
-	applyActiveUnfban(bot, fed.FedID, target, 1)
+	applyActiveUnfban(context.Background(), bot, fed.FedID, target, 1)
 	require.ElementsMatch(t, []int64{chatA.Id, chatB.Id}, unbanTargets(client, target),
 		"an error in one chat must not skip the remaining chats")
 }

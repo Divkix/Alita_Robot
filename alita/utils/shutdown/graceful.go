@@ -23,7 +23,7 @@ type handlerEntry struct {
 	name   string
 	phase  Phase
 	seq    int
-	handle func() error
+	handle func(context.Context) error
 }
 
 type Manager struct {
@@ -41,7 +41,9 @@ var (
 	shutdownTimeout = 60 * time.Second
 )
 
-// handlerTimeout is how long shutdown waits for one handler before moving on.
+// handlerTimeout bounds one handler: at the limit its context is cancelled
+// and shutdown stops waiting for it, but the phase's barrier still waits for
+// the goroutine to return before the next phase may start.
 const handlerTimeout = 10 * time.Second
 
 func NewManager() *Manager {
@@ -53,7 +55,7 @@ func NewManager() *Manager {
 // Register adds a named drain to phase. Drains run in phase order — see
 // Phases — and drains registered later run first inside one phase, so a drain
 // that must precede another in the same phase registers after it.
-func (m *Manager) Register(name string, phase Phase, handler func() error) {
+func (m *Manager) Register(name string, phase Phase, handler func(context.Context) error) {
 	if m.shutdownStarted.Load() {
 		log.Warnf("[Shutdown] Register(%s) called after shutdown started - handler may not run", name)
 	}
@@ -82,15 +84,21 @@ func (m *Manager) WaitForShutdown() {
 	m.shutdown()
 }
 
-func (m *Manager) executeHandler(entry handlerEntry) (err error) {
+func (m *Manager) executeHandler(ctx context.Context, entry handlerEntry) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("[Shutdown] Handler %q panicked: %v", entry.name, r)
 		}
 	}()
-	return entry.handle()
+	return entry.handle(ctx)
 }
 
+// shutdown ends the process once, phase by phase. Inside a phase, handlers
+// start in the sorted order; a handler that outlives handlerTimeout is
+// abandoned to finish on its own, and the phase's barrier waits for it (and
+// the global deadline) before the next phase starts. The database therefore
+// never closes while a handler can still write, and a global timeout exits
+// with exit(1) without running the database phase or any later one.
 func (m *Manager) shutdown() {
 	m.once.Do(func() {
 		defer error_handling.RecoverFromPanic("shutdown", "shutdown")
@@ -106,27 +114,51 @@ func (m *Manager) shutdown() {
 		copy(handlers, m.handlers)
 		m.mu.RUnlock()
 
-		for _, entry := range handlers {
-			hCtx, hCancel := context.WithTimeout(ctx, handlerTimeout)
-			done := make(chan error, 1)
-			go func(e handlerEntry) {
-				done <- m.executeHandler(e)
-			}(entry)
-
-			select {
-			case <-hCtx.Done():
-				log.Warnf("[Shutdown] Handler %q timed out, skipping", entry.name)
-			case err := <-done:
-				if err != nil {
-					log.Errorf("[Shutdown] Handler %q error: %v", entry.name, err)
-				}
-			}
-			hCancel()
-
+		for i := 0; i < len(handlers); {
 			if ctx.Err() != nil {
-				log.Warn("[Shutdown] Global timeout, forcing exit")
+				log.Warnf("[Shutdown] Global timeout before phase %v, forcing exit", handlers[i].phase)
 				exitProcess(1)
 				return
+			}
+			phase := handlers[i].phase
+			var abandoned []<-chan struct{}
+
+			for ; i < len(handlers) && handlers[i].phase == phase; i++ {
+				entry := handlers[i]
+				hCtx, hCancel := context.WithTimeout(ctx, handlerTimeout)
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					if err := m.executeHandler(hCtx, entry); err != nil {
+						log.Errorf("[Shutdown] Handler %q error: %v", entry.name, err)
+					}
+				}()
+
+				select {
+				case <-done:
+				case <-hCtx.Done():
+					if ctx.Err() == nil {
+						log.Warnf("[Shutdown] Handler %q timed out, abandoning it", entry.name)
+					}
+					abandoned = append(abandoned, done)
+				}
+				hCancel()
+
+				if ctx.Err() != nil {
+					log.Warn("[Shutdown] Global timeout, forcing exit")
+					exitProcess(1)
+					return
+				}
+			}
+
+			for _, done := range abandoned {
+				select {
+				case <-done:
+				case <-ctx.Done():
+					log.Warnf("[Shutdown] Global timeout waiting for phase %v handlers, forcing exit", phase)
+					exitProcess(1)
+					return
+				}
 			}
 		}
 

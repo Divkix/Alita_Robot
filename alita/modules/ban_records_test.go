@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -363,7 +364,7 @@ func TestFedBanWalkRecordsAndUnfbanCloses(t *testing.T) {
 		t.Fatalf("Fban() error = %v", err)
 	}
 
-	applyActiveFban(bot, fed.FedID, target, owner)
+	applyActiveFban(context.Background(), bot, fed.FedID, target, owner)
 
 	got := singleBanRecord(t, chat.Id)
 	if got.UserId != target || got.BannedBy != owner || got.Source != models.BanSourceFed || got.SourceDetail != fed.FedID {
@@ -373,7 +374,7 @@ func TestFedBanWalkRecordsAndUnfbanCloses(t *testing.T) {
 		t.Fatalf("Unfban() error = %v", err)
 	}
 
-	applyActiveUnfban(bot, fed.FedID, target, owner)
+	applyActiveUnfban(context.Background(), bot, fed.FedID, target, owner)
 
 	if got := singleBanRecord(t, chat.Id); got.LiftedAt == nil || got.LiftedBy == nil || *got.LiftedBy != owner {
 		t.Fatalf("record = %+v, want it lifted by %d", got, owner)

@@ -1,6 +1,7 @@
 package shutdown
 
 import (
+	"context"
 	"errors"
 	"os"
 	"sync"
@@ -28,16 +29,16 @@ func TestRegister(t *testing.T) {
 	var callOrder []int
 	var mu sync.Mutex
 
-	m.Register("first", PhaseModuleDrains, func() error { mu.Lock(); callOrder = append(callOrder, 1); mu.Unlock(); return nil })
-	m.Register("second", PhaseModuleDrains, func() error { mu.Lock(); callOrder = append(callOrder, 2); mu.Unlock(); return nil })
-	m.Register("third", PhaseModuleDrains, func() error { mu.Lock(); callOrder = append(callOrder, 3); mu.Unlock(); return nil })
+	m.Register("first", PhaseModuleDrains, func(context.Context) error { mu.Lock(); callOrder = append(callOrder, 1); mu.Unlock(); return nil })
+	m.Register("second", PhaseModuleDrains, func(context.Context) error { mu.Lock(); callOrder = append(callOrder, 2); mu.Unlock(); return nil })
+	m.Register("third", PhaseModuleDrains, func(context.Context) error { mu.Lock(); callOrder = append(callOrder, 3); mu.Unlock(); return nil })
 
 	if len(m.handlers) != 3 {
 		t.Fatalf("expected 3 handlers, got %d", len(m.handlers))
 	}
 
 	for i, entry := range m.handlers {
-		if err := entry.handle(); err != nil {
+		if err := entry.handle(context.Background()); err != nil {
 			t.Fatalf("handler %d returned error: %v", i, err)
 		}
 	}
@@ -59,7 +60,7 @@ func TestRegister(t *testing.T) {
 func TestExecuteHandler(t *testing.T) {
 	tests := []struct {
 		name         string
-		handler      func() error
+		handler      func(context.Context) error
 		delay        int
 		wantExecuted bool
 		wantErr      bool
@@ -67,7 +68,7 @@ func TestExecuteHandler(t *testing.T) {
 	}{
 		{
 			name: "successful execution",
-			handler: func() error {
+			handler: func(context.Context) error {
 				return nil
 			},
 			delay:        0,
@@ -76,7 +77,7 @@ func TestExecuteHandler(t *testing.T) {
 		},
 		{
 			name: "handler returns error",
-			handler: func() error {
+			handler: func(context.Context) error {
 				return errors.New("handler error")
 			},
 			delay:        1,
@@ -91,12 +92,12 @@ func TestExecuteHandler(t *testing.T) {
 			t.Parallel()
 			m := NewManager()
 			executed := false
-			wrapped := func() error {
+			wrapped := func(ctx context.Context) error {
 				executed = true
-				return tc.handler()
+				return tc.handler(ctx)
 			}
 			entry := handlerEntry{name: "test", phase: PhaseModuleDrains, handle: wrapped}
-			err := m.executeHandler(entry)
+			err := m.executeHandler(context.Background(), entry)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -120,11 +121,11 @@ func TestExecuteHandlerPanicRecovery(t *testing.T) {
 	m := NewManager()
 
 	executed := false
-	entry := handlerEntry{name: "panicking", phase: PhaseModuleDrains, handle: func() error {
+	entry := handlerEntry{name: "panicking", phase: PhaseModuleDrains, handle: func(context.Context) error {
 		executed = true
 		panic("intentional panic")
 	}}
-	err := m.executeHandler(entry)
+	err := m.executeHandler(context.Background(), entry)
 
 	if err != nil {
 		t.Errorf("expected nil error after panic recovery, got %v", err)
@@ -140,9 +141,9 @@ func TestHandlersInOnePhaseExecuteInLIFOOrder(t *testing.T) {
 
 	orderCh := make(chan int, 3)
 
-	m.Register("first", PhaseModuleDrains, func() error { orderCh <- 1; return nil })
-	m.Register("second", PhaseModuleDrains, func() error { orderCh <- 2; return nil })
-	m.Register("third", PhaseModuleDrains, func() error { orderCh <- 3; return nil })
+	m.Register("first", PhaseModuleDrains, func(context.Context) error { orderCh <- 1; return nil })
+	m.Register("second", PhaseModuleDrains, func(context.Context) error { orderCh <- 2; return nil })
+	m.Register("third", PhaseModuleDrains, func(context.Context) error { orderCh <- 3; return nil })
 
 	m.mu.RLock()
 	handlers := make([]handlerEntry, len(m.handlers))
@@ -150,7 +151,7 @@ func TestHandlersInOnePhaseExecuteInLIFOOrder(t *testing.T) {
 	m.mu.RUnlock()
 
 	for _, entry := range handlers {
-		if err := m.executeHandler(entry); err != nil {
+		if err := m.executeHandler(context.Background(), entry); err != nil {
 			t.Fatalf("handler %q returned error: %v", entry.name, err)
 		}
 	}
@@ -182,8 +183,8 @@ func TestPhasesDecideExecutionOrderNotRegistrationOrder(t *testing.T) {
 
 	var order []string
 	var mu sync.Mutex
-	record := func(name string) func() error {
-		return func() error {
+	record := func(name string) func(context.Context) error {
+		return func(context.Context) error {
 			mu.Lock()
 			defer mu.Unlock()
 			order = append(order, name)
@@ -205,13 +206,13 @@ func TestPhasesDecideExecutionOrderNotRegistrationOrder(t *testing.T) {
 	copy(handlers, m.handlers)
 	m.mu.RUnlock()
 	for _, entry := range handlers {
-		if err := m.executeHandler(entry); err != nil {
+		if err := m.executeHandler(context.Background(), entry); err != nil {
 			t.Fatalf("handler %q returned error: %v", entry.name, err)
 		}
 	}
 
 	want := []string{
-		"updater stop", "http stop", "users drain", "jobs stop",
+		"updater stop", "http stop", "jobs stop", "users drain",
 		"stats flush", "db close", "tracer",
 	}
 	mu.Lock()
@@ -249,7 +250,7 @@ func TestRegisterConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			m.Register("handler", PhaseModuleDrains, func() error { return nil })
+			m.Register("handler", PhaseModuleDrains, func(context.Context) error { return nil })
 		}()
 	}
 
@@ -277,8 +278,8 @@ func TestShutdownExecutesHandlersInLIFOOrderAndExitsOnce(t *testing.T) {
 	m := NewManager()
 	var order []int
 	var mu sync.Mutex
-	record := func(v int) func() error {
-		return func() error {
+	record := func(v int) func(context.Context) error {
+		return func(context.Context) error {
 			mu.Lock()
 			defer mu.Unlock()
 			order = append(order, v)
@@ -286,7 +287,7 @@ func TestShutdownExecutesHandlersInLIFOOrderAndExitsOnce(t *testing.T) {
 		}
 	}
 	m.Register("first", PhaseModuleDrains, record(1))
-	m.Register("second", PhaseModuleDrains, func() error {
+	m.Register("second", PhaseModuleDrains, func(context.Context) error {
 		mu.Lock()
 		defer mu.Unlock()
 		order = append(order, 2)
@@ -330,7 +331,7 @@ func TestShutdownTimeoutInterruptsBlockedHandler(t *testing.T) {
 	shutdownTimeout = 10 * time.Millisecond
 
 	m := NewManager()
-	m.Register("blocked", PhaseModuleDrains, func() error {
+	m.Register("blocked", PhaseModuleDrains, func(context.Context) error {
 		<-block
 		return nil
 	})
@@ -357,46 +358,148 @@ func TestShutdownTimeoutInterruptsBlockedHandler(t *testing.T) {
 	}
 }
 
-// A hung handler (the jobs drain waiting on a tick that ignores cancellation)
-// is skipped after its own time limit, and the handlers after it still run.
-func TestShutdownSkipsAHungHandlerAndRunsTheRest(t *testing.T) {
+// A handler blocked on its context sees the cancellation at the handler
+// limit, so the work stops instead of running under the next phase.
+func TestShutdownCancelsHandlerAtTheHandlerTimeout(t *testing.T) {
 	oldExit := exitProcess
 	defer func() { exitProcess = oldExit }()
 
 	synctest.Test(t, func(t *testing.T) {
-		hung := make(chan struct{})
-		defer close(hung)
 		var exitCode int
 		exitProcess = func(code int) { exitCode = code }
 
-		var order []string
-		var mu sync.Mutex
-		record := func(step string) func() error {
-			return func() error {
-				mu.Lock()
-				defer mu.Unlock()
-				order = append(order, step)
-				return nil
-			}
-		}
+		cancelled := make(chan struct{})
 		m := NewManager()
-		m.Register("db close", PhaseDatabase, record("db close"))
-		m.Register("stats flush", PhaseFlush, record("stats flush"))
-		m.Register("hung drain", PhaseModuleDrains, func() error { <-hung; return nil })
+		m.Register("waits for cancel", PhaseModuleDrains, func(ctx context.Context) error {
+			<-ctx.Done()
+			close(cancelled)
+			return ctx.Err()
+		})
 
 		start := time.Now()
 		m.shutdown()
 
-		if elapsed := time.Since(start); elapsed != 10*time.Second {
-			t.Fatalf("shutdown took %v, want the 10s handler limit", elapsed)
+		if elapsed := time.Since(start); elapsed != handlerTimeout {
+			t.Fatalf("shutdown took %v, want the %v handler limit", elapsed, handlerTimeout)
 		}
-		mu.Lock()
-		defer mu.Unlock()
-		if len(order) != 2 || order[0] != "stats flush" || order[1] != "db close" {
-			t.Fatalf("order = %v, want [stats flush, db close]", order)
+		select {
+		case <-cancelled:
+		default:
+			t.Fatal("handler did not observe its context cancellation")
 		}
 		if exitCode != 0 {
 			t.Fatalf("exit code = %d, want 0", exitCode)
+		}
+	})
+}
+
+// An abandoned handler that ignores cancellation still delays the later
+// phases: the database closes only once it returns, so it cannot write into
+// a closed database.
+func TestPhaseBarrierWaitsForAnAbandonedHandlerBeforeClosingTheDatabase(t *testing.T) {
+	oldExit := exitProcess
+	defer func() { exitProcess = oldExit }()
+
+	synctest.Test(t, func(t *testing.T) {
+		var exitCode int
+		exitProcess = func(code int) { exitCode = code }
+
+		release := make(chan struct{})
+		var mu sync.Mutex
+		var order []string
+		record := func(step string) {
+			mu.Lock()
+			defer mu.Unlock()
+			order = append(order, step)
+		}
+
+		cancelled := make(chan struct{})
+		m := NewManager()
+		m.Register("db close", PhaseDatabase, func(context.Context) error { record("db close"); return nil })
+		m.Register("stats flush", PhaseFlush, func(context.Context) error { record("stats flush"); return nil })
+		m.Register("ignores cancel", PhaseModuleDrains, func(ctx context.Context) error {
+			<-ctx.Done()
+			close(cancelled)
+			<-release
+			record("ignores cancel")
+			return nil
+		})
+
+		done := make(chan struct{})
+		go func() {
+			m.shutdown()
+			close(done)
+		}()
+
+		// At the handler limit the drain is abandoned but still writing.
+		time.Sleep(handlerTimeout)
+		<-cancelled
+
+		mu.Lock()
+		if len(order) != 0 {
+			mu.Unlock()
+			t.Fatalf("order before the abandoned handler returned = %v, want none", order)
+		}
+		mu.Unlock()
+
+		close(release)
+		<-done
+
+		if exitCode != 0 {
+			t.Fatalf("exit code = %d, want 0", exitCode)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		want := []string{"ignores cancel", "stats flush", "db close"}
+		if len(order) != len(want) {
+			t.Fatalf("order = %v, want %v", order, want)
+		}
+		for i, step := range want {
+			if order[i] != step {
+				t.Fatalf("order = %v, want %v", order, want)
+			}
+		}
+	})
+}
+
+// The global deadline ends the process without running the database phase:
+// closing the database is safe only after every earlier handler returned,
+// and the deadline says one did not.
+func TestGlobalTimeoutExitsWithoutRunningTheDatabasePhase(t *testing.T) {
+	oldExit := exitProcess
+	oldTimeout := shutdownTimeout
+	defer func() {
+		exitProcess = oldExit
+		shutdownTimeout = oldTimeout
+	}()
+
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		defer close(release)
+		var exitCode int
+		exitProcess = func(code int) { exitCode = code }
+		shutdownTimeout = 5 * time.Second
+
+		dbClosed := false
+		m := NewManager()
+		m.Register("db close", PhaseDatabase, func(context.Context) error { dbClosed = true; return nil })
+		m.Register("tracer", PhaseTelemetry, func(context.Context) error { dbClosed = true; return nil })
+		m.Register("hung drain", PhaseModuleDrains, func(context.Context) error {
+			<-release
+			return nil
+		})
+
+		start := time.Now()
+		m.shutdown()
+
+		if elapsed := time.Since(start); elapsed != shutdownTimeout {
+			t.Fatalf("shutdown took %v, want the %v global limit", elapsed, shutdownTimeout)
+		}
+		if exitCode != 1 {
+			t.Fatalf("exit code = %d, want 1", exitCode)
+		}
+		if dbClosed {
+			t.Fatal("database phase or a later phase ran after the global timeout")
 		}
 	})
 }
@@ -430,7 +533,7 @@ func TestWaitForShutdownUsesSignalHooks(t *testing.T) {
 
 	m := NewManager()
 	handlerCalled := false
-	m.Register("handler", PhaseModuleDrains, func() error {
+	m.Register("handler", PhaseModuleDrains, func(context.Context) error {
 		handlerCalled = true
 		return nil
 	})

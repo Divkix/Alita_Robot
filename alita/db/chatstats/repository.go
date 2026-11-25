@@ -10,6 +10,7 @@
 package chatstats
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -46,13 +47,19 @@ func AddDaily(rows []models.ChatDailyStat) error {
 	return Add(Batch{Daily: rows})
 }
 
-// Add adds every row's counters to the row with the same key. The counters are
-// added, not replaced, so two replicas that flush the same day or hour produce
-// the sum instead of the last write. Rows are inserted in batches so a flush
-// with more chats than one statement's bind-parameter limit still succeeds;
-// every batch of every table is in one transaction, so a failure leaves no
-// partial flush behind.
+// Add adds every row's counters to the row with the same key, without a
+// deadline. It is AddContext with a background context.
 func Add(batch Batch) error {
+	return AddContext(context.Background(), batch)
+}
+
+// AddContext adds every row's counters to the row with the same key. The
+// counters are added, not replaced, so two replicas that flush the same day or
+// hour produce the sum instead of the last write. Rows are inserted in batches
+// so a flush with more chats than one statement's bind-parameter limit still
+// succeeds; every batch of every table is in one transaction, so a failure
+// leaves no partial flush behind. The transaction ends when ctx does.
+func AddContext(ctx context.Context, batch Batch) error {
 	if batch.empty() {
 		return nil
 	}
@@ -63,7 +70,7 @@ func Add(batch Batch) error {
 	// Qualifying a column with the table name refers to the existing row in
 	// both PostgreSQL and SQLite ON CONFLICT DO UPDATE; EXCLUDED is the row
 	// proposed by this statement.
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+	return db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if len(batch.Daily) > 0 {
 			err := tx.Clauses(clause.OnConflict{
 				Columns: []clause.Column{{Name: "chat_id"}, {Name: "day"}},

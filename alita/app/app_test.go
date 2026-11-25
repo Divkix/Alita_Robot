@@ -49,9 +49,9 @@ func runDeps(client gotgbot.BotClient, wait func(*shutdown.Manager)) Deps {
 		RegisterBotSchedulers: func(*gotgbot.Bot) {},
 		ModuleDrains: func() []DrainSpec {
 			return []DrainSpec{
-				{Name: "users drain", Handler: func() error { return nil }},
-				{Name: "captcha stop", Handler: func() error { return nil }},
-				{Name: "aispam drain", Handler: func() error { return nil }},
+				{Name: "users drain", Handler: func(context.Context) error { return nil }},
+				{Name: "captcha stop", Handler: func(context.Context) error { return nil }},
+				{Name: "aispam drain", Handler: func(context.Context) error { return nil }},
 			}
 		},
 		LoadModules:           func(*ext.Dispatcher) {},

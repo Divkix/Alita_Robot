@@ -3,6 +3,8 @@
 package stats
 
 import (
+	"context"
+	"errors"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -163,6 +165,35 @@ func TestFlushRestoresCountersWhenTheWriteFails(t *testing.T) {
 	}
 
 	db.DB = original
+	if err := Flush(); err != nil {
+		t.Fatalf("retry Flush() error = %v", err)
+	}
+	rows := rowsFor(t, chatID, day, day)
+	if len(rows) != 1 || rows[0].Messages != 1 {
+		t.Fatalf("rows after retry = %v, want one message", rows)
+	}
+}
+
+// A cancelled flush must not write and must put the drained deltas back, so
+// the shutdown's final flush still sees them.
+func TestFlushContextRestoresCountersWhenTheContextIsCancelled(t *testing.T) {
+	flushPending(t)
+	chatID := testChatID(t)
+	day := Day(timeNow())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	RecordMessage(chatID)
+	if err := FlushContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("FlushContext(cancelled) = %v, want context.Canceled", err)
+	}
+	if left := pendingTotal(); left != 1 {
+		t.Fatalf("pending events after a cancelled flush = %d, want 1 (restored)", left)
+	}
+	if rows := rowsFor(t, chatID, day, day); len(rows) != 0 {
+		t.Fatalf("rows after a cancelled flush = %v, want none", rows)
+	}
+
 	if err := Flush(); err != nil {
 		t.Fatalf("retry Flush() error = %v", err)
 	}

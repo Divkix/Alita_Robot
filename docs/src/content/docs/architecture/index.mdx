@@ -214,9 +214,10 @@ MaxRoutines: 200  // Configurable via DISPATCHER_MAX_ROUTINES
 ### Graceful Shutdown
 
 ```go
-// Shutdown drains run in declared phases, LIFO within a phase
+// Shutdown drains run in declared phases, LIFO within a phase. The context is
+// cancelled at the per-handler timeout; a phase barrier runs before the next.
 shutdownManager := shutdown.NewManager()
-shutdownManager.Register("db close", shutdown.PhaseDatabase, func() error {
+shutdownManager.Register("db close", shutdown.PhaseDatabase, func(context.Context) error {
     return db.Close()
 })
 ```

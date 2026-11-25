@@ -3,6 +3,7 @@
 package shutdown
 
 import (
+	"context"
 	"os"
 	"syscall"
 	"time"
@@ -16,8 +17,9 @@ func HandlerTimeoutForTest() time.Duration {
 
 // ExecuteHandlersForTest runs the registered handlers in the same phase order
 // and with the same panic recovery as shutdown, without exiting the process,
-// and returns their names in execution order. It exists so tests outside this
-// package can assert the drains main.go registers.
+// and returns their names in execution order. Each handler gets a background
+// context, so it is not subject to the shutdown time limits. It exists so
+// tests outside this package can assert the drains main.go registers.
 func (m *Manager) ExecuteHandlersForTest() []string {
 	m.mu.RLock()
 	handlers := make([]handlerEntry, len(m.handlers))
@@ -27,7 +29,7 @@ func (m *Manager) ExecuteHandlersForTest() []string {
 	names := make([]string, 0, len(handlers))
 	for _, entry := range handlers {
 		names = append(names, entry.name)
-		_ = m.executeHandler(entry)
+		_ = m.executeHandler(context.Background(), entry)
 	}
 	return names
 }

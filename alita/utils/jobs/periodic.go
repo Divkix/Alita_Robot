@@ -26,8 +26,13 @@ func Register(name string, interval time.Duration, tick func(context.Context) er
 func Start() { std.start() }
 
 // Stop cancels the context every tick receives, waits for the ticks in flight
-// and lets no tick begin afterwards. It is idempotent and safe without Start.
-func Stop() { std.stop() }
+// and lets no tick begin afterwards. It is idempotent and safe without Start,
+// and waits without a bound.
+func Stop() { _ = StopContext(context.Background()) }
+
+// StopContext is Stop bounded by ctx: if ctx ends first it returns ctx.Err()
+// and leaves the ticks in flight to end on their own cancelled context.
+func StopContext(ctx context.Context) error { return std.stop(ctx) }
 
 type job struct {
 	name     string
@@ -72,14 +77,25 @@ func (r *registry) start() {
 	}
 }
 
-func (r *registry) stop() {
+func (r *registry) stop(ctx context.Context) error {
 	r.mu.Lock()
 	r.stopped = true
 	if r.cancel != nil {
 		r.cancel()
 	}
 	r.mu.Unlock()
-	r.wg.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		r.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // launch runs j's ticker loop; r.mu must be held.
