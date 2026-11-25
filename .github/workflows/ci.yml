@@ -577,8 +577,39 @@ jobs:
           load: true
           tags: test-build:latest
           cache-from: type=gha,scope=main
-      - name: Verify Docker image
-        run: docker image inspect test-build:latest
+      - name: Set up Go
+        id: go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Build release Docker image
+        run: |
+          set -euo pipefail
+          # GoReleaser lays the binary out as linux/amd64/alita_robot; replicate
+          # that layout in a throwaway context for the release Dockerfile.
+          CONTEXT=$(mktemp -d)
+          mkdir -p "$CONTEXT/linux/amd64"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o "$CONTEXT/linux/amd64/alita_robot" .
+          cp -R migrations "$CONTEXT/migrations"
+          docker build --platform linux/amd64 -f docker/goreleaser -t test-build:release "$CONTEXT"
+      - name: Verify Docker images
+        run: |
+          set -euo pipefail
+          docker image inspect test-build:latest test-build:release
+          for image in test-build:latest test-build:release; do
+            user=$(docker image inspect --format '{{.Config.User}}' "$image")
+            case "$user" in
+              ""|0|0:0|root)
+                echo "Image $image runs as root (Config.User='$user')" >&2
+                exit 1
+                ;;
+            esac
+          done
+          # Distroless has no shell, so inspect the exported filesystem instead.
+          container=$(docker create test-build:release)
+          trap 'docker rm "$container" >/dev/null' EXIT
+          docker export "$container" | tar -t | grep -x "app/migrations/20250805200527_initial_migration.sql" > /dev/null
 
   # Publish Docker images for main branch pushes
   docker-publish:

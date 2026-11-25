@@ -95,7 +95,9 @@ services:
           cpus: "0.25"
 
   postgres:
-    image: postgres:17-alpine
+    # postgres:18 refuses a mount at /var/lib/postgresql/data; mount the parent
+    # and data lands in /var/lib/postgresql/18/docker.
+    image: postgres:18-alpine
     container_name: alita-postgres
     restart: always
     environment:
@@ -104,7 +106,7 @@ services:
       POSTGRES_DB: alita
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alita -d alita"]
       interval: 10s
@@ -117,7 +119,7 @@ services:
           cpus: "0.5"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: alita-redis
     restart: always
     command: redis-server --requirepass redis
@@ -161,16 +163,38 @@ For development, use `debug.docker-compose.yml` which builds from local source w
 
 ### postgres (Database)
 
-PostgreSQL 17 with Alpine Linux for a minimal footprint.
+PostgreSQL 18 with Alpine Linux for a minimal footprint.
 
 | Configuration | Value | Description |
 |--------------|-------|-------------|
-| **Image** | `postgres:17-alpine` | PostgreSQL 17 on Alpine Linux |
+| **Image** | `postgres:18-alpine` | PostgreSQL 18 on Alpine Linux |
 | **Memory Limit** | 512MB | Maximum memory allocation |
 | **Encoding** | UTF8 | Database character encoding |
 | **Locale** | C | Collation locale |
 
-Data is persisted in a Docker volume named `postgres_data`.
+Data is persisted in a Docker volume named `postgres_data`, mounted at
+`/var/lib/postgresql`. The PostgreSQL 18 image puts the cluster in
+`/var/lib/postgresql/18/docker` and refuses a mount at the old
+`/var/lib/postgresql/data` path.
+
+:::caution[Upgrading from PostgreSQL 17]
+A PostgreSQL 17 data volume is **not** upgraded automatically. The pg18
+container fails to start against it, and there is no in-place migration.
+Either dump your data and restore it into a fresh volume, or run
+`pg_upgrade` against the existing volume:
+
+```bash
+# Dump from the old pg17 container, then restore into a fresh pg18 volume
+docker compose exec -T postgres pg_dumpall -U alita > alita.sql
+docker compose down -v   # destructive: removes the old volume
+docker compose up -d postgres
+docker compose exec -T postgres psql -U alita -d alita < alita.sql
+```
+
+Back up before touching the volume. See the
+[PostgreSQL upgrade guide](https://www.postgresql.org/docs/current/pgupgrade.html)
+for `pg_upgrade` usage.
+:::
 
 ### redis (Cache)
 
@@ -178,7 +202,7 @@ Redis for caching and session management.
 
 | Configuration | Value | Description |
 |--------------|-------|-------------|
-| **Image** | `redis:7-alpine` | Redis 7 on Alpine Linux |
+| **Image** | `redis:8-alpine` | Redis 8 on Alpine Linux |
 | **Memory Limit** | 256MB | Maximum memory allocation |
 | **Authentication** | Password `redis` | Hard-coded in `docker-compose.yml`; to change it, edit `--requirepass` and the healthcheck's `-a` on the redis service and `REDIS_PASSWORD` on the alita service together |
 
