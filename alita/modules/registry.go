@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"cmp"
 	"math"
 	"slices"
 
@@ -65,12 +66,17 @@ func RegisterLegacyModule(name string, priority int, load func(*ext.Dispatcher),
 	log.Debugf("Registered module: %s (priority=%d)", name, priority)
 }
 
-// LoadAllModules sorts registered modules by ascending priority and calls
-// each loader, returning the loaded module names in load order.
+// LoadAllModules sorts registered modules by ascending priority, then by
+// name so equal priorities have a total order, and calls each loader,
+// returning the loaded module names in load order.
 func LoadAllModules(dispatcher *ext.Dispatcher) []string {
 	mods := append([]registeredModule(nil), registry...)
 
-	slices.SortStableFunc(mods, func(a, b registeredModule) int { return a.priority - b.priority })
+	// Subtracting priorities overflows for PriorityFinal (math.MaxInt) against
+	// a negative priority: cmp.Compare keeps the comparison total.
+	slices.SortFunc(mods, func(a, b registeredModule) int {
+		return cmp.Or(cmp.Compare(a.priority, b.priority), cmp.Compare(a.name, b.name))
+	})
 	loaded := make([]string, 0, len(mods))
 	for _, m := range mods {
 		log.Debugf("Loading module: %s (priority=%d)", m.name, m.priority)

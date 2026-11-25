@@ -213,6 +213,37 @@ func TestLoadAllModulesLoadsFinalModuleLast(t *testing.T) {
 	}
 }
 
+// A priority subtraction overflows when PriorityFinal meets a negative
+// priority; the comparator must still place the final module last.
+func TestLoadAllModulesFinalBeatsNegativePriority(t *testing.T) {
+	withIsolatedRegistry(t)
+
+	var order []string
+	RegisterLegacyModule("negative", -10, func(_ *ext.Dispatcher) { order = append(order, "negative") })
+	RegisterLegacyModule("final", PriorityFinal, func(_ *ext.Dispatcher) { order = append(order, "final") }, RegisterLegacyModuleOptions{NoHelp: true})
+
+	LoadAllModules(nil)
+
+	if !reflect.DeepEqual(order, []string{"negative", "final"}) {
+		t.Fatalf("load order = %v, want negative then final", order)
+	}
+}
+
+// Equal priorities get a deterministic order by name, not init file order.
+func TestLoadAllModulesTieBreaksEqualPriorityByName(t *testing.T) {
+	withIsolatedRegistry(t)
+
+	var order []string
+	RegisterLegacyModule("zeta", 226, func(_ *ext.Dispatcher) { order = append(order, "zeta") })
+	RegisterLegacyModule("alpha", 226, func(_ *ext.Dispatcher) { order = append(order, "alpha") })
+
+	LoadAllModules(nil)
+
+	if !reflect.DeepEqual(order, []string{"alpha", "zeta"}) {
+		t.Fatalf("load order = %v, want alpha then zeta", order)
+	}
+}
+
 // The real registry: every module that loads and did not declare NoHelp is
 // enabled exactly once, and Help — registered at PriorityFinal — loads last.
 func TestLoadAllModulesEnabledSetMatchesLoadedModules(t *testing.T) {
