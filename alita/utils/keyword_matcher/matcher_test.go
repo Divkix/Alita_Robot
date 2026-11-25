@@ -79,6 +79,25 @@ func TestFirstMatch(t *testing.T) {
 			text:     "alpha",
 			wantOK:   false,
 		},
+		{
+			name:        "longest match wins at the same end",
+			patterns:    []string{"sHe", "HE"},
+			text:        "say she",
+			wantPattern: "sHe",
+			wantOK:      true,
+		},
+		{
+			name:     "only empty keyword never matches",
+			patterns: []string{""},
+			text:     "any text",
+		},
+		{
+			name:        "Unicode lowercase keeps original keyword",
+			patterns:    []string{"\u212aELVIN"},
+			text:        "a kelvin in \u00c9T\u00c9",
+			wantPattern: "\u212aELVIN",
+			wantOK:      true,
+		},
 	}
 
 	for _, tc := range tests {
