@@ -31,15 +31,16 @@ func TestClaimSharedAndLost(t *testing.T) {
 	withRedis(t)
 	key := Key("test", "claim", t.Name())
 
-	if got := Claim(key, time.Minute); got != ClaimShared {
-		t.Fatalf("first Claim() = %v, want ClaimShared", got)
+	handle, got := Acquire(key, time.Minute)
+	if got != ClaimShared {
+		t.Fatalf("first Acquire() = %v, want ClaimShared", got)
 	}
-	if got := Claim(key, time.Minute); got != ClaimLost {
-		t.Fatalf("second Claim() = %v, want ClaimLost", got)
+	if _, got := Acquire(key, time.Minute); got != ClaimLost {
+		t.Fatalf("second Acquire() = %v, want ClaimLost", got)
 	}
-	Release(key)
-	if got := Claim(key, time.Minute); got != ClaimShared {
-		t.Fatalf("Claim() after Release = %v, want ClaimShared", got)
+	handle.Release()
+	if _, got := Acquire(key, time.Minute); got != ClaimShared {
+		t.Fatalf("Acquire() after Release = %v, want ClaimShared", got)
 	}
 }
 
@@ -49,15 +50,16 @@ func TestClaimWithoutRedis(t *testing.T) {
 
 	// Redis absent: the in-process claim wins and reports ClaimShared —
 	// nothing is degraded, the claim simply cannot cross replicas.
-	if got := Claim(key, time.Minute); got != ClaimShared {
-		t.Fatalf("first Claim() = %v, want ClaimShared", got)
+	handle, got := Acquire(key, time.Minute)
+	if got != ClaimShared {
+		t.Fatalf("first Acquire() = %v, want ClaimShared", got)
 	}
-	if got := Claim(key, time.Minute); got != ClaimLost {
-		t.Fatalf("second Claim() = %v, want ClaimLost", got)
+	if _, got := Acquire(key, time.Minute); got != ClaimLost {
+		t.Fatalf("second Acquire() = %v, want ClaimLost", got)
 	}
-	Release(key)
-	if got := Claim(key, time.Minute); got != ClaimShared {
-		t.Fatalf("Claim() after Release = %v, want ClaimShared", got)
+	handle.Release()
+	if _, got := Acquire(key, time.Minute); got != ClaimShared {
+		t.Fatalf("Acquire() after Release = %v, want ClaimShared", got)
 	}
 }
 
@@ -76,39 +78,61 @@ func TestClaimLocalOnRedisError(t *testing.T) {
 	cache.SetRedisClientForTest(t, client)
 
 	key := Key("test", "claim-err", t.Name())
-	if got := Claim(key, time.Minute); got != ClaimLocal {
-		t.Fatalf("Claim() with dead Redis = %v, want ClaimLocal", got)
+	handle, got := Acquire(key, time.Minute)
+	if got != ClaimLocal {
+		t.Fatalf("Acquire() with dead Redis = %v, want ClaimLocal", got)
 	}
-	if got := Claim(key, time.Minute); got != ClaimLost {
-		t.Fatalf("second Claim() = %v, want ClaimLost", got)
+	if _, got := Acquire(key, time.Minute); got != ClaimLost {
+		t.Fatalf("second Acquire() = %v, want ClaimLost", got)
+	}
+	// Release logs the Redis failure and still drops the local token.
+	handle.Release()
+	if _, got := Acquire(key, time.Minute); got != ClaimLocal {
+		t.Fatalf("Acquire() after Release = %v, want ClaimLocal", got)
 	}
 }
 
-func TestClaimIsAtomicUnderRace(t *testing.T) {
+func TestAcquireIsAtomicUnderRace(t *testing.T) {
 	withRedis(t)
 	key := Key("test", "claim-race", t.Name())
 
+	type outcome struct {
+		handle ClaimHandle
+		result ClaimResult
+	}
 	const n = 16
 	var wg sync.WaitGroup
-	wins := make(chan ClaimResult, n)
+	results := make(chan outcome, n)
 	wg.Add(n)
 	for range n {
 		go func() {
 			defer wg.Done()
-			wins <- Claim(key, time.Minute)
+			handle, result := Acquire(key, time.Minute)
+			results <- outcome{handle: handle, result: result}
 		}()
 	}
 	wg.Wait()
-	close(wins)
+	close(results)
 
 	winners := 0
-	for r := range wins {
-		if r == ClaimShared || r == ClaimLocal {
+	var winner ClaimHandle
+	for o := range results {
+		if o.result == ClaimShared || o.result == ClaimLocal {
 			winners++
+			winner = o.handle
+			continue
+		}
+		if o.handle != (ClaimHandle{}) {
+			t.Fatal("a lost Acquire() returned a handle")
 		}
 	}
 	if winners != 1 {
 		t.Fatalf("claim winners = %d, want exactly 1", winners)
+	}
+	// Only the winner's handle frees the claim.
+	winner.Release()
+	if Held(key) {
+		t.Fatal("Held() = true after the winner's Release()")
 	}
 }
 
@@ -119,11 +143,11 @@ func TestHeldFollowsClaim(t *testing.T) {
 	if Held(key) {
 		t.Fatal("Held() = true before any claim")
 	}
-	Claim(key, time.Minute)
+	handle, _ := Acquire(key, time.Minute)
 	if !Held(key) {
-		t.Fatal("Held() = false after Claim()")
+		t.Fatal("Held() = false after Acquire()")
 	}
-	Release(key)
+	handle.Release()
 	if Held(key) {
 		t.Fatal("Held() = true after Release()")
 	}
@@ -191,12 +215,75 @@ func TestClaimExpires(t *testing.T) {
 	mr := withRedis(t)
 	key := Key("test", "claim-ttl", t.Name())
 
-	if got := Claim(key, 50*time.Millisecond); got != ClaimShared {
-		t.Fatalf("Claim() = %v, want ClaimShared", got)
+	stale, got := Acquire(key, 50*time.Millisecond)
+	if got != ClaimShared {
+		t.Fatalf("Acquire() = %v, want ClaimShared", got)
 	}
 	mr.FastForward(100 * time.Millisecond)
-	if got := Claim(key, time.Minute); got != ClaimShared {
-		t.Fatalf("Claim() after TTL = %v, want ClaimShared", got)
+	owner, got := Acquire(key, time.Minute)
+	if got != ClaimShared {
+		t.Fatalf("Acquire() after TTL = %v, want ClaimShared", got)
+	}
+	// The expired owner's handle must not drop the claim it no longer owns.
+	stale.Release()
+	if _, got := Acquire(key, time.Minute); got != ClaimLost {
+		t.Fatalf("Acquire() after stale Release = %v, want ClaimLost", got)
+	}
+	owner.Release()
+	if Held(key) {
+		t.Fatal("Held() = true after the owner's Release()")
+	}
+}
+
+func TestReleaseAfterClearIsNoOp(t *testing.T) {
+	withRedis(t)
+	key := Key("test", "claim-clear", t.Name())
+
+	stale, got := Acquire(key, time.Minute)
+	if got != ClaimShared {
+		t.Fatalf("first Acquire() = %v, want ClaimShared", got)
+	}
+	Clear(key)
+	owner, got := Acquire(key, time.Minute)
+	if got != ClaimShared {
+		t.Fatalf("Acquire() after Clear = %v, want ClaimShared", got)
+	}
+
+	// A handle from before the reset no longer owns the key; nor does the
+	// zero handle.
+	stale.Release()
+	ClaimHandle{}.Release()
+	if _, got := Acquire(key, time.Minute); got != ClaimLost {
+		t.Fatalf("Acquire() after stale Releases = %v, want ClaimLost", got)
+	}
+	owner.Release()
+	if Held(key) {
+		t.Fatal("Held() = true after the owner's Release()")
+	}
+}
+
+func TestReleaseIsOwnerFencedWithoutRedis(t *testing.T) {
+	cache.DisableRedisForTest()
+	key := Key("test", "claim-local-fence", t.Name())
+
+	stale, got := Acquire(key, 50*time.Millisecond)
+	if got != ClaimShared {
+		t.Fatalf("first Acquire() = %v, want ClaimShared", got)
+	}
+	time.Sleep(60 * time.Millisecond)
+	owner, got := Acquire(key, time.Minute)
+	if got != ClaimShared {
+		t.Fatalf("Acquire() after TTL = %v, want ClaimShared", got)
+	}
+
+	// The local mirror is owner-fenced too.
+	stale.Release()
+	if !Held(key) {
+		t.Fatal("stale Release() dropped the newer local claim")
+	}
+	owner.Release()
+	if Held(key) {
+		t.Fatal("Held() = true after the owner's Release()")
 	}
 }
 

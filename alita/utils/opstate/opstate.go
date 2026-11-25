@@ -10,13 +10,19 @@
 //   - Redis absent (GetRedisClient() == nil): every primitive falls back to
 //     an in-process store local to this replica. Claims degrade to
 //     per-replica; stashed payloads are per-replica too.
-//   - Atomicity: claims are SET NX PX (or an in-process CAS); Consume is
-//     GETDEL (or a mutex-serialized local read+delete); Stash/Peek are plain
-//     writes/reads.
-//   - Error policy: Claim reports ClaimLocal (logged, never silent) when a
-//     configured Redis errors; Release logs and still clears locally; Held
-//     reports the local answer on a Redis error; Stash/Consume/Peek return
-//     the error to the caller, which owns the user-visible degrade.
+//   - Atomicity: claims are SET NX PX with an owner token (or an in-process
+//     CAS); Consume is GETDEL (or a mutex-serialized local read+delete);
+//     Stash/Peek are plain writes/reads.
+//   - Ownership: Acquire returns the handle that owns the claim, and Release
+//     deletes it only while it still holds that handle's token. A claim that
+//     expired and was taken by someone else survives the old owner's
+//     Release. Clear is the unconditional reset; Claim is the
+//     fire-and-forget wrapper for state no owner releases.
+//   - Error policy: Claim/Acquire report ClaimLocal (logged, never silent)
+//     when a configured Redis errors; Release logs and still attempts the
+//     local token delete; Held reports the local answer on a Redis error;
+//     Stash/Consume/Peek return the error to the caller, which owns the
+//     user-visible degrade.
 //
 // Counter, Window, Members and Swap cover the remaining operational shapes:
 // an incrementing count with a lifetime, a sorted-set sliding window, a
@@ -54,7 +60,7 @@ func Key(parts ...any) string {
 	return "alita:" + strings.Join(strs, ":")
 }
 
-// ClaimResult is the outcome of Claim.
+// ClaimResult is the outcome of Claim and Acquire.
 type ClaimResult int
 
 const (
@@ -70,12 +76,17 @@ const (
 )
 
 // localStore is the in-process fallback for every primitive that declares
-// one: claimLocal writes an expiry marker; payloadLocal holds msgpack'd
-// values for Stash/Consume/Peek/Swap.
+// one: claimLocal holds the owner token and expiry of this replica's claims;
+// payloadLocal holds msgpack'd values for Stash/Consume/Peek/Swap.
 type localStore struct {
 	mu       sync.Mutex
-	claims   map[string]time.Time
+	claims   map[string]localClaim
 	payloads map[string]localPayload
+}
+
+type localClaim struct {
+	token string
+	exp   time.Time
 }
 
 type localPayload struct {
@@ -84,22 +95,41 @@ type localPayload struct {
 }
 
 var local = &localStore{
-	claims:   make(map[string]time.Time),
+	claims:   make(map[string]localClaim),
 	payloads: make(map[string]localPayload),
 }
 
-func (s *localStore) claim(key string, ttl time.Duration) bool {
+// claim writes the claim when the key is free or expired, mirroring SET NX.
+func (s *localStore) claim(key, token string, ttl time.Duration) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
-	if exp, ok := s.claims[key]; ok && now.Before(exp) {
+	if c, ok := s.claims[key]; ok && now.Before(c.exp) {
 		return false
 	}
-	s.claims[key] = now.Add(ttl)
+	s.claims[key] = localClaim{token: token, exp: now.Add(ttl)}
 	return true
 }
 
-func (s *localStore) release(key string) {
+// mirror records a shared claim this replica just won, replacing any
+// expired or stale local token.
+func (s *localStore) mirror(key, token string, ttl time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.claims[key] = localClaim{token: token, exp: time.Now().Add(ttl)}
+}
+
+// release deletes the claim only while token still owns it.
+func (s *localStore) release(key, token string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if c, ok := s.claims[key]; ok && c.token == token {
+		delete(s.claims, key)
+	}
+}
+
+// clear drops the claim whoever owns it.
+func (s *localStore) clear(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.claims, key)
@@ -108,11 +138,11 @@ func (s *localStore) release(key string) {
 func (s *localStore) held(key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	exp, ok := s.claims[key]
+	c, ok := s.claims[key]
 	if !ok {
 		return false
 	}
-	if time.Now().Before(exp) {
+	if time.Now().Before(c.exp) {
 		return true
 	}
 	delete(s.claims, key)
@@ -177,48 +207,103 @@ func (s *localStore) swap(key string, data, expectedRaw []byte, ttl time.Duratio
 	return true
 }
 
-// Claim takes key for ttl: one winner across replicas through Redis SET NX,
-// or this replica alone when Redis is absent. A Redis error is logged and
-// degrades to the local claim rather than failing the caller silently.
-func Claim(key string, ttl time.Duration) ClaimResult {
-	// The local mirror keeps Held accurate while Redis is healthy and is the
-	// claim itself when it is not.
-	mirror := func() {
-		local.mu.Lock()
-		local.claims[key] = time.Now().Add(ttl)
-		local.mu.Unlock()
-	}
-
-	if rdb := cache.GetRedisClient(); rdb != nil {
-		claimed, err := rdb.SetNX(cache.Context, key, 1, ttl).Result()
-		if err != nil {
-			log.WithError(err).Debugf("[opstate] claim %s failed, claiming locally", key)
-			if local.claim(key, ttl) {
-				return ClaimLocal
-			}
-			return ClaimLost
-		}
-		if claimed {
-			mirror()
-			return ClaimShared
-		}
-		return ClaimLost
-	}
-	if local.claim(key, ttl) {
-		return ClaimShared
-	}
-	return ClaimLost
+// ClaimHandle is the ownership token behind an Acquire. Only the handle can
+// Release the claim, and only while the claim still holds its token, so a
+// claim that expired and was taken by someone else is not dropped by the
+// previous owner. The zero value's Release is a no-op.
+type ClaimHandle struct {
+	key   string
+	token string
 }
 
-// Release drops a claim on both stores; a Redis error is logged and the
-// local claim is still cleared.
-func Release(key string) {
+// Release frees the claim when this handle still owns it: the Redis
+// compare-and-delete script, and the local mirror only while it holds the
+// same token. A Redis error is logged and the local token delete is still
+// attempted.
+func (h ClaimHandle) Release() {
+	if h.key == "" {
+		return
+	}
 	if rdb := cache.GetRedisClient(); rdb != nil {
-		if err := rdb.Del(cache.Context, key).Err(); err != nil {
-			log.WithError(err).Debugf("[opstate] release %s failed", key)
+		if err := releaseScript.Run(cache.Context, rdb, []string{h.key}, h.token).Err(); err != nil {
+			log.WithError(err).Debugf("[opstate] release %s failed", h.key)
 		}
 	}
-	local.release(key)
+	local.release(h.key, h.token)
+}
+
+// releaseScript deletes key only while it still holds the caller's token.
+var releaseScript = redis.NewScript(`
+if redis.call('get', KEYS[1]) == ARGV[1] then
+	return redis.call('del', KEYS[1])
+end
+return 0
+`)
+
+// newClaimToken returns a 128-bit random hex token: the owner mark written
+// with the claim and compared on release.
+func newClaimToken() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// Acquire takes key for ttl and returns the handle that owns it: one winner
+// across replicas through Redis SET NX with a random token, or this replica
+// alone when Redis is absent. A Redis error is logged and degrades to the
+// local claim rather than failing the caller silently.
+func Acquire(key string, ttl time.Duration) (ClaimHandle, ClaimResult) {
+	token, err := newClaimToken()
+	if err != nil {
+		log.WithError(err).Errorf("[opstate] claim %s: cannot generate owner token", key)
+		return ClaimHandle{}, ClaimLost
+	}
+	handle := ClaimHandle{key: key, token: token}
+
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		claimed, err := rdb.SetNX(cache.Context, key, token, ttl).Result()
+		if err != nil {
+			log.WithError(err).Debugf("[opstate] claim %s failed, claiming locally", key)
+			if local.claim(key, token, ttl) {
+				return handle, ClaimLocal
+			}
+			return ClaimHandle{}, ClaimLost
+		}
+		if claimed {
+			// The shared claim wins; the mirror follows it even over a
+			// stale local token.
+			local.mirror(key, token, ttl)
+			return handle, ClaimShared
+		}
+		return ClaimHandle{}, ClaimLost
+	}
+	if local.claim(key, token, ttl) {
+		return handle, ClaimShared
+	}
+	return ClaimHandle{}, ClaimLost
+}
+
+// Claim takes key for ttl and discards the handle: for cooldown-shaped state
+// with no owner release. A site that must free the claim on a later error
+// path takes Acquire, so its Release cannot free a newer owner's claim.
+func Claim(key string, ttl time.Duration) ClaimResult {
+	_, result := Acquire(key, ttl)
+	return result
+}
+
+// Clear drops the claim at key unconditionally, whoever owns it, and clears
+// this replica's mirror: a deliberate reset (a leave), not an owner's
+// conditional release. A Redis error is logged and the local claim is still
+// dropped.
+func Clear(key string) {
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		if err := rdb.Del(cache.Context, key).Err(); err != nil {
+			log.WithError(err).Debugf("[opstate] clear %s failed", key)
+		}
+	}
+	local.clear(key)
 }
 
 // Held reports whether key is currently claimed, checking this replica's
@@ -255,7 +340,7 @@ func Stash[T any](key string, v T, ttl time.Duration) error {
 
 // Delete drops the state at key on Redis and this replica's local payload
 // store, best-effort: Redis errors are ignored. Claims are untouched —
-// Release owns those. For cleanup paths, not for consume semantics.
+// Clear and Release own those. For cleanup paths, not for consume semantics.
 func Delete(key string) {
 	if rdb := cache.GetRedisClient(); rdb != nil {
 		_ = rdb.Del(cache.Context, key).Err()
