@@ -2,7 +2,6 @@
 title: Locks Commands
 description: Complete guide to Locks module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🔒 Locks Commands
 

@@ -2,7 +2,6 @@
 title: Captcha Commands
 description: Complete guide to Captcha module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🔐 Captcha Commands
 

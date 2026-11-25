@@ -2,7 +2,6 @@
 title: Backup Commands
 description: Complete guide to Backup module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Backup Commands
 

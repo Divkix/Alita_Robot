@@ -2,7 +2,6 @@
 title: Approvals Commands
 description: Complete guide to Approvals module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Approvals Commands
 

@@ -2,7 +2,6 @@
 title: Callback Queries
 description: Complete reference of inline button callback handlers
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # Callback Queries
 

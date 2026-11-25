@@ -2,7 +2,6 @@
 title: Reactions Commands
 description: Complete guide to Reactions module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Reactions Commands
 

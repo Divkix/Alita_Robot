@@ -2,7 +2,6 @@
 title: Admin Commands
 description: Complete guide to Admin module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 👑 Admin Commands
 

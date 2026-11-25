@@ -2,7 +2,6 @@
 title: Antiflood Commands
 description: Complete guide to Antiflood module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🌊 Antiflood Commands
 

@@ -157,6 +157,12 @@ func parseCommands(modulesPath string) ([]Command, error) {
 		return nil, err
 	}
 
+	type sourceFile struct {
+		name    string
+		content string
+	}
+	var sources []sourceFile
+
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
 			continue
@@ -184,7 +190,20 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			moduleNames["DefaultHelpRegistry"] = "Help"
 		}
 
-		commands = append(commands, parseWrapCommands(content, moduleName, moduleNames)...)
+		sources = append(sources, sourceFile{name: moduleName, content: content})
+	}
+
+	// Descriptors are package-level vars, but WrapCommand often lives in the
+	// module file while its descriptor lives in a sibling (bans.go registers
+	// banInfoDesc from bans_info.go). Collect them across files first so those
+	// registrations are not silently dropped.
+	descriptors := make(map[string]wrapDescriptor)
+	for _, src := range sources {
+		collectDescriptors(src.content, descriptors)
+	}
+
+	for _, src := range sources {
+		commands = append(commands, parseWrapCommands(src.content, src.name, moduleNames, descriptors)...)
 	}
 
 	// Sort commands
@@ -214,10 +233,12 @@ var (
 
 	wrapNamedDescPattern  = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)\s*\)?\s*\)`)
 	wrapInlineDescPattern = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*helpers\.CommandDescriptor\s*\{`)
-	wrapHandlerAfterDesc  = regexp.MustCompile(`^\s*,\s*(?:\w+\(\s*)?(\w+)\.(\w+)`)
-	wrapLoopDescPattern   = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)\s*,`)
-	loopStructPattern     = regexp.MustCompile(`\[\]struct\s*\{`)
-	loopTuplePattern      = regexp.MustCompile(`\{\s*"([a-z_]+)"\s*,\s*(\w+)\.(\w+)`)
+	// Handles pipelineHandler(module.handler) and factory().handler, as in
+	// DefaultHelpRegistry().commandsMenu.
+	wrapHandlerAfterDesc = regexp.MustCompile(`^\s*,\s*(?:(\w+)\(\)\s*\.(\w+)|(?:\w+\(\s*)?(\w+)\.(\w+))`)
+	wrapLoopDescPattern  = regexp.MustCompile(`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)\s*,`)
+	loopStructPattern    = regexp.MustCompile(`\[\]struct\s*\{`)
+	loopTuplePattern     = regexp.MustCompile(`\{\s*"([a-z_]+)"\s*,\s*(\w+)\.(\w+)`)
 )
 
 // matchingBrace returns the index of the '}' closing the '{' at open, skipping
@@ -275,12 +296,26 @@ func parseDescriptorBody(body string) wrapDescriptor {
 	return d
 }
 
+// collectDescriptors adds every named CommandDescriptor literal in content to
+// the shared descriptor map, so registrations can resolve descriptors declared
+// in a sibling module file.
+func collectDescriptors(content string, descriptors map[string]wrapDescriptor) {
+	for _, loc := range wrapDescDeclPattern.FindAllStringSubmatchIndex(content, -1) {
+		open := loc[1] - 1
+		closeIdx := matchingBrace(content, open)
+		if closeIdx < 0 {
+			continue
+		}
+		descriptors[content[loc[2]:loc[3]]] = parseDescriptorBody(content[open+1 : closeIdx])
+	}
+}
+
 // parseWrapCommands extracts the commands one file registers through
 // helpers.WrapCommand or WrapCommandRaw: with a named <x>Desc descriptor, an
 // inline helpers.CommandDescriptor literal, or a descriptor built in a loop
 // over a []struct{name, handler} literal. The handler may be wrapped in one
-// call such as pipelineHandler(...).
-func parseWrapCommands(content, fileModule string, moduleNames map[string]string) []Command {
+// call such as pipelineHandler(...) or reached through a factory method.
+func parseWrapCommands(content, fileModule string, moduleNames map[string]string, descriptors map[string]wrapDescriptor) []Command {
 	var commands []Command
 	emit := func(d wrapDescriptor, moduleVar, handler string) {
 		if d.name == "" {
@@ -307,16 +342,6 @@ func parseWrapCommands(content, fileModule string, moduleNames map[string]string
 		}
 	}
 
-	descriptors := make(map[string]wrapDescriptor)
-	for _, loc := range wrapDescDeclPattern.FindAllStringSubmatchIndex(content, -1) {
-		open := loc[1] - 1
-		closeIdx := matchingBrace(content, open)
-		if closeIdx < 0 {
-			continue
-		}
-		descriptors[content[loc[2]:loc[3]]] = parseDescriptorBody(content[open+1 : closeIdx])
-	}
-
 	for _, m := range wrapNamedDescPattern.FindAllStringSubmatch(content, -1) {
 		if d, ok := descriptors[m[1]+"Desc"]; ok {
 			emit(d, m[2], m[3])
@@ -333,7 +358,11 @@ func parseWrapCommands(content, fileModule string, moduleNames map[string]string
 		if h == nil {
 			continue
 		}
-		emit(parseDescriptorBody(content[open+1:closeIdx]), h[1], h[2])
+		moduleVar, handler := h[1], h[2]
+		if moduleVar == "" {
+			moduleVar, handler = h[3], h[4]
+		}
+		emit(parseDescriptorBody(content[open+1:closeIdx]), moduleVar, handler)
 	}
 
 	for _, loc := range wrapLoopDescPattern.FindAllStringSubmatchIndex(content, -1) {

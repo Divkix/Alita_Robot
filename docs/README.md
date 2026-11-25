@@ -22,9 +22,10 @@ docs/
 Documentation pages live in `src/content/docs/`. Each file becomes a route
 based on its filename; sidebar groups are inferred from the folder tree and
 refined with `meta.ts` files. The Go generator in `scripts/generate_docs`
-still writes module and lock-type pages into this folder (files opt out of
-regeneration with a `<!-- MANUALLY MAINTAINED: do not regenerate -->`
-sentinel).
+writes module and lock-type pages into this folder. A page stays hand-written
+only when it is named in `handWrittenPages` (`scripts/generate_docs/generators.go`);
+everything else is regenerated, and `make check-docs` fails when a generated
+page differs or a hand-written command page misses a registered command.
 
 ## Development
 

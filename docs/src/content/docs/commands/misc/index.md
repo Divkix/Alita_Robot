@@ -2,7 +2,6 @@
 title: Misc Commands
 description: Complete guide to Misc module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🔧 Misc Commands
 

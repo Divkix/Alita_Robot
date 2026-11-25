@@ -2,7 +2,6 @@
 title: Command Reference
 description: Complete reference of all Alita Robot commands
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # Command Reference
 

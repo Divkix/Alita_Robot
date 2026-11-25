@@ -121,23 +121,38 @@ generate-docs:
 check-docs:
 	@echo "🔍 Checking docs generation for drift..."
 	@set -e; \
-	TMP=$$(mktemp -d /tmp/alita-docs-check.XXXXXX); \
+	TMP=$$(mktemp -d "$${TMPDIR:-/tmp}/alita-docs-check.XXXXXX"); \
 	trap 'rm -rf "$$TMP"' EXIT; \
 	ROOT=$$(pwd); \
-	cp -R docs/src/content/docs/. "$$TMP"/; \
-	echo "  Generating docs to temp directory..."; \
-	cd scripts/generate_docs && $(GO_CMD) run . -output "$$TMP"; \
+	echo "  Generating docs into a fresh tree and checking hand-written coverage..."; \
+	cd scripts/generate_docs && $(GO_CMD) run . -output "$$TMP" -check-command-coverage >/dev/null; \
 	cd "$$ROOT"; \
-	echo "  Comparing generated docs against current docs..."; \
-	if diff -rq "$$TMP" docs/src/content/docs/ > /dev/null 2>&1; then \
-		echo "✅ No drift detected — generated docs match current docs."; \
-	else \
-		echo "❌ Drift detected! Generated docs differ from current docs:"; \
-		diff -r "$$TMP" docs/src/content/docs/ || true; \
-		echo ""; \
-		echo "Run 'make generate-docs' to sync."; \
+	echo "  Comparing every generated file against docs/src/content/docs..."; \
+	files=$$(cd "$$TMP" && find . -type f | sort); \
+	if [ -z "$$files" ]; then \
+		echo "❌ Generator wrote no files."; \
 		exit 1; \
-	fi
+	fi; \
+	count=$$(printf '%s\n' "$$files" | wc -l | tr -d ' '); \
+	drift=0; \
+	for f in $$files; do \
+		rel=$${f#./}; \
+		target="docs/src/content/docs/$$rel"; \
+		if [ ! -f "$$target" ]; then \
+			echo "  ❌ generated but missing in docs: $$target"; \
+			drift=1; \
+		elif ! cmp -s "$$TMP/$$rel" "$$target"; then \
+			echo "  ❌ differs: $$target"; \
+			drift=1; \
+		fi; \
+	done; \
+	if [ "$$drift" -ne 0 ]; then \
+		echo ""; \
+		echo "❌ Docs drift detected across $$count generated file(s)."; \
+		echo "   Run 'make generate-docs' to refresh non-allowlisted pages, then rerun make check-docs."; \
+		exit 1; \
+	fi; \
+	echo "✅ No drift detected — $$count generated file(s) match docs."
 
 inventory:
 	@echo "Generating canonical command inventory..."

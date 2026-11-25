@@ -2,7 +2,6 @@
 title: Antiraid Commands
 description: Complete guide to Antiraid module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Antiraid Commands
 

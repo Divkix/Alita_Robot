@@ -4,26 +4,163 @@ import (
 	"fmt"
 	"html"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// manualMaintenanceSentinel marks files that should not be overwritten by the generator.
-// Files containing this sentinel in their first 512 bytes are skipped during generation.
-const manualMaintenanceSentinel = "<!-- MANUALLY MAINTAINED: do not regenerate -->"
+// handWrittenPages lists the committed pages the generator must never
+// overwrite, keyed by their docs-relative path. A page can stay hand-written
+// only by being named here; a page without an entry is regenerated even if it
+// carries an old opt-out comment. The value is a short reason the page owns
+// content the generator cannot produce.
+var handWrittenPages = map[string]string{
+	"commands/admin/index.md":       "curated command semantics, anonymous-admin and security notes",
+	"commands/aispam/index.md":      "model pipeline, thresholds, privacy, failure behaviour and operator setup",
+	"commands/antiflood/index.md":   "curated action modes, defaults and per-command permissions",
+	"commands/antiraid/index.md":    "duration bounds and examples newer than en.yml",
+	"commands/approvals/index.md":   "corrected descriptions, examples and admin-only permission",
+	"commands/backup/index.md":      "supported module list, confirmation flow and format compatibility",
+	"commands/bans/index.md":        "curated ban/kick variants, examples and permissions",
+	"commands/blacklists/index.md":  "action modes, aliases and temporary-duration rules",
+	"commands/bot_updates/index.md": "no registered commands; documents handler groups and anonymous-admin security",
+	"commands/captcha/index.md":     "join-request flow, pending messages and bot requirements",
+	"commands/connections/index.md": "PM group arguments, connection modes and settings summary",
+	"commands/devs/index.md":        "team tiers, argument requirements and permission matrix",
+	"commands/disabling/index.md":   "per-command exceptions and disabled-command semantics",
+	"commands/filters/index.md":     "noformat, random responses and PM group arguments",
+	"commands/formatting/index.md":  "markdown, filling and random-content guide",
+	"commands/greetings/index.md":   "welcome/goodbye settings, join requests and noformat",
+	"commands/help/index.md":        "deep links, configuration wizard and navigation notes",
+	"commands/languages/index.md":   "connected-group language semantics",
+	"commands/locks/index.md":       "nightmode, media lock behaviour and permissions",
+	"commands/misc/index.md":        "ping metrics and stat field details",
+	"commands/mutes/index.md":       "time formats, reasons and permissions",
+	"commands/notes/index.md":       "note visibility, noformat and examples",
+	"commands/pins/index.md":        "pin limits, anti-channel-pin and technical notes",
+	"commands/purges/index.md":      "purge ranges, examples and permissions",
+	"commands/reactions/index.md":   "message watcher and inline help callbacks",
+	"commands/reports/index.md":     "report routing, auto-mute and delivery notes",
+	"commands/rules/index.md":       "private rules, buttons and reset behaviour",
+	"commands/spamdb/index.md":      "databases, actions, privacy and failure behaviour",
+	"commands/warns/index.md":       "warn limits, punishment/expiry notes and permissions",
+}
 
-// skipIfManuallyMaintained checks if a file has the sentinel comment
-// indicating it should not be overwritten by the generator.
-func skipIfManuallyMaintained(filePath string) bool {
-	data, err := os.ReadFile(filepath.Clean(filePath))
-	if err != nil {
-		return false // File doesn't exist, proceed with generation
+// isHandWritten reports whether the docs-relative page is allowlisted.
+func isHandWritten(pagePath string) bool {
+	_, ok := handWrittenPages[pagePath]
+	return ok
+}
+
+// commandRowRe matches the first command in a Markdown table row such as
+// "| `/ban` | Ban a user |". Argument rows ("| `/spamdb on` | ...") yield the
+// base command.
+var commandRowRe = regexp.MustCompile("^\\|\\s*`/([a-z0-9_]+)")
+
+// verifyHandWrittenCommandCoverage checks allowlisted command pages against
+// the same parsed manifest the generator uses. Every command name and alias
+// registered for the page's module must appear as /name, and every command row
+// in the page must still be registered by some module.
+//
+// False-positive limits: a /name mention anywhere (prose, examples or an
+// alias list) satisfies the presence check, so a command can be mentioned
+// without a row of its own. Only the first command in a multi-command table
+// cell is checked, argument variants are reduced to their base command, and
+// prose is never judged stale. The manifest comes from static parsing, so a
+// registration form parseCommands does not understand looks missing.
+func verifyHandWrittenCommandCoverage(docsRoot string, commands []Command, pages map[string]string) error {
+	commandsByModule := make(map[string][]Command)
+	known := make(map[string]bool)
+	for _, cmd := range commands {
+		module := strings.ToLower(cmd.Module)
+		commandsByModule[module] = append(commandsByModule[module], cmd)
+		known[cmd.Name] = true
+		for _, alias := range cmd.Aliases {
+			known[alias] = true
+		}
 	}
-	checkLen := min(512, len(data))
-	return strings.Contains(string(data[:checkLen]), manualMaintenanceSentinel)
+
+	pagePaths := make([]string, 0, len(pages))
+	for pagePath := range pages {
+		if strings.HasPrefix(pagePath, "commands/") && strings.HasSuffix(pagePath, "/index.md") {
+			pagePaths = append(pagePaths, pagePath)
+		}
+	}
+	sort.Strings(pagePaths)
+
+	var problems []string
+	for _, pagePath := range pagePaths {
+		data, err := os.ReadFile(filepath.Join(docsRoot, filepath.FromSlash(pagePath)))
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("%s: %v", pagePath, err))
+			continue
+		}
+		content := string(data)
+		module := strings.TrimSuffix(strings.TrimPrefix(pagePath, "commands/"), "/index.md")
+
+		// Match the generator's module resolution: exact lowercase name or a
+		// singular/plural variant (admin.go commands feed the admin page).
+		var registered []Command
+		for name, cmds := range commandsByModule {
+			if name == module || name == module+"s" || name+"s" == module {
+				registered = append(registered, cmds...)
+			}
+		}
+
+		var missing []string
+		seen := make(map[string]bool)
+		for _, cmd := range registered {
+			names := append([]string{cmd.Name}, cmd.Aliases...)
+			for _, name := range names {
+				if seen[name] {
+					continue
+				}
+				seen[name] = true
+				if !mentionsCommand(content, name) {
+					missing = append(missing, "/"+name)
+				}
+			}
+		}
+		sort.Strings(missing)
+		if len(missing) > 0 {
+			problems = append(problems, fmt.Sprintf(
+				"%s: module %q does not document registered command(s)/alias(es): %s",
+				pagePath, module, strings.Join(missing, ", ")))
+		}
+
+		var stale []string
+		staleSeen := make(map[string]bool)
+		for _, line := range strings.Split(content, "\n") {
+			match := commandRowRe.FindStringSubmatch(line)
+			if match == nil || known[match[1]] || staleSeen[match[1]] {
+				continue
+			}
+			staleSeen[match[1]] = true
+			stale = append(stale, "/"+match[1])
+		}
+		sort.Strings(stale)
+		if len(stale) > 0 {
+			problems = append(problems, fmt.Sprintf(
+				"%s: command table lists command(s) no module registers: %s",
+				pagePath, strings.Join(stale, ", ")))
+		}
+	}
+
+	if len(problems) > 0 {
+		return fmt.Errorf("%s", strings.Join(problems, "\n"))
+	}
+	return nil
+}
+
+// mentionsCommand reports whether content references /name as a whole command
+// word, so /ban does not match /banall.
+func mentionsCommand(content, name string) bool {
+	re := regexp.MustCompile(`(^|[^a-z0-9_])/` + regexp.QuoteMeta(name) + `($|[^a-z0-9_])`)
+	return re.MatchString(content)
 }
 
 // generateModuleDocs generates individual module pages in commands/{module}/index.md
@@ -31,9 +168,10 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 	for _, module := range modules {
 		moduleDir := filepath.Join(outputPath, "commands", module.Name)
 		moduleFile := filepath.Join(moduleDir, "index.md")
+		pagePath := path.Join("commands", module.Name, "index.md")
 
-		if skipIfManuallyMaintained(moduleFile) {
-			log.Infof("Skipped: commands/%s/index.md (manually maintained)", module.Name)
+		if isHandWritten(pagePath) {
+			log.Infof("Skipped: %s (hand-written: %s)", pagePath, handWrittenPages[pagePath])
 			continue
 		}
 

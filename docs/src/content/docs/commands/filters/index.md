@@ -2,7 +2,6 @@
 title: Filters Commands
 description: Complete guide to Filters module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🔍 Filters Commands
 

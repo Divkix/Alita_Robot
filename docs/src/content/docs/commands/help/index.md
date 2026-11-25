@@ -2,7 +2,6 @@
 title: Help Commands
 description: Complete guide to Help module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Help Commands
 

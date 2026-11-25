@@ -2,7 +2,6 @@
 title: Devs Commands
 description: Complete guide to Devs module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Devs Commands
 
