@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -256,14 +258,16 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 	if err != nil || len(ids) != 1 || ids[0] != chatID {
 		t.Fatalf("ListFedChatIDs = %v err=%v", ids, err)
 	}
-	if found := ChatsContainingUser(memberID, ids); len(found) != 1 || found[0] != chatID {
-		t.Fatalf("ChatsContainingUser = %v", found)
+	found, err := ChatsContainingUser(memberID, ids)
+	if err != nil || len(found) != 1 || found[0] != chatID {
+		t.Fatalf("ChatsContainingUser = %v err=%v", found, err)
 	}
-	if found := ChatsContainingUser(memberID+99, ids); len(found) != 0 {
-		t.Fatalf("unexpected membership %v", found)
+	found, err = ChatsContainingUser(memberID+99, ids)
+	if err != nil || len(found) != 0 {
+		t.Fatalf("unexpected membership %v err=%v", found, err)
 	}
-	if ChatsContainingUser(memberID, nil) != nil {
-		t.Fatal("empty chat list should return nil")
+	if found, err := ChatsContainingUser(memberID, nil); found != nil || err != nil {
+		t.Fatalf("empty chat list should return nil, nil: %v %v", found, err)
 	}
 
 	otherOwner := ownerID + 10
@@ -283,6 +287,30 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 	renamed, err := RenameFederation(ownerID, longName)
 	if err != nil || len(renamed.Name) != 64 {
 		t.Fatalf("long rename name=%q err=%v", renamed.Name, err)
+	}
+}
+
+func TestChatsContainingUserReturnsQueryErrors(t *testing.T) {
+	if db.DB == nil {
+		t.Fatal("test database was not initialized")
+	}
+	name := "test:fail_chats_containing_user"
+	injected := errors.New("injected chats query failure")
+	if err := db.DB.Callback().Query().Before("gorm:query").Register(name, func(tx *gorm.DB) {
+		if tx.Statement.Table == "chats" {
+			_ = tx.AddError(injected)
+		}
+	}); err != nil {
+		t.Fatalf("register failing query callback: %v", err)
+	}
+	t.Cleanup(func() { _ = db.DB.Callback().Query().Remove(name) })
+
+	found, err := ChatsContainingUser(42, []int64{-1, -2})
+	if !errors.Is(err, injected) {
+		t.Fatalf("ChatsContainingUser error = %v, want injected failure", err)
+	}
+	if found != nil {
+		t.Fatalf("ChatsContainingUser = %v, want nil on error", found)
 	}
 }
 

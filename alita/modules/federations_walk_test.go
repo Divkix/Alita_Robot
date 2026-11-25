@@ -266,6 +266,59 @@ func failFirstFedBanLookups(t *testing.T, fedID string, n int32) *atomic.Int32 {
 	return &failed
 }
 
+// failFedTableQueries makes every query against table fail until the test ends.
+// Not safe with t.Parallel(), for the same reason as failFedBanLookups.
+func failFedTableQueries(t *testing.T, table string) {
+	t.Helper()
+	name := "test:fail_" + table + "_queries:" + t.Name()
+	injected := errors.New("injected " + table + " failure")
+	require.NoError(t, db.DB.Callback().Query().Before("gorm:query").Register(name, func(tx *gorm.DB) {
+		if tx.Statement.Table == table {
+			_ = tx.AddError(injected)
+		}
+	}))
+	t.Cleanup(func() { _ = db.DB.Callback().Query().Remove(name) })
+}
+
+func TestFedWalksMakeNoPunishmentCallsWhenChatListingFails(t *testing.T) {
+	cases := []struct {
+		name   string
+		table  string
+		walk   func(*gotgbot.Bot, string, int64, int64)
+		banned bool
+	}{
+		{name: "fban containment", table: "chats", walk: applyActiveFban, banned: true},
+		{name: "fban fed chats", table: "federation_chats", walk: applyActiveFban, banned: true},
+		{name: "unfban containment", table: "chats", walk: applyActiveUnfban},
+		{name: "unfban fed chats", table: "federation_chats", walk: applyActiveUnfban},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			owner := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(owner, "Listing Failure Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+			target := uniquePositiveUserID()
+			seedFedChat(t, fed.FedID, target)
+			if tc.banned {
+				_, _, err = federations.Fban(fed.FedID, target, owner, "spam")
+				require.NoError(t, err)
+			}
+			failFedTableQueries(t, tc.table)
+
+			tc.walk(bot, fed.FedID, target, owner)
+
+			require.Empty(t, client.callsFor("banChatMember"),
+				"a failed chat listing must not ban anyone")
+			require.Empty(t, client.callsFor("unbanChatMember"),
+				"a failed chat listing must not lift bans in chats it never resolved")
+		})
+	}
+}
+
 func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 	cases := []struct {
 		name        string
