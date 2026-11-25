@@ -21,7 +21,11 @@ services:
         condition: service_started
 
   postgres:
-    # Existing postgres_debug_data volumes from pg15/pg17 must be removed (docker compose -f debug.docker-compose.yml down -v) before pg18 starts
+    # postgres:18 refuses a mount at /var/lib/postgresql/data, so the parent is
+    # mounted and data lands in /var/lib/postgresql/18/docker. Existing
+    # postgres_debug_data volumes from pg15/pg17 must be removed (docker compose
+    # -f debug.docker-compose.yml down -v) or migrated with pg_upgrade before
+    # pg18 starts; they are not auto-upgraded.
     image: postgres:18-alpine
     container_name: alita-postgres-debug
     restart: always
@@ -33,7 +37,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-alita_robot}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_debug_data:/var/lib/postgresql/data
+      - postgres_debug_data:/var/lib/postgresql
     ports:
       - "5432:5432"
     healthcheck:

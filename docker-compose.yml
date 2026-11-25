@@ -44,8 +44,10 @@ services:
           cpus: "0.25"
 
   postgres:
-    # Major-version upgrades need pg_upgrade or a fresh volume; existing
-    # postgres_data volumes from pg17 will not start on pg18.
+    # postgres:18 refuses a mount at /var/lib/postgresql/data, so the parent
+    # /var/lib/postgresql is mounted instead; data lands in
+    # /var/lib/postgresql/18/docker. A pg17 volume will fail loudly here and
+    # needs dump/restore or pg_upgrade - it is never auto-upgraded.
     image: postgres:18-alpine
     container_name: alita-postgres
     restart: always
@@ -55,7 +57,7 @@ services:
       POSTGRES_DB: alita
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alita -d alita"]
       interval: 10s
