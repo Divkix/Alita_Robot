@@ -2,7 +2,6 @@
 title: Disabling Commands
 description: Complete guide to Disabling module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # ❌ Disabling Commands
 

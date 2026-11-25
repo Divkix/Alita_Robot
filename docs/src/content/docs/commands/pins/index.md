@@ -2,7 +2,6 @@
 title: Pins Commands
 description: Complete guide to Pins module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Pins Commands
 

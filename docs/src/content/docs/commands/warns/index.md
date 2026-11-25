@@ -2,7 +2,6 @@
 title: Warns Commands
 description: Complete guide to Warns module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Warns Commands
 

@@ -3,8 +3,10 @@
 // Help and *_docs text come only from locales/en.yml; other languages are ignored.
 // Module aliases come from alt_names in locales/config.yml, while command tables and lock types
 // come from alita/modules. Run make generate-docs after changing these sources.
-// Pages with <!-- MANUALLY MAINTAINED: do not regenerate --> in their first 512 bytes are frozen,
-// except api-reference/lock-types.md, which is regenerated regardless of that marker.
+// Pages named in handWrittenPages are never overwritten; every other module page
+// is generated. make check-docs generates into a fresh tree, compares every
+// generated file with the committed docs, and checks allowlisted command pages
+// against the parsed command manifest.
 package main
 
 import (
@@ -73,9 +75,11 @@ func main() {
 	flag.StringVar(&config.ModulesPath, "modules", "alita/modules", "Path to modules directory")
 	flag.StringVar(&config.DocsOutputPath, "output", "docs/src/content/docs", "Output path for generated docs")
 	var inventoryMode bool
+	var checkCommandCoverage bool
 	flag.BoolVar(&config.Verbose, "verbose", false, "Enable verbose logging")
 	flag.BoolVar(&config.DryRun, "dry-run", false, "Print what would be generated without writing files")
 	flag.BoolVar(&inventoryMode, "inventory", false, "Generate canonical command inventory instead of docs")
+	flag.BoolVar(&checkCommandCoverage, "check-command-coverage", false, "Fail when a hand-written command page is missing a registered command/alias or lists a removed one")
 	flag.Parse()
 
 	if config.Verbose {
@@ -130,6 +134,14 @@ func main() {
 	// Build modules with their commands
 	modules := buildModules(translations, extendedDocs, commands, moduleAliases)
 	log.Infof("📦 Built %d modules with commands", len(modules))
+
+	if checkCommandCoverage {
+		docsRoot := filepath.Join(projectRoot, "docs", "src", "content", "docs")
+		if err := verifyHandWrittenCommandCoverage(docsRoot, commands, handWrittenPages); err != nil {
+			log.Fatalf("Hand-written command coverage check failed:\n%v", err)
+		}
+		log.Info("✅ Hand-written command pages cover the parsed manifest")
+	}
 
 	// Generate documentation
 	outputPath := resolveOutputPath(projectRoot, config.DocsOutputPath)

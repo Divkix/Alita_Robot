@@ -2,7 +2,6 @@
 title: Blacklists Commands
 description: Complete guide to Blacklists module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Blacklists Commands
 

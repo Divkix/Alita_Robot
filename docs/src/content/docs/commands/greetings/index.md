@@ -2,7 +2,6 @@
 title: Greetings Commands
 description: Complete guide to Greetings module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 👋 Greetings Commands
 

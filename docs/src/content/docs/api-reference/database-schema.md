@@ -2,7 +2,6 @@
 title: Database Schema
 description: Complete reference of the PostgreSQL database schema
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # Database Schema
 

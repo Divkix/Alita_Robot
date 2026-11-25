@@ -2,7 +2,6 @@
 title: Spamdb Commands
 description: Complete guide to the Spamdb module — the per-chat spam database check on join, against CAS, lols.bot and the bot's Shared bans network
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🛡 Spamdb Commands
 

@@ -2,7 +2,6 @@
 title: Formatting Commands
 description: Complete guide to Formatting module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📄 Formatting Commands
 

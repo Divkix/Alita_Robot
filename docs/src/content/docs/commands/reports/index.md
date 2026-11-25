@@ -2,7 +2,6 @@
 title: Reports Commands
 description: Complete guide to Reports module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Reports Commands
 

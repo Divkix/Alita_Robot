@@ -2,7 +2,6 @@
 title: Aispam Commands
 description: Complete guide to the Aispam module — the per-chat AI spam filter
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🤖 Aispam Commands
 

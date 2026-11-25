@@ -2,7 +2,6 @@
 title: Notes Commands
 description: Complete guide to Notes module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📝 Notes Commands
 

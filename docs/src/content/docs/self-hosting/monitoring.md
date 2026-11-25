@@ -26,7 +26,7 @@ GET /health
     "database": true,
     "redis": true
   },
-  "version": "2.21.0",
+  "version": "2.31.1",
   "uptime": "24h30m15s"
 }
 ```

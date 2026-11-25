@@ -2,7 +2,6 @@
 title: Bot Updates
 description: Bot event handling and anonymous admin verification
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🤖 Bot Updates
 

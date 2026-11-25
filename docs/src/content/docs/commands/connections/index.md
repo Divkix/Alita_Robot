@@ -2,7 +2,6 @@
 title: Connections Commands
 description: Complete guide to Connections module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Connections Commands
 

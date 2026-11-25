@@ -2,7 +2,6 @@
 title: Mutes Commands
 description: Complete guide to Mutes module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Mutes Commands
 

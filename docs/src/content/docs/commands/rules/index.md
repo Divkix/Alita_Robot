@@ -2,7 +2,6 @@
 title: Rules Commands
 description: Complete guide to Rules module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📋 Rules Commands
 

@@ -2,7 +2,6 @@
 title: Purges Commands
 description: Complete guide to Purges module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🧹 Purges Commands
 

@@ -2,7 +2,6 @@
 title: Languages Commands
 description: Complete guide to Languages module commands and features
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # Languages Commands
 

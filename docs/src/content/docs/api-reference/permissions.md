@@ -2,7 +2,6 @@
 title: Permission System
 description: Complete reference of permission checking functions
 ---
-<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🔐 Permission System
 
