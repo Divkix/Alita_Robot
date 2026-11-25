@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 		err := DB.AutoMigrate(
 			&User{},
 			&Chat{},
+			&models.ChatMember{},
 			&models.WarnSettings{},
 			&models.Warns{},
 			&models.WarnEntry{},

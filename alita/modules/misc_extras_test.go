@@ -11,9 +11,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/stretchr/testify/require"
 
-	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func TestIsDeletedAccount(t *testing.T) {
@@ -143,8 +141,7 @@ func TestZombiesKicksDeletedAccounts(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
 	require.NoError(t, chats.EnsureChatInDb(chatID, "zombie chat"))
-	require.NoError(t, db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).
-		Update("users", models.Int64Array{88}).Error)
+	require.NoError(t, chats.AddChatMember(chatID, 88))
 
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Zombie Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}

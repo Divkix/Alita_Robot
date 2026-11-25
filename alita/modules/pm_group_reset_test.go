@@ -17,7 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
-	"github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -87,11 +87,9 @@ var pmResetCases = []pmResetCase{
 		func(_ adminChatFixture, id int64) bool { return warns.GetAllChatWarns(id) > 0 }},
 	{"unbanall", "unbanall", "",
 		func(t *testing.T, _ adminChatFixture, id int64) {
-			if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", id).
-				Update("users", models.Int64Array{43}).Error; err != nil {
-				t.Fatalf("seed users of %d: %v", id, err)
+			if err := chats.AddChatMember(id, 43); err != nil {
+				t.Fatalf("seed member 43 of %d: %v", id, err)
 			}
-			cache.DeleteCache(cache.CacheKey("chat_users", id))
 		},
 		func(f adminChatFixture, id int64) bool {
 			for _, call := range f.client.callsFor("unbanChatMember") {

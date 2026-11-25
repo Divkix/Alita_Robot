@@ -3,7 +3,6 @@ package chats
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -95,19 +94,14 @@ func TouchChat(chatId int64, chatname string) error {
 	return nil
 }
 
-// AddChatMember appends userid to the chat's users list if it is not there
-// yet. The chat row must already exist (see TouchChat).
+// AddChatMember records userid as a member of the chat if it is not there yet.
+// The chat row must already exist (see TouchChat): the migration's foreign key
+// enforces that in PostgreSQL.
 func AddChatMember(chatId, userid int64) error {
-	if users, err := GetChatUsersCached(chatId); err == nil && slices.Contains(users, userid) {
-		return nil
-	}
-
-	result := db.DB.Exec(
-		`UPDATE chats SET users = users || to_jsonb(?::bigint) WHERE chat_id = ? AND NOT (users @> to_jsonb(?::bigint))`,
-		userid, chatId, userid,
-	)
+	result := db.DB.Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&models.ChatMember{ChatID: chatId, UserID: userid})
 	if result.Error != nil {
-		log.Errorf("[Database] AddChatMember atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
+		log.Errorf("[Database] AddChatMember insert failed for chat %d user %d: %v", chatId, userid, result.Error)
 		return result.Error
 	}
 	if result.RowsAffected > 0 {

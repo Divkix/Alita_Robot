@@ -2,6 +2,7 @@ package federations
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -238,15 +239,32 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 	t.Cleanup(func() { _ = DeleteFederation(fed.FedID) })
 
 	chatID := -time.Now().UnixNano()
+	otherChatID := chatID - 1
+	withoutUserID := chatID - 2
+	chatIDs := []int64{chatID, otherChatID, withoutUserID}
 	if err := chats.EnsureChatInDb(chatID, "member chat"); err != nil {
 		t.Fatalf("EnsureChatInDb: %v", err)
 	}
+	for _, id := range []int64{otherChatID, withoutUserID} {
+		if err := chats.EnsureChatInDb(id, "member chat"); err != nil {
+			t.Fatalf("EnsureChatInDb(%d): %v", id, err)
+		}
+	}
 	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		if err := db.DB.Where("chat_id IN ?", chatIDs).Delete(&models.ChatMember{}).Error; err != nil {
+			t.Errorf("delete chat members: %v", err)
+		}
+		if err := db.DB.Where("chat_id IN ?", chatIDs).Delete(&models.Chat{}).Error; err != nil {
+			t.Errorf("delete chats: %v", err)
+		}
 	})
-	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).
-		Update("users", models.Int64Array{memberID}).Error; err != nil {
-		t.Fatalf("set users: %v", err)
+	for _, id := range []int64{chatID, otherChatID} {
+		if err := chats.AddChatMember(id, memberID); err != nil {
+			t.Fatalf("AddChatMember(%d): %v", id, err)
+		}
+	}
+	if err := chats.AddChatMember(withoutUserID, memberID+99); err != nil {
+		t.Fatalf("AddChatMember(other user): %v", err)
 	}
 	if err := JoinFed(chatID, "member chat", fed.FedID); err != nil {
 		t.Fatalf("JoinFed: %v", err)
@@ -258,12 +276,12 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 	if err != nil || len(ids) != 1 || ids[0] != chatID {
 		t.Fatalf("ListFedChatIDs = %v err=%v", ids, err)
 	}
-	found, err := ChatsContainingUser(memberID, ids)
-	if err != nil || len(found) != 1 || found[0] != chatID {
-		t.Fatalf("ChatsContainingUser = %v err=%v", found, err)
+	found, err := ChatsContainingUser(memberID, chatIDs)
+	if err != nil || !slices.Equal(found, []int64{otherChatID, chatID}) {
+		t.Fatalf("ChatsContainingUser = %v err=%v, want %v", found, err, []int64{otherChatID, chatID})
 	}
-	found, err = ChatsContainingUser(memberID+99, ids)
-	if err != nil || len(found) != 0 {
+	found, err = ChatsContainingUser(memberID+99, chatIDs)
+	if err != nil || !slices.Equal(found, []int64{withoutUserID}) {
 		t.Fatalf("unexpected membership %v err=%v", found, err)
 	}
 	if found, err := ChatsContainingUser(memberID, nil); found != nil || err != nil {
@@ -297,7 +315,7 @@ func TestChatsContainingUserReturnsQueryErrors(t *testing.T) {
 	name := "test:fail_chats_containing_user"
 	injected := errors.New("injected chats query failure")
 	if err := db.DB.Callback().Query().Before("gorm:query").Register(name, func(tx *gorm.DB) {
-		if tx.Statement.Table == "chats" {
+		if tx.Statement.Table == "chat_members" {
 			_ = tx.AddError(injected)
 		}
 	}); err != nil {

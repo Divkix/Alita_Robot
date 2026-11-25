@@ -529,6 +529,7 @@ func TestMain(m *testing.M) {
 	if err := db.DB.AutoMigrate(
 		&db.User{},
 		&db.Chat{},
+		&models.ChatMember{},
 		&models.ConnectionSettings{},
 		&models.ConnectionChatSettings{},
 		&models.AdminSettings{},

@@ -69,20 +69,22 @@ func GetChatUsersContext(ctx context.Context, chatID int64) (models.Int64Array, 
 		return nil, errors.New("database not initialized")
 	}
 
-	var chat models.Chat
-	err := db.DB.WithContext(ctx).Model(&models.Chat{}).
-		Select("users").
+	var rows []models.ChatMember
+	err := db.DB.WithContext(ctx).Model(&models.ChatMember{}).
+		Select("user_id").
 		Where("chat_id = ?", chatID).
-		First(&chat).Error
-
+		Order("user_id").
+		Find(&rows).Error
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("[chats.GetChatUsers] GetChatUsers: %v", err)
-		}
+		log.Errorf("[chats.GetChatUsers] GetChatUsers: %v", err)
 		return nil, err
 	}
 
-	return chat.Users, nil
+	users := make(models.Int64Array, len(rows))
+	for i, row := range rows {
+		users[i] = row.UserID
+	}
+	return users, nil
 }
 
 func GetChatUsersCached(chatID int64) (models.Int64Array, error) {
@@ -94,22 +96,19 @@ func GetChatUsersCachedContext(ctx context.Context, chatID int64) (models.Int64A
 }
 
 // ListChatsWithUser returns active chats whose tracked users include userID,
-// most recently active first. It relies on Postgres jsonb containment with no
-// index behind it: a GIN index on chats.users would be rewritten on every
-// per-message chats update, while this runs only on explicit PM requests (the
-// /settings picker, a PM command that names its group by title or names none),
-// at most once per user per picker pause, so the sequential scan is the
-// cheaper side.
+// most recently active first. The chat_members (user_id, chat_id) index serves
+// the membership side and the primary key joins back to the chat row.
 func ListChatsWithUser(ctx context.Context, userID int64, limit int) ([]models.Chat, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
 	}
 	var out []models.Chat
 	err := db.DB.WithContext(ctx).Model(&models.Chat{}).
-		Select("chat_id, chat_name, last_activity").
-		Where("users @> to_jsonb(?::bigint) AND is_inactive = ?", userID, false).
+		Select("chats.chat_id, chats.chat_name, chats.last_activity").
+		Joins("JOIN chat_members ON chat_members.chat_id = chats.chat_id").
+		Where("chat_members.user_id = ? AND chats.is_inactive = ?", userID, false).
 		// chat_id breaks ties so the limit always cuts the same chats.
-		Order("last_activity DESC, chat_id DESC").
+		Order("chats.last_activity DESC, chats.chat_id DESC").
 		Limit(limit).
 		Find(&out).Error
 	return out, err
