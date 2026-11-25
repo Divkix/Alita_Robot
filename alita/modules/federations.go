@@ -962,21 +962,24 @@ func fedExportKey(fedID string) string {
 // the claim falls back to this replica, so the cooldown still applies rather
 // than silently disabling; a Redis error stays fail-open like the old
 // SetNX path (an export is never blocked by a broken cache).
-func allowFedExport(fedID string) bool {
-	return opstate.Claim(fedExportKey(fedID), fedExportCooldown) != opstate.ClaimLost
+func allowFedExport(fedID string) (opstate.ClaimHandle, bool) {
+	handle, result := opstate.Acquire(fedExportKey(fedID), fedExportCooldown)
+	return handle, result != opstate.ClaimLost
 }
 
 // releaseFedExport frees the export cooldown claimed by allowFedExport, for an
-// export that delivered no file.
-func releaseFedExport(fedID string) {
-	opstate.Release(fedExportKey(fedID))
+// export that delivered no file. The handle releases only its own claim, so an
+// export that takes the cooldown after this one expired keeps it.
+func releaseFedExport(handle opstate.ClaimHandle) {
+	handle.Release()
 }
 
 func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := ctxTr(ctx)
 	fed := ctx.Data["federationCommandFed"].(*models.Federation)
-	if !allowFedExport(fed.FedID) {
+	handle, allowed := allowFedExport(fed.FedID)
+	if !allowed {
 		text := tr.String("feds_export_wait")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
@@ -984,7 +987,7 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 	delivered := false
 	defer func() {
 		if !delivered {
-			releaseFedExport(fed.FedID)
+			releaseFedExport(handle)
 		}
 	}()
 	bans, err := federations.ListFedBans(fed.FedID)

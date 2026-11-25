@@ -182,12 +182,16 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 }
 
 // The join claim: one per chat and member, so one update on one replica
-// processes a join. Only membership intake takes, keeps or releases it — its
+// processes a join. Only membership intake takes, keeps or resets it — its
 // handlers in greetings.go and ProcessSingleJoin through deps.Claim. A guard
 // never touches it; the federation watcher reports a ban through
 // markJoinHandled. opstate owns the key, the Redis-absent fallback and the
 // error policy.
-const recentJoinProcessTTL = 5 * time.Second
+//
+// The TTL must exceed the update processing budget (30s): a claim that
+// expires while its update is still working lets the duplicate update
+// through, and the newcomer is counted and greeted twice.
+const recentJoinProcessTTL = 60 * time.Second
 
 func joinClaimKey(chatID, userID int64) string {
 	return opstate.Key("recentJoinProcessing", chatID, userID)
@@ -196,7 +200,8 @@ func joinClaimKey(chatID, userID int64) string {
 // claimJoin is membership intake's join claim. A Redis error degrades to a
 // claim local to this replica, which lets the guard stages run but not the
 // challenge or welcome, so an outage neither lets a banned user in nor greets
-// anyone twice.
+// anyone twice. Nothing releases this claim conditionally — the only reset is
+// a leave, through clearJoinClaim — so it takes the fire-and-forget Claim.
 func claimJoin(chatID, userID int64) JoinClaim {
 	switch opstate.Claim(joinClaimKey(chatID, userID), recentJoinProcessTTL) {
 	case opstate.ClaimShared:
@@ -215,6 +220,8 @@ func markJoinHandled(chatID, userID int64) {
 	claimJoin(chatID, userID)
 }
 
+// clearJoinClaim resets the join claim whatever owner holds it: a leave is a
+// deliberate reset, not an owner's conditional release.
 func clearJoinClaim(chatID, userID int64) {
-	opstate.Release(joinClaimKey(chatID, userID))
+	opstate.Clear(joinClaimKey(chatID, userID))
 }

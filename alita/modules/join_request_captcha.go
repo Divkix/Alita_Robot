@@ -39,15 +39,20 @@ func joinRequestCaptchaPassKey(chatID, userID int64) string {
 	return opstate.Key("joinCaptcha:passed", chatID, userID)
 }
 
-// markJoinRequestCaptchaPassed claims the pass marker for ttl. Re-marking an
-// already-held key keeps the first claim's expiry, matching the old SetNX
-// shape closely enough: a second approval inside the window is a no-op.
-func markJoinRequestCaptchaPassed(chatID, userID int64) {
-	opstate.Claim(joinRequestCaptchaPassKey(chatID, userID), joinRequestCaptchaPassTTL)
+// markJoinRequestCaptchaPassed claims the pass marker for ttl and returns the
+// handle that owns it, plus whether this call won. Re-marking an already-held
+// key keeps the first claim's expiry, matching the old SetNX shape closely
+// enough: a second approval inside the window is a no-op.
+func markJoinRequestCaptchaPassed(chatID, userID int64) (opstate.ClaimHandle, bool) {
+	handle, result := opstate.Acquire(joinRequestCaptchaPassKey(chatID, userID), joinRequestCaptchaPassTTL)
+	return handle, result != opstate.ClaimLost
 }
 
-func clearJoinRequestCaptchaPassed(chatID, userID int64) {
-	opstate.Release(joinRequestCaptchaPassKey(chatID, userID))
+// clearJoinRequestCaptchaPassed releases the marker only while handle still
+// owns it: an approval that failed after its marker expired leaves whatever
+// claimed the key next alone.
+func clearJoinRequestCaptchaPassed(handle opstate.ClaimHandle) {
+	handle.Release()
 }
 
 func joinRequestCaptchaPassed(chatID, userID int64) bool {
@@ -330,9 +335,9 @@ func approveJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *mode
 	if !claimed {
 		return answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_join_request_expired", nil)
 	}
-	markJoinRequestCaptchaPassed(attempt.ChatID, attempt.UserID)
+	handle, _ := markJoinRequestCaptchaPassed(attempt.ChatID, attempt.UserID)
 	if _, err = bot.ApproveChatJoinRequestWithContext(tracing.UpdateContext(ctx), attempt.ChatID, attempt.UserID, nil); err != nil {
-		clearJoinRequestCaptchaPassed(attempt.ChatID, attempt.UserID)
+		clearJoinRequestCaptchaPassed(handle)
 		if isJoinRequestGone(err) {
 			return answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_join_request_expired", nil)
 		}
