@@ -91,10 +91,12 @@ func newAISpamCapFixture(t *testing.T) *aispamCapFixture {
 	}
 }
 
-// send posts n messages and waits for their checks.
+// send posts n messages and waits for their checks. Each drain leaves the
+// queue shedding, so a later send in the same test reopens it.
 func (f *aispamCapFixture) send(t *testing.T, n int) {
 	t.Helper()
 
+	reopenAISpamQueue()
 	for range n {
 		f.nextID++
 		aispamProcessUpdate(t, f.dispatcher, f.bot, f.chat, gotgbot.User{Id: 42, FirstName: "Member"}, f.nextID, fmt.Sprintf("hello there number %d", f.nextID))

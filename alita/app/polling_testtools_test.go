@@ -81,8 +81,8 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 			defer mu.Unlock()
 			order = append(order, step)
 		}
-		drain := func(step string) func() error {
-			return func() error {
+		drain := func(step string) func(context.Context) error {
+			return func(context.Context) error {
 				record(step)
 				return nil
 			}
@@ -100,7 +100,7 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 		)...)
 		httpStopStarted := make(chan struct{})
 		releaseHTTPStop := make(chan struct{})
-		manager.Register("http stop", shutdown.PhaseHTTPServer, func() error {
+		manager.Register("http stop", shutdown.PhaseHTTPServer, func(context.Context) error {
 			close(httpStopStarted)
 			<-releaseHTTPStop
 			record("http stop")
@@ -167,7 +167,7 @@ func TestPollingShutdownRunsEveryDrainBeforeExit(t *testing.T) {
 		if returnedBeforeExit {
 			t.Error("runPolling returned before the shutdown manager exited; the remaining drains would not run")
 		}
-		want := []string{"updater stop", "http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+		want := []string{"updater stop", "http stop", "jobs stop", "aispam drain", "captcha stop", "users drain", "stats flush", "db close", "tracer"}
 		if !slices.Equal(orderAtExit, want) {
 			t.Errorf("drains run before exit = %v, want %v", orderAtExit, want)
 		}
@@ -219,7 +219,7 @@ func TestRunWebhookForkRegistersWebhookAndWaits(t *testing.T) {
 		t.Fatalf("setMyCommands calls = %d, want 1 (postInit ran)", len(calls))
 	}
 
-	want := []string{"http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+	want := []string{"http stop", "jobs stop", "aispam drain", "captcha stop", "users drain", "stats flush", "db close", "tracer"}
 	if !slices.Equal(drainOrder, want) {
 		t.Errorf("drains executed = %v, want %v", drainOrder, want)
 	}
@@ -266,7 +266,7 @@ func TestRunPollingForkDeletesWebhookAndRegistersUpdaterDrain(t *testing.T) {
 		t.Fatalf("setMyCommands calls = %d, want 1 (postInit ran)", len(calls))
 	}
 
-	want := []string{"updater stop", "http stop", "aispam drain", "captcha stop", "users drain", "jobs stop", "stats flush", "db close", "tracer"}
+	want := []string{"updater stop", "http stop", "jobs stop", "aispam drain", "captcha stop", "users drain", "stats flush", "db close", "tracer"}
 	if !slices.Equal(drainOrder, want) {
 		t.Errorf("drains executed = %v, want %v", drainOrder, want)
 	}

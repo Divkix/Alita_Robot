@@ -390,11 +390,42 @@ func aispamMirrorDeletion(task aispamTask, verdict *aispamVerdict) {
 var (
 	aispamWorkersOnce sync.Once
 	aispamQueue       chan aispamTask
-	aispamInFlight    sync.WaitGroup
+
+	// aispamInFlight counts enqueued checks that have not finished. A mutex
+	// and Cond rather than a WaitGroup: a drain abandoned on shutdown timeout
+	// leaves its waiter goroutine behind, and the tests reopen the queue in
+	// the same process. WaitGroup forbids Add after an abandoned Wait; the
+	// Cond permits later increments and additional waiters at any time.
+	aispamInFlightMu sync.Mutex
+	aispamInFlight   int
+	aispamInFlightCV = sync.NewCond(&aispamInFlightMu)
+
 	// aispamDraining is set before the shutdown drain so a late update cannot
-	// Add to the WaitGroup after Wait has seen zero.
+	// start a check after the drain has seen zero in flight. It is deliberately
+	// never cleared: after a drain, a check would only start behind the database
+	// close.
 	aispamDraining atomic.Bool
 )
+
+// aispamInFlightBegin counts a check. It runs before the drain flag is read,
+// so a check counted here is either waited for by DrainAISpamChecksContext, or
+// observes the flag and is shed without starting any work.
+func aispamInFlightBegin() {
+	aispamInFlightMu.Lock()
+	aispamInFlight++
+	aispamInFlightMu.Unlock()
+}
+
+// aispamInFlightEnd releases a counted check and wakes drain waiters when the
+// last one is done.
+func aispamInFlightEnd() {
+	aispamInFlightMu.Lock()
+	aispamInFlight--
+	if aispamInFlight == 0 {
+		aispamInFlightCV.Broadcast()
+	}
+	aispamInFlightMu.Unlock()
+}
 
 func aispamEnsureWorkers() {
 	aispamWorkersOnce.Do(func() {
@@ -412,7 +443,7 @@ func aispamWorker() {
 
 	for task := range aispamQueue {
 		func() {
-			defer aispamInFlight.Done()
+			defer aispamInFlightEnd()
 			defer error_handling.RecoverFromPanic("processAISpam", "aispam")
 			processAISpam(task)
 		}()
@@ -427,11 +458,12 @@ func aispamEnqueue(task aispamTask) bool {
 	aispamEnsureWorkers()
 
 	// The counter is bumped before the drain flag is read. A check counted here
-	// is therefore either waited for by DrainAISpamChecks, or observes the flag
-	// and is shed without any work: nothing can start after the drain returns.
-	aispamInFlight.Add(1)
+	// is therefore either waited for by DrainAISpamChecksContext, or observes
+	// the flag and is shed without any work: nothing can start after the drain
+	// returns.
+	aispamInFlightBegin()
 	if aispamDraining.Load() {
-		aispamInFlight.Done()
+		aispamInFlightEnd()
 		aispamShed.Add(1)
 		return false
 	}
@@ -440,7 +472,7 @@ func aispamEnqueue(task aispamTask) bool {
 	case aispamQueue <- task:
 		return true
 	default:
-		aispamInFlight.Done()
+		aispamInFlightEnd()
 		aispamShed.Add(1)
 		log.WithFields(log.Fields{
 			"chat_id": task.chatID,
@@ -450,28 +482,41 @@ func aispamEnqueue(task aispamTask) bool {
 	}
 }
 
-// aispamDrainTimeout bounds the shutdown drain: a full queue of slow checks can
-// outlast the shutdown budget, and exiting with work left behind beats blocking
-// the process.
-const aispamDrainTimeout = 30 * time.Second
-
-// DrainAISpamChecks stops accepting new checks and waits for the enqueued ones
-// to finish, so callers observe deletions without sleeping.
-func DrainAISpamChecks() {
+// DrainAISpamChecksContext stops accepting new checks and waits for the
+// enqueued ones to finish, so no check writes after the database closes. The
+// shutdown context bounds the wait: when it is done the drain returns its error
+// with checks still running, and the draining flag stays set so a late check is
+// shed rather than started behind the close.
+func DrainAISpamChecksContext(ctx context.Context) error {
 	aispamDraining.Store(true)
-	defer aispamDraining.Store(false)
 
 	done := make(chan struct{})
 	go func() {
-		aispamInFlight.Wait()
+		// A Cond rather than a WaitGroup, because a timed-out drain leaves this
+		// waiter behind and the tests reopen the queue in the same process: a
+		// later check must still be able to start and be waited for.
+		aispamInFlightMu.Lock()
+		for aispamInFlight > 0 {
+			aispamInFlightCV.Wait()
+		}
+		aispamInFlightMu.Unlock()
 		close(done)
 	}()
 
 	select {
 	case <-done:
-	case <-time.After(aispamDrainTimeout):
-		log.Warn("[AISpam] shutdown drain timed out with checks still in flight")
+		return nil
+	case <-ctx.Done():
+		log.Warn("[AISpam] shutdown drain interrupted with checks still in flight")
+		return ctx.Err()
 	}
+}
+
+// DrainAISpamChecks is DrainAISpamChecksContext with a background context, for
+// callers that have no deadline. Production shutdown registers the context
+// version.
+func DrainAISpamChecks() {
+	_ = DrainAISpamChecksContext(context.Background())
 }
 
 //

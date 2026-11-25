@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -583,7 +584,9 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		if logText != "" {
 			notifyFedAction(b, fed, from, logText)
 		}
-		go applyActiveFban(b, fed.FedID, targetID, from.Id)
+		startFedWalk(func(walkCtx context.Context) {
+			applyActiveFban(walkCtx, b, fed.FedID, targetID, from.Id)
+		})
 		return ext.EndGroups
 	}
 	if err := federations.Unfban(fed.FedID, targetID); err != nil {
@@ -603,7 +606,9 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 	if logText != "" {
 		notifyFedAction(b, fed, from, logText)
 	}
-	go applyActiveUnfban(b, fed.FedID, targetID, from.Id)
+	startFedWalk(func(walkCtx context.Context) {
+		applyActiveUnfban(walkCtx, b, fed.FedID, targetID, from.Id)
+	})
 	return ext.EndGroups
 }
 
@@ -615,6 +620,55 @@ const fedWalkMaxFloodWait = 30 * time.Second
 // an update: the wait holds a dispatcher routine and must end well inside the
 // join claim's recentJoinProcessTTL.
 const fedBanOnUpdateMaxFloodWait = 3 * time.Second
+
+var (
+	// fedWalksInFlight tracks the background ban and unban walks, so shutdown
+	// can wait for them after cancelling them.
+	fedWalksInFlight sync.WaitGroup
+	// fedWalksDraining is set before the shutdown drain so a late walk cannot
+	// Add to the WaitGroup after Wait has seen zero.
+	fedWalksDraining atomic.Bool
+	// fedWalkCtx is cancelled by DrainFederationWalksContext: a walk waiting on
+	// a flood backoff or between chats stops instead of writing after the close.
+	fedWalkCtx, fedWalkCancel = context.WithCancel(context.Background())
+)
+
+// startFedWalk runs one federation walk in the background under fedWalkCtx.
+func startFedWalk(walk func(context.Context)) {
+	fedWalksInFlight.Add(1)
+	if fedWalksDraining.Load() {
+		fedWalksInFlight.Done()
+		return
+	}
+	go func() {
+		defer fedWalksInFlight.Done()
+		walk(fedWalkCtx)
+	}()
+}
+
+// DrainFederationWalksContext cancels the federation walks and waits for them
+// to return, so none writes after the database closes. A walk waiting on a
+// flood backoff wakes on the cancellation instead of sleeping it out. The
+// draining flag is deliberately left set: a walk requested during shutdown
+// would enforce state the process is about to discard.
+func DrainFederationWalksContext(ctx context.Context) error {
+	fedWalksDraining.Store(true)
+	fedWalkCancel()
+
+	done := make(chan struct{})
+	go func() {
+		fedWalksInFlight.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		log.Warn("[Federations] shutdown drain interrupted with walks still in flight")
+		return ctx.Err()
+	}
+}
 
 type fedWalkKey struct {
 	fedID  string
@@ -660,12 +714,14 @@ func lockFedWalk(fedID string, userID int64) (unlock func()) {
 
 // retryAfterFlood runs call once more when Telegram answers 429, after the
 // retry_after it asks for, unless that wait exceeds fedWalkMaxFloodWait.
-func retryAfterFlood(call func() error) error {
-	return retryAfterFloodWithin(fedWalkMaxFloodWait, call)
+func retryAfterFlood(ctx context.Context, call func() error) error {
+	return retryAfterFloodWithin(ctx, fedWalkMaxFloodWait, call)
 }
 
-// retryAfterFloodWithin is retryAfterFlood with its own cap on the wait.
-func retryAfterFloodWithin(maxWait time.Duration, call func() error) error {
+// retryAfterFloodWithin is retryAfterFlood with its own cap on the wait. It
+// gives up when ctx is done instead of sleeping out the wait, so shutdown does
+// not have to wait for a flood backoff.
+func retryAfterFloodWithin(ctx context.Context, maxWait time.Duration, call func() error) error {
 	err := call()
 	var tgErr *gotgbot.TelegramError
 	if !errors.As(err, &tgErr) || tgErr.Code != http.StatusTooManyRequests || tgErr.ResponseParams == nil {
@@ -675,7 +731,13 @@ func retryAfterFloodWithin(maxWait time.Duration, call func() error) error {
 	if wait > maxWait {
 		return err
 	}
-	time.Sleep(wait)
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	return call()
 }
 
@@ -691,12 +753,16 @@ func logFedWalkFailure(op string, err error) {
 }
 
 // applyActiveFban bans userID, fbanned by actorID, in the federation's chats
-// that know the user.
-func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
+// that know the user. ctx is the walk's shutdown context: once it is done the
+// walk stops and places no further punishments.
+func applyActiveFban(ctx context.Context, b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveFban", "Federations")
+	if ctx.Err() != nil {
+		return
+	}
 	defer lockFedWalk(fedID, userID)()
 	// Only a confirmed missing ban stops the walk; a failed lookup bans anyway.
-	ban, lookupErr := federations.GetFedBanE(context.Background(), fedID, userID)
+	ban, lookupErr := federations.GetFedBanE(ctx, fedID, userID)
 	if lookupErr != nil {
 		log.Warnf("[Federations] active fban fed %s user %d: ban lookup failed, banning anyway: %v", fedID, userID, lookupErr)
 	} else if ban == nil {
@@ -713,25 +779,35 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 		return
 	}
 	for _, chatID := range chatIDs {
+		if ctx.Err() != nil {
+			return
+		}
 		// Federation bans are permanent and carry no reason on record.
-		err := retryAfterFlood(func() error {
-			_, err := punishment.Apply(context.Background(), b, punishment.Request{
+		err := retryAfterFlood(ctx, func() error {
+			_, err := punishment.Apply(ctx, b, punishment.Request{
 				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
 				Source: models.BanSourceFed, Detail: fedID, ActorID: actorID,
 			})
 			return err
 		})
 		if err != nil {
+			// A cancelled walk is shutdown, not a failed enforcement.
+			if ctx.Err() != nil {
+				return
+			}
 			logFedWalkFailure(fmt.Sprintf("active fban chat %d user %d", chatID, userID), err)
 		}
 	}
 	if lookupErr == nil {
 		return
 	}
+	if ctx.Err() != nil {
+		return
+	}
 	// The walk banned without knowing the ban still exists. An unban walk that ran
 	// before it will not come again, so undo the bans if a re-read confirms that
 	// no federation in the tree bans the user, as applyActiveUnfban would.
-	ban, _, err = federations.FindBanInFedTreeE(context.Background(), fedID, userID)
+	ban, _, err = federations.FindBanInFedTreeE(ctx, fedID, userID)
 	if err != nil {
 		log.Warnf("[Federations] active fban fed %s user %d: keeping bans, ban re-read failed: %v", fedID, userID, err)
 		return
@@ -740,13 +816,19 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 		return
 	}
 	for _, chatID := range chatIDs {
-		err := retryAfterFlood(func() error {
-			_, err := punishment.Lift(context.Background(), b, punishment.LiftRequest{
+		if ctx.Err() != nil {
+			return
+		}
+		err := retryAfterFlood(ctx, func() error {
+			_, err := punishment.Lift(ctx, b, punishment.LiftRequest{
 				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban,
 			})
 			return err
 		})
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logFedWalkFailure(fmt.Sprintf("active fban undo chat %d user %d", chatID, userID), err)
 		}
 	}
@@ -757,10 +839,13 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 // still bans the user, since enforceFedBan would ban them again on their next
 // message, or when that cannot be checked. OnlyIfBanned keeps members who are not
 // banned from being kicked.
-func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
+func applyActiveUnfban(ctx context.Context, b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveUnfban", "Federations")
+	if ctx.Err() != nil {
+		return
+	}
 	defer lockFedWalk(fedID, userID)()
-	ban, _, err := federations.FindBanInFedTreeE(context.Background(), fedID, userID)
+	ban, _, err := federations.FindBanInFedTreeE(ctx, fedID, userID)
 	if err != nil {
 		log.Warnf("[Federations] active unfban fed %s user %d: keeping bans, ban lookup failed: %v", fedID, userID, err)
 		return
@@ -779,13 +864,19 @@ func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 		return
 	}
 	for _, chatID := range chatIDs {
-		err := retryAfterFlood(func() error {
-			_, err := punishment.Lift(context.Background(), b, punishment.LiftRequest{
+		if ctx.Err() != nil {
+			return
+		}
+		err := retryAfterFlood(ctx, func() error {
+			_, err := punishment.Lift(ctx, b, punishment.LiftRequest{
 				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: actorID,
 			})
 			return err
 		})
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logFedWalkFailure(fmt.Sprintf("active unfban chat %d user %d", chatID, userID), err)
 		}
 	}
@@ -1224,7 +1315,7 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		// out; a longer one fails the ban.
 		Apply: func(applyCtx context.Context, applyBot *gotgbot.Bot, request punishment.Request) (punishment.Result, error) {
 			var applied punishment.Result
-			err := retryAfterFloodWithin(fedBanOnUpdateMaxFloodWait, func() error {
+			err := retryAfterFloodWithin(applyCtx, fedBanOnUpdateMaxFloodWait, func() error {
 				var applyErr error
 				applied, applyErr = punishment.Apply(applyCtx, applyBot, request)
 				return applyErr

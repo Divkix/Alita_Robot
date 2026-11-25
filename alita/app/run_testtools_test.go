@@ -3,6 +3,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"path/filepath"
@@ -75,10 +76,10 @@ func TestShutdownDrainsDeclareEveryPhase(t *testing.T) {
 	// updater stop; updaterStopSpec declares that one. A new drain added to
 	// either list is covered here automatically.
 	specs := append(RunDrainSpecs(
-		func() error { return nil },
-		func() error { return nil },
-		func() error { return nil },
-		[]DrainSpec{{Name: "users drain", Handler: func() error { return nil }}},
+		func(context.Context) error { return nil },
+		func(context.Context) error { return nil },
+		func(context.Context) error { return nil },
+		[]DrainSpec{{Name: "users drain", Handler: func(context.Context) error { return nil }}},
 		nil,
 		nil,
 	), updaterStopSpec(nil))
@@ -145,28 +146,28 @@ func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 	// the close is caught by the next drain's probe.
 	wrap := func(spec DrainSpec) DrainSpec {
 		handler := spec.Handler
-		spec.Handler = func() error {
+		spec.Handler = func(ctx context.Context) error {
 			probe()
-			return handler()
+			return handler(ctx)
 		}
 		return spec
 	}
 
 	moduleDrains := []DrainSpec{
-		{Name: "users drain", Handler: func() error { return nil }},
-		{Name: "captcha stop", Handler: func() error { return nil }},
-		{Name: "aispam drain", Handler: func() error { return nil }},
+		{Name: "users drain", Handler: func(context.Context) error { return nil }},
+		{Name: "captcha stop", Handler: func(context.Context) error { return nil }},
+		{Name: "aispam drain", Handler: func(context.Context) error { return nil }},
 	}
 	specs := RunDrainSpecs(
-		func() error {
+		func(context.Context) error {
 			err := closeDBConnections()
 			mu.Lock()
 			closed = true
 			mu.Unlock()
 			return err
 		},
-		func() error { return nil }, // stats flush
-		func() error { return nil }, // jobs stop
+		func(context.Context) error { return nil }, // stats flush
+		func(context.Context) error { return nil }, // jobs stop
 		moduleDrains,
 		nil,
 		func(*httpserver.Server) error { return nil },
@@ -176,7 +177,7 @@ func TestNoDrainAfterDatabasePhaseWritesToTheDatabase(t *testing.T) {
 	// replaced by a no-op: tracing.Shutdown is not what this test measures.
 	updater := ext.NewUpdater(ext.NewDispatcher(nil), nil)
 	specs = append(specs[:len(specs)-1], updaterStopSpec(updater), DrainSpec{
-		Name: "tracer", Phase: shutdown.PhaseTelemetry, Handler: func() error { return nil },
+		Name: "tracer", Phase: shutdown.PhaseTelemetry, Handler: func(context.Context) error { return nil },
 	})
 	for i := range specs {
 		specs[i] = wrap(specs[i])

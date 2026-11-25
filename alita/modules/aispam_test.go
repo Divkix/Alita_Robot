@@ -3,7 +3,9 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -42,6 +44,8 @@ func withAISpamTestConfig(t *testing.T, apiKey string, globallyEnabled bool, mes
 // scoped to one chat and user, so it needs no reset; a test that wants a fresh
 // process calls this and the window survives, which is the point of it.
 func resetAISpamRuntime() {
+	reopenAISpamQueue()
+
 	aispamBreakers.mu.Lock()
 	aispamBreakers.m = make(map[int64]*aispamBreaker)
 	aispamBreakers.mu.Unlock()
@@ -55,6 +59,15 @@ func resetAISpamRuntime() {
 	aispamKept.Store(0)
 	aispamShed.Store(0)
 	aispamFailed.Store(0)
+}
+
+// reopenAISpamQueue reopens the queue after a drain, which deliberately leaves
+// it shedding for the rest of a shutdown. Tests that send again in the same
+// process need this; a shutting-down process never does. A timed-out drain may
+// still have a waiter parked on the in-flight Cond; reopening is safe because
+// the counter admits later increments and waiters, unlike a WaitGroup.
+func reopenAISpamQueue() {
+	aispamDraining.Store(false)
 }
 
 // aispamMessageUpdate builds the update shape the watcher sees for a plain
@@ -552,6 +565,61 @@ func TestCheckAISpamFailsOpenOnProviderErrors(t *testing.T) {
 	}
 }
 
+// TestAISpamDrainContextHonoursCancellation pins the shutdown contract: the
+// drain returns the context's error while a worker is still in flight, leaves
+// the queue shedding, and a later drain still waits for that worker.
+func TestAISpamDrainContextHonoursCancellation(t *testing.T) {
+	resetAISpamRuntime()
+	t.Cleanup(resetAISpamRuntime)
+	withAISpamTestConfig(t, "typesafe-test-key", true, 0)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enteredOnce, releaseOnce sync.Once
+	releaseCheck := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releaseCheck()
+
+	withAISpamJevServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		enteredOnce.Do(func() { close(entered) })
+		<-release
+		_, _ = fmt.Fprint(w, aispamDecisionBody(0.1, "none"))
+	})
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Drain Chat"}
+	if err := aispam.SetAISpamEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetAISpamEnabled() error = %v", err)
+	}
+
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAISpam(dispatcher)
+	aispamProcessUpdate(t, dispatcher, bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, 901, "BUY CHEAP COINS t.me/scam")
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the check never reached the provider")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := DrainAISpamChecksContext(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("DrainAISpamChecksContext() error = %v, want context deadline exceeded", err)
+	}
+	if !aispamDraining.Load() {
+		t.Fatal("the drain reopened the queue: a check enqueued after it would not be waited for")
+	}
+
+	releaseCheck()
+	if err := DrainAISpamChecksContext(context.Background()); err != nil {
+		t.Fatalf("DrainAISpamChecksContext() after the worker finished error = %v", err)
+	}
+	if checked, _, _, shed, _ := GetAISpamStats(); checked != 1 || shed != 0 {
+		t.Fatalf("stats = checked:%d shed:%d, want 1/0", checked, shed)
+	}
+}
+
 func TestAISpamBreakerPausesChatAfterRepeatedFailures(t *testing.T) {
 	resetAISpamRuntime()
 	withAISpamTestConfig(t, "typesafe-test-key", true, 0)
@@ -592,6 +660,9 @@ func TestAISpamBreakerPausesChatAfterRepeatedFailures(t *testing.T) {
 		t.Fatal("breaker asked for a second notice in the same pause")
 	}
 
+	// The drain leaves the queue shedding; reopen it so the paused breaker, not
+	// the drain, is what keeps the provider from being called.
+	reopenAISpamQueue()
 	aispamProcessUpdate(t, dispatcher, bot, chat, user, 799, "BUY CHEAP COINS AGAIN")
 	DrainAISpamChecks()
 
@@ -651,6 +722,9 @@ func TestAISpamBreakerResumesAfterCooldown(t *testing.T) {
 	elapsed.Store(int64(aispamBreakerCooldown))
 	fail.Store(false)
 
+	// The first drain leaves the queue shedding; reopen it so the resumed checks
+	// are queued rather than shed.
+	reopenAISpamQueue()
 	aispamProcessUpdate(t, dispatcher, bot, chat, user, 899, "BUY CHEAP COINS AFTER COOLDOWN")
 	DrainAISpamChecks()
 

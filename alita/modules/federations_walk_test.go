@@ -154,7 +154,7 @@ func TestFbanWalkBansNobodyOnceTheBanRowIsGone(t *testing.T) {
 				require.NoError(t, err)
 				unlock := lockFedWalk(fed.FedID, target)
 				done := make(chan struct{})
-				go func() { defer close(done); applyActiveFban(bot, fed.FedID, target, 1) }()
+				go func() { defer close(done); applyActiveFban(context.Background(), bot, fed.FedID, target, 1) }()
 				// Delete the row only once the walk waits on the lock, so the test
 				// also fails if the walk reads the ban before taking the lock.
 				require.Eventually(t, func() bool {
@@ -171,7 +171,7 @@ func TestFbanWalkBansNobodyOnceTheBanRowIsGone(t *testing.T) {
 					t.Fatal("the queued fban walk never finished")
 				}
 			} else {
-				applyActiveFban(bot, fed.FedID, target, 1)
+				applyActiveFban(context.Background(), bot, fed.FedID, target, 1)
 			}
 			require.Empty(t, lastBanActions(client, target),
 				"a fban walk that finds no ban row must not ban the user anywhere")
@@ -214,7 +214,7 @@ func TestUnfbanKeepsBansWhenTheFedTreeLookupFails(t *testing.T) {
 	require.NoError(t, err)
 	failFedBanLookups(t, fedB.FedID)
 
-	applyActiveUnfban(bot, fedA.FedID, target, 1)
+	applyActiveUnfban(context.Background(), bot, fedA.FedID, target, 1)
 	require.Empty(t, unbanTargets(client, target),
 		"a failed lookup of a subscribed federation's ban must not lift the ban it may still hold")
 }
@@ -233,7 +233,7 @@ func TestFbanWalkStillBansWhenTheBanLookupFails(t *testing.T) {
 	require.NoError(t, err)
 	failFedBanLookups(t, fed.FedID)
 
-	applyActiveFban(bot, fed.FedID, target, 1)
+	applyActiveFban(context.Background(), bot, fed.FedID, target, 1)
 	var chatIDs []int64
 	for _, call := range client.callsFor("banChatMember") {
 		if uid, _ := call.Params["user_id"].(int64); uid == target {
@@ -284,7 +284,7 @@ func TestFedWalksMakeNoPunishmentCallsWhenChatListingFails(t *testing.T) {
 	cases := []struct {
 		name   string
 		table  string
-		walk   func(*gotgbot.Bot, string, int64, int64)
+		walk   func(context.Context, *gotgbot.Bot, string, int64, int64)
 		banned bool
 	}{
 		{name: "fban containment", table: "chats", walk: applyActiveFban, banned: true},
@@ -309,7 +309,7 @@ func TestFedWalksMakeNoPunishmentCallsWhenChatListingFails(t *testing.T) {
 			}
 			failFedTableQueries(t, tc.table)
 
-			tc.walk(bot, fed.FedID, target, owner)
+			tc.walk(context.Background(), bot, fed.FedID, target, owner)
 
 			require.Empty(t, client.callsFor("banChatMember"),
 				"a failed chat listing must not ban anyone")
@@ -357,7 +357,7 @@ func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 			}
 			failed := failFirstFedBanLookups(t, fed.FedID, 1)
 
-			applyActiveFban(bot, fed.FedID, target, 1)
+			applyActiveFban(context.Background(), bot, fed.FedID, target, 1)
 			require.Positive(t, failed.Load(), "the injected lookup failure must have fired")
 			require.Len(t, client.callsFor("banChatMember"), 2, "a failed first read must still ban")
 			if tc.wantUnban {
@@ -403,13 +403,13 @@ func TestFedBanWalksRetryFloodWaitsUpToTheCap(t *testing.T) {
 	cases := []struct {
 		name       string
 		method     string
-		walk       func(b *gotgbot.Bot, fedID string, userID, actorID int64)
+		walk       func(context.Context, *gotgbot.Bot, string, int64, int64)
 		retryAfter int64
 		attempts   int
 	}{
 		{name: "ban retried", method: "banChatMember", walk: applyActiveFban, attempts: 2},
 		{name: "unban retried", method: "unbanChatMember", walk: applyActiveUnfban, attempts: 2},
-		// Over the cap the walk gives up before time.Sleep, so these cases do not wait.
+		// Over the cap the walk gives up before waiting, so these cases do not wait.
 		{name: "ban over the cap", method: "banChatMember", walk: applyActiveFban, retryAfter: overCap, attempts: 1},
 		{name: "unban over the cap", method: "unbanChatMember", walk: applyActiveUnfban, retryAfter: overCap, attempts: 1},
 	}
@@ -430,7 +430,7 @@ func TestFedBanWalksRetryFloodWaitsUpToTheCap(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			tc.walk(bot, fed.FedID, target, owner)
+			tc.walk(context.Background(), bot, fed.FedID, target, owner)
 			var chatIDs []int64
 			for _, call := range client.callsFor(tc.method) {
 				if uid, _ := call.Params["user_id"].(int64); uid == target {
@@ -455,4 +455,96 @@ func TestFedWalkLocksAreReleasedAfterTheLastWalk(t *testing.T) {
 	defer fedWalkLocks.Unlock()
 	require.NotContains(t, fedWalkLocks.byKey, fedWalkKey{fedID: fedID, userID: 42},
 		"a (federation, user) lock must not outlive its last walk")
+}
+
+// floodGateBotClient refuses the first call to method with a 429 and closes
+// entered once it has done so, so the test knows the walk is about to wait on
+// retry_after.
+type floodGateBotClient struct {
+	*moduleBotClient
+	method     string
+	retryAfter int64
+	entered    chan struct{}
+	once       sync.Once
+}
+
+func (c *floodGateBotClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == c.method {
+		flooded := false
+		c.once.Do(func() { flooded = true })
+		if flooded {
+			// Record the refused call so the test can prove no retry follows.
+			_, _ = c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+			close(c.entered)
+			return nil, &gotgbot.TelegramError{
+				Method:         method,
+				Params:         params,
+				Code:           429,
+				Description:    "Too Many Requests: retry after " + strconv.FormatInt(c.retryAfter, 10),
+				ResponseParams: &gotgbot.ResponseParameters{RetryAfter: c.retryAfter},
+			}
+		}
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// resetFedWalkLifecycle gives a test a fresh walk context and undoes the sticky
+// draining flag, which a real shutdown never needs to undo.
+func resetFedWalkLifecycle(t *testing.T) {
+	t.Helper()
+	reopen := func() {
+		fedWalksDraining.Store(false)
+		fedWalkCtx, fedWalkCancel = context.WithCancel(context.Background())
+	}
+	reopen()
+	t.Cleanup(reopen)
+}
+
+// TestFederationDrainCancelsFloodBackoffWalk pins the shutdown contract: the
+// drain cancels a walk sleeping on retry_after, waits for it to return, and the
+// cancelled walk makes no further punishment call.
+func TestFederationDrainCancelsFloodBackoffWalk(t *testing.T) {
+	resetFedWalkLifecycle(t)
+
+	client := &floodGateBotClient{
+		moduleBotClient: newModuleBotClient(),
+		method:          "banChatMember",
+		retryAfter:      int64(fedWalkMaxFloodWait / time.Second),
+		entered:         make(chan struct{}),
+	}
+	bot := newModuleTestBot(client.moduleBotClient)
+	bot.BotClient = client
+	owner := uniquePositiveUserID()
+	fed, err := federations.CreateFederation(owner, "Drain Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+	target := uniquePositiveUserID()
+	seedFedChat(t, fed.FedID, target)
+	_, _, err = federations.Fban(fed.FedID, target, owner, "spam")
+	require.NoError(t, err)
+
+	finished := make(chan struct{})
+	startFedWalk(func(ctx context.Context) {
+		defer close(finished)
+		applyActiveFban(ctx, bot, fed.FedID, target, owner)
+	})
+
+	select {
+	case <-client.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the walk never reached Telegram")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, DrainFederationWalksContext(ctx),
+		"the drain must cancel the flood backoff instead of waiting it out")
+	select {
+	case <-finished:
+	default:
+		t.Fatal("the drain returned while the walk was still running")
+	}
+	require.Len(t, client.callsFor("banChatMember"), 1,
+		"a cancelled walk must not make the retried punishment call")
 }

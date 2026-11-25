@@ -109,7 +109,8 @@ type Deps struct {
 	// recurring-message schedulers for bot.
 	RegisterBotSchedulers func(b *gotgbot.Bot)
 	// ModuleDrains returns the module-owned shutdown drains (async writes,
-	// captcha lifecycle, AI spam checks) in registration order.
+	// captcha lifecycle, AI spam checks, federation walks) in registration
+	// order; the manager runs them last-registered first.
 	ModuleDrains func() []DrainSpec
 	// PanelHandler builds the admin panel handler when the panel is enabled.
 	PanelHandler func(b *gotgbot.Bot, cfg *config.Config) http.Handler
@@ -137,17 +138,19 @@ type Remediator interface {
 }
 
 // DrainSpec is one shutdown drain with the phase it belongs to; the manager
-// orders execution by phase, so the spec carries the ordering as data.
+// orders execution by phase, so the spec carries the ordering as data. The
+// handler stops its own work when ctx ends, because the manager cancels it at
+// the per-handler limit.
 type DrainSpec struct {
 	Name    string
 	Phase   shutdown.Phase
-	Handler func() error
+	Handler func(context.Context) error
 }
 
 // ShutdownDrainSpecs declares the shared drain tail in the phases the
-// shutdown contract fixes: database close, stats flush, jobs stop, then the
-// module drains in the module-drains phase.
-func ShutdownDrainSpecs(closeDB, flushStats, stopJobs func() error, moduleDrains []DrainSpec) []DrainSpec {
+// shutdown contract fixes: jobs stop before the module drains, then the stats
+// flush, then the database close.
+func ShutdownDrainSpecs(closeDB, flushStats, stopJobs func(context.Context) error, moduleDrains []DrainSpec) []DrainSpec {
 	specs := []DrainSpec{
 		{Name: "db close", Phase: shutdown.PhaseDatabase, Handler: closeDB},
 		{Name: "stats flush", Phase: shutdown.PhaseFlush, Handler: flushStats},
@@ -277,18 +280,17 @@ func Run(mode string, cfg *config.Config, deps Deps) {
 	// same HTTP server; in webhook mode it is also the update intake, so it
 	// runs in the HTTP-server phase either way.
 	RegisterShutdownSteps(shutdownManager, RunDrainSpecs(
-		func() error {
+		func(context.Context) error {
 			log.Info("[Shutdown] Closing database connections...")
 			return closeDBConnections()
 		},
-		func() error {
+		func(ctx context.Context) error {
 			log.Info("[Shutdown] Flushing daily stats counters...")
-			return stats.Flush()
+			return stats.FlushContext(ctx)
 		},
-		func() error {
+		func(ctx context.Context) error {
 			log.Info("[Shutdown] Stopping periodic jobs...")
-			jobs.Stop()
-			return nil
+			return jobs.StopContext(ctx)
 		},
 		deps.ModuleDrains(),
 		httpServer,
@@ -337,7 +339,7 @@ func Run(mode string, cfg *config.Config, deps Deps) {
 // updaterStopSpec is the polling mode's update-source drain: it stops the
 // long poll so a held getUpdates does not delay the later drains.
 func updaterStopSpec(updater *ext.Updater) DrainSpec {
-	return DrainSpec{Name: "updater stop", Phase: shutdown.PhaseUpdateSource, Handler: func() error {
+	return DrainSpec{Name: "updater stop", Phase: shutdown.PhaseUpdateSource, Handler: func(context.Context) error {
 		log.Info("[Polling] Stopping updater...")
 		err := updater.Stop()
 		if err != nil {
@@ -353,21 +355,21 @@ func updaterStopSpec(updater *ext.Updater) DrainSpec {
 // updater stop: the shared tail, the HTTP server stop and the tracer drain
 // last, so its telemetry phase runs after every other drain. server may be
 // nil in tests that only enumerate the specs.
-func RunDrainSpecs(closeDB, flushStats, stopJobs func() error, moduleDrains []DrainSpec, server *httpserver.Server, stopHTTP func(*httpserver.Server) error) []DrainSpec {
+func RunDrainSpecs(closeDB, flushStats, stopJobs func(context.Context) error, moduleDrains []DrainSpec, server *httpserver.Server, stopHTTP func(*httpserver.Server) error) []DrainSpec {
 	specs := ShutdownDrainSpecs(closeDB, flushStats, stopJobs, moduleDrains)
 	specs = append(specs, DrainSpec{
 		Name:  "http stop",
 		Phase: shutdown.PhaseHTTPServer,
-		Handler: func() error {
+		Handler: func(context.Context) error {
 			log.Info("[Shutdown] Stopping HTTP server...")
 			return stopHTTP(server)
 		},
 	}, DrainSpec{
 		Name:  "tracer",
 		Phase: shutdown.PhaseTelemetry,
-		Handler: func() error {
+		Handler: func(ctx context.Context) error {
 			log.Info("[Shutdown] Shutting down tracer provider...")
-			return tracing.Shutdown(context.Background())
+			return tracing.Shutdown(ctx)
 		},
 	})
 	return specs
@@ -624,20 +626,23 @@ func defaultLifecycleDeps(cfg *config.Config, deps Deps) Deps {
 	if deps.ModuleDrains == nil {
 		deps.ModuleDrains = func() []DrainSpec {
 			return []DrainSpec{
-				{Name: "users drain", Handler: func() error {
+				{Name: "users drain", Handler: func(context.Context) error {
 					log.Info("[Shutdown] Draining users async writes...")
 					modules.DrainUsersAsyncWrites()
 					return nil
 				}},
-				{Name: "captcha stop", Handler: func() error {
+				{Name: "captcha stop", Handler: func(context.Context) error {
 					log.Info("[Shutdown] Stopping captcha lifecycle...")
 					modules.StopCaptchaLifecycle()
 					return nil
 				}},
-				{Name: "aispam drain", Handler: func() error {
+				{Name: "aispam drain", Handler: func(ctx context.Context) error {
 					log.Info("[Shutdown] Draining AI spam checks...")
-					modules.DrainAISpamChecks()
-					return nil
+					return modules.DrainAISpamChecksContext(ctx)
+				}},
+				{Name: "federation walks drain", Handler: func(ctx context.Context) error {
+					log.Info("[Shutdown] Draining federation walks...")
+					return modules.DrainFederationWalksContext(ctx)
 				}},
 			}
 		}
