@@ -59,6 +59,46 @@ func TestScrubStructuralPatterns(t *testing.T) {
 	}
 }
 
+func TestScrubConnectionStringExact(t *testing.T) {
+	reset()
+	t.Cleanup(reset)
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "password containing at",
+			input: "dial postgres://app:p@ss@db.internal:5432/alita failed",
+			want:  "dial postgres://app:" + Placeholder + "@db.internal:5432/alita failed",
+		},
+		{
+			name:  "password containing slash",
+			input: "redis://:pa/ss@cache:6379",
+			want:  "redis://:" + Placeholder + "@cache:6379",
+		},
+		{
+			name:  "password containing at and slash",
+			input: "postgres://u:p@ss/w@rd@host:5432/db",
+			want:  "postgres://u:" + Placeholder + "@host:5432/db",
+		},
+		{
+			name:  "plain password",
+			input: "amqp://guest:guest@broker:5672/",
+			want:  "amqp://guest:" + Placeholder + "@broker:5672/",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Scrub(tc.input); got != tc.want {
+				t.Fatalf("Scrub(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestScrubDoesNotCorruptOrdinaryProse(t *testing.T) {
 	reset()
 	t.Cleanup(reset)
@@ -153,6 +193,72 @@ func TestHookScrubsMessageAndFields(t *testing.T) {
 	}
 	if !strings.Contains(out, Placeholder) {
 		t.Fatalf("expected redaction placeholder in log output: %s", out)
+	}
+}
+
+func TestHookScrubsStructuredFields(t *testing.T) {
+	reset()
+	t.Cleanup(reset)
+
+	const secret = "structuredsecret42"
+	RegisterSecret(secret)
+
+	type conn struct {
+		ID  int    `json:"id"`
+		DSN string `json:"dsn"`
+	}
+
+	logger := logrus.New()
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	Install(logger)
+
+	logger.WithFields(logrus.Fields{
+		"conn":    conn{ID: 7, DSN: "postgres://app:" + secret + "@host/db"},
+		"ptr":     &conn{ID: 8, DSN: "postgres://app:" + secret + "@host/db"},
+		"nilconn": (*conn)(nil),
+		"meta":    map[string]any{"token": secret, "count": 3},
+		"list":    []any{secret},
+	}).Error("structured fields")
+
+	out := buf.String()
+	if strings.Contains(out, secret) {
+		t.Fatalf("secret leaked in log output: %s", out)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
+		t.Fatalf("log output not valid JSON: %v\n%s", err, out)
+	}
+
+	for _, key := range []string{"conn", "ptr"} {
+		object, ok := entry[key].(map[string]any)
+		if !ok {
+			t.Fatalf("%s field = %T, want a JSON object", key, entry[key])
+		}
+		if object["dsn"] == nil || strings.Contains(object["dsn"].(string), secret) {
+			t.Fatalf("%s.dsn = %v, want the secret redacted in place", key, object["dsn"])
+		}
+	}
+	if entry["conn"].(map[string]any)["id"] != float64(7) {
+		t.Fatalf("conn.id = %v, want 7", entry["conn"].(map[string]any)["id"])
+	}
+	if entry["nilconn"] != nil {
+		t.Fatalf("nil pointer field = %v, want null", entry["nilconn"])
+	}
+
+	meta, ok := entry["meta"].(map[string]any)
+	if !ok {
+		t.Fatalf("meta field = %T, want a JSON object", entry["meta"])
+	}
+	if meta["token"] != Placeholder || meta["count"] != float64(3) {
+		t.Fatalf("meta = %v, want token redacted and count preserved", meta)
+	}
+
+	list, ok := entry["list"].([]any)
+	if !ok || len(list) != 1 || list[0] != Placeholder {
+		t.Fatalf("list = %v, want a one-element redacted array", entry["list"])
 	}
 }
 

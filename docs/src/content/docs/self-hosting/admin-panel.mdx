@@ -47,7 +47,7 @@ With the repository's `docker-compose.yml`, only the variables listed under
 | `PANEL_ENABLED` | No | `false` | Serves the panel and turns on the dashboard buttons. |
 | `PANEL_PUBLIC_URL` | When enabled | — | Public HTTPS URL Telegram opens for the panel, for example `https://bot.example.com/panel`. A trailing slash is trimmed. The bot fails to start without it when the panel is enabled. |
 | `PANEL_MINIAPP_SHORTNAME` | No | — | BotFather Mini App short name. When set, group buttons open `https://t.me/<bot>/<short_name>?startapp=chat_<chat_id>` directly instead of hopping through the bot's private chat. |
-| `PANEL_SESSION_MAX_AGE` | No | `24h` | How old a Mini App `initData` payload may be before the panel rejects it. Go duration syntax (`30m`, `24h`); a value that does not parse fails startup. |
+| `PANEL_SESSION_MAX_AGE` | No | `1h` | How old a Mini App `initData` payload may be before the panel rejects it. Go duration syntax (`30m`, `1h`); a value that does not parse, is not positive, or exceeds the `24h` cap fails startup. |
 
 `PANEL_PUBLIC_URL` must be `https://`; `http://` is accepted only when
 `DEBUG=true`, because Telegram refuses to open a Mini App from an insecure

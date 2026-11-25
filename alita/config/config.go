@@ -114,8 +114,14 @@ func parseRedisDB() (int, error) {
 }
 
 // DefaultPanelSessionMaxAge is how long a Mini App initData payload is accepted
-// after its auth_date when PANEL_SESSION_MAX_AGE is unset.
-const DefaultPanelSessionMaxAge = 24 * time.Hour
+// after its auth_date when PANEL_SESSION_MAX_AGE is unset. The panel client
+// reuses one initData payload for every request in a session, so the window
+// only needs to cover one panel visit, not a day.
+const DefaultPanelSessionMaxAge = time.Hour
+
+// MaxPanelSessionMaxAge hard-caps PANEL_SESSION_MAX_AGE: a captured initData
+// payload stays valid for this long even when no request refreshes it.
+const MaxPanelSessionMaxAge = 24 * time.Hour
 
 // getPanelSessionMaxAge reads PANEL_SESSION_MAX_AGE as a Go duration. Unlike
 // the lenient integer settings, a typo fails startup: a panel that silently
@@ -127,7 +133,7 @@ func getPanelSessionMaxAge() (time.Duration, error) {
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil || d <= 0 {
-		return 0, fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive Go duration such as 24h")
+		return 0, fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive Go duration such as 1h")
 	}
 	return d, nil
 }
@@ -370,6 +376,10 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("HTTP_PORT must be between 1 and 65535")
 	}
 
+	if cfg.EnablePPROF && cfg.MetricsAuthToken == "" {
+		return fmt.Errorf("METRICS_AUTH_TOKEN is required when ENABLE_PPROF is true: pprof endpoints use the metrics bearer token")
+	}
+
 	if cfg.DispatcherMaxRoutines != 0 && (cfg.DispatcherMaxRoutines < 1 || cfg.DispatcherMaxRoutines > 1000) {
 		return fmt.Errorf("DISPATCHER_MAX_ROUTINES must be between 1 and 1000")
 	}
@@ -409,8 +419,8 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("AISPAM_DAILY_LIMIT must be a positive integer (unset it for no cap)")
 	}
 
-	if cfg.PanelSessionMaxAge < 0 {
-		return fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive duration")
+	if cfg.PanelSessionMaxAge <= 0 || cfg.PanelSessionMaxAge > MaxPanelSessionMaxAge {
+		return fmt.Errorf("PANEL_SESSION_MAX_AGE must be a positive duration of at most %s", MaxPanelSessionMaxAge)
 	}
 	if cfg.DigestInterval < 0 {
 		return fmt.Errorf("DIGEST_INTERVAL must be a positive duration")
@@ -687,6 +697,7 @@ func registerConfigSecrets(cfg *Config) {
 	logredact.RegisterSecret(
 		cfg.BotToken,
 		cfg.DatabaseURL,
+		cfg.RedisURL,
 		cfg.RedisPassword,
 		cfg.WebhookSecret,
 		cfg.MetricsAuthToken,

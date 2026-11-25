@@ -619,7 +619,10 @@ func TestDBMetricsDoesNotLeakError(t *testing.T) {
 }
 
 func TestRegisterPPROF(t *testing.T) {
+	const token = "pprof-metrics-token"
+
 	s := New(8080, time.Now())
+	s.SetMetricsAuthToken(token)
 	s.RegisterPPROF()
 
 	paths := []string{
@@ -637,9 +640,24 @@ func TestRegisterPPROF(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rr := httptest.NewRecorder()
 		s.mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("no auth for %s: expected 401, got %d", path, rr.Code)
+		}
 
+		req = httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer wrong-token")
+		rr = httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("wrong token for %s: expected 401, got %d", path, rr.Code)
+		}
+
+		req = httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rr = httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
-			t.Errorf("expected status 200 for %s, got %d", path, rr.Code)
+			t.Errorf("correct token for %s: expected 200, got %d", path, rr.Code)
 		}
 	}
 

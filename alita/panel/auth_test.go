@@ -226,6 +226,23 @@ func TestVerifyInitDataRejectsInvalidPayloads(t *testing.T) {
 	}
 }
 
+func TestVerifyInitDataSessionWindow(t *testing.T) {
+	raw := readFixture(t, "initdata_main.txt")
+
+	// A non-positive maxAge uses DefaultSessionMaxAge (1h), so a payload
+	// captured two hours ago is stale.
+	if _, err := VerifyInitData(raw, fixtureBotToken, fixtureNow.Add(2*time.Hour), 0); err != nil {
+		requireAuthCode(t, err, CodeStaleAuthDate)
+	} else {
+		t.Fatal("expected the default session window to reject a 2h-old auth_date")
+	}
+
+	// A configured 2h window accepts a payload one hour old.
+	if _, err := VerifyInitData(raw, fixtureBotToken, fixtureNow.Add(time.Hour), 2*time.Hour); err != nil {
+		t.Fatalf("VerifyInitData(2h window, 1h-old auth_date) error = %v", err)
+	}
+}
+
 func TestPanelURLHelpers(t *testing.T) {
 	if got := WebAppURL("https://panel.example.com/", -100123); got != "https://panel.example.com?chat=-100123" {
 		t.Fatalf("WebAppURL() = %q", got)

@@ -13,12 +13,18 @@ pprof endpoints should **NEVER** be enabled in production. They expose detailed 
 
 ## Enabling Profiling
 
-### Environment Variable
+### Environment Variables
 
 ```bash
 # Enable pprof endpoints (development only!)
 ENABLE_PPROF=true
+# Required: pprof shares the metrics bearer token. Startup fails without it.
+METRICS_AUTH_TOKEN=<long-random-token>
 ```
+
+Every pprof request must send `Authorization: Bearer $METRICS_AUTH_TOKEN`; a
+missing or wrong token returns 401. `go tool pprof` cannot send that header, so
+fetch the profile with `curl` and analyze the saved file.
 
 When enabled, the following endpoints become available:
 
@@ -41,17 +47,25 @@ CPU profiling requires a separate request:
 
 ```bash
 # Collect 30 seconds of CPU profile
-curl -o cpu.pprof http://localhost:8080/debug/pprof/profile?seconds=30
+curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" \
+  -o cpu.pprof 'http://localhost:8080/debug/pprof/profile?seconds=30'
 ```
 
 ## Using pprof
 
-### Interactive Analysis
-
-Start the pprof interactive console:
+Fetch a heap profile once, then analyze it locally:
 
 ```bash
-go tool pprof http://localhost:8080/debug/pprof/heap
+curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" \
+  -o heap.pb http://localhost:8080/debug/pprof/heap
+```
+
+### Interactive Analysis
+
+Start the pprof interactive console on the saved profile:
+
+```bash
+go tool pprof heap.pb
 ```
 
 Common commands in pprof:
@@ -69,7 +83,7 @@ Common commands in pprof:
 
 ```bash
 # Open web UI at http://localhost:8081
-go tool pprof -http=:8081 http://localhost:8080/debug/pprof/heap
+go tool pprof -http=:8081 heap.pb
 ```
 
 Use the web interface to explore the profile visually.
@@ -78,7 +92,7 @@ Use the web interface to explore the profile visually.
 
 ```bash
 # Drop into interactive console
-go tool pprof http://localhost:8080/debug/pprof/heap
+go tool pprof heap.pb
 
 # Then run commands like:
 (pprof) top
@@ -89,18 +103,19 @@ go tool pprof http://localhost:8080/debug/pprof/heap
 #### Goroutine Analysis
 
 ```bash
-# Get goroutine dump in console mode
-go tool pprof http://localhost:8080/debug/pprof/goroutine
+# Fetch a goroutine dump, then check for goroutine leaks
+curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" \
+  -o goroutine.pb http://localhost:8080/debug/pprof/goroutine
+go tool pprof goroutine.pb
 
-# Check for goroutine leaks
 (pprof) top
 ```
 
 #### CPU Profiling
 
 ```bash
-# Collect 30 seconds of CPU profile
-go tool pprof -seconds=30 http://localhost:8080/debug/pprof/profile
+# Analyze the cpu.pprof collected above
+go tool pprof cpu.pprof
 ```
 
 ## Flame Graphs
@@ -112,14 +127,18 @@ Flame graphs provide a visual representation of CPU or memory usage.
 The simplest way to generate flame graphs:
 
 ```bash
-# Generate SVG flame graph from heap profile
-go tool pprof -svg -output=heap-flamegraph.svg http://localhost:8080/debug/pprof/heap
+# Fetch profiles (the endpoints require the bearer token)
+curl -s -H "Authorization: Bearer $METRICS_AUTH_TOKEN" -o heap.pb http://localhost:8080/debug/pprof/heap
+curl -s -H "Authorization: Bearer $METRICS_AUTH_TOKEN" -o cpu.pprof 'http://localhost:8080/debug/pprof/profile?seconds=30'
 
-# Generate SVG flame graph from CPU profile (30 seconds)
-go tool pprof -svg -output=cpu-flamegraph.svg http://localhost:8080/debug/pprof/profile?seconds=30
+# Generate SVG flame graph from heap profile
+go tool pprof -svg -output=heap-flamegraph.svg heap.pb
+
+# Generate SVG flame graph from CPU profile
+go tool pprof -svg -output=cpu-flamegraph.svg cpu.pprof
 
 # Or open in browser directly
-go tool pprof -http=:8081 http://localhost:8080/debug/pprof/heap
+go tool pprof -http=:8081 heap.pb
 ```
 
 ### Option 2: FlameGraph Perl Scripts
@@ -133,7 +152,7 @@ cd FlameGraph
 
 # Generate heap flame graph from pprof
 # First, get the profile as raw protobuf
-curl -s http://localhost:8080/debug/pprof/heap > heap.pb
+curl -s -H "Authorization: Bearer $METRICS_AUTH_TOKEN" http://localhost:8080/debug/pprof/heap > heap.pb
 
 # Export raw stacks and collapse them into folded format
 go tool pprof -raw -sample_index=inuse_space heap.pb | ./stackcollapse-go.pl > heap.folded

@@ -1,7 +1,11 @@
 package config
 
 import (
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/divkix/Alita_Robot/alita/utils/logredact"
 )
 
 func validBaseConfig() *Config {
@@ -14,6 +18,7 @@ func validBaseConfig() *Config {
 		HTTPPort:             8080,
 		ReputationMinChats:   DefaultReputationMinChats,
 		ReputationWindowDays: DefaultReputationWindowDays,
+		PanelSessionMaxAge:   DefaultPanelSessionMaxAge,
 	}
 }
 
@@ -226,6 +231,39 @@ func TestValidateConfig(t *testing.T) {
 			setup:   func(c *Config) { c.ReputationWindowDays = MaxReputationWindowDays + 1 },
 			wantErr: true,
 		},
+		{
+			name:    "PanelSessionMaxAge zero returns error",
+			setup:   func(c *Config) { c.PanelSessionMaxAge = 0 },
+			wantErr: true,
+		},
+		{
+			name:    "PanelSessionMaxAge negative returns error",
+			setup:   func(c *Config) { c.PanelSessionMaxAge = -time.Hour },
+			wantErr: true,
+		},
+		{
+			name:    "PanelSessionMaxAge at the cap succeeds",
+			setup:   func(c *Config) { c.PanelSessionMaxAge = MaxPanelSessionMaxAge },
+			wantErr: false,
+		},
+		{
+			name:    "PanelSessionMaxAge above the cap returns error",
+			setup:   func(c *Config) { c.PanelSessionMaxAge = MaxPanelSessionMaxAge + time.Second },
+			wantErr: true,
+		},
+		{
+			name:    "EnablePPROF without MetricsAuthToken returns error",
+			setup:   func(c *Config) { c.EnablePPROF = true },
+			wantErr: true,
+		},
+		{
+			name: "EnablePPROF with MetricsAuthToken succeeds",
+			setup: func(c *Config) {
+				c.EnablePPROF = true
+				c.MetricsAuthToken = "metrics-secret-7d2a"
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -243,6 +281,16 @@ func TestValidateConfig(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestRegisterConfigSecretsRedactsRedisURL(t *testing.T) {
+	const redisURL = "rediss://alice:redis-secret-9c3f@redis.example.com:6380/0"
+	registerConfigSecrets(&Config{RedisURL: redisURL})
+
+	got := logredact.Scrub("dial " + redisURL)
+	if strings.Contains(got, "redis.example.com") || strings.Contains(got, "redis-secret-9c3f") {
+		t.Fatalf("Scrub() = %q, still contains the Redis URL", got)
 	}
 }
 

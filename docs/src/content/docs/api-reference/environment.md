@@ -387,7 +387,9 @@ HTTP connections per host
 
 ### `ENABLE_PPROF`
 
-Enable pprof endpoints for performance profiling (development only)
+Enable pprof endpoints for performance profiling (development only). Requires
+`METRICS_AUTH_TOKEN`: `/debug/pprof/*` shares the metrics bearer token, and
+startup fails when this is true while `METRICS_AUTH_TOKEN` is empty.
 
 | Property | Value |
 |----------|-------|
@@ -522,7 +524,8 @@ unset, the bot uses `PORT` (as injected by Railway) before falling back to 8080.
 ### `METRICS_AUTH_TOKEN`
 
 Bearer token required by `/metrics` and `/db_metrics`. Leaving it empty exposes
-those endpoints without authentication and logs a warning.
+those endpoints without authentication and logs a warning. Required when
+`ENABLE_PPROF=true`, because `/debug/pprof/*` uses the same bearer token.
 
 | Property | Value |
 |----------|-------|
@@ -571,13 +574,15 @@ they use the `/start panel_<chat_id>` PM deep link.
 ### `PANEL_SESSION_MAX_AGE`
 
 How old a Mini App `initData` payload may be before the panel rejects it. Go
-duration syntax such as `30m` or `24h`; an invalid value fails startup.
+duration syntax such as `30m` or `1h`; an invalid value, a non-positive value,
+or a value above the `24h` cap fails startup.
 
 | Property | Value |
 |----------|-------|
 | **Type** | `duration` |
 | **Required** | No |
-| **Default** | `24h` |
+| **Default** | `1h` |
+| **Maximum** | `24h` |
 
 ## 📂 Redis configuration
 
@@ -822,7 +827,7 @@ ENABLE_BACKGROUND_STATS=# (default: true in prod, false in debug)
 ENABLE_DB_MONITORING=# (default: false)
 ENABLE_DIGEST=# operator kill switch for the weekly digest and /digest (default: true)
 ENABLE_PERFORMANCE_MONITORING=# (default: true in prod, false in debug)
-ENABLE_PPROF=# enable pprof endpoints (default: false)
+ENABLE_PPROF=# enable pprof endpoints (default: false; requires METRICS_AUTH_TOKEN)
 ENABLE_REPUTATION=# operator kill switch for shared reputation lookups (default: false)
 ENABLE_SPAMDB=# operator kill switch for the /spamdb join check (default: true)
 ENABLED_LOCALES=# comma-separated language codes (default: en)
@@ -830,7 +835,7 @@ HTTP_MAX_IDLE_CONNS=# (default: 100)
 HTTP_MAX_IDLE_CONNS_PER_HOST=# (default: 50)
 HTTP_PORT=# unified HTTP server port (PORT fallback, then 8080)
 INACTIVITY_THRESHOLD_DAYS=# days before marking inactive (default: 30)
-METRICS_AUTH_TOKEN=# protects /metrics and /db_metrics
+METRICS_AUTH_TOKEN=# protects /metrics, /db_metrics and /debug/pprof/*
 MIGRATIONS_PATH=# path to migration files (default: migrations)
 OTEL_EXPORTER_CONSOLE=# enable console trace exporter (default: false)
 OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP endpoint for traces, logs and metrics (gRPC: localhost:4317 or https://host:4317; HTTP: base URL)
@@ -846,7 +851,7 @@ OTEL_METRIC_EXPORT_INTERVAL=# ms between OTLP metric exports (default: 60000)
 PANEL_ENABLED=# enable the Telegram Mini App admin panel (default: false)
 PANEL_MINIAPP_SHORTNAME=# optional BotFather Mini App short name for direct group links
 PANEL_PUBLIC_URL=# public HTTPS URL Telegram opens for the panel, e.g. https://host/panel; required when PANEL_ENABLED=true
-PANEL_SESSION_MAX_AGE=# maximum initData age, Go duration (default: 24h)
+PANEL_SESSION_MAX_AGE=# maximum initData age, Go duration (default: 1h, max: 24h)
 REDIS_DB=# Redis database number (default: 1 with REDIS_ADDRESS; REDIS_URL uses its path, else 0)
 REDIS_PASSWORD=# Redis password
 REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)

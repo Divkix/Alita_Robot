@@ -204,7 +204,7 @@ func (s *Server) RegisterDBMetrics() {
 }
 
 func (s *Server) RegisterPPROF() {
-	s.mux.Handle("/debug/pprof/", http.DefaultServeMux)
+	s.mux.Handle("/debug/pprof/", s.requireMetricsAuth(http.DefaultServeMux))
 
 	s.pprofEnabled = true
 	log.Info("[HTTPServer] Registered /debug/pprof/* endpoints")
