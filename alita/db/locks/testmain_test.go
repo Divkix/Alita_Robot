@@ -9,5 +9,5 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testdb.Run(m, &models.LockSettings{}))
+	os.Exit(testdb.Run(m, &models.LockSettings{}, &models.LockAllowlist{}))
 }

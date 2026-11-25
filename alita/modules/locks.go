@@ -58,6 +58,17 @@ var (
 		}
 		return false
 	}
+	// hasInviteEntity reports whether the message carries a Telegram invite
+	// link (a t.me/telegram.me/telegram.dog group or channel link), checked
+	// per entity so captions count the same as text.
+	hasInviteEntity = func(msg *gotgbot.Message) bool {
+		for _, link := range linkEntitiesOf(msg) {
+			if invite := inviteIdentityOfURL(link.text(msg)); invite != "" {
+				return true
+			}
+		}
+		return false
+	}
 	PREVIEW filters.Message = hasURLEntity
 
 	lockMap = map[string]filters.Message{
@@ -72,7 +83,8 @@ var (
 		"contact":   message.Contact,
 		"photo":     message.Photo,
 		"gif":       message.Animation,
-		"url":       hasURLEntity,
+		"url":        hasURLEntity,
+		"invitelink": hasInviteEntity,
 		"bots":      message.NewChatMembers,
 		"forward":   message.Forwarded,
 		"game":      message.Game,
@@ -318,9 +330,12 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	chatLocks := chatLocksForUpdate(ctx, chat.Id)
+	// The url and invitelink locks honour the chat's allowlist per link
+	// entity; the map is empty and no lookup runs while neither is locked.
+	ex := lockExceptionsForUpdate(ctx, chat.Id, chatLocks)
 	// Pure in-memory check first so unlocked content never pays for the
 	// admin/approval/bot-permission lookups below.
-	if !anyLockHit(chatLocks, lockMap, msg, "bots") {
+	if !anyPermLockHit(chatLocks, ex, msg, "bots") {
 		return ext.ContinueGroups
 	}
 
@@ -338,12 +353,8 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	for perm, filter := range lockMap {
-		if !filter(msg) || !chatLocks[perm] {
-			continue
-		}
-
-		if perm == "bots" {
+	for perm := range lockMap {
+		if perm == "bots" || !permLockHit(perm, chatLocks, ex, msg) {
 			continue
 		}
 
@@ -452,6 +463,7 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 		RequiredChecks: []helpers.Check{helpers.RequireConnectedAdmin(helpers.BotAdminRequired)},
 	}, pipelineHandler(locksModule.locks))
 	loadNightMode(dispatcher)
+	LoadLocksAllowlist(dispatcher)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)
 }

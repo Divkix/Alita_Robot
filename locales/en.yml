@@ -781,6 +781,12 @@ locks_help_msg: "*Admin only*:
 
   × /locks: View Chat permission.
 
+  × /allowlist `<host or invite link> [item ...]`: Except these hosts (the url lock) or Telegram invites (the invitelink lock) from deletion; each link in a message is checked on its own, so an allowed host never exempts another link.
+
+  × /rmallowlist `<host or invite link> [item ...]`: Remove allowlist entries.
+
+  × /rmallowlistall: Remove all allowlist entries (owner only, asks for confirmation).
+
   × /nightmode `<start> <end> <types|all>`: Also apply these lock types every day from start to end (24-hour HH:MM in the chat's /timezone; the window may cross midnight). `/nightmode off` turns it off; /nightmode alone shows it.
 
 
@@ -1248,6 +1254,18 @@ nightmode_invalid_time: "<code>{input}</code> is not a time. Use 24-hour HH:MM, 
 nightmode_same_times: "The start and end times must be different."
 nightmode_no_types: "Give a start time, an end time and the lock types to apply at night, such as <code>media,url</code> or <code>all</code> (see /locktypes)."
 nightmode_invalid_type: "<code>{type}</code> is not a lock type night mode can apply. See /locktypes; <code>bots</code> cannot be locked at night."
+locks_allowlist_empty: There are no allowlist entries in this chat.
+locks_allowlist_list_header: "Allowlist entries in this chat:\n - "
+locks_allowlist_nothing_to_do: Nothing to do.
+locks_allowlist_added: "Added these allowlist entries:"
+locks_allowlist_already_listed: "These entries are already allowlisted:"
+locks_allowlist_removed: "Removed these allowlist entries:"
+locks_allowlist_not_listed: "These entries are not allowlisted:"
+locks_allowlist_invalid: "These entries are not valid allowlist items (a host like example.com or a Telegram invite link):"
+locks_allowlist_clear_all_confirm: Are you sure you want to remove all allowlist entries from this chat?
+locks_allowlist_cleared: Removed all allowlist entries from this chat.
+locks_allowlist_clear_all_cancelled: Cancelled removing all allowlist entries from this chat.
+locks_allowlist_expired: This confirmation has expired. Run /rmallowlistall again.
 
 # Pins module strings
 pins_unpinned_message: Unpinned this message.
@@ -2105,6 +2123,7 @@ locks_notes_docs: |
   <b>Technical Notes</b>
   • Lock enforcement is real-time
   • Admins and approved users are exempt from all locks
+  • The url and invitelink locks honour /allowlist per link entity; every link in a message or caption is checked on its own
   • Locks persist across bot restarts
   • Cache invalidated on updates
 
@@ -3086,6 +3105,9 @@ locks_extend_msg: |
   /unlock — unlock a message type
   /locks — show current locks
   /locktypes — list lockable types
+  /allowlist — except hosts or Telegram invites from the url/invitelink locks
+  /rmallowlist — remove allowlist entries
+  /rmallowlistall — remove all allowlist entries (owner only)
   /nightmode — extra locks on a daily schedule
 logchannels_extend_msg: |
   /setlog — set a log channel (send it in the channel)

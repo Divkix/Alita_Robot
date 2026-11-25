@@ -451,6 +451,12 @@ locks_help_msg: "*केवल एडमिन*:
 
   × /locks: चैट अनुमति देखें।
 
+  × /allowlist `<host या invite लिंक> [item ...]`: इन hosts (url लॉक) या Telegram invites (invitelink लॉक) को डिलीट से छूट दें; संदेश का हर लिंक अलग से जाँचा जाता है, इसलिए अनुमत host किसी दूसरे लिंक को नहीं बचाता।
+
+  × /rmallowlist `<host या invite लिंक> [item ...]`: allowlist एंट्री हटाएँ।
+
+  × /rmallowlistall: सारी allowlist एंट्री हटाएँ (सिर्फ़ owner, पुष्टि माँगता है)।
+
   × /nightmode `<start> <end> <types|all>`: हर दिन शुरुआती समय से अंतिम समय तक ये लॉक प्रकार भी लागू करें (24 घंटे वाला HH:MM, चैट के /timezone में; समय आधी रात पार कर सकता है)। `/nightmode off` इसे बंद करता है; सिर्फ़ /nightmode इसे दिखाता है।
 
 
@@ -1516,6 +1522,18 @@ nightmode_invalid_time: "<code>{input}</code> सही समय नहीं �
 nightmode_same_times: "शुरू और खत्म होने का समय अलग-अलग होना चाहिए।"
 nightmode_no_types: "शुरू का समय, खत्म का समय और रात में लागू होने वाले लॉक प्रकार बताएँ, जैसे <code>media,url</code> या <code>all</code> (/locktypes देखें)।"
 nightmode_invalid_type: "<code>{type}</code> ऐसा लॉक प्रकार नहीं है जिसे नाइट मोड लागू कर सके। /locktypes देखें; <code>bots</code> रात में लॉक नहीं हो सकता।"
+locks_allowlist_empty: इस चैट की allowlist में कोई एंट्री नहीं है।
+locks_allowlist_list_header: "इस चैट की allowlist एंट्री:\n - "
+locks_allowlist_nothing_to_do: करने को कुछ नहीं है।
+locks_allowlist_added: "ये एंट्री allowlist में जोड़ी गईं:"
+locks_allowlist_already_listed: "ये एंट्री पहले से allowlist में हैं:"
+locks_allowlist_removed: "ये एंट्री allowlist से हटाई गईं:"
+locks_allowlist_not_listed: "ये एंट्री allowlist में नहीं हैं:"
+locks_allowlist_invalid: "ये एंट्री मान्य allowlist आइटम नहीं हैं (जैसे example.com host या Telegram invite लिंक):"
+locks_allowlist_clear_all_confirm: क्या आप वाकई इस चैट की सारी allowlist एंट्री हटाना चाहते हैं?
+locks_allowlist_cleared: इस चैट की सारी allowlist एंट्री हटा दी गईं।
+locks_allowlist_clear_all_cancelled: इस चैट की सारी allowlist एंट्री हटाना रद्द कर दिया गया।
+locks_allowlist_expired: यह पुष्टि समाप्त हो गई है। /rmallowlistall फिर चलाएँ।
 locks_notes_docs: |
   <b>तकनीकी नोट्स</b>
   • लॉक प्रवर्तन वास्तविक समय में होता है
@@ -2788,6 +2806,9 @@ locks_extend_msg: |
   /unlock — संदेश प्रकार अनलॉक करें
   /locks — मौजूदा लॉक देखें
   /locktypes — लॉक होने वाले प्रकारों की सूची
+  /allowlist — url/invitelink लॉक से hosts या Telegram invites छूटें
+  /rmallowlist — allowlist एंट्री हटाएँ
+  /rmallowlistall — सारी allowlist एंट्री हटाएँ (सिर्फ़ owner)
   /nightmode — रोज़ तय समय पर रात के लॉक
 logchannels_extend_msg: |
   /setlog — लॉग चैनल सेट करें (चैनल में भेजें)

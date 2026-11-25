@@ -57,6 +57,9 @@ locks_example: '/locks "My Group"'
 locktypes_example: '/locktypes "My Group"'
 lock_example: "/lock @mygroup sticker"
 unlock_example: "/unlock @mygroup sticker"
+allowlist_example: "/allowlist @mygroup example.com"
+rmallowlist_example: "/rmallowlist @mygroup example.com"
+rmallowlistall_example: '/rmallowlistall "My Group"'
 nightmode_example: "/nightmode 23:00 07:00 media,url"
 nightmode_pm_example: "/nightmode @mygroup 23:00 07:00 media,url"
 flood_example: '/flood "My Group"'

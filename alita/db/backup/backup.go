@@ -275,6 +275,20 @@ func replaceChatRows[T any](tx *gorm.DB, chatID int64, rows []T) error {
 	if err := tx.Where("chat_id = ?", chatID).Delete(new(T)).Error; err != nil {
 		return err
 	}
+	return insertChatRows(tx, rows)
+}
+
+// replaceChatRowsWhere is replaceChatRows for tables whose replace must not
+// span every row of the chat: where narrows the delete (for example to one
+// kind), so rows outside it survive the import.
+func replaceChatRowsWhere[T any](tx *gorm.DB, where string, args []interface{}, rows []T) error {
+	if err := tx.Where(where, args...).Delete(new(T)).Error; err != nil {
+		return err
+	}
+	return insertChatRows(tx, rows)
+}
+
+func insertChatRows[T any](tx *gorm.DB, rows []T) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -421,7 +435,16 @@ func exportGreetingsData(chatID int64) (*GreetingsBackup, error) {
 
 func exportLocksData(chatID int64) (*LocksBackup, error) {
 	rows, err := findChatRows[models.LockSettings](chatID)
-	return &LocksBackup{Locks: rows}, err
+	if err != nil {
+		return nil, err
+	}
+	allowlist, err := findChatRows[models.LockAllowlist](chatID)
+	if err != nil {
+		return nil, err
+	}
+	// A backup is meant for another chat: invite exceptions name a live
+	// private join credential of this chat, so only host exceptions port.
+	return &LocksBackup{Locks: rows, Allowlist: portableAllowlist(allowlist)}, nil
 }
 
 func exportNotesData(chatID int64) (*NotesBackup, error) {
@@ -820,10 +843,50 @@ func importLocks(tx *gorm.DB, chatID int64, payload interface{}) ([]string, erro
 		}
 		data.Locks[i].ChatId = chatID
 	}
+	for i := range data.Allowlist {
+		if data.Allowlist[i].Kind != "host" && data.Allowlist[i].Kind != "invite" {
+			return nil, fmt.Errorf("invalid allowlist kind %q", data.Allowlist[i].Kind)
+		}
+		if data.Allowlist[i].Value == "" {
+			return nil, fmt.Errorf("invalid empty allowlist value")
+		}
+		data.Allowlist[i].ChatId = chatID
+	}
 	if err := replaceChatRows(tx, chatID, data.Locks); err != nil {
 		return nil, err
 	}
+	// Invite exceptions are live private join credentials for one chat:
+	// they are never portable, so a backup carrying them cannot add them.
+	// The allowlist field itself is absent when the backup carries no
+	// portable exceptions — older backups predate it and a chat whose
+	// exceptions are all chat-specific exports none — so an absent field
+	// preserves the chat's exceptions in every format version. A present
+	// field replaces only the chat's host exceptions with its portable
+	// rows; one holding only invites asserts nothing portable and leaves
+	// every exception alone. The chat's own invite rows are local state
+	// and survive every import.
+	if moduleFieldPresent(payload, "allowlist") {
+		if portable := portableAllowlist(data.Allowlist); len(portable) > 0 || len(data.Allowlist) == 0 {
+			if err := replaceChatRowsWhere(tx, "chat_id = ? AND kind = ?", []interface{}{chatID, "host"}, portable); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return locks.ChatKeys(chatID), nil
+}
+
+// portableAllowlist keeps only host exceptions: invite exceptions name a
+// group's live private join credential (a "+HASH" invite, a joinchat path
+// or a chat id), which belongs to the exporting chat and never ports to
+// another one — nor back into the same chat through a restore.
+func portableAllowlist(rows []models.LockAllowlist) []models.LockAllowlist {
+	portable := rows[:0]
+	for _, row := range rows {
+		if row.Kind == "host" {
+			portable = append(portable, row)
+		}
+	}
+	return portable
 }
 
 func importNotes(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyOmissions bool) ([]string, error) { //nolint:dupl // module-specific schema
@@ -1156,7 +1219,13 @@ func clearGreetings(tx *gorm.DB, chatID int64) ([]string, error) {
 }
 
 func clearLocks(tx *gorm.DB, chatID int64) ([]string, error) {
-	return locks.ChatKeys(chatID), replaceChatRows[models.LockSettings](tx, chatID, nil)
+	if err := replaceChatRows(tx, chatID, []models.LockSettings(nil)); err != nil {
+		return nil, err
+	}
+	if err := replaceChatRows(tx, chatID, []models.LockAllowlist(nil)); err != nil {
+		return nil, err
+	}
+	return locks.ChatKeys(chatID), nil
 }
 
 func clearNotes(tx *gorm.DB, chatID int64) ([]string, error) {

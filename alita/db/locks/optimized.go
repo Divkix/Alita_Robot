@@ -56,3 +56,26 @@ func GetChatLocksCachedContext(ctx context.Context, chatID int64) (map[string]bo
 
 	return cached, nil
 }
+
+func GetChatAllowlistOptimizedContext(ctx context.Context, chatID int64) ([]models.LockAllowlist, error) {
+	if db.DB == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var exceptions []models.LockAllowlist
+	err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).
+		Order("kind, value").Find(&exceptions).Error
+	if err != nil {
+		log.Errorf("[OptimizedLockQueries] GetChatAllowlistOptimized: %v", err)
+		return nil, err
+	}
+	return exceptions, nil
+}
+
+func GetChatAllowlistCachedContext(ctx context.Context, chatID int64) ([]models.LockAllowlist, error) {
+	cacheKey := LockAllowlistProjection.Key(chatID)
+
+	return cache.GetFromCacheOrLoad(ctx, cacheKey, 1*time.Hour, func(ctx context.Context) ([]models.LockAllowlist, error) {
+		return GetChatAllowlistOptimizedContext(ctx, chatID)
+	})
+}

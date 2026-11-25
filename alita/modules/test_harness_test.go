@@ -551,6 +551,7 @@ func TestMain(m *testing.M) {
 		&db.ChatFilters{},
 		&models.BlacklistSettings{},
 		&db.LockSettings{},
+		&models.LockAllowlist{},
 		&models.ChannelSettings{},
 		&models.ReportChatSettings{},
 		&models.ReportUserSettings{},

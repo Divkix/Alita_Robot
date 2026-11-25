@@ -189,7 +189,8 @@ type FiltersBackup struct {
 type GreetingsBackup = SettingBackup[models.GreetingSettings]
 
 type LocksBackup struct {
-	Locks []models.LockSettings `json:"locks,omitempty"`
+	Locks     []models.LockSettings   `json:"locks,omitempty"`
+	Allowlist []models.LockAllowlist `json:"allowlist,omitempty"`
 }
 
 type NotesBackup struct {

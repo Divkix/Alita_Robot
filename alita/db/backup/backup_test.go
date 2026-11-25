@@ -333,6 +333,9 @@ func cleanupBackupChat(t *testing.T, chatID int64) {
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.LockSettings{}).Error; err != nil {
 		t.Errorf("cleanup failed deleting LockSettings: %v", err)
 	}
+	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.LockAllowlist{}).Error; err != nil {
+		t.Errorf("cleanup failed deleting LockAllowlist: %v", err)
+	}
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.NotesSettings{}).Error; err != nil {
 		t.Errorf("cleanup failed deleting NotesSettings: %v", err)
 	}

@@ -488,6 +488,7 @@ func getLockDescription(lockName, category string) string {
 		"photo":       "Blocks photo messages",
 		"gif":         "Blocks GIF/animation messages",
 		"url":         "Blocks messages containing URLs",
+		"invitelink":  "Blocks messages containing Telegram group/channel invite links (t.me and tg:// links); /allowlist exempts specific invites",
 		"bots":        "Prevents users who are neither admins nor approved from adding bots to the group",
 		"forward":     "Blocks forwarded messages",
 		"game":        "Blocks game messages",

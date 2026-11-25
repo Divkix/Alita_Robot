@@ -3,6 +3,7 @@ package modules
 import (
 	"html"
 	"strconv"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -15,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/opstate"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -64,22 +66,63 @@ func confirmText(ctx *ext.Context, tr *i18n.Translator, question string, chat *g
 	return question + pmGroupLine(tr, ctx.EffectiveMessage, chat, false)
 }
 
+// ownerConfirmOneUseTTL bounds how long a one-use confirmation's buttons
+// stay live; past it the nonce is gone and the prompt reads as expired.
+const ownerConfirmOneUseTTL = 10 * time.Minute
+
+func ownerConfirmNonceKey(namespace string, chat *gotgbot.Chat, actorID int64, nonce string) string {
+	return opstate.Key("ownerConfirm", namespace, chat.Id, actorID, nonce)
+}
+
+// ownerConfirmNonce mints the nonce a one-use confirmation's buttons carry
+// and keeps it for ownerConfirmOneUseTTL. The nonce is bound to the command's
+// namespace, the target group and the user who asked, so only that user's
+// tap on that command's buttons can spend it.
+func ownerConfirmNonce(namespace string, chat *gotgbot.Chat, actorID int64) (string, error) {
+	nonce, err := opstate.NewToken()
+	if err != nil {
+		return "", err
+	}
+	if err := opstate.Stash(ownerConfirmNonceKey(namespace, chat, actorID, nonce), []byte("1"), ownerConfirmOneUseTTL); err != nil {
+		return "", err
+	}
+	return nonce, nil
+}
+
+// ownerConfirmNonceValid spends the nonce a one-use confirmation carries:
+// the first answer from the user who asked consumes it, so a replayed tap —
+// or another owner's — finds nothing. A missing, spent or unreadable nonce is
+// invalid and the caller answers expired.
+func ownerConfirmNonceValid(namespace string, chat *gotgbot.Chat, actorID int64, decoded *callbackcodec.Decoded) bool {
+	nonce, _ := decoded.Field("n")
+	if nonce == "" {
+		return false
+	}
+	kept, err := opstate.Consume[[]byte](ownerConfirmNonceKey(namespace, chat, actorID, nonce))
+	return err == nil && kept != nil && string(*kept) == "1"
+}
+
 // confirmData is the callback data of a reset confirmation for chat. "c"
-// names the group, so a confirmation sent in PM acts on it.
+// names the group, so a confirmation sent in PM acts on it. nonce marks a
+// one-use confirmation (ownerConfirmSpec.OneUse); it is "" otherwise.
 // Confirmations always include "c", even when sent in a group, and their
 // handlers must resolve and authorize that target through ownerConfirmChat.
-func confirmData(namespace, action string, chat *gotgbot.Chat) string {
-	return encodeCallbackData(namespace, map[string]string{"a": action, "c": strconv.FormatInt(chat.Id, 10)})
+func confirmData(namespace, action string, chat *gotgbot.Chat, nonce string) string {
+	fields := map[string]string{"a": action, "c": strconv.FormatInt(chat.Id, 10)}
+	if nonce != "" {
+		fields["n"] = nonce
+	}
+	return encodeCallbackData(namespace, fields)
 }
 
 // confirmKeyboard is the yes/no keyboard of a reset confirmation for chat.
-func confirmKeyboard(tr *i18n.Translator, namespace string, chat *gotgbot.Chat) gotgbot.InlineKeyboardMarkup {
+func confirmKeyboard(tr *i18n.Translator, namespace string, chat *gotgbot.Chat, nonce string) gotgbot.InlineKeyboardMarkup {
 	yesText := tr.String("button_yes")
 	noText := tr.String("button_no")
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
-			{Text: yesText, CallbackData: confirmData(namespace, "yes", chat)},
-			{Text: noText, CallbackData: confirmData(namespace, "no", chat)},
+			{Text: yesText, CallbackData: confirmData(namespace, "yes", chat, nonce)},
+			{Text: noText, CallbackData: confirmData(namespace, "no", chat, nonce)},
 		}},
 	}
 }
@@ -125,12 +168,14 @@ func ownerConfirmChat(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.CallbackQ
 }
 
 // ownerConfirmKeys are the locale keys of a reset confirmation's answers:
-// the text that replaces the prompt once the owner confirms or cancels, and
-// the text when the commit fails.
+// the text that replaces the prompt once the owner confirms or cancels, the
+// text when the commit fails, and the text when a one-use confirmation's
+// nonce is spent or expired (empty falls back to the cancelled text).
 type ownerConfirmKeys struct {
 	Confirmed string
 	Cancelled string
 	Failed    string
+	Expired   string
 }
 
 // ownerConfirmSpec is everything a reset-all command supplies to
@@ -139,13 +184,16 @@ type ownerConfirmKeys struct {
 // and returns false; true means the skeleton sends the prompt for chat. A
 // nil ask always prompts. commit runs the reset for the owner-confirmed
 // chat; its key and params localize the replacement text (an empty key
-// falls back to Keys.Confirmed).
+// falls back to Keys.Confirmed). OneUse makes the confirmation single-use:
+// the buttons carry a nonce consumed on the first answer, so a replayed or
+// second tap cannot commit again; Keys.Expired replaces the prompt then.
 type ownerConfirmSpec struct {
 	Namespace string
 	AskKey    string
 	Ask       func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator) (bool, error)
 	Commit    func(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, tr *i18n.Translator, actor *gotgbot.User) (key string, params i18n.TranslationParams, err error)
 	Keys      ownerConfirmKeys
+	OneUse    bool
 }
 
 // removeAllCommit builds the Commit for a reset whose work is
@@ -189,9 +237,17 @@ func registerOwnerConfirm(spec ownerConfirmSpec) (message, callback handlers.Res
 		if !send {
 			return ext.EndGroups
 		}
+		var nonce string
+		if spec.OneUse {
+			nonce, err = ownerConfirmNonce(spec.Namespace, ctx.EffectiveChat, ctx.EffectiveUser.Id)
+			if err != nil {
+				log.WithError(err).WithField("chat_id", ctx.EffectiveChat.Id).Error("[OwnerConfirm] failed to mint confirmation nonce")
+				return err
+			}
+		}
 		text := tr.String(spec.AskKey)
 		_, err = ctx.EffectiveMessage.Reply(b, confirmText(ctx, tr, text, ctx.EffectiveChat),
-			&gotgbot.SendMessageOpts{ReplyMarkup: confirmKeyboard(tr, spec.Namespace, ctx.EffectiveChat)})
+			&gotgbot.SendMessageOpts{ReplyMarkup: confirmKeyboard(tr, spec.Namespace, ctx.EffectiveChat, nonce)})
 		if err != nil {
 			return err
 		}
@@ -218,15 +274,22 @@ func registerOwnerConfirm(spec ownerConfirmSpec) (message, callback handlers.Res
 		action, _ := decoded.Field("a")
 		var key string
 		var params i18n.TranslationParams
-		switch action {
-		case "yes":
+		switch {
+		case spec.OneUse && !ownerConfirmNonceValid(spec.Namespace, chat, query.From.Id, decoded):
+			// The nonce was already spent or expired: the confirmation is
+			// single-use, so a replayed tap only rewrites the prompt.
+			key = spec.Keys.Expired
+			if key == "" {
+				key = spec.Keys.Cancelled
+			}
+		case action == "yes":
 			key, params, err = spec.Commit(b, ctx, chat, tr, &query.From)
 			if err != nil {
 				key, params = spec.Keys.Failed, nil
 			} else if key == "" {
 				key = spec.Keys.Confirmed
 			}
-		case "no":
+		case action == "no":
 			key = spec.Keys.Cancelled
 		default:
 			return answerInvalidCallback(b, ctx, query)

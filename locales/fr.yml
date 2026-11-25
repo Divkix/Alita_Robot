@@ -1020,6 +1020,12 @@ locks_help_msg: "*Admin uniquement* :
 
   × /locks : Voir les permissions du chat.
 
+  × /allowlist `<hôte ou lien d'invitation> [élément ...]` : Exempte ces hôtes (verrou url) ou invitations Telegram (verrou invitelink) de la suppression ; chaque lien du message est vérifié séparément, donc un hôte autorisé n'exempte jamais un autre lien.
+
+  × /rmallowlist `<hôte ou lien d'invitation> [élément ...]` : Retire des entrées de la liste d'exceptions.
+
+  × /rmallowlistall : Retire toutes les entrées de la liste d'exceptions (propriétaire uniquement, confirmation demandée).
+
   × /nightmode `<début> <fin> <types|all>` : Applique aussi ces types de verrou chaque jour du début à la fin (HH:MM sur 24 heures, dans le fuseau horaire du chat, voir /timezone ; la plage peut passer minuit). `/nightmode off` le désactive ; /nightmode seul l'affiche.
 
 
@@ -1060,6 +1066,18 @@ nightmode_invalid_time: "<code>{input}</code> n'est pas une heure. Utilisez le f
 nightmode_same_times: "L'heure de début et l'heure de fin doivent être différentes."
 nightmode_no_types: "Indiquez une heure de début, une heure de fin et les types de verrou à appliquer la nuit, par exemple <code>media,url</code> ou <code>all</code> (voir /locktypes)."
 nightmode_invalid_type: "<code>{type}</code> n'est pas un type de verrou que le mode nuit peut appliquer. Voir /locktypes ; <code>bots</code> ne peut pas être verrouillé la nuit."
+locks_allowlist_empty: Il n'y a aucune entrée dans la liste d'exceptions de ce chat.
+locks_allowlist_list_header: "Entrées de la liste d'exceptions de ce chat :\n - "
+locks_allowlist_nothing_to_do: Rien à faire.
+locks_allowlist_added: "Ces entrées ont été ajoutées à la liste d'exceptions :"
+locks_allowlist_already_listed: "Ces entrées sont déjà dans la liste d'exceptions :"
+locks_allowlist_removed: "Ces entrées ont été retirées de la liste d'exceptions :"
+locks_allowlist_not_listed: "Ces entrées ne sont pas dans la liste d'exceptions :"
+locks_allowlist_invalid: "Ces entrées ne sont pas des éléments valides de la liste d'exceptions (un hôte comme example.com ou un lien d'invitation Telegram) :"
+locks_allowlist_clear_all_confirm: Voulez-vous vraiment retirer toutes les entrées de la liste d'exceptions de ce chat ?
+locks_allowlist_cleared: Toutes les entrées de la liste d'exceptions de ce chat ont été retirées.
+locks_allowlist_clear_all_cancelled: Retrait de toutes les entrées de la liste d'exceptions de ce chat annulé.
+locks_allowlist_expired: Cette confirmation a expiré. Relancez /rmallowlistall.
 
 # Utils chat status strings
 
@@ -2984,6 +3002,9 @@ locks_extend_msg: |
   /unlock — déverrouiller un type de message
   /locks — afficher les verrous actuels
   /locktypes — liste des types verrouillables
+  /allowlist — exempter des hôtes ou invitations Telegram des verrous url/invitelink
+  /rmallowlist — retirer des entrées de la liste d'exceptions
+  /rmallowlistall — retirer toutes les entrées de la liste d'exceptions (propriétaire uniquement)
   /nightmode — verrous de nuit selon un horaire quotidien
 logchannels_extend_msg: |
   /setlog — définir un canal de journal (à envoyer dans le canal)

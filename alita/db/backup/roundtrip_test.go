@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -474,4 +475,128 @@ func TestLegacyBackupPreservesFieldsThatVersionDidNotExport(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, warnRows, 1)
 	assert.Equal(t, warnUserID, warnRows[0].UserId)
+}
+
+// Locks allowlist portability: invite exceptions name live private join
+// credentials for one chat and stay local in every backup version — they
+// never export and never import. Host exceptions are the only portable
+// rows: an absent "allowlist" field or one holding only non-portable
+// invites preserves the destination's exceptions, an explicitly empty
+// field clears only its hosts, and a populated field replaces its hosts
+// while its local invites stay untouched.
+func TestImportLocksAllowlistAbsentVsEmptyAndPortability(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+	require.NoError(t, chats.EnsureChatInDb(chatID, "allowlist_destination"))
+	seedAllowlist := func() {
+		require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "host", Value: "example.com"}).Error)
+	}
+	seedInvites := func() {
+		require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "invite", Value: "u:somegroup"}).Error)
+		require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "invite", Value: "+DstHash"}).Error)
+	}
+	seedAllowlist()
+	seedInvites()
+
+	locksBackup := func(version, extra string) *BackupFormat {
+		if extra != "" {
+			extra = "," + extra
+		}
+		raw := fmt.Sprintf(`{
+			"version":%q,
+			"bot_name":"AlitaRobot",
+			"chat_id":%d,
+			"modules":["locks"],
+			"data":{"locks":{"locks":[]%s}}
+		}`, version, chatID, extra)
+		bkp, err := BackupFormatFromJSON([]byte(raw))
+		require.NoError(t, err)
+		return bkp
+	}
+	allowlistValues := func() []string {
+		rows, err := findChatRows[models.LockAllowlist](chatID)
+		require.NoError(t, err)
+		values := make([]string, 0, len(rows))
+		for _, row := range rows {
+			values = append(values, row.Kind+":"+row.Value)
+		}
+		return values
+	}
+	reset := func() {
+		require.NoError(t, db.DB.Where("chat_id = ?", chatID).Delete(&models.LockAllowlist{}).Error)
+		seedAllowlist()
+		seedInvites()
+	}
+	configured := []string{"host:example.com", "invite:u:somegroup", "invite:+DstHash"}
+
+	for _, version := range []string{legacyFormatVersion, BackupFormatVersion} {
+		// Absent allowlist: the configured exceptions survive the import.
+		requireCleanImport(t, chatID, locksBackup(version, ""), nil)
+		assert.ElementsMatch(t, configured, allowlistValues())
+
+		// A field holding only invites asserts nothing portable: the
+		// configured exceptions survive as well.
+		requireCleanImport(t, chatID, locksBackup(version, `"allowlist":[{"kind":"invite","value":"id:-1001234567890"}]`), nil)
+		assert.ElementsMatch(t, configured, allowlistValues())
+
+		// Explicitly empty allowlist: the portable hosts are cleared; the
+		// local invites are untouched.
+		requireCleanImport(t, chatID, locksBackup(version, `"allowlist":[]`), nil)
+		assert.ElementsMatch(t, []string{"invite:u:somegroup", "invite:+DstHash"}, allowlistValues())
+		reset()
+
+		// A populated allowlist replaces only the hosts; every invite —
+		// local or carried by the backup — stays out.
+		require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "host", Value: "stale.example"}).Error)
+		requireCleanImport(t, chatID, locksBackup(version, `"allowlist":[
+			{"kind":"host","value":"example.org"},
+			{"kind":"invite","value":"+HashOne"},
+			{"kind":"invite","value":"u:othergroup"},
+			{"kind":"invite","value":"id:-1001234567890"}
+		]`), nil)
+		assert.ElementsMatch(t, []string{"host:example.org", "invite:u:somegroup", "invite:+DstHash"}, allowlistValues())
+
+		// Reset for the next format version.
+		reset()
+	}
+}
+
+// exportLocksData writes only portable exceptions: every invite kind —
+// private hashes and chat-id spellings alike — names a live join
+// credential for one chat and stays local, so a chat whose exceptions are
+// all invites exports no allowlist field at all and importing it cannot
+// touch the destination's rules.
+func TestExportLocksDataKeepsInvitesLocal(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+	require.NoError(t, chats.EnsureChatInDb(chatID, "allowlist_source"))
+	require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "host", Value: "example.com"}).Error)
+	require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "invite", Value: "+HashOne"}).Error)
+	require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "invite", Value: "id:-1001234567890"}).Error)
+
+	exported, err := exportLocksData(chatID)
+	require.NoError(t, err)
+	var values []string
+	for _, row := range exported.Allowlist {
+		values = append(values, row.Kind+":"+row.Value)
+	}
+	assert.ElementsMatch(t, []string{"host:example.com"}, values)
+
+	raw, err := json.Marshal(exported)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "HashOne")
+	assert.NotContains(t, string(raw), "-1001234567890")
+
+	// Only invite exceptions: the field is omitted entirely.
+	require.NoError(t, db.DB.Where("chat_id = ?", chatID).Delete(&models.LockAllowlist{}).Error)
+	require.NoError(t, db.DB.Create(&models.LockAllowlist{ChatId: chatID, Kind: "invite", Value: "+HashOne"}).Error)
+	exported, err = exportLocksData(chatID)
+	require.NoError(t, err)
+	raw, err = json.Marshal(exported)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "allowlist")
 }

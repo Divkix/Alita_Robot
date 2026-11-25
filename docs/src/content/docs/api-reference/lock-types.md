@@ -9,8 +9,8 @@ This page documents all available lock types in the Locks module. Locks allow ad
 
 ## Overview
 
-- **Total Lock Types**: 22
-- **Permission Locks**: 16 (specific content types)
+- **Total Lock Types**: 23
+- **Permission Locks**: 17 (specific content types)
 - **Restriction Locks**: 6 (broad categories)
 
 ## How Locks Work
@@ -53,6 +53,7 @@ Permission locks target specific types of content or actions. Use these for fine
 | `forward` | Blocks forwarded messages |
 | `game` | Blocks game messages |
 | `gif` | Blocks GIF/animation messages |
+| `invitelink` | Blocks messages containing Telegram group/channel invite links (t.me and tg:// links); /allowlist exempts specific invites |
 | `location` | Blocks location/venue messages |
 | `photo` | Blocks photo messages |
 | `rtl` | Blocks message text and media captions containing Arabic-script characters (U+0600-U+06FF); other RTL scripts such as Hebrew are not checked |
