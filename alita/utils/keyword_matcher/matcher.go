@@ -2,7 +2,6 @@ package keyword_matcher
 
 import (
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -11,10 +10,11 @@ import (
 )
 
 type KeywordMatcher struct {
-	matcher  *ahocorasick.Matcher
-	patterns []string
-	mu       sync.RWMutex
-	lastUsed atomic.Int64
+	// Matching state is immutable once the cache publishes it.
+	matcher       *ahocorasick.Matcher
+	patterns      []string
+	singlePattern string
+	lastUsed      atomic.Int64
 }
 
 func newKeywordMatcher(patterns []string) *KeywordMatcher {
@@ -36,17 +36,19 @@ func (km *KeywordMatcher) lastUsedTime() time.Time {
 }
 
 func (km *KeywordMatcher) build() {
-	start := time.Now()
-	if len(km.patterns) == 0 {
-		km.matcher = nil
+	switch len(km.patterns) {
+	case 0:
+		return
+	case 1:
+		km.singlePattern = strings.ToLower(km.patterns[0])
 		return
 	}
 
+	start := time.Now()
 	lowerPatterns := make([]string, len(km.patterns))
 	for i, pattern := range km.patterns {
 		lowerPatterns[i] = strings.ToLower(pattern)
 	}
-
 	km.matcher = ahocorasick.NewStringMatcher(lowerPatterns)
 
 	log.WithFields(log.Fields{
@@ -56,24 +58,18 @@ func (km *KeywordMatcher) build() {
 }
 
 func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
-	lowerText := strings.ToLower(text)
-
-	km.mu.RLock()
-	defer km.mu.RUnlock()
-
-	if km.matcher == nil || len(km.patterns) == 0 {
+	if km.matcher == nil {
+		if km.singlePattern != "" && strings.Contains(strings.ToLower(text), km.singlePattern) {
+			return km.patterns[0], true
+		}
 		return "", false
 	}
 
-	// Matcher.Match is not safe for concurrent readers (it mutates m.counter and
-	// node counters); MatchThreadSafe is the library's concurrency-safe variant.
-	// The []byte conversion does not escape, so it allocates nothing and measures
-	// no slower than an unsafe.StringData view; the plain copy is kept.
-	hits := km.matcher.MatchThreadSafe([]byte(lowerText))
+	// MatchThreadSafe handles concurrent calls without a lock around the matcher.
+	hits := km.matcher.MatchThreadSafe([]byte(strings.ToLower(text)))
 	if len(hits) == 0 {
 		return "", false
 	}
-
 	firstIdx := hits[0]
 	if firstIdx >= 0 && firstIdx < len(km.patterns) {
 		return km.patterns[firstIdx], true
