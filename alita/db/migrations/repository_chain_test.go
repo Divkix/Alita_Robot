@@ -68,6 +68,34 @@ func TestRepositoryMigrationChain(t *testing.T) {
 		t.Fatalf("apply repository migration chain: %v", err)
 	}
 
+	// Both checks run on every chain run, not only when a migration was newly
+	// applied: the files are immutable, so drift only shows up in the schema.
+	indexes, err := queryIndexCatalog(database)
+	if err != nil {
+		t.Fatalf("query migrated index catalog: %v", err)
+	}
+	if os.Getenv("UPDATE_INDEX_GOLDEN") == "1" {
+		if err := os.WriteFile(expectedIndexesFile, []byte(formatGoldenIndexes(indexes)), 0o644); err != nil {
+			t.Fatalf("rewrite %s: %v", expectedIndexesFile, err)
+		}
+		t.Logf("rewrote %s with %d indexes", expectedIndexesFile, len(indexes))
+	} else {
+		expected, err := parseGoldenIndexes(expectedIndexesGolden)
+		if err != nil {
+			t.Fatalf("parse embedded %s: %v", expectedIndexesFile, err)
+		}
+		if len(expected) == 0 {
+			t.Fatalf("%s is empty; regenerate it with UPDATE_INDEX_GOLDEN=1", expectedIndexesFile)
+		}
+		for _, diff := range diffIndexes(expected, indexes) {
+			t.Errorf("index golden: %s", diff)
+		}
+	}
+
+	if err := assertForeignKeyCoverage(database); err != nil {
+		t.Fatal(err)
+	}
+
 	var timezoneAwareCaptchaColumns int64
 	if err := database.Raw(`
 		SELECT COUNT(*)
