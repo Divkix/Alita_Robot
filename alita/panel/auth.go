@@ -15,7 +15,7 @@ import (
 
 // DefaultSessionMaxAge bounds how old initData may be when the caller passes a
 // non-positive maxAge to VerifyInitData.
-const DefaultSessionMaxAge = 24 * time.Hour
+const DefaultSessionMaxAge = time.Hour
 
 // Stable error codes returned for a rejected initData payload. The panel API
 // mirrors them in the JSON error body so clients can react without parsing

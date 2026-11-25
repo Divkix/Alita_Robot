@@ -23,10 +23,14 @@
 package logredact
 
 import (
+	"encoding/json"
+	"fmt"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -54,10 +58,12 @@ var structuralPatterns = []struct {
 	},
 	// Credentials in connection strings: scheme://user:password@host -> redact
 	// only the password segment. Covers postgres://, redis://, amqp://, etc.,
-	// including the password-only form redis://:secret@host.
+	// including the password-only form redis://:secret@host. The password runs
+	// to the last @ in the whitespace-delimited token, so a password containing
+	// @ or / cannot leave a suffix behind.
 	{
-		re:   regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.\-]*://[^:@/\s]*:)[^@/\s]+(@)`),
-		repl: `${1}` + Placeholder + `${2}`,
+		re:   regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.\-]*://[^:@/\s]*:)[^\s]*@`),
+		repl: `${1}` + Placeholder + `@`,
 	},
 	// HTTP Authorization header tokens. Anchored to the "Authorization:" header
 	// name so that the common English words "bearer"/"basic" in ordinary log
@@ -135,17 +141,61 @@ func (hook) Fire(entry *logrus.Entry) error {
 	entry.Message = Scrub(entry.Message)
 
 	for key, value := range entry.Data {
-		switch v := value.(type) {
-		case string:
-			entry.Data[key] = Scrub(v)
-		case error:
-			if v != nil {
-				entry.Data[key] = Scrub(v.Error())
-			}
-		}
+		entry.Data[key] = scrubField(value)
 	}
 
 	return nil
+}
+
+// scrubField scrubs a log field value. Strings and errors are scrubbed
+// directly. Structs, maps, slices, arrays and pointers are JSON-marshaled and
+// scrubbed as text; when that changes the text, they are decoded back so the
+// log entry keeps its JSON shape instead of collapsing to a single opaque
+// string. Values that cannot be marshaled fall back to scrubbing their text
+// form.
+func scrubField(value any) any {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case string:
+		return Scrub(v)
+	case error:
+		if v == nil {
+			return nil
+		}
+		return Scrub(v.Error())
+	case time.Time, *time.Time:
+		return v
+	}
+
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Pointer, reflect.Map, reflect.Slice:
+		if rv.IsNil() {
+			return value
+		}
+	case reflect.Struct, reflect.Array:
+	default:
+		return value
+	}
+
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return Scrub(fmt.Sprint(value))
+	}
+
+	scrubbed := Scrub(string(encoded))
+	if scrubbed == string(encoded) {
+		return value
+	}
+
+	dec := json.NewDecoder(strings.NewReader(scrubbed))
+	dec.UseNumber()
+	var decoded any
+	if err := dec.Decode(&decoded); err != nil {
+		return Scrub(fmt.Sprint(value))
+	}
+	return decoded
 }
 
 var stdInstallOnce sync.Once

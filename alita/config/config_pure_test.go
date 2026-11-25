@@ -165,6 +165,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("DATABASE_URL", "postgres://localhost/test")
 		t.Setenv("REDIS_ADDRESS", "localhost:6379")
 		t.Setenv("ENABLE_PPROF", "yes")
+		t.Setenv("METRICS_AUTH_TOKEN", "metrics-token-a1b2")
 		t.Setenv("HTTP_PORT", "8080")
 
 		cfg, err := LoadConfig()
@@ -360,8 +361,8 @@ func TestPanelConfigDefaultsDisabled(t *testing.T) {
 	if cfg.PanelPublicURL != "" {
 		t.Fatalf("PanelPublicURL = %q, want empty", cfg.PanelPublicURL)
 	}
-	if cfg.PanelSessionMaxAge != 24*time.Hour {
-		t.Fatalf("PanelSessionMaxAge = %v, want 24h", cfg.PanelSessionMaxAge)
+	if cfg.PanelSessionMaxAge != time.Hour {
+		t.Fatalf("PanelSessionMaxAge = %v, want 1h", cfg.PanelSessionMaxAge)
 	}
 }
 
@@ -421,6 +422,50 @@ func TestPanelConfigValidation(t *testing.T) {
 		t.Setenv("PANEL_SESSION_MAX_AGE", "24 hours")
 		if _, err := LoadConfig(); err == nil {
 			t.Fatal("expected an error for a non-duration PANEL_SESSION_MAX_AGE")
+		}
+	})
+
+	t.Run("session age above the cap fails startup", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("PANEL_SESSION_MAX_AGE", "25h")
+		if _, err := LoadConfig(); err == nil {
+			t.Fatal("expected an error for PANEL_SESSION_MAX_AGE above 24h")
+		}
+	})
+
+	t.Run("session age at the cap succeeds", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("PANEL_SESSION_MAX_AGE", "24h")
+		cfg, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("unexpected error for PANEL_SESSION_MAX_AGE=24h: %v", err)
+		}
+		if cfg.PanelSessionMaxAge != MaxPanelSessionMaxAge {
+			t.Fatalf("PanelSessionMaxAge = %v, want %v", cfg.PanelSessionMaxAge, MaxPanelSessionMaxAge)
+		}
+	})
+}
+
+func TestPPROFConfigValidation(t *testing.T) {
+	t.Run("pprof without a metrics token fails startup", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("ENABLE_PPROF", "true")
+		t.Setenv("METRICS_AUTH_TOKEN", "")
+		if _, err := LoadConfig(); err == nil {
+			t.Fatal("expected an error for ENABLE_PPROF=true without METRICS_AUTH_TOKEN")
+		}
+	})
+
+	t.Run("pprof with a metrics token succeeds", func(t *testing.T) {
+		setPanelTestRequiredEnv(t)
+		t.Setenv("ENABLE_PPROF", "true")
+		t.Setenv("METRICS_AUTH_TOKEN", "pprof-token-9f3a")
+		cfg, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !cfg.EnablePPROF {
+			t.Fatal("EnablePPROF = false, want true")
 		}
 	})
 }
