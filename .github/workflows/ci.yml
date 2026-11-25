@@ -332,15 +332,19 @@ jobs:
           echo "Redis did not become ready in time"
           exit 1
 
-      - name: Verify repository migration chain
-        env:
-          ALITA_TEST_MIGRATION_CHAIN: "true"
-        run: go test -tags testtools -v -count=1 -run '^TestRepositoryMigrationChain$' ./alita/db/migrations
-
       - name: Run PostgreSQL integrity tests
         env:
           ALITA_TEST_DATABASE: "true"
         run: make test-postgres-integrity
+
+      # Runs after the integrity suite so both see a fresh database.
+      - name: Verify repository migration chain
+        env:
+          ALITA_TEST_MIGRATION_CHAIN: "true"
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/alita_chain?sslmode=disable"
+        run: |
+          docker exec postgres createdb -U postgres alita_chain
+          go test -tags testtools -v -count=1 -run '^TestRepositoryMigrationChain$' ./alita/db/migrations
 
       - name: Save Go module and build cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.cache-hit != 'true'
@@ -462,34 +466,9 @@ jobs:
             done
           } > coverage.out
 
-      - name: Check coverage threshold
+      - name: Check per-package coverage floors
         if: success()
-        run: |
-          if [ ! -f coverage.out ]; then
-            echo "ERROR: coverage.out not found"
-            exit 1
-          fi
-
-          THRESHOLD=78
-          COVERAGE=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
-
-          {
-            echo "## Coverage Report"
-            echo ""
-            echo "**Total Coverage:** ${COVERAGE}%"
-            echo "**Minimum Threshold:** ${THRESHOLD}%"
-            echo ""
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          # Use awk for float comparison (bc may not be available)
-          BELOW=$(awk "BEGIN {print ($COVERAGE < $THRESHOLD) ? 1 : 0}")
-          if [ "$BELOW" -eq 1 ]; then
-            echo "FAIL: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
-            echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
-            exit 1
-          else
-            echo "PASS: Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: go run ./scripts/check_coverage -profile coverage.out
 
       - name: Upload coverage reports
         if: always()
@@ -527,6 +506,8 @@ jobs:
           restore-keys: go-docs-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-
       - name: Check translations
         run: make check-translations
+      - name: Verify translations checker module
+        run: cd scripts/check_translations && go mod tidy -diff && go test ./...
       - name: Check generated docs drift
         run: make check-docs
       - name: Set up Bun
@@ -616,7 +597,7 @@ jobs:
     name: Publish Docker Images
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [security, lint, build, test, docs-check, docker-verify]
+    needs: [security, lint, build, test, docs-check, formal, docker-verify]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
