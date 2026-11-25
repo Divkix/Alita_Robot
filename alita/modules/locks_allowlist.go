@@ -54,7 +54,7 @@ func parseAllowlistURL(raw string) (*url.URL, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if u.Host == "" && !(strings.EqualFold(u.Scheme, "tg") && u.Opaque != "") {
+	if u.Host == "" && (!strings.EqualFold(u.Scheme, "tg") || u.Opaque == "") {
 		u, err = url.Parse("https://" + trimmed)
 		if err != nil || u.Host == "" {
 			return nil, false
