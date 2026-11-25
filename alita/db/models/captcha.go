@@ -5,6 +5,10 @@ import "time"
 // CaptchaMaxRefreshes caps refreshes for member and join-request challenges.
 const CaptchaMaxRefreshes = 3
 
+// CaptchaRounds is how many correct answers a challenge requires. Each pass
+// advances the attempt's stage and replaces the question.
+const CaptchaRounds = 2
+
 type CaptchaSettings struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatID        int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`
@@ -13,7 +17,7 @@ type CaptchaSettings struct {
 	CaptchaMode   string    `gorm:"column:captcha_mode;default:'math';check:chk_captcha_mode,captcha_mode IN ('math','text')" json:"captcha_mode,omitempty"`
 	Timeout       int       `gorm:"column:timeout;default:2;check:chk_captcha_timeout_range,timeout BETWEEN 1 AND 10" json:"timeout,omitempty"`
 	FailureAction string    `gorm:"column:failure_action;default:'kick';check:chk_captcha_failure_action,failure_action IN ('kick','ban','mute')" json:"failure_action,omitempty"`
-	MaxAttempts   int       `gorm:"column:max_attempts;default:3;check:chk_captcha_max_attempts_range,max_attempts BETWEEN 1 AND 10" json:"max_attempts,omitempty"`
+	MaxAttempts   int       `gorm:"column:max_attempts;default:2;check:chk_captcha_max_attempts_range,max_attempts BETWEEN 1 AND 3" json:"max_attempts,omitempty"`
 	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt     time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
@@ -23,7 +27,7 @@ func (CaptchaSettings) TableName() string {
 }
 
 // DefaultCaptchaSettings is the row a chat without one reads as: captcha off,
-// math mode, 2 minute timeout, kick on failure, 3 attempts, join requests
+// math mode, 2 minute timeout, kick on failure, 2 attempts, join requests
 // off. Repository loaders and settings declarations consume it.
 func DefaultCaptchaSettings(chatID int64) *CaptchaSettings {
 	return &CaptchaSettings{
@@ -31,7 +35,7 @@ func DefaultCaptchaSettings(chatID int64) *CaptchaSettings {
 		CaptchaMode:   "math",
 		Timeout:       2,
 		FailureAction: "kick",
-		MaxAttempts:   3,
+		MaxAttempts:   2,
 	}
 }
 
@@ -43,6 +47,7 @@ type CaptchaAttempts struct {
 	Attempts     int       `gorm:"column:attempts;default:0" json:"attempts,omitempty"`
 	MessageID    int64     `gorm:"column:message_id" json:"message_id,omitempty"`
 	RefreshCount int       `gorm:"column:refresh_count;default:0" json:"refresh_count,omitempty"`
+	Stage        int       `gorm:"column:stage;not null;default:0" json:"stage,omitempty"`
 	ExpiresAt    time.Time `gorm:"column:expires_at;not null;check:chk_captcha_expires_at,expires_at > created_at" json:"expires_at,omitempty"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
@@ -66,6 +71,7 @@ type JoinRequestCaptcha struct {
 	Attempts     int       `gorm:"column:attempts;not null;default:0" json:"attempts,omitempty"`
 	MessageID    int64     `gorm:"column:message_id;not null;default:0" json:"message_id,omitempty"`
 	RefreshCount int       `gorm:"column:refresh_count;not null;default:0" json:"refresh_count,omitempty"`
+	Stage        int       `gorm:"column:stage;not null;default:0" json:"stage,omitempty"`
 	ExpiresAt    time.Time `gorm:"column:expires_at;not null;index:idx_join_request_captchas_expires_at;check:chk_join_request_captcha_expires_at,expires_at > created_at" json:"expires_at,omitempty"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`

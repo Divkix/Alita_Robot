@@ -44,6 +44,26 @@ func pendingCaptchaAttempt(t *testing.T, chatID, promptID int64) *db.CaptchaAtte
 	return attempt
 }
 
+// finalRoundCaptchaAttempt stores an attempt already on its last round, so a
+// correct answer settles it as the old single-round flow did.
+func finalRoundCaptchaAttempt(t *testing.T, chatID, promptID int64) *db.CaptchaAttempts {
+	t.Helper()
+	attempt := pendingCaptchaAttempt(t, chatID, promptID)
+	advanced, err := captcha.AdvanceCaptchaAttemptStage(
+		attempt.ID,
+		attempt.Answer,
+		attempt.MessageID,
+		attempt.RefreshCount,
+		attempt.Stage,
+		attempt.Answer,
+		attempt.MessageID,
+	)
+	if err != nil || advanced == nil {
+		t.Fatalf("AdvanceCaptchaAttemptStage() = (%+v, %v), want the final round", advanced, err)
+	}
+	return advanced
+}
+
 // assertCaptchaRows fails unless the attempt is gone and the chat has
 // wantScheduled scheduled unmutes.
 func assertCaptchaRows(t *testing.T, attempt *db.CaptchaAttempts, wantScheduled int) {
@@ -61,8 +81,10 @@ func assertCaptchaRows(t *testing.T, attempt *db.CaptchaAttempts, wantScheduled 
 func tapCaptcha(bot *gotgbot.Bot, attempt *db.CaptchaAttempts, answer string) error {
 	chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": answer})
-	return captchaModule.captchaVerifyCallback(bot, newModuleCallbackContext(bot, chat, member, data))
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": answer})
+	ctx := newModuleCallbackContext(bot, chat, member, data)
+	ctx.CallbackQuery.Message = gotgbot.Message{MessageId: attempt.MessageID, Date: 1, Chat: chat, From: &member}
+	return captchaModule.captchaVerifyCallback(bot, ctx)
 }
 
 // A pass lifts the mute by the same rule as a release; only an error retrying
@@ -87,7 +109,7 @@ func TestCaptchaPassLiftsTheMuteByTheFailureRule(t *testing.T) {
 				client.errors["restrictChatMember"] = tt.unmuteErr
 			}
 			bot := newModuleTestBot(client)
-			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+			attempt := finalRoundCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
 			if err := tapCaptcha(bot, attempt, "7"); (err != nil) != tt.wantErr {
 				t.Fatalf("captchaVerifyCallback() error = %v, want error %t", err, tt.wantErr)
@@ -106,7 +128,7 @@ func TestCaptchaPassSummarisesWhatTheMemberSentWhileHeld(t *testing.T) {
 	useRealLocales(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
-	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+	attempt := finalRoundCaptchaAttempt(t, uniqueModuleChatID(), 123)
 	for _, kind := range []int{db.TEXT, db.PHOTO, db.TEXT} {
 		if err := captcha.StoreMessageForCaptcha(42, attempt.ChatID, attempt.ID, kind, "secret words", "", ""); err != nil {
 			t.Fatalf("StoreMessageForCaptcha() error = %v", err)
@@ -131,6 +153,152 @@ func TestCaptchaPassSummarisesWhatTheMemberSentWhileHeld(t *testing.T) {
 	}
 	assertDeleted(t, client, attempt.ChatID, 123)
 	assertCaptchaRows(t, attempt, 0)
+}
+
+// A two-round challenge sends a fresh photo for the second round, rejects the
+// old prompt, keeps the mute through the first pass, and unmutes exactly once
+// after the second correct answer.
+func TestCaptchaTwoRoundChallengeSendsTwoPhotosAndUnmutesOnce(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	if err := captcha.SetCaptchaEnabled(chat.Id, chat.Title, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = captcha.DeleteCaptchaAttempt(42, chat.Id)
+		_ = captcha.DeleteMutedUser(42, chat.Id)
+	})
+
+	if err := SendCaptcha(bot, newModuleMessageContext(bot, chat, gotgbot.User{Id: 777000, FirstName: "Telegram"}, "join"), 42, "Member"); err != nil {
+		t.Fatalf("SendCaptcha() error = %v", err)
+	}
+	first, err := captcha.GetCaptchaAttempt(42, chat.Id)
+	if err != nil || first == nil {
+		t.Fatalf("GetCaptchaAttempt() = (%+v, %v), want the first challenge", first, err)
+	}
+	if first.Stage != 0 {
+		t.Fatalf("first Stage = %d, want 0", first.Stage)
+	}
+	if calls := client.callsFor("sendPhoto"); len(calls) != 1 {
+		t.Fatalf("sendPhoto calls = %d, want the first challenge", len(calls))
+	}
+
+	client.responses["sendPhoto"] = []byte(`{"message_id":9004,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"},"photo":[{"file_id":"photo-2","file_unique_id":"photo-u2","width":160,"height":80}]}`)
+	if err := tapCaptcha(bot, first, first.Answer); err != nil {
+		t.Fatalf("captchaVerifyCallback(first round) error = %v", err)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
+		t.Fatalf("restrictChatMember calls = %d, want only the hold after the first round", len(calls))
+	}
+	second, err := captcha.GetCaptchaAttempt(42, chat.Id)
+	if err != nil || second == nil {
+		t.Fatalf("GetCaptchaAttempt() after round one = (%+v, %v), want the next challenge", second, err)
+	}
+	if second.Stage != 1 || second.MessageID != 9004 {
+		t.Fatalf("second challenge = %+v, want stage 1 and message 9004", second)
+	}
+	if calls := client.callsFor("sendPhoto"); len(calls) != 2 {
+		t.Fatalf("sendPhoto calls = %d, want a fresh photo for round two", len(calls))
+	}
+	assertDeleted(t, client, chat.Id, first.MessageID)
+	roundText, _ := i18n.MustNewTranslator("en").GetString("captcha_round_correct")
+	assertParams(t, client.onlyCall(t, "answerCallbackQuery"), map[string]any{"text": roundText})
+
+	if err := tapCaptcha(bot, second, second.Answer); err != nil {
+		t.Fatalf("captchaVerifyCallback(second round) error = %v", err)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 2 {
+		t.Fatalf("restrictChatMember calls = %d, want the hold and one unmute", len(calls))
+	}
+	if current, err := captcha.GetCaptchaAttempt(42, chat.Id); err != nil || current != nil {
+		t.Fatalf("GetCaptchaAttempt() after the final round = (%+v, %v), want settled", current, err)
+	}
+}
+
+// A button from a passed round is dead: the attempt now points at the new
+// prompt, so an old answer neither advances it nor lifts the mute.
+func TestCaptchaStaleFirstRoundButtonIsRejected(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 102)
+	advanced, err := captcha.AdvanceCaptchaAttemptStage(
+		attempt.ID,
+		attempt.Answer,
+		attempt.MessageID,
+		attempt.RefreshCount,
+		attempt.Stage,
+		"9",
+		103,
+	)
+	if err != nil || advanced == nil {
+		t.Fatalf("AdvanceCaptchaAttemptStage() = (%+v, %v), want the next round", advanced, err)
+	}
+
+	if err := tapCaptcha(bot, attempt, attempt.Answer); err != nil {
+		t.Fatalf("captchaVerifyCallback(stale) error = %v", err)
+	}
+	if calls := client.callsFor("sendPhoto"); len(calls) != 0 {
+		t.Fatalf("sendPhoto calls = %d, want no challenge for a stale button", len(calls))
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want no unmute for a stale button", len(calls))
+	}
+	current, err := captcha.GetCaptchaAttemptByID(attempt.ID)
+	if err != nil || current == nil {
+		t.Fatalf("GetCaptchaAttemptByID() = (%+v, %v), want the attempt unchanged", current, err)
+	}
+	if current.Stage != advanced.Stage || current.Answer != "9" || current.MessageID != 103 || current.Attempts != 0 {
+		t.Fatalf("attempt after stale button = %+v, want stage/answer/prompt unchanged", current)
+	}
+}
+
+// captchaRaceClient runs onSend after a successful sendPhoto, so a test can
+// move the attempt between the handler's read and its stage CAS.
+type captchaRaceClient struct {
+	*moduleBotClient
+	onSend func()
+}
+
+func (c *captchaRaceClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	resp, err := c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+	if method == "sendPhoto" && err == nil && c.onSend != nil {
+		c.onSend()
+	}
+	return resp, err
+}
+
+// When the stage CAS loses after the next challenge was sent, the handler
+// removes that message and leaves the member muted; it never unmutes on a
+// failed advance.
+func TestCaptchaFailedAdvanceDoesNotUnmute(t *testing.T) {
+	base := newModuleBotClient()
+	client := &captchaRaceClient{moduleBotClient: base}
+	bot := newModuleTestBot(base)
+	bot.BotClient = client
+	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 102)
+	client.onSend = func() {
+		if err := db.DB.Model(&db.CaptchaAttempts{}).Where("id = ?", attempt.ID).
+			Update("answer", "moved-on").Error; err != nil {
+			t.Errorf("move attempt answer: %v", err)
+		}
+	}
+
+	if err := tapCaptcha(bot, attempt, attempt.Answer); err != nil {
+		t.Fatalf("captchaVerifyCallback(failed advance) error = %v", err)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want no unmute after a failed advance", len(calls))
+	}
+	assertDeleted(t, base, attempt.ChatID, 9003)
+	current, err := captcha.GetCaptchaAttemptByID(attempt.ID)
+	if err != nil || current == nil {
+		t.Fatalf("GetCaptchaAttemptByID() = (%+v, %v), want the attempt", current, err)
+	}
+	if current.Stage != 0 || current.MessageID != 102 || current.Answer != "moved-on" {
+		t.Fatalf("attempt after failed advance = %+v, want it still on the first prompt", current)
+	}
 }
 
 func TestSettleCaptchaReleaseLiftsTheMuteByTheFailureRule(t *testing.T) {
@@ -249,7 +417,7 @@ func TestSettleCaptchaSecondEndingDoesNothing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()
 			bot := newModuleTestBot(client)
-			attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+			attempt := finalRoundCaptchaAttempt(t, uniqueModuleChatID(), 123)
 
 			if !tt.first(t, bot, attempt) {
 				t.Fatal("first ending did not settle the attempt")
@@ -576,10 +744,11 @@ func TestCaptchaWrongAnswersUpToTheLimitFailTheAttempt(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadCaptcha(dispatcher)
 	chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
-	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"})
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "8"})
 	tap := func() {
 		t.Helper()
 		ctx := newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)
+		ctx.CallbackQuery.Message = gotgbot.Message{MessageId: attempt.MessageID, Date: 1, Chat: chat}
 		if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
 			t.Fatalf("ProcessUpdate() error = %v", err)
 		}
@@ -643,8 +812,9 @@ func TestCaptchaFinalWrongAnswerWithNoActionNamesNone(t *testing.T) {
 			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 			LoadCaptcha(dispatcher)
 			chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
-			data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"})
+			data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "8"})
 			ctx := newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)
+			ctx.CallbackQuery.Message = gotgbot.Message{MessageId: attempt.MessageID, Date: 1, Chat: chat}
 			if err := dispatcher.ProcessUpdate(bot, ctx.Update, nil); err != nil {
 				t.Fatalf("ProcessUpdate() error = %v", err)
 			}
@@ -905,7 +1075,7 @@ func awaitCaptchaTimers() { captchaLifecycleWG.Wait() }
 func armedCaptchaAttempt(t *testing.T, bot *gotgbot.Bot) *db.CaptchaAttempts {
 	t.Helper()
 	runCaptchaTimers(t)
-	attempt := pendingCaptchaAttempt(t, uniqueModuleChatID(), 123)
+	attempt := finalRoundCaptchaAttempt(t, uniqueModuleChatID(), 123)
 	if err := captcha.SetCaptchaEnabled(attempt.ChatID, "Captcha Chat", true); err != nil {
 		t.Fatalf("SetCaptchaEnabled() error = %v", err)
 	}
@@ -929,8 +1099,10 @@ func armedCaptchaAttempt(t *testing.T, bot *gotgbot.Bot) *db.CaptchaAttempts {
 func refreshCaptcha(t *testing.T, bot *gotgbot.Bot, attempt *db.CaptchaAttempts) *db.CaptchaAttempts {
 	t.Helper()
 	chat := gotgbot.Chat{Id: attempt.ChatID, Type: "supergroup", Title: "Captcha Chat"}
-	data := encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"})
-	if err := captchaModule.captchaRefreshCallback(bot, newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)); err != nil {
+	data := encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID)})
+	ctx := newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)
+	ctx.CallbackQuery.Message = gotgbot.Message{MessageId: attempt.MessageID, Date: 1, Chat: chat}
+	if err := captchaModule.captchaRefreshCallback(bot, ctx); err != nil {
 		t.Fatalf("captchaRefreshCallback() error = %v", err)
 	}
 	refreshed, err := captcha.GetCaptchaAttemptByID(attempt.ID)
@@ -974,8 +1146,10 @@ func TestCaptchaSolvedAfterARefreshIsNotFailedAtTheDeadline(t *testing.T) {
 	armed := armedCaptchaAttempt(t, bot)
 	refreshed := refreshCaptcha(t, bot, armed)
 	chat := gotgbot.Chat{Id: armed.ChatID, Type: "supergroup", Title: "Captcha Chat"}
-	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(armed.ID), "r": "1", "u": "42", "s": refreshed.Answer})
-	if err := captchaModule.captchaVerifyCallback(bot, newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)); err != nil {
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(armed.ID), "r": "1", "s": refreshed.Answer})
+	ctx := newModuleCallbackContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, data)
+	ctx.CallbackQuery.Message = gotgbot.Message{MessageId: refreshed.MessageID, Date: 1, Chat: chat}
+	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
 		t.Fatalf("captchaVerifyCallback() error = %v", err)
 	}
 	assertParams(t, client.onlyCall(t, "restrictChatMember"), targetParams(armed.ChatID, 42))

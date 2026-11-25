@@ -251,7 +251,7 @@ captcha_help_msg: "CAPTCHA सत्यापन के साथ अपने �
 
   × /captchaaction `<kick/ban/mute>`: विफल सत्यापन के लिए कार्रवाई सेट करें (डिफ़ॉल्ट: kick)
 
-  × /captchamaxattempts `<1-10>`: अधिकतम सत्यापन प्रयास सेट करें (डिफ़ॉल्ट: 3)
+  × /captchamaxattempts `<1-3>`: अधिकतम सत्यापन प्रयास सेट करें (डिफ़ॉल्ट: 2)
 
   × /captchapending `<@user/user_id>`: लंबित उपयोगकर्ता के सहेजे गए संदेश दिखाएं।
 
@@ -1099,7 +1099,7 @@ captcha_invalid_user: अमान्य उपयोगकर्ता ID
 captcha_error_processing: उत्तर प्रोसेस करने में त्रुटि
 captcha_invalid_refresh: अमान्य रिफ्रेश डेटा
 captcha_max_attempts_current: "वर्तमान अधिकतम सत्यापन प्रयास: <b>%d</b>"
-captcha_max_attempts_invalid: "अमान्य मान। कृपया 1 और 10 के बीच एक संख्या निर्दिष्ट करें।"
+captcha_max_attempts_invalid: "अमान्य मान। कृपया 1 और 3 के बीच एक संख्या निर्दिष्ट करें।"
 captcha_max_attempts_set: "अधिकतम सत्यापन प्रयास <b>%d</b> पर सेट किए गए"
 captcha_enabled_success: "✅ कैप्चा सत्यापन <b>सक्षम</b> कर दिया गया है। नए सदस्यों को शामिल होने के लिए कैप्चा पूरा करना होगा।"
 captcha_disabled_success: "❌ कैप्चा सत्यापन <b>अक्षम</b> कर दिया गया है।"
@@ -1110,6 +1110,7 @@ captcha_timeout_set_success: "✅ कैप्चा टाइमआउट <b>%d
 captcha_action_set_success: "✅ कैप्चा विफलता कार्रवाई <b>%s</b> पर सेट की गई"
 captcha_refresh_button: "🔄 नई छवि"
 captcha_verified_success_msg: "✅ सफलतापूर्वक सत्यापित!"
+captcha_round_correct: "सही — एक और चुनौती।"
 captcha_wrong_answer_final: "❌ गलत उत्तर! आपको %s कर दिया गया है।"
 captcha_wrong_answer_remaining: "❌ गलत उत्तर! %d प्रयास शेष।"
 captcha_action_kicked: "किक"

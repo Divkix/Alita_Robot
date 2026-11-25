@@ -216,9 +216,9 @@ func TestDeclaredSettingsAcrossSurfaces(t *testing.T) {
 		},
 		{
 			key: "captcha.max_attempts", command: "/captchamaxattempts", botAdmin: true,
-			defaultValue: 3, defaultLabel: "3", statusToken: "Max Attempts: <code>", refusalKey: "captcha_max_attempts_invalid",
+			defaultValue: 2, defaultLabel: "2", statusToken: "Max Attempts: <code>", refusalKey: "captcha_max_attempts_invalid",
 			seedInvalid: invalidCaptchaStoredValue("max_attempts"),
-			edges:       []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {10, "10", "10", true}, {11, "11", "11", false}},
+			edges:       []settingContractEdge{{0, "0", "0", false}, {1, "1", "1", true}, {3, "3", "3", true}, {4, "4", "4", false}},
 		},
 		{
 			key: "antiflood.limit", command: "/setflood", botAdmin: true,

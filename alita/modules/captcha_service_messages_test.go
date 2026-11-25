@@ -21,7 +21,7 @@ func heldCaptchaMember(t *testing.T) (gotgbot.Chat, gotgbot.User, uint) {
 	t.Helper()
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
 	require.NoError(t, captcha.SetCaptchaEnabled(chat.Id, chat.Title, true))
-	attempt := pendingCaptchaAttempt(t, chat.Id, 123)
+	attempt := finalRoundCaptchaAttempt(t, chat.Id, 123)
 	return chat, gotgbot.User{Id: 42, FirstName: "Member"}, attempt.ID
 }
 

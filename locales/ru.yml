@@ -204,7 +204,7 @@ captcha_help_msg:
   
     × /captchaaction `<kick/ban/mute>`: Установить действие при неудачной проверке (по умолчанию: kick)
   
-    × /captchamaxattempts `<1-10>`: Установить максимальное количество попыток проверки (по умолчанию: 3)
+    × /captchamaxattempts `<1-3>`: Установить максимальное количество попыток проверки (по умолчанию: 2)
 
   × /captchapending `<@user/user_id>`: Показать сохранённые сообщения ожидающего пользователя.
 
@@ -855,7 +855,7 @@ captcha_invalid_refresh: Неверные данные обновления
 
 # Captcha max attempts
 captcha_max_attempts_current: "Текущее максимальное количество попыток: <b>%d</b>"
-captcha_max_attempts_invalid: "Неверное значение. Пожалуйста, укажите число от 1 до 10."
+captcha_max_attempts_invalid: "Неверное значение. Пожалуйста, укажите число от 1 до 3."
 captcha_max_attempts_set: "Максимальное количество попыток установлено на <b>%d</b>"
 
 
@@ -1198,6 +1198,7 @@ captcha_timeout_set_success: "✅ Время ожидания капчи уст�
 captcha_action_set_success: "✅ Действие при неудаче капчи установлено на <b>%s</b>"
 captcha_refresh_button: "🔄 Новое изображение"
 captcha_verified_success_msg: "✅ Успешно верифицировано!"
+captcha_round_correct: "Верно — ещё одна проверка."
 captcha_wrong_answer_final: "❌ Неверный ответ! Вы были %s."
 captcha_wrong_answer_remaining: "❌ Неверный ответ! Осталось %d попыток."
 captcha_action_kicked: "выгнаны"

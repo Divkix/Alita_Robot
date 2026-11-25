@@ -284,7 +284,7 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>`: Define a ação para falha na verificação (padrão:
   kick)
 
-  × /captchamaxattempts `<1-10>`: Define o máximo de tentativas de verificação (padrão: 3)
+  × /captchamaxattempts `<1-3>`: Define o máximo de tentativas de verificação (padrão: 2)
 
   × /captchapending `<@user/user_id>`: Mostra as mensagens guardadas de um usuário pendente.
 
@@ -1006,7 +1006,7 @@ captcha_invalid_refresh: Dados de atualização inválidos
 
 # Captcha max attempts
 captcha_max_attempts_current: "Máximo atual de tentativas de verificação: <b>%d</b>"
-captcha_max_attempts_invalid: "Valor inválido. Por favor especifique um número entre 1 e 10."
+captcha_max_attempts_invalid: "Valor inválido. Por favor especifique um número entre 1 e 3."
 captcha_max_attempts_set: "Máximo de tentativas de verificação definido para <b>%d</b>"
 
 # Help module strings
@@ -1350,6 +1350,7 @@ captcha_timeout_set_success: "✅ Tempo limite de captcha definido para <b>%d mi
 captcha_action_set_success: "✅ Ação de falha de captcha definida para <b>%s</b>"
 captcha_refresh_button: "🔄 Nova Imagem"
 captcha_verified_success_msg: "✅ Verificado com sucesso!"
+captcha_round_correct: "Correto — mais um desafio."
 captcha_wrong_answer_final: "❌ Resposta errada! Você foi %s."
 captcha_wrong_answer_remaining: "❌ Resposta errada! %d tentativas restantes."
 captcha_action_kicked: "expulso"

@@ -489,7 +489,7 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>` : Définir l'action en cas d'échec de vérification (défaut :
   kick)
 
-  × /captchamaxattempts `<1-10>` : Définir le nombre maximum de tentatives de vérification (défaut : 3)
+  × /captchamaxattempts `<1-3>` : Définir le nombre maximum de tentatives de vérification (défaut : 2)
 
   × /captchapending `<@user/user_id>` : Afficher les messages enregistrés d'un utilisateur en attente.
 
@@ -541,7 +541,7 @@ captcha_invalid_user: ID utilisateur invalide
 captcha_error_processing: Erreur lors du traitement de la réponse
 captcha_invalid_refresh: Données d'actualisation invalides
 captcha_max_attempts_current: "Nombre maximum de tentatives de vérification actuel : <b>%d</b>"
-captcha_max_attempts_invalid: "Valeur invalide. Veuillez spécifier un nombre entre 1 et 10."
+captcha_max_attempts_invalid: "Valeur invalide. Veuillez spécifier un nombre entre 1 et 3."
 captcha_max_attempts_set: "Nombre maximum de tentatives de vérification défini à <b>%d</b>"
 captcha_enabled_success: "✅ La vérification captcha a été <b>activée</b>. Les nouveaux membres devront compléter un captcha pour rejoindre."
 captcha_disabled_success: "❌ La vérification captcha a été <b>désactivée</b>."
@@ -552,6 +552,7 @@ captcha_timeout_set_success: "✅ Délai captcha défini à <b>%d minutes</b>"
 captcha_action_set_success: "✅ Action d'échec captcha définie à <b>%s</b>"
 captcha_refresh_button: "🔄 Nouvelle Image"
 captcha_verified_success_msg: "✅ Vérifié avec succès !"
+captcha_round_correct: "Correct — un défi de plus."
 captcha_wrong_answer_final: "❌ Mauvaise réponse ! Vous avez été %s."
 captcha_wrong_answer_remaining: "❌ Mauvaise réponse ! %d tentatives restantes."
 captcha_action_kicked: "expulsé"

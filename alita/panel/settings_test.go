@@ -278,7 +278,7 @@ func TestSettingsPatchCaptchaPreservesTelegramTitle(t *testing.T) {
 		{"captcha.mode", `"text"`},
 		{"captcha.timeout", "5"},
 		{"captcha.action", `"ban"`},
-		{"captcha.max_attempts", "7"},
+		{"captcha.max_attempts", "3"},
 	} {
 		for _, existingBlank := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/existingBlank=%t", change.key, existingBlank), func(t *testing.T) {

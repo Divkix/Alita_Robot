@@ -180,22 +180,31 @@ func generateJoinRequestCaptcha(mode string) (string, []byte, []string, error) {
 	return generateTextCaptcha()
 }
 
-// The shared keyboard supplies layout, options and refresh availability; only
-// its callback payload changes because this challenge lives in a private chat.
-func buildJoinRequestCaptchaKeyboard(attempt *models.JoinRequestCaptcha, options []string, tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
+// The shared keyboard supplies layout, options, refresh availability and the
+// fail-closed option check; only its callback payload changes because this
+// challenge lives in a private chat. The applicant is resolved from the
+// pressing user and the attempt row, so no user ID rides in the payload.
+func buildJoinRequestCaptchaKeyboard(attempt *models.JoinRequestCaptcha, options []string, tr *i18n.Translator) (gotgbot.InlineKeyboardMarkup, bool) {
 	refreshText := tr.String("captcha_refresh_button")
-	keyboard := buildCaptchaKeyboard(attempt.ID, attempt.UserID, attempt.RefreshCount, options, attempt.RefreshCount < models.CaptchaMaxRefreshes, refreshText)
+	keyboard, ok := buildCaptchaKeyboard(attempt.ID, attempt.RefreshCount, attempt.Answer, options, attempt.RefreshCount < models.CaptchaMaxRefreshes, refreshText)
+	if !ok {
+		return gotgbot.InlineKeyboardMarkup{}, false
+	}
 	for row := range keyboard.InlineKeyboard {
 		for column := range keyboard.InlineKeyboard[row] {
 			button := &keyboard.InlineKeyboard[row][column]
 			fields := map[string]string{"a": fmt.Sprint(attempt.ID), "c": fmt.Sprint(attempt.ChatID), "r": fmt.Sprint(attempt.RefreshCount)}
-			if decoded, ok := decodeCallbackData(button.CallbackData, "captcha_verify"); ok {
+			if decoded, verify := decodeCallbackData(button.CallbackData, "captcha_verify"); verify {
 				fields["s"], _ = decoded.Field("s")
 			}
-			button.CallbackData = encodeCallbackData("joincaptcha", fields)
+			data, encoded := mustCallbackData("joincaptcha", fields)
+			if !encoded {
+				return gotgbot.InlineKeyboardMarkup{}, false
+			}
+			button.CallbackData = data
 		}
 	}
-	return keyboard
+	return keyboard, true
 }
 
 func joinRequestCaptchaPrompt(tr *i18n.Translator, chatTitle string, settings *db.CaptchaSettings, timeout int) string {
@@ -216,13 +225,21 @@ func sendJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, settings *db.Cap
 		return true, err
 	}
 	tr := joinCaptchaTranslator(request.Chat.Id)
+	keyboard, keyboardOK := buildJoinRequestCaptchaKeyboard(attempt, options, tr)
+	if !keyboardOK {
+		log.WithContext(tracing.UpdateContext(ctx)).Warnf("[JoinCaptcha] Challenge options for attempt %d could not be encoded; using normal join-request handling", attempt.ID)
+		if deleteErr := joinrequestcaptchas.DeleteJoinRequestCaptcha(attempt.ID); deleteErr != nil {
+			return false, deleteErr
+		}
+		return false, nil
+	}
 	var sent *gotgbot.Message
 	err = ratelimit.GlobalSendLimiter().Do(tracing.UpdateContext(ctx), func() error {
 		var sendErr error
 		sent, sendErr = bot.SendPhotoWithContext(tracing.UpdateContext(ctx), request.UserChatId,
 			gotgbot.InputFileByReader("captcha.png", bytes.NewReader(image)), &gotgbot.SendPhotoOpts{
 				Caption: joinRequestCaptchaPrompt(tr, request.Chat.Title, settings, timeout), ParseMode: formatting.HTML,
-				ReplyMarkup: buildJoinRequestCaptchaKeyboard(attempt, options, tr),
+				ReplyMarkup: keyboard,
 			})
 		return sendErr
 	})
@@ -280,6 +297,9 @@ func joinCaptchaCallbackAttempt(bot *gotgbot.Bot, ctx *ext.Context) (*models.Joi
 	if attempt == nil || attempt.ChatID != chatID || attempt.RefreshCount != refresh {
 		return nil, "", answerJoinCaptcha(bot, ctx, chatID, "captcha_join_request_expired", nil)
 	}
+	if query.Message == nil || query.Message.GetMessageId() != attempt.MessageID {
+		return nil, "", answerJoinCaptcha(bot, ctx, chatID, "captcha_join_request_expired", nil)
+	}
 	if !joinCaptchaCallbackMatches(ctx, attempt) {
 		return nil, "", answerJoinCaptcha(bot, ctx, chatID, "captcha_join_request_wrong_user", nil)
 	}
@@ -293,7 +313,7 @@ func joinCaptchaCallbackAttempt(bot *gotgbot.Bot, ctx *ext.Context) (*models.Joi
 func joinCaptchaCallbackMatches(ctx *ext.Context, attempt *models.JoinRequestCaptcha) bool {
 	query := ctx.CallbackQuery
 	return query != nil && query.From.Id == attempt.UserID && ctx.EffectiveChat != nil &&
-		ctx.EffectiveChat.Id == attempt.UserChatID && query.Message != nil && query.Message.GetMessageId() == attempt.MessageID
+		ctx.EffectiveChat.Id == attempt.UserChatID
 }
 
 func (moduleStruct) joinCaptchaCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -309,7 +329,10 @@ func (moduleStruct) joinCaptchaCallback(bot *gotgbot.Bot, ctx *ext.Context) erro
 		return joinCaptchaError(bot, ctx, attempt.ChatID, err)
 	}
 	if selected == attempt.Answer {
-		return approveJoinRequestCaptcha(bot, ctx, attempt, settings.MaxAttempts)
+		if attempt.Stage+1 >= models.CaptchaRounds {
+			return approveJoinRequestCaptcha(bot, ctx, attempt, settings.MaxAttempts)
+		}
+		return advanceJoinRequestCaptcha(bot, ctx, attempt, settings)
 	}
 	attempts, err := joinrequestcaptchas.IncrementJoinRequestCaptchaAttempts(attempt.ID, attempt.RefreshCount, settings.MaxAttempts)
 	if errors.Is(err, joinrequestcaptchas.ErrNoActiveCaptcha) {
@@ -325,6 +348,62 @@ func (moduleStruct) joinCaptchaCallback(bot *gotgbot.Bot, ctx *ext.Context) erro
 		return answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_join_request_declined_alert", nil)
 	}
 	return answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_join_request_wrong", i18n.TranslationParams{"remaining": settings.MaxAttempts - attempts})
+}
+
+// advanceJoinRequestCaptcha issues the next challenge after a correct round and
+// keeps the request pending. The old challenge stays authoritative until the
+// new one is persisted, so a failed send or lost CAS cannot strand the
+// applicant; if the next options cannot be encoded, the solved round settles
+// the request instead of sending an unwinnable challenge.
+func advanceJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *models.JoinRequestCaptcha, settings *db.CaptchaSettings) error {
+	tr := joinCaptchaTranslator(attempt.ChatID)
+	answer, image, options, err := generateJoinRequestCaptcha(settings.CaptchaMode)
+	if err != nil {
+		return joinCaptchaError(bot, ctx, attempt.ChatID, err)
+	}
+	next := *attempt
+	next.Answer = answer
+	next.Stage = attempt.Stage + 1
+	keyboard, keyboardOK := buildJoinRequestCaptchaKeyboard(&next, options, tr)
+	if !keyboardOK {
+		log.WithContext(tracing.UpdateContext(ctx)).Warnf("[JoinCaptcha] Next challenge for attempt %d could not be encoded; approving the solved request", attempt.ID)
+		return approveJoinRequestCaptcha(bot, ctx, attempt, settings.MaxAttempts)
+	}
+	reqCtx := tracing.UpdateContext(ctx)
+	var sent *gotgbot.Message
+	err = ratelimit.GlobalSendLimiter().Do(reqCtx, func() error {
+		var sendErr error
+		sent, sendErr = bot.SendPhotoWithContext(reqCtx, attempt.UserChatID,
+			gotgbot.InputFileByReader("captcha.png", bytes.NewReader(image)), &gotgbot.SendPhotoOpts{
+				Caption:   joinRequestCaptchaPrompt(tr, captchaLogChat(attempt.ChatID).Title, settings, max(1, int(time.Until(attempt.ExpiresAt).Minutes()))),
+				ParseMode: formatting.HTML, ReplyMarkup: keyboard,
+			})
+		return sendErr
+	})
+	if isJoinRequestGone(err) {
+		return errors.Join(joinrequestcaptchas.DeleteJoinRequestCaptcha(attempt.ID),
+			answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_join_request_expired", nil))
+	}
+	if err != nil {
+		return joinCaptchaError(bot, ctx, attempt.ChatID, err)
+	}
+	if sent == nil || sent.MessageId <= 0 {
+		return joinCaptchaError(bot, ctx, attempt.ChatID, errors.New("telegram returned no next join-request captcha"))
+	}
+	fresh, err := joinrequestcaptchas.AdvanceJoinRequestCaptchaStage(attempt.ID, attempt.Answer, attempt.MessageID, attempt.Stage, answer, sent.MessageId)
+	if err != nil || fresh == nil {
+		_, deleteErr := bot.DeleteMessageWithContext(reqCtx, attempt.UserChatID, sent.MessageId, nil)
+		if err != nil {
+			return joinCaptchaError(bot, ctx, attempt.ChatID, errors.Join(err, deleteErr))
+		}
+		return errors.Join(deleteErr, answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_join_request_expired", nil))
+	}
+	if attempt.MessageID != sent.MessageId {
+		if _, err := bot.DeleteMessageWithContext(reqCtx, attempt.UserChatID, attempt.MessageID, nil); err != nil {
+			log.WithContext(reqCtx).Warnf("[JoinCaptcha] Could not delete the previous challenge message %d: %v", attempt.MessageID, err)
+		}
+	}
+	return answerJoinCaptcha(bot, ctx, attempt.ChatID, "captcha_round_correct", nil)
 }
 
 func approveJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *models.JoinRequestCaptcha, maxAttempts int) error {
@@ -366,7 +445,11 @@ func refreshJoinRequestCaptcha(bot *gotgbot.Bot, ctx *ext.Context, attempt *mode
 	}
 	next := *attempt
 	next.RefreshCount++
-	keyboard := buildJoinRequestCaptchaKeyboard(&next, options, tr)
+	next.Answer = answer
+	keyboard, keyboardOK := buildJoinRequestCaptchaKeyboard(&next, options, tr)
+	if !keyboardOK {
+		return joinCaptchaError(bot, ctx, attempt.ChatID, errors.New("join-request captcha options could not be encoded"))
+	}
 	reqCtx := tracing.UpdateContext(ctx)
 	var sent *gotgbot.Message
 	err = ratelimit.GlobalSendLimiter().Do(reqCtx, func() error {
