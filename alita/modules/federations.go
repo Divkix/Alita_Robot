@@ -679,6 +679,17 @@ func retryAfterFloodWithin(maxWait time.Duration, call func() error) error {
 	return call()
 }
 
+// logFedWalkFailure keeps expected Telegram refusals at debug and surfaces every
+// other failure, so a walk that could not be enforced is visible in logs.
+func logFedWalkFailure(op string, err error) {
+	var tgErr *gotgbot.TelegramError
+	if errors.As(err, &tgErr) {
+		log.Debugf("[Federations] %s: %v", op, err)
+		return
+	}
+	log.Errorf("[Federations] %s: %v", op, err)
+}
+
 // applyActiveFban bans userID, fbanned by actorID, in the federation's chats
 // that know the user.
 func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
@@ -693,9 +704,14 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	}
 	chatIDs, err := federations.ListFedChatIDs(fedID)
 	if err != nil {
+		log.Errorf("[Federations] active fban fed %s user %d: list fed chats failed: %v", fedID, userID, err)
 		return
 	}
-	chatIDs = federations.ChatsContainingUser(userID, chatIDs)
+	chatIDs, err = federations.ChatsContainingUser(userID, chatIDs)
+	if err != nil {
+		log.Errorf("[Federations] active fban fed %s user %d: find chats containing user failed: %v", fedID, userID, err)
+		return
+	}
 	for _, chatID := range chatIDs {
 		// Federation bans are permanent and carry no reason on record.
 		err := retryAfterFlood(func() error {
@@ -706,7 +722,7 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 			return err
 		})
 		if err != nil {
-			log.Debugf("[Federations] active fban chat %d user %d: %v", chatID, userID, err)
+			logFedWalkFailure(fmt.Sprintf("active fban chat %d user %d", chatID, userID), err)
 		}
 	}
 	if lookupErr == nil {
@@ -731,7 +747,7 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 			return err
 		})
 		if err != nil {
-			log.Debugf("[Federations] active fban undo chat %d user %d: %v", chatID, userID, err)
+			logFedWalkFailure(fmt.Sprintf("active fban undo chat %d user %d", chatID, userID), err)
 		}
 	}
 }
@@ -754,9 +770,15 @@ func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 	}
 	chatIDs, err := federations.ListFedChatIDs(fedID)
 	if err != nil {
+		log.Errorf("[Federations] active unfban fed %s user %d: list fed chats failed: %v", fedID, userID, err)
 		return
 	}
-	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
+	chatIDs, err = federations.ChatsContainingUser(userID, chatIDs)
+	if err != nil {
+		log.Errorf("[Federations] active unfban fed %s user %d: find chats containing user failed: %v", fedID, userID, err)
+		return
+	}
+	for _, chatID := range chatIDs {
 		err := retryAfterFlood(func() error {
 			_, err := punishment.Lift(context.Background(), b, punishment.LiftRequest{
 				ChatID: chatID, Target: punishment.Target{ID: userID}, Mode: punishment.Ban, ActorID: actorID,
@@ -764,7 +786,7 @@ func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID, actorID int64) {
 			return err
 		})
 		if err != nil {
-			log.Debugf("[Federations] active unfban chat %d user %d: %v", chatID, userID, err)
+			logFedWalkFailure(fmt.Sprintf("active unfban chat %d user %d", chatID, userID), err)
 		}
 	}
 }
@@ -775,12 +797,12 @@ func notifyFedAction(b *gotgbot.Bot, fed *models.Federation, actor *gotgbot.User
 	}
 	if fed.NotifyOwner && (actor == nil || actor.Id != fed.OwnerID) {
 		if _, err := b.SendMessage(fed.OwnerID, htmlText, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML}); err != nil {
-			log.Debugf("[Federations] owner notify: %v", err)
+			logFedWalkFailure("owner notify", err)
 		}
 	}
 	if fed.LogChatID != 0 {
 		if _, err := b.SendMessage(fed.LogChatID, htmlText, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML}); err != nil {
-			log.Debugf("[Federations] fed log: %v", err)
+			logFedWalkFailure("fed log", err)
 		}
 	}
 }
@@ -1211,7 +1233,13 @@ func fedBanMember(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, membersh
 		},
 	})
 	if err != nil || !result.Applied {
-		log.WithContext(tracing.UpdateContext(ctx)).Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
+		logger := log.WithContext(tracing.UpdateContext(ctx))
+		var tgErr *gotgbot.TelegramError
+		if err != nil && !errors.As(err, &tgErr) {
+			logger.Errorf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
+		} else {
+			logger.Debugf("[Federations] passive fban: %v (applied=%v)", err, result.Applied)
+		}
 		return StageFailed
 	}
 	// The notice stays inline: Spec.Notice cannot express the Quiet gate,

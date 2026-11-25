@@ -678,14 +678,16 @@ func listSubscribedFedIDs(ctx context.Context, subscriberFedID string) ([]string
 	)
 }
 
-func ChatsContainingUser(userID int64, chatIDs []int64) []int64 {
+// ChatsContainingUser returns the given chats whose known members include userID.
+// A failed query is returned, never read as "no chats", so callers cannot report
+// a walk as done when it enforced nothing.
+func ChatsContainingUser(userID int64, chatIDs []int64) ([]int64, error) {
 	if len(chatIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 	var rows []models.Chat
 	if err := db.DB.Model(&models.Chat{}).Select("chat_id, users").Where("chat_id IN ?", chatIDs).Find(&rows).Error; err != nil {
-		log.Errorf("[Federations] ChatsContainingUser: %v", err)
-		return nil
+		return nil, fmt.Errorf("list chats containing user %d: %w", userID, err)
 	}
 	out := make([]int64, 0)
 	for _, chat := range rows {
@@ -696,7 +698,7 @@ func ChatsContainingUser(userID int64, chatIDs []int64) []int64 {
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 func ImportBans(fedID string, bans []models.FederationBan) (int, error) {
