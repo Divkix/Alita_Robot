@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"database/sql/driver"
+	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -242,19 +243,18 @@ func (m *MigrationRunner) runMigrationFiles() error {
 
 	if allApplied {
 		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
-		m.logMigrationStatus()
-		return nil
+	} else {
+		log.Infof("[Migrations] Migration complete - Applied: %d, Skipped: %d",
+			applied, skipped)
 	}
-
-	log.Infof("[Migrations] Migration complete - Applied: %d, Skipped: %d",
-		applied, skipped)
 
 	m.logMigrationStatus()
 
-	if applied > 0 {
-		if err := m.verifyIndexes(); err != nil {
-			log.Warnf("[Migrations] Index verification failed: %v", err)
-		}
+	// Verify on every run, not just when something was applied: migration files
+	// are immutable, so an index that changes state in a later migration is
+	// invisible here. "Nothing new applied" is exactly when drift shows up.
+	if err := m.verifyIndexes(); err != nil {
+		log.Warnf("[Migrations] Index verification failed: %v", err)
 	}
 
 	return nil
@@ -939,156 +939,245 @@ func (m *MigrationRunner) logMigrationStatus() {
 	log.Infof("[Migrations] Total migrations applied: %d", count)
 }
 
+// expectedIndexesFile is both the embedded golden and the file the chain test
+// rewrites when UPDATE_INDEX_GOLDEN=1.
+const expectedIndexesFile = "expected_indexes.txt"
+
+// expectedIndexesGolden records every index on a public user table as
+// "table|index|pg_get_indexdef", one sorted line per index. Generate it from a
+// freshly migrated PostgreSQL database with:
+//
+//	ALITA_TEST_MIGRATION_CHAIN=true DATABASE_URL=... UPDATE_INDEX_GOLDEN=1 \
+//	  go test ./alita/db/migrations -run TestRepositoryMigrationChain
+//
+//go:embed expected_indexes.txt
+var expectedIndexesGolden string
+
+// goldenIndex is one expected_indexes.txt row. The definition is stored whole
+// so a redefined index (column order, predicate, method) is caught, not just a
+// missing one.
+type goldenIndex struct {
+	Table string `gorm:"column:table_name"`
+	Name  string `gorm:"column:index_name"`
+	Def   string `gorm:"column:index_def"`
+}
+
+type indexKey struct {
+	table string
+	name  string
+}
+
+func (g goldenIndex) key() indexKey {
+	return indexKey{table: g.Table, name: g.Name}
+}
+
+// indexCatalogSQL lists every index on a public user table, including indexes
+// owned by primary keys and unique constraints (they back foreign keys too).
+const indexCatalogSQL = `
+SELECT c.relname AS table_name,
+       i.relname AS index_name,
+       pg_get_indexdef(x.indexrelid) AS index_def
+FROM pg_index x
+JOIN pg_class c ON c.oid = x.indrelid
+JOIN pg_class i ON i.oid = x.indexrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relkind IN ('r', 'p')
+ORDER BY c.relname, i.relname
+`
+
+func queryIndexCatalog(db *gorm.DB) ([]goldenIndex, error) {
+	var indexes []goldenIndex
+	if err := db.Raw(indexCatalogSQL).Scan(&indexes).Error; err != nil {
+		return nil, err
+	}
+	return indexes, nil
+}
+
+func parseGoldenIndexes(data string) ([]goldenIndex, error) {
+	var indexes []goldenIndex
+	seen := make(map[indexKey]bool)
+	for lineNo, line := range strings.Split(data, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+			return nil, fmt.Errorf("%s:%d: want table|index|indexdef, got %q", expectedIndexesFile, lineNo+1, line)
+		}
+
+		index := goldenIndex{Table: parts[0], Name: parts[1], Def: parts[2]}
+		if seen[index.key()] {
+			return nil, fmt.Errorf("%s:%d: duplicate index %s on table %s", expectedIndexesFile, lineNo+1, index.Name, index.Table)
+		}
+		seen[index.key()] = true
+		indexes = append(indexes, index)
+	}
+	return indexes, nil
+}
+
+func formatGoldenIndexes(indexes []goldenIndex) string {
+	sorted := slices.Clone(indexes)
+	slices.SortFunc(sorted, func(a, b goldenIndex) int {
+		if n := strings.Compare(a.Table, b.Table); n != 0 {
+			return n
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	var builder strings.Builder
+	for _, index := range sorted {
+		builder.WriteString(index.Table)
+		builder.WriteByte('|')
+		builder.WriteString(index.Name)
+		builder.WriteByte('|')
+		builder.WriteString(index.Def)
+		builder.WriteByte('\n')
+	}
+	return builder.String()
+}
+
+type indexDiffKind int
+
+const (
+	indexMissing indexDiffKind = iota
+	indexChanged
+	indexUnexpected
+)
+
+type indexDiff struct {
+	Kind     indexDiffKind
+	Table    string
+	Name     string
+	Expected string
+	Actual   string
+}
+
+func (d indexDiff) String() string {
+	switch d.Kind {
+	case indexMissing:
+		return fmt.Sprintf("missing index %s on table %s (expected %s)", d.Name, d.Table, d.Expected)
+	case indexChanged:
+		return fmt.Sprintf("index %s on table %s changed: expected %s, got %s", d.Name, d.Table, d.Expected, d.Actual)
+	default:
+		return fmt.Sprintf("unexpected index %s on table %s (%s); record it in %s or drop it", d.Name, d.Table, d.Actual, expectedIndexesFile)
+	}
+}
+
+// diffIndexes compares in both directions: a golden index that is missing or
+// was redefined, and a live index the golden does not know about.
+func diffIndexes(expected, actual []goldenIndex) []indexDiff {
+	actualByKey := make(map[indexKey]goldenIndex, len(actual))
+	for _, index := range actual {
+		actualByKey[index.key()] = index
+	}
+
+	var diffs []indexDiff
+	expectedKeys := make(map[indexKey]bool, len(expected))
+	for _, index := range expected {
+		expectedKeys[index.key()] = true
+		got, ok := actualByKey[index.key()]
+		switch {
+		case !ok:
+			diffs = append(diffs, indexDiff{Kind: indexMissing, Table: index.Table, Name: index.Name, Expected: index.Def})
+		case got.Def != index.Def:
+			diffs = append(diffs, indexDiff{Kind: indexChanged, Table: index.Table, Name: index.Name, Expected: index.Def, Actual: got.Def})
+		}
+	}
+
+	for _, index := range actual {
+		if !expectedKeys[index.key()] {
+			diffs = append(diffs, indexDiff{Kind: indexUnexpected, Table: index.Table, Name: index.Name, Actual: index.Def})
+		}
+	}
+	return diffs
+}
+
+// verifyIndexes compares the live catalog with expected_indexes.txt in both
+// directions. Runtime stays warn-only; the repository chain test fails on any
+// diff, including an index that was silently reintroduced.
 func (m *MigrationRunner) verifyIndexes() error {
+	if m.db == nil || m.db.Name() != "postgres" {
+		log.Debugf("[Migrations] Skipping index verification: not a PostgreSQL database")
+		return nil
+	}
+
 	log.Info("[Migrations] Verifying database indexes...")
 
-	// Note: Some indexes were intentionally dropped as unused - see migration history:
-	// - idx_users_user_id → replaced by uk_users_user_id (unique constraint)
-	// - idx_chats_chat_id → replaced by uk_chats_chat_id (unique constraint)
-	// - idx_filters_chat_keyword → dropped (app loads all filters per chat)
-	// - idx_lock_chat_type → dropped (app loads all locks per chat)
-	// - idx_captcha_expires_at → dropped (0 scans in production)
-	expectedIndexes := map[string]map[string][]string{
-		"users": {
-			"uk_users_user_id":    {"user_id"}, // Unique constraint (replaces idx_users_user_id)
-			"idx_users_user_name": {"username"},
-		},
-		"chats": {
-			"uk_chats_chat_id": {"chat_id"}, // Unique constraint (replaces idx_chats_chat_id)
-		},
-		"antiflood_settings": {
-			"idx_antiflood_settings_chat_id": {"chat_id"},
-		},
-		"captcha_attempts": {
-			"uk_captcha_user_chat":         {"user_id", "chat_id"},
-			"idx_captcha_attempts_chat_id": {"chat_id"}, // FK backing (20260904000000)
-		},
-		"captcha_muted_users": {
-			"idx_captcha_muted_users_chat_id": {"chat_id"}, // FK backing (20260904000000)
-		},
-		"warns_users": {
-			"idx_warns_users_chat_id": {"chat_id"}, // FK backing (20260904000000)
-		},
-		"connection": {
-			"idx_connection_chat_id": {"chat_id"}, // FK backing (20260904000000)
-		},
-		"stored_messages": {
-			"idx_stored_attempt": {"attempt_id"}, // FK backing (20260904000000)
-		},
-		"federation_admins": {
-			"idx_federation_admins_user_id": {"user_id"}, // FK backing (20260904000000)
-		},
-		"federation_bans": {
-			"idx_federation_bans_user_id": {"user_id"}, // FK backing (20260904000000)
-		},
-		"federation_chats": {
-			"idx_federation_chats_fed_id": {"fed_id"}, // FK backing (20260904000000)
-		},
-		"federation_subs": {
-			"idx_federation_subs_subscribed_fed_id": {"subscribed_fed_id"}, // FK backing (20260904000000)
-		},
-		"approved_users": {
-			"idx_approved_users_chat_id": {"chat_id"}, // Restored by 20260831230000; dropped once as "unused" and missed
-		},
+	expected, err := parseGoldenIndexes(expectedIndexesGolden)
+	if err != nil {
+		return fmt.Errorf("parse embedded %s: %w", expectedIndexesFile, err)
+	}
+	actual, err := queryIndexCatalog(m.db)
+	if err != nil {
+		return fmt.Errorf("query index catalog: %w", err)
 	}
 
-	verified := 0
+	diffs := diffIndexes(expected, actual)
 	missing := 0
-
-	for tableName, tableIndexes := range expectedIndexes {
-		var tableExists bool
-		err := m.db.Raw(`
-			SELECT EXISTS (
-				SELECT FROM information_schema.tables
-				WHERE table_schema = 'public'
-				AND table_name = ?
-			)
-		`, tableName).Scan(&tableExists).Error
-		if err != nil {
-			log.Warnf("[Migrations] Failed to check if table %s exists: %v", tableName, err)
-			continue
+	for _, diff := range diffs {
+		if diff.Kind != indexUnexpected {
+			missing++
 		}
-
-		if !tableExists {
-			log.Debugf("[Migrations] Table %s does not exist, skipping index verification", tableName)
-			continue
-		}
-
-		for indexName, expectedColumns := range tableIndexes {
-			type IndexInfo struct {
-				IndexName       string
-				ColumnName      string
-				OrdinalPosition int
-			}
-
-			var indexColumns []IndexInfo
-			err := m.db.Raw(`
-				SELECT
-					i.relname as index_name,
-					a.attname as column_name,
-					array_position(ix.indkey, a.attnum) as ordinal_position
-				FROM
-					pg_class t,
-					pg_class i,
-					pg_index ix,
-					pg_attribute a
-				WHERE
-					t.oid = ix.indrelid
-					and i.oid = ix.indexrelid
-					and a.attrelid = t.oid
-					and a.attnum = ANY(ix.indkey)
-					and t.relkind = 'r'
-					and t.relname = ?
-					and i.relname = ?
-				ORDER BY array_position(ix.indkey, a.attnum)
-			`, tableName, indexName).Find(&indexColumns).Error
-
-			if err != nil {
-				log.Warnf("[Migrations] Failed to check index %s on table %s: %v", indexName, tableName, err)
-				continue
-			}
-
-			if len(indexColumns) == 0 {
-				log.Warnf("[Migrations] Missing index: %s on table %s (expected columns: %v)", indexName, tableName, expectedColumns)
-				missing++
-				continue
-			}
-
-			actualColumns := make([]string, len(indexColumns))
-			for i, col := range indexColumns {
-				actualColumns[i] = col.ColumnName
-			}
-
-			if len(expectedColumns) != len(actualColumns) {
-				log.Warnf("[Migrations] Index %s on table %s has wrong number of columns: expected %v, got %v",
-					indexName, tableName, expectedColumns, actualColumns)
-				missing++
-				continue
-			}
-
-			mismatch := false
-			for i, expected := range expectedColumns {
-				if actualColumns[i] != expected {
-					log.Warnf("[Migrations] Index %s on table %s has wrong column at position %d: expected %s, got %s",
-						indexName, tableName, i+1, expected, actualColumns[i])
-					mismatch = true
-				}
-			}
-
-			if mismatch {
-				missing++
-			} else {
-				log.Debugf("[Migrations] Verified index: %s on table %s", indexName, tableName)
-				verified++
-			}
-		}
+		log.Warnf("[Migrations] Index verification: %s", diff)
 	}
 
-	log.Infof("[Migrations] Index verification complete - Verified: %d, Missing/Incorrect: %d", verified, missing)
+	log.Infof("[Migrations] Index verification complete - Verified: %d, Missing/Incorrect: %d, Unexpected: %d",
+		len(expected)-missing, missing, len(diffs)-missing)
 
-	if missing > 0 {
-		return fmt.Errorf("%d indexes are missing or incorrect", missing)
+	if len(diffs) > 0 {
+		return fmt.Errorf("%d indexes differ from %s (%d missing or incorrect, %d unexpected)",
+			len(diffs), expectedIndexesFile, missing, len(diffs)-missing)
 	}
-
 	return nil
+}
+
+// foreignKeyCoverageSQL lists foreign keys that no valid, non-partial index
+// leads with. int2vector is zero-based, so [0:n-1] is the first n index
+// columns; the containment test accepts any column order among them.
+const foreignKeyCoverageSQL = `
+SELECT c.relname AS table_name,
+       con.conname AS constraint_name
+FROM pg_constraint con
+JOIN pg_class c ON c.oid = con.conrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE con.contype = 'f'
+  AND n.nspname = 'public'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM pg_index i
+      WHERE i.indrelid = con.conrelid
+        AND i.indisvalid
+        AND i.indisready
+        AND i.indpred IS NULL
+        AND i.indnkeyatts >= cardinality(con.conkey)
+        AND (i.indkey::int2[])[0:cardinality(con.conkey) - 1] @> con.conkey
+  )
+ORDER BY c.relname, con.conname
+`
+
+type foreignKeyWithoutIndex struct {
+	Table      string `gorm:"column:table_name"`
+	Constraint string `gorm:"column:constraint_name"`
+}
+
+// assertForeignKeyCoverage guards the indexes that FK enforcement needs.
+// PostgreSQL does not create them, and the ones dropped as "unused" had to be
+// restored: the chain test fails with the table and constraint names instead.
+func assertForeignKeyCoverage(tx *gorm.DB) error {
+	var missing []foreignKeyWithoutIndex
+	if err := tx.Raw(foreignKeyCoverageSQL).Scan(&missing).Error; err != nil {
+		return fmt.Errorf("query foreign key index coverage: %w", err)
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+
+	names := make([]string, len(missing))
+	for i, fk := range missing {
+		names[i] = fk.Table + "." + fk.Constraint
+	}
+	return fmt.Errorf("%d foreign keys have no covering index: %s", len(missing), strings.Join(names, ", "))
 }
