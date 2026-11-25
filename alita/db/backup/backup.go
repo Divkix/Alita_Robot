@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
@@ -524,10 +525,18 @@ func exportLogChannelsData(chatID int64) (*LogChannelsBackup, error) {
 // importModuleData imports one module in tx, appending to notices any part it
 // skipped without failing.
 func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}, preserveLegacyOmissions bool, notices *[]ImportNotice) ([]string, error) {
-	if err := ensureBackupChat(tx, chatID); err != nil {
+	created, err := ensureBackupChat(tx, chatID)
+	if err != nil {
 		return nil, err
 	}
-	return importModule(tx, chatID, module, data, preserveLegacyOmissions, notices)
+	keys, err := importModule(tx, chatID, module, data, preserveLegacyOmissions, notices)
+	if err != nil {
+		return nil, err
+	}
+	if created {
+		keys = append(keys, chatProjectionKeys(chatID)...)
+	}
+	return keys, nil
 }
 
 // importModule dispatches module's data to its importer.
@@ -1036,9 +1045,22 @@ func moduleFieldPresent(payload interface{}, field string) bool {
 }
 
 func clearModuleData(tx *gorm.DB, chatID int64, module string) ([]string, error) {
-	if err := ensureBackupChat(tx, chatID); err != nil {
+	created, err := ensureBackupChat(tx, chatID)
+	if err != nil {
 		return nil, err
 	}
+	keys, err := clearModule(tx, chatID, module)
+	if err != nil {
+		return nil, err
+	}
+	if created {
+		keys = append(keys, chatProjectionKeys(chatID)...)
+	}
+	return keys, nil
+}
+
+// clearModule dispatches module's clear to its clearer.
+func clearModule(tx *gorm.DB, chatID int64, module string) ([]string, error) {
 	switch module {
 	case BackupModuleAdmin:
 		return clearAdmin(tx, chatID)
@@ -1083,12 +1105,16 @@ func clearModuleData(tx *gorm.DB, chatID int64, module string) ([]string, error)
 	}
 }
 
-func ensureBackupChat(tx *gorm.DB, chatID int64) error {
-	return tx.Clauses(clause.OnConflict{
+func ensureBackupChat(tx *gorm.DB, chatID int64) (bool, error) {
+	result := tx.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoNothing: true,
-	}).Create(&models.Chat{ChatId: chatID}).Error
+	}).Create(&models.Chat{ChatId: chatID})
+	return result.RowsAffected > 0, result.Error
 }
+
+// chatProjectionKeys are the cached chat reads a new chats row invalidates.
+var chatProjectionKeys = dbcache.Keys(chats.ChatProjection, chats.ChatUsersProjection, chats.ChatLangProjection)
 
 func clearAdmin(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := replaceChatSetting(tx, chatID, &models.AdminSettings{ChatId: chatID}); err != nil {
