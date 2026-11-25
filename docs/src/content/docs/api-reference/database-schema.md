@@ -31,7 +31,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 ### Chat Membership
 
-Chat membership is managed via the JSONB `users` column on the `chats` table (an `Int64Array` of user IDs). The physical `chat_users` join table was dropped by migration and there is no corresponding GORM model.
+Chat membership lives in `chat_members`, one row per `(chat_id, user_id)`. The legacy JSONB `chats.users` column is kept for one release for rollback but is no longer written; new code reads and writes `chat_members` only.
 
 ## Tables
 
@@ -272,6 +272,28 @@ Main table storing chat/group information.
 - `uk_chats_chat_id` (unique constraint on `chat_id`)
 - `idx_chats_covering` (on `chat_id` INCLUDE `language`, `is_inactive`)
 - `idx_chats_activity_status`
+
+---
+
+### `chat_members`
+
+Normalized chat membership, one row per member. Backfilled from the legacy `chats.users` JSONB array.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `chat_id` | `BIGINT` | NO | — | PRIMARY KEY (with `user_id`) |
+| `user_id` | `BIGINT` | NO | — | PRIMARY KEY (with `chat_id`) |
+
+#### Indexes
+
+- `chat_members_pkey` (primary key on `chat_id`, `user_id`)
+- `idx_chat_members_user` (on `user_id`, `chat_id`; reverse containment lookup)
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE
 
 ---
 

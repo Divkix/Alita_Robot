@@ -679,24 +679,20 @@ func listSubscribedFedIDs(ctx context.Context, subscriberFedID string) ([]string
 }
 
 // ChatsContainingUser returns the given chats whose known members include userID.
+// The chat_members (user_id, chat_id) index serves the containment check.
 // A failed query is returned, never read as "no chats", so callers cannot report
 // a walk as done when it enforced nothing.
 func ChatsContainingUser(userID int64, chatIDs []int64) ([]int64, error) {
 	if len(chatIDs) == 0 {
 		return nil, nil
 	}
-	var rows []models.Chat
-	if err := db.DB.Model(&models.Chat{}).Select("chat_id, users").Where("chat_id IN ?", chatIDs).Find(&rows).Error; err != nil {
+	out := make([]int64, 0, len(chatIDs))
+	err := db.DB.Model(&models.ChatMember{}).
+		Where("user_id = ? AND chat_id IN ?", userID, chatIDs).
+		Order("chat_id").
+		Pluck("chat_id", &out).Error
+	if err != nil {
 		return nil, fmt.Errorf("list chats containing user %d: %w", userID, err)
-	}
-	out := make([]int64, 0)
-	for _, chat := range rows {
-		for _, member := range chat.Users {
-			if member == userID {
-				out = append(out, chat.ChatId)
-				break
-			}
-		}
 	}
 	return out, nil
 }

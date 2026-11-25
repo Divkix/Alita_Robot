@@ -287,9 +287,9 @@ func TestFedWalksMakeNoPunishmentCallsWhenChatListingFails(t *testing.T) {
 		walk   func(context.Context, *gotgbot.Bot, string, int64, int64)
 		banned bool
 	}{
-		{name: "fban containment", table: "chats", walk: applyActiveFban, banned: true},
+		{name: "fban containment", table: "chat_members", walk: applyActiveFban, banned: true},
 		{name: "fban fed chats", table: "federation_chats", walk: applyActiveFban, banned: true},
-		{name: "unfban containment", table: "chats", walk: applyActiveUnfban},
+		{name: "unfban containment", table: "chat_members", walk: applyActiveUnfban},
 		{name: "unfban fed chats", table: "federation_chats", walk: applyActiveUnfban},
 	}
 	for _, tc := range cases {

@@ -2,10 +2,18 @@ package chats
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	gocache "github.com/eko/gocache/lib/v4/cache"
+	"github.com/eko/gocache/lib/v4/marshaler"
+	gocache_store "github.com/eko/gocache/store/redis/v4"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -41,7 +49,7 @@ func withChatSQLite(t *testing.T) {
 	sqlDB.SetMaxOpenConns(1)
 	db.DB = testDB
 	utilsCache.SetMarshal(nil)
-	if err := db.DB.AutoMigrate(&models.Chat{}); err != nil {
+	if err := db.DB.AutoMigrate(&models.Chat{}, &models.ChatMember{}); err != nil {
 		t.Fatalf("AutoMigrate Chat: %v", err)
 	}
 
@@ -177,8 +185,12 @@ func TestUpdateChat(t *testing.T) {
 	if chat.ChatName != chatName {
 		t.Errorf("chat name = %q, want %q", chat.ChatName, chatName)
 	}
-	if !slices.Contains(chat.Users, userID) {
-		t.Errorf("chat users = %v, want to contain %d", chat.Users, userID)
+	users, err := GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() error = %v", err)
+	}
+	if !slices.Contains(users, userID) {
+		t.Errorf("chat members = %v, want to contain %d", users, userID)
 	}
 
 	recordActivity(updatedName, userID)
@@ -192,14 +204,15 @@ func TestUpdateChat(t *testing.T) {
 
 	recordActivity(updatedName, userID2)
 
-	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
-		t.Fatalf("expected chat to exist after adding user: %v", err)
+	users, err = GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() error = %v", err)
 	}
-	if !slices.Contains(chat.Users, userID) {
-		t.Errorf("chat users missing original user %d: %v", userID, chat.Users)
+	if !slices.Contains(users, userID) {
+		t.Errorf("chat members missing original user %d: %v", userID, users)
 	}
-	if !slices.Contains(chat.Users, userID2) {
-		t.Errorf("chat users missing new user %d: %v", userID2, chat.Users)
+	if !slices.Contains(users, userID2) {
+		t.Errorf("chat members missing new user %d: %v", userID2, users)
 	}
 
 	recordActivity(updatedName, userID2)
@@ -207,21 +220,155 @@ func TestUpdateChat(t *testing.T) {
 	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
 		t.Fatalf("expected chat to exist after re-adding member: %v", err)
 	}
-	if len(chat.Users) != 2 {
-		t.Errorf("chat users after re-adding an existing member = %v, want exactly [%d %d]: membership must not duplicate", chat.Users, userID, userID2)
+	users, err = GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Errorf("chat members after re-adding an existing member = %v, want exactly [%d %d]: membership must not duplicate", users, userID, userID2)
 	}
 }
 
-func TestAddChatMemberReturnsAtomicAppendError(t *testing.T) {
+func TestAddChatMemberIsIdempotent(t *testing.T) {
 	withChatSQLite(t)
 
-	const chatID = int64(-100123)
+	const (
+		chatID = int64(-100123)
+		userID = int64(42)
+	)
 	if err := EnsureChatInDb(chatID, "existing"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	if err := AddChatMember(chatID, 42); err == nil {
-		t.Fatal("AddChatMember() error = nil when the PostgreSQL JSONB append fails")
+	for range 2 {
+		if err := AddChatMember(chatID, userID); err != nil {
+			t.Fatalf("AddChatMember() error = %v", err)
+		}
 	}
+
+	var count int64
+	if err := db.DB.Model(&models.ChatMember{}).
+		Where("chat_id = ? AND user_id = ?", chatID, userID).
+		Count(&count).Error; err != nil {
+		t.Fatalf("count chat_members: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("chat_members rows = %d, want 1: re-adding a member must not duplicate", count)
+	}
+
+	var chat models.Chat
+	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
+		t.Fatalf("load chat: %v", err)
+	}
+	if len(chat.Users) != 0 {
+		t.Errorf("legacy chats.users = %v, want untouched: new memberships go only to chat_members", chat.Users)
+	}
+
+	users, err := GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() error = %v", err)
+	}
+	if want := (models.Int64Array{userID}); !slices.Equal(users, want) {
+		t.Errorf("GetChatUsersCached() = %v, want %v", users, want)
+	}
+}
+
+func TestAddChatMemberInvalidatesUsersCache(t *testing.T) {
+	skipIfNoDb(t)
+
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	manager := gocache.New[any](gocache_store.NewRedis(client))
+	previousMarshal, previousManager, previousClient := utilsCache.GetCacheState()
+	utilsCache.SetCacheState(marshaler.New(manager), manager, client)
+	t.Cleanup(func() {
+		_ = client.Close()
+		utilsCache.SetCacheState(previousMarshal, previousManager, previousClient)
+	})
+
+	chatID := -time.Now().UnixNano()
+	userID := chatID + 1
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ChatMember{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+	if err := EnsureChatInDb(chatID, "cache chat"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+
+	users, err := GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("prime GetChatUsersCached() error = %v", err)
+	}
+	if len(users) != 0 {
+		t.Fatalf("primed members = %v, want empty", users)
+	}
+
+	if err := AddChatMember(chatID, userID); err != nil {
+		t.Fatalf("AddChatMember() error = %v", err)
+	}
+
+	users, err = GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() after insert error = %v", err)
+	}
+	if !slices.Contains(users, userID) {
+		t.Errorf("cached members after insert = %v, want %d: insert must invalidate ChatUsersProjection", users, userID)
+	}
+}
+
+// TestChatMembersBackfillFromLegacyJSONB runs the migration's backfill against
+// a seeded chats.users array, so the SQL and the model agree on the row shape.
+func TestChatMembersBackfillFromLegacyJSONB(t *testing.T) {
+	skipIfNoDb(t)
+	if db.DB.Name() != "postgres" {
+		t.Skip("PostgreSQL migration integration: run make test-postgres-integrity")
+	}
+
+	chatID := -time.Now().UnixNano() - 1
+	users := models.Int64Array{chatID + 1, chatID + 2}
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
+			t.Errorf("cleanup Delete error = %v", err)
+		}
+	})
+	if err := EnsureChatInDb(chatID, "backfill chat"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).
+		Update("users", users).Error; err != nil {
+		t.Fatalf("seed legacy chats.users: %v", err)
+	}
+
+	backfill := migrationBackfillSQL(t)
+	for range 2 {
+		if err := db.DB.Exec(backfill).Error; err != nil {
+			t.Fatalf("run migration backfill: %v", err)
+		}
+	}
+
+	got, err := GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() error = %v", err)
+	}
+	if !slices.Equal(got, users) {
+		t.Errorf("backfilled members = %v, want %v", got, users)
+	}
+}
+
+// migrationBackfillSQL returns the backfill statement from the migration file,
+// so the test runs the SQL that ships rather than a copy.
+func migrationBackfillSQL(t *testing.T) string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "migrations", "20261124000100_create_chat_members.sql"))
+	if err != nil {
+		t.Fatalf("read chat_members migration: %v", err)
+	}
+	sql := string(content)
+	start := strings.Index(sql, "INSERT INTO chat_members")
+	if start < 0 {
+		t.Fatal("chat_members migration has no INSERT INTO chat_members backfill")
+	}
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(sql[start:]), ";"))
 }
 
 func TestTouchChatThrottlesActivityRefresh(t *testing.T) {

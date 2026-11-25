@@ -351,8 +351,9 @@ func seedFedChat(t *testing.T, fedID string, members ...int64) gotgbot.Chat {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Fed Member Chat"}
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chat.Id).Delete(&models.Chat{}).Error })
-	require.NoError(t, db.DB.Model(&models.Chat{}).Where("chat_id = ?", chat.Id).
-		Update("users", models.Int64Array(members)).Error)
+	for _, member := range members {
+		require.NoError(t, chats.AddChatMember(chat.Id, member))
+	}
 	require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fedID))
 	return chat
 }
@@ -486,8 +487,7 @@ func TestUnfbanSendsUnbanEvenWhereAChatAdminBannedTheUser(t *testing.T) {
 	chat, admin := f.chat, f.admin
 	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 	t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chat.Id).Delete(&models.Chat{}).Error })
-	require.NoError(t, db.DB.Model(&models.Chat{}).Where("chat_id = ?", chat.Id).
-		Update("users", models.Int64Array{target.Id}).Error)
+	require.NoError(t, chats.AddChatMember(chat.Id, target.Id))
 	require.NoError(t, federations.JoinFed(chat.Id, chat.Title, fed.FedID))
 	if err := bansModule.ban(bot, newBanReplyContext(bot, chat, admin, target, "/ban spam")); err != ext.EndGroups {
 		t.Fatalf("ban: %v", err)

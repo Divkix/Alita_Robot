@@ -16,7 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/bans"
-	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
@@ -315,11 +315,9 @@ func TestUnbanAllClosesTheBanRecordsOfTheUsersItUnbanned(t *testing.T) {
 	for _, userID := range []int64{listed, unlisted} {
 		seedBanRecord(t, models.BanRecord{ChatId: f.chat.Id, UserId: userID, Source: models.BanSourceManual, BannedBy: f.admin.Id})
 	}
-	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", f.chat.Id).
-		Update("users", models.Int64Array{listed}).Error; err != nil {
-		t.Fatalf("seed users of %d: %v", f.chat.Id, err)
+	if err := chats.AddChatMember(f.chat.Id, listed); err != nil {
+		t.Fatalf("seed member %d of %d: %v", listed, f.chat.Id, err)
 	}
-	dbcache.DeleteCache(dbcache.CacheKey("chat_users", f.chat.Id))
 
 	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
 	if err := bansClearAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data)); err != ext.EndGroups {

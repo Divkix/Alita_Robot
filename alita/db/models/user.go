@@ -18,10 +18,13 @@ func (User) TableName() string {
 }
 
 type Chat struct {
-	ID           uint       `gorm:"primaryKey;autoIncrement" json:"-"`
-	ChatId       int64      `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`
-	ChatName     string     `gorm:"column:chat_name" json:"chat_name" default:"nil"`
-	Language     string     `gorm:"column:language" json:"language" default:"nil"`
+	ID       uint   `gorm:"primaryKey;autoIncrement" json:"-"`
+	ChatId   int64  `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`
+	ChatName string `gorm:"column:chat_name" json:"chat_name" default:"nil"`
+	Language string `gorm:"column:language" json:"language" default:"nil"`
+	// Users is the legacy JSONB membership array. The bot no longer writes or
+	// reads it (ChatMember is the membership list); it stays for one release so
+	// a rollback can still read the members known at deploy time.
 	Users        Int64Array `gorm:"column:users;type:jsonb" json:"users" default:"nil"`
 	IsInactive   bool       `gorm:"column:is_inactive;default:false" json:"is_inactive" default:"false"`
 	LastActivity time.Time  `gorm:"column:last_activity" json:"last_activity,omitempty"`

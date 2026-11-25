@@ -343,11 +343,12 @@ func TestLogUsersTouchesChatOncePerChatNotPerMember(t *testing.T) {
 	if got := loadChat().LastActivity; !got.Equal(stale) {
 		t.Errorf("last_activity = %v, want %v left alone for another member of a freshly touched chat", got, stale)
 	}
-	// Membership appends use PostgreSQL JSONB operators.
-	if db.DB.Name() == "postgres" {
-		if users := loadChat().Users; !slices.Contains(users, first.Id) || !slices.Contains(users, second.Id) {
-			t.Errorf("chat users = %v, want both %d and %d recorded per member", users, first.Id, second.Id)
-		}
+	var users []int64
+	if err := db.DB.Model(&models.ChatMember{}).Where("chat_id = ?", chat.Id).Pluck("user_id", &users).Error; err != nil {
+		t.Fatalf("load chat members: %v", err)
+	}
+	if !slices.Contains(users, first.Id) || !slices.Contains(users, second.Id) {
+		t.Errorf("chat members = %v, want both %d and %d recorded per member", users, first.Id, second.Id)
 	}
 
 	renamed := chat

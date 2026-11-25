@@ -48,7 +48,7 @@ func Run(m *testing.M, tables ...any) int {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}()
-	tables = append([]any{&models.User{}, &models.Chat{}}, tables...)
+	tables = append([]any{&models.User{}, &models.Chat{}, &models.ChatMember{}}, tables...)
 	if err := database.AutoMigrate(tables...); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
