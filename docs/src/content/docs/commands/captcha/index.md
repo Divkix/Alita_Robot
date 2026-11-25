@@ -20,16 +20,18 @@ Force new members to prove they're human by solving a simple challenge before th
 × /captchajoin `<on/off>`: Verify join requests in private messages (default: off; no argument shows its state)
 × /captchatime `<1-10>`: Set timeout in minutes (default: 2)
 × /captchaaction `<kick/ban/mute>`: Set action for failed verification (default: kick)
-× /captchamaxattempts `<1-10>`: Set maximum verification attempts (default: 3)
+× /captchamaxattempts `<1-3>`: Set maximum verification attempts (default: 2)
 
 When enabled, new members are automatically muted until they complete the captcha.
+Each captcha requires **two correct answers**: every correct answer sends a fresh
+challenge, and only the second one completes verification.
 If they fail or timeout, the configured action is taken.
 
 **How It Works:**
 1. When captcha is enabled, new members are automatically muted upon joining
-2. A captcha challenge is sent to the new member
-3. The user must select the correct answer from the provided options
-4. If successful, the user is unmuted and can participate in the group
+2. A captcha challenge with four options is sent to the new member
+3. The user must select the correct answer; a correct answer sends a fresh challenge
+4. Two correct answers complete verification, and the user is unmuted
 5. If they fail or timeout, the configured action is taken (kick, ban, or mute)
 
 **Captcha Types:**
@@ -51,9 +53,13 @@ current state; `/captchajoin off` restores the existing auto-approval or admin-b
 The `/captcha` status and `/settings` summary also show this setting.
 
 - Applicants receive a private captcha naming the group. It uses `/captchamode`,
-  `/captchatime` and `/captchamaxattempts`, with a **5-minute maximum timeout**.
-- A correct answer approves the request even when `/autoapprove` is off. Users
-  on the group's approved list are approved immediately without a challenge.
+  `/captchatime` and `/captchamaxattempts` (1-3 attempts, default 2), with a
+  **5-minute maximum timeout**.
+- Each private captcha also needs **two correct answers**; every correct answer
+  sends a fresh challenge with four options, and incorrect answers count toward
+  the same attempt limit.
+- The request is approved even when `/autoapprove` is off. Users on the group's
+  approved list are approved immediately without a challenge.
 - Running out of time or attempts declines the request; `/captchaaction` does not
   apply. The applicant is not kicked, banned or muted for failing a join captcha.
 - When `/spamdb` is enabled, its `ban` action bans and declines a listed applicant;
@@ -80,7 +86,7 @@ requests. Join-request verification does not require restricting members.
 | `/captchaaction` | Set action for failed captcha attempts | ❌ |
 | `/captchaclear` | Clear pending captcha messages | ❌ |
 | `/captchajoin` | Toggle private captcha for join requests; no argument shows its state | ❌ |
-| `/captchamaxattempts` | Set maximum captcha verification attempts | ❌ |
+| `/captchamaxattempts` | Set maximum captcha verification attempts (1-3, default 2) | ❌ |
 | `/captchamode` | Set captcha verification mode | ❌ |
 | `/captchapending` | View a pending user's stored messages | ❌ |
 | `/captchatime` | Set time limit for captcha verification | ❌ |

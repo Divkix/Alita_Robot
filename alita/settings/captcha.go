@@ -73,7 +73,7 @@ var CaptchaMode = func() *Declaration {
 }()
 
 // CaptchaTimeout is measured in minutes, matching /captchatime and persistence.
-var CaptchaTimeout = captchaNumber("captcha.timeout", captchaDefaults.Timeout, Admin, "must be between 1 and 10 minutes",
+var CaptchaTimeout = captchaNumber("captcha.timeout", captchaDefaults.Timeout, Admin, 1, 10, "must be between 1 and 10 minutes",
 	func(row *models.CaptchaSettings) any { return row.Timeout },
 	func(input WriteContext, value any) error {
 		return captcha.SetCaptchaTimeout(input.ChatID, input.Title, value.(int))
@@ -89,16 +89,16 @@ var CaptchaAction = func() *Declaration {
 	return d
 }()
 
-var CaptchaMaxAttempts = captchaNumber("captcha.max_attempts", captchaDefaults.MaxAttempts, AdminBot, "must be between 1 and 10",
+var CaptchaMaxAttempts = captchaNumber("captcha.max_attempts", captchaDefaults.MaxAttempts, AdminBot, 1, 3, "must be between 1 and 3",
 	func(row *models.CaptchaSettings) any { return row.MaxAttempts },
 	func(input WriteContext, value any) error {
 		return captcha.SetCaptchaMaxAttempts(input.ChatID, input.Title, value.(int))
 	})
 
-func captchaNumber(key string, def int, right Right, message string, read func(*models.CaptchaSettings) any, write func(WriteContext, any) error) *Declaration {
+func captchaNumber(key string, def int, right Right, minValue, maxValue int, message string, read func(*models.CaptchaSettings) any, write func(WriteContext, any) error) *Declaration {
 	d := captchaDeclaration(key, Number, def, right, read, write)
 	d.allowed = func(value any) error {
-		if n := value.(int); n < 1 || n > 10 {
+		if n := value.(int); n < minValue || n > maxValue {
 			return fmt.Errorf("%s", message)
 		}
 		return nil

@@ -152,7 +152,7 @@ func TestCaptchaSubcommandsRequireArgumentsOrShowCurrentSettings(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, 6); err != nil {
+	if err := captcha.SetCaptchaMaxAttempts(chat.Id, chat.Title, 3); err != nil {
 		t.Fatalf("SetCaptchaMaxAttempts() setup error = %v", err)
 	}
 
@@ -181,8 +181,8 @@ func TestCaptchaSubcommandsRequireArgumentsOrShowCurrentSettings(t *testing.T) {
 	}
 	// The "max attempts current" case runs last, so its reply is the last call.
 	current := fmt.Sprint(calls[len(calls)-1].Params["text"])
-	if !strings.Contains(current, "6") || strings.Contains(current, "%d") {
-		t.Fatalf("/captchamaxattempts reply = %q, want the stored count 6 filled in", current)
+	if !strings.Contains(current, "3") || strings.Contains(current, "%d") {
+		t.Fatalf("/captchamaxattempts reply = %q, want the stored count 3 filled in", current)
 	}
 }
 
@@ -193,17 +193,17 @@ func TestCaptchaMaxAttemptsSetReplyShowsNewCount(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	ctx := newModuleMessageContext(bot, chat, admin, "/captchamaxattempts 4")
+	ctx := newModuleMessageContext(bot, chat, admin, "/captchamaxattempts 3")
 	if err := captchaModule.captchaMaxAttemptsCommand(bot, ctx); err != nil {
-		t.Fatalf("/captchamaxattempts 4 error = %v", err)
+		t.Fatalf("/captchamaxattempts 3 error = %v", err)
 	}
 	calls := client.callsFor("sendMessage")
 	if len(calls) == 0 {
 		t.Fatal("sendMessage calls = 0, want a confirmation reply")
 	}
 	text := fmt.Sprint(calls[len(calls)-1].Params["text"])
-	if !strings.Contains(text, "4") || strings.Contains(text, "%d") {
-		t.Fatalf("/captchamaxattempts 4 reply = %q, want the new count 4 filled in", text)
+	if !strings.Contains(text, "3") || strings.Contains(text, "%d") {
+		t.Fatalf("/captchamaxattempts 3 reply = %q, want the new count 3 filled in", text)
 	}
 }
 
@@ -755,13 +755,13 @@ func TestCaptchaVerifyCallbackWrongAnswerIncrementsAttempts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
-	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
+	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
 		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
 	}
 
 	data := encodeCallbackData(
 		"captcha_verify",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"},
+		map[string]string{"a": fmt.Sprint(attempt.ID), "s": "8"},
 	)
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
@@ -796,10 +796,12 @@ func TestCaptchaVerifyCallbackValidationBranches(t *testing.T) {
 		data string
 	}{
 		{name: "malformed", user: member, data: "captcha_verify"},
-		{name: "bad attempt id", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": "nope", "u": "42", "s": "7"})},
-		{name: "bad user id", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "nope", "s": "7"})},
-		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"})},
-		{name: "attempt mismatch", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": "999999", "u": "42", "s": "7"})},
+		{name: "bad attempt id", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": "nope", "s": "7"})},
+		{name: "missing answer", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID)})},
+		{name: "bad refresh count", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "r": "nope", "s": "7"})},
+		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "7"})},
+		{name: "attempt mismatch", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": "999999", "s": "7"})},
+		{name: "stale message", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "7"})},
 	}
 
 	for _, tt := range tests {
@@ -820,20 +822,14 @@ func TestCaptchaVerifyCallbackCorrectAnswerUnmutesAndCleansAttempt(t *testing.T)
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
-		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
-	}
+	attempt := finalRoundCaptchaAttempt(t, chat.Id, 102)
 	if err := captcha.StoreMessageForCaptcha(member.Id, chat.Id, attempt.ID, db.TEXT, "blocked text", "", ""); err != nil {
 		t.Fatalf("StoreMessageForCaptcha() error = %v", err)
 	}
 
 	data := encodeCallbackData(
 		"captcha_verify",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"},
+		map[string]string{"a": fmt.Sprint(attempt.ID), "s": "7"},
 	)
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
@@ -872,14 +868,11 @@ func TestCaptchaVerifyCallbackRestoresChatDefaultPermissions(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
+	attempt := finalRoundCaptchaAttempt(t, chat.Id, 102)
 
 	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData(
 		"captcha_verify",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"},
+		map[string]string{"a": fmt.Sprint(attempt.ID), "s": "7"},
 	))
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
 		t.Fatalf("captchaVerifyCallback() error = %v", err)
@@ -910,10 +903,10 @@ func TestCaptchaRefreshCallbackValidationBranches(t *testing.T) {
 		data string
 	}{
 		{name: "malformed", user: member, data: "captcha_refresh"},
-		{name: "bad attempt id", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": "nope", "u": "42"})},
-		{name: "bad user id", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "nope"})},
-		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"})},
-		{name: "attempt mismatch", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": "999999", "u": "42"})},
+		{name: "bad attempt id", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": "nope"})},
+		{name: "bad refresh count", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "r": "nope"})},
+		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID)})},
+		{name: "attempt mismatch", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": "999999"})},
 	}
 
 	for _, tt := range tests {
@@ -929,6 +922,35 @@ func TestCaptchaRefreshCallbackValidationBranches(t *testing.T) {
 	}
 }
 
+func TestCaptchaRefreshRejectsAButtonFromTheReplacedPrompt(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 103); err != nil {
+		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+	}
+
+	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData(
+		"captcha_refresh",
+		map[string]string{"a": fmt.Sprint(attempt.ID)},
+	))
+	if err := captchaModule.captchaRefreshCallback(bot, ctx); err != nil {
+		t.Fatalf("captchaRefreshCallback(stale prompt) error = %v", err)
+	}
+	if calls := client.callsFor("sendPhoto"); len(calls) != 0 {
+		t.Fatalf("sendPhoto calls = %d, want none for a stale prompt", len(calls))
+	}
+	current, err := captcha.GetCaptchaAttemptByID(attempt.ID)
+	if err != nil || current == nil || current.Answer != "7" || current.MessageID != 103 || current.RefreshCount != 0 {
+		t.Fatalf("attempt after stale refresh = (%+v, %v), want it unchanged", current, err)
+	}
+}
+
 func TestCaptchaRefreshCallbackSendsNewChallengeAndUpdatesAttempt(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -937,17 +959,11 @@ func TestCaptchaRefreshCallbackSendsNewChallengeAndUpdatesAttempt(t *testing.T) 
 	if err := captcha.SetCaptchaMode(chat.Id, chat.Title, "text"); err != nil {
 		t.Fatalf("SetCaptchaMode() error = %v", err)
 	}
-	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "old-answer", 2)
-	if err != nil {
-		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-	}
-	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
-		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
-	}
+	attempt := finalRoundCaptchaAttempt(t, chat.Id, 102)
 
 	data := encodeCallbackData(
 		"captcha_refresh",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"},
+		map[string]string{"a": fmt.Sprint(attempt.ID)},
 	)
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 	if err := captchaModule.captchaRefreshCallback(bot, ctx); err != nil {
@@ -958,14 +974,17 @@ func TestCaptchaRefreshCallbackSendsNewChallengeAndUpdatesAttempt(t *testing.T) 
 	if err != nil || updated == nil {
 		t.Fatalf("GetCaptchaAttemptByID() after refresh = %#v, %v; want attempt, nil", updated, err)
 	}
-	if updated.Answer == "old-answer" {
+	if updated.Answer == attempt.Answer {
 		t.Fatal("captcha answer was not refreshed")
 	}
-	if updated.MessageID == 123 {
+	if updated.MessageID == 102 {
 		t.Fatal("captcha message id was not refreshed")
 	}
 	if updated.RefreshCount != 1 {
 		t.Fatalf("RefreshCount = %d, want 1", updated.RefreshCount)
+	}
+	if updated.Stage != attempt.Stage {
+		t.Fatalf("Stage = %d, want refresh to keep the attempt's stage %d", updated.Stage, attempt.Stage)
 	}
 	if calls := client.callsFor("sendPhoto"); len(calls) != 1 {
 		t.Fatalf("sendPhoto calls = %d, want refreshed challenge photo", len(calls))
@@ -993,8 +1012,9 @@ func TestCaptchaVerifyRejectsButtonFromPreviousRefresh(t *testing.T) {
 
 	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData(
 		"captcha_verify",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "r": "0", "u": "42", "s": "old"},
+		map[string]string{"a": fmt.Sprint(attempt.ID), "r": "0", "s": "old"},
 	))
+	ctx.CallbackQuery.Message = gotgbot.Message{MessageId: 124, Date: 1, Chat: chat}
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
 		t.Fatalf("captchaVerifyCallback(stale) error = %v", err)
 	}
@@ -1025,7 +1045,7 @@ func TestCaptchaCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		{name: "captcha mode", text: "/captchamode text", method: "sendMessage", run: captchaModule.captchaModeCommand},
 		{name: "captcha timeout", text: "/captchatime 5", method: "sendMessage", run: captchaModule.captchaTimeCommand},
 		{name: "captcha action", text: "/captchaaction ban", method: "sendMessage", run: captchaModule.captchaActionCommand},
-		{name: "captcha max attempts", text: "/captchamaxattempts 4", method: "sendMessage", run: captchaModule.captchaMaxAttemptsCommand},
+		{name: "captcha max attempts", text: "/captchamaxattempts 3", method: "sendMessage", run: captchaModule.captchaMaxAttemptsCommand},
 		{name: "captcha pending empty", text: "/captchapending 424242", method: "sendMessage", run: captchaModule.viewPendingMessages},
 		{name: "captcha clear empty", text: "/captchaclear 424242", method: "sendMessage", run: captchaModule.clearPendingMessages},
 	} {
@@ -1165,10 +1185,13 @@ func TestCaptchaRefreshRejectsNilTelegramMessageWithoutChangingAttempt(t *testin
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
+	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
+		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+	}
 
 	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData(
 		"captcha_refresh",
-		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"},
+		map[string]string{"a": fmt.Sprint(attempt.ID)},
 	))
 	if err := captchaModule.captchaRefreshCallback(bot, ctx); err == nil {
 		t.Fatal("captchaRefreshCallback() error = nil, want missing message error")
@@ -1177,7 +1200,7 @@ func TestCaptchaRefreshRejectsNilTelegramMessageWithoutChangingAttempt(t *testin
 	if getErr != nil {
 		t.Fatalf("GetCaptchaAttemptByID() error = %v", getErr)
 	}
-	if current == nil || current.Answer != "old" || current.MessageID != 0 {
+	if current == nil || current.Answer != "old" || current.MessageID != 102 {
 		t.Fatalf("attempt after nil refresh = %+v, want unchanged", current)
 	}
 }
@@ -1202,7 +1225,10 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"}))
+				if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
+					t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "8"}))
 			},
 			run: captchaModule.captchaVerifyCallback,
 		},
@@ -1211,11 +1237,8 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 			method: "restrictChatMember",
 			build: func(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
 				t.Helper()
-				attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
-				if err != nil {
-					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
-				}
-				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"}))
+				attempt := finalRoundCaptchaAttempt(t, chat.Id, 102)
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "7"}))
 			},
 			run: captchaModule.captchaVerifyCallback,
 		},
@@ -1228,7 +1251,10 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"}))
+				if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
+					t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID)}))
 			},
 			run: captchaModule.captchaRefreshCallback,
 		},
@@ -1241,7 +1267,10 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"}))
+				if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
+					t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID)}))
 			},
 			run: captchaModule.captchaRefreshCallback,
 		},

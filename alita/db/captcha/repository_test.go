@@ -208,15 +208,15 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Timeout=5, got %d", settings.Timeout)
 	}
 
-	if err := SetCaptchaMaxAttempts(chatID, "Captcha Chat", 7); err != nil {
+	if err := SetCaptchaMaxAttempts(chatID, "Captcha Chat", 3); err != nil {
 		t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
 	}
 	settings, err = GetCaptchaSettings(chatID)
 	if err != nil {
 		t.Fatalf("GetCaptchaSettings() after max_attempts change error = %v", err)
 	}
-	if settings.MaxAttempts != 7 {
-		t.Fatalf("expected MaxAttempts=7, got %d", settings.MaxAttempts)
+	if settings.MaxAttempts != 3 {
+		t.Fatalf("expected MaxAttempts=3, got %d", settings.MaxAttempts)
 	}
 
 	if err := SetCaptchaFailureAction(chatID, "Captcha Chat", "ban"); err != nil {
@@ -245,7 +245,7 @@ func TestCaptchaSettersCreateMissingChat(t *testing.T) {
 		{"join_requests", func(id int64, title string) error { return SetCaptchaJoinRequests(id, title, true) }},
 		{"mode", func(id int64, title string) error { return SetCaptchaMode(id, title, "text") }},
 		{"timeout", func(id int64, title string) error { return SetCaptchaTimeout(id, title, 5) }},
-		{"max_attempts", func(id int64, title string) error { return SetCaptchaMaxAttempts(id, title, 7) }},
+		{"max_attempts", func(id int64, title string) error { return SetCaptchaMaxAttempts(id, title, 2) }},
 		{"failure_action", func(id int64, title string) error { return SetCaptchaFailureAction(id, title, "ban") }},
 	}
 	base := time.Now().UnixNano()
@@ -402,8 +402,8 @@ func TestGetCaptchaSettings_NonExistentChat(t *testing.T) {
 	if settings.FailureAction != "kick" {
 		t.Fatalf("expected default FailureAction='kick', got %q", settings.FailureAction)
 	}
-	if settings.MaxAttempts != 3 {
-		t.Fatalf("expected default MaxAttempts=3, got %d", settings.MaxAttempts)
+	if settings.MaxAttempts != 2 {
+		t.Fatalf("expected default MaxAttempts=2, got %d", settings.MaxAttempts)
 	}
 }
 
@@ -1116,6 +1116,31 @@ func TestCaptchaAttempt_MessageIDAndRefreshLifecycle(t *testing.T) {
 		t.Fatalf("RefreshCount = %d, want 1", refreshed.RefreshCount)
 	}
 
+	advanced, err := AdvanceCaptchaAttemptStage(attempt.ID, "new", 12345, 1, 0, "second", 22222)
+	if err != nil {
+		t.Fatalf("AdvanceCaptchaAttemptStage() error = %v", err)
+	}
+	if advanced == nil {
+		t.Fatal("AdvanceCaptchaAttemptStage() returned nil, want attempt")
+	}
+	if advanced.Stage != 1 || advanced.Answer != "second" || advanced.MessageID != 22222 {
+		t.Fatalf("advanced = %+v, want stage 1, answer second, message 22222", advanced)
+	}
+
+	refreshedAgain, err := UpdateCaptchaAttemptOnRefreshByID(attempt.ID, "second", 22222, 1, "second-refreshed", 33333)
+	if err != nil {
+		t.Fatalf("UpdateCaptchaAttemptOnRefreshByID(stage 1) error = %v", err)
+	}
+	if refreshedAgain == nil {
+		t.Fatal("UpdateCaptchaAttemptOnRefreshByID(stage 1) returned nil, want attempt")
+	}
+	if refreshedAgain.Stage != 1 {
+		t.Fatalf("refresh changed Stage = %d, want 1 preserved", refreshedAgain.Stage)
+	}
+	if refreshedAgain.RefreshCount != 2 {
+		t.Fatalf("RefreshCount = %d, want 2", refreshedAgain.RefreshCount)
+	}
+
 	stale, err := UpdateCaptchaAttemptOnRefreshByID(attempt.ID, "old", 98765, 0, "stale", 54321)
 	if err != nil {
 		t.Fatalf("UpdateCaptchaAttemptOnRefreshByID(stale) error = %v", err)
@@ -1130,6 +1155,94 @@ func TestCaptchaAttempt_MessageIDAndRefreshLifecycle(t *testing.T) {
 	}
 	if missing != nil {
 		t.Fatalf("UpdateCaptchaAttemptOnRefreshByID(missing) = %+v, want nil", missing)
+	}
+}
+
+// A challenge needs CaptchaRounds correct answers: each pass advances exactly
+// one stage, and every consumed (answer, message, stage) tuple is dead.
+func TestAdvanceCaptchaAttemptStage(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	userID := base + 1600
+	chatID := base + 1601
+
+	attempt, err := CreateCaptchaAttemptPreMessage(userID, chatID, "round-1", 5)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.Where("id = ?", attempt.ID).Delete(&dbmodels.CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup CaptchaAttempts: %v", err)
+		}
+	})
+	if attempt.Stage != 0 {
+		t.Fatalf("new attempt Stage = %d, want 0", attempt.Stage)
+	}
+
+	first, err := AdvanceCaptchaAttemptStage(attempt.ID, "round-1", attempt.MessageID, attempt.RefreshCount, 0, "round-2", 9101)
+	if err != nil {
+		t.Fatalf("AdvanceCaptchaAttemptStage(round 1) error = %v", err)
+	}
+	if first == nil || first.Stage != 1 || first.Answer != "round-2" || first.MessageID != 9101 {
+		t.Fatalf("after round 1 = %+v, want stage 1, answer round-2, message 9101", first)
+	}
+
+	second, err := AdvanceCaptchaAttemptStage(first.ID, first.Answer, first.MessageID, first.RefreshCount, 1, "done", 9102)
+	if err != nil {
+		t.Fatalf("AdvanceCaptchaAttemptStage(round 2) error = %v", err)
+	}
+	if second == nil || second.Stage != dbmodels.CaptchaRounds || second.Answer != "done" || second.MessageID != 9102 {
+		t.Fatalf("after round 2 = %+v, want stage %d, answer done, message 9102", second, dbmodels.CaptchaRounds)
+	}
+
+	for _, stale := range []struct {
+		name      string
+		answer    string
+		messageID int64
+		stage     int
+	}{
+		{"consumed first round", "round-1", attempt.MessageID, 0},
+		{"stale answer", "round-2", 9102, dbmodels.CaptchaRounds},
+		{"stale message", "done", 9101, dbmodels.CaptchaRounds},
+		{"stale stage", "done", 9102, dbmodels.CaptchaRounds - 1},
+	} {
+		got, err := AdvanceCaptchaAttemptStage(second.ID, stale.answer, stale.messageID, second.RefreshCount, stale.stage, "replayed", 9999)
+		if err != nil {
+			t.Fatalf("AdvanceCaptchaAttemptStage(%s) error = %v", stale.name, err)
+		}
+		if got != nil {
+			t.Fatalf("AdvanceCaptchaAttemptStage(%s) = %+v, want nil", stale.name, got)
+		}
+	}
+}
+
+func TestSetCaptchaMaxAttemptsRange(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaSettings{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.Chat{}).Error
+	})
+
+	for _, attempts := range []int{1, 2, 3} {
+		if err := SetCaptchaMaxAttempts(chatID, "Captcha Chat", attempts); err != nil {
+			t.Fatalf("SetCaptchaMaxAttempts(%d) error = %v", attempts, err)
+		}
+		settings, err := GetCaptchaSettings(chatID)
+		if err != nil {
+			t.Fatalf("GetCaptchaSettings() error = %v", err)
+		}
+		if settings.MaxAttempts != attempts {
+			t.Fatalf("MaxAttempts = %d, want %d", settings.MaxAttempts, attempts)
+		}
+	}
+
+	for _, attempts := range []int{0, 4, -1} {
+		if err := SetCaptchaMaxAttempts(chatID, "Captcha Chat", attempts); !errors.Is(err, ErrInvalidMaxAttempts) {
+			t.Fatalf("SetCaptchaMaxAttempts(%d) error = %v, want %v", attempts, err, ErrInvalidMaxAttempts)
+		}
 	}
 }
 

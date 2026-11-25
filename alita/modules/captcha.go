@@ -859,6 +859,55 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 	return err
 }
 
+// sampleMathOperands draws one question from operation's operand
+// distribution. generateMathCaptcha uses it for the answer and again for
+// every decoy, so the decoys are independent draws from the same
+// distribution and cannot be spotted by their distance to the answer.
+func sampleMathOperands(operation string) (a, b, answer int, err error) {
+	switch operation {
+	case "+":
+		a0, err := secureIntn(50)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		b0, err := secureIntn(50)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		a = a0 + 1
+		b = b0 + 1
+		answer = a + b
+	case "-":
+		a0, err := secureIntn(50)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		a = a0 + 20
+		// Keep the answer positive: b ends in [1, a-1], so a-b >= 1.
+		bRaw, err := secureIntn(a - 1)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		b = bRaw + 1
+		answer = a - b
+	case "*":
+		a0, err := secureIntn(12)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		b0, err := secureIntn(12)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		a = a0 + 1
+		b = b0 + 1
+		answer = a * b
+	default:
+		return 0, 0, 0, fmt.Errorf("unknown math operation %q", operation)
+	}
+	return a, b, answer, nil
+}
+
 func generateMathCaptcha() (string, string, []string, error) {
 	opIdx, err := secureIntn(3)
 	if err != nil {
@@ -867,63 +916,24 @@ func generateMathCaptcha() (string, string, []string, error) {
 	operations := []string{"+", "-", "*"}
 	operation := operations[opIdx]
 
-	var a, b, answer int
-	var question string
-
-	switch operation {
-	case "+":
-		a0, err := secureIntn(50)
-		if err != nil {
-			return "", "", nil, err
-		}
-		b0, err := secureIntn(50)
-		if err != nil {
-			return "", "", nil, err
-		}
-		a = a0 + 1
-		b = b0 + 1
-		answer = a + b
-		question = formatMathQuestion(a, b, operation)
-	case "-":
-		a0, err := secureIntn(50)
-		if err != nil {
-			return "", "", nil, err
-		}
-		a = a0 + 20
-		bRaw, err := secureIntn(a)
-		if err != nil {
-			return "", "", nil, err
-		}
-		b = bRaw + 1
-		answer = a - b
-		question = formatMathQuestion(a, b, operation)
-	case "*":
-		a0, err := secureIntn(12)
-		if err != nil {
-			return "", "", nil, err
-		}
-		b0, err := secureIntn(12)
-		if err != nil {
-			return "", "", nil, err
-		}
-		a = a0 + 1
-		b = b0 + 1
-		answer = a * b
-		question = formatMathQuestion(a, b, operation)
+	a, b, answer, err := sampleMathOperands(operation)
+	if err != nil {
+		return "", "", nil, err
 	}
+	question := formatMathQuestion(a, b, operation)
 
 	options := []string{strconv.Itoa(answer)}
 	for len(options) < 4 {
-		off, err := secureIntn(20)
+		_, _, decoy, err := sampleMathOperands(operation)
 		if err != nil {
 			return "", "", nil, err
 		}
-		wrongAnswer := answer + off - 10
-		if wrongAnswer != answer && wrongAnswer > 0 {
-			wrongStr := strconv.Itoa(wrongAnswer)
-			if !slices.Contains(options, wrongStr) {
-				options = append(options, wrongStr)
-			}
+		if decoy <= 0 {
+			continue
+		}
+		decoyStr := strconv.Itoa(decoy)
+		if !slices.Contains(options, decoyStr) {
+			options = append(options, decoyStr)
 		}
 	}
 
@@ -1042,41 +1052,77 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 	return answer, imageBytes, options, nil
 }
 
-func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, options []string, includeRefresh bool, refreshBtnText string) gotgbot.InlineKeyboardMarkup {
-	var buttons [][]gotgbot.InlineKeyboardButton
+// generateCaptchaChallenge draws a challenge in mode. If the image cannot be
+// rendered it falls back to the text-only math question, as the first round
+// always has.
+func generateCaptchaChallenge(mode string) (question, answer string, imageBytes []byte, options []string, isImage bool, err error) {
+	switch mode {
+	case "math":
+		answer, imageBytes, options, err = generateMathImageCaptcha()
+		if err == nil && imageBytes != nil {
+			return "", answer, imageBytes, options, true, nil
+		}
+		log.Errorf("Failed to generate math image captcha: %v", err)
+	case "text":
+		answer, imageBytes, options, err = generateTextCaptcha()
+		if err == nil && imageBytes != nil {
+			return "", answer, imageBytes, options, true, nil
+		}
+		log.Errorf("Failed to generate text captcha: %v", err)
+	default:
+		log.Errorf("Unknown captcha mode %q, falling back to math", mode)
+	}
+	question, answer, options, err = generateMathCaptcha()
+	if err != nil {
+		return "", "", nil, nil, false, fmt.Errorf("generate captcha: %w", err)
+	}
+	return question, answer, nil, options, false, nil
+}
+
+// buildCaptchaKeyboard lays out one row per option plus an optional refresh
+// row. ok is false when any option cannot be encoded or the required answer
+// is not among the options: the caller must not send a challenge that cannot
+// be won. The payload carries no user id; the verify handler trusts only the
+// pressing user and the stored attempt.
+func buildCaptchaKeyboard(attemptID uint, refreshCount int, answer string, options []string, includeRefresh bool, refreshBtnText string) (keyboard gotgbot.InlineKeyboardMarkup, ok bool) {
+	answerPresent := false
 	for _, option := range options {
-		data, ok := mustCallbackData(
+		data, encoded := mustCallbackData(
 			"captcha_verify",
 			map[string]string{
 				"a": fmt.Sprint(attemptID),
 				"r": fmt.Sprint(refreshCount),
-				"u": fmt.Sprint(userID),
 				"s": option,
 			},
 		)
-		if !ok {
+		if !encoded {
 			log.WithFields(log.Fields{
 				"attemptID": attemptID,
 				"option":    option,
-			}).Warn("[Captcha] Failed to encode verify button, omitting")
-			continue
+			}).Warn("[Captcha] Failed to encode verify button")
+			return gotgbot.InlineKeyboardMarkup{}, false
 		}
-		button := gotgbot.InlineKeyboardButton{
+		if option == answer {
+			answerPresent = true
+		}
+		keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, []gotgbot.InlineKeyboardButton{{
 			Text:         option,
 			CallbackData: data,
-		}
-		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
+		}})
+	}
+	if !answerPresent {
+		log.WithField("attemptID", attemptID).Warn("[Captcha] Answer missing from captcha options")
+		return gotgbot.InlineKeyboardMarkup{}, false
 	}
 	if includeRefresh {
-		if data, ok := mustCallbackData(
+		if data, encoded := mustCallbackData(
 			"captcha_refresh",
 			map[string]string{
 				"a": fmt.Sprint(attemptID),
 				"r": fmt.Sprint(refreshCount),
-				"u": fmt.Sprint(userID),
 			},
-		); ok {
-			buttons = append(buttons, []gotgbot.InlineKeyboardButton{{
+		); encoded {
+			keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, []gotgbot.InlineKeyboardButton{{
 				Text:         refreshBtnText,
 				CallbackData: data,
 			}})
@@ -1084,7 +1130,7 @@ func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, option
 			log.WithField("attemptID", attemptID).Warn("[Captcha] Failed to encode refresh button, omitting")
 		}
 	}
-	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: buttons}
+	return keyboard, true
 }
 
 // SendCaptcha sends a captcha challenge to a new member.
@@ -1137,42 +1183,9 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		return skipCaptchaWithoutRestrictRight(bot, ctx, nil)
 	}
 
-	var question string
-	var answer string
-	var options []string
-	var imageBytes []byte
-	isImage := false
-
-	if settings.CaptchaMode == "math" {
-		var err error
-		answer, imageBytes, options, err = generateMathImageCaptcha()
-		if err != nil || imageBytes == nil {
-			log.Errorf("Failed to generate math image captcha: %v", err)
-			var fbErr error
-			question, answer, options, fbErr = generateMathCaptcha()
-			if fbErr != nil {
-				log.Errorf("Failed to generate fallback math captcha: %v", fbErr)
-				return fmt.Errorf("generate captcha: %w", fbErr)
-			}
-			isImage = false
-		} else {
-			isImage = true
-		}
-	} else {
-		var err error
-		answer, imageBytes, options, err = generateTextCaptcha()
-		if err != nil {
-			log.Errorf("Failed to generate text captcha: %v", err)
-			var fbErr error
-			question, answer, options, fbErr = generateMathCaptcha()
-			if fbErr != nil {
-				log.Errorf("Failed to generate fallback math captcha: %v", fbErr)
-				return fmt.Errorf("generate captcha: %w", fbErr)
-			}
-			isImage = false
-		} else {
-			isImage = true
-		}
+	question, answer, imageBytes, options, isImage, err := generateCaptchaChallenge(settings.CaptchaMode)
+	if err != nil {
+		return err
 	}
 
 	userMember, err := bot.GetChatMemberWithContext(tracing.UpdateContext(ctx), chat.Id, userID, nil)
@@ -1247,15 +1260,11 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		refreshBtnText = tr.String("captcha_refresh_button")
 	}
-	keyboard := buildCaptchaKeyboard(preAttempt.ID, userID, preAttempt.RefreshCount, options, includeRefresh, refreshBtnText)
-	verifyCount := len(keyboard.InlineKeyboard)
-	if includeRefresh && verifyCount > 0 {
-		verifyCount--
-	}
-	if verifyCount == 0 {
-		log.Errorf("[Captcha] No verify buttons could be encoded for attempt %d", preAttempt.ID)
+	keyboard, keyboardOK := buildCaptchaKeyboard(preAttempt.ID, preAttempt.RefreshCount, answer, options, includeRefresh, refreshBtnText)
+	if !keyboardOK {
+		log.Errorf("[Captcha] Could not build a winnable keyboard for attempt %d", preAttempt.ID)
 		_, _, rollbackErr := settleCaptchaAttempt(bot, preAttempt, captchaReleased)
-		return errors.Join(errors.New("captcha keyboard empty: no encodable options"), rollbackErr)
+		return errors.Join(errors.New("captcha keyboard could not encode the answer"), rollbackErr)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1503,7 +1512,112 @@ func unmuteCaptchaUser(bot *gotgbot.Bot, chatID, userID int64) error {
 	return err
 }
 
-// captchaVerifyCallback decides a tap: a right answer settles the attempt as
+// sendNextCaptchaRound challenges a member who cleared a non-final round. It
+// sends a fresh challenge in the chat's mode, advances the attempt with a CAS
+// on the stage and current prompt, and only then removes the old prompt. Any
+// failure leaves the mute and the stored attempt untouched, so the member is
+// neither let in nor punished by a lost race.
+//
+//nolint:gocyclo // The ordered generate/send/CAS/delete path is one state machine.
+func sendNextCaptchaRound(bot *gotgbot.Bot, ctx *ext.Context, query *gotgbot.CallbackQuery, attempt *db.CaptchaAttempts, settings *db.CaptchaSettings) error {
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	respond := func(key string) error {
+		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String(key)})
+		return err
+	}
+
+	question, answer, imageBytes, options, isImage, err := generateCaptchaChallenge(settings.CaptchaMode)
+	if err != nil {
+		return errors.Join(err, respond("captcha_failed_generate"))
+	}
+
+	includeRefresh := isImage && imageBytes != nil
+	refreshBtnText := ""
+	if includeRefresh {
+		refreshBtnText = tr.String("captcha_refresh_button")
+	}
+	keyboard, keyboardOK := buildCaptchaKeyboard(attempt.ID, attempt.RefreshCount, answer, options, includeRefresh, refreshBtnText)
+	if !keyboardOK {
+		log.WithField("attemptID", attempt.ID).Error("[Captcha] Could not build a winnable keyboard for the next round")
+		return respond("captcha_failed_generate")
+	}
+
+	remainingMinutes := int(time.Until(attempt.ExpiresAt).Minutes())
+	if remainingMinutes < 0 {
+		remainingMinutes = 0
+	}
+	mention := formatting.MentionHtml(attempt.UserID, query.From.FirstName)
+	var msgText string
+	if isImage {
+		key := "captcha_welcome_math_image"
+		if settings.CaptchaMode == "text" {
+			key = "captcha_welcome_text_image"
+		}
+		msgText = tr.String(key, i18n.TranslationParams{"first": mention, "number": remainingMinutes})
+	} else {
+		msgText = tr.String("captcha_welcome_math_text", i18n.TranslationParams{
+			"first": mention, "question": question, "number": remainingMinutes,
+		})
+	}
+
+	var sent *gotgbot.Message
+	if isImage && imageBytes != nil {
+		sent, err = bot.SendPhoto(ctx.EffectiveChat.Id, gotgbot.InputFileByReader("captcha.png", bytes.NewReader(imageBytes)), &gotgbot.SendPhotoOpts{
+			Caption:     msgText,
+			ParseMode:   formatting.HTML,
+			ReplyMarkup: keyboard,
+		})
+	} else {
+		sent, err = helpers.SendMessageWithErrorHandling(bot, ctx.EffectiveChat.Id, msgText, &gotgbot.SendMessageOpts{
+			ParseMode:   formatting.HTML,
+			ReplyMarkup: keyboard,
+		})
+	}
+	if err != nil || sent == nil || sent.MessageId <= 0 {
+		if err == nil {
+			err = errors.New("telegram returned no next captcha message")
+		}
+		if sent != nil && sent.MessageId > 0 {
+			_ = helpers.DeleteMessageWithErrorHandling(bot, ctx.EffectiveChat.Id, sent.MessageId)
+		}
+		if answered := respond("captcha_failed_send"); answered != nil {
+			return errors.Join(err, answered)
+		}
+		return err
+	}
+
+	advanced, advanceErr := captcha.AdvanceCaptchaAttemptStage(
+		attempt.ID,
+		attempt.Answer,
+		attempt.MessageID,
+		attempt.RefreshCount,
+		attempt.Stage,
+		answer,
+		sent.MessageId,
+	)
+	if advanceErr != nil || advanced == nil {
+		if advanceErr != nil {
+			log.Errorf("[Captcha] Failed to advance attempt %d to the next round: %v", attempt.ID, advanceErr)
+		}
+		_ = helpers.DeleteMessageWithErrorHandling(bot, ctx.EffectiveChat.Id, sent.MessageId)
+		key := "captcha_attempt_not_valid"
+		if advanceErr != nil {
+			key = "captcha_error_processing"
+		}
+		if answered := respond(key); answered != nil {
+			return errors.Join(advanceErr, answered)
+		}
+		return advanceErr
+	}
+
+	if attempt.MessageID > 0 {
+		_ = helpers.DeleteMessageWithErrorHandling(bot, ctx.EffectiveChat.Id, attempt.MessageID)
+	}
+	return respond("captcha_round_correct")
+}
+
+// captchaVerifyCallback decides a tap: a right answer advances a
+// multi-round challenge, and the last right answer settles the attempt as
 // passed, then confirms and welcomes the member; a wrong one counts and fails
 // the attempt at the limit.
 func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -1515,81 +1629,63 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 	user := query.From
 
 	attemptIDRaw := ""
-	targetUserIDRaw := ""
 	selectedAnswer := ""
 	refreshCountRaw := "0"
 	if decoded, ok := decodeCallbackData(query.Data, "captcha_verify"); ok {
 		attemptIDRaw, _ = decoded.Field("a")
-		targetUserIDRaw, _ = decoded.Field("u")
 		selectedAnswer, _ = decoded.Field("s")
 		if value, exists := decoded.Field("r"); exists {
 			refreshCountRaw = value
 		}
 	}
-	if attemptIDRaw == "" || targetUserIDRaw == "" || selectedAnswer == "" {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_data")
-		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if attemptIDRaw == "" || selectedAnswer == "" {
+		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_data")})
 		return err
 	}
 
 	attemptID64, err := strconv.ParseUint(attemptIDRaw, 10, 64)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_attempt")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return err
-	}
-
-	targetUserID, err := strconv.ParseInt(targetUserIDRaw, 10, 64)
-	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_user")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_attempt")})
 		return err
 	}
 	expectedRefreshCount, err := strconv.Atoi(refreshCountRaw)
 	if err != nil || expectedRefreshCount < 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_data")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_data")})
 		return err
 	}
 
-	if user.Id != targetUserID {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_not_for_you")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return err
-	}
-
-	attempt, err := captcha.GetCaptchaAttempt(targetUserID, chat.Id)
+	// The pressing user owns the attempt; the payload's old user field is
+	// deliberately ignored so a forwarded button cannot nominate a victim.
+	attempt, err := captcha.GetCaptchaAttempt(user.Id, chat.Id)
 	if err != nil || attempt == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_expired_or_not_found")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_expired_or_not_found")})
 		return err
 	}
 	if attempt.ID != uint(attemptID64) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_attempt_not_valid")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_attempt_not_valid")})
+		return err
+	}
+	// A button from an earlier round, refresh or delivery is dead even when
+	// its answer string happened to survive.
+	if query.Message == nil || query.Message.GetMessageId() != attempt.MessageID {
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_attempt_not_valid")})
 		return err
 	}
 	if attempt.RefreshCount != expectedRefreshCount {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_attempt_not_valid")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_attempt_not_valid")})
 		return err
 	}
 
 	settings, err := chatsettings.ReadCaptchaContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_error_processing")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_error_processing")})
 		return err
+	}
+
+	if selectedAnswer == attempt.Answer && attempt.Stage+1 < models.CaptchaRounds {
+		return sendNextCaptchaRound(bot, ctx, query, attempt, settings)
 	}
 
 	if selectedAnswer == attempt.Answer {
@@ -1601,7 +1697,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			return err
 		}
 		if settleErr != nil {
-			log.Errorf("Failed to unmute user %d on verify: %v", targetUserID, settleErr)
+			log.Errorf("Failed to unmute user %d on verify: %v", user.Id, settleErr)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text := tr.String("captcha_failed_verify")
 			_, _ = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -1610,7 +1706,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		msgTemplate := tr.String("greetings_captcha_verified_success")
-		successMsg := fmt.Sprintf(msgTemplate, formatting.MentionHtml(targetUserID, user.FirstName))
+		successMsg := fmt.Sprintf(msgTemplate, formatting.MentionHtml(user.Id, user.FirstName))
 		sent, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, successMsg, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 
 		if sent != nil {
@@ -1620,7 +1716,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			})
 		}
 
-		if err = SendWelcomeMessage(bot, ctx, targetUserID, user.FirstName); err != nil {
+		if err = SendWelcomeMessage(bot, ctx, user.Id, user.FirstName); err != nil {
 			log.Errorf("Failed to send welcome message after captcha verification: %v", err)
 		}
 
@@ -1631,7 +1727,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 	} else {
 		attempt, err = captcha.IncrementCaptchaAttempts(
 			attempt.ID,
-			targetUserID,
+			user.Id,
 			chat.Id,
 			attempt.Answer,
 			attempt.MessageID,
@@ -1654,7 +1750,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 				return ext.EndGroups
 			}
 			if settleErr != nil {
-				log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Captcha] Failed to fail user %d after wrong answers: %v", targetUserID, settleErr)
+				log.WithContext(tracing.UpdateContext(ctx)).Errorf("[Captcha] Failed to fail user %d after wrong answers: %v", user.Id, settleErr)
 			}
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			if !applied {
@@ -1697,86 +1793,58 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	user := query.From
 
 	attemptIDRaw := ""
-	targetUserIDRaw := ""
 	refreshCountRaw := "0"
 	if decoded, ok := decodeCallbackData(query.Data, "captcha_refresh"); ok {
 		attemptIDRaw, _ = decoded.Field("a")
-		targetUserIDRaw, _ = decoded.Field("u")
 		if value, exists := decoded.Field("r"); exists {
 			refreshCountRaw = value
 		}
 	}
-	if attemptIDRaw == "" || targetUserIDRaw == "" {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_refresh")
-		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if attemptIDRaw == "" {
+		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_refresh")})
 		return err
 	}
 
 	attemptID64, err := strconv.ParseUint(attemptIDRaw, 10, 64)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_attempt")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return err
-	}
-
-	targetUserID, err := strconv.ParseInt(targetUserIDRaw, 10, 64)
-	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_user")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_attempt")})
 		return err
 	}
 	expectedRefreshCount, err := strconv.Atoi(refreshCountRaw)
 	if err != nil || expectedRefreshCount < 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_refresh")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return err
-	}
-
-	if user.Id != targetUserID {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_not_for_you")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_refresh")})
 		return err
 	}
 
 	// One atomic claim per refresh window: the old check-then-set let two
 	// concurrent refreshes both pass the cooldown check.
-	cooldownKey := opstate.Key("captcha:refresh:cooldown", chat.Id, targetUserID)
+	cooldownKey := opstate.Key("captcha:refresh:cooldown", chat.Id, user.Id)
 	if opstate.Claim(cooldownKey, time.Duration(captchaRefreshCooldownS)*time.Second) == opstate.ClaimLost {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_wait_refresh")
-		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_wait_refresh")})
 		return err
 	}
 
-	attempt, err := captcha.GetCaptchaAttempt(targetUserID, chat.Id)
+	attempt, err := captcha.GetCaptchaAttempt(user.Id, chat.Id)
 	if err != nil || attempt == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_expired_or_not_found")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_expired_or_not_found")})
 		return err
 	}
 	if attempt.ID != uint(attemptID64) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_attempt_not_valid")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_attempt_not_valid")})
+		return err
+	}
+	if query.Message == nil || query.Message.GetMessageId() != attempt.MessageID {
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_refresh")})
 		return err
 	}
 	if attempt.RefreshCount != expectedRefreshCount {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_invalid_refresh")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_invalid_refresh")})
 		return err
 	}
 
 	if attempt.RefreshCount >= models.CaptchaMaxRefreshes {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text := tr.String("captcha_refresh_limit_reached")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_refresh_limit_reached")})
 		return err
 	}
 
@@ -1803,9 +1871,15 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	refreshBtnText := tr.String("captcha_refresh_button")
-	keyboard := buildCaptchaKeyboard(attempt.ID, targetUserID, attempt.RefreshCount+1, options, true, refreshBtnText)
+	// Refresh keeps the attempt's stage and attempts; only the prompt and
+	// answer change, so the member replays the same round.
+	keyboard, keyboardOK := buildCaptchaKeyboard(attempt.ID, attempt.RefreshCount+1, newAnswer, options, true, refreshBtnText)
+	if !keyboardOK {
+		log.WithField("attemptID", attempt.ID).Error("[Captcha] Could not build a winnable keyboard for the refreshed challenge")
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: tr.String("captcha_failed_generate")})
+		return err
+	}
 
 	remainingMinutes := int(time.Until(attempt.ExpiresAt).Minutes())
 	if remainingMinutes < 0 {
@@ -1816,13 +1890,13 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 		template := tr.String("captcha_welcome_text_detailed")
 		caption = fmt.Sprintf(
 			template,
-			formatting.MentionHtml(targetUserID, user.FirstName), remainingMinutes,
+			formatting.MentionHtml(user.Id, user.FirstName), remainingMinutes,
 		)
 	} else {
 		template := tr.String("captcha_welcome_math_detailed")
 		caption = fmt.Sprintf(
 			template,
-			formatting.MentionHtml(targetUserID, user.FirstName), remainingMinutes,
+			formatting.MentionHtml(user.Id, user.FirstName), remainingMinutes,
 		)
 	}
 

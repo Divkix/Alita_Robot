@@ -36,14 +36,32 @@ func captchaJoinsFixture(t *testing.T, joinsOn bool) (*moduleBotClient, *gotgbot
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
+	if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
+		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+	}
+	attempt.MessageID = 102
+	advanced, err := captcha.AdvanceCaptchaAttemptStage(
+		attempt.ID,
+		attempt.Answer,
+		attempt.MessageID,
+		attempt.RefreshCount,
+		attempt.Stage,
+		attempt.Answer,
+		attempt.MessageID,
+	)
+	if err != nil || advanced == nil {
+		t.Fatalf("AdvanceCaptchaAttemptStage() = (%+v, %v), want the final round", advanced, err)
+	}
 	return client, bot, chat, attempt.ID
 }
 
 // answerCaptcha presses the captcha button for answer as member 42.
 func answerCaptcha(bot *gotgbot.Bot, chat gotgbot.Chat, attemptID uint, answer string) {
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attemptID), "u": "42", "s": answer})
-	_ = captchaModule.captchaVerifyCallback(bot, newModuleCallbackContext(bot, chat, member, data))
+	data := encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attemptID), "s": answer})
+	ctx := newModuleCallbackContext(bot, chat, member, data)
+	ctx.CallbackQuery.Message = gotgbot.Message{MessageId: 102, Date: 1, Chat: chat}
+	_ = captchaModule.captchaVerifyCallback(bot, ctx)
 }
 
 func TestCaptchaPassLogsUnderTheJoinsCategory(t *testing.T) {

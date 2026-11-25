@@ -75,6 +75,24 @@ func (f joinCaptchaFixture) request(t *testing.T) {
 	}
 }
 
+// nextPhoto mocks the next PM challenge so each round gets the distinct message
+// ID Telegram would assign.
+func (f joinCaptchaFixture) nextPhoto(messageID int64) {
+	f.client.responses["sendPhoto"] = json.RawMessage(fmt.Sprintf(
+		`{"message_id":%d,"date":1,"chat":{"id":%d,"type":"private","first_name":"Applicant"},"photo":[{"file_id":"captcha-photo-%d","file_unique_id":"captcha-photo-%d","width":160,"height":80}]}`,
+		messageID, f.userChatID, messageID, messageID,
+	))
+}
+
+// setStage records bypassed rounds for tests whose subject is a later step.
+func (f joinCaptchaFixture) setStage(t *testing.T, attempt models.JoinRequestCaptcha, stage int) models.JoinRequestCaptcha {
+	t.Helper()
+	if err := db.DB.Model(&models.JoinRequestCaptcha{}).Where("id = ?", attempt.ID).UpdateColumn("stage", stage).Error; err != nil {
+		t.Fatalf("set join-request captcha stage: %v", err)
+	}
+	return f.attempt(t)
+}
+
 func (f joinCaptchaFixture) rows(t *testing.T) []models.JoinRequestCaptcha {
 	t.Helper()
 	var rows []models.JoinRequestCaptcha
@@ -243,7 +261,7 @@ func TestJoinRequestCaptchaSendsMathPhotoToUserChatAndCapsTimeout(t *testing.T) 
 			if !strings.Contains(fmt.Sprint(call.Params["caption"]), f.chat.Title) {
 				t.Errorf("PM caption = %v, want group title %q", call.Params["caption"], f.chat.Title)
 			}
-			if attempt.ID == 0 || attempt.ChatID != f.chat.Id || attempt.UserID != f.applicant.Id || attempt.FirstName != f.applicant.FirstName || attempt.UserChatID != f.userChatID || attempt.MessageID != 9003 || attempt.Answer == "" || attempt.Attempts != 0 || attempt.RefreshCount != 0 {
+			if attempt.ID == 0 || attempt.ChatID != f.chat.Id || attempt.UserID != f.applicant.Id || attempt.FirstName != f.applicant.FirstName || attempt.UserChatID != f.userChatID || attempt.MessageID != 9003 || attempt.Answer == "" || attempt.Attempts != 0 || attempt.RefreshCount != 0 || attempt.Stage != 0 {
 				t.Fatalf("stored attempt = %+v, want the delivered initial PM challenge", attempt)
 			}
 			wantLifetime := time.Duration(min(minutes, 5)) * time.Minute
@@ -261,6 +279,9 @@ func TestJoinRequestCaptchaSendsMathPhotoToUserChatAndCapsTimeout(t *testing.T) 
 						if got, _ := decoded.Field(key); got != want {
 							t.Errorf("PM button field %s = %q, want %q", key, got, want)
 						}
+					}
+					if got, ok := decoded.Field("u"); ok {
+						t.Errorf("PM button carries user ID %q; the pressing user must be resolved from the attempt", got)
 					}
 					selected, _ := decoded.Field("s")
 					foundAnswer = foundAnswer || selected == attempt.Answer
@@ -280,15 +301,41 @@ func TestJoinRequestCaptchaSendsMathPhotoToUserChatAndCapsTimeout(t *testing.T) 
 	}
 }
 
-func TestJoinRequestCaptchaCorrectAnswerApprovesWithoutAutoApprove(t *testing.T) {
+func TestJoinRequestCaptchaTwoCorrectRoundsApproveOnlyAtTheEnd(t *testing.T) {
 	f := newJoinCaptchaFixture(t, true)
 	f.enableLog(t)
 	f.request(t)
-	attempt := f.attempt(t)
-	f.answer(t, attempt, attempt.Answer)
-
+	first := f.attempt(t)
+	if first.Stage != 0 {
+		t.Fatalf("initial stage = %d, want 0", first.Stage)
+	}
+	f.nextPhoto(9004)
+	f.answer(t, first, first.Answer)
+	second := f.attempt(t)
+	if second.ID != first.ID || second.Stage != 1 || second.MessageID != 9004 || second.Attempts != 0 || second.RefreshCount != 0 {
+		t.Fatalf("second-round attempt = %+v, want the same attempt advanced with a fresh challenge", second)
+	}
+	if photos := f.client.callsFor("sendPhoto"); len(photos) != 2 {
+		t.Fatalf("sendPhoto calls = %d, want the initial and second-round PM", len(photos))
+	}
+	assertDeleted(t, f.client, f.userChatID, first.MessageID)
+	if text, alert := lastAnswer(t, f.client); !alert || text != translated(t, "captcha_round_correct") {
+		t.Errorf("first-round response = %q (alert %t), want the round-correct text", text, alert)
+	}
+	if rows := f.rows(t); len(rows) != 1 {
+		t.Fatalf("attempts after round one = %+v, want the request still pending", rows)
+	}
+	for _, method := range []string{"approveChatJoinRequest", "declineChatJoinRequest", "editMessageCaption"} {
+		if calls := f.client.callsFor(method); len(calls) != 0 {
+			t.Errorf("%s calls = %v, want no terminal action after round one", method, calls)
+		}
+	}
+	if entries := spamDBMessagesTo(f.client, f.logChatID); len(entries) != 0 {
+		t.Fatalf("logs after round one = %v, want none", entries)
+	}
+	f.answer(t, second, second.Answer)
 	assertParams(t, f.client.onlyCall(t, "approveChatJoinRequest"), targetParams(f.chat.Id, f.applicant.Id))
-	f.requireTerminalCaption(t, attempt)
+	f.requireTerminalCaption(t, second)
 	f.requireLog(t)
 	if rows := f.rows(t); len(rows) != 0 {
 		t.Fatalf("attempts after approval = %+v, want none", rows)
@@ -305,6 +352,34 @@ func TestJoinRequestCaptchaCorrectAnswerApprovesWithoutAutoApprove(t *testing.T)
 		t.Errorf("declines = %v, want none", calls)
 	}
 	f.requireNoMemberActions(t)
+}
+
+func TestJoinRequestCaptchaStaleFirstRoundButtonIsRejected(t *testing.T) {
+	f := newJoinCaptchaFixture(t, true)
+	f.request(t)
+	first := f.attempt(t)
+	f.nextPhoto(9004)
+	f.answer(t, first, first.Answer)
+	second := f.attempt(t)
+
+	f.answer(t, first, first.Answer)
+	if text, alert := lastAnswer(t, f.client); !alert || text != translated(t, "captcha_join_request_expired") {
+		t.Errorf("stale round-one response = %q (alert %t), want the expired challenge answer", text, alert)
+	}
+	got := f.attempt(t)
+	if got.Stage != second.Stage || got.MessageID != second.MessageID || got.Answer != second.Answer || got.Attempts != 0 {
+		t.Fatalf("attempt after stale button = %+v, want unchanged %+v", got, second)
+	}
+	if photos := f.client.callsFor("sendPhoto"); len(photos) != 2 {
+		t.Errorf("sendPhoto calls after stale button = %d, want only the two rounds", len(photos))
+	}
+	for _, method := range []string{"approveChatJoinRequest", "declineChatJoinRequest", "editMessageCaption"} {
+		if calls := f.client.callsFor(method); len(calls) != 0 {
+			t.Errorf("%s calls = %v, want stale round-one button ignored", method, calls)
+		}
+	}
+	f.answer(t, second, second.Answer)
+	assertParams(t, f.client.onlyCall(t, "approveChatJoinRequest"), targetParams(f.chat.Id, f.applicant.Id))
 }
 
 func TestJoinRequestCaptchaWrongAnswersDeclineOnlyAtMaximum(t *testing.T) {
@@ -530,6 +605,7 @@ func TestJoinRequestCaptchaGoneCallbacksRemoveAttemptQuietly(t *testing.T) {
 				attempt := f.attempt(t)
 				answer, method := attempt.Answer+"0", "declineChatJoinRequest"
 				if approve {
+					attempt = f.setStage(t, attempt, models.CaptchaRounds-1)
 					answer, method = attempt.Answer, "approveChatJoinRequest"
 				}
 				f.client.errors[method] = &gotgbot.TelegramError{Code: 400, Description: "Bad Request: " + gone}
@@ -623,7 +699,13 @@ func TestJoinRequestCaptchaRefreshMakesOldAnswerButtonStale(t *testing.T) {
 	if calls := f.client.callsFor("approveChatJoinRequest"); len(calls) != 0 {
 		t.Fatalf("old keyboard approved = %v, want no action", calls)
 	}
+	f.nextPhoto(9005)
 	f.answer(t, refreshed, refreshed.Answer)
+	second := f.attempt(t)
+	if second.Stage != 1 || second.MessageID != 9005 {
+		t.Fatalf("attempt after refreshed answer = %+v, want the second round", second)
+	}
+	f.answer(t, second, second.Answer)
 	assertParams(t, f.client.onlyCall(t, "approveChatJoinRequest"), targetParams(f.chat.Id, f.applicant.Id))
 }
 
@@ -649,7 +731,13 @@ func TestJoinRequestCaptchaRefreshSendFailureKeepsOriginalChallengeUsable(t *tes
 		}
 	}
 	delete(f.client.errors, "sendPhoto")
+	f.nextPhoto(9004)
 	f.answer(t, old, old.Answer)
+	second := f.attempt(t)
+	if second.Stage != 1 || second.MessageID != 9004 {
+		t.Fatalf("attempt after recovered answer = %+v, want the second round", second)
+	}
+	f.answer(t, second, second.Answer)
 	assertParams(t, f.client.onlyCall(t, "approveChatJoinRequest"), targetParams(f.chat.Id, f.applicant.Id))
 }
 
@@ -665,7 +753,10 @@ func TestJoinRequestCaptchaPassedApplicantSkipsRegularCaptchaAndGetsWelcome(t *t
 			}
 			f.request(t)
 			attempt := f.attempt(t)
+			f.nextPhoto(9004)
 			f.answer(t, attempt, attempt.Answer)
+			second := f.attempt(t)
+			f.answer(t, second, second.Answer)
 
 			serviceCtx := newServiceJoinContext(f.bot, f.chat, f.admin, []gotgbot.User{f.applicant})
 			if err := SendCaptcha(f.bot, serviceCtx, f.applicant.Id, f.applicant.FirstName); !errors.Is(err, errCaptchaDisabled) {
@@ -683,8 +774,8 @@ func TestJoinRequestCaptchaPassedApplicantSkipsRegularCaptchaAndGetsWelcome(t *t
 					t.Fatalf("newMember() error = %v, want EndGroups", err)
 				}
 			}
-			if calls := f.client.callsFor("sendPhoto"); len(calls) != 1 {
-				t.Errorf("captcha photos = %v, want only the original PM challenge", calls)
+			if calls := f.client.callsFor("sendPhoto"); len(calls) != 2 {
+				t.Errorf("captcha photos = %v, want the two join-request rounds only", calls)
 			}
 			if regular, err := captcha.GetCaptchaAttempt(f.applicant.Id, f.chat.Id); err != nil || regular != nil {
 				t.Errorf("regular captcha attempt = %+v, %v, want none", regular, err)
@@ -703,7 +794,7 @@ func TestJoinRequestCaptchaApprovalFailureFallsBackToAdminAndAnswersCallback(t *
 		t.Run(fmt.Sprintf("noticeFails=%t", noticeFails), func(t *testing.T) {
 			f := newJoinCaptchaFixture(t, true)
 			f.request(t)
-			attempt := f.attempt(t)
+			attempt := f.setStage(t, f.attempt(t), models.CaptchaRounds-1)
 			approveErr := &gotgbot.TelegramError{Code: 400, Description: "Bad Request: CHAT_ADMIN_REQUIRED"}
 			f.client.errors["approveChatJoinRequest"] = approveErr
 			noticeErr := errors.New("admin notice unavailable")

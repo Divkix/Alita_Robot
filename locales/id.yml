@@ -294,7 +294,7 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>`: Atur tindakan untuk verifikasi gagal (default:
   kick)
 
-  × /captchamaxattempts `<1-10>`: Atur maksimum percobaan verifikasi (default: 3)
+  × /captchamaxattempts `<1-3>`: Atur maksimum percobaan verifikasi (default: 2)
 
   × /captchapending `<@user/user_id>`: Tampilkan pesan yang disimpan dari pengguna yang tertunda.
 
@@ -1034,7 +1034,7 @@ captcha_invalid_refresh: Data refresh tidak valid
 
 # Captcha max attempts
 captcha_max_attempts_current: "Maksimum percobaan verifikasi saat ini: <b>%d</b>"
-captcha_max_attempts_invalid: "Nilai tidak valid. Silakan tentukan angka antara 1 dan 10."
+captcha_max_attempts_invalid: "Nilai tidak valid. Silakan tentukan angka antara 1 dan 3."
 captcha_max_attempts_set: "Maksimum percobaan verifikasi diatur ke <b>%d</b>"
 
 # Help module strings
@@ -1378,6 +1378,7 @@ captcha_timeout_set_success: "✅ Batas waktu captcha diatur ke <b>%d menit</b>"
 captcha_action_set_success: "✅ Tindakan kegagalan captcha diatur ke <b>%s</b>"
 captcha_refresh_button: "🔄 Gambar Baru"
 captcha_verified_success_msg: "✅ Terverifikasi dengan sukses!"
+captcha_round_correct: "Benar — satu tantangan lagi."
 captcha_wrong_answer_final: "❌ Jawaban salah! Anda telah %s."
 captcha_wrong_answer_remaining: "❌ Jawaban salah! %d percobaan tersisa."
 captcha_action_kicked: "ditendang"

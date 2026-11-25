@@ -152,6 +152,25 @@ func RefreshJoinRequestCaptcha(id uint, answer string, refreshCount int, message
 	return &attempt, nil
 }
 
+// AdvanceJoinRequestCaptchaStage replaces a passed round's question with the
+// next one. The observed answer, message and stage fence duplicate callbacks;
+// nil means another callback won, the attempt expired or it was replaced.
+// Attempts and the refresh budget carry over across rounds.
+func AdvanceJoinRequestCaptchaStage(id uint, expectedAnswer string, expectedMessageID int64, expectedStage int, newAnswer string, newMessageID int64) (*models.JoinRequestCaptcha, error) {
+	var attempt models.JoinRequestCaptcha
+	result := db.DB.Model(&attempt).Clauses(clause.Returning{}).
+		Where("id = ? AND answer = ? AND message_id = ? AND stage = ? AND expires_at > ?", id, expectedAnswer, expectedMessageID, expectedStage, time.Now()).
+		Updates(map[string]any{"stage": gorm.Expr("stage + 1"), "answer": newAnswer, "message_id": newMessageID})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
+	invalidateAttempt(&attempt)
+	return &attempt, nil
+}
+
 func CompleteJoinRequestCaptchaAtomic(id uint, userID, chatID int64, answer string, refreshCount, maxAttempts int) (bool, error) {
 	var attempt models.JoinRequestCaptcha
 	result := db.DB.Clauses(clause.Returning{}).

@@ -5,8 +5,10 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -209,6 +211,92 @@ func TestGenerateMathCaptcha(t *testing.T) {
 				t.Fatalf("option %q is not a valid integer: %v", opt, err)
 			}
 		}
+	}
+}
+
+// The old decoys were answer + U[-10,+9], so the true answer sat near the
+// middle of the four numbers and guessing the option closest to their mean
+// won over half the time. Decoys drawn from the answer's own distribution
+// leave that guess at chance; 0.32 over 2000 samples is far above the ~0.25
+// expected and far below the old leak.
+func TestGenerateMathCaptchaDecoysDoNotLeakTheAnswer(t *testing.T) {
+	const samples = 2000
+	meanRankHits := 0
+	for range samples {
+		_, answer, options, err := generateMathCaptcha()
+		if err != nil {
+			t.Fatalf("generateMathCaptcha() error = %v", err)
+		}
+		if len(options) != 4 {
+			t.Fatalf("options = %v, want 4", options)
+		}
+		answerValue, err := strconv.Atoi(answer)
+		if err != nil {
+			t.Fatalf("answer %q is not an integer: %v", answer, err)
+		}
+
+		values := make([]int, len(options))
+		seen := make(map[int]struct{}, len(options))
+		answerPresent := false
+		for j, option := range options {
+			value, err := strconv.Atoi(option)
+			if err != nil || value <= 0 {
+				t.Fatalf("option %q is not a positive integer", option)
+			}
+			if _, duplicate := seen[value]; duplicate {
+				t.Fatalf("duplicate option %d in %v", value, options)
+			}
+			seen[value] = struct{}{}
+			values[j] = value
+			if value == answerValue {
+				answerPresent = true
+			}
+		}
+		if !answerPresent {
+			t.Fatalf("answer %d missing from options %v", answerValue, options)
+		}
+
+		mean := 0.0
+		for _, value := range values {
+			mean += float64(value)
+		}
+		mean /= float64(len(values))
+		closest := values[0]
+		for _, value := range values[1:] {
+			if math.Abs(float64(value)-mean) < math.Abs(float64(closest)-mean) {
+				closest = value
+			}
+		}
+		if closest == answerValue {
+			meanRankHits++
+		}
+	}
+	if rate := float64(meanRankHits) / samples; rate > 0.32 {
+		t.Fatalf("answer was the option closest to the mean %d/%d times (%.3f), want <= 0.32", meanRankHits, samples, rate)
+	}
+}
+
+func TestBuildCaptchaKeyboardFailsClosed(t *testing.T) {
+	keyboard, ok := buildCaptchaKeyboard(7, 0, "7", []string{"7", "8", "9", "10"}, false, "")
+	if !ok {
+		t.Fatal("buildCaptchaKeyboard(valid) ok = false")
+	}
+	if len(keyboard.InlineKeyboard) != 4 {
+		t.Fatalf("verify rows = %d, want 4", len(keyboard.InlineKeyboard))
+	}
+	decoded, ok := decodeCallbackData(keyboard.InlineKeyboard[0][0].CallbackData, "captcha_verify")
+	if !ok {
+		t.Fatal("verify callback data does not decode")
+	}
+	if _, present := decoded.Field("u"); present {
+		t.Fatal("verify callback data still carries a user id")
+	}
+
+	if _, ok := buildCaptchaKeyboard(7, 0, "7", []string{"8", "9", "10", "11"}, false, ""); ok {
+		t.Fatal("buildCaptchaKeyboard(missing answer) ok = true, want fail-closed")
+	}
+	if _, ok := buildCaptchaKeyboard(7, 0, "7", []string{"7", strings.Repeat("x", 64)}, false, ""); ok {
+		t.Fatal("buildCaptchaKeyboard(unencodable option) ok = true, want fail-closed")
 	}
 }
 

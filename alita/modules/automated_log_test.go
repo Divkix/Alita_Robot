@@ -221,8 +221,11 @@ func TestCaptchaFailureLogsToTheLogChannel(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 			}
+			if err := captcha.UpdateCaptchaAttemptMessageID(attempt.ID, 102); err != nil {
+				t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+			}
 			member := gotgbot.User{Id: 42, FirstName: "Member"}
-			ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"}))
+			ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "s": "8"}))
 			_ = captchaModule.captchaVerifyCallback(bot, ctx)
 		},
 	})

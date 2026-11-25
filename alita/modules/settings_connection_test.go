@@ -68,11 +68,11 @@ func TestCaptchaFromPMViaConnection(t *testing.T) {
 	runCommandInPM(t, bot, admin, "/captchamode text", dispatcher)
 	runCommandInPM(t, bot, admin, "/captchatime 5", dispatcher)
 	runCommandInPM(t, bot, admin, "/captchaaction ban", dispatcher)
-	runCommandInPM(t, bot, admin, "/captchamaxattempts 4", dispatcher)
+	runCommandInPM(t, bot, admin, "/captchamaxattempts 3", dispatcher)
 
 	got := captchaSettingsOf(t, groupA)
-	if !got.Enabled || got.CaptchaMode != "text" || got.Timeout != 5 || got.FailureAction != "ban" || got.MaxAttempts != 4 {
-		t.Fatalf("group captcha settings = %+v, want enabled/text/5/ban/4", got)
+	if !got.Enabled || got.CaptchaMode != "text" || got.Timeout != 5 || got.FailureAction != "ban" || got.MaxAttempts != 3 {
+		t.Fatalf("group captcha settings = %+v, want enabled/text/5/ban/3", got)
 	}
 	assertNothingSentTo(t, client, groupA)
 }

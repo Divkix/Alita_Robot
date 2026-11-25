@@ -140,7 +140,7 @@ func SetCaptchaTimeout(chatID int64, chatName string, timeout int) error {
 }
 
 func SetCaptchaMaxAttempts(chatID int64, chatName string, maxAttempts int) error {
-	if maxAttempts < 1 || maxAttempts > 10 {
+	if maxAttempts < 1 || maxAttempts > 3 {
 		return ErrInvalidMaxAttempts
 	}
 
@@ -538,6 +538,49 @@ func UpdateCaptchaAttemptOnRefreshByID(
 	err := db.DB.First(attempt, attemptID).Error
 	if err != nil {
 		log.Errorf("[Database][UpdateCaptchaAttemptOnRefreshByID:Reload]: %v", err)
+		return nil, err
+	}
+	return attempt, nil
+}
+
+// AdvanceCaptchaAttemptStage replaces a passed round's question with the next
+// one. The observed answer, message, refresh count and stage fence duplicate
+// callbacks from every round; nil means the challenge expired, advanced or was
+// replaced. Attempts carry over, so the budget spans all rounds.
+func AdvanceCaptchaAttemptStage(
+	attemptID uint,
+	expectedAnswer string,
+	expectedMessageID int64,
+	expectedRefreshCount, expectedStage int,
+	newAnswer string,
+	newMessageID int64,
+) (*models.CaptchaAttempts, error) {
+	result := db.DB.Model(&models.CaptchaAttempts{}).
+		Where(
+			"id = ? AND answer = ? AND message_id = ? AND refresh_count = ? AND stage = ? AND expires_at > ?",
+			attemptID,
+			expectedAnswer,
+			expectedMessageID,
+			expectedRefreshCount,
+			expectedStage,
+			time.Now(),
+		).
+		Updates(map[string]any{
+			"stage":      gorm.Expr("stage + 1"),
+			"answer":     newAnswer,
+			"message_id": newMessageID,
+		})
+	if result.Error != nil {
+		log.Errorf("[Database][AdvanceCaptchaAttemptStage:Update]: %v", result.Error)
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
+
+	attempt := &models.CaptchaAttempts{}
+	if err := db.DB.First(attempt, attemptID).Error; err != nil {
+		log.Errorf("[Database][AdvanceCaptchaAttemptStage:Reload]: %v", err)
 		return nil, err
 	}
 	return attempt, nil

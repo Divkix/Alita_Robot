@@ -78,7 +78,7 @@ func assertAttempt(t *testing.T, want *models.JoinRequestCaptcha) {
 	for _, got := range []*models.JoinRequestCaptcha{byChat, byID, &stored} {
 		if got == nil || got.ID != want.ID || got.ChatID != want.ChatID || got.UserID != want.UserID ||
 			got.UserChatID != want.UserChatID || got.FirstName != want.FirstName || got.MessageID != want.MessageID ||
-			got.Answer != want.Answer || got.Attempts != want.Attempts || got.RefreshCount != want.RefreshCount || !got.ExpiresAt.Equal(want.ExpiresAt) {
+			got.Answer != want.Answer || got.Attempts != want.Attempts || got.RefreshCount != want.RefreshCount || got.Stage != want.Stage || !got.ExpiresAt.Equal(want.ExpiresAt) {
 			t.Fatalf("attempt = %+v, want %+v", got, want)
 		}
 	}
@@ -128,10 +128,20 @@ func TestJoinRequestCaptchaCachedLifecycle(t *testing.T) {
 	}
 	attempt.MessageID = 23
 	assertAttempt(t, attempt)
+	advanced, err := AdvanceJoinRequestCaptchaStage(attempt.ID, attempt.Answer, attempt.MessageID, attempt.Stage, "passed-on", 24)
+	if err != nil || advanced == nil || advanced.Stage != 1 || advanced.Answer != "passed-on" || advanced.MessageID != 24 ||
+		advanced.Attempts != attempt.Attempts || advanced.RefreshCount != attempt.RefreshCount {
+		t.Fatalf("advance = (%+v, %v), want stage 1 with attempts and refresh count kept", advanced, err)
+	}
+	attempt.Answer, attempt.MessageID, attempt.Stage = "passed-on", 24, 1
+	assertAttempt(t, attempt)
 	for generation := range models.CaptchaMaxRefreshes {
 		refreshed, err := RefreshJoinRequestCaptcha(attempt.ID, fmt.Sprint(generation), generation, int64(30+generation))
 		if err != nil || refreshed == nil {
 			t.Fatalf("refresh %d = (%+v, %v)", generation, refreshed, err)
+		}
+		if refreshed.Stage != 1 {
+			t.Fatalf("refresh %d changed Stage = %d, want 1 preserved", generation, refreshed.Stage)
 		}
 		attempt.Answer, attempt.RefreshCount = fmt.Sprint(generation), generation+1
 		attempt.MessageID = int64(30 + generation)
@@ -157,6 +167,54 @@ func TestJoinRequestCaptchaCachedLifecycle(t *testing.T) {
 		t.Fatalf("completion = (%v, %v), want true, nil", completed, err)
 	}
 	assertAbsent(t, attempt)
+}
+
+// Applicants answer CaptchaRounds questions: each pass advances one stage and
+// keeps the attempts already spent, while a consumed stage can never advance.
+func TestAdvanceJoinRequestCaptchaStage(t *testing.T) {
+	attempt := newAttempt(t)
+	if _, err := IncrementJoinRequestCaptchaAttempts(attempt.ID, attempt.RefreshCount, 3); err != nil {
+		t.Fatal(err)
+	}
+	attempt.Attempts = 1
+
+	first, err := AdvanceJoinRequestCaptchaStage(attempt.ID, attempt.Answer, attempt.MessageID, 0, "round-2", 41)
+	if err != nil {
+		t.Fatalf("advance round 1 error = %v", err)
+	}
+	if first == nil || first.Stage != 1 || first.Answer != "round-2" || first.MessageID != 41 || first.Attempts != 1 || first.RefreshCount != 0 {
+		t.Fatalf("after round 1 = %+v, want stage 1, answer round-2, message 41, attempts 1", first)
+	}
+	attempt.Answer, attempt.MessageID, attempt.Stage = "round-2", 41, 1
+	assertAttempt(t, attempt)
+
+	second, err := AdvanceJoinRequestCaptchaStage(first.ID, first.Answer, first.MessageID, first.Stage, "done", 42)
+	if err != nil {
+		t.Fatalf("advance round 2 error = %v", err)
+	}
+	if second == nil || second.Stage != models.CaptchaRounds || second.Answer != "done" || second.MessageID != 42 || second.Attempts != 1 {
+		t.Fatalf("after round 2 = %+v, want stage %d, answer done, message 42", second, models.CaptchaRounds)
+	}
+
+	for _, stale := range []struct {
+		name      string
+		answer    string
+		messageID int64
+		stage     int
+	}{
+		{"consumed first round", "42", 17, 0},
+		{"stale answer", "round-2", 42, models.CaptchaRounds},
+		{"stale message", "done", 41, models.CaptchaRounds},
+		{"stale stage", "done", 42, models.CaptchaRounds - 1},
+	} {
+		got, err := AdvanceJoinRequestCaptchaStage(second.ID, stale.answer, stale.messageID, stale.stage, "replayed", 99)
+		if err != nil {
+			t.Fatalf("advance(%s) error = %v", stale.name, err)
+		}
+		if got != nil {
+			t.Fatalf("advance(%s) = %+v, want nil", stale.name, got)
+		}
+	}
 }
 
 func TestJoinRequestCaptchaReplacementRejectsOldIdentity(t *testing.T) {

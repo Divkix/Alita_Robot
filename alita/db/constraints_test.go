@@ -148,8 +148,8 @@ func TestCaptchaSettingsConstraint_MaxAttemptsRange(t *testing.T) {
 	})
 
 	testIntRangeConstraint(t, chatID, "max_attempts",
-		[]int{1, 5, 10},       // valid values
-		[]int{0, 11, -1, 100}, // invalid values
+		[]int{1, 2, 3},       // valid values
+		[]int{0, 4, -1, 100}, // invalid values
 		func(chatID int64, attempts int) error {
 			return DB.Model(&CaptchaSettings{}).Create(map[string]any{
 				"chat_id":      chatID,
