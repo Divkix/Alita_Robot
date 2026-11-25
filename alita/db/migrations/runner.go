@@ -1,7 +1,10 @@
 package migrations
 
 import (
+	"context"
 	"crypto/sha256"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -17,6 +20,18 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/config"
+)
+
+// The advisory lock key must match scripts/migrate_psql.sh exactly so the bot
+// and the standalone script serialize against each other.
+const (
+	migrationLockSQL   = "SELECT pg_try_advisory_lock(hashtextextended('alita:schema_migrations', 0))"
+	migrationUnlockSQL = "SELECT pg_advisory_unlock(hashtextextended('alita:schema_migrations', 0))"
+
+	migrationLockWait      = 10 * time.Minute
+	migrationLockRetryMin  = 200 * time.Millisecond
+	migrationLockRetryMax  = 5 * time.Second
+	migrationUnlockTimeout = 5 * time.Second
 )
 
 type MigrationRunner struct {
@@ -44,19 +59,126 @@ func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 func (m *MigrationRunner) RunMigrations() error {
 	log.Info("[Migrations] Starting automatic database migration...")
 
-	// Serialize concurrent runners (rolling replicas share one Postgres): without
-	// this, two instances can each see a migration as pending then both apply.
-	if m.db != nil && m.db.Name() == "postgres" {
-		if err := m.db.Exec("SELECT pg_advisory_lock(hashtextextended('alita:schema_migrations', 0))").Error; err != nil {
-			return fmt.Errorf("failed to acquire migration lock: %w", err)
-		}
-		defer func() {
-			if err := m.db.Exec("SELECT pg_advisory_unlock(hashtextextended('alita:schema_migrations', 0))").Error; err != nil {
-				log.Warnf("[Migrations] Failed to release migration lock: %v", err)
-			}
-		}()
+	// Postgres needs a session-scoped advisory lock. Pin one connection for the
+	// whole critical section: a pooled Exec can check out any connection, and a
+	// deferred unlock could then run on a different session, report success with
+	// no error while leaving the lock held for the pooled connection's lifetime.
+	if m.db == nil || m.db.Name() != "postgres" {
+		return m.runMigrationsLocked()
 	}
 
+	// The lock must stay pinned to one session so the deferred unlock runs on
+	// the session that holds it, but the migration body keeps using the pool.
+	// With MaxOpenConns(1) the pinned session is the pool's only slot, so the
+	// body's first query would wait forever for a connection the lock never
+	// releases. Add one slot for the critical section; 0 (unlimited) and >1
+	// already have room. The restore defer is registered first so it runs after
+	// the lock connection is unlocked and closed.
+	sqlDB, err := m.db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get database handle: %w", err)
+	}
+	if sqlDB.Stats().MaxOpenConnections == 1 {
+		sqlDB.SetMaxOpenConns(2)
+		defer sqlDB.SetMaxOpenConns(1)
+	}
+
+	conn, err := m.acquireMigrationLock()
+	if err != nil {
+		return err
+	}
+	// Deferred calls run last-in-first-out, so Close is registered before the
+	// unlock and therefore runs after it: the lock is released on the same
+	// session before the connection can return to the pool.
+	defer func() {
+		// ErrConnDone means releaseMigrationLock already discarded the connection.
+		if err := conn.Close(); err != nil && !errors.Is(err, sql.ErrConnDone) {
+			log.Warnf("[Migrations] Failed to close migration lock connection: %v", err)
+		}
+	}()
+	defer m.releaseMigrationLock(conn)
+
+	return m.runMigrationsLocked()
+}
+
+// acquireMigrationLock checks out a dedicated connection and polls for the
+// migration advisory lock until it is acquired or the wait budget expires.
+// A non-blocking try is used so a stuck holder surfaces as a timeout instead
+// of wedging the process in pg_advisory_lock.
+func (m *MigrationRunner) acquireMigrationLock() (*sql.Conn, error) {
+	sqlDB, err := m.db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database handle: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), migrationLockWait)
+	defer cancel()
+
+	backoff := migrationLockRetryMin
+	for {
+		conn, err := sqlDB.Conn(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("timed out waiting %s for the migration lock: %w", migrationLockWait, ctx.Err())
+			}
+			return nil, fmt.Errorf("failed to check out migration lock connection: %w", err)
+		}
+
+		var locked bool
+		if err := conn.QueryRowContext(ctx, migrationLockSQL).Scan(&locked); err != nil {
+			// The server may have granted the lock before the response was lost,
+			// so this session must not go back to the pool either.
+			discardMigrationLockConn(conn)
+			return nil, fmt.Errorf("failed to acquire migration lock: %w", err)
+		}
+		if locked {
+			return conn, nil
+		}
+		_ = conn.Close()
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timed out waiting %s for the migration lock: %w", migrationLockWait, ctx.Err())
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, migrationLockRetryMax)
+	}
+}
+
+// releaseMigrationLock unlocks the migration advisory lock on the pinned
+// session. If the unlock errors or reports that this session held no lock, the
+// connection is marked bad so it cannot re-enter the pool still holding the
+// lock; PostgreSQL then releases the lock when the session closes.
+func (m *MigrationRunner) releaseMigrationLock(conn *sql.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), migrationUnlockTimeout)
+	defer cancel()
+
+	var unlocked bool
+	err := conn.QueryRowContext(ctx, migrationUnlockSQL).Scan(&unlocked)
+	if err == nil && unlocked {
+		return
+	}
+	if err != nil {
+		log.Warnf("[Migrations] Failed to release migration lock: %v", err)
+	} else {
+		log.Warn("[Migrations] Migration lock was not held by the releasing session")
+	}
+
+	// A connection that may still hold the lock must not return to the pool;
+	// ending its session makes PostgreSQL release the lock.
+	discardMigrationLockConn(conn)
+}
+
+// discardMigrationLockConn discards conn instead of returning it to the pool:
+// returning driver.ErrBadConn from Conn.Raw makes database/sql close the
+// session, which releases any advisory lock the session still holds.
+func discardMigrationLockConn(conn *sql.Conn) {
+	_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+}
+
+// runMigrationsLocked performs the migration work. Callers on Postgres must
+// hold the migration advisory lock; other drivers run it unconditionally.
+func (m *MigrationRunner) runMigrationsLocked() error {
 	if err := m.ensureMigrationsTable(); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}

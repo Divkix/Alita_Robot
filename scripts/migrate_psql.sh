@@ -173,8 +173,11 @@ apply_migration() {
   # The script owns the transaction. Remove only top-level transaction
   # boundaries embedded in legacy files; PL/pgSQL BEGIN/END blocks do not end
   # with a semicolon on their own line and remain untouched.
-  if ! perl -ne 'print unless /^\s*(?:BEGIN|COMMIT)(?:\s+(?:WORK|TRANSACTION))?\s*;\s*(?:--.*)?$/i' \
-    "$migration_file" > "$execution_file"; then
+  # The advisory lock is transaction-scoped and shares the bot's lock key, so
+  # concurrent bot and script runners serialize; it releases on commit/rollback.
+  if ! printf "SELECT pg_advisory_xact_lock(hashtextextended('alita:schema_migrations', 0));\n" > "$execution_file" ||
+    ! perl -ne 'print unless /^\s*(?:BEGIN|COMMIT)(?:\s+(?:WORK|TRANSACTION))?\s*;\s*(?:--.*)?$/i' \
+      "$migration_file" >> "$execution_file"; then
     rm -f "$execution_file"
     print_color "$RED" "    ✗ Failed to prepare migration"
     return 1
