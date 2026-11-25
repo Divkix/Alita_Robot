@@ -103,21 +103,21 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func announce(c *helpers.CommandContext) error {
-	text := c.Msg.Text
+	text := c.Msg.GetText()
 	end := strings.IndexFunc(text, unicode.IsSpace)
 	var body string
 	if end >= 0 {
 		body = strings.TrimLeftFunc(text[end:], unicode.IsSpace)
 	}
 	if body == "" {
-		return helpers.EndGroupsLogging(c.Ctx, replyCommandHelp(c.Bot, c.Msg, c.Tr, "echo", ""))
+		return helpers.EndGroupsLogging(c.Ctx, replyCommandHelp(c.Bot, c.Msg, c.Tr, "echo", c.Tr.String("misc_provide_content")))
 	}
 
 	// Native Telegram formatting takes precedence over typed markup, but
 	// automatically detected links and mentions are not formatting.
 	offset := int64(formatting.UTF16Len(text[:len(text)-len(body)]))
 	var entities []gotgbot.MessageEntity
-	for _, entity := range c.Msg.Entities {
+	for _, entity := range c.Msg.GetEntities() {
 		switch entity.Type {
 		case "mention", "hashtag", "cashtag", "bot_command", "url", "email",
 			"phone_number", "bank_card_number", "ton_address":

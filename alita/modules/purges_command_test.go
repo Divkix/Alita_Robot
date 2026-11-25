@@ -374,3 +374,237 @@ func TestPurgeSurvivesPanicInDeletionWorker(t *testing.T) {
 		t.Fatalf("failed deletions reported = %d, want %d", failedCount, len(panicked))
 	}
 }
+
+// /spurge count=<n> bounds the purge to n messages starting at the reply and
+// sends no confirmation, unlike /purge which announces the result.
+func TestSpurgeCountBoundsPurgeWithoutConfirmation(t *testing.T) {
+	f := newAdminChatFixture(t)
+	delMsgs.Delete(f.chat.Id)
+	t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	loadModuleByName(t, "Purges", dispatcher)
+
+	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/spurge count=5", 131, 101)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/spurge dispatch error = %v", err)
+	}
+
+	// count=5 deletes the replied message and the four after it, plus the
+	// command message itself: 101-105 and 131.
+	assertDeleted(t, f.client, f.chat.Id, 101, 102, 103, 104, 105, 131)
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 6 {
+		t.Fatalf("deleteMessage calls = %d, want 6", len(calls))
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want no confirmation for /spurge", len(calls))
+	}
+}
+
+// A bare number after /purge is the legacy reason text, not a count: the
+// whole range is deleted and the number shows up in the confirmation.
+func TestPurgeNumericArgumentIsReasonNotCount(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	delMsgs.Delete(f.chat.Id)
+	t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	loadModuleByName(t, "Purges", dispatcher)
+
+	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/purge 10", 131, 101)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/purge dispatch error = %v", err)
+	}
+
+	// No count bound: the full 101..130 range plus the command message.
+	assertDeleted(t, f.client, f.chat.Id, 102, 110, 120, 130, 131)
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 31 {
+		t.Fatalf("deleteMessage calls = %d, want 31 (full range)", len(calls))
+	}
+	call := f.client.onlyCall(t, "sendMessage")
+	if text := fmt.Sprint(call.Params["text"]); !strings.Contains(text, "10") {
+		t.Fatalf("confirmation = %q, want the numeric reason preserved", text)
+	}
+}
+
+// A malformed count= must refuse the purge before anything is deleted: falling
+// back to an unbounded legacy range would widen a destructive operation.
+func TestPurgeMalformedCountDeletesNothing(t *testing.T) {
+	useRealLocales(t)
+	for _, text := range []string{"/purge count=abc", "/purge count=0", "/spurge count=-2"} {
+		t.Run(text, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			delMsgs.Delete(f.chat.Id)
+			t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+			dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			loadModuleByName(t, "Purges", dispatcher)
+
+			ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, text, 131, 101)
+			if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+				t.Fatalf("%s dispatch error = %v", text, err)
+			}
+			if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+				t.Fatalf("deleteMessage calls = %d, want none for a malformed count", len(calls))
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			want := trS(i18n.MustNewTranslator("en"), "purges_invalid_count")
+			if got := fmt.Sprint(call.Params["text"]); got != want {
+				t.Fatalf("reply = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// A count= at the int64 ceiling must not overflow the range math: compared
+// against the inclusive length first, it simply covers the whole range.
+func TestPurgeMaxInt64CountPurgesFullRange(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	delMsgs.Delete(f.chat.Id)
+	t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	loadModuleByName(t, "Purges", dispatcher)
+
+	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/purge count=9223372036854775807", 131, 101)
+	if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+		t.Fatalf("/purge dispatch error = %v", err)
+	}
+
+	// The count exceeds the 101..130 range, so the whole range plus the
+	// command message is deleted — same as an unbounded purge.
+	assertDeleted(t, f.client, f.chat.Id, 101, 115, 130, 131)
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 31 {
+		t.Fatalf("deleteMessage calls = %d, want 31 (full range)", len(calls))
+	}
+}
+
+// In a forum supergroup message IDs interleave across topics, so matching
+// command and reply topics prove nothing about the messages between them:
+// the new forms — a count=<n> bound or the silent /spurge — may run there
+// only as count=1, which scopes the purge to the replied message and the
+// command itself, and only when both endpoints share one named topic. Wider
+// new forms are refused without deleting anything, while a legacy /purge
+// without count= keeps its unscoped behavior.
+func TestPurgeForumScope(t *testing.T) {
+	useRealLocales(t)
+
+	forumCtx := func(f adminChatFixture, text string, messageID, replyID, thread int64) *ext.Context {
+		ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, text, messageID, replyID)
+		ctx.EffectiveMessage.MessageThreadId = thread
+		ctx.EffectiveMessage.IsTopicMessage = true
+		ctx.EffectiveMessage.ReplyToMessage.MessageThreadId = thread
+		ctx.EffectiveMessage.ReplyToMessage.IsTopicMessage = true
+		return ctx
+	}
+	newForum := func(t *testing.T) (adminChatFixture, *ext.Dispatcher) {
+		f := newAdminChatFixture(t)
+		f.chat.IsForum = true
+		delMsgs.Delete(f.chat.Id)
+		t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+		dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+		loadModuleByName(t, "Purges", dispatcher)
+		return f, dispatcher
+	}
+
+	t.Run("count=1 in one named topic deletes only the endpoints", func(t *testing.T) {
+		f, dispatcher := newForum(t)
+		for _, text := range []string{"/purge count=1", "/spurge count=1"} {
+			ctx := forumCtx(f, text, 150, 140, 7)
+			if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+				t.Fatalf("%s dispatch error = %v", text, err)
+			}
+		}
+		// Each run deletes the reply (140) and its own command; nothing between.
+		assertDeleted(t, f.client, f.chat.Id, 140, 150)
+		if calls := f.client.callsFor("deleteMessage"); len(calls) != 4 {
+			t.Fatalf("deleteMessage calls = %d, want 4 (two endpoints per command)", len(calls))
+		}
+		for _, call := range f.client.callsFor("deleteMessage") {
+			id := fmt.Sprint(call.Params["message_id"])
+			if id != "140" && id != "150" {
+				t.Fatalf("deleted message %s, want only the reply and command endpoints", id)
+			}
+		}
+		// /purge announces its single-message purge; /spurge stays silent.
+		if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want only /purge's confirmation", len(calls))
+		}
+	})
+
+	t.Run("count=1 refuses a reply from another topic", func(t *testing.T) {
+		f, dispatcher := newForum(t)
+		ctx := forumCtx(f, "/purge count=1", 150, 140, 8)
+		ctx.EffectiveMessage.ReplyToMessage.MessageThreadId = 7
+		if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+			t.Fatalf("/purge dispatch error = %v", err)
+		}
+		if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+			t.Fatalf("deleteMessage calls = %d, want none for a cross-topic purge", len(calls))
+		}
+		if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want the refusal", len(calls))
+		}
+	})
+
+	t.Run("wider new forms refuse even when endpoints share a topic", func(t *testing.T) {
+		for _, text := range []string{"/purge count=5", "/spurge", "/spurge count=3"} {
+			t.Run(text, func(t *testing.T) {
+				f, dispatcher := newForum(t)
+				ctx := forumCtx(f, text, 200, 100, 7)
+				if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+					t.Fatalf("%s dispatch error = %v", text, err)
+				}
+				if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+					t.Fatalf("deleteMessage calls = %d, want none for %s", len(calls), text)
+				}
+				if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+					t.Fatalf("sendMessage calls = %d, want the refusal", len(calls))
+				}
+			})
+		}
+	})
+
+	t.Run("legacy /purge without count= keeps its unscoped forum behavior", func(t *testing.T) {
+		for _, text := range []string{"/purge", "/purge 10"} {
+			t.Run(text, func(t *testing.T) {
+				f, dispatcher := newForum(t)
+				ctx := forumCtx(f, text, 200, 100, 7)
+				if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+					t.Fatalf("%s dispatch error = %v", text, err)
+				}
+				// No count bound: the full 100..199 range plus the command.
+				assertDeleted(t, f.client, f.chat.Id, 100, 150, 199, 200)
+				if calls := f.client.callsFor("deleteMessage"); len(calls) != 101 {
+					t.Fatalf("deleteMessage calls = %d, want 101 (full range)", len(calls))
+				}
+				if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+					t.Fatalf("sendMessage calls = %d, want the confirmation", len(calls))
+				}
+			})
+		}
+		// A bare number is the legacy reason, not a count: it shows up in the
+		// confirmation.
+		f, dispatcher := newForum(t)
+		ctx := forumCtx(f, "/purge 10", 200, 100, 7)
+		if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+			t.Fatalf("/purge dispatch error = %v", err)
+		}
+		call := f.client.onlyCall(t, "sendMessage")
+		if text := fmt.Sprint(call.Params["text"]); !strings.Contains(text, "10") {
+			t.Fatalf("confirmation = %q, want the numeric reason preserved", text)
+		}
+	})
+
+	t.Run("topic-less endpoints cannot prove a shared topic", func(t *testing.T) {
+		f, dispatcher := newForum(t)
+		ctx := forumCtx(f, "/purge count=1", 200, 100, 0)
+		if err := dispatcher.ProcessUpdate(f.bot, ctx.Update, nil); err != nil {
+			t.Fatalf("/purge dispatch error = %v", err)
+		}
+		if calls := f.client.callsFor("deleteMessage"); len(calls) != 0 {
+			t.Fatalf("deleteMessage calls = %d, want none without a named topic", len(calls))
+		}
+		if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want the refusal", len(calls))
+		}
+	})
+}

@@ -874,13 +874,15 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Eliminar mensajes enviados por el canal vinculado."
 purges_help_msg: "*Solo administrador:*
 
-  - /purge <razón>: elimina todos los mensajes entre este y el mensaje respondido. La razón es opcional y se muestra en la confirmación.
+  - /purge [count=<n>] [razón]: elimina todos los mensajes entre este y el mensaje respondido, o solo los primeros <n> cuando se indica count=<n>. La razón es opcional y se muestra en la confirmación.
 
   - /del: elimina el mensaje al que respondiste.
 
   - /purgefrom: marca el mensaje respondido como inicio de un rango a eliminar (luego usa /purgeto).
 
   - /purgeto <razón>: elimina todos los mensajes desde la marca de /purgefrom hasta el mensaje respondido. La razón es opcional y se muestra en la confirmación.
+
+  - /spurge [count=<n>] [razón]: igual que /purge pero sin el mensaje de confirmación.
 
 
   *Ejemplos*:
@@ -1269,6 +1271,8 @@ purges_need_purgefrom: ¡Solo puedes usar este comando después de haber usado e
 purges_use_del_single: ¡Usa el comando /del para eliminar un mensaje!
 purges_reply_to_purgeto: Responde a un mensaje para mostrarme hasta dónde purgar.
 purges_limit_exceeded: "¡No se pueden purgar más de %d mensajes a la vez! Por favor selecciona un rango más pequeño."
+purges_forum_scope: "No se puede demostrar que esta purga se mantenga dentro de un solo tema del foro, así que fue rechazada. En los foros solo se permite count=1 dentro de un mismo tema."
+purges_invalid_count: "Cantidad no válida: usa un número entero positivo, p. ej. /purge count=10."
 
 # Rules module strings
 rules_cleared_successfully: ¡Reglas eliminadas exitosamente!
@@ -2066,7 +2070,7 @@ admin_extended_docs: |
   Bans: /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del, /purgefrom, /purgeto
+  Purges: /purge, /del, /purgefrom, /purgeto, /spurge
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |
@@ -2194,13 +2198,18 @@ purges_extended_docs: |
   • <b>Límite de antigüedad:</b> Mensajes con más de 48 horas pueden no ser borrables (restricción de la API de Telegram)
   • <b>Permisos requeridos:</b> Tanto el usuario como el bot deben tener permiso de "Eliminar mensajes"
 
+  <b>Purges selectivas y silenciosas:</b>
+  <code>/purge count=&lt;n&gt;</code> elimina solo los primeros &lt;n&gt; mensajes desde la respuesta; cualquier otro argumento se muestra como razón. Un count mal formado se rechaza en lugar de ampliar la purga.
+  <code>/spurge</code> acepta los mismos argumentos pero no envía confirmación.
+  En grupos foro los IDs de mensaje se intercalan entre temas, así que las formas nuevas están restringidas: las purgas con <code>count=&lt;n&gt;</code> y <code>/spurge</code> solo se ejecutan como <code>count=1</code> — elimina solo el mensaje respondido y el comando — y únicamente cuando el comando y el mensaje respondido están en el mismo tema con nombre; cualquier forma nueva más amplia es rechazada. Un <code>/purge</code> heredado sin <code>count=</code> conserva su comportamiento anterior. Esto no aplica al rango /purgefrom + /purgeto, que conserva su comportamiento anterior.
+
 purges_notes_docs: |
   <b>Notas:</b>
   • El marcador de <code>/purgefrom</code> expira tras 30 segundos si no se usa <code>/purgeto</code>
   • Eliminar rangos grandes usa procesamiento concurrente para mejor rendimiento
   • Los mensajes de estado (mostrando cuántos mensajes se borraron) se autoeliminan tras 3 segundos
   • El bot maneja mensajes ya eliminados sin errores
-
+  • En grupos foro las purgas con <code>count=&lt;n&gt;</code> y <code>/spurge</code> solo se ejecutan como <code>count=1</code>, y solo dentro de un mismo tema con nombre; las formas nuevas más amplias son rechazadas, mientras que un <code>/purge</code> heredado sin <code>count=</code> no cambia
 # Extended documentation locale keys - Reports module
 reports_extended_docs: |
   <b>Cómo funciona:</b>
@@ -3201,6 +3210,7 @@ purges_extend_msg: |
   /purge — borrar todo desde el mensaje respondido
   /purgefrom — marcar el inicio de un rango a borrar
   /purgeto — borrar hasta el mensaje respondido
+  /spurge — purgar sin el mensaje de confirmación
 reactions_extend_msg: |
   /addreaction — reaccionar con un emoji a una palabra clave
   /removereaction — quitar la reacción a una palabra clave

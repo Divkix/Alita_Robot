@@ -11,7 +11,7 @@ This page provides a complete reference of all commands available in Alita Robot
 ## Overview
 
 - **Total Modules**: 32 (30 user-facing + 2 internal)
-- **Total Commands**: 222
+- **Total Commands**: 223
 
 ## Commands by Module
 
@@ -197,9 +197,10 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/del` | Delete a replied-to message | Admin | ❌ | — |
-| `/purge` | Purge messages from replied-to onwards (optional reason) | Admin | ❌ | — |
+| `/purge` | Purge messages from replied-to onwards (optional `count=<n>` bound and reason) | Admin | ❌ | — |
 | `/purgefrom` | Set purge start point | Admin | ❌ | — |
 | `/purgeto` | Purge to a specific message (optional reason) | Admin | ❌ | — |
+| `/spurge` | Purge like /purge but without the confirmation message | Admin | ❌ | — |
 
 #### ⚠️ Warns
 
@@ -547,7 +548,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/privnote` | Notes | Toggle private note delivery | Admin |
 | `/probation` | Probation | Show or configure new-member probation | Admin |
 | `/promote` | Admin | Promote a user to admin | Admin |
-| `/purge` | Purges | Purge messages from replied-to onwards (optional reason) | Admin |
+| `/purge` | Purges | Purge messages from replied-to onwards (optional `count=<n>` bound and reason) | Admin |
 | `/purgefrom` | Purges | Set purge start point | Admin |
 | `/purgeto` | Purges | Purge to a specific message (optional reason) | Admin |
 | `/quietfed` | Federations | Suppress passive fban notices in this group (on/off) | Admin |
@@ -617,6 +618,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/stickerid` | Misc | Get a replied sticker's file ID | Everyone |
 | `/stop` | Filters | Remove a keyword filter | Admin |
 | `/stopall` | Filters | Remove all filters | Owner |
+| `/spurge` | Purges | Purge like /purge but without the confirmation message | Admin |
 | `/subfed` | Federations | Subscribe to another federation's bans (max 5) | Fed owner |
 | `/swarn` | Warns | Warn a user and delete your command | Admin |
 | `/tban` | Bans | Temporarily ban a user | Admin |

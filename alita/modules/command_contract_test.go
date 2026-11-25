@@ -173,8 +173,8 @@ func TestEveryCommandHonoursReplayAndDisableContract(t *testing.T) {
 			})
 		})
 	}
-	if proofs != 72 {
-		t.Errorf("observed %d anonymous-admin proof flows, want 72", proofs)
+	if proofs != 73 {
+		t.Errorf("observed %d anonymous-admin proof flows, want 73", proofs)
 	}
 
 	for _, source := range names {

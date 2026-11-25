@@ -61,7 +61,7 @@ admin_extended_docs: |
   Bannissements : /ban, /dban, /sban, /tban, /unban, /baninfo, /banlist, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes : /mute, /smute, /dmute, /tmute, /unmute
   Épingles : /pin, /unpin, /permapin, /unpinall
-  Purges : /purge, /del, /purgefrom, /purgeto
+  Purges : /purge, /del, /purgefrom, /purgeto, /spurge
   Avertissements : /warn, /swarn, /dwarn
 
 admin_notes_docs: |
@@ -1347,13 +1347,15 @@ pins_input_not_recognized: "Votre entrée n'a pas été reconnue comme l'une des
 # Purges module strings
 purges_help_msg: "*Admin uniquement :*
 
-  - /purge <raison> : supprime tous les messages entre celui-ci et le message auquel vous avez répondu. La raison est facultative et s'affiche dans la confirmation.
+  - /purge [count=<n>] [raison] : supprime tous les messages entre celui-ci et le message auquel vous avez répondu, ou seulement les <n> premiers quand count=<n> est donné. La raison est facultative et s'affiche dans la confirmation.
 
   - /del : supprime le message auquel vous avez répondu.
 
   - /purgefrom : marque le message auquel vous avez répondu comme début de la plage à supprimer (utilisez ensuite /purgeto).
 
   - /purgeto <raison> : supprime tous les messages depuis la marque /purgefrom jusqu'au message auquel vous avez répondu. La raison est facultative et s'affiche dans la confirmation.
+
+  - /spurge [count=<n>] [raison] : comme /purge mais sans le message de confirmation.
 
 
   *Exemples* :
@@ -1374,6 +1376,8 @@ purges_need_purgefrom: Vous ne pouvez utiliser cette commande qu'après avoir ut
 purges_use_del_single: Utilisez la commande /del pour supprimer un seul message !
 purges_reply_to_purgeto: Répondez à un message pour me montrer jusqu'où supprimer.
 purges_limit_exceeded: "Impossible de supprimer plus de %d messages à la fois ! Veuillez sélectionner une plage plus petite."
+purges_forum_scope: "Impossible de prouver que cette suppression reste dans un seul sujet du forum, elle a donc été refusée. Dans les forums, seul count=1 dans un même sujet est autorisé."
+purges_invalid_count: "Nombre invalide : utilisez un entier positif, par ex. /purge count=10."
 
 # Reports module strings
 reports_help_msg:
@@ -1973,13 +1977,18 @@ purges_extended_docs: |
   • <b>Limite d'âge des messages :</b> Les messages de plus de 48 heures peuvent ne pas être supprimables (restriction API Telegram)
   • <b>Permissions requises :</b> L'utilisateur et le bot doivent avoir la permission "Supprimer des Messages"
 
+  <b>Suppressions sélectives et silencieuses :</b>
+  <code>/purge count=&lt;n&gt;</code> ne supprime que les &lt;n&gt; premiers messages à partir de la réponse ; tout autre argument est affiché comme raison. Un count mal formé est refusé au lieu d'élargir la suppression.
+  <code>/spurge</code> accepte les mêmes arguments mais n'envoie pas de confirmation.
+  Dans les groupes forum, les ID de messages s'entremêlent entre sujets, donc les nouvelles formes sont restreintes : les suppressions avec <code>count=&lt;n&gt;</code> et <code>/spurge</code> ne s'exécutent qu'en <code>count=1</code> — elles ne suppriment que le message cité et la commande — et uniquement quand la commande et le message cité sont dans le même sujet nommé ; toute nouvelle forme plus large est refusée. Un <code>/purge</code> hérité sans <code>count=</code> conserve son comportement précédent. Cela ne s'applique pas à la plage /purgefrom + /purgeto, qui conserve son comportement précédent.
+
 purges_notes_docs: |
   <b>Notes :</b>
   • Le marqueur <code>/purgefrom</code> expire après 30 secondes s'il n'est pas suivi par <code>/purgeto</code>
   • La suppression de grandes plages utilise un traitement concurrent pour de meilleures performances
   • Les messages de statut (montrant combien de messages ont été supprimés) s'auto-suppriment après 3 secondes
   • Le bot gère gracieusement les messages déjà supprimés sans erreurs
-
+  • Dans les groupes forum, les suppressions avec <code>count=&lt;n&gt;</code> et <code>/spurge</code> ne s'exécutent qu'en <code>count=1</code>, et uniquement dans un même sujet nommé ; les nouvelles formes plus larges sont refusées, tandis qu'un <code>/purge</code> hérité sans <code>count=</code> reste inchangé
 # Reports module extended documentation
 reports_extended_docs: |
   <b>Comment ça fonctionne :</b>
@@ -3108,6 +3117,7 @@ purges_extend_msg: |
   /purge — tout supprimer à partir du message cité
   /purgefrom — marquer le début d'une plage à supprimer
   /purgeto — supprimer jusqu'au message cité
+  /spurge — purger sans le message de confirmation
 reactions_extend_msg: |
   /addreaction — réagir par un emoji à un mot-clé
   /removereaction — retirer la réaction à un mot-clé
