@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# Prepare an Alita Robot orb: Go toolchain, golangci-lint, PostgreSQL 18, Redis,
+# Go modules, and docs dependencies.
+#
+# This script is idempotent and safe to rerun on a warm snapshot. It never
+# starts a long-lived process: the databases are declared in
+# .amp/services.yaml and started with `amp orb services ensure`.
+set -euo pipefail
+
+GO_VERSION="1.27.4"
+GOLANGCI_LINT_VERSION="2.15.0"
+PG_MAJOR="18"
+PGDATA="$HOME/.local/share/alita/pgdata"
+PG_BIN="/usr/lib/postgresql/$PG_MAJOR/bin"
+# A port that cannot collide with the supervised instance on 5432; used only
+# while seeding databases, then the server is stopped again.
+PG_SETUP_PORT="55432"
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+START=$SECONDS
+log() { printf '==> %3ss  %s\n' "$((SECONDS - START))" "$*"; }
+
+as_root() {
+	if [ "$(id -u)" -eq 0 ]; then
+		"$@"
+	else
+		sudo -n "$@"
+	fi
+}
+
+arch="$(dpkg --print-architecture)"
+
+# --- System packages -------------------------------------------------------
+need_apt=false
+if [ ! -x "$PG_BIN/postgres" ] || ! command -v redis-server >/dev/null 2>&1; then
+	need_apt=true
+fi
+for pkg in build-essential ca-certificates curl git; do
+	dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed" || need_apt=true
+done
+
+if [ "$need_apt" = true ]; then
+	# PGDG ships PostgreSQL 18 for Debian bookworm; Debian itself stops at 15.
+	if [ ! -x "$PG_BIN/postgres" ]; then
+		log "adding the PostgreSQL apt repository"
+		curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /tmp/pgdg.asc
+		as_root install -D -m 0644 /tmp/pgdg.asc /usr/share/keyrings/postgresql.asc
+		rm -f /tmp/pgdg.asc
+		codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+		echo "deb [signed-by=/usr/share/keyrings/postgresql.asc] https://apt.postgresql.org/pub/repos/apt $codename-pgdg main" |
+			as_root tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+	fi
+
+	log "refreshing the apt package index"
+	as_root env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+
+	missing=()
+	for pkg in build-essential ca-certificates curl git redis-server; do
+		dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed" || missing+=("$pkg")
+	done
+	if ((${#missing[@]} > 0)); then
+		log "installing apt packages: ${missing[*]}"
+		as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}"
+	fi
+
+	if [ ! -x "$PG_BIN/postgres" ]; then
+		# Install postgresql-common first so the main cluster is not created:
+		# this orb runs one cluster in $PGDATA as the current user.
+		as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-common
+		echo "create_main_cluster = false" | as_root tee /etc/postgresql-common/createcluster.conf >/dev/null
+		log "installing PostgreSQL $PG_MAJOR"
+		as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "postgresql-$PG_MAJOR"
+	fi
+fi
+
+# --- Go toolchain ----------------------------------------------------------
+installed_go=""
+if command -v go >/dev/null 2>&1; then
+	installed_go="$(go version 2>/dev/null | awk '{print $3}')"
+fi
+if [ "$installed_go" != "go$GO_VERSION" ]; then
+	log "installing Go $GO_VERSION"
+	tmpdir="$(mktemp -d)"
+	trap 'rm -rf "$tmpdir"' EXIT
+	curl -fsSL "https://go.dev/dl/go$GO_VERSION.linux-$arch.tar.gz" -o "$tmpdir/go.tar.gz"
+	as_root rm -rf /usr/local/go
+	as_root tar -C /usr/local -xzf "$tmpdir/go.tar.gz"
+	as_root ln -sf /usr/local/go/bin/go /usr/local/bin/go
+	as_root ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+	rm -rf "$tmpdir"
+	trap - EXIT
+fi
+export PATH="/usr/local/go/bin:$PATH"
+
+# --- golangci-lint ---------------------------------------------------------
+if ! command -v golangci-lint >/dev/null 2>&1 ||
+	! golangci-lint --version 2>/dev/null | grep -q "$GOLANGCI_LINT_VERSION"; then
+	log "installing golangci-lint $GOLANGCI_LINT_VERSION"
+	tmpdir="$(mktemp -d)"
+	trap 'rm -rf "$tmpdir"' EXIT
+	curl -fsSL "https://github.com/golangci/golangci-lint/releases/download/v$GOLANGCI_LINT_VERSION/golangci-lint-$GOLANGCI_LINT_VERSION-linux-$arch.tar.gz" -o "$tmpdir/lint.tar.gz"
+	tar -C "$tmpdir" -xzf "$tmpdir/lint.tar.gz"
+	as_root install -m 0755 "$tmpdir/golangci-lint-$GOLANGCI_LINT_VERSION-linux-$arch/golangci-lint" /usr/local/bin/golangci-lint
+	rm -rf "$tmpdir"
+	trap - EXIT
+fi
+
+# --- PostgreSQL cluster ----------------------------------------------------
+if [ ! -f "$PGDATA/PG_VERSION" ]; then
+	log "initializing PostgreSQL $PG_MAJOR in $PGDATA"
+	install -d -m 0700 "$PGDATA"
+	"$PG_BIN/initdb" --pgdata="$PGDATA" --username=postgres --auth=trust \
+		--encoding=UTF8 --locale=C >/dev/null
+fi
+
+if ! grep -qF "# Alita orb tuning" "$PGDATA/postgresql.conf"; then
+	cat >>"$PGDATA/postgresql.conf" <<'EOF'
+
+# Alita orb tuning: development data is disposable, so trade durability for speed.
+fsync = off
+synchronous_commit = off
+full_page_writes = off
+listen_addresses = '127.0.0.1'
+max_connections = 200
+EOF
+fi
+
+pg_started_here=false
+if "$PG_BIN/pg_ctl" --pgdata="$PGDATA" status >/dev/null 2>&1; then
+	# The supervised service owns the running cluster; postmaster.pid names its
+	# port and socket directory.
+	pg_port="$(sed -n '4p' "$PGDATA/postmaster.pid")"
+	pg_host="$(sed -n '5p' "$PGDATA/postmaster.pid")"
+else
+	log "seeding the development databases"
+	"$PG_BIN/pg_ctl" --pgdata="$PGDATA" --log="$PGDATA/setup.log" \
+		--options="-p $PG_SETUP_PORT -k /tmp" --wait start >/dev/null
+	pg_started_here=true
+	pg_host="/tmp"
+	pg_port="$PG_SETUP_PORT"
+fi
+
+psql -h "$pg_host" -p "$pg_port" -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+	-c "ALTER USER postgres PASSWORD 'postgres'"
+for database in alita_robot alita_test alita_chain; do
+	if [ "$(psql -h "$pg_host" -p "$pg_port" -U postgres -d postgres -tAc \
+		"SELECT 1 FROM pg_database WHERE datname = '$database'")" != "1" ]; then
+		createdb -h "$pg_host" -p "$pg_port" -U postgres "$database"
+	fi
+done
+
+if [ "$pg_started_here" = true ]; then
+	"$PG_BIN/pg_ctl" --pgdata="$PGDATA" --mode=fast --wait stop >/dev/null
+fi
+
+# --- Development environment ----------------------------------------------
+# Makes `make run` work from the repository root; test binaries run in their
+# package directories and need the variables exported, as CI does. A real
+# environment token always wins over these placeholders.
+if [ ! -f .env ]; then
+	log "creating a development .env"
+	cat >.env <<'EOF'
+# Created by .agents/setup. Replace BOT_TOKEN, OWNER_ID and MESSAGE_DUMP to run
+# the bot against Telegram; the database and Redis addresses match
+# .amp/services.yaml.
+BOT_TOKEN=test-token
+OWNER_ID=1
+MESSAGE_DUMP=1
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/alita_robot?sslmode=disable
+REDIS_ADDRESS=localhost:6379
+AUTO_MIGRATE=true
+USE_WEBHOOKS=false
+DEBUG=false
+EOF
+fi
+
+# --- Project dependencies --------------------------------------------------
+log "downloading Go modules"
+go mod download
+(cd scripts/check_translations && go mod download)
+
+log "warming the Go build cache"
+go build ./...
+
+if command -v bun >/dev/null 2>&1 && [ -f docs/bun.lock ]; then
+	log "installing docs dependencies"
+	(cd docs && bun install --frozen-lockfile >/dev/null)
+fi
+
+log "setup complete"

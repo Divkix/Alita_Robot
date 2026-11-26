@@ -43,5 +43,8 @@ specs/.current-spec
 # Local make inventory output
 .planning/
 
+# Amp orb portal state (generated; services live in .amp/services.yaml)
+.amp/portals/
+
 # Lean build cache
 formal/antiflood/lean/.lake/
