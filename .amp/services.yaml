@@ -1,0 +1,17 @@
+# Long-running development services for Alita Robot.
+# Start them with `amp orb services ensure`; the data directory is initialized
+# by .agents/setup and survives in the project snapshot.
+services:
+  postgres:
+    platforms: [linux]
+    # Port 5432 matches sample.env and the CI test environment.
+    port: 5432
+    command: >-
+      /usr/lib/postgresql/18/bin/postgres
+      -D "$HOME/.local/share/alita/pgdata" -p "$PORT" -k /tmp
+  redis:
+    platforms: [linux]
+    port: 6379
+    command: >-
+      redis-server --port "$PORT" --bind 127.0.0.1
+      --save "" --appendonly no --dir /tmp
